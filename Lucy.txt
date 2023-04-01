@@ -1,0 +1,32 @@
+Hello and welcome everyone, today I'm going to share with you the new application I developed on top of the Chat-GPT 3.5 turbo engine.
+I named it Lucy after the movie Lucy of Scarlett Johansson. I really liked it.
+
+First off I didn't like the playground that is provisioned by the openAI website. So I decided to make up my own play ground.
+I added couple of cool feature to it, like Oral interactivity, Text interactivity and loading text from PDF files.
+
+Let us get started.
+
+As you notice at the top here, we have this slider button to enable the direct voice commands, as I can't speak to you and Lucy at the same time.
+So whenever I want to speak to you I'll disable the voice prompt, then I'll re-enable it back once I want to talk to Lucy.
+
+**Now let us give the first command:
+
+Hello Lucy, how are you?
+
+List me the names of boy bands in the 90's, please.
+
+**Now we can test the continuity of the conversation.
+
+What is the hits of bsb?
+
+**Now let us test the ability of drawing pictures:
+Draw me a picture of Nick Carter of the Backstreet Boys.
+
+**Now let us test the text propmpt:
+What is the greatest hits of Backstreet Boys?
+
+**Now let us demostrate the feature of loading text from PDF file
+First I'll load a file that contains little bio of Kevin Richardson of BSB, then let us try to let Chat GPT summerize it.
+
+That was the end of my demo, thanks so much for watching and please don't forget to like the video, subscribe to my channel and enable the notification bell.
+See you in another video.

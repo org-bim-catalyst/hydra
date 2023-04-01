@@ -1,0 +1,94 @@
+﻿@page
+@model LoginModel
+
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<section class="vh-100">
+    <div class="container py-5 h-100">
+        <div class="row d-flex align-items-center justify-content-center h-100">
+            <div class="col-md-8 col-lg-7 col-xl-6">
+                <img src="/img/login_bg.png" class="img-fluid img-thumbnail shadow-4-strong" alt="Login image">
+            </div>
+            <div class="col-md-7 col-lg-5 col-xl-5 offset-xl-1">
+                <div class="divider d-flex align-items-center my-4">
+                    <h1 class="text-primary fw-bold mx-3 text-center" style="font-family: var(--mdb-font-roboto);">Ask Lucy</h1>
+                </div>
+                <form id="account" method="post">
+                    <!-- Email input -->
+                    <div class="form-outline mb-4">
+                            <input asp-for="Input.Email" class="form-control form-control-lg" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                            <label asp-for="Input.Email" class="form-label">Email</label>
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                    </div>
+
+                    <!-- Password input -->
+                    <div class="form-outline mb-4">
+                        <input asp-for="Input.Password" class="form-control form-control-lg" autocomplete="current-password" aria-required="true" placeholder="password" />
+                        <label asp-for="Input.Password" class="form-label">Password</label>
+                        <span asp-validation-for="Input.Password" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-around align-items-center mb-4">
+                        <!-- Checkbox -->
+                        <div class="form-check">
+                            <label asp-for="Input.RememberMe" class="form-check-label">@Html.DisplayNameFor(m => m.Input.RememberMe)</label> 
+                            <input class="form-check-input" asp-for="Input.RememberMe" />
+                        </div>
+                        <a id="forgot-password" asp-page="./ForgotPassword">Forgot password?</a>
+                        <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Register as a new user</a>
+                    </div>
+
+                    <!-- Submit button -->
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">Sign in</button>
+
+                    <div class="divider d-flex align-items-center my-4">
+                        <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
+                    </div>
+                </form>
+                @{
+                    if ((Model.ExternalLogins?.Count ?? 0) == 0)
+                    {
+                        <div>
+                            <p>
+                                There are no external authentication services configured. See this <a href="https://go.microsoft.com/fwlink/?LinkID=532715">
+                                    article
+                                    about setting up this ASP.NET application to support logging in via external services
+                                </a>.
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="form-horizontal">
+                            <div>
+                                <p>
+                                    @foreach (var provider in Model.ExternalLogins!)
+                                    {
+                                        switch (provider.Name)
+                                        {
+                                            case "Facebook":
+                                                <button type="submit" class="btn btn-primary btn-lg btn-block" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account" style="background-color: #3b5998"><i class="fab fa-facebook-f me-2"></i>Continue with @provider.DisplayName</button>
+                                                break;
+                                            case "Google":
+                                                <button type="submit" class="btn btn-primary btn-lg btn-block" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account" style="background-color: #dd4b39"><i class="fab fa-google me-2"></i>Continue with @provider.DisplayName</button>
+                                                break;
+                                            default:
+                                                break;
+                                        }
+
+                                    }
+                                </p>
+                            </div>
+                        </form>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
