@@ -24,11 +24,14 @@ public class ChatGPT_ClientContext : IdentityDbContext<IdentityUser>
     }
     private void SeedUsers(ModelBuilder builder)
     {
+        //https://frankofoedu.medium.com/how-to-seed-identity-role-with-associated-user-in-asp-net-core-ef-core-e40ecd643d0f
         IdentityUser user = new IdentityUser()
         {
             Id = "0eb8f096-33c7-45c5-9160-fd9cdd053e97",
             UserName = "mustafa.salaheldin@yahoo.com",
+            NormalizedUserName = "MUSTAFA.SALAHELDIN@YAHOO.COM",
             Email = "mustafa.salaheldin@yahoo.com",
+            NormalizedEmail = "MUSTAFA.SALAHELDIN@YAHOO.COM",
             LockoutEnabled = false,
             PhoneNumber = "00971501342563"
         };
@@ -36,8 +39,6 @@ public class ChatGPT_ClientContext : IdentityDbContext<IdentityUser>
         PasswordHasher<IdentityUser> passwordHasher = new PasswordHasher<IdentityUser>();
         
         user.PasswordHash = passwordHasher.HashPassword(user, "Ms@191981");
-        user.NormalizedEmail = user.Email.ToUpper();
-        user.NormalizedUserName = user.UserName.ToUpper();
 
         builder.Entity<IdentityUser>().HasData(user);
     }
