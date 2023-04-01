@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using AskLucy.Data;
 using AskLucy.Services;
+using System.Net;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
 var builder = WebApplication.CreateBuilder(args);
@@ -85,6 +86,14 @@ builder.Services.AddAuthentication()
    //    twitterOptions.RetrieveUserDetails = true;
    //})
    ;
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHttpsRedirection(options =>
+    {
+        options.RedirectStatusCode = (int)HttpStatusCode.PermanentRedirect;
+        options.HttpsPort = 443;
+    });
+}
 
 var app = builder.Build();
 
