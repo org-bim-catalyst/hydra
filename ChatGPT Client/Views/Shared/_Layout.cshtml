@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Ask Lucy - @ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link href="~/lib/font-awesome/css/all.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" />
+    <link rel="stylesheet" href="~/dev/css/micon.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/mdb.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/dev/css/new-prism.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap-multiselect/css/bootstrap-multiselect.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+</head>
+<body>
+    @RenderBody()
+    <script type="text/javascript" src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript" src="~/js/mdb.min.js" asp-append-version="true"></script>
+    @*<script type="text/javascript" src="~/js/core.min.js" asp-append-version="true"></script>
+    <script type="text/javascript" src="~/js/search.min.js" asp-append-version="true"></script>
+    <script type="text/javascript" src="~/js/main.min.js" asp-append-version="true"></script>*@
+    <script type="text/javascript" src="~/js/site.js" asp-append-version="true"></script>
+@*    <script id="__bs_script__">
+        //<![CDATA[
+        (function () {
+            try {
+                var script = document.createElement('script');
+                if ('async') {
+                    script.async = true;
+                }
+                script.src = 'https://HOST:3002/browser-sync/browser-sync-client.js?v=2.29.0'.replace("HOST", location.hostname);
+                if (document.body) {
+                    document.body.appendChild(script);
+                }
+            } catch (e) {
+                console.error("Browsersync: could not append script tag", e);
+            }
+        })()
+        //]]></script>*@
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

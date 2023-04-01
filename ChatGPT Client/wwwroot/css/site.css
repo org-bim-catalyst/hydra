@@ -1,0 +1,170 @@
+html {
+    font-size: 14px;
+    height: 100%;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+/*.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}*/
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin-bottom: 60px;
+}
+
+.shadow-demo {
+    width: 100px;
+    height: 100px;
+    background-color: #fff;
+}
+
+.shadow-demo-1 {
+    width: 100px;
+    height: 100px;
+    background-color: #ccc;
+}
+
+.shadow-demo-2 {
+    width: 100px;
+    height: 100px;
+    background-color: #000;
+}
+
+/*.mask-custom {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+    border: 0;
+    background-clip: padding-box;
+    box-shadow: 10px 10px 10px rgba(46, 54, 68, 0.03);
+}*/
+
+.custom-1 {
+    backdrop-filter: blur(30px);
+}
+
+.custom-2 {
+    backdrop-filter: blur(60px);
+}
+
+.custom-3 {
+    backdrop-filter: blur(40px);
+}
+
+.custom-4 {
+    backdrop-filter: blur(15px);
+}
+
+.custom-5 {
+    backdrop-filter: blur(5px);
+}
+
+/*.mask-custom-1 {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 0;
+    border: 0;
+    background-clip: padding-box;
+    box-shadow: 10px 10px 10px rgba(46, 54, 68, 0.03);
+}*/
+
+.custom-6 {
+    backdrop-filter: blur(30px);
+}
+
+.custom-7 {
+    backdrop-filter: blur(60px);
+}
+
+.custom-8 {
+    backdrop-filter: blur(40px);
+}
+
+.custom-9 {
+    backdrop-filter: blur(15px);
+}
+
+.custom-10 {
+    backdrop-filter: blur(5px);
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background-color: #EFEFFF;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: .25rem;
+    height: .25rem;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #3b71ca;
+    border-radius: 20px;
+}
+
+/*********************** Preview /************************/
+.dropdown-item, .dropdown-item > * {
+    cursor: pointer;
+}
+
+.multiselect-container li.active {
+    /*background-image: url(https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678134-sign-check-128.png);*/
+    background-repeat: no-repeat;
+    background-position: 1.25rem 50%;
+    background-size: 15px;
+    color: #00913b;
+    background-color: transparent;
+    border-left: 4px solid #00913b;
+}
+
+.multiselect-container li label {
+    display: block;
+}
+
+.multiselect-container li.active > a {
+    font-weight: 600;
+    color: #00913b;
+}
+
+.dropdown-item input {
+    display: none;
+}
+
+.dropdown-menu {
+    overflow-y: auto;
+    height: 450px;
+}
+    .dropdown-menu > .active > a {
+        background-color: transparent;
+    }
+
+.dropdown-item {
+    margin-bottom: 0;
+    padding: 10px 25px;
+    cursor: pointer;
+    border-bottom: 1px solid #dee2e6;
+    line-height: 1;
+}
+
+.divider:after,
+.divider:before {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #eee;
+}
+
+.container-fluid {
+    background-image: url(/img/vecteezy_abstract-blue-background-simple-design-for-your-website_6852804.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
