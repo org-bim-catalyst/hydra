@@ -168,3 +168,30 @@ body {
     background-repeat: no-repeat;
     background-size: cover;
 }
+
+@media only screen and (max-width: 375px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 312px; /*443px;*/
+        padding: 14px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
+    }
+}
+
+@media only screen and (min-width: 600px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 443px;
+        padding: 14px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
+    }
+}
+
+
+
