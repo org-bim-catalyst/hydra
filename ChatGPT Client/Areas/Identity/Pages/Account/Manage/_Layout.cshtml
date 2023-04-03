@@ -1,5 +1,5 @@
 ﻿@{
-    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout !=  null)
+    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout != null)
     {
         Layout = parentLayout.ToString();
     }
@@ -9,20 +9,47 @@
     }
 }
 
-<h1>Manage your account</h1>
+<section>
+    <div class="container-fluid m-0">
+        <section style="height: 100vh;">
+            <div class="bg-image h-100 w-100">
+                <div class="d-md-flex mt-3 align-items-center h-100">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card" style="height: auto;">
+                                    <div class="card-header">
+                                        <h2>Change your account settings</h2>
+                                    </div>
 
-<div>
-    <h2>Change your account settings</h2>
-    <hr />
-    <div class="row">
-        <div class="col-md-3">
-            <partial name="_ManageNav" />
-        </div>
-        <div class="col-md-9">
-            @RenderBody()
-        </div>
+                                    <div class="card-body" id="div-chat-dialogue">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="card" style="height: auto;">
+                                                    <div class="card-body">
+                                                        <partial name="_ManageNav" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-9">
+                                                <div class="card" style="height: auto;">
+                                                    <div class="card-body">
+                                                        @RenderBody()
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
-</div>
+</section>
 
 @section Scripts {
     @RenderSection("Scripts", required: false)
