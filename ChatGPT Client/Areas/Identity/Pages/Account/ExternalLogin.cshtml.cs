@@ -173,9 +173,12 @@ namespace AskLucy.Areas.Identity.Pages.Account
                             values: new { area = "Identity", userId = userId, code = code },
                             protocol: Request.Scheme);
 
-                        //I disabled this line as it was throeing exception after trying to connect mail to gmail account
-                        //await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
-                        //    $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                        //I disabled this line as it was throwing exception after trying to connect mail to gmail account
+                        if (_userManager.Options.SignIn.RequireConfirmedEmail)
+                        {
+                            await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
+                            $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                        }
 
                         // If account confirmation is required, we need to show the link if we don't have a real email sender
                         if (_userManager.Options.SignIn.RequireConfirmedAccount)

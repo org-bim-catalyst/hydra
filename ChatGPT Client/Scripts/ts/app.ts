@@ -16,6 +16,7 @@ import "bootstrap-multiselect";
 //https://ourcodeworld.com/articles/read/405/how-to-convert-pdf-to-text-extract-text-from-pdf-with-javascript
 
 import * as moment from 'moment';
+import tinymce from "tinymce";
 
 export default class app {
 
@@ -59,6 +60,15 @@ export default class app {
                 this.addToChatBox(textPage);
             });
         });
+
+        //tinymce.init({
+        //    selector: "[data-emojiable='true']",
+        //    plugins: "emoticons autoresize",
+        //    toolbar: "emoticons",
+        //    toolbar_location: "bottom",
+        //    menubar: false,
+        //    statusbar: false
+        //});
     }
 
     private initUi() {
@@ -85,6 +95,7 @@ export default class app {
             event.preventDefault();
 
             let msg = $('#textArea-message').val().toString();
+            //let msg = tinymce.activeEditor.getContent();
 
             this.addToChatWindow(msg).then(() => {
 
@@ -94,6 +105,7 @@ export default class app {
                 diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
                 $('#textArea-message').val('');
+                //tinymce.activeEditor.setContent('');
 
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                     this.voiceRecognizer.Draw(this.voiceRecognizer.diagnostic, msg);
@@ -160,7 +172,8 @@ export default class app {
 
     private addToChatBox(textPage: string) {
 
-        $('#textArea-message').val(textPage).focus();
+        $('#textArea-message').val(textPage).trigger('focus');
+        //tinymce.activeEditor.setContent(`<p>${textPage}</p>`);
     }
 
 
@@ -775,7 +788,7 @@ class Equalizer {
                 analyser.getByteFrequencyData(dataArray);
 
                 //console.log(dataArray.length);
-                const svg = d3.select('svg');
+                const svg = d3.select('.svg-visualizer');
                 svg.attr('background-color', 'white');
                 svg.selectAll('*').remove();
                 const margin = {

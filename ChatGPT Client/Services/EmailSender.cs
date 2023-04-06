@@ -32,7 +32,7 @@ namespace AskLucy.Services
             var client = new SendGridClient(apiKey);
             var msg = new SendGridMessage()
             {
-                From = new EmailAddress("no-reply@ask-lucy.com", "Password Recovery"),
+                From = new EmailAddress("no-reply@asklucy.io", "Ask Lucy"),
                 Subject = subject,
                 PlainTextContent = message,
                 HtmlContent = message
