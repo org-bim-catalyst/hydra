@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using AskLucy.Data;
 using AskLucy.Services;
 using System.Net;
+using AskLucy.Areas.Identity.Models;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
 var builder = WebApplication.CreateBuilder(args);
@@ -16,7 +17,7 @@ var connectionString = builder.Configuration.GetConnectionString("ChatGPT_Client
 
 builder.Services.AddDbContext<ChatGPT_ClientContext>(options => options.UseSqlServer(connectionString));
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<ChatGPT_ClientContext>();
+builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<ChatGPT_ClientContext>();
 
 builder.Services.AddRazorPages();
 
