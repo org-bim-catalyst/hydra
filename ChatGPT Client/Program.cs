@@ -24,6 +24,17 @@ builder.Services.AddRazorPages();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.Configure<AuthMessageSenderOptions>(builder.Configuration);
 
+string CorsAllowAllOrigins = "_corsAllowAllOrigins";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: CorsAllowAllOrigins,
+                      builder =>
+                      {
+                          builder.WithOrigins("*");
+                      });
+});
+
 builder.Services.Configure<IdentityOptions>(options =>
 {
     // Password settings.
@@ -110,6 +121,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();

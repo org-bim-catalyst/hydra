@@ -24,7 +24,7 @@ export default class app {
     private voiceRecognizer: VoiceRecognizer;
     private equalizer: Equalizer;
 
-    constructor() {
+    constructor(private userFirstName: string, private profilePicture: string) {
 
         let welcomeMsg = `<div class="modal fade show" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-modal="true" role="dialog" style="display: block;">
                              <div class="modal-dialog modal-dialog-centered">
@@ -88,8 +88,8 @@ export default class app {
         //    placeholder: 'Select a fruit',
         //});
 
-        this.voiceRecognizer = new VoiceRecognizer();
-        this.equalizer = new Equalizer();
+        this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
+        this.equalizer = new Equalizer(this.profilePicture);
 
         $('#button-send-message').on('click', (event) => {
             event.preventDefault();
@@ -97,7 +97,7 @@ export default class app {
             let msg = $('#textArea-message').val().toString();
             //let msg = tinymce.activeEditor.getContent();
 
-            this.addToChatWindow(msg).then(() => {
+            this.addToChatWindow(msg, this.userFirstName).then(() => {
 
                 let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
                 let lastMsg = document.getElementsByClassName('direct-chat-msg');
@@ -143,17 +143,17 @@ export default class app {
         });
     }
 
-    private addToChatWindow(textPage: string) {
+    private addToChatWindow(textPage: string, userFirstName: string) {
 
         return new Promise((resolve, reject) => {
             try {
                 let li: HTMLLIElement = document.createElement('li');
                 li.classList.add(...['d-flex', 'justify-content-between', 'mb-4', 'direct-chat-msg']);
-                li.innerHTML = `<img src="/img/mustafa.png" alt="avatar"
+                li.innerHTML = `<img src="${this.profilePicture}" alt="avatar"
                                                      class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between p-3">
-                                                        <p class="fw-bold mb-0">Mustafa</p>
+                                                        <p class="fw-bold mb-0">${userFirstName}</p>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
@@ -250,7 +250,7 @@ class VoiceRecognizer {
     private conversation: any[];
     private language: string = "en-GB";
 
-    constructor() {
+    constructor(private userFirstName: string, private profilePicture: string) {
 
         this.grammar = '#JSGF V1.0; grammar colors; public <color> = aqua | azure | beige | bisque | black | blue | brown | chocolate | coral | crimson | cyan | fuchsia | ghostwhite | gold | goldenrod | gray | green | indigo | ivory | khaki | lavender | lime | linen | magenta | maroon | moccasin | navy | olive | orange | orchid | peru | pink | plum | purple | red | salmon | sienna | silver | snow | tan | teal | thistle | tomato | turquoise | violet | white | yellow ;'
 
@@ -351,11 +351,11 @@ class VoiceRecognizer {
             let results = event.results;
             const msg = results.item(results.length - 1)[0].transcript;
             this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg" dir="auto">
-                                                <img src="/img/mustafa.png" alt="avatar"
+                                                <img src="${profilePicture}" alt="avatar"
                                                      class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between p-3">
-                                                        <p class="fw-bold mb-0">Mustafa</p>
+                                                        <p class="fw-bold mb-0">${userFirstName}</p>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
@@ -383,15 +383,15 @@ class VoiceRecognizer {
             this.recognition.stop();
         }
 
-        this.conversation = [{ "role": "user", "content": "Good Morning, my name is Mustafa." },
-        { "role": "assistant", "content": "Good morning Mustafa, How may I assest you today?" },
+        this.conversation = [{ "role": "user", "content": `Good Morning, my name is ${userFirstName}.` },
+            { "role": "assistant", "content": `Good morning ${userFirstName}, How may I assest you today?` },
         {
             "role": "user", "content": "What is your name?"
         },
         { "role": "assistant", "content": "My Name is Lucy." }, {
             "role": "user", "content": "Hello Lucy."
         },
-        { "role": "assistant", "content": "Hello Mustafa." }];
+            { "role": "assistant", "content": `Hello ${userFirstName}.` }];
     }
 
     start() {
@@ -490,7 +490,7 @@ class VoiceRecognizer {
 
                                     console.log(stream.getAudioTracks()[0].label);
 
-                                    let equalizer = new Equalizer(stream);
+                                    let equalizer = new Equalizer(this.profilePicture, stream);
 
                                     console.log('stream.active: ', stream.getAudioTracks().length);
                                 }).catch(error => console.error( error));
@@ -565,7 +565,7 @@ class VoiceRecognizer {
 
 class Equalizer {
 
-    constructor(stream?: MediaStream) {
+    constructor(private profilePicture: string, stream?: MediaStream) {
         //$(document).on('click', 'img', () => {
 
         // Set up forked web audio context, for multiple browsers
@@ -600,7 +600,7 @@ class Equalizer {
                         source.connect(gainNode);
                         gainNode.connect(analyser);
                         //analyser.connect(audioCtx.destination);
-                        this.visualize3d(analyser);
+                        this.visualizeD3(analyser);
                     })
                     .catch(function (err) {
                         console.log("The following gUM error occured: " + err);
@@ -616,7 +616,7 @@ class Equalizer {
             source.connect(gainNode);
             gainNode.connect(analyser);
 
-            this.visualize3d(analyser);
+            this.visualizeD3(analyser);
         }
     }
 
@@ -763,7 +763,7 @@ class Equalizer {
         }
     }
 
-    visualize3d(analyser: AnalyserNode) {
+    visualizeD3(analyser: AnalyserNode) {
 
         let visualSetting = "sinewave";
         console.log(visualSetting);
@@ -778,9 +778,9 @@ class Equalizer {
             //const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
 
-            console.log(bufferLength);
+            console.log(this.profilePicture);
 
-            const render = function () {
+            const render = () => {
 
                 let drawVisual = requestAnimationFrame(render);
 
@@ -824,7 +824,7 @@ class Equalizer {
                     .domain([0, length])
                     .range([0, Math.PI * 2]);
 
-                const data = d3.range(length).map(function (d, i) {
+                const data = d3.range(length).map((d, i)=> {
                     return {
                         angle: radialScale(d),
                         radius: xScale(radius) + (dataArray[i] / 128.0) * amplitude
@@ -849,7 +849,8 @@ class Equalizer {
                 catpattern.append("image")
                     .attr("height", 150)
                     .attr("width", 150)
-                    .attr("xlink:href", '/img/mustafa.png');
+                    .attr("xlink:href", () => { return this.profilePicture; })
+                    .attr("preserveAspectRatio","none");
 
                 vis.append("circle")
                     .attr("r", 75)
