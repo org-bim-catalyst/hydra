@@ -5,6 +5,8 @@ using AskLucy.Data;
 using AskLucy.Services;
 using System.Net;
 using AskLucy.Areas.Identity.Models;
+using static System.Formats.Asn1.AsnWriter;
+using System.Security.Claims;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
 var builder = WebApplication.CreateBuilder(args);
@@ -79,12 +81,33 @@ builder.Services.AddAuthentication()
        IConfigurationSection googleAuthNSection = builder.Configuration.GetSection("Authentication:Google");
        options.ClientId = googleAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = googleAuthNSection.GetValue<string>("ClientSecret")!;
+       options.Scope.Add("picture");
+
+       options.Events.OnCreatingTicket = (context) =>
+       {
+           string? picture = context.User.GetProperty("picture").GetString();
+
+           context.Identity!.AddClaim(new Claim("picture", picture!));
+           
+           return Task.CompletedTask;
+       };
    })
    .AddFacebook(options =>
    {
+       //https://stackoverflow.com/questions/45855660/how-to-retrieve-facebook-profile-picture-from-logged-in-user-with-asp-net-core-i
        IConfigurationSection FBAuthNSection = builder.Configuration.GetSection("Authentication:FB");
        options.ClientId = FBAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = FBAuthNSection.GetValue<string>("ClientSecret")!;
+       options.Fields.Add("picture");
+
+       options.Events.OnCreatingTicket = (context) =>
+       {
+           var picture = context.User.GetProperty("picture").GetProperty("data").GetProperty("url").ToString();
+
+           context.Identity!.AddClaim(new Claim("picture", picture!));
+
+           return Task.CompletedTask;
+       };
    })
    //.AddMicrosoftAccount(microsoftOptions =>
    //{

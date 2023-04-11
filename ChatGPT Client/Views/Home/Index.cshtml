@@ -40,7 +40,7 @@
                                             </div>
                                         </li>
                                         </ul>
-                                        <button type="button" class="btn btn-primary btn-rounded" data-mdb-toggle="modal" data-mdb-target="#modal-upload-file"><i class="fas fa-file-upload"></i> <span>upload</span></button>
+                                        <button type="button" class="btn btn-warning btn-rounded" data-mdb-toggle="modal" data-mdb-target="#modal-upload-file"><i class="fas fa-paperclip"></i> <span>upload</span></button>
                                         <button type="button" class="btn btn-secondary btn-rounded float-end" id="button-send-message"><i class="fas fa-paper-plane"></i> <span>Send</span></button>
                                     </div>
                                 </div>
@@ -98,12 +98,12 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Please select file to upload</h5>
+                    <h5 class="modal-title" id="exampleModalLabel"><i class="fas fa-paperclip"></i> Attach file to conversation:</h5>
                     <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label" for="customFile">PDF file:</label>
-                    <input type="file" class="form-control" id="customFile" />
+                    @*<label class="form-label" for="customFile">Please select file to upload</label>*@
+                    <input type="file" class="form-control btn-outline-primary" id="customFile" />
                     <div class="progress mt-3">
                         <div class="progress-bar" 
                              id="progress-pdf-parser"
@@ -114,7 +114,9 @@
                              aria-valuemax="100">
                          </div>
                     </div>
-
+                    <p class="note note-warning mt-3">
+                        <strong>File info:</strong> <span id="span-file-info">No file is loaded.</span>
+                    </p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Close</button>

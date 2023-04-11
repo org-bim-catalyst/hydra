@@ -55,10 +55,32 @@ export default class app {
 
         $('input[type="file"]').on('change', (event) => {
             event.preventDefault();
-            let filepath = URL.createObjectURL((event.target as HTMLInputElement).files[0]);
-            this.parsePdf(filepath).then((textPage: string) => {
-                this.addToChatBox(textPage);
-            });
+
+            let file: File = (event.target as HTMLInputElement).files[0];
+            $('#span-file-info').text('Type: ' + file.type + ', Size: ' + (file.size /1024) + ' KB');
+
+            let filepath = URL.createObjectURL(file);
+
+            //https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+            switch (file.type) {
+                case 'application/pdf':
+                    this.parsePdf(filepath).then((textPage: string) => {
+                        this.addToChatBox(textPage);
+                    });
+                    break;
+                case 'audio/mpeg':
+                case 'audio/ogg':
+
+                default:
+            }
+
+        });
+
+        $(document).on('click', '#btn-upload-app', (event) => {
+
+            event.preventDefault();
+
+            let files = $('#fil-upload-app');
         });
 
         //tinymce.init({
@@ -108,9 +130,11 @@ export default class app {
                 //tinymce.activeEditor.setContent('');
 
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                    this.voiceRecognizer.Draw(this.voiceRecognizer.diagnostic, msg);
+                    this.voiceRecognizer.Draw( msg);
+                } else if (msg.toLowerCase().includes('tanscript')) {
+                    this.voiceRecognizer.Tanscript(msg);
                 } else {
-                    this.voiceRecognizer.Chat(this.voiceRecognizer.diagnostic, msg, this.voiceRecognizer.recognition);
+                    this.voiceRecognizer.Chat(msg);
                 }
 
             });
@@ -371,9 +395,9 @@ class VoiceRecognizer {
             this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
             if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                this.Draw(this.diagnostic, msg);
+                this.Draw(msg);
             } else {
-                this.Chat(this.diagnostic, `${msg}\n`, this.recognition);
+                this.Chat(`${msg}\n`);
             }
         }
 
@@ -402,7 +426,7 @@ class VoiceRecognizer {
         this.recognition.stop();
     }
 
-    Chat(diagnostic: HTMLElement, prompt: string, recognition: SpeechRecognition) {
+    Chat(prompt: string) {
 
         if (prompt && prompt !== '') {
             this.conversation.push({ "role": "user", "content": prompt });
@@ -426,7 +450,7 @@ class VoiceRecognizer {
 
                 this.conversation.push({ "role": "assistant", "content": msg });
 
-                diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right" dir="auto">
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right" dir="auto">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between p-3">
                                                         <p class="fw-bold mb-0">Lucy</p>
@@ -509,7 +533,7 @@ class VoiceRecognizer {
         });
     }
 
-    Draw(diagnostic: HTMLElement, prompt: string) {
+    Draw(prompt: string) {
 
         return $.ajax({
             type: 'POST',
@@ -527,7 +551,7 @@ class VoiceRecognizer {
             if (xhr.status === 200) {
                 console.log(JSON.stringify(response));
 
-                diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right">
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between p-3">
                                                         <p class="fw-bold mb-0">Lucy</p>
@@ -553,6 +577,115 @@ class VoiceRecognizer {
                 let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+            }
+        }).fail((XMLHttpRequest, textStatus, errorThrown) => {
+            console.log("Message: " + JSON.stringify(XMLHttpRequest));
+            console.log("Status: " + textStatus);
+            console.log("Error: " + errorThrown);
+        });
+    }
+
+    Tanscript(prompt: string) {
+
+        if (prompt && prompt !== '') {
+            this.conversation.push({ "role": "user", "content": prompt });
+        }
+
+        let formdata = new FormData();
+
+        formdata.append("file", file.files[0]);
+        formdata.append("model", "whisper-1");
+
+        return $.ajax({
+            type: 'POST',
+            url: 'https://api.openai.com/v1/audio/transcriptions',
+            contentType: "multipart/form-data",
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Authorization", "Bearer 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");
+            },
+            data: formdata
+        }).then((response, textStatus, xhr) => {
+            if (xhr.status === 200) {
+                console.log(JSON.stringify(response));
+                let msg = response.choices[0].message.content;
+
+                this.conversation.push({ "role": "assistant", "content": msg });
+
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right" dir="auto">
+                                                <div class="card w-100">
+                                                    <div class="card-header d-flex justify-content-between p-3">
+                                                        <p class="fw-bold mb-0">Lucy</p>
+                                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="mb-0">
+                                                             ${msg}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <img src="/img/Lucy.png" alt="avatar"
+                                                     class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
+                                            </li>`;
+
+                let lastMsg = document.getElementsByClassName('direct-chat-msg');
+
+                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+
+                let utterance = new SpeechSynthesisUtterance(msg);
+                utterance.lang = this.language;
+                utterance.voice = this.voice;
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                utterance.volume = 0.5;
+
+                utterance.onend = (event) => {
+                    try {
+                        if ($('#flexSwitchCheckChecked').is(':checked')) {
+                            this.recognition.start();
+                        } else {
+                            this.recognition.stop();
+                        }
+                    } catch (e) {
+                        console.log(e);
+                    }
+                };
+
+                utterance.onstart = (event) => {
+
+                    console.log(event.currentTarget);
+
+                    navigator.mediaDevices.enumerateDevices()
+                        // set `getUserMedia()` constraints to "auidooutput", where avaialable
+                        // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
+
+                        .then(devices => {
+                            let audiooutput = devices.find(device => device.kind === "audiooutput" && device.deviceId === "default");
+                            let label = audiooutput.label.replace('Default - ', '');
+
+                            audiooutput = devices.find(device => device.kind === "audiooutput" && device.label === label);
+
+                            if (audiooutput) {
+                                const constraints: MediaStreamConstraints = {
+                                    audio: {
+                                        deviceId: { exact: audiooutput.deviceId }
+                                    }
+                                };
+
+                                navigator.mediaDevices.getUserMedia(constraints).then((stream: MediaStream) => {
+
+                                    console.log(stream.getAudioTracks()[0].label);
+
+                                    let equalizer = new Equalizer(this.profilePicture, stream);
+
+                                    console.log('stream.active: ', stream.getAudioTracks().length);
+                                }).catch(error => console.error(error));
+                            }
+                        });
+                };
+
+                speechSynthesis.speak(utterance);
+
+
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
             console.log("Message: " + JSON.stringify(XMLHttpRequest));
@@ -846,11 +979,12 @@ class Equalizer {
                     .attr("x", "0")
                     .attr("y", "0");
 
+                //https://stackoverflow.com/questions/20660085/how-to-stretch-an-image-in-a-svg-shape-to-fill-its-bounds
                 catpattern.append("image")
                     .attr("height", 150)
                     .attr("width", 150)
                     .attr("xlink:href", () => { return this.profilePicture; })
-                    .attr("preserveAspectRatio","none");
+                    .attr("preserveAspectRatio","xMidYMid slice");
 
                 vis.append("circle")
                     .attr("r", 75)
@@ -859,7 +993,9 @@ class Equalizer {
                     .attr('stroke', '#9575CD')
                     .attr('stroke-width', '3px')
                     .attr("fill", "url(#catpattern)");
-                    
+
+                    //Mask approach
+                    //https://codepen.io/tylersticka/pen/NWWqPmQ
             };
 
             render();
