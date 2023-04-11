@@ -30,12 +30,14 @@ export default class app {
                              <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
                                   <div class="modal-header">
-                                    
+                                    <img src="/img/Lucy.png" class="rounded-circle shadow-1-strong" width="85" height="85" alt="" aria-controls="#picker-editor" >
+                                    <h2 class="modal-title text-deep-purple-50" id="exampleModalLabel">Ask Lucy</h2>
                                   </div>
                                   <div class="modal-body">
-                                    <img src="/img/Lucy.png" class="rounded" width="150" height="150" alt="" aria-controls="#picker-editor" style="position: absolute;right: -55px;top: -91px;border: 5px solid #fff;">
-                                    <h2 class="modal-title text-primary" id="exampleModalLabel">Ask Lucy</h2>
-
+                                      <div class="d-flex justify-content-end align-items-end">
+                                            <blockquote class="blockquote">For better experience, we recommend you to use Microsoft Edge.</blockquote class="blockquote">
+                                            <img src="/img/edge-logo.webp" class="rounded" width="100" height="100" alt="" aria-controls="#picker-editor">
+                                      </div>
                                   </div>
                                   <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">OK</button>
@@ -302,7 +304,7 @@ class VoiceRecognizer {
             $('#select-languages').val('').multiselect({
                 nonSelectedText: 'Please select language',
                 disableIfEmpty: true,
-                buttonClass: 'btn btn-success',
+                buttonClass: 'btn btn-success d-inline-block',
                 buttonWidth: '100%',
                 maxHeight: 450,
                 selectedClass: 'active multiselect-selected',
@@ -585,9 +587,9 @@ class VoiceRecognizer {
         });
     }
 
-    Tanscript(prompt: string) {
+    Tanscript(file: File) {
 
-        if (prompt && prompt !== '') {
+        if (file && typeof file !== 'undefined') {
             this.conversation.push({ "role": "user", "content": prompt });
         }
 
@@ -733,7 +735,7 @@ class Equalizer {
                         source.connect(gainNode);
                         gainNode.connect(analyser);
                         //analyser.connect(audioCtx.destination);
-                        this.visualizeD3(analyser);
+                        this.visualize(analyser);
                     })
                     .catch(function (err) {
                         console.log("The following gUM error occured: " + err);
@@ -749,7 +751,7 @@ class Equalizer {
             source.connect(gainNode);
             gainNode.connect(analyser);
 
-            this.visualizeD3(analyser);
+            this.visualize(analyser);
         }
     }
 
@@ -793,10 +795,10 @@ class Equalizer {
     visualize(analyser) {
 
         // Set up canvas context for visualizer
-        const canvas: HTMLCanvasElement = document.querySelector(".visualizer");
+        const canvas: HTMLCanvasElement = document.querySelector(".canvas-visualizer");
         const canvasCtx = canvas.getContext("2d");
 
-        const intendedWidth = document.querySelector(".custom-5").clientWidth.toString();
+        const intendedWidth = document.getElementById("visualizer-container").clientWidth.toString();
         canvas.setAttribute("width", intendedWidth);
         let drawVisual;
 
@@ -826,7 +828,7 @@ class Equalizer {
                 canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
                 canvasCtx.lineWidth = 2;
-                canvasCtx.strokeStyle = "rgb(163, 23, 253)";
+                canvasCtx.strokeStyle = "rgb(26, 35, 126)";
 
                 canvasCtx.beginPath();
 
@@ -898,6 +900,8 @@ class Equalizer {
 
     visualizeD3(analyser: AnalyserNode) {
 
+        //TODO: https://blog.scottlogic.com/2016/01/06/audio-api-with-d3.html
+
         let visualSetting = "sinewave";
         console.log(visualSetting);
 
@@ -943,7 +947,7 @@ class Equalizer {
                     .range([-width / 2, width / 2]);
 
                 // draw circle
-                const radius = 115;
+                const radius = 85;
 
                 const length = 256//64;
                 const amplitude = 5;
@@ -981,13 +985,13 @@ class Equalizer {
 
                 //https://stackoverflow.com/questions/20660085/how-to-stretch-an-image-in-a-svg-shape-to-fill-its-bounds
                 catpattern.append("image")
-                    .attr("height", 150)
-                    .attr("width", 150)
+                    .attr("height", 70)
+                    .attr("width", 70)
                     .attr("xlink:href", () => { return this.profilePicture; })
                     .attr("preserveAspectRatio","xMidYMid slice");
 
                 vis.append("circle")
-                    .attr("r", 75)
+                    .attr("r", 35)
                     .attr("cy", 0)
                     .attr("cx", 0)
                     .attr('stroke', '#9575CD')
