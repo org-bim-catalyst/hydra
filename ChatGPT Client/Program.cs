@@ -81,7 +81,7 @@ builder.Services.AddAuthentication()
        IConfigurationSection googleAuthNSection = builder.Configuration.GetSection("Authentication:Google");
        options.ClientId = googleAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = googleAuthNSection.GetValue<string>("ClientSecret")!;
-       options.Scope.Add("picture");
+       //options.Scope.Add("picture");
 
        options.Events.OnCreatingTicket = (context) =>
        {
