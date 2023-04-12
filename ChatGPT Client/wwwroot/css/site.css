@@ -173,7 +173,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 312px; /*443px;*/
-        min-height: 10em;
+        min-height: 14em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -186,7 +186,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 16em;
+        min-height: 20em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;

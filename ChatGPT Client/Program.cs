@@ -7,6 +7,9 @@ using System.Net;
 using AskLucy.Areas.Identity.Models;
 using static System.Formats.Asn1.AsnWriter;
 using System.Security.Claims;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication;
+using Google.Apis.PeopleService.v1.Data;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
 var builder = WebApplication.CreateBuilder(args);
@@ -81,30 +84,59 @@ builder.Services.AddAuthentication()
        IConfigurationSection googleAuthNSection = builder.Configuration.GetSection("Authentication:Google");
        options.ClientId = googleAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = googleAuthNSection.GetValue<string>("ClientSecret")!;
-       //options.Scope.Add("picture");
+       options.AccessDeniedPath = new PathString("/Identity/Account/Login");
+
+       options.SaveTokens = true;
 
        options.Events.OnCreatingTicket = (context) =>
        {
            string? picture = context.User.GetProperty("picture").GetString();
+           //string? dob = context.User.GetProperty("birthdate").GetString();
 
            context.Identity!.AddClaim(new Claim("picture", picture!));
-           
+
+           List<AuthenticationToken> tokens = context.Properties.GetTokens().ToList();
+
+           tokens.Add(new AuthenticationToken()
+           {
+               Name = "TicketCreated",
+               Value = DateTime.UtcNow.ToString()
+           });
+
+           context.Properties.StoreTokens(tokens);
+
            return Task.CompletedTask;
        };
    })
    .AddFacebook(options =>
    {
        //https://stackoverflow.com/questions/45855660/how-to-retrieve-facebook-profile-picture-from-logged-in-user-with-asp-net-core-i
+       //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/additional-claims?view=aspnetcore-7.0
        IConfigurationSection FBAuthNSection = builder.Configuration.GetSection("Authentication:FB");
        options.ClientId = FBAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = FBAuthNSection.GetValue<string>("ClientSecret")!;
+       options.SaveTokens = true;
+       options.AccessDeniedPath = new PathString("/Identity/Account/Login");
        options.Fields.Add("picture");
+       //options.Fields.Add("birthday");
 
        options.Events.OnCreatingTicket = (context) =>
        {
            var picture = context.User.GetProperty("picture").GetProperty("data").GetProperty("url").ToString();
+           //var birthday = context.User.GetProperty("user_birthday").ToString();
 
            context.Identity!.AddClaim(new Claim("picture", picture!));
+           //context.Identity!.AddClaim(new Claim("birthday", birthday!));
+
+           List<AuthenticationToken> tokens = context.Properties.GetTokens().ToList();
+
+           tokens.Add(new AuthenticationToken()
+           {
+               Name = "TicketCreated",
+               Value = DateTime.UtcNow.ToString()
+           });
+
+           context.Properties.StoreTokens(tokens);
 
            return Task.CompletedTask;
        };

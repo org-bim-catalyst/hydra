@@ -30,13 +30,14 @@ export default class app {
                              <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
                                   <div class="modal-header">
+                                    <h3>Welcome ${userFirstName}</h3>
                                     <img src="/img/Lucy.png" class="rounded-circle shadow-1-strong" width="85" height="85" alt="" aria-controls="#picker-editor" >
-                                    <h2 class="modal-title text-deep-purple-50" id="exampleModalLabel">Ask Lucy</h2>
                                   </div>
                                   <div class="modal-body">
                                       <div class="d-flex justify-content-end align-items-end">
-                                            <blockquote class="blockquote">For better experience, we recommend you to use Microsoft Edge.</blockquote class="blockquote">
-                                            <img src="/img/edge-logo.webp" class="rounded" width="100" height="100" alt="" aria-controls="#picker-editor">
+                                       <img src="/img/edge-logo.webp" class="rounded me-1" width="100" height="100" alt="" aria-controls="#picker-editor">
+                                       <p class="lead">For better experience, we recommend you to use Microsoft Edge.</p>
+
                                       </div>
                                   </div>
                                   <div class="modal-footer">
@@ -134,7 +135,7 @@ export default class app {
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                     this.voiceRecognizer.Draw( msg);
                 } else if (msg.toLowerCase().includes('tanscript')) {
-                    this.voiceRecognizer.Tanscript(msg);
+                    //this.voiceRecognizer.Tanscript(msg);
                 } else {
                     this.voiceRecognizer.Chat(msg);
                 }
@@ -595,7 +596,7 @@ class VoiceRecognizer {
 
         let formdata = new FormData();
 
-        formdata.append("file", file.files[0]);
+        formdata.append("file", file);
         formdata.append("model", "whisper-1");
 
         return $.ajax({
