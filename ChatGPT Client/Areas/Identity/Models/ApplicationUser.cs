@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
+//https://codewithmukesh.com/blog/user-management-in-aspnet-core-mvc/
 namespace AskLucy.Areas.Identity.Models
 {
     public class ApplicationUser : IdentityUser
