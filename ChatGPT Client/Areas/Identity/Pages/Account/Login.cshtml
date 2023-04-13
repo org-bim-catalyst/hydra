@@ -16,6 +16,11 @@
                     <h1 class="text-primary fw-bold mx-3 text-center" style="font-family: var(--mdb-font-roboto);">Ask Lucy</h1>
                 </div>
                 <form id="account" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible" role="alert">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        @Model.ErrorMessage
+                    </div>
+
                     <!-- Email input -->
                     <div class="form-outline mb-4">
                             <input asp-for="Input.Email" class="form-control form-control-lg" autocomplete="username" aria-required="true" placeholder="name@example.com" />
