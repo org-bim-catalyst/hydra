@@ -10,6 +10,9 @@ using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication;
 using Google.Apis.PeopleService.v1.Data;
+using System.Drawing;
+using AskLucy.Classes;
+using Microsoft.AspNetCore.Builder;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +20,13 @@ var builder = WebApplication.CreateBuilder(args);
 //{
 //    EnvironmentName = Environments.Development
 //});
+builder.Services.AddLogging(config =>
+{
+    config.AddConsole();
+    config.AddDebug();
+});
+
+builder.Services.AddTransient<ErrorHandlingMiddleware> ();
 
 var connectionString = builder.Configuration.GetConnectionString("ChatGPT_ClientContextConnection") ?? throw new InvalidOperationException("Connection string 'ChatGPT_ClientContextConnection' not found.");
 
@@ -60,7 +70,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.User.RequireUniqueEmail = false;
 
     options.SignIn.RequireConfirmedAccount = false;
-    options.SignIn.RequireConfirmedEmail = false;
+    options.SignIn.RequireConfirmedEmail = true;
     options.SignIn.RequireConfirmedPhoneNumber = false;
 });
 
@@ -84,8 +94,8 @@ builder.Services.AddAuthentication()
        IConfigurationSection googleAuthNSection = builder.Configuration.GetSection("Authentication:Google");
        options.ClientId = googleAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = googleAuthNSection.GetValue<string>("ClientSecret")!;
-       options.AccessDeniedPath = new PathString("/Identity/Account/Login");
-
+       //options.AccessDeniedPath = new PathString("/");
+       //options.Scope.Add("https://www.googleapis.com/auth/user.birthday.read");
        options.SaveTokens = true;
 
        options.Events.OnCreatingTicket = (context) =>
@@ -116,7 +126,7 @@ builder.Services.AddAuthentication()
        options.ClientId = FBAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = FBAuthNSection.GetValue<string>("ClientSecret")!;
        options.SaveTokens = true;
-       options.AccessDeniedPath = new PathString("/Identity/Account/Login");
+       //options.AccessDeniedPath = new PathString("/");
        options.Fields.Add("picture");
        //options.Fields.Add("birthday");
 
@@ -153,6 +163,12 @@ builder.Services.AddAuthentication()
    //    twitterOptions.RetrieveUserDetails = true;
    //})
    ;
+
+// Todo: to complete exception handling
+// https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-7.0
+// https://www.c-sharpcorner.com/article/exception-handling-3-in-asp-net-core-mvc/
+// https://stackoverflow.com/questions/56127508/how-to-a-i-redirect-to-custom-error-handler-page
+
 if (!builder.Environment.IsDevelopment())
 {
     builder.Services.AddHttpsRedirection(options =>
@@ -164,12 +180,18 @@ if (!builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
 //Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
+}
+else
+{
+    app.UseDeveloperExceptionPage();
 }
 
 app.UseHttpsRedirection();

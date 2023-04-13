@@ -26,6 +26,11 @@ using Google.Apis.Util;
 using Google.Apis.PeopleService.v1.Data;
 using Google.Apis.PeopleService.v1;
 using Microsoft.Identity.Client.Platforms.Features.DesktopOs.Kerberos;
+using Google.Apis.Http;
+using Google.Apis.Services;
+using System.Net;
+using Microsoft.AspNetCore.Authentication;
+using Google.Apis.Discovery;
 
 namespace AskLucy.Areas.Identity.Pages.Account
 {
@@ -151,6 +156,9 @@ namespace AskLucy.Areas.Identity.Pages.Account
         {
             returnUrl = returnUrl ?? Url.Content("~/");
             // Get the information about the user from the external login provider
+            // https://www.appsloveworld.com/csharp/100/1610/google-people-api-c-code-to-get-list-of-contact-groups
+            // https://www.daimto.com/asp-net-core-3-and-google-login/
+
             var info = await _signInManager.GetExternalLoginInfoAsync();
             if (info == null)
             {
@@ -174,6 +182,8 @@ namespace AskLucy.Areas.Identity.Pages.Account
 
                             string url = info.Principal.FindFirst("picture").Value;
 
+                            var birthday = info.Principal.FindFirst("urn:google:birthday");
+                            var gender = info.Principal.FindFirst("urn:google:gender");
 
                             using (HttpClient httpClient = new HttpClient())
                             {
@@ -196,6 +206,7 @@ namespace AskLucy.Areas.Identity.Pages.Account
                             user.FirstName = info.Principal.FindFirst(ClaimTypes.GivenName).Value;
                             user.LastName = info.Principal.FindFirst(ClaimTypes.Surname).Value;
 
+                            string user_birthday = info.Principal.FindFirst("user_birthday").Value;
                             string url = info.Principal.FindFirst("picture").Value;
 
 
