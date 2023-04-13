@@ -11,6 +11,7 @@ using System.Text.Encodings.Web;
 using System.Threading;
 using System.Threading.Tasks;
 using AskLucy.Areas.Identity.Models;
+using HtmlAgilityPack;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -31,13 +32,15 @@ namespace AskLucy.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
             IUserStore<ApplicationUser> userStore,
             SignInManager<ApplicationUser> signInManager,
             ILogger<RegisterModel> logger,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            IWebHostEnvironment hostingEnvironment)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -45,6 +48,7 @@ namespace AskLucy.Areas.Identity.Pages.Account
             _signInManager = signInManager;
             _logger = logger;
             _emailSender = emailSender;
+            _hostingEnvironment = hostingEnvironment;
         }
 
         /// <summary>
@@ -137,8 +141,19 @@ namespace AskLucy.Areas.Identity.Pages.Account
                     //I disabled this line as it was throwing exception after trying to connect mail account
                     if (_userManager.Options.SignIn.RequireConfirmedEmail)
                     {
-                        await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
-                        $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                        HtmlDocument htmDoc = new HtmlDocument();
+
+                        string htmlFilePath = Path.Combine(_hostingEnvironment.WebRootPath, "templates", "email", "index.html");
+
+                        string html = System.IO.File.ReadAllText(htmlFilePath);
+                        htmDoc.LoadHtml(html);
+                        htmDoc.GetElementbyId("span-user-name").InnerHtml = user.FirstName ?? string.Empty;
+                        htmDoc.GetElementbyId("span-email-account").InnerHtml = user.Email;
+                        htmDoc.GetElementbyId("link-verify-email").SetAttributeValue("href", HtmlEncoder.Default.Encode(callbackUrl));
+                        htmDoc.Save(htmlFilePath);
+                        htmDoc.Load(htmlFilePath);
+
+                        await _emailSender.SendEmailAsync(user.Email, "Confirm your email", htmDoc.Text);
                     }
 
                     if (_userManager.Options.SignIn.RequireConfirmedAccount)
