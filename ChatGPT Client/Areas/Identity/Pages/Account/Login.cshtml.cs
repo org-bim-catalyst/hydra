@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using AskLucy.Areas.Identity.Models;
+using System.Security.Policy;
 
 namespace AskLucy.Areas.Identity.Pages.Account
 {
@@ -113,7 +114,7 @@ namespace AskLucy.Areas.Identity.Pages.Account
                 // This doesn't count login failures towards account lockout
                 // To enable password failures to trigger account lockout, set lockoutOnFailure: true
                 var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
-
+                
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
@@ -130,7 +131,37 @@ namespace AskLucy.Areas.Identity.Pages.Account
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                    ApplicationUser user = await _signInManager.UserManager.FindByEmailAsync(Input.Email);
+
+                    if (user != null)
+                    {
+                        if (await _signInManager.UserManager.CheckPasswordAsync(user, Input.Password))
+                        {
+                            var isEmailConfirmed = await _signInManager.UserManager.IsEmailConfirmedAsync(user);
+
+                            if (isEmailConfirmed)
+                            {
+                                //Add more reasons here
+                            }
+                            else
+                            {
+                                return RedirectToPage("./ResendEmailConfirmation");
+
+                                /*ModelState.AddModelError(string.Empty, @"The email you used for registration has not been cofirmed. " +
+                                                                       "Please check your inbox and junk mail." +
+                                                                       "If not received please generate another one from " + "<a href='" +  + "' >here</a>."); */
+                            }
+                        }
+                        else
+                        {
+                            ModelState.AddModelError(string.Empty, "Invalid user or password.");
+                        }
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(string.Empty, "Invalid user or password.");
+                    }
+
                     return Page();
                 }
             }

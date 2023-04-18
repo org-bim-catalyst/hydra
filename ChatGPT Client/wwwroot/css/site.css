@@ -173,7 +173,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 312px; /*443px;*/
-        min-height: 14em;
+        min-height: 18em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -186,7 +186,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 20em;
+        min-height: 32em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -195,5 +195,69 @@ body {
     }
 }
 
+/***************************************************Audio player****************************************/
+html,
+body,
+.view {
+    height: 100%;
+}
 
+#mobile-box {
+    width: 360px;
+}
 
+.card {
+    -webkit-border-radius: 10px;
+    border-radius: 10px;
+}
+
+    .card .view {
+        -webkit-border-top-left-radius: 10px;
+        border-top-left-radius: 10px;
+        -webkit-border-top-right-radius: 10px;
+        border-top-right-radius: 10px;
+    }
+
+    .card h5 a {
+        color: #0d47a1;
+    }
+
+        .card h5 a:hover {
+            color: #072f6b;
+        }
+
+#pButton {
+    float: left;
+}
+
+#timeline {
+    width: 80%;
+    height: 3px;
+    margin-top: 18px;
+    margin-left: 10px;
+    float: left;
+    -webkit-border-radius: 15px;
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+#pButton {
+    margin-top: 12px;
+    cursor: pointer;
+}
+
+#playhead {
+    width: 8px;
+    height: 8px;
+    -webkit-border-radius: 50%;
+    border-radius: 50%;
+    margin-top: -2px;
+    background: black;
+    cursor: pointer;
+    border: 1px solid #00913b;
+}
+
+/**********************************************/
+.form-outline textarea.form-control {
+    min-height: 10em;
+}
