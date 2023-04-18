@@ -119,7 +119,7 @@ builder.Services.AddAuthentication()
        };
    })
    .AddFacebook(options =>
-   {
+  {
        //https://stackoverflow.com/questions/45855660/how-to-retrieve-facebook-profile-picture-from-logged-in-user-with-asp-net-core-i
        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/additional-claims?view=aspnetcore-7.0
        IConfigurationSection FBAuthNSection = builder.Configuration.GetSection("Authentication:FB");

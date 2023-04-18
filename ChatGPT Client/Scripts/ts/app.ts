@@ -17,6 +17,9 @@ import "bootstrap-multiselect";
 
 import * as moment from 'moment';
 import tinymce from "tinymce";
+import Tags from "bootstrap5-tags";
+import VizWaveform from "./visualisations/frequency";
+import VizFrequency from "./visualisations/frequency";
 
 export default class app {
 
@@ -60,7 +63,7 @@ export default class app {
             event.preventDefault();
 
             let file: File = (event.target as HTMLInputElement).files[0];
-            $('#span-file-info').text('Type: ' + file.type + ', Size: ' + (file.size /1024) + ' KB');
+            $('#span-file-info').text('Type: ' + file.type + ', Size: ' + (file.size / 1024) + ' KB');
 
             let filepath = URL.createObjectURL(file);
 
@@ -73,6 +76,11 @@ export default class app {
                     break;
                 case 'audio/mpeg':
                 case 'audio/ogg':
+                    this.tanscript(file).then((textPage: string) => {
+                        this.addToChatBox(textPage);
+                        this.addToAttachments(file);
+                    });
+                    break;
 
                 default:
             }
@@ -86,7 +94,35 @@ export default class app {
             let files = $('#fil-upload-app');
         });
 
-        //tinymce.init({
+        $(document).on('click', '#audioplayer', (event: Event) => {
+
+            event.preventDefault();
+
+            let audio: HTMLAudioElement = $('#audio-data').get(0);
+
+            audio.addEventListener('timeupdate', (event) => {
+
+                event.preventDefault();
+                console.log(event.type);
+
+                let audio = event.currentTarget as HTMLAudioElement;
+                let position = audio.currentTime / audio.duration;
+                let offset = Math.ceil($('#timeline').width() * position);
+
+                $('#playhead').css('transform', `translate(${offset}px, 0)`);
+            });
+
+            if (($(event.currentTarget).find('i').get(0) as HTMLElement).classList.contains('fa-play')) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+
+            $('#pButton').toggleClass("fa-play fa-pause");
+
+         });
+
+         //tinymce.init({
         //    selector: "[data-emojiable='true']",
         //    plugins: "emoticons autoresize",
         //    toolbar: "emoticons",
@@ -113,13 +149,15 @@ export default class app {
         //    placeholder: 'Select a fruit',
         //});
 
+        //Tags.init("#tags-input", { maximumItems: 1, clearEnd: true });
+
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
 
         $('#button-send-message').on('click', (event) => {
             event.preventDefault();
 
-            let msg = $('#textArea-message').val().toString();
+            let msg = $('#textArea-chat-message').val().toString();
             //let msg = tinymce.activeEditor.getContent();
 
             this.addToChatWindow(msg, this.userFirstName).then(() => {
@@ -129,11 +167,13 @@ export default class app {
 
                 diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                $('#textArea-message').val('');
+                $('#textArea-chat-message').val('');
+                $('#ul-chat-attachments').html('');
+
                 //tinymce.activeEditor.setContent('');
 
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                    this.voiceRecognizer.Draw( msg);
+                    this.voiceRecognizer.Draw(msg);
                 } else if (msg.toLowerCase().includes('tanscript')) {
                     //this.voiceRecognizer.Tanscript(msg);
                 } else {
@@ -199,10 +239,94 @@ export default class app {
 
     private addToChatBox(textPage: string) {
 
-        $('#textArea-message').val(textPage).trigger('focus');
+        $('#textArea-chat-message').val(textPage).trigger('focus');
         //tinymce.activeEditor.setContent(`<p>${textPage}</p>`);
     }
 
+    private addToAttachments(file: File) {
+
+        let filePath = URL.createObjectURL(file);
+        let audio = new Audio(filePath);
+        audio.preload = "metadata";
+
+        audio.addEventListener('loadedmetadata', () => {
+            $('#ul-chat-attachments').html(`
+                                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                      <div class="fw-bold">${file.name}</div>
+                                      <div class="text-muted mb-5">                                        
+                                          <audio id="audio-data" preload="auto">
+                                              <source src="${audio.src}">
+                                          </audio>
+                                          <div id="audioplayer">
+                                              <i id="pButton" class="fas fa-play"></i>
+                                              <div id="timeline">
+                                                  <div id="playhead"></div>
+                                              </div>
+                                          </div>
+                                        </div>
+                                    </div>
+                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss") }</span>
+                                  </li>`);
+        });
+    }
+
+    private tanscript(file: File) {
+
+        let formdata = new FormData();
+
+        formdata.append("file", file);
+        formdata.append("model", "whisper-1");
+
+        document.getElementById('progress-pdf-parser').style.width = '0%';
+        document.getElementById('progress-pdf-parser').setAttribute('aria-valuenow', '0');
+
+        return $.ajax({
+            type: 'POST',
+            url: 'https://api.openai.com/v1/audio/transcriptions',
+            processData: false,
+            contentType: false,
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Authorization", "Bearer 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");
+            },
+            data: formdata,
+            xhr: function () {
+                var xhr = new window.XMLHttpRequest();
+                //Upload progress
+                xhr.upload.addEventListener("progress", function (evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = evt.loaded / evt.total;
+
+                        let percent_loaded = Math.ceil(percentComplete) * 100;
+                        document.getElementById('progress-pdf-parser').style.width = `${percent_loaded}%`;
+                        document.getElementById('progress-pdf-parser').setAttribute('aria-valuenow', percent_loaded.toFixed(2));
+
+                        console.log(percentComplete);
+                    }
+                }, false);
+                //Download progress
+                xhr.addEventListener("progress", function (evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = evt.loaded / evt.total;
+                        //Do something with download progress
+                        console.log(percentComplete);
+                    }
+                }, false);
+                return xhr;
+            }
+        }).then((response, textStatus, xhr) => {
+            if (xhr.status === 200) {
+                console.log(JSON.stringify(response));
+                let msg = response.text;
+                return msg;
+
+            }
+        }).fail((XMLHttpRequest, textStatus, errorThrown) => {
+            console.log("Message: " + JSON.stringify(XMLHttpRequest));
+            console.log("Status: " + textStatus);
+            console.log("Error: " + errorThrown);
+        });
+    }
 
     private parsePdf(filepath: string) {
 
@@ -246,6 +370,9 @@ export default class app {
                     const textItems = textContent.items;
                     let finalString = "";
 
+                    document.getElementById('progress-pdf-parser').style.width = '0%';
+                    document.getElementById('progress-pdf-parser').setAttribute('aria-valuenow', '0');
+
                     // Concatenate the string of the item to the final string
                     for (let i = 0; i < textItems.length; i++) {
                         let item = textItems[i];
@@ -271,7 +398,7 @@ class VoiceRecognizer {
 
     private grammar: string;
     public diagnostic: HTMLElement;
-    public recognition:SpeechRecognition;
+    public recognition: SpeechRecognition;
     private speechRecognitionList: SpeechGrammarList;
     private voice: SpeechSynthesisVoice;
     private conversation: any[];
@@ -411,14 +538,14 @@ class VoiceRecognizer {
         }
 
         this.conversation = [{ "role": "user", "content": `Good Morning, my name is ${userFirstName}.` },
-            { "role": "assistant", "content": `Good morning ${userFirstName}, How may I assest you today?` },
+        { "role": "assistant", "content": `Good morning ${userFirstName}, How may I assest you today?` },
         {
             "role": "user", "content": "What is your name?"
         },
         { "role": "assistant", "content": "My Name is Lucy." }, {
             "role": "user", "content": "Hello Lucy."
         },
-            { "role": "assistant", "content": `Hello ${userFirstName}.` }];
+        { "role": "assistant", "content": `Hello ${userFirstName}.` }];
     }
 
     start() {
@@ -509,7 +636,8 @@ class VoiceRecognizer {
                             if (audiooutput) {
                                 const constraints: MediaStreamConstraints = {
                                     audio: {
-                                        deviceId: { exact: audiooutput.deviceId }
+                                        deviceId: { exact: audiooutput.deviceId },
+                                        groupId: audiooutput.groupId
                                     }
                                 };
 
@@ -520,7 +648,7 @@ class VoiceRecognizer {
                                     let equalizer = new Equalizer(this.profilePicture, stream);
 
                                     console.log('stream.active: ', stream.getAudioTracks().length);
-                                }).catch(error => console.error( error));
+                                }).catch(error => console.error(error));
                             }
                         });
                 };
@@ -587,116 +715,6 @@ class VoiceRecognizer {
             console.log("Error: " + errorThrown);
         });
     }
-
-    Tanscript(file: File) {
-
-        if (file && typeof file !== 'undefined') {
-            this.conversation.push({ "role": "user", "content": prompt });
-        }
-
-        let formdata = new FormData();
-
-        formdata.append("file", file);
-        formdata.append("model", "whisper-1");
-
-        return $.ajax({
-            type: 'POST',
-            url: 'https://api.openai.com/v1/audio/transcriptions',
-            contentType: "multipart/form-data",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: formdata
-        }).then((response, textStatus, xhr) => {
-            if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                let msg = response.choices[0].message.content;
-
-                this.conversation.push({ "role": "assistant", "content": msg });
-
-                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right" dir="auto">
-                                                <div class="card w-100">
-                                                    <div class="card-header d-flex justify-content-between p-3">
-                                                        <p class="fw-bold mb-0">Lucy</p>
-                                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <p class="mb-0">
-                                                             ${msg}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <img src="/img/Lucy.png" alt="avatar"
-                                                     class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
-                                            </li>`;
-
-                let lastMsg = document.getElementsByClassName('direct-chat-msg');
-
-                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
-
-                let utterance = new SpeechSynthesisUtterance(msg);
-                utterance.lang = this.language;
-                utterance.voice = this.voice;
-                utterance.rate = 1;
-                utterance.pitch = 1;
-                utterance.volume = 0.5;
-
-                utterance.onend = (event) => {
-                    try {
-                        if ($('#flexSwitchCheckChecked').is(':checked')) {
-                            this.recognition.start();
-                        } else {
-                            this.recognition.stop();
-                        }
-                    } catch (e) {
-                        console.log(e);
-                    }
-                };
-
-                utterance.onstart = (event) => {
-
-                    console.log(event.currentTarget);
-
-                    navigator.mediaDevices.enumerateDevices()
-                        // set `getUserMedia()` constraints to "auidooutput", where avaialable
-                        // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
-
-                        .then(devices => {
-                            let audiooutput = devices.find(device => device.kind === "audiooutput" && device.deviceId === "default");
-                            let label = audiooutput.label.replace('Default - ', '');
-
-                            audiooutput = devices.find(device => device.kind === "audiooutput" && device.label === label);
-
-                            if (audiooutput) {
-                                const constraints: MediaStreamConstraints = {
-                                    audio: {
-                                        deviceId: { exact: audiooutput.deviceId }
-                                    }
-                                };
-
-                                navigator.mediaDevices.getUserMedia(constraints).then((stream: MediaStream) => {
-
-                                    console.log(stream.getAudioTracks()[0].label);
-
-                                    let equalizer = new Equalizer(this.profilePicture, stream);
-
-                                    console.log('stream.active: ', stream.getAudioTracks().length);
-                                }).catch(error => console.error(error));
-                            }
-                        });
-                };
-
-                speechSynthesis.speak(utterance);
-
-
-            }
-        }).fail((XMLHttpRequest, textStatus, errorThrown) => {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
-        });
-    }
-
 }
 
 class Equalizer {
@@ -795,17 +813,6 @@ class Equalizer {
 
     visualize(analyser) {
 
-        // Set up canvas context for visualizer
-        const canvas: HTMLCanvasElement = document.querySelector(".canvas-visualizer");
-        const canvasCtx = canvas.getContext("2d");
-
-        const intendedWidth = document.getElementById("visualizer-container").clientWidth.toString();
-        canvas.setAttribute("width", intendedWidth);
-        let drawVisual;
-
-        let WIDTH = canvas.width;
-        let HEIGHT = canvas.height;
-
         let visualSetting = "sinewave";
         console.log(visualSetting);
 
@@ -818,9 +825,20 @@ class Equalizer {
             // const dataArray = new Float32Array(bufferLength);
             const dataArray = new Uint8Array(bufferLength);
 
-            canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-
             const render = function () {
+
+                // Set up canvas context for visualizer
+                let canvas: HTMLCanvasElement = document.querySelector(".canvas-visualizer");
+                let canvasCtx = canvas.getContext("2d");
+
+                let intendedWidth = document.getElementById("visualizer-container").clientWidth.toString();
+                canvas.setAttribute("width", intendedWidth);
+                let drawVisual;
+
+                let WIDTH = canvas.width;
+                let HEIGHT = canvas.height;
+                canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+
                 drawVisual = requestAnimationFrame(render);
 
                 analyser.getByteTimeDomainData(dataArray);
@@ -862,9 +880,18 @@ class Equalizer {
             // See comment above for Float32Array()
             const dataArrayAlt = new Uint8Array(bufferLengthAlt);
 
-            canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-
             const drawAlt = function () {
+                // Set up canvas context for visualizer
+                let canvas: HTMLCanvasElement = document.querySelector(".canvas-visualizer");
+                let canvasCtx = canvas.getContext("2d");
+
+                let intendedWidth = document.getElementById("visualizer-container").clientWidth.toString();
+                canvas.setAttribute("width", intendedWidth);
+                let drawVisual;
+
+                let WIDTH = canvas.width;
+                let HEIGHT = canvas.height;
+                canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
                 drawVisual = requestAnimationFrame(drawAlt);
 
                 analyser.getByteFrequencyData(dataArrayAlt);
@@ -906,104 +933,132 @@ class Equalizer {
         let visualSetting = "sinewave";
         console.log(visualSetting);
 
-        if (visualSetting === "sinewave") {
-            analyser.fftSize = 2048;
-            const bufferLength = analyser.fftSize;
-            //console.log(bufferLength);
+        switch (visualSetting) {
+            case "sinewave": {
+                analyser.fftSize = 2048;
+                const bufferLength = analyser.fftSize;
+                //console.log(bufferLength);
 
-            // We can use Float32Array instead of Uint8Array if we want higher precision
-            //const dataArray = new Float32Array(bufferLength);
-            //const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
+                // We can use Float32Array instead of Uint8Array if we want higher precision
+                //const dataArray = new Float32Array(bufferLength);
+                //const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
 
-            console.log(this.profilePicture);
+                const render = () => {
 
-            const render = () => {
+                    let drawVisual = requestAnimationFrame(render);
 
-                let drawVisual = requestAnimationFrame(render);
+                    analyser.getByteFrequencyData(dataArray);
 
-                //analyser.getByteFrequencyData(dataArray);
-                analyser.getByteFrequencyData(dataArray);
 
-                //console.log(dataArray.length);
-                const svg = d3.select('.svg-visualizer');
-                svg.attr('background-color', 'white');
-                svg.selectAll('*').remove();
-                const margin = {
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    left: 0
                 };
-                const width = +svg.attr('width') - margin.left - margin.right;
-                const height = +svg.attr('height') - margin.top - margin.bottom;
 
-                // content area of your visualization
-                const vis = svg.append('g')
-                    .attr('transform', `translate(${margin.left + width / 2},${margin.top + height / 2})`);
+                render();
+            }
 
-                // show scales
-                const xScale = d3.scaleLinear()
-                    .domain([-128, 128])
-                    .range([-width / 2, width / 2]);
+                break;
 
-                // draw circle
-                const radius = 85;
+            case "rounded-sinewave": {
+                analyser.fftSize = 2048;
+                const bufferLength = analyser.fftSize;
+                //console.log(bufferLength);
 
-                const length = 256//64;
-                const amplitude = 5;
+                // We can use Float32Array instead of Uint8Array if we want higher precision
+                //const dataArray = new Float32Array(bufferLength);
+                //const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
 
-                const radialGenerator = d3.lineRadial()
-                    .angle(d => d.angle)
-                    .radius(d => d.radius)
-                    .curve(d3.curveCardinalClosed)
+                const render = () => {
 
-                const radialScale = d3.scaleLinear()
-                    .domain([0, length])
-                    .range([0, Math.PI * 2]);
+                    let drawVisual = requestAnimationFrame(render);
 
-                const data = d3.range(length).map((d, i)=> {
-                    return {
-                        angle: radialScale(d),
-                        radius: xScale(radius) + (dataArray[i] / 128.0) * amplitude
-                    }
-                });
+                    //analyser.getByteFrequencyData(dataArray);
+                    analyser.getByteFrequencyData(dataArray);
 
-                const wave = vis.append('path')
-                    .attr('d', radialGenerator(data))
-                    .attr('fill', '#ffffff')
-                    .attr('stroke', '#9575CD')
-                    .attr('stroke-width', '2px');
+                    //console.log(dataArray.length);
+                    const svg = d3.select('.svg-visualizer');
+                    svg.attr('background-color', 'white');
+                    svg.selectAll('*').remove();
+                    const margin = {
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        left: 0
+                    };
+                    const width = +svg.attr('width') - margin.left - margin.right;
+                    const height = +svg.attr('height') - margin.top - margin.bottom;
 
-                const defs = svg.append("defs").attr("id", "imgdefs")
+                    // content area of your visualization
+                    const vis = svg.append('g')
+                        .attr('transform', `translate(${margin.left + width / 2},${margin.top + height / 2})`);
 
-                const catpattern = defs.append("pattern")
-                    .attr("id", "catpattern")
-                    .attr("height", 1)
-                    .attr("width", 1)
-                    .attr("x", "0")
-                    .attr("y", "0");
+                    // show scales
+                    const xScale = d3.scaleLinear()
+                        .domain([-128, 128])
+                        .range([-width / 2, width / 2]);
 
-                //https://stackoverflow.com/questions/20660085/how-to-stretch-an-image-in-a-svg-shape-to-fill-its-bounds
-                catpattern.append("image")
-                    .attr("height", 70)
-                    .attr("width", 70)
-                    .attr("xlink:href", () => { return this.profilePicture; })
-                    .attr("preserveAspectRatio","xMidYMid slice");
+                    // draw circle
+                    const radius = 85;
 
-                vis.append("circle")
-                    .attr("r", 35)
-                    .attr("cy", 0)
-                    .attr("cx", 0)
-                    .attr('stroke', '#9575CD')
-                    .attr('stroke-width', '3px')
-                    .attr("fill", "url(#catpattern)");
+                    const length = 256//64;
+                    const amplitude = 5;
+
+                    const radialGenerator = d3.lineRadial()
+                        .angle(d => d.angle)
+                        .radius(d => d.radius)
+                        .curve(d3.curveCardinalClosed)
+
+                    const radialScale = d3.scaleLinear()
+                        .domain([0, length])
+                        .range([0, Math.PI * 2]);
+
+                    const data = d3.range(length).map((d, i) => {
+                        return {
+                            angle: radialScale(d),
+                            radius: xScale(radius) + (dataArray[i] / 128.0) * amplitude
+                        }
+                    });
+
+                    const wave = vis.append('path')
+                        .attr('d', radialGenerator(data))
+                        .attr('fill', '#ffffff')
+                        .attr('stroke', '#9575CD')
+                        .attr('stroke-width', '2px');
+
+                    const defs = svg.append("defs").attr("id", "imgdefs")
+
+                    const catpattern = defs.append("pattern")
+                        .attr("id", "catpattern")
+                        .attr("height", 1)
+                        .attr("width", 1)
+                        .attr("x", "0")
+                        .attr("y", "0");
+
+                    //https://stackoverflow.com/questions/20660085/how-to-stretch-an-image-in-a-svg-shape-to-fill-its-bounds
+                    catpattern.append("image")
+                        .attr("height", 70)
+                        .attr("width", 70)
+                        .attr("xlink:href", () => { return this.profilePicture; })
+                        .attr("preserveAspectRatio", "xMidYMid slice");
+
+                    vis.append("circle")
+                        .attr("r", 35)
+                        .attr("cy", 0)
+                        .attr("cx", 0)
+                        .attr('stroke', '#9575CD')
+                        .attr('stroke-width', '3px')
+                        .attr("fill", "url(#catpattern)");
 
                     //Mask approach
                     //https://codepen.io/tylersticka/pen/NWWqPmQ
-            };
+                };
 
-            render();
+                render();
+            }
+
+                break;
+
+            default:
         }
     }
 
