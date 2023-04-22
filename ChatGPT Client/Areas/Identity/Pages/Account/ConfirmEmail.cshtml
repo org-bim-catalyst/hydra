@@ -21,9 +21,9 @@
 
                         <figure>
                             <blockquote class="blockquote">
-                                <p class="note note-@statusMessageClass mt-3" role="note">
-                                    @Model.StatusMessage<br/>
-                                </p>
+                                <div class="note note-@statusMessageClass mt-3" role="note">
+                                    @await Html.PartialAsync("_EmailVerificationMessage", @Model)
+                                </div>
                             </blockquote>                                
                             @if(!Model.StatusMessage.StartsWith("Error")){
                             <figcaption class="blockquote-footer mt-2">
