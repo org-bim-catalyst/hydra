@@ -81,7 +81,9 @@ namespace AskLucy.Areas.Identity.Pages.Account
                 return Page();
             }
 
-            if (user.EmailConfirmed)
+            var x = _userManager.GetLoginsAsync(user).Result;
+
+            if (user.EmailConfirmed && _userManager.GetLoginsAsync(user).Result.Count > 0)
             {
                 ModelState.AddModelError(string.Empty, "This email is already registered and confirmed. Please check your email.");
                 return Page();

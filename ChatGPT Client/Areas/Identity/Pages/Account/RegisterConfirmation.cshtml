@@ -14,7 +14,6 @@
                 <div class="divider d-flex align-items-center my-4">
                     <h1 class="text-primary fw-bold mx-3 text-center" style="font-family: var(--mdb-font-roboto);">Ask Lucy</h1>
                 </div>
-                <h1>@ViewData["Title"]</h1>
                 @{
                     if (@Model.DisplayConfirmAccountLink)
                     {
@@ -25,9 +24,17 @@
                     }
                     else
                     {
-                        <p>
-                            Please check your email to confirm your account.
-                        </p>
+                        <figure>
+                            <blockquote class="blockquote">
+                                <div class="note note-warning mt-3" role="note">
+                                    Please check your email to confirm your account.
+                                </div>
+                            </blockquote>
+
+                            <figcaption class="blockquote-footer mt-2">
+                                You can login from <a href=@Url.PageLink("Login")>here</a>
+                            </figcaption>
+                        </figure>
                     }
                 }
             </div>
