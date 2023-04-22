@@ -14,7 +14,8 @@ module.exports = {
         bootstrap: 'bootstrap'
     },
     entry: {
-        app_open_ai: './Scripts/ts/index.js'
+        app_open_ai: './Scripts/ts/index.js',
+        app_qr_code: './Scripts/ts/core/qr-generator.ts'
     },
     output: {
         path: path.resolve(__dirname, 'wwwroot/js'),
