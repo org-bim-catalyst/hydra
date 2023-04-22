@@ -186,7 +186,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 256px; /*443px;*/
-        min-height: 18em;
+        min-height: 19em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -199,7 +199,7 @@ body {
         .list-unstyled {
             overflow: auto;
             max-height: 312px; /*443px;*/
-            min-height: 25.5em;
+            min-height: 26.5em;
             padding: 14px;
             background-color: #eee;
             border-radius: .5rem .5rem 0 0;
@@ -212,7 +212,7 @@ body {
         .list-unstyled {
             overflow: auto;
             max-height: 443px;
-            min-height: 39em;
+            min-height: 40em;
             padding: 14px;
             background-color: #eee;
             border-radius: .5rem .5rem 0 0;
@@ -273,11 +273,11 @@ body {
     }
 
     #playhead {
-        width: 8px;
-        height: 8px;
+        width: 9px;
+        height: 9px;
         -webkit-border-radius: 50%;
         border-radius: 50%;
-        margin-top: -2px;
+        margin-top: -3px;
         background: black;
         cursor: pointer;
         border: 1px solid #00913b;
@@ -285,7 +285,7 @@ body {
 
     /**********************************************/
     .form-outline textarea.form-control {
-        min-height: 8.5em;
+        min-height: 7.5em;
     }
 
     .dropdown-menu {

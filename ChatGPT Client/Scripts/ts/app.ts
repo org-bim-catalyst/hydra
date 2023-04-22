@@ -94,7 +94,7 @@ export default class app {
             let files = $('#fil-upload-app');
         });
 
-        $(document).on('click', '#audioplayer', (event) => {
+        $(document).on('click', '#pButton', (event) => {
 
             event.preventDefault();
 
@@ -120,7 +120,7 @@ export default class app {
                 $('#playhead').css('transform', `translate(0, 0)`);
             });
 
-            if (($(event.currentTarget).find('i').get(0) as HTMLElement).classList.contains('fa-play')) {
+            if (($(event.currentTarget).get(0) as HTMLElement).classList.contains('fa-play')) {
                 audio.play();
             } else {
                 audio.pause();
@@ -258,24 +258,24 @@ export default class app {
         audio.preload = "metadata";
 
         audio.addEventListener('loadedmetadata', () => {
-            $('#ul-chat-attachments').html(`
-                                  <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                      <div class="fw-bold">${file.name}</div>
-                                      <div class="text-muted mb-5">                                        
-                                          <audio id="audio-data" preload="auto">
-                                              <source src="${audio.src}">
-                                          </audio>
-                                          <div id="audioplayer">
-                                              <i id="pButton" class="fas fa-play"></i>
-                                              <div id="timeline">
-                                                  <div id="playhead"></div>
-                                              </div>
-                                          </div>
-                                        </div>
-                                    </div>
-                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss") }</span>
-                                  </li>`);
+            $('#ul-chat-attachments').html(`<li class="list-group-item">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="fw-bold">${file.name}</div>
+                                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss") }</span>
+                                                </div>
+
+                                                <div class="text-muted">
+                                                    <audio id="audio-data" preload="auto">
+                                                        <source src="${audio.src}">
+                                                    </audio>
+                                                    <div id="audioplayer d-flex justify-content-between align-items-center">
+                                                        <i id="pButton" class="fas fa-play"></i>
+                                                        <div id="timeline">
+                                                            <div id="playhead"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>`)
         });
     }
 

@@ -53,7 +53,7 @@ var app = /** @class */ (function () {
             event.preventDefault();
             var files = $('#fil-upload-app');
         });
-        $(document).on('click', '#audioplayer', function (event) {
+        $(document).on('click', '#pButton', function (event) {
             event.preventDefault();
             var audio = $('#audio-data').get(0);
             audio.addEventListener('timeupdate', function (event) {
@@ -68,7 +68,7 @@ var app = /** @class */ (function () {
                 $('#pButton').toggleClass("fa-play fa-pause");
                 $('#playhead').css('transform', "translate(0, 0)");
             });
-            if ($(event.currentTarget).find('i').get(0).classList.contains('fa-play')) {
+            if ($(event.currentTarget).get(0).classList.contains('fa-play')) {
                 audio.play();
             }
             else {
@@ -175,7 +175,7 @@ var app = /** @class */ (function () {
         var audio = new Audio(filePath);
         audio.preload = "metadata";
         audio.addEventListener('loadedmetadata', function () {
-            $('#ul-chat-attachments').html("\n                                  <li class=\"list-group-item d-flex justify-content-between align-items-center\">\n                                    <div>\n                                      <div class=\"fw-bold\">".concat(file.name, "</div>\n                                      <div class=\"text-muted mb-5\">                                        \n                                          <audio id=\"audio-data\" preload=\"auto\">\n                                              <source src=\"").concat(audio.src, "\">\n                                          </audio>\n                                          <div id=\"audioplayer\">\n                                              <i id=\"pButton\" class=\"fas fa-play\"></i>\n                                              <div id=\"timeline\">\n                                                  <div id=\"playhead\"></div>\n                                              </div>\n                                          </div>\n                                        </div>\n                                    </div>\n                                    <span class=\"badge rounded-pill badge-success\">").concat(moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss"), "</span>\n                                  </li>"));
+            $('#ul-chat-attachments').html("<li class=\"list-group-item\">\n                                                <div class=\"d-flex justify-content-between align-items-center\">\n                                                    <div class=\"fw-bold\">".concat(file.name, "</div>\n                                                    <span class=\"badge rounded-pill badge-success\">").concat(moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss"), "</span>\n                                                </div>\n\n                                                <div class=\"text-muted\">\n                                                    <audio id=\"audio-data\" preload=\"auto\">\n                                                        <source src=\"").concat(audio.src, "\">\n                                                    </audio>\n                                                    <div id=\"audioplayer d-flex justify-content-between align-items-center\">\n                                                        <i id=\"pButton\" class=\"fas fa-play\"></i>\n                                                        <div id=\"timeline\">\n                                                            <div id=\"playhead\"></div>\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                            </li>"));
         });
     };
     app.prototype.tanscript = function (file) {
