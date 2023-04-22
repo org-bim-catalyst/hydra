@@ -136,6 +136,15 @@ namespace AskLucy.Areas.Identity.Pages.Account
             {
                 return RedirectToPage("./Lockout");
             }
+            if (result.IsNotAllowed)
+            {
+                if (info.Principal.HasClaim(c => c.Type == ClaimTypes.Email))
+                {
+                    string Email = info.Principal.FindFirstValue(ClaimTypes.Email);
+                    return RedirectToPage("./ResendEmailConfirmation", new { Email = Email });
+                }
+                return Page();
+            }
             else
             {
                 // If the user does not have an account, then ask the user to create an account.

@@ -57,8 +57,13 @@ namespace AskLucy.Areas.Identity.Pages.Account
             public string Email { get; set; }
         }
 
-        public void OnGet()
+        public void OnGet(string Email)
         {
+
+            Input = new InputModel
+            {
+                Email = Email
+            };
         }
 
         public async Task<IActionResult> OnPostAsync()

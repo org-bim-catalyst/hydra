@@ -142,10 +142,11 @@ namespace AskLucy.Areas.Identity.Pages.Account
                             if (isEmailConfirmed)
                             {
                                 //Add more reasons here
+                                return Page();
                             }
                             else
                             {
-                                return RedirectToPage("./ResendEmailConfirmation");
+                                return RedirectToPage("./ResendEmailConfirmation", new { Email = user.Email });
 
                                 /*ModelState.AddModelError(string.Empty, @"The email you used for registration has not been cofirmed. " +
                                                                        "Please check your inbox and junk mail." +

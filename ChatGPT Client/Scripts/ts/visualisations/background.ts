@@ -78,4 +78,4 @@ export default class VizBackground {
             callback.apply(this, arguments);
         }
     }
-});
+}
