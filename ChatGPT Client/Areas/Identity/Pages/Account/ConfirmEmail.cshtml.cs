@@ -52,6 +52,8 @@ namespace AskLucy.Areas.Identity.Pages.Account
             StatusMessage = result.Succeeded ? "Thank you for confirming your email." : "Error";
             UserEmail = user.Email;
 
+            //await _signInManager.SignOutAsync();
+
             return Page();
         }
     }

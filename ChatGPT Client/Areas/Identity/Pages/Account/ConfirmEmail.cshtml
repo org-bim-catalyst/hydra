@@ -27,7 +27,7 @@
                             </blockquote>                                
                             @if(!Model.StatusMessage.StartsWith("Error")){
                             <figcaption class="blockquote-footer mt-2">
-                                You can login from <a href="/">here</a>
+                                    You can login from <a href=@Url.PageLink("Login")>here</a>
                             </figcaption>
                             }
                         </figure>

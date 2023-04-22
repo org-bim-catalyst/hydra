@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using AskLucy.Areas.Identity.Models;
 using System.Security.Policy;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace AskLucy.Areas.Identity.Pages.Account
 {
