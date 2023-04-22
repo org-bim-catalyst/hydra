@@ -186,12 +186,12 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 256px; /*443px;*/
-        min-height: 16em;
+        min-height: 18em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
         border-bottom: 4px solid #1A237E;
-        padding-bottom: 35px;
+        margin: 0;
     }
 }
 
@@ -199,12 +199,12 @@ body {
         .list-unstyled {
             overflow: auto;
             max-height: 312px; /*443px;*/
-            min-height: 22em;
+            min-height: 25.5em;
             padding: 14px;
             background-color: #eee;
             border-radius: .5rem .5rem 0 0;
             border-bottom: 4px solid #1A237E;
-            padding-bottom: 35px;
+            margin: 0;
         }
     }
 
@@ -212,12 +212,12 @@ body {
         .list-unstyled {
             overflow: auto;
             max-height: 443px;
-            min-height: 35em;
+            min-height: 39em;
             padding: 14px;
             background-color: #eee;
             border-radius: .5rem .5rem 0 0;
             border-bottom: 4px solid #1A237E;
-            padding-bottom: 35px;
+            margin: 0;
         }
     }
 
@@ -285,7 +285,7 @@ body {
 
     /**********************************************/
     .form-outline textarea.form-control {
-        min-height: 10em;
+        min-height: 8.5em;
     }
 
     .dropdown-menu {
