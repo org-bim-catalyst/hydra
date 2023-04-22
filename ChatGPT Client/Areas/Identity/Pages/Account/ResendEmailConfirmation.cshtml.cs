@@ -11,6 +11,7 @@ using AskLucy.Areas.Identity.Models;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -102,11 +103,67 @@ namespace AskLucy.Areas.Identity.Pages.Account
             htmDoc.Save(htmlFilePath);
             htmDoc.Load(htmlFilePath);
 
-            await _emailSender.SendEmailAsync(user.Email, "Confirm your email", htmDoc.Text);     
+            await _emailSender.SendEmailAsync(user.Email, "Confirm your email", htmDoc.Text);
 
             ModelState.AddModelError(string.Empty, "Verification email sent. Please check your email.");
 
             return Page();
         }
+
+        //public async Task<IActionResult> OnPostAsync()
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        return Page();
+        //    }
+
+        //    List<ApplicationUser> users = _userManager.Users.ToList();
+
+        //    foreach (ApplicationUser user in users)
+        //    {
+        //        if (user == null && user.Email != null)
+        //        {
+        //            ModelState.AddModelError(string.Empty, "This email is not registered in our website. Please check your email.");
+        //            return Page();
+        //        }
+
+        //        if (user.EmailConfirmed)
+        //        {
+        //            ModelState.AddModelError(string.Empty, "This email is already registered and confirmed. Please go to the login page.");
+        //            return Page();
+        //        }
+
+        //        //user.EmailConfirmed = false;
+        //        //await _userManager.UpdateAsync(user);
+
+        //        var userId = await _userManager.GetUserIdAsync(user);
+        //        var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        //        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        //        var callbackUrl = Url.Page(
+        //            "/Account/ConfirmEmail",
+        //            pageHandler: null,
+        //            values: new { userId = userId, code = code },
+        //            protocol: Request.Scheme);
+
+        //        HtmlDocument htmDoc = new HtmlDocument();
+
+        //        string htmlFilePath = Path.Combine(_hostingEnvironment.WebRootPath, "templates", "email", "index.html");
+
+        //        string html = System.IO.File.ReadAllText(htmlFilePath);
+        //        htmDoc.LoadHtml(html);
+        //        htmDoc.GetElementbyId("span-user-name").InnerHtml = user.FirstName ?? string.Empty;
+        //        htmDoc.GetElementbyId("span-email-account").InnerHtml = user.Email;
+        //        htmDoc.GetElementbyId("link-verify-email").SetAttributeValue("href", HtmlEncoder.Default.Encode(callbackUrl));
+        //        htmDoc.Save(htmlFilePath);
+        //        htmDoc.Load(htmlFilePath);
+
+        //        await _emailSender.SendEmailAsync(user.Email, "Confirm your email", htmDoc.Text);
+
+        //        ModelState.AddModelError(string.Empty, "Verification email sent. Please check your email.");
+        //    }
+
+        //    return Page();
+        //}
+
     }
 }
