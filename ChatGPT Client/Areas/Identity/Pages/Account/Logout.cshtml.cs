@@ -31,7 +31,7 @@ namespace AskLucy.Areas.Identity.Pages.Account
             if (returnUrl != null)
             {
                 //return LocalRedirect(returnUrl);
-
+                //returnUrl = null;
                 return LocalRedirect("/");
             }
             else

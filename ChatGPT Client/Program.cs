@@ -37,6 +37,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.R
 builder.Services.AddRazorPages();
 
 builder.Services.AddTransient<IEmailSender, EmailSender>();
+
 builder.Services.Configure<AuthMessageSenderOptions>(builder.Configuration);
 
 string CorsAllowAllOrigins = "_corsAllowAllOrigins";

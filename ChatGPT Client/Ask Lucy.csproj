@@ -7,7 +7,7 @@
     <RootNamespace>AskLucy</RootNamespace>
     <EnvironmentName>Development</EnvironmentName>
     <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
-    <UserSecretsId>63adefe8-8278-48b0-baf0-c3fb4801d1ba</UserSecretsId>
+    <!--<UserSecretsId>63adefe8-8278-48b0-baf0-c3fb4801d1ba</UserSecretsId>-->
     <SignAssembly>False</SignAssembly>
   </PropertyGroup>
 

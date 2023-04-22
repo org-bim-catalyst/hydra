@@ -94,22 +94,30 @@ export default class app {
             let files = $('#fil-upload-app');
         });
 
-        $(document).on('click', '#audioplayer', (event: Event) => {
+        $(document).on('click', '#audioplayer', (event) => {
 
             event.preventDefault();
 
-            let audio: HTMLAudioElement = $('#audio-data').get(0);
+            let audio: HTMLAudioElement = $('#audio-data').get(0) as HTMLAudioElement;
 
             audio.addEventListener('timeupdate', (event) => {
 
                 event.preventDefault();
-                console.log(event.type);
 
                 let audio = event.currentTarget as HTMLAudioElement;
                 let position = audio.currentTime / audio.duration;
                 let offset = Math.ceil($('#timeline').width() * position);
 
                 $('#playhead').css('transform', `translate(${offset}px, 0)`);
+            });
+
+            audio.addEventListener('ended', (event) => {
+
+                event.preventDefault();
+
+                $('#pButton').toggleClass("fa-play fa-pause");
+
+                $('#playhead').css('transform', `translate(0, 0)`);
             });
 
             if (($(event.currentTarget).find('i').get(0) as HTMLElement).classList.contains('fa-play')) {
@@ -173,11 +181,11 @@ export default class app {
                 //tinymce.activeEditor.setContent('');
 
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                    this.voiceRecognizer.Draw(msg);
+                    this.voiceRecognizer.draw(msg);
                 } else if (msg.toLowerCase().includes('tanscript')) {
                     //this.voiceRecognizer.Tanscript(msg);
                 } else {
-                    this.voiceRecognizer.Chat(msg);
+                    this.voiceRecognizer.chat(msg);
                 }
 
             });
@@ -186,7 +194,7 @@ export default class app {
         $("#mute").on('click', (event) => {
             event.preventDefault();
 
-            $(event.currentTarget).toggleClass('btn-info btn-primary')
+            $(event.currentTarget).toggleClass('btn-warning btn-primary')
             $(event.currentTarget).find('.fas').toggleClass("fa-microphone-alt fa-microphone-alt-slash");
 
             if ($(event.currentTarget).find('.fas').hasClass('fa-microphone-alt')) {
@@ -215,11 +223,11 @@ export default class app {
         return new Promise((resolve, reject) => {
             try {
                 let li: HTMLLIElement = document.createElement('li');
-                li.classList.add(...['d-flex', 'justify-content-between', 'mb-4', 'direct-chat-msg']);
+                li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
                 li.innerHTML = `<img src="${this.profilePicture}" alt="avatar"
                                                      class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
                                                 <div class="card w-100">
-                                                    <div class="card-header d-flex justify-content-between p-3">
+                                                    <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">${userFirstName}</p>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
@@ -461,17 +469,20 @@ class VoiceRecognizer {
 
                         this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Libby'); })[0];
                         console.log(this.voice.name);
-                    } else if (this.language === 'ar-EG') {
+                    } else if (this.language.startsWith('ar')) {
                         this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Salma'); })[0];
                         console.log(this.voice.name);
-                    } else if (this.language === 'es-ES') {
+                    } else if (this.language.startsWith('es')) {
                         this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Elvira'); })[0];
                         console.log(this.voice.name);
-                    } else if (this.language === 'hi-IN') {
+                    } else if (this.language.startsWith('hi')) {
                         this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Swara'); })[0];
                         console.log(this.voice.name);
-                    } else if (this.language === 'it-IT') {
+                    } else if (this.language.startsWith('it')) {
                         this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Elsa'); })[0];
+                        console.log(this.voice.name);
+                    } else if (this.language.startsWith('nl')) {
+                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Colette'); })[0];
                         console.log(this.voice.name);
                     } else {
                         this.voice = voices.filter((voice) => { return voice.lang.includes(this.language); })[0];
@@ -503,12 +514,17 @@ class VoiceRecognizer {
         this.recognition.onresult = (event) => {
 
             let results = event.results;
-            const msg = results.item(results.length - 1)[0].transcript;
-            this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg" dir="auto">
+            //const msg = results.item(results.length - 1)[0].transcript;
+
+            for (const result of Array.from(event.results)) {
+                // Print the transcription to the console
+                const msg = result[0].transcript;
+
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg" dir="auto">
                                                 <img src="${profilePicture}" alt="avatar"
                                                      class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
                                                 <div class="card w-100">
-                                                    <div class="card-header d-flex justify-content-between p-3">
+                                                    <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">${userFirstName}</p>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
@@ -520,14 +536,16 @@ class VoiceRecognizer {
                                                 </div>
                                             </li>`;
 
-            let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
-            this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+                let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
-            if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                this.Draw(msg);
-            } else {
-                this.Chat(`${msg}\n`);
+                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+
+                if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
+                    this.draw(msg);
+                } else {
+                    this.chat(`${msg}\n`);
+                }
             }
         }
 
@@ -556,7 +574,7 @@ class VoiceRecognizer {
         this.recognition.stop();
     }
 
-    Chat(prompt: string) {
+    chat(prompt: string) {
 
         if (prompt && prompt !== '') {
             this.conversation.push({ "role": "user", "content": prompt });
@@ -580,9 +598,9 @@ class VoiceRecognizer {
 
                 this.conversation.push({ "role": "assistant", "content": msg });
 
-                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right" dir="auto">
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
                                                 <div class="card w-100">
-                                                    <div class="card-header d-flex justify-content-between p-3">
+                                                    <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
@@ -600,61 +618,7 @@ class VoiceRecognizer {
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                let utterance = new SpeechSynthesisUtterance(msg);
-                utterance.lang = this.language;
-                utterance.voice = this.voice;
-                utterance.rate = 1;
-                utterance.pitch = 1;
-                utterance.volume = 0.5;
-
-                utterance.onend = (event) => {
-                    try {
-                        if ($('#flexSwitchCheckChecked').is(':checked')) {
-                            this.recognition.start();
-                        } else {
-                            this.recognition.stop();
-                        }
-                    } catch (e) {
-                        console.log(e);
-                    }
-                };
-
-                utterance.onstart = (event) => {
-
-                    console.log(event.currentTarget);
-
-                    navigator.mediaDevices.enumerateDevices()
-                        // set `getUserMedia()` constraints to "auidooutput", where avaialable
-                        // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
-
-                        .then(devices => {
-                            let audiooutput = devices.find(device => device.kind === "audiooutput" && device.deviceId === "default");
-                            let label = audiooutput.label.replace('Default - ', '');
-
-                            audiooutput = devices.find(device => device.kind === "audiooutput" && device.label === label);
-
-                            if (audiooutput) {
-                                const constraints: MediaStreamConstraints = {
-                                    audio: {
-                                        deviceId: { exact: audiooutput.deviceId },
-                                        groupId: audiooutput.groupId
-                                    }
-                                };
-
-                                navigator.mediaDevices.getUserMedia(constraints).then((stream: MediaStream) => {
-
-                                    console.log(stream.getAudioTracks()[0].label);
-
-                                    let equalizer = new Equalizer(this.profilePicture, stream);
-
-                                    console.log('stream.active: ', stream.getAudioTracks().length);
-                                }).catch(error => console.error(error));
-                            }
-                        });
-                };
-
-                speechSynthesis.speak(utterance);
-
+                this.speak(msg);
 
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
@@ -664,7 +628,7 @@ class VoiceRecognizer {
         });
     }
 
-    Draw(prompt: string) {
+    draw(prompt: string) {
 
         return $.ajax({
             type: 'POST',
@@ -682,9 +646,9 @@ class VoiceRecognizer {
             if (xhr.status === 200) {
                 console.log(JSON.stringify(response));
 
-                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-4 direct-chat-msg pull-right">
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right">
                                                 <div class="card w-100">
-                                                    <div class="card-header d-flex justify-content-between p-3">
+                                                    <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
@@ -714,6 +678,118 @@ class VoiceRecognizer {
             console.log("Status: " + textStatus);
             console.log("Error: " + errorThrown);
         });
+    }
+
+    translate(prompt: string) {
+
+        return $.ajax({
+            type: 'POST',
+            url: 'https://api.openai.com/v1/completions',
+            contentType: "application/json",
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Authorization", "Bearer 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");
+            },
+            data: JSON.stringify({
+                model: "text-davinci-003",
+                prompt: "Translate this into 1. French, 2. Spanish and 3. Japanese:\n\nWhat rooms do you have available?\n\n1.",
+                temperature: 0.3,
+                max_tokens: 100,
+                top_p: 1.0,
+                frequency_penalty: 0.0,
+                presence_penalty: 0.0
+            })
+        }).then((response, textStatus, xhr) => {
+            if (xhr.status === 200) {
+                console.log(JSON.stringify(response));
+                let msg = response.choices[0].message.content;
+
+                this.conversation.push({ "role": "assistant", "content": msg });
+
+                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
+                                                <div class="card w-100">
+                                                    <div class="card-header d-flex justify-content-between">
+                                                        <p class="fw-bold mb-0">Lucy</p>
+                                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="mb-0">
+                                                             ${msg}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <img src="/img/Lucy.png" alt="avatar"
+                                                     class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
+                                            </li>`;
+
+                let lastMsg = document.getElementsByClassName('direct-chat-msg');
+
+                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+
+                this.speak(msg);
+            }
+        }).fail((XMLHttpRequest, textStatus, errorThrown) => {
+            console.log("Message: " + JSON.stringify(XMLHttpRequest));
+            console.log("Status: " + textStatus);
+            console.log("Error: " + errorThrown);
+        });
+    }
+
+
+    private speak(msg: string) {
+
+        let utterance = new SpeechSynthesisUtterance(msg);
+        utterance.lang = this.language;
+        utterance.voice = this.voice;
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 0.5;
+
+        utterance.onend = (event) => {
+            try {
+                if ($('#flexSwitchCheckChecked').is(':checked')) {
+                    this.recognition.start();
+                } else {
+                    this.recognition.stop();
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        };
+
+        utterance.onstart = (event) => {
+
+            console.log(event.currentTarget);
+
+            navigator.mediaDevices.enumerateDevices()
+                // set `getUserMedia()` constraints to "auidooutput", where avaialable
+                // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
+                .then(devices => {
+                    let audiooutput = devices.find(device => device.kind === "audiooutput" && device.deviceId === "default");
+                    let label = audiooutput.label.replace('Default - ', '');
+
+                    audiooutput = devices.find(device => device.kind === "audiooutput" && device.label === label);
+
+                    if (audiooutput) {
+                        const constraints: MediaStreamConstraints = {
+                            audio: {
+                                deviceId: { exact: audiooutput.deviceId },
+                                groupId: audiooutput.groupId
+                            }
+                        };
+
+                        navigator.mediaDevices.getUserMedia(constraints).then((stream: MediaStream) => {
+
+                            console.log(stream.getAudioTracks()[0].label);
+
+                            let equalizer = new Equalizer(this.profilePicture, stream);
+
+                            console.log('stream.active: ', stream.getAudioTracks().length);
+                        }).catch(error => console.error(error));
+                    }
+                });
+        };
+
+        speechSynthesis.speak(utterance);
     }
 }
 
@@ -831,23 +907,22 @@ class Equalizer {
                 let canvas: HTMLCanvasElement = document.querySelector(".canvas-visualizer");
                 let canvasCtx = canvas.getContext("2d");
 
-                let intendedWidth = document.getElementById("visualizer-container").clientWidth.toString();
+                let intendedWidth = $("#visualizer-container").innerWidth().toString();
                 canvas.setAttribute("width", intendedWidth);
-                let drawVisual;
 
                 let WIDTH = canvas.width;
                 let HEIGHT = canvas.height;
                 canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
-                drawVisual = requestAnimationFrame(render);
+                let drawVisual = requestAnimationFrame(render);
 
                 analyser.getByteTimeDomainData(dataArray);
 
-                canvasCtx.fillStyle = "rgba(255, 255, 255, 1)";
+                canvasCtx.fillStyle = "rgba(255, 255, 255, 0)";
                 canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
-                canvasCtx.lineWidth = 2;
-                canvasCtx.strokeStyle = "rgb(26, 35, 126)";
+                canvasCtx.lineWidth = 1;
+                canvasCtx.strokeStyle = "rgba(220, 53, 69, 1)";
 
                 canvasCtx.beginPath();
 
@@ -896,7 +971,7 @@ class Equalizer {
 
                 analyser.getByteFrequencyData(dataArrayAlt);
 
-                canvasCtx.fillStyle = "rgba(34, 45, 50, 1)";
+                canvasCtx.fillStyle = "rgba(255, 255, 255, 1)";
                 canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
                 const barWidth = (WIDTH / bufferLengthAlt) * 2.5;
@@ -920,6 +995,11 @@ class Equalizer {
 
             drawAlt();
         } else if (visualSetting == "off") {
+            let canvas: HTMLCanvasElement = document.querySelector(".canvas-visualizer");
+            let canvasCtx = canvas.getContext("2d");
+            let WIDTH = canvas.width;
+            let HEIGHT = canvas.height;
+
             canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
             canvasCtx.fillStyle = "red";
             canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);

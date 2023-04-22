@@ -5,31 +5,31 @@
 }
 <section class="vh-100">
     <div class="container py-5 h-100">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="row d-flex align-items-center justify-content-center h-100">
-                    <div class="col-md-8 col-lg-7 col-xl-6">
-                        <h1>@ViewData["Title"]</h1>
-                        <hr />
-                        <p class="w-100 mb-5">
-                            The email you used for registration has not been cofirmed.<br />
-                            Please check your inbox and junk mail.<br />
-                            If not received please generate another one from here.<br />
-                        </p>
-                        <h2>Enter your email.</h2>
-                        <form method="post">
-                            <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible" role="alert">
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                            <div class="form-floating mb-3">
-                                <input asp-for="Input.Email" class="form-control" aria-required="true" placeholder="name@example.com" />
-                                <label asp-for="Input.Email" class="form-label"></label>
-                                <span asp-validation-for="Input.Email" class="text-danger"></span>
-                            </div>
-                            <button type="submit" class="w-100 btn btn-lg btn-primary">Resend</button>
-                        </form>
-                    </div>
+        <div class="row d-flex align-items-center justify-content-center h-100">
+            <div class="col-md-8 col-lg-7 col-xl-6">
+                <img src="/img/login_bg.png" class="img-fluid img-thumbnail shadow-4-strong" alt="Login image">
+            </div>
+            <div class="col-md-7 col-lg-5 col-xl-5 offset-xl-1">
+                <div class="divider d-flex align-items-center my-4">
+                    <h1 class="text-primary fw-bold mx-3 text-center" style="font-family: var(--mdb-font-roboto);">Ask Lucy</h1>
                 </div>
+                <p class="w-100 mb-5">
+                    The email you used for registration has not been cofirmed.<br />
+                    Please check your inbox and junk mail.<br />
+                    If not received please generate another one from here.<br />
+                </p>
+                <h2>Enter your email:</h2>
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible" role="alert">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Email" class="form-control" aria-required="true" placeholder="name@example.com"/>
+                        <label asp-for="Input.Email" class="form-label"></label>
+                        <span asp-validation-for="Input.Email" class="text-danger"></span>
+                    </div>
+                    <button type="submit" class="w-100 btn btn-lg btn-primary">Resend</button>
+                </form>
             </div>
         </div>
     </div>

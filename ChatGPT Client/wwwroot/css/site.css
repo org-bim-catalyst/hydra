@@ -135,19 +135,19 @@ body {
     color: #00913b;
 }
 
-.dropdown-item input {
+.multiselect-container .dropdown-item input {
     display: none;
 }
 
-.dropdown-menu {
+.multiselect-container .dropdown-menu {
     overflow-y: auto;
     height: 450px;
 }
-    .dropdown-menu > .active > a {
+    .multiselect-container .dropdown-menu > .active > a {
         background-color: transparent;
     }
 
-.dropdown-item {
+.multiselect-container .dropdown-item {
     margin-bottom: 0;
     padding: 10px 25px;
     cursor: pointer;
@@ -169,11 +169,11 @@ body {
     background-size: cover;
 }
 
-@media only screen and (max-width: 1900px) {
+@media only screen and (min-width: 1350px) {
     .list-unstyled {
         overflow: auto;
-        max-height: 312px; /*443px;*/
-        min-height: 18em;
+        max-height: 256px; /*443px;*/
+        min-height: 16em;
         padding: 14px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -182,82 +182,102 @@ body {
     }
 }
 
-@media only screen and (min-width: 1920px) {
-    .list-unstyled {
-        overflow: auto;
-        max-height: 443px;
-        min-height: 32em;
-        padding: 14px;
-        background-color: #eee;
-        border-radius: .5rem .5rem 0 0;
-        border-bottom: 4px solid #1A237E;
-        padding-bottom: 35px;
-    }
-}
-
-/***************************************************Audio player****************************************/
-html,
-body,
-.view {
-    height: 100%;
-}
-
-#mobile-box {
-    width: 360px;
-}
-
-.card {
-    -webkit-border-radius: 10px;
-    border-radius: 10px;
-}
-
-    .card .view {
-        -webkit-border-top-left-radius: 10px;
-        border-top-left-radius: 10px;
-        -webkit-border-top-right-radius: 10px;
-        border-top-right-radius: 10px;
+    @media only screen and (min-width: 1536px) {
+        .list-unstyled {
+            overflow: auto;
+            max-height: 312px; /*443px;*/
+            min-height: 22em;
+            padding: 14px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            padding-bottom: 35px;
+        }
     }
 
-    .card h5 a {
-        color: #0d47a1;
+    @media only screen and (min-width: 1920px) {
+        .list-unstyled {
+            overflow: auto;
+            max-height: 443px;
+            min-height: 35em;
+            padding: 14px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            padding-bottom: 35px;
+        }
     }
 
-        .card h5 a:hover {
-            color: #072f6b;
+    /***************************************************Audio player****************************************/
+    html,
+    body,
+    .view {
+        height: 100%;
+    }
+
+    #mobile-box {
+        width: 360px;
+    }
+
+    .card {
+        -webkit-border-radius: 10px;
+        border-radius: 10px;
+    }
+
+        .card .view {
+            -webkit-border-top-left-radius: 10px;
+            border-top-left-radius: 10px;
+            -webkit-border-top-right-radius: 10px;
+            border-top-right-radius: 10px;
         }
 
-#pButton {
-    float: left;
-}
+        .card h5 a {
+            color: #0d47a1;
+        }
 
-#timeline {
-    width: 80%;
-    height: 3px;
-    margin-top: 18px;
-    margin-left: 10px;
-    float: left;
-    -webkit-border-radius: 15px;
-    border-radius: 15px;
-    background: rgba(0, 0, 0, 0.3);
-}
+            .card h5 a:hover {
+                color: #072f6b;
+            }
 
-#pButton {
-    margin-top: 12px;
-    cursor: pointer;
-}
+    #pButton {
+        float: left;
+    }
 
-#playhead {
-    width: 8px;
-    height: 8px;
-    -webkit-border-radius: 50%;
-    border-radius: 50%;
-    margin-top: -2px;
-    background: black;
-    cursor: pointer;
-    border: 1px solid #00913b;
-}
+    #timeline {
+        width: 80%;
+        height: 3px;
+        margin-top: 18px;
+        margin-left: 10px;
+        float: left;
+        -webkit-border-radius: 15px;
+        border-radius: 15px;
+        background: rgba(0, 0, 0, 0.3);
+    }
 
-/**********************************************/
-.form-outline textarea.form-control {
-    min-height: 10em;
-}
+    #pButton {
+        margin-top: 12px;
+        cursor: pointer;
+    }
+
+    #playhead {
+        width: 8px;
+        height: 8px;
+        -webkit-border-radius: 50%;
+        border-radius: 50%;
+        margin-top: -2px;
+        background: black;
+        cursor: pointer;
+        border: 1px solid #00913b;
+    }
+
+    /**********************************************/
+    .form-outline textarea.form-control {
+        min-height: 10em;
+    }
+
+    .dropdown-menu {
+        right: 0px;
+        left: auto;
+        top: 100%;
+        margin-top: .125rem;
+    }
