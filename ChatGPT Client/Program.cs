@@ -89,6 +89,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+// Persist additional claims and tokens from external providers in ASP.NET Core
+// https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/additional-claims?view=aspnetcore-7.0
+
 builder.Services.AddAuthentication()
    .AddGoogle(options =>
    {
@@ -98,6 +101,9 @@ builder.Services.AddAuthentication()
        //options.AccessDeniedPath = new PathString("/");
        //options.Scope.Add("https://www.googleapis.com/auth/user.birthday.read");
        options.SaveTokens = true;
+       options.UserInformationEndpoint = "https://www.googleapis.com/oauth2/v2/userinfo";
+       options.ClaimActions.MapJsonKey(ClaimTypes.GivenName, "given_name");
+       options.ClaimActions.MapJsonKey(ClaimTypes.DateOfBirth, "user_birthday");
 
        options.Events.OnCreatingTicket = (context) =>
        {

@@ -172,6 +172,14 @@ namespace AskLucy.Areas.Identity.Pages.Account
             // Get the information about the user from the external login provider
             // https://www.appsloveworld.com/csharp/100/1610/google-people-api-c-code-to-get-list-of-contact-groups
             // https://www.daimto.com/asp-net-core-3-and-google-login/
+            // TODO: Check Github login 
+            // https://chsakell.com/2019/07/28/asp-net-core-identity-series-external-provider-authentication-registration-strategy/
+            // Validate error messages
+            // https://softwareparticles.com/server-client-side-validations-in-mvc-views-and-razor-pages/
+            // Account confirmation and password recovery in ASP.NET Core
+            // https://learn.microsoft.com/en-us/aspnet/core/security/authentication/accconfirm?view=aspnetcore-7.0&tabs=visual-studio
+            // and https://code-maze.com/email-confirmation-aspnet-core-identity/
+
 
             var info = await _signInManager.GetExternalLoginInfoAsync();
 

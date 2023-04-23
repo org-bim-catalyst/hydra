@@ -14,6 +14,7 @@ require("bootstrap-multiselect");
 //https://blog.teamtreehouse.com/getting-started-speech-synthesis-api#:~:text=To%20use%20a%20voice%2C%20set,speechSynthesis.
 //https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis
 //https://ourcodeworld.com/articles/read/405/how-to-convert-pdf-to-text-extract-text-from-pdf-with-javascript
+//https://medium.com/@david.richards.tech/ai-audio-conversations-with-openai-whisper-3c730a9c7123
 var moment = require("moment");
 var app = /** @class */ (function () {
     function app(userFirstName, profilePicture) {
@@ -32,6 +33,7 @@ var app = /** @class */ (function () {
             var file = event.target.files[0];
             $('#span-file-info').text('Type: ' + file.type + ', Size: ' + (file.size / 1024) + ' KB');
             var filepath = URL.createObjectURL(file);
+            // Todo: complete the MIME list
             //https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             switch (file.type) {
                 case 'application/pdf':
@@ -41,6 +43,12 @@ var app = /** @class */ (function () {
                     break;
                 case 'audio/mpeg':
                 case 'audio/ogg':
+                case 'audio/aac':
+                case 'audio/opus':
+                case 'audio/wav':
+                case 'audio/webm':
+                case 'audio/3gpp':
+                case 'audio/3gpp2':
                     _this.tanscript(file).then(function (textPage) {
                         _this.addToChatBox(textPage);
                         _this.addToAttachments(file);
