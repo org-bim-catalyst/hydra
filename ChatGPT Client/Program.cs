@@ -102,7 +102,7 @@ builder.Services.AddAuthentication()
        //options.Scope.Add("https://www.googleapis.com/auth/user.birthday.read");
        options.SaveTokens = true;
        options.UserInformationEndpoint = "https://www.googleapis.com/oauth2/v2/userinfo";
-       options.ClaimActions.MapJsonKey(ClaimTypes.GivenName, "given_name");
+       options.ClaimActions.MapJsonKey(ClaimTypes.Gender, "user_gender");
        options.ClaimActions.MapJsonKey(ClaimTypes.DateOfBirth, "user_birthday");
 
        options.Events.OnCreatingTicket = (context) =>
