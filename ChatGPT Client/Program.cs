@@ -108,7 +108,7 @@ builder.Services.AddAuthentication()
        options.Events.OnCreatingTicket = (context) =>
        {
            string? picture = context.User.GetProperty("picture").GetString();
-           //string? dob = context.User.GetProperty("birthdate").GetString();
+           bool dob = context.User.GetProperty("verified_email").GetBoolean();
 
            context.Identity!.AddClaim(new Claim("picture", picture!));
 
