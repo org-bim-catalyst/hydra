@@ -155,6 +155,10 @@ body {
     /*line-height: 1;*/
     cursor: pointer;
 }
+.dropdown-item span{
+    padding: 0px 5px;
+    cursor: pointer;
+}
 
 .divider:after,
 .divider:before {

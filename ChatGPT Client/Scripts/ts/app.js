@@ -132,7 +132,8 @@ var app = /** @class */ (function () {
                     //this.voiceRecognizer.transcript(msg);
                 }
                 else {
-                    _this.voiceRecognizer.chat(msg);
+                    var lang = $('#select-languages option').filter(':selected').text();
+                    _this.voiceRecognizer.chat(msg, { "lang": lang });
                 }
             });
         });
@@ -213,7 +214,7 @@ var app = /** @class */ (function () {
         document.getElementById('progress-pdf-parser').setAttribute('aria-valuenow', '0');
         return $.ajax({
             type: 'POST',
-            url: 'openai/transcript',
+            url: '/openai/transcript',
             processData: false,
             contentType: false,
             data: formdata,
@@ -323,11 +324,11 @@ var VoiceRecognizer = /** @class */ (function () {
         this.recognition.interimResults = false;
         this.recognition.maxAlternatives = 1;
         var synth = speechSynthesis;
-        var voices = synth.getVoices();
+        this.voices = synth.getVoices();
         speechSynthesis.onvoiceschanged = function () {
-            voices = speechSynthesis.getVoices();
+            _this.voices = speechSynthesis.getVoices();
             //console.log(...voices);
-            var langs = Array.from(new Set(voices.map(function (voice) { return voice.lang; })));
+            var langs = Array.from(new Set(_this.voices.map(function (voice) { return voice.lang; })));
             langs.sort();
             $('#select-translation-language').val('').multiselect({
                 nonSelectedText: 'Please select language',
@@ -348,7 +349,7 @@ var VoiceRecognizer = /** @class */ (function () {
                     _this.recognition.lang = _this.language;
                     //Microsoft Libby Online (Natural) - English (United Kingdom)
                     //Microsoft Salma Online (Natural) - Arabic (Egypt)
-                    _this.getVoice(voices, _this.language);
+                    _this.voice = _this.getVoice(_this.voices, _this.language);
                 }
             });
             $('#select-languages').val('').multiselect({
@@ -368,7 +369,7 @@ var VoiceRecognizer = /** @class */ (function () {
                 onChange: function (option, checked) {
                     _this.language = option.html();
                     _this.recognition.lang = _this.language;
-                    _this.getVoice(voices, _this.language);
+                    _this.voice = _this.getVoice(_this.voices, _this.language);
                 }
             });
             var options = [];
@@ -379,10 +380,10 @@ var VoiceRecognizer = /** @class */ (function () {
             $('#select-translation-language').multiselect('rebuild');
             $('#select-languages').multiselect('dataprovider', options);
             $('#select-languages').multiselect('rebuild');
-            console.log(voices);
+            console.log(_this.voices);
             if (!_this.voice) {
                 console.log($('#select-languages option:selected').text());
-                _this.voice = voices.filter(function (voice) { return voice.name.toLowerCase().includes('female'); })[0];
+                _this.voice = _this.getVoice(_this.voices, _this.language);
             }
         };
         this.recognition.onresult = function (event) {
@@ -399,7 +400,8 @@ var VoiceRecognizer = /** @class */ (function () {
                     _this.draw(msg);
                 }
                 else {
-                    _this.chat("".concat(msg, "\n"));
+                    var lang = $('#select-languages option').filter(':selected').text();
+                    _this.chat("".concat(msg), { "lang": lang });
                 }
             }
         };
@@ -470,7 +472,7 @@ var VoiceRecognizer = /** @class */ (function () {
         }
         return $.ajax({
             type: 'POST',
-            url: 'openai/chat',
+            url: '/openai/chat',
             dataType: 'json',
             data: {
                 "model": "gpt-3.5-turbo",
@@ -480,9 +482,17 @@ var VoiceRecognizer = /** @class */ (function () {
             if (xhr.status === 200) {
                 var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
-                _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
+                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                        <span class=\"material-icons\">record_voice_over</span>\n                                                         </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
+                _this.diagnostic.appendChild(li.get(0));
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
+                li.find('.btn-read').on('click', function (event) {
+                    event.preventDefault();
+                    var current = event.currentTarget;
+                    var message = $(current).closest('.card').find('.card-body p').text();
+                    _this.voice = _this.getVoice(_this.voices, options.lang);
+                    _this.speak(message);
+                });
                 _this.speak(msg);
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
@@ -493,7 +503,7 @@ var VoiceRecognizer = /** @class */ (function () {
         var _this = this;
         return $.ajax({
             type: 'POST',
-            url: 'openai/draw',
+            url: '/openai/draw',
             dataType: 'json',
             data: { "prompt": prompt, "n": "1", "size": "1024x1024" }
         }).then(function (response, textStatus, xhr) {
@@ -519,7 +529,7 @@ var VoiceRecognizer = /** @class */ (function () {
         }
         return $.ajax({
             type: 'POST',
-            url: 'openai/chat',
+            url: '/openai/chat',
             dataType: 'json',
             data: {
                 "model": "gpt-3.5-turbo",
@@ -529,12 +539,15 @@ var VoiceRecognizer = /** @class */ (function () {
             if (xhr.status === 200) {
                 var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
-                _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons\">record_voice_over</span>\n                                                         </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
+                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons\">record_voice_over</span>\n                                                         </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
+                _this.diagnostic.appendChild(li.get(0));
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
-                $('.direct-chat-msg .btn-read').on('click', function (event) {
+                li.find('.btn-read').on('click', function (event) {
                     event.preventDefault();
-                    var message = $('.btn-read').closest('.card').find('.card-body p').text();
+                    var current = event.currentTarget;
+                    var message = $(current).closest('.card').find('.card-body p').text();
+                    _this.voice = _this.getVoice(_this.voices, options.lang);
                     _this.speak(message);
                 });
                 _this.speak(msg);
@@ -765,6 +778,9 @@ var Equalizer = /** @class */ (function () {
     };
     Equalizer.prototype.visualizeD3 = function (analyser) {
         //TODO: https://blog.scottlogic.com/2016/01/06/audio-api-with-d3.html
+        // https://css-tricks.com/making-an-audio-waveform-visualizer-with-vanilla-javascript/
+        // https://medium.com/swlh/visualizing-sound-with-d3-and-web-audio-api-435ffea88f30
+        // https://github.com/willianjusten/awesome-audio-visualization
         var _this = this;
         var visualSetting = "sinewave";
         console.log(visualSetting);

@@ -3,6 +3,7 @@ import { Select } from 'mdb-ui-kit';
 import * as d3 from "d3";
 import * as $ from 'jquery';
 import "bootstrap-multiselect";
+import { EventEmitter } from "events";
 
 //https://ralzohairi.medium.com/audio-recording-in-javascript-96eed45b75ee
 //https://orangeable.com/javascript/equalizer-web-audio-api
@@ -144,8 +145,6 @@ export default class app {
 
         });
 
-
-
         //tinymce.init({
         //    selector: "[data-emojiable='true']",
         //    plugins: "emoticons autoresize",
@@ -158,22 +157,8 @@ export default class app {
 
     private initUi() {
 
-        //// create an array of options
-        //const options = [
-        //    { value: 'apple', label: 'Apple' },
-        //    { value: 'banana', label: 'Banana' },
-        //    { value: 'orange', label: 'Orange' },
-        //];
 
-        //// create a select element using mdb.Select component
-        //const selectElement = new Select(document.getElementById('mySelect'), {
-        //    options: options,
-        //    clearable: true,
-        //    search: true,
-        //    placeholder: 'Select a fruit',
-        //});
 
-        //Tags.init("#tags-input", { maximumItems: 1, clearEnd: true });
 
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
@@ -201,7 +186,8 @@ export default class app {
                 } else if (msg.toLowerCase().includes('transcript')) {
                     //this.voiceRecognizer.transcript(msg);
                 } else {
-                    this.voiceRecognizer.chat(msg);
+                    let lang: string = $('#select-languages option').filter(':selected').text();
+                    this.voiceRecognizer.chat(msg, { "lang": lang });
                 }
 
             });
@@ -261,8 +247,6 @@ export default class app {
                     $('#textArea-chat-message').val('');
 
                     $('#ul-chat-attachments').html('');
-
-
 
                     this.voiceRecognizer.translate(msg, { "lang": lang });
 
@@ -344,7 +328,7 @@ export default class app {
 
         return $.ajax({
             type: 'POST',
-            url: 'openai/transcript',
+            url: '/openai/transcript',
             processData: false,
             contentType: false,
             data: formdata,
@@ -450,7 +434,7 @@ export default class app {
 
 }
 
-class VoiceRecognizer {
+class VoiceRecognizer extends EventEmitter {
 
     private grammar: string;
     public diagnostic: HTMLElement;
@@ -460,8 +444,11 @@ class VoiceRecognizer {
     private conversation: any[];
     private language: string = "en-GB";
     private errMngr: ErrorManager;
+    private voices: SpeechSynthesisVoice[];
 
     constructor(private userFirstName: string, private profilePicture: string) {
+
+        super();
 
         this.errMngr = new ErrorManager();
 
@@ -479,13 +466,13 @@ class VoiceRecognizer {
         this.recognition.maxAlternatives = 1;
 
         const synth = speechSynthesis;
-        let voices: SpeechSynthesisVoice[] = synth.getVoices();
+        this.voices = synth.getVoices();
 
         speechSynthesis.onvoiceschanged = () => {
 
-            voices = speechSynthesis.getVoices();
+            this.voices = speechSynthesis.getVoices();
             //console.log(...voices);
-            let langs: string[] = Array.from(new Set(voices.map((voice) => { return voice.lang })));
+            let langs: string[] = Array.from(new Set(this.voices.map((voice) => { return voice.lang })));
             langs.sort();
 
             $('#select-translation-language').val('').multiselect({
@@ -516,7 +503,7 @@ class VoiceRecognizer {
                     //Microsoft Libby Online (Natural) - English (United Kingdom)
                     //Microsoft Salma Online (Natural) - Arabic (Egypt)
 
-                    this.getVoice(voices, this.language);
+                    this.voice = this.getVoice(this.voices, this.language);
 
                 }
             });
@@ -548,7 +535,7 @@ class VoiceRecognizer {
                     this.language = option.html();
                     this.recognition.lang = this.language;
 
-                    this.getVoice(voices, this.language);
+                    this.voice = this.getVoice(this.voices, this.language);
                 }
             });
 
@@ -564,13 +551,13 @@ class VoiceRecognizer {
             $('#select-languages').multiselect('dataprovider', options);
             $('#select-languages').multiselect('rebuild');
 
-            console.log(voices);
+            console.log(this.voices);
 
             if (!this.voice) {
 
                 console.log($('#select-languages option:selected').text());
 
-                this.voice = voices.filter((voice) => { return voice.name.toLowerCase().includes('female'); })[0];
+                this.voice = this.getVoice(this.voices, this.language);
             }
         };
 
@@ -607,15 +594,10 @@ class VoiceRecognizer {
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                     this.draw(msg);
                 } else {
-                    this.chat(`${msg}\n`);
+                    let lang: string = $('#select-languages option').filter(':selected').text();
+                    this.chat(`${msg}`, { "lang": lang });
                 }
             }
-        }
-
-        if ($('#flexSwitchCheckChecked').is(':checked')) {
-            this.recognition.start();
-        } else {
-            this.recognition.stop();
         }
 
         this.conversation = [{ "role": "user", "content": `Good Morning, my name is ${userFirstName}.` },
@@ -680,7 +662,7 @@ class VoiceRecognizer {
 
         return $.ajax({
             type: 'POST',
-            url: 'openai/chat',
+            url: '/openai/chat',
             dataType:'json',
             data: {
                 "model": "gpt-3.5-turbo",
@@ -693,7 +675,7 @@ class VoiceRecognizer {
 
                 this.conversation.push({ "role": "assistant", "content": msg });
 
-                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
+                let li = $(`<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
@@ -710,11 +692,24 @@ class VoiceRecognizer {
                                                 </div>
                                                 <img src="/img/Lucy.png" alt="avatar"
                                                      class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
-                                            </li>`;
+                                            </li>`);
+
+                this.diagnostic.appendChild(li.get(0));
 
                 let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+
+                li.find('.btn-read').on('click', (event) => {
+
+                    event.preventDefault();
+
+                    let current = event.currentTarget;
+
+                    let message = $(current).closest('.card').find('.card-body p').text();
+                    this.voice = this.getVoice(this.voices, options.lang);
+                    this.speak(message);
+                });
 
                 this.speak(msg);
 
@@ -728,7 +723,7 @@ class VoiceRecognizer {
 
         return $.ajax({
             type: 'POST',
-            url: 'openai/draw',
+            url: '/openai/draw',
             dataType: 'json',
             data: {"prompt": prompt,"n": "1","size": "1024x1024"}
         }).then((response, textStatus, xhr) => {
@@ -774,7 +769,7 @@ class VoiceRecognizer {
 
         return $.ajax({
             type: 'POST',
-            url: 'openai/chat',
+            url: '/openai/chat',
             dataType: 'json',
             data: {
                 "model": "gpt-3.5-turbo",
@@ -787,7 +782,7 @@ class VoiceRecognizer {
 
                 this.conversation.push({ "role": "assistant", "content": msg });
 
-                this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
+                let li = $(`<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
@@ -804,16 +799,22 @@ class VoiceRecognizer {
                                                 </div>
                                                 <img src="/img/Lucy.png" alt="avatar"
                                                      class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
-                                            </li>`;
+                                            </li>`);
+
+                this.diagnostic.appendChild(li.get(0))  ;
 
                 let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                $('.direct-chat-msg .btn-read').on('click', (event) => {
+                li.find('.btn-read').on('click', (event) => {
 
                     event.preventDefault();
-                    let message = $('.btn-read').closest('.card').find('.card-body p').text();
+
+                    let current = event.currentTarget;
+
+                    let message = $(current).closest('.card').find('.card-body p').text();
+                    this.voice = this.getVoice(this.voices, options.lang);
                     this.speak(message);
                 });
 
