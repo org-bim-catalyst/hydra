@@ -13,20 +13,31 @@ using Google.Apis.PeopleService.v1.Data;
 using System.Drawing;
 using AskLucy.Classes;
 using Microsoft.AspNetCore.Builder;
+using System.Net.Http.Headers;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient("Default",
+                        client =>
+                        {
+                            client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue { NoCache = true };
+                            client.Timeout = TimeSpan.FromMinutes(2);
+                            client.MaxResponseContentBufferSize = Int32.MaxValue;
+                        });
+
 //var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 //{
 //    EnvironmentName = Environments.Development
 //});
+
 builder.Services.AddLogging(config =>
 {
     config.AddConsole();
     config.AddDebug();
 });
 
-builder.Services.AddTransient<ErrorHandlingMiddleware> ();
+builder.Services.AddTransient<ErrorHandlingMiddleware>();
 
 var connectionString = builder.Configuration.GetConnectionString("ChatGPT_ClientContextConnection") ?? throw new InvalidOperationException("Connection string 'ChatGPT_ClientContextConnection' not found.");
 
@@ -91,7 +102,8 @@ builder.Services.AddControllersWithViews();
 
 // Persist additional claims and tokens from external providers in ASP.NET Core
 // https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/additional-claims?view=aspnetcore-7.0
-
+// https://github.com/dotnet/aspnetcore/blob/89ef21514694323e5ea5b304061464c26b373dbf/src/AuthSamples/samples/Identity.ExternalClaims/Startup.cs
+// https://stackoverflow.com/questions/45855503/how-to-retrieve-google-profile-picture-from-logged-in-user-with-asp-net-core-ide
 builder.Services.AddAuthentication()
    .AddGoogle(options =>
    {
@@ -99,9 +111,10 @@ builder.Services.AddAuthentication()
        options.ClientId = googleAuthNSection.GetValue<string>("ClientId")!;
        options.ClientSecret = googleAuthNSection.GetValue<string>("ClientSecret")!;
        //options.AccessDeniedPath = new PathString("/");
-       //options.Scope.Add("https://www.googleapis.com/auth/user.birthday.read");
+       options.Scope.Add("profile");
        options.SaveTokens = true;
        options.UserInformationEndpoint = "https://www.googleapis.com/oauth2/v2/userinfo";
+       options.Scope.Add("https://www.googleapis.com/auth/user.birthday.read");
        options.ClaimActions.MapJsonKey(ClaimTypes.Gender, "user_gender");
        options.ClaimActions.MapJsonKey(ClaimTypes.DateOfBirth, "user_birthday");
 
@@ -127,37 +140,39 @@ builder.Services.AddAuthentication()
    })
    .AddFacebook(options =>
   {
-       //https://stackoverflow.com/questions/45855660/how-to-retrieve-facebook-profile-picture-from-logged-in-user-with-asp-net-core-i
-       //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/additional-claims?view=aspnetcore-7.0
-       IConfigurationSection FBAuthNSection = builder.Configuration.GetSection("Authentication:FB");
-       options.ClientId = FBAuthNSection.GetValue<string>("ClientId")!;
-       options.ClientSecret = FBAuthNSection.GetValue<string>("ClientSecret")!;
-       options.SaveTokens = true;
-       //options.AccessDeniedPath = new PathString("/");
-       options.Fields.Add("picture");
-       //options.Fields.Add("birthday");
+      //https://stackoverflow.com/questions/45855660/how-to-retrieve-facebook-profile-picture-from-logged-in-user-with-asp-net-core-i
+      //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/additional-claims?view=aspnetcore-7.0
+      //https://developers.google.com/identity/protocols/oauth2/scopes
 
-       options.Events.OnCreatingTicket = (context) =>
-       {
-           var picture = context.User.GetProperty("picture").GetProperty("data").GetProperty("url").ToString();
-           //var birthday = context.User.GetProperty("user_birthday").ToString();
+      IConfigurationSection FBAuthNSection = builder.Configuration.GetSection("Authentication:FB");
+      options.ClientId = FBAuthNSection.GetValue<string>("ClientId")!;
+      options.ClientSecret = FBAuthNSection.GetValue<string>("ClientSecret")!;
+      options.SaveTokens = true;
+      //options.AccessDeniedPath = new PathString("/");
+      options.Fields.Add("picture");
+      //options.Fields.Add("birthday");
 
-           context.Identity!.AddClaim(new Claim("picture", picture!));
-           //context.Identity!.AddClaim(new Claim("birthday", birthday!));
+      options.Events.OnCreatingTicket = (context) =>
+      {
+          var picture = context.User.GetProperty("picture").GetProperty("data").GetProperty("url").ToString();
+          //var birthday = context.User.GetProperty("user_birthday").ToString();
 
-           List<AuthenticationToken> tokens = context.Properties.GetTokens().ToList();
+          context.Identity!.AddClaim(new Claim("picture", picture!));
+          //context.Identity!.AddClaim(new Claim("birthday", birthday!));
 
-           tokens.Add(new AuthenticationToken()
-           {
-               Name = "TicketCreated",
-               Value = DateTime.UtcNow.ToString()
-           });
+          List<AuthenticationToken> tokens = context.Properties.GetTokens().ToList();
 
-           context.Properties.StoreTokens(tokens);
+          tokens.Add(new AuthenticationToken()
+          {
+              Name = "TicketCreated",
+              Value = DateTime.UtcNow.ToString()
+          });
 
-           return Task.CompletedTask;
-       };
-   })
+          context.Properties.StoreTokens(tokens);
+
+          return Task.CompletedTask;
+      };
+  })
    //.AddMicrosoftAccount(microsoftOptions =>
    //{
    //    microsoftOptions.ClientId = builder.Configuration.GetSection("Authentication:Microsoft").GetValue<string>("ClientId")!;
