@@ -9,6 +9,10 @@
     {
       "library": "bootstrap-multiselect@1.1.2",
       "destination": "wwwroot/lib/bootstrap-multiselect/"
+    },
+    {
+      "library": "jqueryui@1.13.2",
+      "destination": "wwwroot/lib/jqueryui/"
     }
   ]
 }

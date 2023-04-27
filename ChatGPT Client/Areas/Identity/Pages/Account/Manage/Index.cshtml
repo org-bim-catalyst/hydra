@@ -16,12 +16,12 @@
                 <label asp-for="Username" class="form-label"></label>
             </div>
             <div class="form-floating mb-3">
-                <input asp-for="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." />
+                <input asp-for="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." type="tel" />
                 <label asp-for="Input.PhoneNumber" class="form-label"></label>
                 <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
             </div>
             <div class="form-floating mb-3">
-                <input asp-for="Input.BirthDate" class="form-control" placeholder="Please enter your birth date." />
+                <input asp-for="Input.BirthDate" class="form-control" placeholder="Please enter your birth date." type="date" asp-format="{0:yyyy-MM-dd}" />
                 <label asp-for="Input.BirthDate" class="form-label"></label>
                 <span asp-validation-for="Input.BirthDate" class="text-danger"></span>
             </div>
@@ -71,4 +71,9 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+@*    <script>
+        $('[type="date"]').datepicker({
+            dateFormat: 'dd/mm/yy'
+        });
+    </script>*@
 }

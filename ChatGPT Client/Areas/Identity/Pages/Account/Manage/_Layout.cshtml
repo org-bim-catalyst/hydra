@@ -8,6 +8,7 @@
         Layout = "/Areas/Identity/Pages/_Layout.cshtml";
     }
 }
+<link href="~/lib/jqueryui/themes/base/jquery-ui.min.css" rel="stylesheet" />
 
 <section>
     <div class="container-fluid m-0">
@@ -55,5 +56,8 @@
 </section>
 
 @section Scripts {
+    <script type="text/javascript" src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="~/lib/jqueryui/jquery-ui.min.js"></script>
+
     @RenderSection("Scripts", required: false)
 }

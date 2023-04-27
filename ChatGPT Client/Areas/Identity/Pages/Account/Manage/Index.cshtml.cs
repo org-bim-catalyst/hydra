@@ -65,7 +65,8 @@ namespace AskLucy.Areas.Identity.Pages.Account.Manage
             public string FirstName { get; set; }
             [Display(Name = "Last Name")]
             public string LastName { get; set; }
-            [Display(Name = "Birth Date")]
+            [Display(Name = "Birth Date"), DataType(DataType.DateTime)]
+            [DisplayFormat(ApplyFormatInEditMode = true, DataFormatString = "{0:dd/MM/yyyy}")]
             public DateOnly BirthDate { get; set; }
             [Display(Name = "Profile Picture")]
             public byte[] ProfilePicture { get; set; }
