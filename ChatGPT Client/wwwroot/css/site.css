@@ -143,16 +143,17 @@ body {
     overflow-y: auto;
     height: 450px;
 }
+
     .multiselect-container .dropdown-menu > .active > a {
         background-color: transparent;
     }
 
 .multiselect-container .dropdown-item {
     margin-bottom: 0;
-    padding: 10px 25px;
-    cursor: pointer;
+    padding: 5px 0px 5px 15px;
     border-bottom: 1px solid #dee2e6;
-    line-height: 1;
+    /*line-height: 1;*/
+    cursor: pointer;
 }
 
 .divider:after,
@@ -161,6 +162,19 @@ body {
     flex: 1;
     height: 1px;
     background: #eee;
+}
+
+@media only screen and (min-width: 600px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 174px;
+        min-height: 12em;
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
+    }
 }
 
 .container-fluid {
@@ -174,7 +188,7 @@ body {
         overflow: auto;
         max-height: 236px;
         min-height: 16.5em;
-        padding: 14px;
+        padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
         border-bottom: 4px solid #1A237E;
@@ -187,7 +201,7 @@ body {
         overflow: auto;
         max-height: 256px; /*443px;*/
         min-height: 19.5em;
-        padding: 14px;
+        padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
         border-bottom: 4px solid #1A237E;
@@ -195,102 +209,132 @@ body {
     }
 }
 
-    @media only screen and (min-width: 1536px) {
-        .list-unstyled {
-            overflow: auto;
-            max-height: 312px; /*443px;*/
-            min-height: 26.5em;
-            padding: 14px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            margin: 0;
+@media only screen and (min-width: 1536px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 312px; /*443px;*/
+        min-height: 26.5em;
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
+    }
+}
+
+@media only screen and (min-width: 1863px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 236px;
+        min-height: 47.5em;
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
+    }
+}
+
+@media only screen and (min-width: 1920px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 443px;
+        min-height: 40em;
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
+    }
+}
+
+@media only screen and (min-width: 2503px) {
+    .list-unstyled {
+        overflow: auto;
+        max-height: 443px;
+        min-height: 61em;
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
+    }
+}
+/***************************************************Audio player****************************************/
+html,
+body,
+.view {
+    height: 100%;
+}
+
+#mobile-box {
+    width: 360px;
+}
+
+.card {
+    -webkit-border-radius: 10px;
+    border-radius: 10px;
+}
+
+    .card .view {
+        -webkit-border-top-left-radius: 10px;
+        border-top-left-radius: 10px;
+        -webkit-border-top-right-radius: 10px;
+        border-top-right-radius: 10px;
+    }
+
+    .card h5 a {
+        color: #0d47a1;
+    }
+
+        .card h5 a:hover {
+            color: #072f6b;
         }
-    }
 
-    @media only screen and (min-width: 1920px) {
-        .list-unstyled {
-            overflow: auto;
-            max-height: 443px;
-            min-height: 40em;
-            padding: 14px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            margin: 0;
-        }
-    }
+#pButton {
+    float: left;
+}
 
-    /***************************************************Audio player****************************************/
-    html,
-    body,
-    .view {
-        height: 100%;
-    }
+#timeline {
+    width: 80%;
+    height: 3px;
+    margin-top: 18px;
+    margin-left: 10px;
+    float: left;
+    -webkit-border-radius: 15px;
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.3);
+}
 
-    #mobile-box {
-        width: 360px;
-    }
+#pButton {
+    margin-top: 12px;
+    cursor: pointer;
+}
 
-    .card {
-        -webkit-border-radius: 10px;
-        border-radius: 10px;
-    }
+#playhead {
+    width: 9px;
+    height: 9px;
+    -webkit-border-radius: 50%;
+    border-radius: 50%;
+    margin-top: -3px;
+    background: black;
+    cursor: pointer;
+    border: 1px solid #00913b;
+}
 
-        .card .view {
-            -webkit-border-top-left-radius: 10px;
-            border-top-left-radius: 10px;
-            -webkit-border-top-right-radius: 10px;
-            border-top-right-radius: 10px;
-        }
+/**********************************************/
+.form-outline textarea.form-control {
+    min-height: 7.5em;
+}
 
-        .card h5 a {
-            color: #0d47a1;
-        }
+.dropdown-menu {
+    right: 0px;
+    left: auto;
+    top: 100%;
+    margin-top: .125rem;
+}
 
-            .card h5 a:hover {
-                color: #072f6b;
-            }
-
-    #pButton {
-        float: left;
-    }
-
-    #timeline {
-        width: 80%;
-        height: 3px;
-        margin-top: 18px;
-        margin-left: 10px;
-        float: left;
-        -webkit-border-radius: 15px;
-        border-radius: 15px;
-        background: rgba(0, 0, 0, 0.3);
-    }
-
-    #pButton {
-        margin-top: 12px;
-        cursor: pointer;
-    }
-
-    #playhead {
-        width: 9px;
-        height: 9px;
-        -webkit-border-radius: 50%;
-        border-radius: 50%;
-        margin-top: -3px;
-        background: black;
-        cursor: pointer;
-        border: 1px solid #00913b;
-    }
-
-    /**********************************************/
-    .form-outline textarea.form-control {
-        min-height: 7.5em;
-    }
-
-    .dropdown-menu {
-        right: 0px;
-        left: auto;
-        top: 100%;
-        margin-top: .125rem;
-    }
+/*******************Materials font ************************/
+.material-icons {
+    line-height: unset;
+}

@@ -1,0 +1,12 @@
+User Access Control stories:
+
+1 - User enter wrong user name
+2 - User enter wrong password
+3 - User entered right crednitiials but email is not confirmed.
+4 - User entered the right credinitials but account is locked.
+5 - User has fogetten the password, wants to reset his password.
+6 - User wants to resent email confirmation message.
+7 - User used invalid or expired email verification link.
+8 - User registers with external Identity provider where the email useed is already registered in the system.
+9 - User wants to assign the registered external login account with new email address with password
+10 - User forgets password and wants to generate new one.

@@ -24,39 +24,46 @@ module.exports = {
         library: {
             name: ['app_open_ai'],
             type: 'var'
-        }
+        },
+        sourceMapFilename: "[name].js.map"
     },
     module: {
-        rules: [{
-            test: /\.(ts|js)x?$/,
-            exclude: /node_modules/,
-            use: {
-                loader: "babel-loader"
-            }
-        }, {
-            test: /\.(scss|css)$/,
-            use: [
-                {
-                    loader: 'style-loader'
-                },
-                {
-                    loader: 'css-loader'
-                },
-                {
-                    loader: 'postcss-loader',
-                    options: {
-                        postcssOptions: {
-                            plugins: () => [
-                                require('autoprefixer')
-                            ]
-                        }
-                    }
-                },
-                {
-                    loader: 'sass-loader'
+        rules: [
+            {
+                test: /\.js$/,
+                enforce: "pre",
+                use: ["source-map-loader"],
+            },
+            {
+                test: /\.(ts|js)x?$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: "babel-loader",
                 }
-            ]
-        }]
+            }, {
+                test: /\.(scss|css)$/,
+                use: [
+                    {
+                        loader: 'style-loader'
+                    },
+                    {
+                        loader: 'css-loader'
+                    },
+                    {
+                        loader: 'postcss-loader',
+                        options: {
+                            postcssOptions: {
+                                plugins: () => [
+                                    require('autoprefixer')
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        loader: 'sass-loader'
+                    }
+                ]
+            }]
     },
     resolve: {
         fallback: {
@@ -67,7 +74,7 @@ module.exports = {
         extensions: ['.js', '.jsx', '.tsx', '.ts', '.json', '.wasm']
     },
     mode: "development",
-    devtool: "inline-source-map",
+    devtool: "source-map",
 
     plugins: [
         new webpack.DefinePlugin({

@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Home";
 }
+
 <header>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white">
@@ -93,7 +94,7 @@
                              loading="lazy" />
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-lg-end dropr multiselect-container dcustom-scrollbar" aria-labelledby="navbarDropdownMenuAvatar">
-                        <li class ="multiselect-selected">
+                        <li class="multiselect-selected">
                             <a class="dropdown-item" id="profile" href="/Identity/Account/Manage/Index">
                                 <i class="fas fa-user"></i> My Profile
                             </a>
@@ -151,25 +152,24 @@
                                         <h6 class="mt-2 text-muted">Attachments</h6>
 
                                         <ol class="list-group list-group-light bg-white" id="ul-chat-attachments">
-
                                         </ol>
                                     </div>
                                 </div>
                             </li>
                         </ul>
                         <button type="button" class="btn btn-secondary btn-rounded" data-mdb-toggle="modal" data-mdb-target="#modal-upload-file"><i class="fas fa-paperclip"></i> <span>upload</span></button>
-                        @*<button type="button" class="btn btn-danger btn-rounded" id="button-translate-message"><i class="fas fa-language"></i> <span>Translate</span></button>*@
+                        <button type="button" class="btn btn-danger btn-rounded" data-mdb-toggle="modal" data-mdb-target="#modal-translate-message"><i class="fas fa-language"></i> <span>Translate</span></button>
                         <button type="button" class="btn btn-primary btn-rounded float-end" id="button-send-message"><i class="fas fa-paper-plane"></i> <span>Send</span></button>
                     </div>
                 </div>
             </div>
         </div>
         <!-- Modal Upload File-->
-        <div class="modal fade" id="modal-upload-file" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal fade" id="modal-upload-file" tabindex="-1" aria-labelledby="modal-label-upload-file" aria-hidden="true" data-target="#staticBackdrop">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel"><i class="fas fa-paperclip"></i> Attach file to conversation:</h5>
+                        <h5 class="modal-title" id="modal-label-upload-file"><i class="fas fa-paperclip"></i> Attach file to conversation:</h5>
                         <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -197,11 +197,11 @@
         </div>
 
         <!-- Modal Logout-->
-        <div class="modal fade" id="modal-log-out" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal fade" id="modal-log-out" tabindex="-1" aria-labelledby="modal-label-log-out" aria-hidden="true" data-target="#staticBackdrop">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Logout confirmation</h5>
+                        <h5 class="modal-title" id="modal-label-log-out">Logout confirmation</h5>
                         <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -212,6 +212,27 @@
                             <button type="submit" class="btn btn-sm btn-primary" id="button-log-out">confirm</button>
                             <button type="button" class="btn btn-sm btn-danger" data-mdb-dismiss="modal">Close</button>
                         </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modal-translate-message" tabindex="-1" aria-labelledby="modal-label-translate-message" aria-hidden="true" data-target="#staticBackdrop">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modal-label-translate-message">Translation Language</h5>
+                        <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="col-md-6 mx-auto">
+                            <select class="browser-default custom-select" id="select-translation-language">
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-danger" data-mdb-dismiss="modal" id="button-translate-message">Choose</button>
                     </div>
                 </div>
             </div>

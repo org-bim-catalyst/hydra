@@ -21,30 +21,35 @@ import tinymce from "tinymce";
 import Tags from "bootstrap5-tags";
 import VizWaveform from "./visualisations/frequency";
 import VizFrequency from "./visualisations/frequency";
+import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+import ErrorManager from "./core/error-manager";
 
 export default class app {
 
     private canvas: HTMLCanvasElement;
     private voiceRecognizer: VoiceRecognizer;
     private equalizer: Equalizer;
+    private errMngr: ErrorManager;
 
     constructor(private userFirstName: string, private profilePicture: string) {
+
+        this.errMngr = new ErrorManager();
 
         let welcomeMsg = `<div class="modal fade show" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-modal="true" role="dialog" style="display: block;">
                              <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
-                                  <div class="modal-header">
-                                    <h3>Welcome ${userFirstName}</h3>
+                                  <div class="modal-header border-0">
+                                    <h3 class="display-6 pt-3 ps-3">Welcome ${userFirstName}</h3>
                                     <img src="/img/Lucy.png" class="rounded-circle shadow-1-strong" width="85" height="85" alt="" aria-controls="#picker-editor" >
                                   </div>
-                                  <div class="modal-body">
+                                  <div class="modal-body border-0">
                                       <div class="d-flex justify-content-end align-items-end">
                                        <img src="/img/edge-logo.webp" class="rounded me-1" width="100" height="100" alt="" aria-controls="#picker-editor">
                                        <p class="lead">For better experience, we recommend you to use Microsoft Edge.</p>
 
                                       </div>
                                   </div>
-                                  <div class="modal-footer">
+                                  <div class="modal-footer border-0">
                                     <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">OK</button>
                                   </div>
                                 </div>
@@ -84,7 +89,8 @@ export default class app {
                 case 'audio/webm':
                 case 'audio/3gpp':
                 case 'audio/3gpp2':
-                    this.tanscript(file).then((textPage: string) => {
+                case 'audio/x-m4a':
+                    this.transcript(file).then((textPage: string) => {
                         this.addToChatBox(textPage);
                         this.addToAttachments(file);
                     });
@@ -136,9 +142,11 @@ export default class app {
 
             $('#pButton').toggleClass("fa-play fa-pause");
 
-         });
+        });
 
-         //tinymce.init({
+
+
+        //tinymce.init({
         //    selector: "[data-emojiable='true']",
         //    plugins: "emoticons autoresize",
         //    toolbar: "emoticons",
@@ -190,8 +198,8 @@ export default class app {
 
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                     this.voiceRecognizer.draw(msg);
-                } else if (msg.toLowerCase().includes('tanscript')) {
-                    //this.voiceRecognizer.Tanscript(msg);
+                } else if (msg.toLowerCase().includes('transcript')) {
+                    //this.voiceRecognizer.transcript(msg);
                 } else {
                     this.voiceRecognizer.chat(msg);
                 }
@@ -199,7 +207,7 @@ export default class app {
             });
         });
 
-        $("#mute").on('click', (event) => {
+        $('#mute').on('click', (event) => {
             event.preventDefault();
 
             $(event.currentTarget).toggleClass('btn-warning btn-primary')
@@ -222,6 +230,43 @@ export default class app {
             } else {
                 this.voiceRecognizer.stop();
                 $('.form-check-label').text('Audio chat is not enabled.');
+            }
+        });
+
+        $('#button-translate-message').on('click', (event) => {
+
+            event.preventDefault();
+
+            let msg = $('#textArea-chat-message').val().toString();
+            let lang: string = $('#select-translation-language option').filter(':selected').text();
+
+            if (msg.length > 0) {
+
+                this.addToChatWindow(`Translate this into ${lang}: 
+                                        <figure class="text-center mb-0">
+                                            <blockquote class="blockquote">
+                                                <p class="pb-3">
+                                                    <i class="fas fa-quote-left fa-xs text-primary"></i>
+                                                    <span class="lead font-italic">${msg}</span>
+                                                    <i class="fas fa-quote-right fa-xs text-primary"></i>
+                                                </p>
+                                            </blockquote>
+                                        </figure>`, this.userFirstName).then(() => {
+
+                    let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
+                    let lastMsg = document.getElementsByClassName('direct-chat-msg');
+
+                    diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+
+                    $('#textArea-chat-message').val('');
+
+                    $('#ul-chat-attachments').html('');
+
+
+
+                    this.voiceRecognizer.translate(msg, { "lang": lang });
+
+                });
             }
         });
     }
@@ -269,7 +314,7 @@ export default class app {
             $('#ul-chat-attachments').html(`<li class="list-group-item">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div class="fw-bold">${file.name}</div>
-                                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss") }</span>
+                                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss")}</span>
                                                 </div>
 
                                                 <div class="text-muted">
@@ -287,7 +332,7 @@ export default class app {
         });
     }
 
-    private tanscript(file: File) {
+    private transcript(file: File) {
 
         let formdata = new FormData();
 
@@ -299,12 +344,9 @@ export default class app {
 
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/audio/transcriptions',
+            url: 'openai/transcript',
             processData: false,
             contentType: false,
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
             data: formdata,
             xhr: function () {
                 var xhr = new window.XMLHttpRequest();
@@ -332,15 +374,13 @@ export default class app {
             }
         }).then((response, textStatus, xhr) => {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                let msg = response.text;
+
+                let msg = response;
                 return msg;
 
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     }
 
@@ -419,8 +459,11 @@ class VoiceRecognizer {
     private voice: SpeechSynthesisVoice;
     private conversation: any[];
     private language: string = "en-GB";
+    private errMngr: ErrorManager;
 
     constructor(private userFirstName: string, private profilePicture: string) {
+
+        this.errMngr = new ErrorManager();
 
         this.grammar = '#JSGF V1.0; grammar colors; public <color> = aqua | azure | beige | bisque | black | blue | brown | chocolate | coral | crimson | cyan | fuchsia | ghostwhite | gold | goldenrod | gray | green | indigo | ivory | khaki | lavender | lime | linen | magenta | maroon | moccasin | navy | olive | orange | orchid | peru | pink | plum | purple | red | salmon | sienna | silver | snow | tan | teal | thistle | tomato | turquoise | violet | white | yellow ;'
 
@@ -441,9 +484,43 @@ class VoiceRecognizer {
         speechSynthesis.onvoiceschanged = () => {
 
             voices = speechSynthesis.getVoices();
-            console.log(...voices);
+            //console.log(...voices);
             let langs: string[] = Array.from(new Set(voices.map((voice) => { return voice.lang })));
             langs.sort();
+
+            $('#select-translation-language').val('').multiselect({
+                nonSelectedText: 'Please select language',
+                disableIfEmpty: true,
+                buttonClass: 'btn btn-primary',
+                buttonWidth: '100%',
+                maxHeight: 450,
+                selectedClass: 'active multiselect-selected',
+                includeSelectAllOption: false,
+                buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
+                templates: {
+                    button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split" data-mdb-toggle="dropdown">
+                                <span class="multiselect-selected-text"> </span>
+                             </button>`,
+                    ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
+                    li: `<li>
+                            <a class="dropdown-item">
+                                <label class="radio">
+                                <input class="preview-subject ellipsis font-weight-medium text-dark"></label>
+                            </a>
+                         </li>`
+                },
+                onChange: (option, checked) => {
+
+                    this.language = option.html();
+                    this.recognition.lang = this.language;
+                    //Microsoft Libby Online (Natural) - English (United Kingdom)
+                    //Microsoft Salma Online (Natural) - Arabic (Egypt)
+
+                    this.getVoice(voices, this.language);
+
+                }
+            });
+
 
             $('#select-languages').val('').multiselect({
                 nonSelectedText: 'Please select language',
@@ -471,32 +548,7 @@ class VoiceRecognizer {
                     this.language = option.html();
                     this.recognition.lang = this.language;
 
-                    if (this.language === 'en-GB') {
-                        //Microsoft Libby Online (Natural) - English (United Kingdom)
-                        //Microsoft Salma Online (Natural) - Arabic (Egypt)
-
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Libby'); })[0];
-                        console.log(this.voice.name);
-                    } else if (this.language.startsWith('ar')) {
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Salma'); })[0];
-                        console.log(this.voice.name);
-                    } else if (this.language.startsWith('es')) {
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Elvira'); })[0];
-                        console.log(this.voice.name);
-                    } else if (this.language.startsWith('hi')) {
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Swara'); })[0];
-                        console.log(this.voice.name);
-                    } else if (this.language.startsWith('it')) {
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Elsa'); })[0];
-                        console.log(this.voice.name);
-                    } else if (this.language.startsWith('nl')) {
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language) && voice.name.includes('Colette'); })[0];
-                        console.log(this.voice.name);
-                    } else {
-                        this.voice = voices.filter((voice) => { return voice.lang.includes(this.language); })[0];
-                        console.log(this.voice.name);
-                    }
-
+                    this.getVoice(voices, this.language);
                 }
             });
 
@@ -505,6 +557,9 @@ class VoiceRecognizer {
             langs.forEach((lang, index) => {
                 options.push({ label: lang, title: lang, value: index, selected: lang === this.language });
             });
+
+            $('#select-translation-language').multiselect('dataprovider', options);
+            $('#select-translation-language').multiselect('rebuild');
 
             $('#select-languages').multiselect('dataprovider', options);
             $('#select-languages').multiselect('rebuild');
@@ -574,6 +629,41 @@ class VoiceRecognizer {
         { "role": "assistant", "content": `Hello ${userFirstName}.` }];
     }
 
+    private getVoice(voices: SpeechSynthesisVoice[], languageCode: string) {
+
+        let voice: SpeechSynthesisVoice;
+
+        if (languageCode.startsWith('en')) {
+            //Microsoft Libby Online (Natural) - English (United Kingdom)
+            //Microsoft Salma Online (Natural) - Arabic (Egypt)
+            voice = voices.filter((voice) => { return voice.lang.startsWith('en') && voice.name.includes('Libby'); })[0];
+            console.log(voice.name);
+        } else if (languageCode.startsWith('ar')) {
+            voice = voices.filter((voice) => { return voice.lang.startsWith('ar') && voice.name.includes('Salma'); })[0];
+            console.log(voice.name);
+        } else if (languageCode.startsWith('es')) {
+            voice = voices.filter((voice) => { return voice.lang.startsWith('es') && voice.name.includes('Elvira'); })[0];
+            console.log(voice.name);
+        } else if (languageCode.startsWith('hi')) {
+            voice = voices.filter((voice) => { return voice.lang.startsWith('hi') && voice.name.includes('Swara'); })[0];
+            console.log(voice.name);
+        } else if (languageCode.startsWith('it')) {
+            voice = voices.filter((voice) => { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
+            console.log(voice.name);
+        } else if (languageCode.startsWith('nl')) {
+            voice = voices.filter((voice) => { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
+            console.log(voice.name);
+        } else if (languageCode.startsWith('ja')) {
+            voice = voices.filter((voice) => { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
+            console.log(voice.name);
+        } else {
+            voice = voices.filter((voice) => { return voice.lang.includes(languageCode); })[0];
+            console.log(voice.name);
+        }
+
+        return voice;
+    }
+
     start() {
         this.recognition.start();
     }
@@ -582,7 +672,7 @@ class VoiceRecognizer {
         this.recognition.stop();
     }
 
-    chat(prompt: string) {
+    chat(prompt: string, options?: any) {
 
         if (prompt && prompt !== '') {
             this.conversation.push({ "role": "user", "content": prompt });
@@ -590,19 +680,16 @@ class VoiceRecognizer {
 
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/chat/completions',
-            contentType: "application/json",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: this.conversation
-            })
+            url: 'openai/chat',
+            dataType:'json',
+            data: {
+                "model": "gpt-3.5-turbo",
+                "messages": JSON.stringify(this.conversation)
+            }
         }).then((response, textStatus, xhr) => {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                let msg = response.choices[0].message.content;
+
+                let msg = response;
 
                 this.conversation.push({ "role": "assistant", "content": msg });
 
@@ -610,6 +697,9 @@ class VoiceRecognizer {
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
+                                                        <a class="btn btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                        <span class="material-icons">record_voice_over</span>
+                                                         </a>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
@@ -630,29 +720,19 @@ class VoiceRecognizer {
 
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     }
 
-    draw(prompt: string) {
+    draw(prompt: string, options?: any) {
 
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/images/generations',
-            contentType: "application/json",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: JSON.stringify({
-                prompt: prompt,
-                n: 1,
-                size: "1024x1024"
-            })
+            url: 'openai/draw',
+            dataType: 'json',
+            data: {"prompt": prompt,"n": "1","size": "1024x1024"}
         }).then((response, textStatus, xhr) => {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
 
                 this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right">
                                                 <div class="card w-100">
@@ -672,7 +752,7 @@ class VoiceRecognizer {
                 let canvases = document.getElementsByClassName('canvas-imagine');
 
                 let canvas = (canvases.item(canvases.length - 1) as HTMLElement);
-                canvas.style.background = `url(${response.data[0].url})`;
+                canvas.style.background = `url(${response})`;
                 canvas.style.backgroundSize = 'contain';
                 canvas.style.backgroundRepeat = 'no-repeat';
                 canvas.style.backgroundPosition = 'center';
@@ -682,34 +762,28 @@ class VoiceRecognizer {
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     }
 
-    translate(prompt: string) {
+    translate(prompt: string, options?: any) {
+
+        if (prompt && prompt !== '') {
+            this.conversation.push({ "role": "user", "content": `Translate this into ${options.lang}: "${prompt}"` });
+        }
 
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/completions',
-            contentType: "application/json",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: JSON.stringify({
-                model: "text-davinci-003",
-                prompt: "Translate this into 1. French, 2. Spanish and 3. Japanese:\n\nWhat rooms do you have available?\n\n1.",
-                temperature: 0.3,
-                max_tokens: 100,
-                top_p: 1.0,
-                frequency_penalty: 0.0,
-                presence_penalty: 0.0
-            })
+            url: 'openai/chat',
+            dataType: 'json',
+            data: {
+                "model": "gpt-3.5-turbo",
+                "messages": JSON.stringify(this.conversation)
+            }
         }).then((response, textStatus, xhr) => {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                let msg = response.choices[0].message.content;
+
+                let msg = response;
 
                 this.conversation.push({ "role": "assistant", "content": msg });
 
@@ -717,6 +791,9 @@ class VoiceRecognizer {
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
+                                                        <a class="btn btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                            <span class="material-icons">record_voice_over</span>
+                                                         </a>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
@@ -733,17 +810,22 @@ class VoiceRecognizer {
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
+                $('.direct-chat-msg .btn-read').on('click', (event) => {
+
+                    event.preventDefault();
+                    let message = $('.btn-read').closest('.card').find('.card-body p').text();
+                    this.speak(message);
+                });
+
                 this.speak(msg);
             }
+
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     }
 
-
-    private speak(msg: string) {
+    speak(msg: string) {
 
         let utterance = new SpeechSynthesisUtterance(msg);
         utterance.lang = this.language;
@@ -803,8 +885,11 @@ class VoiceRecognizer {
 
 class Equalizer {
 
+    private errMngr: ErrorManager;
+
     constructor(private profilePicture: string, stream?: MediaStream) {
         //$(document).on('click', 'img', () => {
+        this.errMngr = new ErrorManager();
 
         // Set up forked web audio context, for multiple browsers
         // window. is needed otherwise Safari explodes
@@ -1017,6 +1102,9 @@ class Equalizer {
     visualizeD3(analyser: AnalyserNode) {
 
         //TODO: https://blog.scottlogic.com/2016/01/06/audio-api-with-d3.html
+        // https://css-tricks.com/making-an-audio-waveform-visualizer-with-vanilla-javascript/
+        // https://medium.com/swlh/visualizing-sound-with-d3-and-web-audio-api-435ffea88f30
+        // https://github.com/willianjusten/awesome-audio-visualization
 
         let visualSetting = "sinewave";
         console.log(visualSetting);
@@ -1217,3 +1305,4 @@ class Equalizer {
         return curve;
     }
 }
+

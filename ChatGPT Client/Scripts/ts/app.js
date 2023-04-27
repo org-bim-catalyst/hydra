@@ -16,12 +16,14 @@ require("bootstrap-multiselect");
 //https://ourcodeworld.com/articles/read/405/how-to-convert-pdf-to-text-extract-text-from-pdf-with-javascript
 //https://medium.com/@david.richards.tech/ai-audio-conversations-with-openai-whisper-3c730a9c7123
 var moment = require("moment");
+var error_manager_1 = require("./core/error-manager");
 var app = /** @class */ (function () {
     function app(userFirstName, profilePicture) {
         var _this = this;
         this.userFirstName = userFirstName;
         this.profilePicture = profilePicture;
-        var welcomeMsg = "<div class=\"modal fade show\" id=\"exampleModal\" tabindex=\"-1\" aria-labelledby=\"exampleModalLabel\" aria-modal=\"true\" role=\"dialog\" style=\"display: block;\">\n                             <div class=\"modal-dialog modal-dialog-centered\">\n                                <div class=\"modal-content\">\n                                  <div class=\"modal-header\">\n                                    <h3>Welcome ".concat(userFirstName, "</h3>\n                                    <img src=\"/img/Lucy.png\" class=\"rounded-circle shadow-1-strong\" width=\"85\" height=\"85\" alt=\"\" aria-controls=\"#picker-editor\" >\n                                  </div>\n                                  <div class=\"modal-body\">\n                                      <div class=\"d-flex justify-content-end align-items-end\">\n                                       <img src=\"/img/edge-logo.webp\" class=\"rounded me-1\" width=\"100\" height=\"100\" alt=\"\" aria-controls=\"#picker-editor\">\n                                       <p class=\"lead\">For better experience, we recommend you to use Microsoft Edge.</p>\n\n                                      </div>\n                                  </div>\n                                  <div class=\"modal-footer\">\n                                    <button type=\"button\" class=\"btn btn-secondary\" data-mdb-dismiss=\"modal\">OK</button>\n                                  </div>\n                                </div>\n                              </div>\n                              </div>");
+        this.errMngr = new error_manager_1.default();
+        var welcomeMsg = "<div class=\"modal fade show\" id=\"exampleModal\" tabindex=\"-1\" aria-labelledby=\"exampleModalLabel\" aria-modal=\"true\" role=\"dialog\" style=\"display: block;\">\n                             <div class=\"modal-dialog modal-dialog-centered\">\n                                <div class=\"modal-content\">\n                                  <div class=\"modal-header border-0\">\n                                    <h3 class=\"display-6 pt-3 ps-3\">Welcome ".concat(userFirstName, "</h3>\n                                    <img src=\"/img/Lucy.png\" class=\"rounded-circle shadow-1-strong\" width=\"85\" height=\"85\" alt=\"\" aria-controls=\"#picker-editor\" >\n                                  </div>\n                                  <div class=\"modal-body border-0\">\n                                      <div class=\"d-flex justify-content-end align-items-end\">\n                                       <img src=\"/img/edge-logo.webp\" class=\"rounded me-1\" width=\"100\" height=\"100\" alt=\"\" aria-controls=\"#picker-editor\">\n                                       <p class=\"lead\">For better experience, we recommend you to use Microsoft Edge.</p>\n\n                                      </div>\n                                  </div>\n                                  <div class=\"modal-footer border-0\">\n                                    <button type=\"button\" class=\"btn btn-secondary\" data-mdb-dismiss=\"modal\">OK</button>\n                                  </div>\n                                </div>\n                              </div>\n                              </div>");
         var myModalEl = $(welcomeMsg);
         myModalEl.on('hidden.bs.modal', function (event) {
             // do something...
@@ -49,7 +51,8 @@ var app = /** @class */ (function () {
                 case 'audio/webm':
                 case 'audio/3gpp':
                 case 'audio/3gpp2':
-                    _this.tanscript(file).then(function (textPage) {
+                case 'audio/x-m4a':
+                    _this.transcript(file).then(function (textPage) {
                         _this.addToChatBox(textPage);
                         _this.addToAttachments(file);
                     });
@@ -125,15 +128,15 @@ var app = /** @class */ (function () {
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                     _this.voiceRecognizer.draw(msg);
                 }
-                else if (msg.toLowerCase().includes('tanscript')) {
-                    //this.voiceRecognizer.Tanscript(msg);
+                else if (msg.toLowerCase().includes('transcript')) {
+                    //this.voiceRecognizer.transcript(msg);
                 }
                 else {
                     _this.voiceRecognizer.chat(msg);
                 }
             });
         });
-        $("#mute").on('click', function (event) {
+        $('#mute').on('click', function (event) {
             event.preventDefault();
             $(event.currentTarget).toggleClass('btn-warning btn-primary');
             $(event.currentTarget).find('.fas').toggleClass("fa-microphone-alt fa-microphone-alt-slash");
@@ -155,6 +158,21 @@ var app = /** @class */ (function () {
             else {
                 _this.voiceRecognizer.stop();
                 $('.form-check-label').text('Audio chat is not enabled.');
+            }
+        });
+        $('#button-translate-message').on('click', function (event) {
+            event.preventDefault();
+            var msg = $('#textArea-chat-message').val().toString();
+            var lang = $('#select-translation-language option').filter(':selected').text();
+            if (msg.length > 0) {
+                _this.addToChatWindow("Translate this into ".concat(lang, ": \n                                        <figure class=\"text-center mb-0\">\n                                            <blockquote class=\"blockquote\">\n                                                <p class=\"pb-3\">\n                                                    <i class=\"fas fa-quote-left fa-xs text-primary\"></i>\n                                                    <span class=\"lead font-italic\">").concat(msg, "</span>\n                                                    <i class=\"fas fa-quote-right fa-xs text-primary\"></i>\n                                                </p>\n                                            </blockquote>\n                                        </figure>"), _this.userFirstName).then(function () {
+                    var diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
+                    var lastMsg = document.getElementsByClassName('direct-chat-msg');
+                    diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
+                    $('#textArea-chat-message').val('');
+                    $('#ul-chat-attachments').html('');
+                    _this.voiceRecognizer.translate(msg, { "lang": lang });
+                });
             }
         });
     };
@@ -186,7 +204,8 @@ var app = /** @class */ (function () {
             $('#ul-chat-attachments').html("<li class=\"list-group-item\">\n                                                <div class=\"d-flex justify-content-between align-items-center\">\n                                                    <div class=\"fw-bold\">".concat(file.name, "</div>\n                                                    <span class=\"badge rounded-pill badge-success\">").concat(moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss"), "</span>\n                                                </div>\n\n                                                <div class=\"text-muted\">\n                                                    <audio id=\"audio-data\" preload=\"auto\">\n                                                        <source src=\"").concat(audio.src, "\">\n                                                    </audio>\n                                                    <div id=\"audioplayer d-flex justify-content-between align-items-center\">\n                                                        <i id=\"pButton\" class=\"fas fa-play\"></i>\n                                                        <div id=\"timeline\">\n                                                            <div id=\"playhead\"></div>\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                            </li>"));
         });
     };
-    app.prototype.tanscript = function (file) {
+    app.prototype.transcript = function (file) {
+        var _this = this;
         var formdata = new FormData();
         formdata.append("file", file);
         formdata.append("model", "whisper-1");
@@ -194,12 +213,9 @@ var app = /** @class */ (function () {
         document.getElementById('progress-pdf-parser').setAttribute('aria-valuenow', '0');
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/audio/transcriptions',
+            url: 'openai/transcript',
             processData: false,
             contentType: false,
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
             data: formdata,
             xhr: function () {
                 var xhr = new window.XMLHttpRequest();
@@ -225,14 +241,11 @@ var app = /** @class */ (function () {
             }
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                var msg = response.text;
+                var msg = response;
                 return msg;
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
     app.prototype.parsePdf = function (filepath) {
@@ -298,6 +311,7 @@ var VoiceRecognizer = /** @class */ (function () {
         this.userFirstName = userFirstName;
         this.profilePicture = profilePicture;
         this.language = "en-GB";
+        this.errMngr = new error_manager_1.default();
         this.grammar = '#JSGF V1.0; grammar colors; public <color> = aqua | azure | beige | bisque | black | blue | brown | chocolate | coral | crimson | cyan | fuchsia | ghostwhite | gold | goldenrod | gray | green | indigo | ivory | khaki | lavender | lime | linen | magenta | maroon | moccasin | navy | olive | orange | orchid | peru | pink | plum | purple | red | salmon | sienna | silver | snow | tan | teal | thistle | tomato | turquoise | violet | white | yellow ;';
         this.diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
         this.recognition = new webkitSpeechRecognition() || new SpeechRecognition();
@@ -312,9 +326,31 @@ var VoiceRecognizer = /** @class */ (function () {
         var voices = synth.getVoices();
         speechSynthesis.onvoiceschanged = function () {
             voices = speechSynthesis.getVoices();
-            console.log.apply(console, voices);
+            //console.log(...voices);
             var langs = Array.from(new Set(voices.map(function (voice) { return voice.lang; })));
             langs.sort();
+            $('#select-translation-language').val('').multiselect({
+                nonSelectedText: 'Please select language',
+                disableIfEmpty: true,
+                buttonClass: 'btn btn-primary',
+                buttonWidth: '100%',
+                maxHeight: 450,
+                selectedClass: 'active multiselect-selected',
+                includeSelectAllOption: false,
+                buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
+                templates: {
+                    button: "<button type=\"button\" class=\"multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split\" data-mdb-toggle=\"dropdown\">\n                                <span class=\"multiselect-selected-text\"> </span>\n                             </button>",
+                    ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
+                    li: "<li>\n                            <a class=\"dropdown-item\">\n                                <label class=\"radio\">\n                                <input class=\"preview-subject ellipsis font-weight-medium text-dark\"></label>\n                            </a>\n                         </li>"
+                },
+                onChange: function (option, checked) {
+                    _this.language = option.html();
+                    _this.recognition.lang = _this.language;
+                    //Microsoft Libby Online (Natural) - English (United Kingdom)
+                    //Microsoft Salma Online (Natural) - Arabic (Egypt)
+                    _this.getVoice(voices, _this.language);
+                }
+            });
             $('#select-languages').val('').multiselect({
                 nonSelectedText: 'Please select language',
                 disableIfEmpty: true,
@@ -332,42 +368,15 @@ var VoiceRecognizer = /** @class */ (function () {
                 onChange: function (option, checked) {
                     _this.language = option.html();
                     _this.recognition.lang = _this.language;
-                    if (_this.language === 'en-GB') {
-                        //Microsoft Libby Online (Natural) - English (United Kingdom)
-                        //Microsoft Salma Online (Natural) - Arabic (Egypt)
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language) && voice.name.includes('Libby'); })[0];
-                        console.log(_this.voice.name);
-                    }
-                    else if (_this.language.startsWith('ar')) {
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language) && voice.name.includes('Salma'); })[0];
-                        console.log(_this.voice.name);
-                    }
-                    else if (_this.language.startsWith('es')) {
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language) && voice.name.includes('Elvira'); })[0];
-                        console.log(_this.voice.name);
-                    }
-                    else if (_this.language.startsWith('hi')) {
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language) && voice.name.includes('Swara'); })[0];
-                        console.log(_this.voice.name);
-                    }
-                    else if (_this.language.startsWith('it')) {
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language) && voice.name.includes('Elsa'); })[0];
-                        console.log(_this.voice.name);
-                    }
-                    else if (_this.language.startsWith('nl')) {
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language) && voice.name.includes('Colette'); })[0];
-                        console.log(_this.voice.name);
-                    }
-                    else {
-                        _this.voice = voices.filter(function (voice) { return voice.lang.includes(_this.language); })[0];
-                        console.log(_this.voice.name);
-                    }
+                    _this.getVoice(voices, _this.language);
                 }
             });
             var options = [];
             langs.forEach(function (lang, index) {
                 options.push({ label: lang, title: lang, value: index, selected: lang === _this.language });
             });
+            $('#select-translation-language').multiselect('dataprovider', options);
+            $('#select-translation-language').multiselect('rebuild');
             $('#select-languages').multiselect('dataprovider', options);
             $('#select-languages').multiselect('rebuild');
             console.log(voices);
@@ -410,32 +419,66 @@ var VoiceRecognizer = /** @class */ (function () {
             },
             { "role": "assistant", "content": "Hello ".concat(userFirstName, ".") }];
     }
+    VoiceRecognizer.prototype.getVoice = function (voices, languageCode) {
+        var voice;
+        if (languageCode.startsWith('en')) {
+            //Microsoft Libby Online (Natural) - English (United Kingdom)
+            //Microsoft Salma Online (Natural) - Arabic (Egypt)
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('en') && voice.name.includes('Libby'); })[0];
+            console.log(voice.name);
+        }
+        else if (languageCode.startsWith('ar')) {
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('ar') && voice.name.includes('Salma'); })[0];
+            console.log(voice.name);
+        }
+        else if (languageCode.startsWith('es')) {
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('es') && voice.name.includes('Elvira'); })[0];
+            console.log(voice.name);
+        }
+        else if (languageCode.startsWith('hi')) {
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('hi') && voice.name.includes('Swara'); })[0];
+            console.log(voice.name);
+        }
+        else if (languageCode.startsWith('it')) {
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
+            console.log(voice.name);
+        }
+        else if (languageCode.startsWith('nl')) {
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
+            console.log(voice.name);
+        }
+        else if (languageCode.startsWith('ja')) {
+            voice = voices.filter(function (voice) { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
+            console.log(voice.name);
+        }
+        else {
+            voice = voices.filter(function (voice) { return voice.lang.includes(languageCode); })[0];
+            console.log(voice.name);
+        }
+        return voice;
+    };
     VoiceRecognizer.prototype.start = function () {
         this.recognition.start();
     };
     VoiceRecognizer.prototype.stop = function () {
         this.recognition.stop();
     };
-    VoiceRecognizer.prototype.chat = function (prompt) {
+    VoiceRecognizer.prototype.chat = function (prompt, options) {
         var _this = this;
         if (prompt && prompt !== '') {
             this.conversation.push({ "role": "user", "content": prompt });
         }
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/chat/completions',
-            contentType: "application/json",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: this.conversation
-            })
+            url: 'openai/chat',
+            dataType: 'json',
+            data: {
+                "model": "gpt-3.5-turbo",
+                "messages": JSON.stringify(this.conversation)
+            }
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                var msg = response.choices[0].message.content;
+                var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
                 _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
@@ -443,32 +486,22 @@ var VoiceRecognizer = /** @class */ (function () {
                 _this.speak(msg);
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
-    VoiceRecognizer.prototype.draw = function (prompt) {
+    VoiceRecognizer.prototype.draw = function (prompt, options) {
         var _this = this;
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/images/generations',
-            contentType: "application/json",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: JSON.stringify({
-                prompt: prompt,
-                n: 1,
-                size: "1024x1024"
-            })
+            url: 'openai/draw',
+            dataType: 'json',
+            data: { "prompt": prompt, "n": "1", "size": "1024x1024" }
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
                 _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"canvas-imagine\" style=\"display: block; min-height: 250px;\">\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
                 var canvases = document.getElementsByClassName('canvas-imagine');
                 var canvas = canvases.item(canvases.length - 1);
-                canvas.style.background = "url(".concat(response.data[0].url, ")");
+                canvas.style.background = "url(".concat(response, ")");
                 canvas.style.backgroundSize = 'contain';
                 canvas.style.backgroundRepeat = 'no-repeat';
                 canvas.style.backgroundPosition = 'center';
@@ -476,43 +509,38 @@ var VoiceRecognizer = /** @class */ (function () {
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
-    VoiceRecognizer.prototype.translate = function (prompt) {
+    VoiceRecognizer.prototype.translate = function (prompt, options) {
         var _this = this;
+        if (prompt && prompt !== '') {
+            this.conversation.push({ "role": "user", "content": "Translate this into ".concat(options.lang, ": \"").concat(prompt, "\"") });
+        }
         return $.ajax({
             type: 'POST',
-            url: 'https://api.openai.com/v1/completions',
-            contentType: "application/json",
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer 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");
-            },
-            data: JSON.stringify({
-                model: "text-davinci-003",
-                prompt: "Translate this into 1. French, 2. Spanish and 3. Japanese:\n\nWhat rooms do you have available?\n\n1.",
-                temperature: 0.3,
-                max_tokens: 100,
-                top_p: 1.0,
-                frequency_penalty: 0.0,
-                presence_penalty: 0.0
-            })
+            url: 'openai/chat',
+            dataType: 'json',
+            data: {
+                "model": "gpt-3.5-turbo",
+                "messages": JSON.stringify(this.conversation)
+            }
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
-                console.log(JSON.stringify(response));
-                var msg = response.choices[0].message.content;
+                var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
-                _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
+                _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons\">record_voice_over</span>\n                                                         </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
+                $('.direct-chat-msg .btn-read').on('click', function (event) {
+                    event.preventDefault();
+                    var message = $('.btn-read').closest('.card').find('.card-body p').text();
+                    _this.speak(message);
+                });
                 _this.speak(msg);
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
-            console.log("Message: " + JSON.stringify(XMLHttpRequest));
-            console.log("Status: " + textStatus);
-            console.log("Error: " + errorThrown);
+            _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
     VoiceRecognizer.prototype.speak = function (msg) {
@@ -566,9 +594,10 @@ var VoiceRecognizer = /** @class */ (function () {
 }());
 var Equalizer = /** @class */ (function () {
     function Equalizer(profilePicture, stream) {
-        //$(document).on('click', 'img', () => {
         var _this = this;
         this.profilePicture = profilePicture;
+        //$(document).on('click', 'img', () => {
+        this.errMngr = new error_manager_1.default();
         // Set up forked web audio context, for multiple browsers
         // window. is needed otherwise Safari explodes
         var audioCtx = new AudioContext();
