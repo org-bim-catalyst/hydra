@@ -2,6 +2,14 @@
 
     logAjaxError(XMLHttpRequest, textStatus, errorThrown) {
 
+        let message = '';
+
+        if (XMLHttpRequest.responseText && XMLHttpRequest.responseText.length > 0) {
+            message = XMLHttpRequest.responseText;
+        } else {
+            message = errorThrown;
+        }
+
         let modal = `<div class="modal fade" id="modal-error-message" tabindex="-1" aria-labelledby="modal-label-error-message" aria-hidden="true" data-target="#staticBackdrop">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content">
@@ -10,17 +18,15 @@
                                     <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <div class="col-md-6 mx-auto">
+                                    <div class="col-md-12">
                                         <p class="text-danger" id="p-error-message">
-                                                XMLHttpRequest: ${JSON.stringify(XMLHttpRequest)}<br />
-                                                Status: ${JSON.stringify(textStatus)}
-                                                Error: ${JSON.stringify(errorThrown)}
+                                                ${message}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-sm btn-danger" data-mdb-dismiss="modal" id="button-translate-message">Choose</button>
+                                    <button type="button" class="btn btn-sm btn-danger" data-mdb-dismiss="modal" id="button-translate-message">Close</button>
                                 </div>
                             </div>
                         </div>
@@ -30,3 +36,5 @@
 
     }
 }
+
+

@@ -167,30 +167,34 @@ export default class app {
             event.preventDefault();
 
             let msg = $('#textArea-chat-message').val().toString();
-            //let msg = tinymce.activeEditor.getContent();
 
-            this.addToChatWindow(msg, this.userFirstName).then(() => {
+            if (msg && msg.length > 0) {
 
-                let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
-                let lastMsg = document.getElementsByClassName('direct-chat-msg');
+                this.addToChatWindow(msg, this.userFirstName).then(() => {
 
-                diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+                    let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
+                    let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
-                $('#textArea-chat-message').val('');
-                $('#ul-chat-attachments').html('');
+                    diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                //tinymce.activeEditor.setContent('');
+                    $('#textArea-chat-message').val('');
+                    $('#ul-chat-attachments').html('');
 
-                if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                    this.voiceRecognizer.draw(msg);
-                } else if (msg.toLowerCase().includes('transcript')) {
-                    //this.voiceRecognizer.transcript(msg);
-                } else {
-                    let lang: string = $('#select-languages option').filter(':selected').text();
-                    this.voiceRecognizer.chat(msg, { "lang": lang });
-                }
+                    //tinymce.activeEditor.setContent('');
 
-            });
+                    if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
+                        this.voiceRecognizer.draw(msg);
+                    } else if (msg.toLowerCase().includes('transcript')) {
+                        //this.voiceRecognizer.transcript(msg);
+                    } else {
+                        let lang: string = $('#select-languages option').filter(':selected').text();
+                        this.voiceRecognizer.chat(msg, { "lang": lang });
+                    }
+
+                });
+
+            }
+
         });
 
         $('#mute').on('click', (event) => {
@@ -614,35 +618,39 @@ class VoiceRecognizer extends EventEmitter {
     private getVoice(voices: SpeechSynthesisVoice[], languageCode: string) {
 
         let voice: SpeechSynthesisVoice;
-
-        if (languageCode.startsWith('en')) {
-            //Microsoft Libby Online (Natural) - English (United Kingdom)
-            //Microsoft Salma Online (Natural) - Arabic (Egypt)
-            voice = voices.filter((voice) => { return voice.lang.startsWith('en') && voice.name.includes('Libby'); })[0];
-            console.log(voice.name);
-        } else if (languageCode.startsWith('ar')) {
-            voice = voices.filter((voice) => { return voice.lang.startsWith('ar') && voice.name.includes('Salma'); })[0];
-            console.log(voice.name);
-        } else if (languageCode.startsWith('es')) {
-            voice = voices.filter((voice) => { return voice.lang.startsWith('es') && voice.name.includes('Elvira'); })[0];
-            console.log(voice.name);
-        } else if (languageCode.startsWith('hi')) {
-            voice = voices.filter((voice) => { return voice.lang.startsWith('hi') && voice.name.includes('Swara'); })[0];
-            console.log(voice.name);
-        } else if (languageCode.startsWith('it')) {
-            voice = voices.filter((voice) => { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
-            console.log(voice.name);
-        } else if (languageCode.startsWith('nl')) {
-            voice = voices.filter((voice) => { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
-            console.log(voice.name);
-        } else if (languageCode.startsWith('ja')) {
-            voice = voices.filter((voice) => { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
-            console.log(voice.name);
-        } else {
+        try {
+            if (languageCode.startsWith('en')) {
+                //Microsoft Libby Online (Natural) - English (United Kingdom)
+                //Microsoft Salma Online (Natural) - Arabic (Egypt)
+                voice = voices.filter((voice) => { return voice.lang.startsWith('en') && voice.name.includes('Libby'); })[0];
+                console.log(voice.name);
+            } else if (languageCode.startsWith('ar')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('ar') && voice.name.includes('Salma'); })[0];
+                console.log(voice.name);
+            } else if (languageCode.startsWith('es')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('es') && voice.name.includes('Elvira'); })[0];
+                console.log(voice.name);
+            } else if (languageCode.startsWith('hi')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('hi') && voice.name.includes('Swara'); })[0];
+                console.log(voice.name);
+            } else if (languageCode.startsWith('it')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
+                console.log(voice.name);
+            } else if (languageCode.startsWith('nl')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
+                console.log(voice.name);
+            } else if (languageCode.startsWith('ja')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
+                console.log(voice.name);
+            } else {
+                voice = voices.filter((voice) => { return voice.lang.includes(languageCode); })[0];
+                console.log(voice.name);
+            }
+        } catch (e) {
+            console.error(e);
             voice = voices.filter((voice) => { return voice.lang.includes(languageCode); })[0];
             console.log(voice.name);
         }
-
         return voice;
     }
 
@@ -725,7 +733,7 @@ class VoiceRecognizer extends EventEmitter {
             type: 'POST',
             url: '/openai/draw',
             dataType: 'json',
-            data: {"prompt": prompt,"n": "1","size": "1024x1024"}
+            data: {"prompt": `${prompt}`,"n": "1","size": "1024x1024"}
         }).then((response, textStatus, xhr) => {
             if (xhr.status === 200) {
 

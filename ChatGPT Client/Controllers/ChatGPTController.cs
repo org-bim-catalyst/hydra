@@ -76,17 +76,31 @@ namespace AskLucy.Controllers
                     client.BaseAddress = new Uri(uriString: "https://api.openai.com");
 
                     client.DefaultRequestHeaders.Add(name: "authorization", value: $"Bearer {_appKey}");
-                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
-
-
+                    
                     string data = @$"{{""prompt"": ""{prompt}"",""n"": {n}, ""size"":""{size}""}}";
 
                     HttpContent httpContent = new StringContent(data, Encoding.UTF8, "application/json");
+                    httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
                     HttpResponseMessage response = client.PostAsync("/v1/images/generations", httpContent).Result;
-                    string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.data[0].url;
+                    dynamic result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!;
+                    
+                    if(result.error != null)
+                    {
+                        string returnValue = result.error.message;
+                        return new ContentResult()
+                        {
+                            StatusCode = (int)HttpStatusCode.BadRequest,
+                            Content = returnValue,
+                            ContentType = "text/plain"
+                        };
+                    }
+                    else
+                    {
+                        string returnValue = result.data[0].url;
+                        return Json(returnValue);
+                    }
 
-                    return Json(result);
                 }
             }
             catch (Exception ex)
