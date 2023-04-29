@@ -65,7 +65,19 @@
                         <button type="button" class="btn btn-warning btn-floating link-secondary ms-3" id="mute">
                             <i class="fas fa-microphone-alt-slash"></i>
                         </button>
-                    </li>                    <!-- Navbar dropdown -->
+                    </li>   
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-secondary btn-floating link-secondary ms-3" data-mdb-toggle="modal" data-mdb-target="#modal-upload-file" title="attach">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                    </li>
+
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-secondary btn-floating link-secondary ms-3" data-mdb-toggle="modal" data-mdb-target="#modal-translate-message" title="Translate">
+                            <i class="fas fa-language"></i>
+                        </button>
+                    </li>
+                    <!-- Navbar dropdown -->
                 </ul>
                 <!-- Left links -->
             </div>
@@ -142,7 +154,8 @@
                                 <div class="row">
                                     <div class="col-9">
                                         <div class="form-outline bg-white">
-                                            <textarea class="form-control active custom-scrollbar" id="textArea-chat-message" rows="4" data-emojiable="true"></textarea>
+                                            <button type="button" class="btn btn-sm btn-primary btn-rounded trailing" id="button-send-message" style="pointer-events: all;"><i class="fas fa-paper-plane"></i></button>
+                                            <textarea class="form-control form-icon-trailing active custom-scrollbar" id="textArea-chat-message" rows="1" data-emojiable="true"></textarea>
                                             <label class="form-label" for="textArea-chat-message">Message</label>
                                         </div>
 
@@ -157,9 +170,6 @@
                                 </div>
                             </li>
                         </ul>
-                        <button type="button" class="btn btn-secondary btn-rounded" data-mdb-toggle="modal" data-mdb-target="#modal-upload-file"><i class="fas fa-paperclip"></i> <span>upload</span></button>
-                        <button type="button" class="btn btn-danger btn-rounded" data-mdb-toggle="modal" data-mdb-target="#modal-translate-message"><i class="fas fa-language"></i> <span>Translate</span></button>
-                        <button type="button" class="btn btn-primary btn-rounded float-end" id="button-send-message"><i class="fas fa-paper-plane"></i> <span>Send</span></button>
                     </div>
                 </div>
             </div>

@@ -1,9 +1,25 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 var PDFJS = require("pdfjs-dist/webpack");
 var d3 = require("d3");
 var $ = require("jquery");
 require("bootstrap-multiselect");
+var events_1 = require("events");
 //https://ralzohairi.medium.com/audio-recording-in-javascript-96eed45b75ee
 //https://orangeable.com/javascript/equalizer-web-audio-api
 //https://github.com/orangeable/javascript-equalizer/blob/master/js/main.js
@@ -97,45 +113,32 @@ var app = /** @class */ (function () {
         //});
     }
     app.prototype.initUi = function () {
-        //// create an array of options
-        //const options = [
-        //    { value: 'apple', label: 'Apple' },
-        //    { value: 'banana', label: 'Banana' },
-        //    { value: 'orange', label: 'Orange' },
-        //];
         var _this = this;
-        //// create a select element using mdb.Select component
-        //const selectElement = new Select(document.getElementById('mySelect'), {
-        //    options: options,
-        //    clearable: true,
-        //    search: true,
-        //    placeholder: 'Select a fruit',
-        //});
-        //Tags.init("#tags-input", { maximumItems: 1, clearEnd: true });
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
         $('#button-send-message').on('click', function (event) {
             event.preventDefault();
             var msg = $('#textArea-chat-message').val().toString();
-            //let msg = tinymce.activeEditor.getContent();
-            _this.addToChatWindow(msg, _this.userFirstName).then(function () {
-                var diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
-                var lastMsg = document.getElementsByClassName('direct-chat-msg');
-                diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
-                $('#textArea-chat-message').val('');
-                $('#ul-chat-attachments').html('');
-                //tinymce.activeEditor.setContent('');
-                if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
-                    _this.voiceRecognizer.draw(msg);
-                }
-                else if (msg.toLowerCase().includes('transcript')) {
-                    //this.voiceRecognizer.transcript(msg);
-                }
-                else {
-                    var lang = $('#select-languages option').filter(':selected').text();
-                    _this.voiceRecognizer.chat(msg, { "lang": lang });
-                }
-            });
+            if (msg && msg.length > 0) {
+                _this.addToChatWindow(msg, _this.userFirstName).then(function () {
+                    var diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
+                    var lastMsg = document.getElementsByClassName('direct-chat-msg');
+                    diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
+                    $('#textArea-chat-message').val('');
+                    $('#ul-chat-attachments').html('');
+                    //tinymce.activeEditor.setContent('');
+                    if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
+                        _this.voiceRecognizer.draw(msg);
+                    }
+                    else if (msg.toLowerCase().includes('transcript')) {
+                        //this.voiceRecognizer.transcript(msg);
+                    }
+                    else {
+                        var lang = $('#select-languages option').filter(':selected').text();
+                        _this.voiceRecognizer.chat(msg, { "lang": lang });
+                    }
+                });
+            }
         });
         $('#mute').on('click', function (event) {
             event.preventDefault();
@@ -306,25 +309,26 @@ var app = /** @class */ (function () {
     return app;
 }());
 exports.default = app;
-var VoiceRecognizer = /** @class */ (function () {
+var VoiceRecognizer = /** @class */ (function (_super) {
+    __extends(VoiceRecognizer, _super);
     function VoiceRecognizer(userFirstName, profilePicture) {
-        var _this = this;
-        this.userFirstName = userFirstName;
-        this.profilePicture = profilePicture;
-        this.language = "en-GB";
-        this.errMngr = new error_manager_1.default();
-        this.grammar = '#JSGF V1.0; grammar colors; public <color> = aqua | azure | beige | bisque | black | blue | brown | chocolate | coral | crimson | cyan | fuchsia | ghostwhite | gold | goldenrod | gray | green | indigo | ivory | khaki | lavender | lime | linen | magenta | maroon | moccasin | navy | olive | orange | orchid | peru | pink | plum | purple | red | salmon | sienna | silver | snow | tan | teal | thistle | tomato | turquoise | violet | white | yellow ;';
-        this.diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
-        this.recognition = new webkitSpeechRecognition() || new SpeechRecognition();
-        this.speechRecognitionList = new webkitSpeechGrammarList() || new SpeechGrammarList();
-        this.speechRecognitionList.addFromString(this.grammar, 1);
-        this.recognition.grammars = this.speechRecognitionList;
-        this.recognition.continuous = true;
-        this.recognition.lang = this.language;
-        this.recognition.interimResults = false;
-        this.recognition.maxAlternatives = 1;
+        var _this = _super.call(this) || this;
+        _this.userFirstName = userFirstName;
+        _this.profilePicture = profilePicture;
+        _this.language = "en-GB";
+        _this.errMngr = new error_manager_1.default();
+        _this.grammar = '#JSGF V1.0; grammar colors; public <color> = aqua | azure | beige | bisque | black | blue | brown | chocolate | coral | crimson | cyan | fuchsia | ghostwhite | gold | goldenrod | gray | green | indigo | ivory | khaki | lavender | lime | linen | magenta | maroon | moccasin | navy | olive | orange | orchid | peru | pink | plum | purple | red | salmon | sienna | silver | snow | tan | teal | thistle | tomato | turquoise | violet | white | yellow ;';
+        _this.diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
+        _this.recognition = new webkitSpeechRecognition() || new SpeechRecognition();
+        _this.speechRecognitionList = new webkitSpeechGrammarList() || new SpeechGrammarList();
+        _this.speechRecognitionList.addFromString(_this.grammar, 1);
+        _this.recognition.grammars = _this.speechRecognitionList;
+        _this.recognition.continuous = true;
+        _this.recognition.lang = _this.language;
+        _this.recognition.interimResults = false;
+        _this.recognition.maxAlternatives = 1;
         var synth = speechSynthesis;
-        this.voices = synth.getVoices();
+        _this.voices = synth.getVoices();
         speechSynthesis.onvoiceschanged = function () {
             _this.voices = speechSynthesis.getVoices();
             //console.log(...voices);
@@ -386,7 +390,7 @@ var VoiceRecognizer = /** @class */ (function () {
                 _this.voice = _this.getVoice(_this.voices, _this.language);
             }
         };
-        this.recognition.onresult = function (event) {
+        _this.recognition.onresult = function (event) {
             var results = event.results;
             //const msg = results.item(results.length - 1)[0].transcript;
             for (var _i = 0, _a = Array.from(event.results); _i < _a.length; _i++) {
@@ -405,13 +409,7 @@ var VoiceRecognizer = /** @class */ (function () {
                 }
             }
         };
-        if ($('#flexSwitchCheckChecked').is(':checked')) {
-            this.recognition.start();
-        }
-        else {
-            this.recognition.stop();
-        }
-        this.conversation = [{ "role": "user", "content": "Good Morning, my name is ".concat(userFirstName, ".") },
+        _this.conversation = [{ "role": "user", "content": "Good Morning, my name is ".concat(userFirstName, ".") },
             { "role": "assistant", "content": "Good morning ".concat(userFirstName, ", How may I assest you today?") },
             {
                 "role": "user", "content": "What is your name?"
@@ -420,40 +418,48 @@ var VoiceRecognizer = /** @class */ (function () {
                 "role": "user", "content": "Hello Lucy."
             },
             { "role": "assistant", "content": "Hello ".concat(userFirstName, ".") }];
+        return _this;
     }
     VoiceRecognizer.prototype.getVoice = function (voices, languageCode) {
         var voice;
-        if (languageCode.startsWith('en')) {
-            //Microsoft Libby Online (Natural) - English (United Kingdom)
-            //Microsoft Salma Online (Natural) - Arabic (Egypt)
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('en') && voice.name.includes('Libby'); })[0];
-            console.log(voice.name);
+        try {
+            if (languageCode.startsWith('en')) {
+                //Microsoft Libby Online (Natural) - English (United Kingdom)
+                //Microsoft Salma Online (Natural) - Arabic (Egypt)
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('en') && voice.name.includes('Libby'); })[0];
+                console.log(voice.name);
+            }
+            else if (languageCode.startsWith('ar')) {
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('ar') && voice.name.includes('Salma'); })[0];
+                console.log(voice.name);
+            }
+            else if (languageCode.startsWith('es')) {
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('es') && voice.name.includes('Elvira'); })[0];
+                console.log(voice.name);
+            }
+            else if (languageCode.startsWith('hi')) {
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('hi') && voice.name.includes('Swara'); })[0];
+                console.log(voice.name);
+            }
+            else if (languageCode.startsWith('it')) {
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
+                console.log(voice.name);
+            }
+            else if (languageCode.startsWith('nl')) {
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
+                console.log(voice.name);
+            }
+            else if (languageCode.startsWith('ja')) {
+                voice = voices.filter(function (voice) { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
+                console.log(voice.name);
+            }
+            else {
+                voice = voices.filter(function (voice) { return voice.lang.includes(languageCode); })[0];
+                console.log(voice.name);
+            }
         }
-        else if (languageCode.startsWith('ar')) {
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('ar') && voice.name.includes('Salma'); })[0];
-            console.log(voice.name);
-        }
-        else if (languageCode.startsWith('es')) {
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('es') && voice.name.includes('Elvira'); })[0];
-            console.log(voice.name);
-        }
-        else if (languageCode.startsWith('hi')) {
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('hi') && voice.name.includes('Swara'); })[0];
-            console.log(voice.name);
-        }
-        else if (languageCode.startsWith('it')) {
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
-            console.log(voice.name);
-        }
-        else if (languageCode.startsWith('nl')) {
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
-            console.log(voice.name);
-        }
-        else if (languageCode.startsWith('ja')) {
-            voice = voices.filter(function (voice) { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
-            console.log(voice.name);
-        }
-        else {
+        catch (e) {
+            console.error(e);
             voice = voices.filter(function (voice) { return voice.lang.includes(languageCode); })[0];
             console.log(voice.name);
         }
@@ -505,7 +511,7 @@ var VoiceRecognizer = /** @class */ (function () {
             type: 'POST',
             url: '/openai/draw',
             dataType: 'json',
-            data: { "prompt": prompt, "n": "1", "size": "1024x1024" }
+            data: { "prompt": "".concat(prompt), "n": "1", "size": "1024x1024" }
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
                 _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"canvas-imagine\" style=\"display: block; min-height: 250px;\">\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
@@ -604,7 +610,7 @@ var VoiceRecognizer = /** @class */ (function () {
         speechSynthesis.speak(utterance);
     };
     return VoiceRecognizer;
-}());
+}(events_1.EventEmitter));
 var Equalizer = /** @class */ (function () {
     function Equalizer(profilePicture, stream) {
         var _this = this;

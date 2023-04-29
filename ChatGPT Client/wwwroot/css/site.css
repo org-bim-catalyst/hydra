@@ -172,7 +172,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 174px;
-        min-height: 12em;
+        min-height: 19.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -191,7 +191,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 236px;
-        min-height: 16.5em;
+        min-height: 24em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -204,7 +204,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 256px; /*443px;*/
-        min-height: 19.5em;
+        min-height: 27em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -217,7 +217,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 312px; /*443px;*/
-        min-height: 26.5em;
+        min-height: 33em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -230,7 +230,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 236px;
-        min-height: 47.5em;
+        min-height: 55em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -243,7 +243,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 40em;
+        min-height: 47.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -256,7 +256,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 61em;
+        min-height: 68.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -328,7 +328,9 @@ body,
 
 /**********************************************/
 .form-outline textarea.form-control {
-    min-height: 7.5em;
+    min-height: 2.75em;
+    resize: none;
+    padding-right: 2.5em !important;
 }
 
 .dropdown-menu {
