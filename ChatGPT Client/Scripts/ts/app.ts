@@ -36,7 +36,7 @@ export default class app {
 
         this.errMngr = new ErrorManager();
 
-        let welcomeMsg = `<div class="modal fade show" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-modal="true" role="dialog" style="display: block;">
+        let welcomeMsg = `<div class="modal fade show" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-modal="true" role="dialog" style="display: block;" data-mdb-backdrop="static" data-mdb-keyboard="false">
                              <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
                                   <div class="modal-header border-0">
@@ -47,7 +47,6 @@ export default class app {
                                       <div class="d-flex justify-content-end align-items-end">
                                        <img src="/img/edge-logo.webp" class="rounded me-1" width="100" height="100" alt="" aria-controls="#picker-editor">
                                        <p class="lead">For better experience, we recommend you to use Microsoft Edge.</p>
-
                                       </div>
                                   </div>
                                   <div class="modal-footer border-0">
@@ -93,7 +92,29 @@ export default class app {
                 case 'audio/x-m4a':
                     this.transcript(file).then((textPage: string) => {
                         this.addToChatBox(textPage);
-                        this.addToAttachments(file);
+                        this.addToAttachments(file).then((data: any) => {
+
+                            $('#ul-chat-attachments').html(`<li class="list-group-item p-4">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="fw-bold">${data.filename}</div>
+                                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(data.audioduration, "seconds").asMilliseconds()).format("HH:mm:ss")}</span>
+                                                </div>
+
+                                                <div class="text-muted">
+                                                    <audio id="audio-data" preload="auto">
+                                                        <source src="${data.audiosrc}">
+                                                    </audio>
+                                                    <div id="audioplayer d-flex justify-content-between align-items-center">
+                                                        <i id="pButton" class="fas fa-play"></i>
+                                                        <div id="timeline">
+                                                            <div id="playhead"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>`);
+
+                            $('[data-mdb-target="#modal-attachments"]').removeClass('d-none');
+                        });
                     });
                     break;
 
@@ -157,9 +178,6 @@ export default class app {
 
     private initUi() {
 
-
-
-
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
 
@@ -179,6 +197,7 @@ export default class app {
 
                     $('#textArea-chat-message').val('');
                     $('#ul-chat-attachments').html('');
+                    $('[data-mdb-target="#modal-attachments"]').addClass('d-none');
 
                     //tinymce.activeEditor.setContent('');
 
@@ -237,7 +256,7 @@ export default class app {
                                             <blockquote class="blockquote">
                                                 <p class="pb-3">
                                                     <i class="fas fa-quote-left fa-xs text-primary"></i>
-                                                    <span class="lead font-italic">${msg}</span>
+                                                    <span class="lead font-italic" dir="auto">${msg}</span>
                                                     <i class="fas fa-quote-right fa-xs text-primary"></i>
                                                 </p>
                                             </blockquote>
@@ -279,9 +298,9 @@ export default class app {
                                                     </div>
                                                 </div>`;
                 let msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
-                resolve(msg_li);
+                return resolve(msg_li);
             } catch (e) {
-                reject();
+                return reject();
             }
         });
     }
@@ -294,29 +313,20 @@ export default class app {
 
     private addToAttachments(file: File) {
 
-        let filePath = URL.createObjectURL(file);
-        let audio = new Audio(filePath);
-        audio.preload = "metadata";
+        return new Promise((resolve, reject) => {
 
-        audio.addEventListener('loadedmetadata', () => {
-            $('#ul-chat-attachments').html(`<li class="list-group-item">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div class="fw-bold">${file.name}</div>
-                                                    <span class="badge rounded-pill badge-success">${moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss")}</span>
-                                                </div>
+            try {
+                let filePath = URL.createObjectURL(file);
+                let audio = new Audio(filePath);
+                audio.preload = "metadata";
 
-                                                <div class="text-muted">
-                                                    <audio id="audio-data" preload="auto">
-                                                        <source src="${audio.src}">
-                                                    </audio>
-                                                    <div id="audioplayer d-flex justify-content-between align-items-center">
-                                                        <i id="pButton" class="fas fa-play"></i>
-                                                        <div id="timeline">
-                                                            <div id="playhead"></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </li>`)
+                audio.addEventListener('loadedmetadata', () => {
+                    return resolve({ "filename": file.name, "audioduration": audio.duration, "audiosrc": audio.src });
+                });
+
+            } catch (e) {
+                reject(e);
+            }
         });
     }
 
@@ -386,11 +396,11 @@ export default class app {
                     // Extract the text
                     this.getPageText(pageNumber, PDFDocumentInstance).then((textPage: string) => {
                         // Show the text of the page in the console
-                        resolve(textPage);
+                        return resolve(textPage);
                     });
                 }, (reason) => {
                     // PDF loading error
-                    reject(reason);
+                    return reject(reason);
                 });
 
             } catch (e) {
@@ -430,7 +440,7 @@ export default class app {
                     }
 
                     // Solve promise with the text retrieven from the page
-                    resolve(finalString);
+                    return resolve(finalString);
                 });
             });
         });
@@ -484,7 +494,7 @@ class VoiceRecognizer extends EventEmitter {
                 disableIfEmpty: true,
                 buttonClass: 'btn btn-primary',
                 buttonWidth: '100%',
-                maxHeight: 450,
+                maxHeight: 250,
                 selectedClass: 'active multiselect-selected',
                 includeSelectAllOption: false,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
@@ -687,13 +697,13 @@ class VoiceRecognizer extends EventEmitter {
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
-                                                        <a class="btn btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
-                                                        <span class="material-icons">record_voice_over</span>
-                                                         </a>
+                                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                            <span class="material-icons md-18">record_voice_over</span>
+                                                        </a>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
-                                                        <p class="mb-0">
+                                                        <p class="mb-0" dir="auto">
                                                              ${msg}
                                                         </p>
                                                     </div>
@@ -716,10 +726,10 @@ class VoiceRecognizer extends EventEmitter {
 
                     let message = $(current).closest('.card').find('.card-body p').text();
                     this.voice = this.getVoice(this.voices, options.lang);
-                    this.speak(message);
+                    this.speak(message, { "language": options.lang });
                 });
 
-                this.speak(msg);
+                this.speak(msg, { "language": options.lang });
 
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
@@ -772,12 +782,15 @@ class VoiceRecognizer extends EventEmitter {
     translate(prompt: string, options?: any) {
 
         if (prompt && prompt !== '') {
-            this.conversation.push({ "role": "user", "content": `Translate this into ${options.lang}: "${prompt}"` });
+            this.conversation.push({
+                "role": "user", "content": `Translate this into ${options.lang}: "${prompt}", and don't include the source text.'
+                                            Return only the equivalent html code for the translation, separate each phrase in span tag with lang attribute and the direction attribute that match its recognized language based on context and narrative flow.
+                                            Incluse the tags in div element with class named "translation-result" and add a class "text-end" to the div if the translation language is written from right to left.` });
         }
 
         return $.ajax({
             type: 'POST',
-            url: '/openai/chat',
+            url: '/openai/translate',
             dataType: 'json',
             data: {
                 "model": "gpt-3.5-turbo",
@@ -791,23 +804,21 @@ class VoiceRecognizer extends EventEmitter {
                 this.conversation.push({ "role": "assistant", "content": msg });
 
                 let li = $(`<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
-                                                <div class="card w-100">
-                                                    <div class="card-header d-flex justify-content-between">
-                                                        <p class="fw-bold mb-0">Lucy</p>
-                                                        <a class="btn btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
-                                                            <span class="material-icons">record_voice_over</span>
-                                                         </a>
-                                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <p class="mb-0">
-                                                             ${msg}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <img src="/img/Lucy.png" alt="avatar"
-                                                     class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
-                                            </li>`);
+                                <div class="card w-100">
+                                    <div class="card-header d-flex justify-content-between">
+                                        <p class="fw-bold mb-0">Lucy</p>
+                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                            <span class="material-icons md-18">record_voice_over</span>
+                                        </a>
+                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
+                                    </div>
+                                    <div class="card-body">
+                                        ${msg}
+                                    </div>
+                                </div>
+                                <img src="/img/Lucy.png" alt="avatar"
+                                        class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
+                            </li>`);
 
                 this.diagnostic.appendChild(li.get(0))  ;
 
@@ -821,12 +832,16 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let message = $(current).closest('.card').find('.card-body p').text();
+                    let message = $(current).closest('.card').find('.card-body .translation-result span').text();
                     this.voice = this.getVoice(this.voices, options.lang);
-                    this.speak(message);
+                    this.speak(message, { "language": options.lang });
                 });
 
-                this.speak(msg);
+                let translation = $(msg).find('span');
+
+                $.each(translation, async (index, p) => {
+                    await this.speak(p.innerHTML, { "language": p.lang });
+                });
             }
 
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
@@ -834,61 +849,73 @@ class VoiceRecognizer extends EventEmitter {
         });
     }
 
-    speak(msg: string) {
+    speak(msg: string, options?: any) {
 
-        let utterance = new SpeechSynthesisUtterance(msg);
-        utterance.lang = this.language;
-        utterance.voice = this.voice;
-        utterance.rate = 1;
-        utterance.pitch = 1;
-        utterance.volume = 0.5;
+        // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
 
-        utterance.onend = (event) => {
+        return new Promise((resolve, reject) => {
+
             try {
-                if ($('#flexSwitchCheckChecked').is(':checked')) {
-                    this.recognition.start();
-                } else {
-                    this.recognition.stop();
-                }
-            } catch (e) {
-                console.log(e);
-            }
-        };
+                let utterance = new SpeechSynthesisUtterance(msg);
+                utterance.lang = options.language;
+                utterance.voice = this.voice;
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                utterance.volume = 0.5;
 
-        utterance.onstart = (event) => {
-
-            console.log(event.currentTarget);
-
-            navigator.mediaDevices.enumerateDevices()
-                // set `getUserMedia()` constraints to "auidooutput", where avaialable
-                // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
-                .then(devices => {
-                    let audiooutput = devices.find(device => device.kind === "audiooutput" && device.deviceId === "default");
-                    let label = audiooutput.label.replace('Default - ', '');
-
-                    audiooutput = devices.find(device => device.kind === "audiooutput" && device.label === label);
-
-                    if (audiooutput) {
-                        const constraints: MediaStreamConstraints = {
-                            audio: {
-                                deviceId: { exact: audiooutput.deviceId },
-                                groupId: audiooutput.groupId
-                            }
-                        };
-
-                        navigator.mediaDevices.getUserMedia(constraints).then((stream: MediaStream) => {
-
-                            console.log(stream.getAudioTracks()[0].label);
-
-                            let equalizer = new Equalizer(this.profilePicture, stream);
-
-                            console.log('stream.active: ', stream.getAudioTracks().length);
-                        }).catch(error => console.error(error));
+                utterance.onend = (event) => {
+                    try {
+                        if ($('#flexSwitchCheckChecked').is(':checked')) {
+                            this.recognition.start();
+                        } else {
+                            this.recognition.stop();
+                        }
+                    } catch (e) {
+                        console.log(e);
                     }
-                });
-        };
 
-        speechSynthesis.speak(utterance);
+                    return resolve('complete');
+                };
+
+                utterance.onstart = (event) => {
+
+                    console.log(event.currentTarget);
+
+                    navigator.mediaDevices.enumerateDevices()
+                        // set `getUserMedia()` constraints to "auidooutput", where avaialable
+                        // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
+                        .then(devices => {
+                            let audiooutput = devices.find(device => device.kind === "audiooutput" && device.deviceId === "default");
+                            let label = audiooutput.label.replace('Default - ', '');
+
+                            audiooutput = devices.find(device => device.kind === "audiooutput" && device.label === label);
+
+                            if (audiooutput) {
+                                const constraints: MediaStreamConstraints = {
+                                    audio: {
+                                        deviceId: { exact: audiooutput.deviceId },
+                                        groupId: audiooutput.groupId
+                                    }
+                                };
+
+                                navigator.mediaDevices.getUserMedia(constraints).then((stream: MediaStream) => {
+
+                                    console.log(stream.getAudioTracks()[0].label);
+
+                                    let equalizer = new Equalizer(this.profilePicture, stream);
+
+                                    console.log('stream.active: ', stream.getAudioTracks().length);
+                                }).catch(error => console.error(error));
+                            }
+                        });
+                };
+
+                speechSynthesis.speak(utterance);
+
+            } catch (e) {
+                return reject(e);
+            }
+        });
     }
 }
 
@@ -1260,7 +1287,7 @@ class Equalizer {
 
                 // Otherwise, wrap the call to the old navigator.getUserMedia with a Promise
 
-                resolve(navigator.mediaDevices.getUserMedia(constraints));
+                return resolve(navigator.mediaDevices.getUserMedia(constraints));
             }
         });
     }

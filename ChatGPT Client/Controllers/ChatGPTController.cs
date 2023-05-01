@@ -19,6 +19,8 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Google.Apis.PeopleService.v1.Data;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SendGrid.Helpers.Mail;
+using System;
+using System.Text.RegularExpressions;
 
 namespace AskLucy.Controllers
 {
@@ -122,14 +124,24 @@ namespace AskLucy.Controllers
                     client.DefaultRequestHeaders.Add(name: "authorization", value: $"Bearer {_appKey}");
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
 
-
                     string data = @$"{{""model"": ""{model}"",""messages"": {messages}}}";
 
                     HttpContent httpContent = new StringContent(data, Encoding.UTF8, "application/json");
 
                     HttpResponseMessage response = client.PostAsync("/v1/chat/completions", httpContent).Result;
                     string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
-                    return Json(result);
+                    string pattern = @"(?<=^```html[\r\n])([\s\S]*?)(?=```$)";
+                    Match regResult = Regex.Match(result, pattern, RegexOptions.IgnoreCase);
+                    string html = regResult.Value;
+
+                    if (html.Count() > 0)
+                    {
+                        return Json(html);
+                    }
+                    else
+                    {
+                        return Json(result);
+                    }
                 }
             }
             catch (Exception ex)
