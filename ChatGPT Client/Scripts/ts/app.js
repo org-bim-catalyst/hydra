@@ -14,6 +14,42 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var PDFJS = require("pdfjs-dist/webpack");
 var d3 = require("d3");
@@ -39,7 +75,7 @@ var app = /** @class */ (function () {
         this.userFirstName = userFirstName;
         this.profilePicture = profilePicture;
         this.errMngr = new error_manager_1.default();
-        var welcomeMsg = "<div class=\"modal fade show\" id=\"exampleModal\" tabindex=\"-1\" aria-labelledby=\"exampleModalLabel\" aria-modal=\"true\" role=\"dialog\" style=\"display: block;\">\n                             <div class=\"modal-dialog modal-dialog-centered\">\n                                <div class=\"modal-content\">\n                                  <div class=\"modal-header border-0\">\n                                    <h3 class=\"display-6 pt-3 ps-3\">Welcome ".concat(userFirstName, "</h3>\n                                    <img src=\"/img/Lucy.png\" class=\"rounded-circle shadow-1-strong\" width=\"85\" height=\"85\" alt=\"\" aria-controls=\"#picker-editor\" >\n                                  </div>\n                                  <div class=\"modal-body border-0\">\n                                      <div class=\"d-flex justify-content-end align-items-end\">\n                                       <img src=\"/img/edge-logo.webp\" class=\"rounded me-1\" width=\"100\" height=\"100\" alt=\"\" aria-controls=\"#picker-editor\">\n                                       <p class=\"lead\">For better experience, we recommend you to use Microsoft Edge.</p>\n\n                                      </div>\n                                  </div>\n                                  <div class=\"modal-footer border-0\">\n                                    <button type=\"button\" class=\"btn btn-secondary\" data-mdb-dismiss=\"modal\">OK</button>\n                                  </div>\n                                </div>\n                              </div>\n                              </div>");
+        var welcomeMsg = "<div class=\"modal fade show\" id=\"exampleModal\" tabindex=\"-1\" aria-labelledby=\"exampleModalLabel\" aria-modal=\"true\" role=\"dialog\" style=\"display: block;\" data-mdb-backdrop=\"static\" data-mdb-keyboard=\"false\">\n                             <div class=\"modal-dialog modal-dialog-centered\">\n                                <div class=\"modal-content\">\n                                  <div class=\"modal-header border-0\">\n                                    <h3 class=\"display-6 pt-3 ps-3\">Welcome ".concat(userFirstName, "</h3>\n                                    <img src=\"/img/Lucy.png\" class=\"rounded-circle shadow-1-strong\" width=\"85\" height=\"85\" alt=\"\" aria-controls=\"#picker-editor\" >\n                                  </div>\n                                  <div class=\"modal-body border-0\">\n                                      <div class=\"d-flex justify-content-end align-items-end\">\n                                       <img src=\"/img/edge-logo.webp\" class=\"rounded me-1\" width=\"100\" height=\"100\" alt=\"\" aria-controls=\"#picker-editor\">\n                                       <p class=\"lead\">For better experience, we recommend you to use Microsoft Edge.</p>\n                                      </div>\n                                  </div>\n                                  <div class=\"modal-footer border-0\">\n                                    <button type=\"button\" class=\"btn btn-secondary\" data-mdb-dismiss=\"modal\">OK</button>\n                                  </div>\n                                </div>\n                              </div>\n                              </div>");
         var myModalEl = $(welcomeMsg);
         myModalEl.on('hidden.bs.modal', function (event) {
             // do something...
@@ -70,7 +106,10 @@ var app = /** @class */ (function () {
                 case 'audio/x-m4a':
                     _this.transcript(file).then(function (textPage) {
                         _this.addToChatBox(textPage);
-                        _this.addToAttachments(file);
+                        _this.addToAttachments(file).then(function (data) {
+                            $('#ul-chat-attachments').html("<li class=\"list-group-item p-4\">\n                                                <div class=\"d-flex justify-content-between align-items-center\">\n                                                    <div class=\"fw-bold\">".concat(data.filename, "</div>\n                                                    <span class=\"badge rounded-pill badge-success\">").concat(moment.utc(moment.duration(data.audioduration, "seconds").asMilliseconds()).format("HH:mm:ss"), "</span>\n                                                </div>\n\n                                                <div class=\"text-muted\">\n                                                    <audio id=\"audio-data\" preload=\"auto\">\n                                                        <source src=\"").concat(data.audiosrc, "\">\n                                                    </audio>\n                                                    <div id=\"audioplayer d-flex justify-content-between align-items-center\">\n                                                        <i id=\"pButton\" class=\"fas fa-play\"></i>\n                                                        <div id=\"timeline\">\n                                                            <div id=\"playhead\"></div>\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                            </li>"));
+                            $('[data-mdb-target="#modal-attachments"]').removeClass('d-none');
+                        });
                     });
                     break;
                 default:
@@ -126,6 +165,7 @@ var app = /** @class */ (function () {
                     diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
                     $('#textArea-chat-message').val('');
                     $('#ul-chat-attachments').html('');
+                    $('[data-mdb-target="#modal-attachments"]').addClass('d-none');
                     //tinymce.activeEditor.setContent('');
                     if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                         _this.voiceRecognizer.draw(msg);
@@ -189,10 +229,10 @@ var app = /** @class */ (function () {
                 (_a = li.classList).add.apply(_a, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
                 li.innerHTML = "<img src=\"".concat(_this.profilePicture, "\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                            ").concat(textPage, "\n                                                        </p>\n                                                    </div>\n                                                </div>");
                 var msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
-                resolve(msg_li);
+                return resolve(msg_li);
             }
             catch (e) {
-                reject();
+                return reject();
             }
         });
     };
@@ -201,11 +241,18 @@ var app = /** @class */ (function () {
         //tinymce.activeEditor.setContent(`<p>${textPage}</p>`);
     };
     app.prototype.addToAttachments = function (file) {
-        var filePath = URL.createObjectURL(file);
-        var audio = new Audio(filePath);
-        audio.preload = "metadata";
-        audio.addEventListener('loadedmetadata', function () {
-            $('#ul-chat-attachments').html("<li class=\"list-group-item\">\n                                                <div class=\"d-flex justify-content-between align-items-center\">\n                                                    <div class=\"fw-bold\">".concat(file.name, "</div>\n                                                    <span class=\"badge rounded-pill badge-success\">").concat(moment.utc(moment.duration(audio.duration, "seconds").asMilliseconds()).format("HH:mm:ss"), "</span>\n                                                </div>\n\n                                                <div class=\"text-muted\">\n                                                    <audio id=\"audio-data\" preload=\"auto\">\n                                                        <source src=\"").concat(audio.src, "\">\n                                                    </audio>\n                                                    <div id=\"audioplayer d-flex justify-content-between align-items-center\">\n                                                        <i id=\"pButton\" class=\"fas fa-play\"></i>\n                                                        <div id=\"timeline\">\n                                                            <div id=\"playhead\"></div>\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                            </li>"));
+        return new Promise(function (resolve, reject) {
+            try {
+                var filePath = URL.createObjectURL(file);
+                var audio_1 = new Audio(filePath);
+                audio_1.preload = "metadata";
+                audio_1.addEventListener('loadedmetadata', function () {
+                    return resolve({ "filename": file.name, "audioduration": audio_1.duration, "audiosrc": audio_1.src });
+                });
+            }
+            catch (e) {
+                reject(e);
+            }
         });
     };
     app.prototype.transcript = function (file) {
@@ -263,11 +310,11 @@ var app = /** @class */ (function () {
                     // Extract the text
                     _this.getPageText(pageNumber, PDFDocumentInstance).then(function (textPage) {
                         // Show the text of the page in the console
-                        resolve(textPage);
+                        return resolve(textPage);
                     });
                 }, function (reason) {
                     // PDF loading error
-                    reject(reason);
+                    return reject(reason);
                 });
             }
             catch (e) {
@@ -301,7 +348,7 @@ var app = /** @class */ (function () {
                         console.log(percent_loaded);
                     }
                     // Solve promise with the text retrieven from the page
-                    resolve(finalString);
+                    return resolve(finalString);
                 });
             });
         });
@@ -339,7 +386,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 disableIfEmpty: true,
                 buttonClass: 'btn btn-primary',
                 buttonWidth: '100%',
-                maxHeight: 450,
+                maxHeight: 250,
                 selectedClass: 'active multiselect-selected',
                 includeSelectAllOption: false,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
@@ -488,7 +535,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
             if (xhr.status === 200) {
                 var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
-                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                        <span class=\"material-icons\">record_voice_over</span>\n                                                         </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
+                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\" dir=\"auto\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
                 _this.diagnostic.appendChild(li.get(0));
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
@@ -497,9 +544,9 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                     var current = event.currentTarget;
                     var message = $(current).closest('.card').find('.card-body p').text();
                     _this.voice = _this.getVoice(_this.voices, options.lang);
-                    _this.speak(message);
+                    _this.speak(message, { "language": options.lang });
                 });
-                _this.speak(msg);
+                _this.speak(msg, { "language": options.lang });
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
@@ -531,11 +578,13 @@ var VoiceRecognizer = /** @class */ (function (_super) {
     VoiceRecognizer.prototype.translate = function (prompt, options) {
         var _this = this;
         if (prompt && prompt !== '') {
-            this.conversation.push({ "role": "user", "content": "Translate this into ".concat(options.lang, ": \"").concat(prompt, "\"") });
+            this.conversation.push({
+                "role": "user", "content": "Translate this into ".concat(options.lang, ": \"").concat(prompt, "\", and don't include the source text.'\n                                            Return only the equivalent html code for the translation, separate each phrase in span tag with lang attribute and the direction attribute that match its recognized language based on context and narrative flow.\n                                            Incluse the tags in div element with class named \"translation-result\" and add a class \"text-end\" to the div if the translation language is written from right to left.")
+            });
         }
         return $.ajax({
             type: 'POST',
-            url: '/openai/chat',
+            url: '/openai/translate',
             dataType: 'json',
             data: {
                 "model": "gpt-3.5-turbo",
@@ -545,69 +594,88 @@ var VoiceRecognizer = /** @class */ (function (_super) {
             if (xhr.status === 200) {
                 var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
-                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons\">record_voice_over</span>\n                                                         </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
+                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                <div class=\"card w-100\">\n                                    <div class=\"card-header d-flex justify-content-between\">\n                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                        </a>\n                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                    </div>\n                                    <div class=\"card-body\">\n                                        ").concat(msg, "\n                                    </div>\n                                </div>\n                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                        class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                            </li>"));
                 _this.diagnostic.appendChild(li.get(0));
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
                 li.find('.btn-read').on('click', function (event) {
                     event.preventDefault();
                     var current = event.currentTarget;
-                    var message = $(current).closest('.card').find('.card-body p').text();
+                    var message = $(current).closest('.card').find('.card-body .translation-result span').text();
                     _this.voice = _this.getVoice(_this.voices, options.lang);
-                    _this.speak(message);
+                    _this.speak(message, { "language": options.lang });
                 });
-                _this.speak(msg);
+                var translation = $(msg).find('span');
+                $.each(translation, function (index, p) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0: return [4 /*yield*/, this.speak(p.innerHTML, { "language": p.lang })];
+                            case 1:
+                                _a.sent();
+                                return [2 /*return*/];
+                        }
+                    });
+                }); });
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
-    VoiceRecognizer.prototype.speak = function (msg) {
+    VoiceRecognizer.prototype.speak = function (msg, options) {
+        // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
         var _this = this;
-        var utterance = new SpeechSynthesisUtterance(msg);
-        utterance.lang = this.language;
-        utterance.voice = this.voice;
-        utterance.rate = 1;
-        utterance.pitch = 1;
-        utterance.volume = 0.5;
-        utterance.onend = function (event) {
+        return new Promise(function (resolve, reject) {
             try {
-                if ($('#flexSwitchCheckChecked').is(':checked')) {
-                    _this.recognition.start();
-                }
-                else {
-                    _this.recognition.stop();
-                }
+                var utterance = new SpeechSynthesisUtterance(msg);
+                utterance.lang = options.language;
+                utterance.voice = _this.voice;
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                utterance.volume = 0.5;
+                utterance.onend = function (event) {
+                    try {
+                        if ($('#flexSwitchCheckChecked').is(':checked')) {
+                            _this.recognition.start();
+                        }
+                        else {
+                            _this.recognition.stop();
+                        }
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    return resolve('complete');
+                };
+                utterance.onstart = function (event) {
+                    console.log(event.currentTarget);
+                    navigator.mediaDevices.enumerateDevices()
+                        // set `getUserMedia()` constraints to "auidooutput", where avaialable
+                        // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
+                        .then(function (devices) {
+                        var audiooutput = devices.find(function (device) { return device.kind === "audiooutput" && device.deviceId === "default"; });
+                        var label = audiooutput.label.replace('Default - ', '');
+                        audiooutput = devices.find(function (device) { return device.kind === "audiooutput" && device.label === label; });
+                        if (audiooutput) {
+                            var constraints = {
+                                audio: {
+                                    deviceId: { exact: audiooutput.deviceId },
+                                    groupId: audiooutput.groupId
+                                }
+                            };
+                            navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
+                                console.log(stream.getAudioTracks()[0].label);
+                                var equalizer = new Equalizer(_this.profilePicture, stream);
+                                console.log('stream.active: ', stream.getAudioTracks().length);
+                            }).catch(function (error) { return console.error(error); });
+                        }
+                    });
+                };
+                speechSynthesis.speak(utterance);
             }
             catch (e) {
-                console.log(e);
+                return reject(e);
             }
-        };
-        utterance.onstart = function (event) {
-            console.log(event.currentTarget);
-            navigator.mediaDevices.enumerateDevices()
-                // set `getUserMedia()` constraints to "auidooutput", where avaialable
-                // see https://bugzilla.mozilla.org/show_bug.cgi?id=934425, https://stackoverflow.com/q/33761770
-                .then(function (devices) {
-                var audiooutput = devices.find(function (device) { return device.kind === "audiooutput" && device.deviceId === "default"; });
-                var label = audiooutput.label.replace('Default - ', '');
-                audiooutput = devices.find(function (device) { return device.kind === "audiooutput" && device.label === label; });
-                if (audiooutput) {
-                    var constraints = {
-                        audio: {
-                            deviceId: { exact: audiooutput.deviceId },
-                            groupId: audiooutput.groupId
-                        }
-                    };
-                    navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
-                        console.log(stream.getAudioTracks()[0].label);
-                        var equalizer = new Equalizer(_this.profilePicture, stream);
-                        console.log('stream.active: ', stream.getAudioTracks().length);
-                    }).catch(function (error) { return console.error(error); });
-                }
-            });
-        };
-        speechSynthesis.speak(utterance);
+        });
     };
     return VoiceRecognizer;
 }(events_1.EventEmitter));
@@ -897,7 +965,7 @@ var Equalizer = /** @class */ (function () {
             }
             else {
                 // Otherwise, wrap the call to the old navigator.getUserMedia with a Promise
-                resolve(navigator.mediaDevices.getUserMedia(constraints));
+                return resolve(navigator.mediaDevices.getUserMedia(constraints));
             }
         });
     };
