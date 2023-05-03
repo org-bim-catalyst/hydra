@@ -209,7 +209,7 @@ var app = /** @class */ (function () {
             var msg = $('#textArea-chat-message').val().toString();
             var lang = $('#select-translation-language option').filter(':selected').text();
             if (msg.length > 0) {
-                _this.addToChatWindow("Translate this into ".concat(lang, ": \n                                        <figure class=\"text-center mb-0\">\n                                            <blockquote class=\"blockquote\">\n                                                <p class=\"pb-3\">\n                                                    <i class=\"fas fa-quote-left fa-xs text-primary\"></i>\n                                                    <span class=\"lead font-italic\">").concat(msg, "</span>\n                                                    <i class=\"fas fa-quote-right fa-xs text-primary\"></i>\n                                                </p>\n                                            </blockquote>\n                                        </figure>"), _this.userFirstName).then(function () {
+                _this.addToChatWindow("Translate this into ".concat(lang, ": \n                                        <figure class=\"text-center mb-0\">\n                                            <blockquote class=\"blockquote\">\n                                                <p class=\"pb-3\">\n                                                    <i class=\"fas fa-quote-left fa-xs text-primary\"></i>\n                                                    <span class=\"lead font-italic\" dir=\"auto\">").concat(msg, "</span>\n                                                    <i class=\"fas fa-quote-right fa-xs text-primary\"></i>\n                                                </p>\n                                            </blockquote>\n                                        </figure>"), _this.userFirstName).then(function () {
                     var diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
                     var lastMsg = document.getElementsByClassName('direct-chat-msg');
                     diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
@@ -542,11 +542,12 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 li.find('.btn-read').on('click', function (event) {
                     event.preventDefault();
                     var current = event.currentTarget;
-                    var message = $(current).closest('.card').find('.card-body p').text();
+                    var container = $(current).closest('.card').find('.card-body p');
+                    var message = container.text();
                     _this.voice = _this.getVoice(_this.voices, options.lang);
-                    _this.speak(message, { "language": options.lang });
+                    _this.speak(message, { "language": options.lang, "container": container.get(0) });
                 });
-                _this.speak(msg, { "language": options.lang });
+                _this.speak(msg, { "language": options.lang, "container": li.find('.card-body p').get(0) });
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
@@ -601,15 +602,16 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 li.find('.btn-read').on('click', function (event) {
                     event.preventDefault();
                     var current = event.currentTarget;
-                    var message = $(current).closest('.card').find('.card-body .translation-result span').text();
+                    var container = $(current).closest('.card').find('.card-body .translation-result span');
+                    var message = container.text();
                     _this.voice = _this.getVoice(_this.voices, options.lang);
-                    _this.speak(message, { "language": options.lang });
+                    _this.speak(message, { "language": options.lang, "container": container.get(0) });
                 });
                 var translation = $(msg).find('span');
-                $.each(translation, function (index, p) { return __awaiter(_this, void 0, void 0, function () {
+                $.each(translation, function (index, span) { return __awaiter(_this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
                         switch (_a.label) {
-                            case 0: return [4 /*yield*/, this.speak(p.innerHTML, { "language": p.lang })];
+                            case 0: return [4 /*yield*/, this.speak(span.innerHTML, { "language": span.lang, "container": span })];
                             case 1:
                                 _a.sent();
                                 return [2 /*return*/];
@@ -623,6 +625,12 @@ var VoiceRecognizer = /** @class */ (function (_super) {
     };
     VoiceRecognizer.prototype.speak = function (msg, options) {
         // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
+        // https://codepen.io/tniezurawski/pen/wvzyVEE
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+        // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
+        // https://linuxhint.com/highlight-text-using-javascript/#:~:text=For%20highlighting%20text%20in%20JavaScript%2C%20use%20the%20%E2%80%9Cmark%E2%80%9D%20element,script%3E%20tag%20or%20JavaScript%20file.
         var _this = this;
         return new Promise(function (resolve, reject) {
             try {
@@ -632,6 +640,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 utterance.rate = 1;
                 utterance.pitch = 1;
                 utterance.volume = 0.5;
+                var wordIndex_1 = 0;
                 utterance.onend = function (event) {
                     try {
                         if ($('#flexSwitchCheckChecked').is(':checked')) {
@@ -670,12 +679,44 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         }
                     });
                 };
+                utterance.onboundary = function (event) {
+                    var word = _this.getWordAt(msg, event.charIndex);
+                    try {
+                        //options.container.innerText=msg;
+                        var message = msg.substring(0, event.charIndex) + "<span class='highlight' style='background:#fff8d6;'>" + word + "</span>" + msg.substring(event.charIndex + word.length);
+                        options.container.textContent = message;
+                        //options.container.innerHTML = message;
+                        console.log(options.container.innerHTML);
+                        //options.container.innerText = message;
+                        //let container = document.getElementsByClassName('highlight').item(0) as HTMLElement
+                        //container.style.background = "#FFF8D6";
+                        //console.log(options.container.innerText);
+                        //options.container.innerText = message;
+                    }
+                    catch (e) {
+                        return reject(e);
+                    }
+                    wordIndex_1++;
+                };
                 speechSynthesis.speak(utterance);
             }
             catch (e) {
                 return reject(e);
             }
         });
+    };
+    VoiceRecognizer.prototype.getWordAt = function (str, pos) {
+        // Perform type conversions.
+        str = String(str);
+        pos = Number(pos) >>> 0;
+        // Search for the word's beginning and end.
+        var left = str.slice(0, pos + 1).search(/\S+$/), right = str.slice(pos).search(/\s/);
+        // The last word in the string is a special case.
+        if (right < 0) {
+            return str.slice(left);
+        }
+        // Return the word, using the located bounds to extract it from the string.
+        return str.slice(left, right + pos);
     };
     return VoiceRecognizer;
 }(events_1.EventEmitter));

@@ -35,7 +35,7 @@ namespace AskLucy.Controllers
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
-            _appKey = _config.GetValue<string>("ChatGPT")!;
+            _appKey = _config.GetValue<string>("ChatGPT:key-3")!;
         }
 
         [HttpPost("openai/chat")]
@@ -57,8 +57,16 @@ namespace AskLucy.Controllers
                     HttpContent httpContent = new StringContent(data, Encoding.UTF8, "application/json");
 
                     HttpResponseMessage response = client.PostAsync($"/v1/chat/completions", httpContent).Result;
-                    string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
-                    return Json(result);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
+                        return Json(result);
+                    }
+                    else
+                    {
+                        return StatusCode((int)response.StatusCode, response.ReasonPhrase);
+                    }
                 }
             }
             catch (Exception ex)
@@ -78,31 +86,39 @@ namespace AskLucy.Controllers
                     client.BaseAddress = new Uri(uriString: "https://api.openai.com");
 
                     client.DefaultRequestHeaders.Add(name: "authorization", value: $"Bearer {_appKey}");
-                    
+
                     string data = @$"{{""prompt"": ""{prompt}"",""n"": {n}, ""size"":""{size}""}}";
 
                     HttpContent httpContent = new StringContent(data, Encoding.UTF8, "application/json");
                     httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
                     HttpResponseMessage response = client.PostAsync("/v1/images/generations", httpContent).Result;
-                    dynamic result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!;
-                    
-                    if(result.error != null)
+
+                    if (response.IsSuccessStatusCode)
                     {
-                        string returnValue = result.error.message;
-                        return new ContentResult()
+                        dynamic result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!;
+
+                        if (result.error != null)
                         {
-                            StatusCode = (int)HttpStatusCode.BadRequest,
-                            Content = returnValue,
-                            ContentType = "text/plain"
-                        };
+                            string returnValue = result.error.message;
+                            return new ContentResult()
+                            {
+                                StatusCode = (int)HttpStatusCode.BadRequest,
+                                Content = returnValue,
+                                ContentType = "text/plain"
+                            };
+                        }
+                        else
+                        {
+                            string returnValue = result.data[0].url;
+                            return Json(returnValue);
+                        }
                     }
                     else
                     {
-                        string returnValue = result.data[0].url;
-                        return Json(returnValue);
-                    }
+                        return StatusCode((int)response.StatusCode, response.ReasonPhrase);
 
+                    }
                 }
             }
             catch (Exception ex)
@@ -129,19 +145,28 @@ namespace AskLucy.Controllers
                     HttpContent httpContent = new StringContent(data, Encoding.UTF8, "application/json");
 
                     HttpResponseMessage response = client.PostAsync("/v1/chat/completions", httpContent).Result;
-                    string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
-                    string pattern = @"(?<=^```html[\r\n])([\s\S]*?)(?=```$)";
-                    Match regResult = Regex.Match(result, pattern, RegexOptions.IgnoreCase);
-                    string html = regResult.Value;
 
-                    if (html.Count() > 0)
+                    if(response.IsSuccessStatusCode)
                     {
-                        return Json(html);
+                        string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
+                        string pattern = @"(?<=^```html[\r\n])([\s\S]*?)(?=```$)";
+                        Match regResult = Regex.Match(result, pattern, RegexOptions.IgnoreCase);
+                        string html = regResult.Value;
+
+                        if (html.Count() > 0)
+                        {
+                            return Json(html);
+                        }
+                        else
+                        {
+                            return Json(result);
+                        }
                     }
                     else
                     {
-                        return Json(result);
+                        return StatusCode((int)response.StatusCode, response.ReasonPhrase);
                     }
+
                 }
             }
             catch (Exception ex)
