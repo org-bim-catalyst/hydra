@@ -3,6 +3,7 @@ import { Select } from 'mdb-ui-kit';
 import * as d3 from "d3";
 import * as $ from 'jquery';
 import "bootstrap-multiselect";
+
 import { EventEmitter } from "events";
 
 //https://ralzohairi.medium.com/audio-recording-in-javascript-96eed45b75ee
@@ -724,12 +725,13 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let message = $(current).closest('.card').find('.card-body p').text();
+                    let container = $(current).closest('.card').find('.card-body p');
+                    let message = container.text();
                     this.voice = this.getVoice(this.voices, options.lang);
-                    this.speak(message, { "language": options.lang });
+                    this.speak(message, { "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
-                this.speak(msg, { "language": options.lang });
+                this.speak(msg, { "language": options.lang, "container": li.find('.card-body p').get(0) as HTMLElement });
 
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
@@ -832,15 +834,17 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let message = $(current).closest('.card').find('.card-body .translation-result span').text();
+                    let container = $(current).closest('.card').find('.card-body .translation-result span');
+
+                    let message = container.text();
                     this.voice = this.getVoice(this.voices, options.lang);
-                    this.speak(message, { "language": options.lang });
+                    this.speak(message, { "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
                 let translation = $(msg).find('span');
 
-                $.each(translation, async (index, p) => {
-                    await this.speak(p.innerHTML, { "language": p.lang });
+                $.each(translation, async (index, span) => {
+                    await this.speak(span.innerHTML, { "language": span.lang, "container": span as HTMLElement });
                 });
             }
 
@@ -852,6 +856,12 @@ class VoiceRecognizer extends EventEmitter {
     speak(msg: string, options?: any) {
 
         // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
+        // https://codepen.io/tniezurawski/pen/wvzyVEE
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+        // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
+        // https://linuxhint.com/highlight-text-using-javascript/#:~:text=For%20highlighting%20text%20in%20JavaScript%2C%20use%20the%20%E2%80%9Cmark%E2%80%9D%20element,script%3E%20tag%20or%20JavaScript%20file.
 
         return new Promise((resolve, reject) => {
 
@@ -862,6 +872,7 @@ class VoiceRecognizer extends EventEmitter {
                 utterance.rate = 1;
                 utterance.pitch = 1;
                 utterance.volume = 0.5;
+                let wordIndex = 0;
 
                 utterance.onend = (event) => {
                     try {
@@ -910,12 +921,57 @@ class VoiceRecognizer extends EventEmitter {
                         });
                 };
 
+                utterance.onboundary = (event) => {
+
+                    let word:string = this.getWordAt(msg, event.charIndex);
+
+                    try {
+                        //options.container.innerText=msg;
+                        let message = msg.substring(0, event.charIndex) + "<span class='highlight' style='background:#fff8d6;'>" + word + "</span>" + msg.substring(event.charIndex + word.length);
+                        options.container.textContent = message;
+                        //options.container.innerHTML = message;
+                        console.log(options.container.innerHTML);
+
+                        //options.container.innerText = message;
+
+                        //let container = document.getElementsByClassName('highlight').item(0) as HTMLElement
+                        //container.style.background = "#FFF8D6";
+
+                        //console.log(options.container.innerText);
+
+                        //options.container.innerText = message;
+
+                    } catch (e) {
+
+                        return reject(e);
+                    }
+
+                    wordIndex++;
+                }
+
                 speechSynthesis.speak(utterance);
 
             } catch (e) {
                 return reject(e);
             }
         });
+    }
+
+    getWordAt(str, pos) {
+        // Perform type conversions.
+        str = String(str);
+        pos = Number(pos) >>> 0;
+
+        // Search for the word's beginning and end.
+        let left = str.slice(0, pos + 1).search(/\S+$/),
+            right = str.slice(pos).search(/\s/);
+
+        // The last word in the string is a special case.
+        if (right < 0) {
+            return str.slice(left);
+        }
+        // Return the word, using the located bounds to extract it from the string.
+        return str.slice(left, right + pos);
     }
 }
 
