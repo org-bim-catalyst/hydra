@@ -566,7 +566,7 @@ class VoiceRecognizer extends EventEmitter {
             $('#select-languages').multiselect('dataprovider', options);
             $('#select-languages').multiselect('rebuild');
 
-            console.log(this.voices);
+            /*console.log*/(this.voices);
 
             if (!this.voice) {
 
@@ -687,7 +687,7 @@ class VoiceRecognizer extends EventEmitter {
                 "model": "gpt-3.5-turbo",
                 "messages": JSON.stringify(this.conversation)
             }
-        }).then((response, textStatus, xhr) => {
+        }).then(async (response, textStatus, xhr) => {
             if (xhr.status === 200) {
 
                 let msg = response;
@@ -719,7 +719,7 @@ class VoiceRecognizer extends EventEmitter {
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                li.find('.btn-read').on('click', (event) => {
+                li.find('.btn-read').on('click', async (event) => {
 
                     event.preventDefault();
 
@@ -728,11 +728,10 @@ class VoiceRecognizer extends EventEmitter {
                     let container = $(current).closest('.card').find('.card-body p');
                     let message = container.text();
                     this.voice = this.getVoice(this.voices, options.lang);
-                    this.speak(message, { "language": options.lang, "container": container.get(0) as HTMLElement });
+                    await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
-                this.speak(msg, { "language": options.lang, "container": li.find('.card-body p').get(0) as HTMLElement });
-
+                await this.speak({ "content": msg, "language": options.lang, "container": li.find('.card-body p').get(0) as HTMLElement });
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
             this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
@@ -828,23 +827,24 @@ class VoiceRecognizer extends EventEmitter {
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                li.find('.btn-read').on('click', (event) => {
+                li.find('.btn-read').on('click', async(event) => {
 
                     event.preventDefault();
 
                     let current = event.currentTarget;
 
-                    let container = $(current).closest('.card').find('.card-body .translation-result span');
+                    let container = $(current).closest('.card').find('.card-body .translation-result span'); // could be one or more span.
 
                     let message = container.text();
                     this.voice = this.getVoice(this.voices, options.lang);
-                    this.speak(message, { "language": options.lang, "container": container.get(0) as HTMLElement });
+                    await this.speak({"content": message,  "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
-                let translation = $(msg).find('span');
+                let translation = li.find('.card-body span');
 
                 $.each(translation, async (index, span) => {
-                    await this.speak(span.innerHTML, { "language": span.lang, "container": span as HTMLElement });
+                    console.log(span.isConnected);
+                    await this.speak({ "content": span.innerHTML, "language": span.lang, "container": span as HTMLElement });
                 });
             }
 
@@ -853,7 +853,7 @@ class VoiceRecognizer extends EventEmitter {
         });
     }
 
-    speak(msg: string, options?: any) {
+    speak(options?: any) {
 
         // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
         // https://codepen.io/tniezurawski/pen/wvzyVEE
@@ -866,7 +866,7 @@ class VoiceRecognizer extends EventEmitter {
         return new Promise((resolve, reject) => {
 
             try {
-                let utterance = new SpeechSynthesisUtterance(msg);
+                let utterance = new SpeechSynthesisUtterance(options.content);
                 utterance.lang = options.language;
                 utterance.voice = this.voice;
                 utterance.rate = 1;
@@ -876,6 +876,9 @@ class VoiceRecognizer extends EventEmitter {
 
                 utterance.onend = (event) => {
                     try {
+
+                        options.container.innerHTML = options.content;
+
                         if ($('#flexSwitchCheckChecked').is(':checked')) {
                             this.recognition.start();
                         } else {
@@ -923,14 +926,19 @@ class VoiceRecognizer extends EventEmitter {
 
                 utterance.onboundary = (event) => {
 
-                    let word:string = this.getWordAt(msg, event.charIndex);
+                    let word: string = this.getWordAt(options.content, event.charIndex);
 
                     try {
                         //options.container.innerText=msg;
-                        let message = msg.substring(0, event.charIndex) + "<span class='highlight' style='background:#fff8d6;'>" + word + "</span>" + msg.substring(event.charIndex + word.length);
-                        options.container.textContent = message;
+                        let message = options.content.substring(0, event.charIndex) + "<span class='highlight'>" + word + "</span>" + options.content.substring(event.charIndex + word.length);
+                        options.container.innerHTML = message;
+
+                        console.log(options.container.isConnected);
+
+                        
+                        //console.log(options.container.parentElement.classList);
                         //options.container.innerHTML = message;
-                        console.log(options.container.innerHTML);
+                        //console.log(options.container.innerHTML);
 
                         //options.container.innerText = message;
 
@@ -1026,7 +1034,7 @@ class Equalizer {
         } else {
             let source: MediaStreamAudioSourceNode;
 
-            console.log(stream.getAudioTracks().length + ', ' + JSON.stringify(stream.getAudioTracks()[0].getConstraints().deviceId) + ', ' + stream.getAudioTracks()[0].kind + stream.getAudioTracks()[0].label + ', ' + stream.id);
+            //console.log(stream.getAudioTracks().length + ', ' + JSON.stringify(stream.getAudioTracks()[0].getConstraints().deviceId) + ', ' + stream.getAudioTracks()[0].kind + stream.getAudioTracks()[0].label + ', ' + stream.id);
             source = audioCtx.createMediaStreamSource(stream.clone());
             source.connect(gainNode);
             gainNode.connect(analyser);
@@ -1075,12 +1083,12 @@ class Equalizer {
     visualize(analyser) {
 
         let visualSetting = "sinewave";
-        console.log(visualSetting);
+        //console.log(visualSetting);
 
         if (visualSetting === "sinewave") {
             analyser.fftSize = 2048;
             const bufferLength = analyser.fftSize;
-            console.log(bufferLength);
+            //console.log(bufferLength);
 
             // We can use Float32Array instead of Uint8Array if we want higher precision
             // const dataArray = new Float32Array(bufferLength);
@@ -1135,7 +1143,7 @@ class Equalizer {
         } else if (visualSetting == "frequencybars") {
             analyser.fftSize = 256;
             const bufferLengthAlt = analyser.frequencyBinCount;
-            console.log(bufferLengthAlt);
+            //console.log(bufferLengthAlt);
 
             // See comment above for Float32Array()
             const dataArrayAlt = new Uint8Array(bufferLengthAlt);
@@ -1199,7 +1207,7 @@ class Equalizer {
         // https://github.com/willianjusten/awesome-audio-visualization
 
         let visualSetting = "sinewave";
-        console.log(visualSetting);
+        //console.log(visualSetting);
 
         switch (visualSetting) {
             case "sinewave": {
@@ -1353,7 +1361,7 @@ class Equalizer {
         biquadFilter.gain.setTargetAtTime(0, audioCtx.currentTime, 0);
 
         let voiceSetting = "off";
-        console.log(voiceSetting);
+        //console.log(voiceSetting);
 
         if (echoDelay.isApplied()) {
             echoDelay.discard();

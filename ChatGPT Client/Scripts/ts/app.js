@@ -431,7 +431,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
             $('#select-translation-language').multiselect('rebuild');
             $('#select-languages').multiselect('dataprovider', options);
             $('#select-languages').multiselect('rebuild');
-            console.log(_this.voices);
+            /*console.log*/ (_this.voices);
             if (!_this.voice) {
                 console.log($('#select-languages option:selected').text());
                 _this.voice = _this.getVoice(_this.voices, _this.language);
@@ -531,25 +531,44 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 "model": "gpt-3.5-turbo",
                 "messages": JSON.stringify(this.conversation)
             }
-        }).then(function (response, textStatus, xhr) {
-            if (xhr.status === 200) {
-                var msg = response;
-                _this.conversation.push({ "role": "assistant", "content": msg });
-                var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\" dir=\"auto\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
-                _this.diagnostic.appendChild(li.get(0));
-                var lastMsg = document.getElementsByClassName('direct-chat-msg');
-                _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
-                li.find('.btn-read').on('click', function (event) {
-                    event.preventDefault();
-                    var current = event.currentTarget;
-                    var container = $(current).closest('.card').find('.card-body p');
-                    var message = container.text();
-                    _this.voice = _this.getVoice(_this.voices, options.lang);
-                    _this.speak(message, { "language": options.lang, "container": container.get(0) });
-                });
-                _this.speak(msg, { "language": options.lang, "container": li.find('.card-body p').get(0) });
-            }
-        }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
+        }).then(function (response, textStatus, xhr) { return __awaiter(_this, void 0, void 0, function () {
+            var msg, li, lastMsg;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!(xhr.status === 200)) return [3 /*break*/, 2];
+                        msg = response;
+                        this.conversation.push({ "role": "assistant", "content": msg });
+                        li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\" dir=\"auto\">\n                                                             ").concat(msg, "\n                                                        </p>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
+                        this.diagnostic.appendChild(li.get(0));
+                        lastMsg = document.getElementsByClassName('direct-chat-msg');
+                        this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
+                        li.find('.btn-read').on('click', function (event) { return __awaiter(_this, void 0, void 0, function () {
+                            var current, container, message;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        event.preventDefault();
+                                        current = event.currentTarget;
+                                        container = $(current).closest('.card').find('.card-body p');
+                                        message = container.text();
+                                        this.voice = this.getVoice(this.voices, options.lang);
+                                        return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
+                                    case 1:
+                                        _a.sent();
+                                        return [2 /*return*/];
+                                }
+                            });
+                        }); });
+                        return [4 /*yield*/, this.speak({ "content": msg, "language": options.lang, "container": li.find('.card-body p').get(0) })];
+                    case 1:
+                        _a.sent();
+                        _a.label = 2;
+                    case 2: return [2 /*return*/];
+                }
+            });
+        }); }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
@@ -599,19 +618,30 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 _this.diagnostic.appendChild(li.get(0));
                 var lastMsg = document.getElementsByClassName('direct-chat-msg');
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
-                li.find('.btn-read').on('click', function (event) {
-                    event.preventDefault();
-                    var current = event.currentTarget;
-                    var container = $(current).closest('.card').find('.card-body .translation-result span');
-                    var message = container.text();
-                    _this.voice = _this.getVoice(_this.voices, options.lang);
-                    _this.speak(message, { "language": options.lang, "container": container.get(0) });
-                });
-                var translation = $(msg).find('span');
+                li.find('.btn-read').on('click', function (event) { return __awaiter(_this, void 0, void 0, function () {
+                    var current, container, message;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                event.preventDefault();
+                                current = event.currentTarget;
+                                container = $(current).closest('.card').find('.card-body .translation-result span');
+                                message = container.text();
+                                this.voice = this.getVoice(this.voices, options.lang);
+                                return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
+                            case 1:
+                                _a.sent();
+                                return [2 /*return*/];
+                        }
+                    });
+                }); });
+                var translation = li.find('.card-body span');
                 $.each(translation, function (index, span) { return __awaiter(_this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
                         switch (_a.label) {
-                            case 0: return [4 /*yield*/, this.speak(span.innerHTML, { "language": span.lang, "container": span })];
+                            case 0:
+                                console.log(span.isConnected);
+                                return [4 /*yield*/, this.speak({ "content": span.innerHTML, "language": span.lang, "container": span })];
                             case 1:
                                 _a.sent();
                                 return [2 /*return*/];
@@ -623,7 +653,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
     };
-    VoiceRecognizer.prototype.speak = function (msg, options) {
+    VoiceRecognizer.prototype.speak = function (options) {
         // https://jsfiddle.net/ourcodeworld/9k0z6m14/4/
         // https://codepen.io/tniezurawski/pen/wvzyVEE
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
@@ -634,7 +664,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
         var _this = this;
         return new Promise(function (resolve, reject) {
             try {
-                var utterance = new SpeechSynthesisUtterance(msg);
+                var utterance = new SpeechSynthesisUtterance(options.content);
                 utterance.lang = options.language;
                 utterance.voice = _this.voice;
                 utterance.rate = 1;
@@ -643,6 +673,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 var wordIndex_1 = 0;
                 utterance.onend = function (event) {
                     try {
+                        options.container.innerHTML = options.content;
                         if ($('#flexSwitchCheckChecked').is(':checked')) {
                             _this.recognition.start();
                         }
@@ -680,13 +711,15 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                     });
                 };
                 utterance.onboundary = function (event) {
-                    var word = _this.getWordAt(msg, event.charIndex);
+                    var word = _this.getWordAt(options.content, event.charIndex);
                     try {
                         //options.container.innerText=msg;
-                        var message = msg.substring(0, event.charIndex) + "<span class='highlight' style='background:#fff8d6;'>" + word + "</span>" + msg.substring(event.charIndex + word.length);
-                        options.container.textContent = message;
+                        var message = options.content.substring(0, event.charIndex) + "<span class='highlight'>" + word + "</span>" + options.content.substring(event.charIndex + word.length);
+                        options.container.innerHTML = message;
+                        console.log(options.container.isConnected);
+                        //console.log(options.container.parentElement.classList);
                         //options.container.innerHTML = message;
-                        console.log(options.container.innerHTML);
+                        //console.log(options.container.innerHTML);
                         //options.container.innerText = message;
                         //let container = document.getElementsByClassName('highlight').item(0) as HTMLElement
                         //container.style.background = "#FFF8D6";
@@ -765,7 +798,7 @@ var Equalizer = /** @class */ (function () {
         }
         else {
             var source = void 0;
-            console.log(stream.getAudioTracks().length + ', ' + JSON.stringify(stream.getAudioTracks()[0].getConstraints().deviceId) + ', ' + stream.getAudioTracks()[0].kind + stream.getAudioTracks()[0].label + ', ' + stream.id);
+            //console.log(stream.getAudioTracks().length + ', ' + JSON.stringify(stream.getAudioTracks()[0].getConstraints().deviceId) + ', ' + stream.getAudioTracks()[0].kind + stream.getAudioTracks()[0].label + ', ' + stream.id);
             source = audioCtx.createMediaStreamSource(stream.clone());
             source.connect(gainNode);
             gainNode.connect(analyser);
@@ -807,11 +840,11 @@ var Equalizer = /** @class */ (function () {
     };
     Equalizer.prototype.visualize = function (analyser) {
         var visualSetting = "sinewave";
-        console.log(visualSetting);
+        //console.log(visualSetting);
         if (visualSetting === "sinewave") {
             analyser.fftSize = 2048;
             var bufferLength_1 = analyser.fftSize;
-            console.log(bufferLength_1);
+            //console.log(bufferLength);
             // We can use Float32Array instead of Uint8Array if we want higher precision
             // const dataArray = new Float32Array(bufferLength);
             var dataArray_1 = new Uint8Array(bufferLength_1);
@@ -852,7 +885,7 @@ var Equalizer = /** @class */ (function () {
         else if (visualSetting == "frequencybars") {
             analyser.fftSize = 256;
             var bufferLengthAlt_1 = analyser.frequencyBinCount;
-            console.log(bufferLengthAlt_1);
+            //console.log(bufferLengthAlt);
             // See comment above for Float32Array()
             var dataArrayAlt_1 = new Uint8Array(bufferLengthAlt_1);
             var drawAlt_1 = function () {
@@ -898,7 +931,7 @@ var Equalizer = /** @class */ (function () {
         // https://github.com/willianjusten/awesome-audio-visualization
         var _this = this;
         var visualSetting = "sinewave";
-        console.log(visualSetting);
+        //console.log(visualSetting);
         switch (visualSetting) {
             case "sinewave":
                 {
@@ -1014,7 +1047,7 @@ var Equalizer = /** @class */ (function () {
         distortion.oversample = "4x";
         biquadFilter.gain.setTargetAtTime(0, audioCtx.currentTime, 0);
         var voiceSetting = "off";
-        console.log(voiceSetting);
+        //console.log(voiceSetting);
         if (echoDelay.isApplied()) {
             echoDelay.discard();
         }

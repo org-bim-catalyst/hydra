@@ -35,7 +35,7 @@ namespace AskLucy.Controllers
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
-            _appKey = _config.GetValue<string>("ChatGPT:key-3")!;
+            _appKey = _config.GetValue<string>("ChatGPT:key-1")!;
         }
 
         [HttpPost("openai/chat")]
