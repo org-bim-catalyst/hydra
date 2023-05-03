@@ -344,3 +344,11 @@ body,
 .material-icons {
     line-height: unset;
 }
+/**********************************************/
+/******************* Translation Highlight ************************/
+.highlight {
+    /*background-color: yellow;*/
+    color: #616161;
+    font-weight: 500;
+}
+/**********************************************/
