@@ -148,24 +148,6 @@
                         <ul class="list-unstyled custom-scrollbar" id="ul-chat-dialogue">
                         </ul>
                     </div>
-                    <div class="card-footer">
-                        <ul class="list-inline">
-                            <li class="mb-1">
-                                <div class="row">
-                                    <div class="col-12">
-                                        <div class="form-outline bg-white">
-                                            <a href="#" class="position-absolute top-0 start-100 translate-middle badge rounded-pill badge-warning d-none" style="z-index: 1000;" data-mdb-toggle="modal" data-mdb-target="#modal-attachments" title="Translate" data-mdb-backdrop="static" data-mdb-keyboard="false">
-                                                <i class="fas fa-paperclip"></i><span class="visually-hidden">show attachment</span>
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-primary btn-floating trailing" id="button-send-message" style="pointer-events: all;"><i class="fas fa-paper-plane"></i></button>
-                                            <textarea class="form-control form-icon-trailing active custom-scrollbar" id="textArea-chat-message" rows="1" data-emojiable="true"></textarea>
-                                            <label class="form-label" for="textArea-chat-message">Message</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
                 </div>
             </div>
         </div>
@@ -273,6 +255,26 @@
 
     </section>
 </main>
+<footer class="text-white text-center text-lg-start fixed-bottom">
+    <!-- Grid container -->
+    <div class="container p-4">
+        <!--Grid row-->
+        <div class="row">
+            <!--Grid column-->
+            <div class="col-12">
+                <div class="form-outline bg-white">
+                    <a href="#" class="position-absolute top-0 start-100 translate-middle badge rounded-pill badge-warning d-none" style="z-index: 1000;" data-mdb-toggle="modal" data-mdb-target="#modal-attachments" title="Translate" data-mdb-backdrop="static" data-mdb-keyboard="false">
+                        <i class="fas fa-paperclip"></i><span class="visually-hidden">show attachment</span>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-primary btn-floating trailing" id="button-send-message" style="pointer-events: all;"><i class="fas fa-paper-plane"></i></button>
+                    <textarea class="form-control form-icon-trailing active custom-scrollbar" id="textArea-chat-message" rows="1" data-emojiable="true"></textarea>
+                    <label class="form-label" for="textArea-chat-message">Message</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
 @section scripts{
     <script src="~/js/app_open_ai.js" asp-append-version="true"></script>
     <script>
