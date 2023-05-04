@@ -293,9 +293,9 @@ export default class app {
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
-                                                        <p class="mb-0">
+                                                        <div class="mb-0" dir="auto">
                                                             ${textPage}
-                                                        </p>
+                                                        </div>
                                                     </div>
                                                 </div>`;
                 let msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
@@ -725,13 +725,13 @@ class VoiceRecognizer extends EventEmitter {
                     let current = event.currentTarget;
 
                     let container = $(current).closest('.card').find('.card-body div').last();
-                    let message = container.text();
+                    let message = container.text().trim();
                     this.voice = this.getVoice(this.voices, options.lang);
                     await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
                 let container = li.closest('.card').find('.card-body div').last();
-                let message = container.text();
+                let message = container.text().trim();
                 await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
@@ -836,7 +836,7 @@ class VoiceRecognizer extends EventEmitter {
 
                     let container = $(current).closest('.card').find('.card-body .translation-result span'); // could be one or more span.
 
-                    let message = container.text();
+                    let message = container.text().trim();
                     this.voice = this.getVoice(this.voices, options.lang);
                     await this.speak({"content": message,  "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
@@ -845,7 +845,7 @@ class VoiceRecognizer extends EventEmitter {
 
                 $.each(translation, async (index, span) => {
                     console.log(span.isConnected);
-                    await this.speak({ "content": span.innerHTML, "language": span.lang, "container": span as HTMLElement });
+                    await this.speak({ "content": span.innerHTML.trim(), "language": span.lang, "container": span as HTMLElement });
                 });
             }
 
