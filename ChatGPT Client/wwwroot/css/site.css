@@ -191,7 +191,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 236px;
-        min-height: 24em;
+        min-height: 25em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -204,7 +204,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 256px; /*443px;*/
-        min-height: 27em;
+        min-height: 28.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -217,7 +217,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 312px; /*443px;*/
-        min-height: 33em;
+        min-height: 34em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -230,7 +230,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 236px;
-        min-height: 55em;
+        min-height: 58.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -243,7 +243,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 47.5em;
+        min-height: 50.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -256,7 +256,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 68.5em;
+        min-height: 72.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -345,6 +345,10 @@ body,
     line-height: unset;
 }
 /**********************************************/
+
+.form-outline .trailing{
+    pointer-events:auto;
+}
 /******************* Translation Highlight ************************/
 .highlight {
     /*background-color: yellow;*/
@@ -352,3 +356,38 @@ body,
     font-weight: 500;
 }
 /**********************************************/
+
+/* Rules for sizing the icon. */
+.material-icons.md-18 {
+    font-size: 18px;
+}
+
+.material-icons.md-24 {
+    font-size: 24px;
+}
+
+.material-icons.md-36 {
+    font-size: 36px;
+}
+
+.material-icons.md-48 {
+    font-size: 48px;
+}
+
+/* Rules for using icons as black on a light background. */
+.material-icons.md-dark {
+    color: rgba(0, 0, 0, 0.54);
+}
+
+    .material-icons.md-dark.md-inactive {
+        color: rgba(0, 0, 0, 0.26);
+    }
+
+/* Rules for using icons as white on a dark background. */
+.material-icons.md-light {
+    color: rgba(255, 255, 255, 1);
+}
+
+    .material-icons.md-light.md-inactive {
+        color: rgba(255, 255, 255, 0.3);
+    }
