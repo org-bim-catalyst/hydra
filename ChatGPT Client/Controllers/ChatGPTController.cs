@@ -61,7 +61,7 @@ namespace AskLucy.Controllers
                     if (response.IsSuccessStatusCode)
                     {
                         string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
-                        return Json(result);
+                        return Json(result.Trim());
                     }
                     else
                     {
@@ -155,11 +155,11 @@ namespace AskLucy.Controllers
 
                         if (html.Count() > 0)
                         {
-                            return Json(html);
+                            return Json(html.Trim());
                         }
                         else
                         {
-                            return Json(result);
+                            return Json(result.Trim());
                         }
                     }
                     else
@@ -198,8 +198,16 @@ namespace AskLucy.Controllers
                             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("multipart/form-data"));//ACCEPT header
 
                             HttpResponseMessage response = client.PostAsync("/v1/audio/transcriptions", httpContent).Result;
-                            string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.text;
-                            return Json(result);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.text;
+                                return Json(result);
+                            }
+                            else
+                            {
+                                return StatusCode((int)response.StatusCode, response.ReasonPhrase);
+                            }
+
                         }
                     }
                 }
