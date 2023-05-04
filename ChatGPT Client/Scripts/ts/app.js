@@ -227,7 +227,7 @@ var app = /** @class */ (function () {
             try {
                 var li = document.createElement('li');
                 (_a = li.classList).add.apply(_a, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
-                li.innerHTML = "<img src=\"".concat(_this.profilePicture, "\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <p class=\"mb-0\">\n                                                            ").concat(textPage, "\n                                                        </p>\n                                                    </div>\n                                                </div>");
+                li.innerHTML = "<img src=\"".concat(_this.profilePicture, "\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"mb-0\" dir=\"auto\">\n                                                            ").concat(textPage, "\n                                                        </div>\n                                                    </div>\n                                                </div>");
                 var msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
                 return resolve(msg_li);
             }
@@ -552,7 +552,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                                         event.preventDefault();
                                         current = event.currentTarget;
                                         container = $(current).closest('.card').find('.card-body div').last();
-                                        message = container.text();
+                                        message = container.text().trim();
                                         this.voice = this.getVoice(this.voices, options.lang);
                                         return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
                                     case 1:
@@ -562,7 +562,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                             });
                         }); });
                         container = li.closest('.card').find('.card-body div').last();
-                        message = container.text();
+                        message = container.text().trim();
                         return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
                     case 1:
                         _a.sent();
@@ -628,7 +628,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                                 event.preventDefault();
                                 current = event.currentTarget;
                                 container = $(current).closest('.card').find('.card-body .translation-result span');
-                                message = container.text();
+                                message = container.text().trim();
                                 this.voice = this.getVoice(this.voices, options.lang);
                                 return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
                             case 1:
@@ -643,7 +643,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         switch (_a.label) {
                             case 0:
                                 console.log(span.isConnected);
-                                return [4 /*yield*/, this.speak({ "content": span.innerHTML, "language": span.lang, "container": span })];
+                                return [4 /*yield*/, this.speak({ "content": span.innerHTML.trim(), "language": span.lang, "container": span })];
                             case 1:
                                 _a.sent();
                                 return [2 /*return*/];

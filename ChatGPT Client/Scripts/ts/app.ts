@@ -179,6 +179,8 @@ export default class app {
 
     private initUi() {
 
+        $('#textArea-chat-message').val(textPage).trigger('focus');
+
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
 
