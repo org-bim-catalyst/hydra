@@ -179,7 +179,7 @@ export default class app {
 
     private initUi() {
 
-        $('#textArea-chat-message').val(textPage).trigger('focus');
+        $('#textArea-chat-message').val('').trigger('focus');
 
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
@@ -732,7 +732,7 @@ class VoiceRecognizer extends EventEmitter {
                     await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
-                let container = li.closest('.card').find('.card-body div').last();
+                let container = li.find('.card').find('.card-body div').last();
                 let message = container.text().trim();
                 await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
             }
