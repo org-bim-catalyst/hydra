@@ -153,6 +153,7 @@ var app = /** @class */ (function () {
     }
     app.prototype.initUi = function () {
         var _this = this;
+        $('#textArea-chat-message').val('').trigger('focus');
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
         $('#button-send-message').on('click', function (event) {
