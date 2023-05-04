@@ -594,7 +594,7 @@ class VoiceRecognizer extends EventEmitter {
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body">
-                                                        <p class="mb-0">
+                                                        <span lang="${this.language}" dir="auto">
                                                             ${msg}
                                                         </p>
                                                     </div>
@@ -615,15 +615,14 @@ class VoiceRecognizer extends EventEmitter {
             }
         }
 
-        this.conversation = [{ "role": "user", "content": `Good Morning, my name is ${userFirstName}.` },
-        { "role": "assistant", "content": `Good morning ${userFirstName}, How may I assest you today?` },
-        {
-            "role": "user", "content": "What is your name?"
-        },
-        { "role": "assistant", "content": "My Name is Lucy." }, {
-            "role": "user", "content": "Hello Lucy."
-        },
-        { "role": "assistant", "content": `Hello ${userFirstName}.` }];
+        this.conversation = [
+            /*{ 'role': 'system', 'content': 'You are an assistant that can do translation. When doing translation, you ignore non-human languages like programming languages.' },*/
+            { "role": "user", "content": `Good Morning, my name is ${userFirstName}.` },
+            { "role": "assistant", "content": `Good morning ${userFirstName}, How may I assest you today?` },
+            {"role": "user", "content": "What is your name?"},
+            { "role": "assistant", "content": "My Name is Lucy." },
+            {"role": "user", "content": "Hello Lucy."},
+            { "role": "assistant", "content": `Hello ${userFirstName}.` }];
     }
 
     private getVoice(voices: SpeechSynthesisVoice[], languageCode: string) {
@@ -703,10 +702,10 @@ class VoiceRecognizer extends EventEmitter {
                                                         </a>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
-                                                    <div class="card-body">
-                                                        <p class="mb-0" dir="auto">
+                                                    <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                                        <div class="mb-0" dir="auto">
                                                              ${msg}
-                                                        </p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <img src="/img/Lucy.png" alt="avatar"
@@ -725,13 +724,15 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let container = $(current).closest('.card').find('.card-body p');
+                    let container = $(current).closest('.card').find('.card-body div').last();
                     let message = container.text();
                     this.voice = this.getVoice(this.voices, options.lang);
                     await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
 
-                await this.speak({ "content": msg, "language": options.lang, "container": li.find('.card-body p').get(0) as HTMLElement });
+                let container = li.closest('.card').find('.card-body div').last();
+                let message = container.text();
+                await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
             this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
@@ -813,7 +814,7 @@ class VoiceRecognizer extends EventEmitter {
                                         </a>
                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                     </div>
-                                    <div class="card-body">
+                                    <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
                                         ${msg}
                                     </div>
                                 </div>
@@ -933,21 +934,10 @@ class VoiceRecognizer extends EventEmitter {
                         let message = options.content.substring(0, event.charIndex) + "<span class='highlight'>" + word + "</span>" + options.content.substring(event.charIndex + word.length);
                         options.container.innerHTML = message;
 
-                        console.log(options.container.isConnected);
-
-                        
-                        //console.log(options.container.parentElement.classList);
-                        //options.container.innerHTML = message;
-                        //console.log(options.container.innerHTML);
-
-                        //options.container.innerText = message;
-
-                        //let container = document.getElementsByClassName('highlight').item(0) as HTMLElement
+                        let container = options.container.getElementsByClassName('highlight').item(0) as HTMLElement;
                         //container.style.background = "#FFF8D6";
-
-                        //console.log(options.container.innerText);
-
-                        //options.container.innerText = message;
+                        container.style.color = '#616161';
+                        container.style.fontWeight = '500';
 
                     } catch (e) {
 
