@@ -43,6 +43,12 @@ namespace AskLucy.Controllers
             return View();
         }
 
+        public IActionResult ControlPanel()
+        {
+            var users = _userManager.Users.ToList();
+            return View(users);
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
