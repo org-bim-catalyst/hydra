@@ -179,6 +179,14 @@ export default class app {
 
     private initUi() {
 
+        //const skinToggler = document.getElementById('skinToggler');
+
+        //const toggleSkin = () => {
+        //    document.body.classList.toggle('dark');
+        //}
+
+        //skinToggler.addEventListener('click', toggleSkin);
+
         $('#textArea-chat-message').val('').trigger('focus');
 
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);

@@ -152,7 +152,12 @@ var app = /** @class */ (function () {
         //});
     }
     app.prototype.initUi = function () {
+        //const skinToggler = document.getElementById('skinToggler');
         var _this = this;
+        //const toggleSkin = () => {
+        //    document.body.classList.toggle('dark');
+        //}
+        //skinToggler.addEventListener('click', toggleSkin);
         $('#textArea-chat-message').val('').trigger('focus');
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
         this.equalizer = new Equalizer(this.profilePicture);
@@ -562,7 +567,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                                 }
                             });
                         }); });
-                        container = li.closest('.card').find('.card-body div').last();
+                        container = li.find('.card').find('.card-body div').last();
                         message = container.text().trim();
                         return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
                     case 1:

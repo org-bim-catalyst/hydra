@@ -116,6 +116,12 @@
                                 <i class="fas fa-cog"></i> <span>Settings</span>
                             </a>
                         </li>
+@*                        <li class="multiselect-selected">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="skinToggler" />
+                                <label class="form-check-label" for="skinToggler">Enable Dark Mode.</label>
+                             </div>
+                        </li>*@
                         <li class="multiselect-selected">
                             <a class="dropdown-item" href="#" data-mdb-toggle="modal" data-mdb-target="#modal-log-out">
                                 <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
@@ -130,7 +136,7 @@
     </nav>
     <!-- Navbar -->
 </header>
-<main class="pt-1 mdb-docs-layout">
+<main class="pt-1 mdb-docs-layout custom-scrollbar">
     <section>
         <div class="container-fluid">
             <div class="col-12">
@@ -254,8 +260,8 @@
                         <i class="fas fa-paperclip"></i><span class="visually-hidden">show attachment</span>
                     </a>
                     <span class="trailing">
-                        <button type="button" class="btn btn-sm btn-primary btn-floating ripple-surface" id="button-send-message" title="Send"><i class="fas fa-paper-plane"></i></button>
-                        <button type="button" class="btn btn-sm btn-danger btn-floating ripple-surface" data-mdb-toggle="modal" data-mdb-target="#modal-translate-message" title="Translate">
+                        <button type="button" class="btn btn-sm btn-primary btn-floating ripple-surface" id="button-send-message" data-mdb-toggle="tooltip" data-mdb-placement="top" title="Send"><i class="fas fa-paper-plane"></i></button>
+                        <button type="button" class="btn btn-sm btn-danger btn-floating ripple-surface" data-mdb-toggle="modal tooltip" data-mdb-target="#modal-translate-message" data-mdb-placement="top" title="Translate">
                             <span class="material-icons md-18">
                                 translate
                             </span>
