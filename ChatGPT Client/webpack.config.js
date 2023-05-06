@@ -15,14 +15,15 @@ module.exports = {
     },
     entry: {
         app_open_ai: './Scripts/ts/index.js',
-        app_qr_code: './Scripts/ts/core/qr-generator.ts'
+        app_qr_code: './Scripts/ts/core/qr-generator.ts',
+        app_users_manager: './Scripts/ts/users-manager/index.js'
     },
     output: {
         path: path.resolve(__dirname, 'wwwroot/js'),
         filename: '[name].js',
         // `library` determines the name of the global variable
         library: {
-            name: ['app_open_ai'],
+            name: ['app_ask_lucy'],
             type: 'var'
         },
         sourceMapFilename: "[name].js.map"

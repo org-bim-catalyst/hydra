@@ -168,6 +168,12 @@ body {
     background: #eee;
 }
 
+.container-fluid {
+    /*background-image: url(/img/vecteezy_abstract-blue-background-simple-design-for-your-website_6852804.jpg);*/
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
 @media only screen and (min-width: 600px) {
     .list-unstyled {
         overflow: auto;
@@ -179,12 +185,6 @@ body {
         border-bottom: 4px solid #1A237E;
         padding-bottom: 35px;
     }
-}
-
-.container-fluid {
-    /*background-image: url(/img/vecteezy_abstract-blue-background-simple-design-for-your-website_6852804.jpg);*/
-    background-repeat: no-repeat;
-    background-size: cover;
 }
 
 @media only screen and (min-width: 800px) {
@@ -217,7 +217,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 312px; /*443px;*/
-        min-height: 34em;
+        min-height: 37.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -243,7 +243,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
-        min-height: 50.5em;
+        min-height: 51em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
