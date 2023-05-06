@@ -43,10 +43,10 @@ namespace AskLucy.Controllers
             return View();
         }
 
-        public IActionResult ControlPanel()
+        public async Task<IActionResult> ControlPanel()
         {
-            var users = _userManager.Users.ToList();
-            return View(users);
+            ApplicationUser? user = await _userManager.GetUserAsync(User);
+            return View(user);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

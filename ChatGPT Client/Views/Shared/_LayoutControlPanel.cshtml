@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Ask Lucy - @ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link href="~/lib/font-awesome/css/all.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="//fonts.googleapis.com/css2?family=Material+Icons&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" asp-append-version="true" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" asp-append-version="true" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0" />
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/neo-sans-arabic" asp-append-version="true">
+
+    <link rel="stylesheet" href="~/dev/css/micon.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/mdb.dark.min.css" asp-append-version="true" />
+    @*<link rel="stylesheet" href="~/css/mdb.dark.min.css" asp-append-version="true" />*@
+    <link rel="stylesheet" href="~/dev/css/new-prism.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap-multiselect/css/bootstrap-multiselect.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <!-- https://mdbootstrap.com/docs/standard/extended/offcanvas/-->
+    <!-- https://mdbootstrap.com/snippets/standard/mdbootstrap/2923164#-->
+    <!-- https://mdbootstrap.com/docs/standard/navigation/sidenav/-->
+    <!-- https://mdbootstrap.com/docs/standard/extended/sidebar/-->
+
+</head>
+
+<body>
+    @RenderBody()
+    <script type="text/javascript" src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript" src="~/js/mdb.min.js" asp-append-version="true"></script>
+    @*<script type="text/javascript" src="~/js/core.min.js" asp-append-version="true"></script>
+    <script type="text/javascript" src="~/js/search.min.js" asp-append-version="true"></script>
+    <script type="text/javascript" src="~/js/main.min.js" asp-append-version="true"></script>*@
+    <script type="text/javascript" src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

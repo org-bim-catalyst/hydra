@@ -228,8 +228,15 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
+//https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/areas?view=aspnetcore-7.0
+app.MapControllerRoute(
+    name: "Area",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
+
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}").RequireAuthorization(); ;
+    pattern: "{controller=Home}/{action=Index}/{id?}").RequireAuthorization();
+
+
 
 app.Run();
