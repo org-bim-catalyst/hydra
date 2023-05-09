@@ -22,6 +22,13 @@ body {
     margin-bottom: 60px;
 }
 
+main {
+    background-image: url(/img/bg-chat-tile-dark.png);
+    background-color: #eee;
+    background-size: auto;
+    background-repeat: repeat;
+}
+
 .shadow-demo {
     width: 100px;
     height: 100px;
@@ -96,17 +103,17 @@ body {
     backdrop-filter: blur(5px);
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+.dataTables_scrollBody::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
     background-color: #EFEFFF;
     border-radius: 3px;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
+.dataTables_scrollBody::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
     width: .25rem;
     height: .25rem;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.dataTables_scrollBody::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
     background-color: #3b71ca;
     border-radius: 20px;
 }
@@ -155,7 +162,8 @@ body {
     /*line-height: 1;*/
     cursor: pointer;
 }
-.dropdown-item span{
+
+.dropdown-item span {
     padding: 0px 5px;
     cursor: pointer;
 }
@@ -167,7 +175,6 @@ body {
     height: 1px;
     background: #eee;
 }
-
 .container-fluid {
     /*background-image: url(/img/vecteezy_abstract-blue-background-simple-design-for-your-website_6852804.jpg);*/
     background-repeat: no-repeat;
@@ -178,7 +185,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 174px;
-        min-height: 19.5em;
+        min-height: 41em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -191,7 +198,7 @@ body {
     .list-unstyled {
         overflow: auto;
         max-height: 236px;
-        min-height: 25em;
+        min-height: 41em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -200,11 +207,12 @@ body {
     }
 }
 
-@media only screen and (min-width: 1350px) {
+@media only screen and (min-width: 1350px) {   /*G500 screen*/
+
     .list-unstyled {
         overflow: auto;
         max-height: 256px; /*443px;*/
-        min-height: 28.5em;
+        min-height: 30.5em;
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -213,7 +221,8 @@ body {
     }
 }
 
-@media only screen and (min-width: 1536px) {
+@media only screen and (min-width: 1536px) {    /*Zbook screen*/
+
     .list-unstyled {
         overflow: auto;
         max-height: 312px; /*443px;*/
@@ -239,7 +248,7 @@ body {
     }
 }
 
-@media only screen and (min-width: 1920px) {
+@media only screen and (min-width: 1920px) {    /*HP screen*/
     .list-unstyled {
         overflow: auto;
         max-height: 443px;
@@ -352,12 +361,12 @@ body,
 /******************* Translation Highlight ************************/
 .highlight {
     /*background-color: yellow;*/
-    color: #616161;
-    font-weight: 500;
+/*    color: #616161;
+    font-weight: 500;*/
 }
 /**********************************************/
 
-/* Rules for sizing the icon. */
+/********************************************** Rules for sizing the icon **********************************************/
 .material-icons.md-18 {
     font-size: 18px;
 }
@@ -391,3 +400,10 @@ body,
     .material-icons.md-light.md-inactive {
         color: rgba(255, 255, 255, 0.3);
     }
+/**********************************************/
+
+/********************************************** dataTables **********************************************/
+
+.dtfh-floatingparent.dtfh-floatingparenthead {
+    background-color: white;
+}

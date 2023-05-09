@@ -149,7 +149,7 @@ namespace AskLucy.Controllers
                     if(response.IsSuccessStatusCode)
                     {
                         string result = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync())!.choices[0].message.content;
-                        string pattern = @"(?<=^```html[\r\n])([\s\S]*?)(?=```$)";
+                        string pattern = @"```html([\s\S]*?)```";
                         Match regResult = Regex.Match(result, pattern, RegexOptions.IgnoreCase);
                         string html = regResult.Value;
 
