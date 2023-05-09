@@ -3,7 +3,6 @@
     ViewData["Title"] = "Home";
 }
 
-
 <header>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white">
@@ -63,15 +62,15 @@
                     </li>
                     <li class="nav-item">
                         <button type="button" class="btn btn-warning btn-floating link-secondary ms-3" id="mute">
-                            <span data-mdb-toggle="tooltip" data-mdb-placement="down" title="Voice Control">
-                                <i class="fas fa-microphone-alt-slash"></i>
+                            <span data-mdb-toggle="tooltip" data-mdb-placement="bottom" title="Voice Control" class="material-icons">
+                                <i class="fas fa-microphone-alt-slash fa-1x"></i>
                             </span>
                         </button>
                     </li>
                     <li class="nav-item">
                         <button type="button" class="btn btn-secondary btn-floating link-secondary ms-2" data-mdb-toggle="modal" data-mdb-target="#modal-upload-file">
-                            <span data-mdb-toggle="tooltip" data-mdb-placement="down" title="attach">
-                                <i class="fas fa-paperclip"></i>
+                            <span data-mdb-toggle="tooltip" data-mdb-placement="bottom" title="attach" class="material-icons">
+                                <i class="fas fa-paperclip fa-1x"></i>
                             </span>
                         </button>
                     </li>
@@ -89,9 +88,12 @@
             <!-- Right elements -->
             <div class="d-flex align-items-center">
                 <!-- Icon -->
-                @*            <a class="link-secondary me-3" href="#">
-                <i class="fas fa-shopping-cart"></i>
-                </a>*@
+                <a class="link-danger me-3" id="youtube" href="https://www.youtube.com/%40AskLucy" target="_blank" title="Watch us on YouTube">
+                    <span data-mdb-toggle="tooltip" data-mdb-placement="bottom" title="Watch us on YouTube">
+                    <i class="fab fa-youtube fa-2x"></i>
+                    </span>
+                </a>
+
                 @*<h5 class="mb-3">@Model.FirstName</h5>*@
 
                 <!-- Avatar -->
@@ -144,7 +146,7 @@
     <section>
         <div class="container-fluid">
             <div class="col-12">
-                <ul class="list-unstyled custom-scrollbar" id="ul-chat-dialogue">
+                <ul class="list-unstyled custom-scrollbar border-0 bg-transparent" id="ul-chat-dialogue">
                 </ul>
             </div>
         </div>

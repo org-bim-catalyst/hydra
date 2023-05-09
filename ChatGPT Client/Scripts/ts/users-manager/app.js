@@ -20,20 +20,21 @@ var app = /** @class */ (function () {
         this.initUi();
     }
     app.prototype.initUi = function () {
-        //$('#myTable').DataTable();
+        //https://datatables.net/forums/discussion/53257/multiple-data-in-single-cell
+        //https://datatables.net/examples/api/multi_filter_select.html
         var table = new datatables_net_fixedcolumns_bs5_1.default('#myTable', {
             ajax: {
                 url: '/UsersManager/api/users',
                 dataSrc: ''
             }, columns: [
                 {
-                    data: "profilePicture", orderable: false, width: '1%',
-                    "render": function (data) {
-                        return "<img src=\"data:image/jpg;base64,".concat(data, "\" class=\"rounded-circle shadow-1-strong\" width=50 height=50>");
+                    data: "profilePicture", orderable: false, width: '13%',
+                    "render": function (data, type, row) {
+                        return "<img src=\"data:image/jpg;base64,".concat(row.profilePicture, "\" class=\"rounded-circle shadow-1-strong\" width=50 height=50> <span>").concat(row.firstName, " ").concat(row.lastName, "</span>");
                     }
                 },
-                { data: "firstName", orderable: true, width: '5%' },
-                { data: "lastName", orderable: true, width: '5%' },
+                //{ data: "firstName", orderable: true, width: '5%' },
+                //{ data: "lastName", orderable: true, width: '5%' },
                 { data: "birthDate", orderable: true, width: '5%' },
                 { data: "id", orderable: true, width: '11.5%' },
                 { data: "userName", orderable: true, width: '5%' },
@@ -45,7 +46,7 @@ var app = /** @class */ (function () {
                         return "<input class=\"form-check-input\" type=\"checkbox\" ".concat(data ? 'checked' : '', " />");
                     }
                 },
-                { data: "passwordHash", orderable: true, width: '7.5%' },
+                { data: "passwordHash", orderable: true, width: '5%' },
                 { data: "securityStamp", orderable: true, width: '5%' },
                 { data: "concurrencyStamp", orderable: true, width: '5%' },
                 { data: "phoneNumber", orderable: true, width: '5%' },
@@ -67,13 +68,14 @@ var app = /** @class */ (function () {
                 },
                 { data: "accessFailedCount", orderable: true, width: '5%' }
             ],
-            //order: [[1, 'asc']],
-            //fixedHeader: { header:true},
+            order: [[5, 'asc']],
+            fixedHeader: { header: true },
             responsive: {
                 details: false
             },
             searching: true,
-            //fixedColumns: true,
+            fixedColumns: true,
+            scrollX: true,
             paging: true
         });
     };

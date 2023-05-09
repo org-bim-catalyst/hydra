@@ -25,20 +25,21 @@ export default class app {
 
     private initUi() {
 
-        //$('#myTable').DataTable();
+        //https://datatables.net/forums/discussion/53257/multiple-data-in-single-cell
+        //https://datatables.net/examples/api/multi_filter_select.html
         let table = new DataTable('#myTable', {
             ajax: {
                 url: '/UsersManager/api/users',
                 dataSrc: ''
             }, columns: [
                 {
-                    data: "profilePicture", orderable: false, width: '1%',
-                    "render": (data) => {
-                        return `<img src="data:image/jpg;base64,${data}" class="rounded-circle shadow-1-strong" width=50 height=50>`;
+                    data: "profilePicture", orderable: false, width: '13%',
+                    "render": (data, type, row) => {
+                        return `<img src="data:image/jpg;base64,${row.profilePicture}" class="rounded-circle shadow-1-strong" width=50 height=50> <span>${row.firstName} ${row.lastName}</span>`;
                     }
                 },
-                { data: "firstName", orderable: true, width: '5%' },
-                { data: "lastName", orderable: true, width: '5%' },
+                //{ data: "firstName", orderable: true, width: '5%' },
+                //{ data: "lastName", orderable: true, width: '5%' },
                 { data: "birthDate", orderable: true, width: '5%' },
                 { data: "id", orderable: true, width: '11.5%' },
                 { data: "userName", orderable: true, width: '5%' },
@@ -50,7 +51,7 @@ export default class app {
                         return `<input class="form-check-input" type="checkbox" ${data ? 'checked' : ''} />`;
                     }
                 },
-                { data: "passwordHash", orderable: true, width: '7.5%' },
+                { data: "passwordHash", orderable: true, width: '5%' },
                 { data: "securityStamp", orderable: true, width: '5%' },
                 { data: "concurrencyStamp", orderable: true, width: '5%' },
                 { data: "phoneNumber", orderable: true, width: '5%' },
@@ -72,13 +73,14 @@ export default class app {
                 },
                 { data: "accessFailedCount", orderable: true, width: '5%' }
             ],
-            //order: [[1, 'asc']],
-            //fixedHeader: { header:true},
+            order: [[5, 'asc']],
+            fixedHeader: { header:true},
             responsive: {
                 details: false
             },
             searching: true,
-            //fixedColumns: true,
+            fixedColumns: true,
+            scrollX: true,
             paging: true
         });
     }

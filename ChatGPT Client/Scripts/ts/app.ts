@@ -1,5 +1,5 @@
 ﻿import * as PDFJS from "pdfjs-dist/webpack";
-import { Select } from 'mdb-ui-kit';
+import { Alert } from 'mdb-ui-kit';
 import * as d3 from "d3";
 import * as $ from 'jquery';
 import "bootstrap-multiselect";
@@ -19,11 +19,11 @@ import { EventEmitter } from "events";
 //https://medium.com/@david.richards.tech/ai-audio-conversations-with-openai-whisper-3c730a9c7123
 
 import * as moment from 'moment';
-import tinymce from "tinymce";
-import Tags from "bootstrap5-tags";
-import VizWaveform from "./visualisations/frequency";
-import VizFrequency from "./visualisations/frequency";
-import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+//import tinymce from "tinymce";
+//import Tags from "bootstrap5-tags";
+//import VizWaveform from "./visualisations/frequency";
+//import VizFrequency from "./visualisations/frequency";
+//import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import ErrorManager from "./core/error-manager";
 
 export default class app {
@@ -186,6 +186,32 @@ export default class app {
         //}
 
         //skinToggler.addEventListener('click', toggleSkin);
+        //const alert = document.createElement('div');
+        //alert.innerHTML = `<div class="d-flex justify-content-between">
+        //                      <p class="mb-0"><strong>Testing</strong> Stacking alert</p>
+        //                      <button
+        //                        type="button"
+        //                        class="btn-close"
+        //                        data-mdb-dismiss="alert"
+        //                        aria-label="Close"
+        //                      ></button>
+        //                    </div>
+        //                    `;
+
+        //alert.classList.add('alert', 'fade');
+
+        //document.body.appendChild(alert);
+        //const alertInstance = new Alert(alert, {
+        //    color:'info',
+        //    stacking: true,
+        //    hidden: true,
+        //    width: '450px',
+        //    position: 'bottom-right',
+        //    autohide: true,
+        //    delay: 5000,
+        //});
+
+        //alertInstance.alert();
 
         $('#textArea-chat-message').val('').trigger('focus');
 
@@ -426,6 +452,7 @@ export default class app {
      * @param {Integer} pageNum Specifies the number of the page 
      * @param {PDFDocument} PDFDocumentInstance The PDF document obtained 
      **/
+
     private getPageText(pageNum, PDFDocumentInstance) {
         // Return a Promise that is solved once the text of the page is retrieven
         return new Promise((resolve, reject) => {
@@ -547,7 +574,7 @@ class VoiceRecognizer extends EventEmitter {
                     button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split" data-mdb-toggle="dropdown">
                                 <span class="multiselect-selected-text"> </span>
                              </button>`,
-                    ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar" style="min-width:175px;"></ul>',
+                    ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
                     li: `<li>
                             <a class="dropdown-item">
                                 <label class="radio">
@@ -629,9 +656,9 @@ class VoiceRecognizer extends EventEmitter {
             /*{ 'role': 'system', 'content': 'You are an assistant that can do translation. When doing translation, you ignore non-human languages like programming languages.' },*/
             { "role": "user", "content": `Good Morning, my name is ${userFirstName}.` },
             { "role": "assistant", "content": `Good morning ${userFirstName}, How may I assest you today?` },
-            {"role": "user", "content": "What is your name?"},
+            { "role": "user", "content": "What is your name?" },
             { "role": "assistant", "content": "My Name is Lucy." },
-            {"role": "user", "content": "Hello Lucy."},
+            { "role": "user", "content": "Hello Lucy." },
             { "role": "assistant", "content": `Hello ${userFirstName}.` }];
     }
 
@@ -656,13 +683,17 @@ class VoiceRecognizer extends EventEmitter {
             } else if (languageCode.startsWith('it')) {
                 voice = voices.filter((voice) => { return voice.lang.startsWith('it') && voice.name.includes('Elsa'); })[0];
                 console.log(voice.name);
-            } else if (languageCode.startsWith('nl')) {
-                voice = voices.filter((voice) => { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
-                console.log(voice.name);
             } else if (languageCode.startsWith('ja')) {
                 voice = voices.filter((voice) => { return voice.lang.startsWith('ja') && voice.name.includes('Nanami'); })[0];
                 console.log(voice.name);
-            } else {
+            } else if (languageCode.startsWith('nl')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
+                console.log(voice.name);
+            }else if (languageCode.startsWith('tr')) {
+                voice = voices.filter((voice) => { return voice.lang.startsWith('tr') && voice.name.includes('Emel'); })[0];
+                console.log(voice.name);
+            }
+            else {
                 voice = voices.filter((voice) => { return voice.lang.includes(languageCode); })[0];
                 console.log(voice.name);
             }
@@ -691,7 +722,7 @@ class VoiceRecognizer extends EventEmitter {
         return $.ajax({
             type: 'POST',
             url: '/openai/chat',
-            dataType:'json',
+            dataType: 'json',
             data: {
                 "model": "gpt-3.5-turbo",
                 "messages": JSON.stringify(this.conversation)
@@ -707,9 +738,16 @@ class VoiceRecognizer extends EventEmitter {
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
-                                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
-                                                            <span class="material-icons md-18">record_voice_over</span>
-                                                        </a>
+                                                        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                                            <div class="btn-group me-2" role="group" aria-label="Assistance Tools buttons">
+                                                                <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                                    <span class="material-icons md-18">record_voice_over</span>
+                                                                </a>
+                                                                <a class="btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                                    <span class="material-icons md-18">content_copy</span>
+                                                                </a>
+                                                             </div>
+                                                        </div>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
@@ -728,7 +766,23 @@ class VoiceRecognizer extends EventEmitter {
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                li.find('.btn-read').on('click', async (event) => {
+                li.find('.btn-copy-content').on('click', async (event) => {
+
+                    event.preventDefault();
+
+                    let current = event.currentTarget;
+
+                    let container = $(current).closest('.card').find('.card-body div').last();
+                    let message = container.text().trim();
+
+                    // Copy the text inside the text field
+                    navigator.clipboard.writeText(message);
+
+                    // Alert the copied text
+                    alert("Copied the text: " + message);
+                });
+
+                li.find('.btn-read-content').on('click', async (event) => {
 
                     event.preventDefault();
 
@@ -755,7 +809,7 @@ class VoiceRecognizer extends EventEmitter {
             type: 'POST',
             url: '/openai/draw',
             dataType: 'json',
-            data: {"prompt": `${prompt}`,"n": "1","size": "1024x1024"}
+            data: { "prompt": `${prompt}`, "n": "1", "size": "1024x1024" }
         }).then((response, textStatus, xhr) => {
             if (xhr.status === 200) {
 
@@ -795,7 +849,7 @@ class VoiceRecognizer extends EventEmitter {
 
         if (prompt && prompt !== '') {
             this.conversation.push({
-                "role": "user", "content": `Translate this into ${options.lang}: "${prompt}", and don't include the source text.'
+                "role": "user", "content": `Translate this into ${options.lang}: "${prompt}", and don't include the source text, any comments or notes.'
                                             Return only the equivalent html code for the translation, separate each phrase in span tag with lang attribute and the direction attribute that match its recognized language based on context and narrative flow.
                                             Incluse the tags in div element with class named "translation-result" and add a class "text-end" to the div if the translation language is written from right to left.` });
         }
@@ -819,9 +873,16 @@ class VoiceRecognizer extends EventEmitter {
                                 <div class="card w-100">
                                     <div class="card-header d-flex justify-content-between">
                                         <p class="fw-bold mb-0">Lucy</p>
-                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
-                                            <span class="material-icons md-18">record_voice_over</span>
-                                        </a>
+                                        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                            <div class="btn-group me-2" role="group" aria-label="Assistance Tools buttons">
+                                                <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                    <span class="material-icons md-18">record_voice_over</span>
+                                                </a>
+                                                <a class="btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                    <span class="material-icons md-18">content_copy</span>
+                                                </a>
+                                             </div>
+                                        </div>
                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                     </div>
                                     <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
@@ -832,13 +893,29 @@ class VoiceRecognizer extends EventEmitter {
                                         class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
                             </li>`);
 
-                this.diagnostic.appendChild(li.get(0))  ;
+                this.diagnostic.appendChild(li.get(0));
 
                 let lastMsg = document.getElementsByClassName('direct-chat-msg');
 
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
-                li.find('.btn-read').on('click', async(event) => {
+                li.find('.btn-copy-content').on('click', async (event) => {
+
+                    event.preventDefault();
+
+                    let current = event.currentTarget;
+
+                    let container = $(current).closest('.card').find('.card-body div').last();
+                    let message = container.text().trim();
+
+                    // Copy the text inside the text field
+                    navigator.clipboard.writeText(message);
+
+                    // Alert the copied text
+                    alert("Copied the text: " + message);
+                });
+
+                li.find('.btn-read-content').on('click', async (event) => {
 
                     event.preventDefault();
 
@@ -846,9 +923,11 @@ class VoiceRecognizer extends EventEmitter {
 
                     let container = $(current).closest('.card').find('.card-body .translation-result span'); // could be one or more span.
 
-                    let message = container.text().trim();
-                    this.voice = this.getVoice(this.voices, options.lang);
-                    await this.speak({"content": message,  "language": options.lang, "container": container.get(0) as HTMLElement });
+                    $.each(container, async (index, span) => {
+                        this.voice = this.getVoice(this.voices, options.lang);
+                        let message = span.innerHTML.trim();
+                        await this.speak({ "content": message, "language": span.lang, "container": span as HTMLElement });
+                    });
                 });
 
                 let translation = li.find('.card-body span');
@@ -945,9 +1024,9 @@ class VoiceRecognizer extends EventEmitter {
                         options.container.innerHTML = message;
 
                         let container = options.container.getElementsByClassName('highlight').item(0) as HTMLElement;
-                        //container.style.background = "#FFF8D6";
+                        container.style.background = "#FFF8D6";
                         container.style.color = '#616161';
-                        container.style.fontWeight = '500';
+                        /*container.style.fontWeight = '500';*/
 
                     } catch (e) {
 
