@@ -1,5 +1,5 @@
 ﻿import * as PDFJS from "pdfjs-dist/webpack";
-import { Alert } from 'mdb-ui-kit';
+//import { Alert } from 'mdb-ui-kit';
 import * as d3 from "d3";
 import * as $ from 'jquery';
 import "bootstrap-multiselect";
@@ -24,7 +24,13 @@ import * as moment from 'moment';
 //import VizWaveform from "./visualisations/frequency";
 //import VizFrequency from "./visualisations/frequency";
 //import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+
+//https://github.com/KaTeX/KaTeX/issues/1927
 import ErrorManager from "./core/error-manager";
+import katex from "katex";
+import renderMathInElement from 'katex/dist/contrib/auto-render';
+//import "katex/dist/katex.min.css";
+//import renderMathInElement from "katex";
 
 export default class app {
 
@@ -131,6 +137,16 @@ export default class app {
             let files = $('#fil-upload-app');
         });
 
+        $(document).on('click', '.link-reask', (event) => {
+
+            event.preventDefault();
+
+            let link = event.currentTarget as HTMLLinkElement;
+            let id = link.closest('li').id;
+
+            console.log('message id: ' + id);
+        });
+
         $(document).on('click', '#pButton', (event) => {
 
             event.preventDefault();
@@ -179,6 +195,8 @@ export default class app {
 
     private initUi() {
 
+        // https://github.com/KaTeX/KaTeX/issues/445
+
         //const skinToggler = document.getElementById('skinToggler');
 
         //const toggleSkin = () => {
@@ -212,7 +230,18 @@ export default class app {
         //});
 
         //alertInstance.alert();
+        //let test: string = "<span>\(\frac{\sqrt[3]{27x^6y^7}}{\sqrt{x^4y^2}} + \sqrt[4]{\frac{x^8}{y^4}} * \frac{10y^2\sqrt{3xy^2}}{5x\sqrt{4y}}\)</span>";
+        //let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
+        //diagnostic.innerHTML = test;
 
+        //katex.render(diagnostic.innerText, diagnostic, {
+        //    throwOnError: true,
+        //    displayMode: false,
+        //    output: 'mathml'
+        //});
+
+
+        // https://katex.org/docs/api.html
         $('#textArea-chat-message').val('').trigger('focus');
 
         this.voiceRecognizer = new VoiceRecognizer(this.userFirstName, this.profilePicture);
@@ -225,7 +254,7 @@ export default class app {
 
             if (msg && msg.length > 0) {
 
-                this.addToChatWindow(msg, this.userFirstName).then(() => {
+                this.addToChatWindow(msg, this.userFirstName, Direction.Left).then(() => {
 
                     let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
                     let lastMsg = document.getElementsByClassName('direct-chat-msg');
@@ -248,7 +277,6 @@ export default class app {
                     }
 
                 });
-
             }
 
         });
@@ -297,7 +325,7 @@ export default class app {
                                                     <i class="fas fa-quote-right fa-xs text-primary"></i>
                                                 </p>
                                             </blockquote>
-                                        </figure>`, this.userFirstName).then(() => {
+                                        </figure>`, this.userFirstName, Direction.Left).then(() => {
 
                     let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
                     let lastMsg = document.getElementsByClassName('direct-chat-msg');
@@ -315,25 +343,66 @@ export default class app {
         });
     }
 
-    private addToChatWindow(textPage: string, userFirstName: string) {
+    private addToChatWindow(message: string, userFirstName: string, direction: Direction) {
 
         return new Promise((resolve, reject) => {
             try {
                 let li: HTMLLIElement = document.createElement('li');
-                li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
-                li.innerHTML = `<img src="${this.profilePicture}" alt="avatar"
-                                                     class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
+
+                switch (direction) {
+                    case Direction.Left:
+                        li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
+                        li.id = crypto.randomUUID();
+                        li.innerHTML = `<img src="${this.profilePicture}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">${userFirstName}</p>
-                                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
+                                                        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                                            <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
+                                                                <a title="reask" class="link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                                    <span class="material-icons md-18">replay</span>
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                        <p class="text-muted small mb-0">
+                                                            <i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}
+                                                        </p>
                                                     </div>
                                                     <div class="card-body">
                                                         <div class="mb-0" dir="auto">
-                                                            ${textPage}
+                                                            ${message}
                                                         </div>
                                                     </div>
                                                 </div>`;
+
+                        break;
+                    case Direction.Right:
+                        li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg', 'pull-right']);
+                        li.innerHTML = `<div class="card w-100">
+                                            <div class="card-header d-flex justify-content-between">
+                                                <p class="fw-bold mb-0">Lucy</p>
+                                                <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                                    <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
+                                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                            <span class="material-icons md-18">record_voice_over</span>
+                                                        </a>
+                                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                            <span class="material-icons md-18">content_copy</span>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
+                                            </div>
+                                            <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                                <div class="mb-0" dir="auto">
+                                                        ${message}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <img src="/img/Lucy.png" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">`;
+                        break;
+                    default:
+                }
                 let msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
                 return resolve(msg_li);
             } catch (e) {
@@ -484,6 +553,13 @@ export default class app {
         });
     }
 
+}
+
+enum Direction {
+    Up = 1,
+    Down,
+    Left,
+    Right,
 }
 
 class VoiceRecognizer extends EventEmitter {
@@ -689,7 +765,7 @@ class VoiceRecognizer extends EventEmitter {
             } else if (languageCode.startsWith('nl')) {
                 voice = voices.filter((voice) => { return voice.lang.startsWith('nl') && voice.name.includes('Colette'); })[0];
                 console.log(voice.name);
-            }else if (languageCode.startsWith('tr')) {
+            } else if (languageCode.startsWith('tr')) {
                 voice = voices.filter((voice) => { return voice.lang.startsWith('tr') && voice.name.includes('Emel'); })[0];
                 console.log(voice.name);
             }
@@ -739,7 +815,7 @@ class VoiceRecognizer extends EventEmitter {
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">Lucy</p>
                                                         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
-                                                            <div class="btn-group me-2" role="group" aria-label="Assistance Tools buttons">
+                                                            <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
                                                                 <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
                                                                     <span class="material-icons md-18">record_voice_over</span>
                                                                 </a>
@@ -760,12 +836,6 @@ class VoiceRecognizer extends EventEmitter {
                                                      class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
                                             </li>`);
 
-                this.diagnostic.appendChild(li.get(0));
-
-                let lastMsg = document.getElementsByClassName('direct-chat-msg');
-
-                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
-
                 li.find('.btn-copy-content').on('click', async (event) => {
 
                     event.preventDefault();
@@ -775,11 +845,13 @@ class VoiceRecognizer extends EventEmitter {
                     let container = $(current).closest('.card').find('.card-body div').last();
                     let message = container.text().trim();
 
+
                     // Copy the text inside the text field
                     navigator.clipboard.writeText(message);
 
                     // Alert the copied text
-                    alert("Copied the text: " + message);
+                    //renderMathInElement(document.body);
+
                 });
 
                 li.find('.btn-read-content').on('click', async (event) => {
@@ -789,10 +861,18 @@ class VoiceRecognizer extends EventEmitter {
                     let current = event.currentTarget;
 
                     let container = $(current).closest('.card').find('.card-body div').last();
+
                     let message = container.text().trim();
                     this.voice = this.getVoice(this.voices, options.lang);
                     await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
+
+                this.diagnostic.appendChild(li.get(0));
+
+                let lastMsg = document.getElementsByClassName('direct-chat-msg');
+
+                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
+
 
                 let container = li.find('.card').find('.card-body div').last();
                 let message = container.text().trim();
@@ -874,7 +954,7 @@ class VoiceRecognizer extends EventEmitter {
                                     <div class="card-header d-flex justify-content-between">
                                         <p class="fw-bold mb-0">Lucy</p>
                                         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
-                                            <div class="btn-group me-2" role="group" aria-label="Assistance Tools buttons">
+                                            <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
                                                 <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" data-mdb-toggle="collapse" href="#" role="button" aria-expanded="false" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
                                                     <span class="material-icons md-18">record_voice_over</span>
                                                 </a>
@@ -893,12 +973,6 @@ class VoiceRecognizer extends EventEmitter {
                                         class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
                             </li>`);
 
-                this.diagnostic.appendChild(li.get(0));
-
-                let lastMsg = document.getElementsByClassName('direct-chat-msg');
-
-                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
-
                 li.find('.btn-copy-content').on('click', async (event) => {
 
                     event.preventDefault();
@@ -911,8 +985,6 @@ class VoiceRecognizer extends EventEmitter {
                     // Copy the text inside the text field
                     navigator.clipboard.writeText(message);
 
-                    // Alert the copied text
-                    alert("Copied the text: " + message);
                 });
 
                 li.find('.btn-read-content').on('click', async (event) => {
@@ -929,6 +1001,12 @@ class VoiceRecognizer extends EventEmitter {
                         await this.speak({ "content": message, "language": span.lang, "container": span as HTMLElement });
                     });
                 });
+
+                this.diagnostic.appendChild(li.get(0));
+
+                let lastMsg = document.getElementsByClassName('direct-chat-msg');
+
+                this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
                 let translation = li.find('.card-body span');
 
@@ -1016,11 +1094,13 @@ class VoiceRecognizer extends EventEmitter {
 
                 utterance.onboundary = (event) => {
 
-                    let word: string = this.getWordAt(options.content, event.charIndex);
+                    let word: any = this.getWordAt(options.content, event.charIndex);
+
+                    //console.log('word: ' + JSON.stringify(word));
 
                     try {
                         //options.container.innerText=msg;
-                        let message = options.content.substring(0, event.charIndex) + "<span class='highlight'>" + word + "</span>" + options.content.substring(event.charIndex + word.length);
+                        let message = options.content.substring(0, word.start) + "<span class='highlight'>" + word.value + "</span>" + options.content.substring(word.start + word.value.length);
                         options.container.innerHTML = message;
 
                         let container = options.container.getElementsByClassName('highlight').item(0) as HTMLElement;
@@ -1028,7 +1108,43 @@ class VoiceRecognizer extends EventEmitter {
                         container.style.color = '#616161';
                         /*container.style.fontWeight = '500';*/
 
+                        //let test: string = "$\frac{\sqrt[3]{27x^6y^7}}{\sqrt{x^4y^2}} + \sqrt[4]{\frac{x^8}{y^4}} * \frac{10y^2\sqrt{3xy^2}}{5x\sqrt{4y}}$";
+
+                        //katex.render(options.container.innerText, options.container, {
+                        //    throwOnError: true,
+                        //    displayMode: false,
+                        //    output: 'html'
+                        //});
+
+                        //https://katex.org/docs/autorender.html
+                        renderMathInElement(document.body, {
+                            // customised options
+                            // • auto-render specific keys, e.g.:
+                            delimiters: [
+                                { left: '$$', right: '$$', display: true },
+                                { left: '$', right: '$', display: false },
+                                { left: "\\(", right: "\\)", display: false },
+                                { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+                                { left: "\\begin{align}", right: "\\end{align}", display: true },
+                                { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+                                { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+                                { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+                                { left: "\\[", right: "\\]", display: true }
+                            ],
+                            // • rendering keys, e.g.:
+                            throwOnError: false,
+                            output: 'mathml', 
+                        });
+
+
                     } catch (e) {
+
+                        if (e.message) {
+
+                            console.error(e.message);
+
+                            return reject(e.message);
+                        }
 
                         return reject(e);
                     }
@@ -1044,21 +1160,22 @@ class VoiceRecognizer extends EventEmitter {
         });
     }
 
-    getWordAt(str, pos) {
+    getWordAt(str: string, pos: number) {
         // Perform type conversions.
         str = String(str);
         pos = Number(pos) >>> 0;
 
         // Search for the word's beginning and end.
-        let left = str.slice(0, pos + 1).search(/\S+$/),
-            right = str.slice(pos).search(/\s/);
+        let left: number = str.slice(0, pos + 1).search(/\S+$/);
+        let right: number = str.slice(pos).search(/\s/);
 
         // The last word in the string is a special case.
         if (right < 0) {
-            return str.slice(left);
+            return { value: str.slice(left), start: left, end: right };
         }
+
         // Return the word, using the located bounds to extract it from the string.
-        return str.slice(left, right + pos);
+        return { value: str.slice(left, right + pos), start: left, end: right };
     }
 }
 

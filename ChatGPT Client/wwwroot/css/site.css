@@ -367,10 +367,15 @@ body,
 /**********************************************/
 
 /********************************************** Rules for sizing the icon **********************************************/
+.material-icons.md-14 {
+    font-size: 14px;
+}
+.material-icons.md-16 {
+    font-size: 16px;
+}
 .material-icons.md-18 {
     font-size: 18px;
 }
-
 .material-icons.md-24 {
     font-size: 24px;
 }
@@ -406,4 +411,8 @@ body,
 
 .dtfh-floatingparent.dtfh-floatingparenthead {
     background-color: white;
+}
+
+.btn-group-flat{
+    box-shadow: none;
 }
