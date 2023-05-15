@@ -52,6 +52,7 @@
     <Folder Include="Areas\UsersManager\Data\" />
     <Folder Include="Areas\UsersManager\Models\" />
     <Folder Include="Areas\UsersManager\Views\" />
+    <Folder Include="node_modules\katex\contrib\render-a11y-string\test\" />
   </ItemGroup>
 
 </Project>
