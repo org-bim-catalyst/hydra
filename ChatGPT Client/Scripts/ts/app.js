@@ -76,7 +76,16 @@ var moment = require("moment");
 //import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 //https://github.com/KaTeX/KaTeX/issues/1927
 var error_manager_1 = require("./core/error-manager");
-var auto_render_1 = require("katex/dist/contrib/auto-render");
+var katex_1 = require("katex");
+var auto_render_1 = require("katex/contrib/auto-render/auto-render");
+//import renderA11yString from "katex/dist/contrib/render-a11y-string";
+var render_a11y_string_mjs_1 = require("katex/dist/contrib/render-a11y-string.mjs");
+//import { mathjax } from 'mathjax-full/js/mathjax';
+//import { TeX } from 'mathjax-full/js/input/tex';
+//import { CHTML } from 'mathjax-full/js/output/chtml';
+//import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages';
+//import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor';
+//import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html';
 //import "katex/dist/katex.min.css";
 //import renderMathInElement from "katex";
 var app = /** @class */ (function () {
@@ -285,11 +294,11 @@ var app = /** @class */ (function () {
                     case Direction.Left:
                         (_a = li.classList).add.apply(_a, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
                         li.id = crypto.randomUUID();
-                        li.innerHTML = "<img src=\"".concat(_this.profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a title=\"reask\" class=\"link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">replay</span>\n                                                                </a>\n                                                            </div>\n                                                        </div>\n                                                        <p class=\"text-muted small mb-0\">\n                                                            <i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "\n                                                        </p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"mb-0\" dir=\"auto\">\n                                                            ").concat(message, "\n                                                        </div>\n                                                    </div>\n                                                </div>");
+                        li.innerHTML = "<img src=\"".concat(_this.profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a title=\"reask\" class=\"link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">replay</span>\n                                                                </a>\n                                                            </div>\n                                                        </div>\n                                                        <p class=\"text-muted small mb-0\">\n                                                            <i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "\n                                                        </p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                            ").concat(message, "\n                                                        </div>\n                                                    </div>\n                                                </div>");
                         break;
                     case Direction.Right:
                         (_b = li.classList).add.apply(_b, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg', 'pull-right']);
-                        li.innerHTML = "<div class=\"card w-100\">\n                                            <div class=\"card-header d-flex justify-content-between\">\n                                                <p class=\"fw-bold mb-0\">Lucy</p>\n                                                <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                    <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">content_copy</span>\n                                                        </a>\n                                                    </div>\n                                                </div>\n                                                <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                            </div>\n                                            <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                <div class=\"mb-0\" dir=\"auto\">\n                                                        ").concat(message, "\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <img src=\"/img/Lucy.png\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">");
+                        li.innerHTML = "<div class=\"card w-100\">\n                                            <div class=\"card-header d-flex justify-content-between\">\n                                                <p class=\"fw-bold mb-0\">Lucy</p>\n                                                <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                    <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">content_copy</span>\n                                                        </a>\n                                                    </div>\n                                                </div>\n                                                <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                            </div>\n                                            <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                        ").concat(message, "\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <img src=\"/img/Lucy.png\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">");
                         break;
                     default:
                 }
@@ -616,13 +625,13 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         if (!(xhr.status === 200)) return [3 /*break*/, 2];
                         msg = response;
                         this.conversation.push({ "role": "assistant", "content": msg });
-                        li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">record_voice_over</span>\n                                                                </a>\n                                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">content_copy</span>\n                                                                </a>\n                                                             </div>\n                                                        </div>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                        <div class=\"mb-0\" dir=\"auto\">\n                                                             ").concat(msg, "\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
+                        li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">record_voice_over</span>\n                                                                </a>\n                                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">content_copy</span>\n                                                                </a>\n                                                             </div>\n                                                        </div>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                        <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                             ").concat(msg, "\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
                         li.find('.btn-copy-content').on('click', function (event) { return __awaiter(_this, void 0, void 0, function () {
                             var current, container, message;
                             return __generator(this, function (_a) {
                                 event.preventDefault();
                                 current = event.currentTarget;
-                                container = $(current).closest('.card').find('.card-body div').last();
+                                container = $(current).closest('.card').find('.card-body .div-original').first();
                                 message = container.text().trim();
                                 // Copy the text inside the text field
                                 navigator.clipboard.writeText(message);
@@ -636,8 +645,9 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                                     case 0:
                                         event.preventDefault();
                                         current = event.currentTarget;
-                                        container = $(current).closest('.card').find('.card-body div').last();
+                                        container = $(current).closest('.card').find('.card-body .div-original').first();
                                         message = container.text().trim();
+                                        this.render(container.get(0));
                                         this.voice = this.getVoice(this.voices, options.lang);
                                         return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
                                     case 1:
@@ -649,8 +659,9 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         this.diagnostic.appendChild(li.get(0));
                         lastMsg = document.getElementsByClassName('direct-chat-msg');
                         this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
-                        container = li.find('.card').find('.card-body div').last();
+                        container = li.find('.card').find('.card-body .div-original').first();
                         message = container.text().trim();
+                        this.render(container.get(0));
                         return [4 /*yield*/, this.speak({ "content": message, "language": options.lang, "container": container.get(0) })];
                     case 1:
                         _a.sent();
@@ -661,6 +672,124 @@ var VoiceRecognizer = /** @class */ (function (_super) {
         }); }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
+    };
+    VoiceRecognizer.prototype.render = function (container) {
+        var message = container.innerText.trim();
+        var renderer = document.createElement('div');
+        renderer.classList.add('div-renderer');
+        renderer.innerHTML = message;
+        var renderers = Array.from(container.closest('.card').getElementsByClassName('div-renderer'));
+        if (renderers.length > 0) {
+            renderers.map(function (r) { return r.remove(); });
+        }
+        container.closest('.card').getElementsByClassName('card-body').item(0).appendChild(renderer);
+        var engine = 'katex';
+        switch (engine) {
+            //case "MathJax":
+            //    const adaptor = liteAdaptor();
+            //    RegisterHTMLHandler(adaptor);
+            //    //https://docs.mathjax.org/en/latest/options/output/chtml.html#chtml-options
+            //    const MathJax = {
+            //        inlineMath: [
+            //             ['$$','$$'],
+            //             ['$','$'],
+            //             ["\\(","\\)"],
+            //             ["\\begin{equation}","\\end{equation}"],
+            //             ["\\begin{align}","\\end{align}"],
+            //             ["\\begin{alignat}","\\end{alignat}"],
+            //             ["\\begin{gather}","\\end{gather}"],
+            //             ["\\begin{CD}","\\end{CD}"],
+            //             ["\\[","\\]"]
+            //        ],
+            //        enableAssistiveMml: true,
+            //        scale: 1,                                                       // global scaling factor for all expressions
+            //        minScale: .5,                                                   // smallest scaling factor to use
+            //        mtextInheritFont: false,                                        // true to make mtext elements use surrounding font
+            //        merrorInheritFont: true,                                        // true to make merror text use surrounding font
+            //        mathmlSpacing: false,                                           // true for MathML spacing rules, false for TeX rules
+            //        skipAttributes: {},                                             // RFDa and other attributes NOT to copy to the output
+            //        exFactor: .5,                                                   // default size of ex in em units
+            //        displayAlign: 'center',                                         // default for indentalign when set to 'auto'
+            //        displayIndent: '0',                                             // default for indentshift when set to 'auto'
+            //        matchFontHeight: true,                                          // true to match ex-height of surrounding font
+            //        fontURL: 'https://fonts.cdnfonts.com/s/12165/Roboto-Regular.woff',     // The URL where the fonts are found
+            //        adaptiveCSS: true                                               // true means only produce CSS that is used in the processed equations
+            //    };
+            //    const mathjax_document = mathjax.document('', {
+            //        InputJax: new TeX({ packages: AllPackages }),
+            //        OutputJax: new CHTML(MathJax)
+            //    });
+            //    const mathjax_options = {
+            //        em: 16,
+            //        ex: 8,
+            //        containerWidth: 1280
+            //    };
+            //    let math = "\\frac{\\sqrt[3]{27x^6y^7}}{\\sqrt{x^4y^2}} + \\sqrt[4]{\\frac{x^8}{y^4}} * \\frac{10y^2\\sqrt{3xy^2}}{5x\\sqrt{4y}}\\";
+            //    const node = mathjax_document.convert(math, mathjax_options);
+            //    renderer.innerHTML = adaptor.innerHTML(node);
+            //    break;
+            case "katex":
+                //TODO: test integration with MathJax https://www.mathjax.org/
+                //https://katex.org/docs/autorender.html
+                (0, auto_render_1.default)(renderer, {
+                    // customised options
+                    // • auto-render specific keys, e.g.:
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+                        { left: "\\begin{equation*}", right: "\\end{equation*}", display: true },
+                        { left: "\\begin{align}", right: "\\end{align}", display: true },
+                        { left: "\\begin{aligned}", right: "\\end{aligned}", display: true },
+                        { left: "\\begin{subequations}", right: "\\end{subequations}", display: true },
+                        { left: "\\begin{align*}", right: "\\end{align*}", display: true },
+                        { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+                        { left: "\\begin{alignat*}", right: "\\end{alignat*}", display: true },
+                        { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+                        { left: "\\begin{gather*}", right: "\\end{gather*}", display: true },
+                        { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+                        { left: "\\[", right: "\\]", display: true },
+                        { left: "\\begin{multline}", right: "\\end{multline}", display: true },
+                        { left: "\\begin{multline*}", right: "\\end{multline*}", display: true },
+                        { left: "\\begin{flalign}", right: "\\end{flalign}", display: false },
+                        { left: "\\begin{flalign*}", right: "\\end{flalign*}", display: false },
+                        { left: "\\begin{split}", right: "\\end{split}", display: true }
+                    ],
+                    // • rendering keys, e.g.:
+                    throwOnError: true,
+                    output: 'mathml'
+                });
+                var clone = document.createElement("div");
+                clone.innerHTML = renderer.innerHTML;
+                var semanticsElements = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
+                for (var _i = 0, semanticsElements_1 = semanticsElements; _i < semanticsElements_1.length; _i++) {
+                    var semanticsElement = semanticsElements_1[_i];
+                    var count = semanticsElement.outerHTML.length;
+                    /*let start = katexElement.outerHTML.*/
+                    try {
+                        var result = (0, render_a11y_string_mjs_1.default)(semanticsElement.innerHTML);
+                        semanticsElement.parentElement.replaceWith(result);
+                    }
+                    catch (e) {
+                        if (e instanceof katex_1.default.ParseError) {
+                            // KaTeX can't parse the expression
+                            console.error(e.message);
+                        }
+                        else {
+                            console.error(e); // other error
+                        }
+                    }
+                }
+                console.log('clone: ' + clone.innerText);
+                var nonspeakaple = {
+                    start: [],
+                    end: []
+                };
+                break;
+            default:
+        }
+        container.classList.add('d-none');
     };
     VoiceRecognizer.prototype.draw = function (prompt, options) {
         var _this = this;
@@ -710,7 +839,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                     return __generator(this, function (_a) {
                         event.preventDefault();
                         current = event.currentTarget;
-                        container = $(current).closest('.card').find('.card-body div').last();
+                        container = $(current).closest('.card').find('.card-body div').first();
                         message = container.text().trim();
                         // Copy the text inside the text field
                         navigator.clipboard.writeText(message);
@@ -791,7 +920,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         }
                     }
                     catch (e) {
-                        console.log(e);
+                        reject(e);
                     }
                     return resolve('complete');
                 };
@@ -836,25 +965,6 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         //    displayMode: false,
                         //    output: 'html'
                         //});
-                        //https://katex.org/docs/autorender.html
-                        (0, auto_render_1.default)(document.body, {
-                            // customised options
-                            // • auto-render specific keys, e.g.:
-                            delimiters: [
-                                { left: '$$', right: '$$', display: true },
-                                { left: '$', right: '$', display: false },
-                                { left: "\\(", right: "\\)", display: false },
-                                { left: "\\begin{equation}", right: "\\end{equation}", display: true },
-                                { left: "\\begin{align}", right: "\\end{align}", display: true },
-                                { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
-                                { left: "\\begin{gather}", right: "\\end{gather}", display: true },
-                                { left: "\\begin{CD}", right: "\\end{CD}", display: true },
-                                { left: "\\[", right: "\\]", display: true }
-                            ],
-                            // • rendering keys, e.g.:
-                            throwOnError: false,
-                            output: 'mathml',
-                        });
                     }
                     catch (e) {
                         if (e.message) {

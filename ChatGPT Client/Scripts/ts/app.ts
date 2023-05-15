@@ -28,7 +28,17 @@ import * as moment from 'moment';
 //https://github.com/KaTeX/KaTeX/issues/1927
 import ErrorManager from "./core/error-manager";
 import katex from "katex";
-import renderMathInElement from 'katex/dist/contrib/auto-render';
+import renderMathInElement from 'katex/contrib/auto-render/auto-render';
+//import renderA11yString from "katex/dist/contrib/render-a11y-string";
+import renderA11yString from "katex/dist/contrib/render-a11y-string.mjs";
+
+//import { mathjax } from 'mathjax-full/js/mathjax';
+//import { TeX } from 'mathjax-full/js/input/tex';
+//import { CHTML } from 'mathjax-full/js/output/chtml';
+//import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages';
+//import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor';
+//import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html';
+
 //import "katex/dist/katex.min.css";
 //import renderMathInElement from "katex";
 
@@ -239,7 +249,7 @@ export default class app {
         //    displayMode: false,
         //    output: 'mathml'
         //});
-
+        
 
         // https://katex.org/docs/api.html
         $('#textArea-chat-message').val('').trigger('focus');
@@ -369,7 +379,7 @@ export default class app {
                                                         </p>
                                                     </div>
                                                     <div class="card-body">
-                                                        <div class="mb-0" dir="auto">
+                                                        <div class="mb-0 div-original" dir="auto">
                                                             ${message}
                                                         </div>
                                                     </div>
@@ -394,7 +404,7 @@ export default class app {
                                                 <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                             </div>
                                             <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
-                                                <div class="mb-0" dir="auto">
+                                                <div class="mb-0 div-original" dir="auto">
                                                         ${message}
                                                 </div>
                                             </div>
@@ -827,7 +837,7 @@ class VoiceRecognizer extends EventEmitter {
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
                                                     <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
-                                                        <div class="mb-0" dir="auto">
+                                                        <div class="mb-0 div-original" dir="auto">
                                                              ${msg}
                                                         </div>
                                                     </div>
@@ -842,7 +852,7 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let container = $(current).closest('.card').find('.card-body div').last();
+                    let container = $(current).closest('.card').find('.card-body .div-original').first();
                     let message = container.text().trim();
 
 
@@ -860,9 +870,11 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let container = $(current).closest('.card').find('.card-body div').last();
-
+                    let container = $(current).closest('.card').find('.card-body .div-original').first();
                     let message = container.text().trim();
+
+                    this.render(container.get(0));
+
                     this.voice = this.getVoice(this.voices, options.lang);
                     await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
                 });
@@ -874,13 +886,151 @@ class VoiceRecognizer extends EventEmitter {
                 this.diagnostic.scrollTo({ top: (lastMsg.item(lastMsg.length - 1) as HTMLElement).offsetTop, behavior: 'smooth' });
 
 
-                let container = li.find('.card').find('.card-body div').last();
+                let container = li.find('.card').find('.card-body .div-original').first();
                 let message = container.text().trim();
+
+                this.render(container.get(0));
+
                 await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
             this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });
+    }
+
+    private render(container: HTMLElement) {
+
+        let message = container.innerText.trim();
+
+        let renderer: HTMLDivElement = document.createElement('div');
+        renderer.classList.add('div-renderer');
+        renderer.innerHTML = message;
+
+        let renderers = Array.from(container.closest('.card').getElementsByClassName('div-renderer'));
+
+        if (renderers.length > 0) {
+            renderers.map(r => r.remove());
+        }
+
+        container.closest('.card').getElementsByClassName('card-body').item(0).appendChild(renderer);
+
+        let engine = 'katex';
+
+        switch (engine) {
+            //case "MathJax":
+
+            //    const adaptor = liteAdaptor();
+            //    RegisterHTMLHandler(adaptor);
+            //    //https://docs.mathjax.org/en/latest/options/output/chtml.html#chtml-options
+            //    const MathJax = {
+            //        inlineMath: [
+            //             ['$$','$$'],
+            //             ['$','$'],
+            //             ["\\(","\\)"],
+            //             ["\\begin{equation}","\\end{equation}"],
+            //             ["\\begin{align}","\\end{align}"],
+            //             ["\\begin{alignat}","\\end{alignat}"],
+            //             ["\\begin{gather}","\\end{gather}"],
+            //             ["\\begin{CD}","\\end{CD}"],
+            //             ["\\[","\\]"]
+            //        ],
+            //        enableAssistiveMml: true,
+            //        scale: 1,                                                       // global scaling factor for all expressions
+            //        minScale: .5,                                                   // smallest scaling factor to use
+            //        mtextInheritFont: false,                                        // true to make mtext elements use surrounding font
+            //        merrorInheritFont: true,                                        // true to make merror text use surrounding font
+            //        mathmlSpacing: false,                                           // true for MathML spacing rules, false for TeX rules
+            //        skipAttributes: {},                                             // RFDa and other attributes NOT to copy to the output
+            //        exFactor: .5,                                                   // default size of ex in em units
+            //        displayAlign: 'center',                                         // default for indentalign when set to 'auto'
+            //        displayIndent: '0',                                             // default for indentshift when set to 'auto'
+            //        matchFontHeight: true,                                          // true to match ex-height of surrounding font
+            //        fontURL: 'https://fonts.cdnfonts.com/s/12165/Roboto-Regular.woff',     // The URL where the fonts are found
+            //        adaptiveCSS: true                                               // true means only produce CSS that is used in the processed equations
+            //    };
+
+            //    const mathjax_document = mathjax.document('', {
+            //        InputJax: new TeX({ packages: AllPackages }),
+            //        OutputJax: new CHTML(MathJax)
+            //    });
+
+            //    const mathjax_options = {
+            //        em: 16,
+            //        ex: 8,
+            //        containerWidth: 1280
+            //    };
+
+            //    let math = "\\frac{\\sqrt[3]{27x^6y^7}}{\\sqrt{x^4y^2}} + \\sqrt[4]{\\frac{x^8}{y^4}} * \\frac{10y^2\\sqrt{3xy^2}}{5x\\sqrt{4y}}\\";
+            //    const node = mathjax_document.convert(math, mathjax_options);
+            //    renderer.innerHTML = adaptor.innerHTML(node);
+            //    break;
+
+            case "katex":
+                //TODO: test integration with MathJax https://www.mathjax.org/
+                //https://katex.org/docs/autorender.html
+                renderMathInElement(renderer, {
+                    // customised options
+                    // • auto-render specific keys, e.g.:
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+                        { left: "\\begin{equation*}", right: "\\end{equation*}", display: true },
+                        { left: "\\begin{align}", right: "\\end{align}", display: true },
+                        { left: "\\begin{aligned}", right: "\\end{aligned}", display: true },
+                        { left: "\\begin{subequations}", right: "\\end{subequations}", display: true },
+                        { left: "\\begin{align*}", right: "\\end{align*}", display: true },
+                        { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+                        { left: "\\begin{alignat*}", right: "\\end{alignat*}", display: true },
+                        { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+                        { left: "\\begin{gather*}", right: "\\end{gather*}", display: true },
+                        { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+                        { left: "\\[", right: "\\]", display: true },
+                        { left: "\\begin{multline}", right: "\\end{multline}", display: true },
+                        { left: "\\begin{multline*}", right: "\\end{multline*}", display: true },
+                        { left: "\\begin{flalign}", right: "\\end{flalign}", display: false },
+                        { left: "\\begin{flalign*}", right: "\\end{flalign*}", display: false },
+                        { left: "\\begin{split}", right: "\\end{split}", display: true }
+                    ],
+                    // • rendering keys, e.g.:
+                    throwOnError: true,
+                    output: 'mathml'
+                });
+
+                let clone = document.createElement("div");
+                clone.innerHTML = renderer.innerHTML;
+                let semanticsElements = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
+
+                for (var semanticsElement of semanticsElements) {
+                    let count = semanticsElement.outerHTML.length;
+                    /*let start = katexElement.outerHTML.*/
+
+                    try {
+                        const result = renderA11yString(semanticsElement.innerHTML);
+                        semanticsElement.parentElement.replaceWith(result);
+                    } catch (e) {
+                        if (e instanceof katex.ParseError) {
+                            // KaTeX can't parse the expression
+                            console.error(e.message);
+                        } else {
+                            console.error(e);  // other error
+                        }
+                    }
+                }
+
+                console.log('clone: ' + clone.innerText);
+
+                let nonspeakaple = {
+                    start: [],
+                    end: []
+                };
+
+                break;
+            default:
+        }
+
+        container.classList.add('d-none');
     }
 
     draw(prompt: string, options?: any) {
@@ -979,7 +1129,7 @@ class VoiceRecognizer extends EventEmitter {
 
                     let current = event.currentTarget;
 
-                    let container = $(current).closest('.card').find('.card-body div').last();
+                    let container = $(current).closest('.card').find('.card-body div').first();
                     let message = container.text().trim();
 
                     // Copy the text inside the text field
@@ -1053,7 +1203,7 @@ class VoiceRecognizer extends EventEmitter {
                             this.recognition.stop();
                         }
                     } catch (e) {
-                        console.log(e);
+                        reject(e);
                     }
 
                     return resolve('complete');
@@ -1116,25 +1266,7 @@ class VoiceRecognizer extends EventEmitter {
                         //    output: 'html'
                         //});
 
-                        //https://katex.org/docs/autorender.html
-                        renderMathInElement(document.body, {
-                            // customised options
-                            // • auto-render specific keys, e.g.:
-                            delimiters: [
-                                { left: '$$', right: '$$', display: true },
-                                { left: '$', right: '$', display: false },
-                                { left: "\\(", right: "\\)", display: false },
-                                { left: "\\begin{equation}", right: "\\end{equation}", display: true },
-                                { left: "\\begin{align}", right: "\\end{align}", display: true },
-                                { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
-                                { left: "\\begin{gather}", right: "\\end{gather}", display: true },
-                                { left: "\\begin{CD}", right: "\\end{CD}", display: true },
-                                { left: "\\[", right: "\\]", display: true }
-                            ],
-                            // • rendering keys, e.g.:
-                            throwOnError: false,
-                            output: 'mathml', 
-                        });
+
 
 
                     } catch (e) {

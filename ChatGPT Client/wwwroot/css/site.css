@@ -211,8 +211,7 @@ main {
 
     .list-unstyled {
         overflow: auto;
-        max-height: 256px; /*443px;*/
-        min-height: 30.5em;
+        min-height: calc(100vh - 5.15em);
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -225,8 +224,7 @@ main {
 
     .list-unstyled {
         overflow: auto;
-        max-height: 312px; /*443px;*/
-        min-height: 37.5em;
+        min-height: calc(100vh - 5.15em);
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -238,8 +236,7 @@ main {
 @media only screen and (min-width: 1863px) {
     .list-unstyled {
         overflow: auto;
-        max-height: 236px;
-        min-height: 58.5em;
+        min-height: calc(100vh - 5.15em);
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -251,8 +248,7 @@ main {
 @media only screen and (min-width: 1920px) {    /*HP screen*/
     .list-unstyled {
         overflow: auto;
-        max-height: 443px;
-        min-height: 51em;
+        min-height: calc(100vh - 5.15em);
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -264,8 +260,7 @@ main {
 @media only screen and (min-width: 2503px) {
     .list-unstyled {
         overflow: auto;
-        max-height: 443px;
-        min-height: 72.5em;
+        min-height: calc(100vh - 5.15em);
         padding: 9px 10px;
         background-color: #eee;
         border-radius: .5rem .5rem 0 0;
@@ -415,4 +410,9 @@ body,
 
 .btn-group-flat{
     box-shadow: none;
+}
+
+.divider .img-fluid, .divider .img-thumbnail {
+    width: 8.5rem;
+    height: 8.5rem;
 }
