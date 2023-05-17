@@ -998,17 +998,36 @@ class VoiceRecognizer extends EventEmitter {
                     output: 'mathml'
                 });
 
-                let clone = document.createElement("div");
+                let clone: HTMLDivElement = document.createElement("div");
                 clone.innerHTML = renderer.innerHTML;
-                let semanticsElements = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
+                let semanticsElements: HTMLElement[] = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
 
-                for (var semanticsElement of semanticsElements) {
-                    let count = semanticsElement.outerHTML.length;
-                    /*let start = katexElement.outerHTML.*/
+                let collection = new Array();
+                let count = 0;
+
+                for (let semanticsElement of semanticsElements) {
+
+                    let fetch = semanticsElement.innerText;
 
                     try {
-                        const result = renderA11yString(semanticsElement.innerHTML);
-                        semanticsElement.parentElement.replaceWith(result);
+
+                        const result: string = renderA11yString(semanticsElement.innerHTML);
+
+                        let replacer = semanticsElement.closest('.katex').parentElement;
+                        let length = replacer.outerHTML.length;                                 //characters inside <span>
+                        let cursor = clone.innerHTML.indexOf('<span><span class="katex">');     //start index of <span>
+
+                        replacer.classList.add('span-equation');
+
+                        let location = clone.innerHTML.indexOf('<span class="span-equation">');
+
+                        collection.push({ start: location, end: location + result.length - 1, offset: count + cursor, length: length });
+
+                        replacer.outerHTML = result;
+
+                        count = length - result.length;
+
+
                     } catch (e) {
                         if (e instanceof katex.ParseError) {
                             // KaTeX can't parse the expression
@@ -1019,7 +1038,9 @@ class VoiceRecognizer extends EventEmitter {
                     }
                 }
 
-                console.log('clone: ' + clone.innerText);
+                console.log('clone-text: ' + clone.innerText);
+                console.log('clone-html: ' + clone.innerHTML);
+                console.log('clone-collection: ' + JSON.stringify(collection));
 
                 let nonspeakaple = {
                     start: [],

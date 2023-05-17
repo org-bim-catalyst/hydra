@@ -763,13 +763,21 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 var clone = document.createElement("div");
                 clone.innerHTML = renderer.innerHTML;
                 var semanticsElements = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
+                var collection = new Array();
+                var count = 0;
                 for (var _i = 0, semanticsElements_1 = semanticsElements; _i < semanticsElements_1.length; _i++) {
                     var semanticsElement = semanticsElements_1[_i];
-                    var count = semanticsElement.outerHTML.length;
-                    /*let start = katexElement.outerHTML.*/
+                    var fetch_1 = semanticsElement.innerText;
                     try {
                         var result = (0, render_a11y_string_mjs_1.default)(semanticsElement.innerHTML);
-                        semanticsElement.parentElement.replaceWith(result);
+                        var replacer = semanticsElement.closest('.katex').parentElement;
+                        var length_1 = replacer.outerHTML.length; //characters inside <span>
+                        var cursor = clone.innerHTML.indexOf('<span><span class="katex">'); //start index of <span>
+                        replacer.classList.add('span-equation');
+                        var location_1 = clone.innerHTML.indexOf('<span class="span-equation">');
+                        collection.push({ start: location_1, end: location_1 + result.length - 1, offset: count + cursor, length: length_1 });
+                        replacer.outerHTML = result;
+                        count = length_1 - result.length;
                     }
                     catch (e) {
                         if (e instanceof katex_1.default.ParseError) {
@@ -781,7 +789,9 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         }
                     }
                 }
-                console.log('clone: ' + clone.innerText);
+                console.log('clone-text: ' + clone.innerText);
+                console.log('clone-html: ' + clone.innerHTML);
+                console.log('clone-collection: ' + JSON.stringify(collection));
                 var nonspeakaple = {
                     start: [],
                     end: []
