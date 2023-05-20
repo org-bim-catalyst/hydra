@@ -249,7 +249,7 @@ export default class app {
         //    displayMode: false,
         //    output: 'mathml'
         //});
-        
+
 
         // https://katex.org/docs/api.html
         $('#textArea-chat-message').val('').trigger('focus');
@@ -873,10 +873,10 @@ class VoiceRecognizer extends EventEmitter {
                     let container = $(current).closest('.card').find('.card-body .div-original').first();
                     let message = container.text().trim();
 
-                    this.render(container.get(0));
+                    let data = this.render(container.get(0));
 
                     this.voice = this.getVoice(this.voices, options.lang);
-                    await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
+                    await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement, data: data });
                 });
 
                 this.diagnostic.appendChild(li.get(0));
@@ -889,9 +889,9 @@ class VoiceRecognizer extends EventEmitter {
                 let container = li.find('.card').find('.card-body .div-original').first();
                 let message = container.text().trim();
 
-                this.render(container.get(0));
+                let data = this.render(container.get(0));
 
-                await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement });
+                await this.speak({ "content": message, "language": options.lang, "container": container.get(0) as HTMLElement, data: data });
             }
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
             this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
@@ -916,142 +916,88 @@ class VoiceRecognizer extends EventEmitter {
 
         let engine = 'katex';
 
-        switch (engine) {
-            //case "MathJax":
+        //TODO: test integration with MathJax https://www.mathjax.org/
+        //https://katex.org/docs/autorender.html
+        renderMathInElement(renderer, {
+            // customised options
+            // • auto-render specific keys, e.g.:
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+                { left: "\\begin{equation*}", right: "\\end{equation*}", display: true },
+                { left: "\\begin{align}", right: "\\end{align}", display: true },
+                { left: "\\begin{aligned}", right: "\\end{aligned}", display: true },
+                { left: "\\begin{subequations}", right: "\\end{subequations}", display: true },
+                { left: "\\begin{align*}", right: "\\end{align*}", display: true },
+                { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+                { left: "\\begin{alignat*}", right: "\\end{alignat*}", display: true },
+                { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+                { left: "\\begin{gather*}", right: "\\end{gather*}", display: true },
+                { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+                { left: "\\[", right: "\\]", display: true },
+                { left: "\\begin{multline}", right: "\\end{multline}", display: true },
+                { left: "\\begin{multline*}", right: "\\end{multline*}", display: true },
+                { left: "\\begin{flalign}", right: "\\end{flalign}", display: false },
+                { left: "\\begin{flalign*}", right: "\\end{flalign*}", display: false },
+                { left: "\\begin{split}", right: "\\end{split}", display: true }
+            ],
+            // • rendering keys, e.g.:
+            throwOnError: true,
+            output: 'mathml'
+        });
 
-            //    const adaptor = liteAdaptor();
-            //    RegisterHTMLHandler(adaptor);
-            //    //https://docs.mathjax.org/en/latest/options/output/chtml.html#chtml-options
-            //    const MathJax = {
-            //        inlineMath: [
-            //             ['$$','$$'],
-            //             ['$','$'],
-            //             ["\\(","\\)"],
-            //             ["\\begin{equation}","\\end{equation}"],
-            //             ["\\begin{align}","\\end{align}"],
-            //             ["\\begin{alignat}","\\end{alignat}"],
-            //             ["\\begin{gather}","\\end{gather}"],
-            //             ["\\begin{CD}","\\end{CD}"],
-            //             ["\\[","\\]"]
-            //        ],
-            //        enableAssistiveMml: true,
-            //        scale: 1,                                                       // global scaling factor for all expressions
-            //        minScale: .5,                                                   // smallest scaling factor to use
-            //        mtextInheritFont: false,                                        // true to make mtext elements use surrounding font
-            //        merrorInheritFont: true,                                        // true to make merror text use surrounding font
-            //        mathmlSpacing: false,                                           // true for MathML spacing rules, false for TeX rules
-            //        skipAttributes: {},                                             // RFDa and other attributes NOT to copy to the output
-            //        exFactor: .5,                                                   // default size of ex in em units
-            //        displayAlign: 'center',                                         // default for indentalign when set to 'auto'
-            //        displayIndent: '0',                                             // default for indentshift when set to 'auto'
-            //        matchFontHeight: true,                                          // true to match ex-height of surrounding font
-            //        fontURL: 'https://fonts.cdnfonts.com/s/12165/Roboto-Regular.woff',     // The URL where the fonts are found
-            //        adaptiveCSS: true                                               // true means only produce CSS that is used in the processed equations
-            //    };
+        let clone: HTMLDivElement = document.createElement("div");
+        clone.innerHTML = renderer.innerHTML;
+        let annotationElements: HTMLElement[] = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
 
-            //    const mathjax_document = mathjax.document('', {
-            //        InputJax: new TeX({ packages: AllPackages }),
-            //        OutputJax: new CHTML(MathJax)
-            //    });
+        let collection = new Array();
+        let count = 0;
 
-            //    const mathjax_options = {
-            //        em: 16,
-            //        ex: 8,
-            //        containerWidth: 1280
-            //    };
+        for (let annotationElement of annotationElements) {
 
-            //    let math = "\\frac{\\sqrt[3]{27x^6y^7}}{\\sqrt{x^4y^2}} + \\sqrt[4]{\\frac{x^8}{y^4}} * \\frac{10y^2\\sqrt{3xy^2}}{5x\\sqrt{4y}}\\";
-            //    const node = mathjax_document.convert(math, mathjax_options);
-            //    renderer.innerHTML = adaptor.innerHTML(node);
-            //    break;
+            //let fetch = annotationElement.innerText;
 
-            case "katex":
-                //TODO: test integration with MathJax https://www.mathjax.org/
-                //https://katex.org/docs/autorender.html
-                renderMathInElement(renderer, {
-                    // customised options
-                    // • auto-render specific keys, e.g.:
-                    delimiters: [
-                        { left: '$$', right: '$$', display: true },
-                        { left: '$', right: '$', display: false },
-                        { left: "\\(", right: "\\)", display: false },
-                        { left: "\\begin{equation}", right: "\\end{equation}", display: true },
-                        { left: "\\begin{equation*}", right: "\\end{equation*}", display: true },
-                        { left: "\\begin{align}", right: "\\end{align}", display: true },
-                        { left: "\\begin{aligned}", right: "\\end{aligned}", display: true },
-                        { left: "\\begin{subequations}", right: "\\end{subequations}", display: true },
-                        { left: "\\begin{align*}", right: "\\end{align*}", display: true },
-                        { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
-                        { left: "\\begin{alignat*}", right: "\\end{alignat*}", display: true },
-                        { left: "\\begin{gather}", right: "\\end{gather}", display: true },
-                        { left: "\\begin{gather*}", right: "\\end{gather*}", display: true },
-                        { left: "\\begin{CD}", right: "\\end{CD}", display: true },
-                        { left: "\\[", right: "\\]", display: true },
-                        { left: "\\begin{multline}", right: "\\end{multline}", display: true },
-                        { left: "\\begin{multline*}", right: "\\end{multline*}", display: true },
-                        { left: "\\begin{flalign}", right: "\\end{flalign}", display: false },
-                        { left: "\\begin{flalign*}", right: "\\end{flalign*}", display: false },
-                        { left: "\\begin{split}", right: "\\end{split}", display: true }
-                    ],
-                    // • rendering keys, e.g.:
-                    throwOnError: true,
-                    output: 'mathml'
-                });
+            try {
 
-                let clone: HTMLDivElement = document.createElement("div");
-                clone.innerHTML = renderer.innerHTML;
-                let semanticsElements: HTMLElement[] = Array.from(clone.querySelectorAll('.katex math semantics annotation'));
+                const result: string = renderA11yString(annotationElement.innerHTML);
 
-                let collection = new Array();
-                let count = 0;
+                let replacer = annotationElement.closest('.katex').parentElement;
+                let length = replacer.outerHTML.length;                                                //characters inside <span>
+                let cursor = clone.innerHTML.indexOf('<span><span class="katex">');                    //start index of <span>
 
-                for (let semanticsElement of semanticsElements) {
+                replacer.classList.add('span-equation');
 
-                    let fetch = semanticsElement.innerText;
+                let location = clone.innerHTML.indexOf('<span class="span-equation">');
+                replacer.outerHTML = result;
 
-                    try {
+                collection.push({ start: location, end: location + result.length - 1, offset: count + cursor, length: length });
 
-                        const result: string = renderA11yString(semanticsElement.innerHTML);
+                count = length - result.length;
 
-                        let replacer = semanticsElement.closest('.katex').parentElement;
-                        let length = replacer.outerHTML.length;                                 //characters inside <span>
-                        let cursor = clone.innerHTML.indexOf('<span><span class="katex">');     //start index of <span>
-
-                        replacer.classList.add('span-equation');
-
-                        let location = clone.innerHTML.indexOf('<span class="span-equation">');
-
-                        collection.push({ start: location, end: location + result.length - 1, offset: count + cursor, length: length });
-
-                        replacer.outerHTML = result;
-
-                        count = length - result.length;
-
-
-                    } catch (e) {
-                        if (e instanceof katex.ParseError) {
-                            // KaTeX can't parse the expression
-                            console.error(e.message);
-                        } else {
-                            console.error(e);  // other error
-                        }
-                    }
+            } catch (e) {
+                if (e instanceof katex.ParseError) {
+                    // KaTeX can't parse the expression
+                    console.error(e.message);
+                } else {
+                    console.error(e);  // other error
                 }
-
-                console.log('clone-text: ' + clone.innerText);
-                console.log('clone-html: ' + clone.innerHTML);
-                console.log('clone-collection: ' + JSON.stringify(collection));
-
-                let nonspeakaple = {
-                    start: [],
-                    end: []
-                };
-
-                break;
-            default:
+            }
         }
 
+        console.log('clone-text: ' + clone.innerText);
+        console.log('clone-html: ' + clone.innerHTML);
+        console.log('clone-collection: ' + JSON.stringify(collection));
+
         container.classList.add('d-none');
+
+        return {
+            srcElement: renderer,
+            voiceOver: clone.innerText,
+            info: collection
+        };
+
     }
 
     draw(prompt: string, options?: any) {
@@ -1205,18 +1151,27 @@ class VoiceRecognizer extends EventEmitter {
         return new Promise((resolve, reject) => {
 
             try {
-                let utterance = new SpeechSynthesisUtterance(options.content);
+                let utterance = new SpeechSynthesisUtterance(options.data.voiceOver);
                 utterance.lang = options.language;
                 utterance.voice = this.voice;
                 utterance.rate = 1;
                 utterance.pitch = 1;
                 utterance.volume = 0.5;
                 let wordIndex = 0;
+                let start = 0;
+                let end = 0;
+
+                let container: HTMLDivElement = options.data.srcElement;
+                let content = container.innerHTML;
+
+                console.log("message: " + container.innerHTML);
+
+                let cursor = 0;
 
                 utterance.onend = (event) => {
                     try {
 
-                        options.container.innerHTML = options.content;
+                        container.innerHTML = content;
 
                         if ($('#flexSwitchCheckChecked').is(':checked')) {
                             this.recognition.start();
@@ -1232,7 +1187,7 @@ class VoiceRecognizer extends EventEmitter {
 
                 utterance.onstart = (event) => {
 
-                    console.log(event.currentTarget);
+                    //console.log(event.currentTarget);
 
                     navigator.mediaDevices.enumerateDevices()
                         // set `getUserMedia()` constraints to "auidooutput", where avaialable
@@ -1265,41 +1220,67 @@ class VoiceRecognizer extends EventEmitter {
 
                 utterance.onboundary = (event) => {
 
-                    let word: any = this.getWordAt(options.content, event.charIndex);
-
-                    //console.log('word: ' + JSON.stringify(word));
 
                     try {
-                        //options.container.innerText=msg;
-                        let message = options.content.substring(0, word.start) + "<span class='highlight'>" + word.value + "</span>" + options.content.substring(word.start + word.value.length);
-                        options.container.innerHTML = message;
 
-                        let container = options.container.getElementsByClassName('highlight').item(0) as HTMLElement;
-                        container.style.background = "#FFF8D6";
-                        container.style.color = '#616161';
-                        /*container.style.fontWeight = '500';*/
+                        if (options.data) {
 
-                        //let test: string = "$\frac{\sqrt[3]{27x^6y^7}}{\sqrt{x^4y^2}} + \sqrt[4]{\frac{x^8}{y^4}} * \frac{10y^2\sqrt{3xy^2}}{5x\sqrt{4y}}$";
+                            let voice_over_starts: number[] = options.data.info.map(d => d.start);
+                            let voice_over_ends: number[] = options.data.info.map(d => d.end);
 
-                        //katex.render(options.container.innerText, options.container, {
-                        //    throwOnError: true,
-                        //    displayMode: false,
-                        //    output: 'html'
-                        //});
+                            let renderer_starts: number[] = options.data.info.map(d => d.offset);
+                            let renderer_ends: number[] = options.data.info.map(d => d.offset + d.length);
 
+                            let word: any = this.getWordAt(options.data.voiceOver, event.charIndex);
 
+                            let found = false;
 
+                            console.log("Word: " + JSON.stringify(word) + ", index: " + event.charIndex);
 
-                    } catch (e) {
+                            for (let i = 0; i < voice_over_starts.length; i++) {
 
-                        if (e.message) {
+                                if (word.start >= voice_over_starts[i] && word.end <= voice_over_ends[i]) {
+                                    found = true;
+                                    start = renderer_starts[i];
+                                    end = renderer_ends[i];
+                                    cursor = i;
+                                    break;
+                                }
+                            }
 
-                            console.error(e.message);
+                            if (found) {
 
-                            return reject(e.message);
+                                container.innerHTML = content;
+
+                                let semantics: HTMLElement = container.getElementsByTagName('semantics').item(cursor) as HTMLElement;
+                                semantics.classList.add('highlight');
+                                semantics.style.background = "#FFF8D6";
+                                semantics.style.color = '#616161';
+                            }
+                            else {
+
+                                let message = '';
+
+                                if (end > 0) {
+
+                                    let index = content.indexOf(word.value, end);
+                                    end = index;
+
+                                    message = content.substring(0, index) + "<span class='highlight'>" + content.substring(index, index + word.value.length) + "</span>" + content.substring(index + word.value.length);
+                                } else {
+                                    message = content.substring(0, word.start + end) + "<span class='highlight'>" + content.substring(word.start + end, word.end + end + 1) + "</span>" + content.substring(word.end + end + 1);
+                                }
+
+                                container.innerHTML = message;
+                                console.log(message);
+
+                                let highlight = container.getElementsByClassName('highlight').item(0) as HTMLElement;
+                                highlight.style.background = "#FFF8D6";
+                                highlight.style.color = '#616161';
+                            }
                         }
-
-                        return reject(e);
+                    } catch (e) {
+                        console.log(e);
                     }
 
                     wordIndex++;
@@ -1315,20 +1296,31 @@ class VoiceRecognizer extends EventEmitter {
 
     getWordAt(str: string, pos: number) {
         // Perform type conversions.
+
         str = String(str);
         pos = Number(pos) >>> 0;
 
         // Search for the word's beginning and end.
         let left: number = str.slice(0, pos + 1).search(/\S+$/);
-        let right: number = str.slice(pos).search(/\s/);
+        let right: number = str.slice(pos).search(/\s/) + pos;
 
         // The last word in the string is a special case.
-        if (right < 0) {
-            return { value: str.slice(left), start: left, end: right };
+        if (right < pos) {
+
+            let value = str.slice(pos);
+
+            const specialChars = /[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/;
+            let isLastCharacterSpecial = specialChars.test(value[value.length - 1]);
+
+            if (isLastCharacterSpecial) {
+                return { value: str.slice(pos), start: pos, end: pos + str.slice(pos).length - 2 };
+            } else {
+                return { value: str.slice(pos), start: pos, end: pos + str.slice(pos).length - 1 };
+            }
         }
 
         // Return the word, using the located bounds to extract it from the string.
-        return { value: str.slice(left, right + pos), start: left, end: right };
+        return { value: str.slice(left, right), start: left, end: right - 1 };
     }
 }
 
