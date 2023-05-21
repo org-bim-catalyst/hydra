@@ -13,11 +13,3 @@
 /*! FixedColumns 4.2.2
  * © SpryMedia Ltd - datatables.net/license
  */
-
-/*! FixedHeader 3.3.2
- * © SpryMedia Ltd - datatables.net/license
- */
-
-/*! Responsive 2.4.1
- * © SpryMedia Ltd - datatables.net/license
- */

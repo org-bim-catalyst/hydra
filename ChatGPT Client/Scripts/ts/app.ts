@@ -28,8 +28,8 @@ import * as moment from 'moment';
 //https://github.com/KaTeX/KaTeX/issues/1927
 import ErrorManager from "./core/error-manager";
 import katex from "katex";
+import mhchem from "katex/dist/contrib/mhchem";
 import renderMathInElement from 'katex/contrib/auto-render/auto-render';
-//import renderA11yString from "katex/dist/contrib/render-a11y-string";
 import renderA11yString from "katex/dist/contrib/render-a11y-string.mjs";
 
 //import { mathjax } from 'mathjax-full/js/mathjax';
@@ -88,13 +88,11 @@ export default class app {
             let file: File = (event.target as HTMLInputElement).files[0];
             $('#span-file-info').text('Type: ' + file.type + ', Size: ' + (file.size / 1024) + ' KB');
 
-            let filepath = URL.createObjectURL(file);
-
             // Todo: complete the MIME list
             //https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             switch (file.type) {
                 case 'application/pdf':
-                    this.parsePdf(filepath).then((textPage: string) => {
+                    this.parsePdf(file).then((textPage: string) => {
                         this.addToChatBox(textPage);
                     });
                     break;
@@ -134,7 +132,11 @@ export default class app {
                         });
                     });
                     break;
-
+                case 'text/csv':
+                    this.parseCsv(file).then((textPage: string) => {
+                        this.addToChatBox(textPage);
+                    });
+                    break;
                 default:
             }
 
@@ -192,6 +194,14 @@ export default class app {
             $('#pButton').toggleClass("fa-play fa-pause");
 
         });
+
+        $(document).on('hide.bs.modal', '#modal-upload-file', (event) => {
+
+            let dlg = event.currentTarget;
+
+            $('input[type="file"]').val('');
+            $(dlg).find('.modal-body .note.note-warning').html(`<strong>File info: </strong> <span id="span-file-info">No file is loaded.</span >`);
+        })
 
         //tinymce.init({
         //    selector: "[data-emojiable='true']",
@@ -498,11 +508,14 @@ export default class app {
         });
     }
 
-    private parsePdf(filepath: string) {
+    private parsePdf(file: File) {
 
         return new Promise((resolve, reject) => {
 
             try {
+
+                let filepath = URL.createObjectURL(file);
+
                 PDFJS.getDocument(filepath).promise.then((PDFDocumentInstance) => {
 
                     // Use the PDFDocumentInstance To extract the text later
@@ -521,6 +534,35 @@ export default class app {
 
             } catch (e) {
                 reject(e);
+            }
+        });
+    }
+
+    private parseCsv(file: File) {
+
+        return new Promise((resolve, reject) => {
+
+            try {
+                let ext = file.name.split(".").pop().toLowerCase();
+
+                if ($.inArray(ext, ["csv"]) == -1) {
+                    return reject('This is not a CSV file.');
+                }
+
+                if (file != undefined) {
+
+                    var reader = new FileReader();
+
+                    reader.onload = (e) => {
+                        let csvResult = e.target.result.toString().split(/\r|\n|\r\n/);
+                        return resolve(csvResult);
+                    }
+
+                    reader.readAsText(file);
+                }
+
+            } catch (e) {
+                return reject(e);
             }
         });
     }
@@ -941,11 +983,13 @@ class VoiceRecognizer extends EventEmitter {
                 { left: "\\begin{multline*}", right: "\\end{multline*}", display: true },
                 { left: "\\begin{flalign}", right: "\\end{flalign}", display: false },
                 { left: "\\begin{flalign*}", right: "\\end{flalign*}", display: false },
-                { left: "\\begin{split}", right: "\\end{split}", display: true }
+                { left: "\\begin{split}", right: "\\end{split}", display: true },
+                //{ left: "\\ce", right: "", display: true }
             ],
             // • rendering keys, e.g.:
             throwOnError: true,
-            output: 'mathml'
+            output: 'mathml',
+            errorCallback: (msg: string, err: Error) => { console.error(err.message); }
         });
 
         let clone: HTMLDivElement = document.createElement("div");
@@ -1239,7 +1283,7 @@ class VoiceRecognizer extends EventEmitter {
 
                             for (let i = 0; i < voice_over_starts.length; i++) {
 
-                                if (word.start >= voice_over_starts[i] && word.end <= voice_over_ends[i]) {
+                                if (word.start >= voice_over_starts[i] && word.start <= voice_over_ends[i]) {
                                     found = true;
                                     start = renderer_starts[i];
                                     end = renderer_ends[i];
@@ -1307,16 +1351,9 @@ class VoiceRecognizer extends EventEmitter {
         // The last word in the string is a special case.
         if (right < pos) {
 
-            let value = str.slice(pos);
-
             const specialChars = /[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/;
-            let isLastCharacterSpecial = specialChars.test(value[value.length - 1]);
 
-            if (isLastCharacterSpecial) {
-                return { value: str.slice(pos), start: pos, end: pos + str.slice(pos).length - 2 };
-            } else {
-                return { value: str.slice(pos), start: pos, end: pos + str.slice(pos).length - 1 };
-            }
+            return { value: str.slice(pos), start: pos, end: pos + str.slice(pos).length - 1 };
         }
 
         // Return the word, using the located bounds to extract it from the string.
