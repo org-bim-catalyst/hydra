@@ -92,7 +92,9 @@ var app = /** @class */ (function () {
         var _this = this;
         this.userFirstName = userFirstName;
         this.profilePicture = profilePicture;
+        this.agentName = '';
         this.errMngr = new error_manager_1.default();
+        this.agentName = 'Lucy';
         var welcomeMsg = "<div class=\"modal fade show\" id=\"exampleModal\" tabindex=\"-1\" aria-labelledby=\"exampleModalLabel\" aria-modal=\"true\" role=\"dialog\" style=\"display: block;\" data-mdb-backdrop=\"static\" data-mdb-keyboard=\"false\">\n                             <div class=\"modal-dialog modal-dialog-centered\">\n                                <div class=\"modal-content\">\n                                  <div class=\"modal-header border-0\">\n                                    <h3 class=\"display-6 pt-3 ps-3\">Welcome ".concat(userFirstName, "</h3>\n                                    <img src=\"/img/Lucy.png\" class=\"rounded-circle shadow-1-strong\" width=\"85\" height=\"85\" alt=\"\" aria-controls=\"#picker-editor\" >\n                                  </div>\n                                  <div class=\"modal-body border-0\">\n                                      <div class=\"d-flex justify-content-end align-items-end\">\n                                       <img src=\"/img/edge-logo.webp\" class=\"rounded me-1\" width=\"100\" height=\"100\" alt=\"\" aria-controls=\"#picker-editor\">\n                                       <p class=\"lead\">For better experience, we recommend you to use Microsoft Edge.</p>\n                                      </div>\n                                  </div>\n                                  <div class=\"modal-footer border-0\">\n                                    <button type=\"button\" class=\"btn btn-secondary\" data-mdb-dismiss=\"modal\">OK</button>\n                                  </div>\n                                </div>\n                              </div>\n                              </div>");
         var myModalEl = $(welcomeMsg);
         myModalEl.on('hidden.bs.modal', function (event) {
@@ -231,13 +233,14 @@ var app = /** @class */ (function () {
             event.preventDefault();
             var msg = $('#textArea-chat-message').val().toString();
             if (msg && msg.length > 0) {
-                _this.addToChatWindow(msg, _this.userFirstName, Direction.Left).then(function () {
+                _this.addToChatWindow(msg, _this.userFirstName, Direction.Left, _this.profilePicture, false).then(function () {
                     var diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
                     var lastMsg = document.getElementsByClassName('direct-chat-msg');
                     diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
                     $('#textArea-chat-message').val('');
                     $('#ul-chat-attachments').html('');
                     $('[data-mdb-target="#modal-attachments"]').addClass('d-none');
+                    _this.waitForReply();
                     //tinymce.activeEditor.setContent('');
                     if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                         _this.voiceRecognizer.draw(msg);
@@ -246,7 +249,7 @@ var app = /** @class */ (function () {
                         //this.voiceRecognizer.transcript(msg);
                     }
                     else {
-                        var lang = $('#select-languages option').filter(':selected').text();
+                        var lang = $('#select-languages option').filter(':selected').data('language');
                         _this.voiceRecognizer.chat(msg, { "lang": lang });
                     }
                 });
@@ -279,21 +282,26 @@ var app = /** @class */ (function () {
         $('#button-translate-message').on('click', function (event) {
             event.preventDefault();
             var msg = $('#textArea-chat-message').val().toString();
-            var lang = $('#select-translation-language option').filter(':selected').text();
+            var lang = $('#select-translation-language option').filter(':selected').data('language');
             if (msg.length > 0) {
-                _this.addToChatWindow("Translate this into ".concat(lang, ": \n                                        <figure class=\"text-center mb-0\">\n                                            <blockquote class=\"blockquote\">\n                                                <p class=\"pb-3\">\n                                                    <i class=\"fas fa-quote-left fa-xs text-primary\"></i>\n                                                    <span class=\"lead font-italic\" dir=\"auto\">").concat(msg, "</span>\n                                                    <i class=\"fas fa-quote-right fa-xs text-primary\"></i>\n                                                </p>\n                                            </blockquote>\n                                        </figure>"), _this.userFirstName, Direction.Left).then(function () {
+                _this.addToChatWindow("Translate this into ".concat(lang, ": \n                                        <figure class=\"text-center mb-0\">\n                                            <blockquote class=\"blockquote\">\n                                                <p class=\"pb-3\">\n                                                    <i class=\"fas fa-quote-left fa-xs text-primary\"></i>\n                                                    <span class=\"lead font-italic\" dir=\"auto\">").concat(msg, "</span>\n                                                    <i class=\"fas fa-quote-right fa-xs text-primary\"></i>\n                                                </p>\n                                            </blockquote>\n                                        </figure>"), _this.userFirstName, Direction.Left, _this.profilePicture, false).then(function () {
                     var diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0);
                     var lastMsg = document.getElementsByClassName('direct-chat-msg');
                     diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
                     $('#textArea-chat-message').val('');
                     $('#ul-chat-attachments').html('');
+                    _this.waitForReply();
                     _this.voiceRecognizer.translate(msg, { "lang": lang });
                 });
             }
         });
     };
-    app.prototype.addToChatWindow = function (message, userFirstName, direction) {
+    app.prototype.addToChatWindow = function (message, userFirstName, direction, profilePicture, isLoading) {
         var _this = this;
+        var dotsContainer = $('.dots-container');
+        if (dotsContainer.length > 0) {
+            dotsContainer.closest('li').remove();
+        }
         return new Promise(function (resolve, reject) {
             var _a, _b;
             try {
@@ -302,15 +310,16 @@ var app = /** @class */ (function () {
                     case Direction.Left:
                         (_a = li.classList).add.apply(_a, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
                         li.id = crypto.randomUUID();
-                        li.innerHTML = "<img src=\"".concat(_this.profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a title=\"reask\" class=\"link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">replay</span>\n                                                                </a>\n                                                            </div>\n                                                        </div>\n                                                        <p class=\"text-muted small mb-0\">\n                                                            <i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "\n                                                        </p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                            ").concat(message, "\n                                                        </div>\n                                                    </div>\n                                                </div>");
+                        li.innerHTML = "<img src=\"".concat(profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <!-- div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a title=\"reask\" class=\"link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">replay</span>\n                                                                </a>\n                                                            </div>\n                                                        </div -->\n                                                        <p class=\"text-muted small mb-0\">\n                                                            <i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "\n                                                        </p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                            ").concat(message, "\n                                                        </div>\n                                                    </div>\n                                                </div>");
                         break;
                     case Direction.Right:
                         (_b = li.classList).add.apply(_b, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg', 'pull-right']);
-                        li.innerHTML = "<div class=\"card w-100\">\n                                            <div class=\"card-header d-flex justify-content-between\">\n                                                <p class=\"fw-bold mb-0\">Lucy</p>\n                                                <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                    <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">content_copy</span>\n                                                        </a>\n                                                    </div>\n                                                </div>\n                                                <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                            </div>\n                                            <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                        ").concat(message, "\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <img src=\"/img/Lucy.png\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">");
+                        li.innerHTML = "<div class=\"card w-100\">\n                                            <div class=\"card-header d-flex justify-content-between\">\n                                                <p class=\"fw-bold mb-0\">".concat(_this.agentName, "</p>\n                                                ").concat(isLoading ? "" : "\n                                                <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                    <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">content_copy</span>\n                                                        </a>\n                                                    </div>\n                                                </div>", "\n                                                <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "</p>\n                                            </div>\n                                            <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                        ").concat(message, "\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <img src=\"").concat(profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">");
                         break;
                     default:
                 }
                 var msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
+                document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).scrollTo({ top: msg_li.offsetTop, behavior: 'smooth' });
                 return resolve(msg_li);
             }
             catch (e) {
@@ -321,6 +330,12 @@ var app = /** @class */ (function () {
     app.prototype.addToChatBox = function (textPage) {
         $('#textArea-chat-message').val(textPage).trigger('focus');
         //tinymce.activeEditor.setContent(`<p>${textPage}</p>`);
+    };
+    app.prototype.waitForReply = function () {
+        var container = document.createElement('div');
+        container.className = 'dots-container';
+        container.innerHTML = "<div class=\"dot\"></div><div class=\"dot\"></div><div class=\"dot\"></div></div>";
+        this.addToChatWindow(container.outerHTML, this.agentName, Direction.Right, '/img/Lucy.png', true);
     };
     app.prototype.addToAttachments = function (file) {
         return new Promise(function (resolve, reject) {
@@ -500,17 +515,18 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 maxHeight: 250,
                 selectedClass: 'active multiselect-selected',
                 includeSelectAllOption: false,
+                enableCaseInsensitiveFiltering: true,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
                 templates: {
                     button: "<button type=\"button\" class=\"multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split\" data-mdb-toggle=\"dropdown\">\n                                <span class=\"multiselect-selected-text\"> </span>\n                             </button>",
                     ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
-                    li: "<li>\n                            <a class=\"dropdown-item\">\n                                <label class=\"radio\">\n                                <input class=\"preview-subject ellipsis font-weight-medium text-dark\"></label>\n                            </a>\n                         </li>"
+                    li: "<li>\n                            <a class=\"dropdown-item\" >\n                                <label class=\"radio\" data-mdb-toggle=\"tooltip\" data-mdb-placement=\"right\">\n                                <input class=\"preview-subject ellipsis font-weight-medium text-dark\"></label>\n                            </a>\n                         </li>",
+                    filter: "<div class=\"multiselect-filter p-1\">\n                            <div class=\"input-group mb-3\">\n                                <input class=\"form-control multiselect-search select-filter-input border-end-0\" placeholder=\"Search...\" role=\"searchbox\" type=\"text\">\n                            </div>\n                         </div>",
+                    filterClearBtn: "<button class=\"btn btn-sm btn-outline-secondary multiselect-clear-filter\" type=\"button\"><i class=\"fas fa-times\"></i></button>"
                 },
                 onChange: function (option, checked) {
-                    _this.language = option.html();
+                    _this.language = option.data('language');
                     _this.recognition.lang = _this.language;
-                    //Microsoft Libby Online (Natural) - English (United Kingdom)
-                    //Microsoft Salma Online (Natural) - Arabic (Egypt)
                     _this.voice = _this.getVoice(_this.voices, _this.language);
                 }
             });
@@ -522,26 +538,48 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 maxHeight: 450,
                 selectedClass: 'active multiselect-selected',
                 includeSelectAllOption: false,
+                enableCaseInsensitiveFiltering: true,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
                 templates: {
                     button: "<button type=\"button\" class=\"multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split\" data-mdb-toggle=\"dropdown\">\n                                <span class=\"multiselect-selected-text\"> </span>\n                             </button>",
                     ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
-                    li: "<li>\n                            <a class=\"dropdown-item\">\n                                <label class=\"radio\">\n                                <input class=\"preview-subject ellipsis font-weight-medium text-dark\"></label>\n                            </a>\n                         </li>"
+                    li: "<li>\n                            <a class=\"dropdown-item\">\n                                <label class=\"radio\" data-mdb-toggle=\"tooltip\" data-mdb-placement=\"right\">\n                                <input class=\"preview-subject ellipsis font-weight-medium text-dark\"></label>\n                            </a>\n                         </li>",
+                    filter: "<div class=\"multiselect-filter p-1\">\n                            <div class=\"input-group mb-3\">\n                                <input class=\"form-control multiselect-search select-filter-input border-end-0\" placeholder=\"Search...\" role=\"searchbox\" type=\"text\">\n                            </div>\n                         </div>",
+                    filterClearBtn: "<button class=\"btn btn-sm btn-outline-secondary multiselect-clear-filter\" type=\"button\"><i class=\"fas fa-times\"></i></button>"
                 },
                 onChange: function (option, checked) {
-                    _this.language = option.html();
+                    _this.language = option.data('language');
                     _this.recognition.lang = _this.language;
                     _this.voice = _this.getVoice(_this.voices, _this.language);
                 }
             });
             var options = [];
-            langs.forEach(function (lang, index) {
-                options.push({ label: lang, title: lang, value: index, selected: lang === _this.language });
+            _this.loadLanguages().then(function (allLanguages) {
+                allLanguages.sort(function (e) { return e.language; });
+                langs.forEach(function (lang, index) {
+                    console.log(JSON.stringify(allLanguages));
+                    //console.log(lang);
+                    var language = allLanguages.find(function (e) { return e.language.toLowerCase() === lang.toLowerCase(); });
+                    if (language) {
+                        var country = language.country;
+                        options.push({ label: country, title: country, value: index, selected: lang === _this.language, attributes: { "language": lang } });
+                    }
+                    options.sort(function (e) { return e.label; });
+                });
+                var selectconfig = {
+                    enableFiltering: true,
+                };
+                $('#select-translation-language').multiselect('dataprovider', options);
+                $('#select-translation-language').multiselect('setOptions', selectconfig);
+                $('#select-translation-language').multiselect('rebuild');
+                $('#select-languages').multiselect('dataprovider', options);
+                $('#select-languages').multiselect('setOptions', selectconfig);
+                $('#select-languages').multiselect('rebuild');
+                $('.multiselect-container label').tooltip({
+                    placement: 'auto',
+                    trigger: 'hover',
+                });
             });
-            $('#select-translation-language').multiselect('dataprovider', options);
-            $('#select-translation-language').multiselect('rebuild');
-            $('#select-languages').multiselect('dataprovider', options);
-            $('#select-languages').multiselect('rebuild');
             /*console.log*/ (_this.voices);
             if (!_this.voice) {
                 console.log($('#select-languages option:selected').text());
@@ -562,7 +600,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                     _this.draw(msg);
                 }
                 else {
-                    var lang = $('#select-languages option').filter(':selected').text();
+                    var lang = $('#select-languages option').filter(':selected').data('language');
                     _this.chat("".concat(msg), { "lang": lang });
                 }
             }
@@ -578,6 +616,67 @@ var VoiceRecognizer = /** @class */ (function (_super) {
         ];
         return _this;
     }
+    //https://stackoverflow.com/questions/7770235/how-to-change-the-text-direction-of-an-element
+    VoiceRecognizer.prototype.setDirection = function (element) {
+        if (element.textContent.length > 0) {
+            var x = new RegExp("[\x00-\x80]+"); // is ascii
+            //alert(x.test(element.val()));
+            var isAscii = x.test(element.innerText.charAt(0));
+            if (isAscii) {
+                element.style.direction = "ltr";
+                element.style.textAlign = "left";
+            }
+            else {
+                element.style.direction = "rtl";
+                element.style.textAlign = "right";
+            }
+        }
+    };
+    VoiceRecognizer.prototype.loadLanguages = function () {
+        return $.getJSON('/db/languages.json', function (data) {
+        }).catch(function (e) {
+            return e;
+        }).then(function (data) {
+            return data.collection;
+        });
+    };
+    VoiceRecognizer.prototype.waitForReply = function () {
+        var container = document.createElement('div');
+        container.className = 'dots-container';
+        container.innerHTML = "<div class=\"dot\"></div><div class=\"dot\"></div><div class=\"dot\"></div></div>";
+        this.addToChatWindow(container.outerHTML, 'Lucy', Direction.Right, '/img/Lucy.png', true);
+    };
+    VoiceRecognizer.prototype.addToChatWindow = function (message, userFirstName, direction, profilePicture, isLoading) {
+        var _this = this;
+        var dotsContainer = $('.dots-container');
+        if (dotsContainer.length > 0) {
+            dotsContainer.closest('li').remove();
+        }
+        return new Promise(function (resolve, reject) {
+            var _a, _b;
+            try {
+                var li = document.createElement('li');
+                switch (direction) {
+                    case Direction.Left:
+                        (_a = li.classList).add.apply(_a, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
+                        li.id = crypto.randomUUID();
+                        li.innerHTML = "<img src=\"".concat(profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start me-3 shadow-1-strong\" width=\"60\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">").concat(userFirstName, "</p>\n                                                        <!-- div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a title=\"reask\" class=\"link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">replay</span>\n                                                                </a>\n                                                            </div>\n                                                        </div -->\n                                                        <p class=\"text-muted small mb-0\">\n                                                            <i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "\n                                                        </p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                            ").concat(message, "\n                                                        </div>\n                                                    </div>\n                                                </div>");
+                        break;
+                    case Direction.Right:
+                        (_b = li.classList).add.apply(_b, ['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg', 'pull-right']);
+                        li.innerHTML = "<div class=\"card w-100\">\n                                            <div class=\"card-header d-flex justify-content-between\">\n                                                <p class=\"fw-bold mb-0\">".concat(userFirstName, "</p>\n                                                ").concat(isLoading ? "" : "\n                                                <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                    <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">record_voice_over</span>\n                                                        </a>\n                                                        <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                            <span class=\"material-icons md-18\">content_copy</span>\n                                                        </a>\n                                                    </div>\n                                                </div>", "\n                                                <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ").concat(moment().format("D MMM h:mm a"), "</p>\n                                            </div>\n                                            <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                        ").concat(message, "\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <img src=\"").concat(profilePicture, "\" alt=\"avatar\" class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">");
+                        break;
+                    default:
+                }
+                var msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
+                _this.diagnostic.scrollTo({ top: msg_li.offsetTop, behavior: 'smooth' });
+                return resolve(msg_li);
+            }
+            catch (e) {
+                return reject();
+            }
+        });
+    };
     VoiceRecognizer.prototype.getVoice = function (voices, languageCode) {
         var voice;
         try {
@@ -635,6 +734,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
     };
     VoiceRecognizer.prototype.chat = function (prompt, options) {
         var _this = this;
+        this.waitForReply();
         if (prompt && prompt !== '') {
             this.conversation.push({ "role": "user", "content": prompt });
         }
@@ -647,7 +747,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 "messages": JSON.stringify(this.conversation)
             }
         }).then(function (response, textStatus, xhr) { return __awaiter(_this, void 0, void 0, function () {
-            var msg, li, lastMsg, container, message, data;
+            var msg, dotsContainer, li, lastMsg, container, message, data;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -655,6 +755,10 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         if (!(xhr.status === 200)) return [3 /*break*/, 2];
                         msg = response;
                         this.conversation.push({ "role": "assistant", "content": msg });
+                        dotsContainer = $('.dots-container');
+                        if (dotsContainer.length > 0) {
+                            dotsContainer.closest('li').remove();
+                        }
                         li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">record_voice_over</span>\n                                                                </a>\n                                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                                    <span class=\"material-icons md-18\">content_copy</span>\n                                                                </a>\n                                                             </div>\n                                                        </div>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                                        <div class=\"mb-0 div-original\" dir=\"auto\">\n                                                             ").concat(msg, "\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>"));
                         li.find('.btn-copy-content').on('click', function (event) { return __awaiter(_this, void 0, void 0, function () {
                             var current, container, message;
@@ -708,6 +812,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
         var renderer = document.createElement('div');
         renderer.classList.add('div-renderer');
         renderer.innerHTML = message;
+        this.setDirection(renderer);
         var renderers = Array.from(container.closest('.card').getElementsByClassName('div-renderer'));
         if (renderers.length > 0) {
             renderers.map(function (r) { return r.remove(); });
@@ -788,6 +893,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
     };
     VoiceRecognizer.prototype.draw = function (prompt, options) {
         var _this = this;
+        this.waitForReply();
         return $.ajax({
             type: 'POST',
             url: '/openai/draw',
@@ -795,6 +901,10 @@ var VoiceRecognizer = /** @class */ (function (_super) {
             data: { "prompt": "".concat(prompt), "n": "1", "size": "1024x1024" }
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
+                var dotsContainer = $('.dots-container');
+                if (dotsContainer.length > 0) {
+                    dotsContainer.closest('li').remove();
+                }
                 _this.diagnostic.innerHTML += "<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\">\n                                                <div class=\"card w-100\">\n                                                    <div class=\"card-header d-flex justify-content-between\">\n                                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                                    </div>\n                                                    <div class=\"card-body\">\n                                                        <div class=\"canvas-imagine\" style=\"display: block; min-height: 250px;\">\n                                                        </div>\n                                                    </div>\n                                                </div>\n                                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                                     class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                                            </li>");
                 var canvases = document.getElementsByClassName('canvas-imagine');
                 var canvas = canvases.item(canvases.length - 1);
@@ -811,6 +921,7 @@ var VoiceRecognizer = /** @class */ (function (_super) {
     };
     VoiceRecognizer.prototype.translate = function (prompt, options) {
         var _this = this;
+        this.waitForReply();
         if (prompt && prompt !== '') {
             this.conversation.push({
                 "role": "user", "content": "Translate this into ".concat(options.lang, ": \"").concat(prompt, "\", and don't include the source text, any comments or notes.'\n                                            Return only the equivalent html code for the translation, separate each phrase in span tag with lang attribute and the direction attribute that match its recognized language based on context and narrative flow.\n                                            Incluse the tags in div element with class named \"translation-result\" and add a class \"text-end\" to the div if the translation language is written from right to left.")
@@ -828,6 +939,10 @@ var VoiceRecognizer = /** @class */ (function (_super) {
             if (xhr.status === 200) {
                 var msg = response;
                 _this.conversation.push({ "role": "assistant", "content": msg });
+                var dotsContainer = $('.dots-container');
+                if (dotsContainer.length > 0) {
+                    dotsContainer.closest('li').remove();
+                }
                 var li = $("<li class=\"d-flex justify-content-between mb-2 direct-chat-msg pull-right\" dir=\"auto\">\n                                <div class=\"card w-100\">\n                                    <div class=\"card-header d-flex justify-content-between\">\n                                        <p class=\"fw-bold mb-0\">Lucy</p>\n                                        <div class=\"btn-toolbar\" role=\"toolbar\" aria-label=\"Toolbar with with assistance buttons.\">\n                                            <div class=\"btn-group btn-group-flat me-2\" role=\"group\" aria-label=\"Assistance Tools buttons\">\n                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-read-content\" data-mdb-toggle=\"collapse\" href=\"#\" role=\"button\" aria-expanded=\"false\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                    <span class=\"material-icons md-18\">record_voice_over</span>\n                                                </a>\n                                                <a class=\"btn btn-sm btn-link ripple-surface btn-floating btn-copy-content\" href=\"#\" role=\"button\" aria-controls=\"read\" data-ripple-color=\"hsl(0, 0%, 67%)\" style=\"\">\n                                                    <span class=\"material-icons md-18\">content_copy</span>\n                                                </a>\n                                             </div>\n                                        </div>\n                                        <p class=\"text-muted small mb-0\"><i class=\"far fa-clock\"></i> ".concat(moment().format("D MMM h:mm a"), "</p>\n                                    </div>\n                                    <div class=\"card-body\" style=\"font-family: 'Neo Sans Arabic', sans-serif;\">\n                                        ").concat(msg, "\n                                    </div>\n                                </div>\n                                <img src=\"/img/Lucy.png\" alt=\"avatar\"\n                                        class=\"rounded-circle d-flex align-self-start ms-3 shadow-1-strong\" width=\"60\">\n                            </li>"));
                 li.find('.btn-copy-content').on('click', function (event) { return __awaiter(_this, void 0, void 0, function () {
                     var current, container, message;
@@ -849,13 +964,14 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                         current = event.currentTarget;
                         container = $(current).closest('.card').find('.card-body .translation-result span');
                         $.each(container, function (index, span) { return __awaiter(_this, void 0, void 0, function () {
-                            var message;
+                            var message, data;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
                                         this.voice = this.getVoice(this.voices, options.lang);
                                         message = span.innerHTML.trim();
-                                        return [4 /*yield*/, this.speak({ "content": message, "language": span.lang, "container": span })];
+                                        data = this.render(span);
+                                        return [4 /*yield*/, this.speak({ "content": message, "language": span.lang, "container": span, data: data })];
                                     case 1:
                                         _a.sent();
                                         return [2 /*return*/];
@@ -870,11 +986,14 @@ var VoiceRecognizer = /** @class */ (function (_super) {
                 _this.diagnostic.scrollTo({ top: lastMsg.item(lastMsg.length - 1).offsetTop, behavior: 'smooth' });
                 var translation = li.find('.card-body span');
                 $.each(translation, function (index, span) { return __awaiter(_this, void 0, void 0, function () {
+                    var data, message;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                console.log(span.isConnected);
-                                return [4 /*yield*/, this.speak({ "content": span.innerHTML.trim(), "language": span.lang, "container": span })];
+                                this.voice = this.getVoice(this.voices, options.lang);
+                                data = this.render(span);
+                                message = span.innerHTML.trim();
+                                return [4 /*yield*/, this.speak({ "content": message, "language": span.lang, "container": span, data: data })];
                             case 1:
                                 _a.sent();
                                 return [2 /*return*/];

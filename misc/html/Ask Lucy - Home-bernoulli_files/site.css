@@ -183,104 +183,102 @@ main {
     background-size: cover;
 }
 
-.list-unstyled {
-    font-family: 'neo sans arabic';
+@media only screen and (min-width: 600px) {
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
+    }
 }
 
-    @media only screen and (min-width: 600px) {
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            padding-bottom: 35px;
-        }
+@media only screen and (min-width: 800px) {
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
     }
+}
 
-    @media only screen and (min-width: 800px) {
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            padding-bottom: 35px;
-        }
+@media only screen and (min-width: 1350px) {   /*G500 screen*/
+
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
     }
+}
 
-    @media only screen and (min-width: 1350px) { /*G500 screen*/
+@media only screen and (min-width: 1536px) {    /*Zbook screen*/
 
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            margin: 0;
-        }
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
     }
+}
 
-    @media only screen and (min-width: 1536px) { /*Zbook screen*/
-
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            margin: 0;
-        }
+@media only screen and (min-width: 1863px) {
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        padding-bottom: 35px;
     }
+}
 
-    @media only screen and (min-width: 1863px) {
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            padding-bottom: 35px;
-        }
+@media only screen and (min-width: 1920px) {    /*HP screen*/
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
     }
+}
 
-    @media only screen and (min-width: 1920px) { /*HP screen*/
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            margin: 0;
-        }
+@media only screen and (min-width: 2503px) {
+    .list-unstyled {
+        overflow-y: auto;
+        overflow-x: clip;
+        height: calc(100vh - 9.15em);
+        padding: 9px 10px;
+        background-color: #eee;
+        border-radius: .5rem .5rem 0 0;
+        border-bottom: 4px solid #1A237E;
+        margin: 0;
     }
-
-    @media only screen and (min-width: 2503px) {
-        .list-unstyled {
-            overflow-y: auto;
-            overflow-x: clip;
-            height: calc(100vh - 9.15em);
-            padding: 9px 10px;
-            background-color: #eee;
-            border-radius: .5rem .5rem 0 0;
-            border-bottom: 4px solid #1A237E;
-            margin: 0;
-        }
-    }
-    /***************************************************Audio player****************************************/
-    html, body, .view {
+}
+/***************************************************Audio player****************************************/
+html,
+body,
+.view {
     height: 100%;
 }
 

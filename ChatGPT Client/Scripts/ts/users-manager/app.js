@@ -28,51 +28,54 @@ var app = /** @class */ (function () {
                 dataSrc: ''
             }, columns: [
                 {
-                    data: "profilePicture", orderable: false, width: '13%',
-                    "render": function (data, type, row) {
-                        return "<img src=\"data:image/jpg;base64,".concat(row.profilePicture, "\" class=\"rounded-circle shadow-1-strong\" width=50 height=50> <span>").concat(row.firstName, " ").concat(row.lastName, "</span>");
+                    data: "profilePicture", orderable: false, width: '25%',
+                    render: function (data, type, row) {
+                        return "<img src=\"data:image/jpg;base64,".concat(row.profilePicture, "\" class=\"rounded-circle shadow-1-strong\" width=50 height=50> \n                                <br />\n                                <span><strong>Name: </strong> ").concat(row.firstName, " ").concat(row.lastName, "</span>\n                                <br />\n                                <span><strong>Id: </strong> ").concat(row.id, "</span>");
                     }
                 },
-                //{ data: "firstName", orderable: true, width: '5%' },
-                //{ data: "lastName", orderable: true, width: '5%' },
                 { data: "birthDate", orderable: true, width: '5%' },
-                { data: "id", orderable: true, width: '11.5%' },
-                { data: "userName", orderable: true, width: '5%' },
-                { data: "normalizedUserName", orderable: true, width: '5%' },
-                { data: "email", orderable: true, width: '5%' },
-                { data: "normalizedEmail", orderable: true, width: '5%' },
                 {
-                    data: "emailConfirmed", orderable: true, width: '5%', "render": function (data) {
-                        return "<input class=\"form-check-input\" type=\"checkbox\" ".concat(data ? 'checked' : '', " />");
-                    }
-                },
-                { data: "passwordHash", orderable: true, width: '5%' },
-                { data: "securityStamp", orderable: true, width: '5%' },
-                { data: "concurrencyStamp", orderable: true, width: '5%' },
-                { data: "phoneNumber", orderable: true, width: '5%' },
-                {
-                    data: "phoneNumberConfirmed", orderable: true, width: '5%', "render": function (data) {
-                        return "<input class=\"form-check-input\" type=\"checkbox\" ".concat(data ? 'checked' : '', " />");
+                    data: "userName", orderable: true, width: '5%',
+                    render: function (data, type, row) {
+                        return "<span>".concat(row.userName, "</span>\n                                <br />\n                                <span><strong>Normalized: </strong> ").concat(row.normalizedUserName, "</span>");
                     }
                 },
                 {
-                    data: "twoFactorEnabled", orderable: true, width: '5%', "render": function (data) {
+                    data: "email", orderable: true, width: '10%',
+                    render: function (data, type, row) {
+                        return "<span>".concat(row.email, "</span><span class=\"float-end ").concat(row.emailConfirmed ? 'text-primary' : 'text-warning', "\"><i class=\"").concat(row.emailConfirmed ? 'fas fa-check-circle' : 'fas fa-exclamation-circle', "\"></i></span>\n                                <br />\n                                <span><strong>Normalized: </strong> ").concat(row.normalizedEmail, "</span>");
+                    }
+                },
+                { data: "passwordHash", orderable: true, width: '10%' },
+                { data: "securityStamp", orderable: true, width: '10%' },
+                { data: "concurrencyStamp", orderable: true, width: '10%' },
+                {
+                    data: "phoneNumber", orderable: true, width: '5%',
+                    render: function (data, type, row) {
+                        return "<span>".concat(row.phoneNumber, "</span><span class=\"float-end ").concat(row.phoneNumberConfirmed ? 'text-primary' : 'text-warning', "\"><i class=\"").concat(row.phoneNumberConfirmed ? 'fas fa-check-circle' : 'fas fa-exclamation-circle', "\"></i></span>");
+                    }
+                },
+                {
+                    data: "twoFactorEnabled", orderable: true, width: '5%',
+                    render: function (data) {
                         return "<input class=\"form-check-input\" type=\"checkbox\"".concat(data ? 'checked' : '', " />");
                     }
                 },
                 { data: "lockoutEnd", orderable: true, width: '5%' },
                 {
-                    data: "lockoutEnabled", orderable: true, width: '5%', "render": function (data) {
+                    data: "lockoutEnabled", orderable: true, width: '5%',
+                    render: function (data) {
                         return "<input class=\"form-check-input\" type=\"checkbox\" ".concat(data ? 'checked' : '', " />");
                     }
                 },
                 { data: "accessFailedCount", orderable: true, width: '5%' }
             ],
-            order: [[5, 'asc']],
+            order: [[1, 'asc']],
             fixedHeader: { header: true },
             responsive: {
                 details: false
             },
+            autoWidth: true,
             searching: true,
             fixedColumns: true,
             scrollX: true,
