@@ -48,10 +48,12 @@ export default class app {
     private voiceRecognizer: VoiceRecognizer;
     private equalizer: Equalizer;
     private errMngr: ErrorManager;
+    private agentName = '';
 
     constructor(private userFirstName: string, private profilePicture: string) {
 
         this.errMngr = new ErrorManager();
+        this.agentName = 'Lucy';
 
         let welcomeMsg = `<div class="modal fade show" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-modal="true" role="dialog" style="display: block;" data-mdb-backdrop="static" data-mdb-keyboard="false">
                              <div class="modal-dialog modal-dialog-centered">
@@ -274,7 +276,7 @@ export default class app {
 
             if (msg && msg.length > 0) {
 
-                this.addToChatWindow(msg, this.userFirstName, Direction.Left).then(() => {
+                this.addToChatWindow(msg, this.userFirstName, Direction.Left, this.profilePicture, false).then(() => {
 
                     let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
                     let lastMsg = document.getElementsByClassName('direct-chat-msg');
@@ -285,6 +287,8 @@ export default class app {
                     $('#ul-chat-attachments').html('');
                     $('[data-mdb-target="#modal-attachments"]').addClass('d-none');
 
+                    this.waitForReply();
+
                     //tinymce.activeEditor.setContent('');
 
                     if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
@@ -292,7 +296,7 @@ export default class app {
                     } else if (msg.toLowerCase().includes('transcript')) {
                         //this.voiceRecognizer.transcript(msg);
                     } else {
-                        let lang: string = $('#select-languages option').filter(':selected').text();
+                        let lang: string = $('#select-languages option').filter(':selected').data('language');
                         this.voiceRecognizer.chat(msg, { "lang": lang });
                     }
 
@@ -332,7 +336,7 @@ export default class app {
             event.preventDefault();
 
             let msg = $('#textArea-chat-message').val().toString();
-            let lang: string = $('#select-translation-language option').filter(':selected').text();
+            let lang: string = $('#select-translation-language option').filter(':selected').data('language');
 
             if (msg.length > 0) {
 
@@ -345,7 +349,7 @@ export default class app {
                                                     <i class="fas fa-quote-right fa-xs text-primary"></i>
                                                 </p>
                                             </blockquote>
-                                        </figure>`, this.userFirstName, Direction.Left).then(() => {
+                                        </figure>`, this.userFirstName, Direction.Left, this.profilePicture, false).then(() => {
 
                     let diagnostic = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0) as HTMLElement;
                     let lastMsg = document.getElementsByClassName('direct-chat-msg');
@@ -356,6 +360,8 @@ export default class app {
 
                     $('#ul-chat-attachments').html('');
 
+                    this.waitForReply();
+
                     this.voiceRecognizer.translate(msg, { "lang": lang });
 
                 });
@@ -363,7 +369,13 @@ export default class app {
         });
     }
 
-    private addToChatWindow(message: string, userFirstName: string, direction: Direction) {
+    private addToChatWindow(message: string, userFirstName: string, direction: Direction, profilePicture: string, isLoading: boolean) {
+
+        let dotsContainer = $('.dots-container');
+
+        if (dotsContainer.length > 0) {
+            dotsContainer.closest('li').remove();
+        }
 
         return new Promise((resolve, reject) => {
             try {
@@ -373,17 +385,17 @@ export default class app {
                     case Direction.Left:
                         li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
                         li.id = crypto.randomUUID();
-                        li.innerHTML = `<img src="${this.profilePicture}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
+                        li.innerHTML = `<img src="${profilePicture}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
                                                 <div class="card w-100">
                                                     <div class="card-header d-flex justify-content-between">
                                                         <p class="fw-bold mb-0">${userFirstName}</p>
-                                                        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                                        <!-- div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
                                                             <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
                                                                 <a title="reask" class="link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
                                                                     <span class="material-icons md-18">replay</span>
                                                                 </a>
                                                             </div>
-                                                        </div>
+                                                        </div -->
                                                         <p class="text-muted small mb-0">
                                                             <i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}
                                                         </p>
@@ -400,7 +412,8 @@ export default class app {
                         li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg', 'pull-right']);
                         li.innerHTML = `<div class="card w-100">
                                             <div class="card-header d-flex justify-content-between">
-                                                <p class="fw-bold mb-0">Lucy</p>
+                                                <p class="fw-bold mb-0">${this.agentName}</p>
+                                                ${isLoading ? `` : `
                                                 <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
                                                     <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
                                                         <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
@@ -410,7 +423,7 @@ export default class app {
                                                             <span class="material-icons md-18">content_copy</span>
                                                         </a>
                                                     </div>
-                                                </div>
+                                                </div>`}
                                                 <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                             </div>
                                             <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
@@ -419,12 +432,17 @@ export default class app {
                                                 </div>
                                             </div>
                                         </div>
-                                        <img src="/img/Lucy.png" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">`;
+                                        <img src="${profilePicture}" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">`;
                         break;
                     default:
                 }
+
                 let msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
+
+                document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).scrollTo({ top: msg_li.offsetTop, behavior: 'smooth' });
+
                 return resolve(msg_li);
+
             } catch (e) {
                 return reject();
             }
@@ -435,6 +453,15 @@ export default class app {
 
         $('#textArea-chat-message').val(textPage).trigger('focus');
         //tinymce.activeEditor.setContent(`<p>${textPage}</p>`);
+    }
+
+    private waitForReply() {
+
+        let container = document.createElement('div');
+        container.className = 'dots-container';
+        container.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+
+        this.addToChatWindow(container.outerHTML, this.agentName, Direction.Right, '/img/Lucy.png', true);
     }
 
     private addToAttachments(file: File) {
@@ -663,6 +690,7 @@ class VoiceRecognizer extends EventEmitter {
                 maxHeight: 250,
                 selectedClass: 'active multiselect-selected',
                 includeSelectAllOption: false,
+                enableCaseInsensitiveFiltering: true,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
                 templates: {
                     button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split" data-mdb-toggle="dropdown">
@@ -670,18 +698,22 @@ class VoiceRecognizer extends EventEmitter {
                              </button>`,
                     ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
                     li: `<li>
-                            <a class="dropdown-item">
-                                <label class="radio">
+                            <a class="dropdown-item" >
+                                <label class="radio" data-mdb-toggle="tooltip" data-mdb-placement="right">
                                 <input class="preview-subject ellipsis font-weight-medium text-dark"></label>
                             </a>
-                         </li>`
+                         </li>`,
+                    filter: `<div class="multiselect-filter p-1">
+                            <div class="input-group mb-3">
+                                <input class="form-control multiselect-search select-filter-input border-end-0" placeholder="Search..." role="searchbox" type="text">
+                            </div>
+                         </div>`,
+                    filterClearBtn: `<button class="btn btn-sm btn-outline-secondary multiselect-clear-filter" type="button"><i class="fas fa-times"></i></button>`
                 },
                 onChange: (option, checked) => {
 
-                    this.language = option.html();
+                    this.language = option.data('language');
                     this.recognition.lang = this.language;
-                    //Microsoft Libby Online (Natural) - English (United Kingdom)
-                    //Microsoft Salma Online (Natural) - Arabic (Egypt)
 
                     this.voice = this.getVoice(this.voices, this.language);
 
@@ -697,6 +729,7 @@ class VoiceRecognizer extends EventEmitter {
                 maxHeight: 450,
                 selectedClass: 'active multiselect-selected',
                 includeSelectAllOption: false,
+                enableCaseInsensitiveFiltering: true,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
                 templates: {
                     button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split" data-mdb-toggle="dropdown">
@@ -705,14 +738,20 @@ class VoiceRecognizer extends EventEmitter {
                     ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
                     li: `<li>
                             <a class="dropdown-item">
-                                <label class="radio">
+                                <label class="radio" data-mdb-toggle="tooltip" data-mdb-placement="right">
                                 <input class="preview-subject ellipsis font-weight-medium text-dark"></label>
                             </a>
-                         </li>`
+                         </li>`,
+                    filter: `<div class="multiselect-filter p-1">
+                            <div class="input-group mb-3">
+                                <input class="form-control multiselect-search select-filter-input border-end-0" placeholder="Search..." role="searchbox" type="text">
+                            </div>
+                         </div>`,
+                    filterClearBtn: `<button class="btn btn-sm btn-outline-secondary multiselect-clear-filter" type="button"><i class="fas fa-times"></i></button>`
                 },
                 onChange: (option, checked) => {
 
-                    this.language = option.html();
+                    this.language = option.data('language');
                     this.recognition.lang = this.language;
 
                     this.voice = this.getVoice(this.voices, this.language);
@@ -721,15 +760,47 @@ class VoiceRecognizer extends EventEmitter {
 
             let options: any[] = [];
 
-            langs.forEach((lang, index) => {
-                options.push({ label: lang, title: lang, value: index, selected: lang === this.language });
+            this.loadLanguages().then((allLanguages) => {
+
+                allLanguages.sort(e => e.language);
+
+                langs.forEach((lang, index) => {
+
+                    console.log(JSON.stringify(allLanguages));
+                    //console.log(lang);
+
+                    let language = allLanguages.find(e => e.language.toLowerCase() === lang.toLowerCase());
+
+                    if (language) {
+
+                        let country = language.country;
+                        options.push({ label: country, title: country, value: index, selected: lang === this.language, attributes: { "language": lang } });
+                    }
+
+                    options.sort(e => e.label);
+
+                });
+
+                let selectconfig = {
+                    enableFiltering: true,
+                };
+
+                $('#select-translation-language').multiselect('dataprovider', options);
+                $('#select-translation-language').multiselect('setOptions', selectconfig);
+                $('#select-translation-language').multiselect('rebuild');
+
+                $('#select-languages').multiselect('dataprovider', options);
+                $('#select-languages').multiselect('setOptions', selectconfig);
+                $('#select-languages').multiselect('rebuild');
+
+                $('.multiselect-container label').tooltip({
+                    placement: 'auto',
+                    trigger: 'hover',
+                });
             });
 
-            $('#select-translation-language').multiselect('dataprovider', options);
-            $('#select-translation-language').multiselect('rebuild');
 
-            $('#select-languages').multiselect('dataprovider', options);
-            $('#select-languages').multiselect('rebuild');
+
 
             /*console.log*/(this.voices);
 
@@ -774,7 +845,7 @@ class VoiceRecognizer extends EventEmitter {
                 if (msg.toLowerCase().includes('draw') || msg.toLowerCase().includes('paint') || msg.toLowerCase().includes('sketch') || msg.toLowerCase().includes('portray') || msg.toLowerCase().includes('plot')) {
                     this.draw(msg);
                 } else {
-                    let lang: string = $('#select-languages option').filter(':selected').text();
+                    let lang: string = $('#select-languages option').filter(':selected').data('language');
                     this.chat(`${msg}`, { "lang": lang });
                 }
             }
@@ -788,6 +859,128 @@ class VoiceRecognizer extends EventEmitter {
             { "role": "assistant", "content": "My Name is Lucy." },
             { "role": "user", "content": "Hello Lucy." },
             { "role": "assistant", "content": `Hello ${userFirstName}.` }];
+    }
+
+        //https://stackoverflow.com/questions/7770235/how-to-change-the-text-direction-of-an-element
+
+    private setDirection(element: HTMLElement) {
+
+        if (element.textContent.length > 0) {
+
+            let x = new RegExp("[\x00-\x80]+"); // is ascii
+
+            //alert(x.test(element.val()));
+
+            let isAscii = x.test(element.innerText.charAt(0));
+
+            if (isAscii) {
+                element.style.direction = "ltr";
+                element.style.textAlign = "left";
+
+            }
+            else {
+                element.style.direction = "rtl";
+                element.style.textAlign = "right";
+            }
+        }
+
+    }
+
+    private loadLanguages() {
+        return $.getJSON('/db/languages.json', (data) => {
+
+        }).catch((e) => {
+            return e;
+        }).then((data) => {
+            return data.collection;
+        });
+    }
+
+    private waitForReply() {
+
+        let container = document.createElement('div');
+        container.className = 'dots-container';
+        container.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+
+        this.addToChatWindow(container.outerHTML, 'Lucy', Direction.Right, '/img/Lucy.png', true);
+    }
+    private addToChatWindow(message: string, userFirstName: string, direction: Direction, profilePicture: string, isLoading: boolean) {
+
+        let dotsContainer = $('.dots-container');
+        if (dotsContainer.length > 0) {
+            dotsContainer.closest('li').remove();
+        }
+
+        return new Promise((resolve, reject) => {
+            try {
+                let li: HTMLLIElement = document.createElement('li');
+
+                switch (direction) {
+                    case Direction.Left:
+                        li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg']);
+                        li.id = crypto.randomUUID();
+                        li.innerHTML = `<img src="${profilePicture}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
+                                                <div class="card w-100">
+                                                    <div class="card-header d-flex justify-content-between">
+                                                        <p class="fw-bold mb-0">${userFirstName}</p>
+                                                        <!-- div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                                            <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
+                                                                <a title="reask" class="link-reask btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                                    <span class="material-icons md-18">replay</span>
+                                                                </a>
+                                                            </div>
+                                                        </div -->
+                                                        <p class="text-muted small mb-0">
+                                                            <i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}
+                                                        </p>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-0 div-original" dir="auto">
+                                                            ${message}
+                                                        </div>
+                                                    </div>
+                                                </div>`;
+
+                        break;
+                    case Direction.Right:
+                        li.classList.add(...['d-flex', 'justify-content-between', 'mb-2', 'direct-chat-msg', 'pull-right']);
+                        li.innerHTML = `<div class="card w-100">
+                                            <div class="card-header d-flex justify-content-between">
+                                                <p class="fw-bold mb-0">${userFirstName}</p>
+                                                ${isLoading ? `` : `
+                                                <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with with assistance buttons.">
+                                                    <div class="btn-group btn-group-flat me-2" role="group" aria-label="Assistance Tools buttons">
+                                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-read-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                            <span class="material-icons md-18">record_voice_over</span>
+                                                        </a>
+                                                        <a class="btn btn-sm btn-link ripple-surface btn-floating btn-copy-content" href="#" role="button" aria-controls="read" data-ripple-color="hsl(0, 0%, 67%)" style="">
+                                                            <span class="material-icons md-18">content_copy</span>
+                                                        </a>
+                                                    </div>
+                                                </div>`}
+                                                <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
+                                            </div>
+                                            <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                                <div class="mb-0 div-original" dir="auto">
+                                                        ${message}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <img src="${profilePicture}" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">`;
+                        break;
+                    default:
+                }
+
+                let msg_li = document.getElementsByClassName('list-unstyled custom-scrollbar').item(0).appendChild(li);
+
+                this.diagnostic.scrollTo({ top: msg_li.offsetTop, behavior: 'smooth' });
+
+                return resolve(msg_li);
+
+            } catch (e) {
+                return reject();
+            }
+        });
     }
 
     private getVoice(voices: SpeechSynthesisVoice[], languageCode: string) {
@@ -843,10 +1036,12 @@ class VoiceRecognizer extends EventEmitter {
 
     chat(prompt: string, options?: any) {
 
+        this.waitForReply();
+
         if (prompt && prompt !== '') {
             this.conversation.push({ "role": "user", "content": prompt });
         }
-
+        
         return $.ajax({
             type: 'POST',
             url: '/openai/chat',
@@ -861,6 +1056,11 @@ class VoiceRecognizer extends EventEmitter {
                 let msg = response;
 
                 this.conversation.push({ "role": "assistant", "content": msg });
+
+                let dotsContainer = $('.dots-container');
+                if (dotsContainer.length > 0) {
+                    dotsContainer.closest('li').remove();
+                }
 
                 let li = $(`<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
                                                 <div class="card w-100">
@@ -947,6 +1147,8 @@ class VoiceRecognizer extends EventEmitter {
         let renderer: HTMLDivElement = document.createElement('div');
         renderer.classList.add('div-renderer');
         renderer.innerHTML = message;
+
+        this.setDirection(renderer);
 
         let renderers = Array.from(container.closest('.card').getElementsByClassName('div-renderer'));
 
@@ -1046,13 +1248,21 @@ class VoiceRecognizer extends EventEmitter {
 
     draw(prompt: string, options?: any) {
 
+        this.waitForReply();
+
         return $.ajax({
             type: 'POST',
             url: '/openai/draw',
             dataType: 'json',
             data: { "prompt": `${prompt}`, "n": "1", "size": "1024x1024" }
         }).then((response, textStatus, xhr) => {
+
             if (xhr.status === 200) {
+
+                let dotsContainer = $('.dots-container');
+                if (dotsContainer.length > 0) {
+                    dotsContainer.closest('li').remove();
+                }
 
                 this.diagnostic.innerHTML += `<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right">
                                                 <div class="card w-100">
@@ -1088,6 +1298,8 @@ class VoiceRecognizer extends EventEmitter {
 
     translate(prompt: string, options?: any) {
 
+        this.waitForReply();
+
         if (prompt && prompt !== '') {
             this.conversation.push({
                 "role": "user", "content": `Translate this into ${options.lang}: "${prompt}", and don't include the source text, any comments or notes.'
@@ -1109,6 +1321,11 @@ class VoiceRecognizer extends EventEmitter {
                 let msg = response;
 
                 this.conversation.push({ "role": "assistant", "content": msg });
+
+                let dotsContainer = $('.dots-container');
+                if (dotsContainer.length > 0) {
+                    dotsContainer.closest('li').remove();
+                }
 
                 let li = $(`<li class="d-flex justify-content-between mb-2 direct-chat-msg pull-right" dir="auto">
                                 <div class="card w-100">
@@ -1157,9 +1374,12 @@ class VoiceRecognizer extends EventEmitter {
                     let container = $(current).closest('.card').find('.card-body .translation-result span'); // could be one or more span.
 
                     $.each(container, async (index, span) => {
+
                         this.voice = this.getVoice(this.voices, options.lang);
+
                         let message = span.innerHTML.trim();
-                        await this.speak({ "content": message, "language": span.lang, "container": span as HTMLElement });
+                        let data = this.render(span);
+                        await this.speak({ "content": message, "language": span.lang, "container": span as HTMLElement, data: data });
                     });
                 });
 
@@ -1172,8 +1392,13 @@ class VoiceRecognizer extends EventEmitter {
                 let translation = li.find('.card-body span');
 
                 $.each(translation, async (index, span) => {
-                    console.log(span.isConnected);
-                    await this.speak({ "content": span.innerHTML.trim(), "language": span.lang, "container": span as HTMLElement });
+
+                    this.voice = this.getVoice(this.voices, options.lang);
+
+                    let data = this.render(span);
+                    let message = span.innerHTML.trim();
+                    await this.speak({ "content": message, "language": span.lang, "container": span as HTMLElement, data: data });
+
                 });
             }
 

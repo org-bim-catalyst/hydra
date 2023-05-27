@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <_ContentIncludedByDefault Remove="wwwroot\css\jumping-dots.css" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Google.Apis" Version="1.60.0" />
     <PackageReference Include="Google.Apis.Auth" Version="1.60.0" />
     <PackageReference Include="Google.Apis.PeopleService.v1" Version="1.60.0.2924" />
