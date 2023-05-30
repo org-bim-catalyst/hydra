@@ -55,27 +55,7 @@ export default class app {
         this.errMngr = new ErrorManager();
         this.agentName = 'Lucy';
 
-        let welcomeMsg = `<div class="modal fade show" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-modal="true" role="dialog" style="display: block;" data-mdb-backdrop="static" data-mdb-keyboard="false">
-                             <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content">
-                                  <div class="modal-header border-0">
-                                    <h3 class="display-6 pt-3 ps-3">Welcome ${userFirstName}</h3>
-                                    <img src="/img/Lucy.png" class="rounded-circle shadow-1-strong" width="85" height="85" alt="" aria-controls="#picker-editor" >
-                                  </div>
-                                  <div class="modal-body border-0">
-                                      <div class="d-flex justify-content-end align-items-end">
-                                       <img src="/img/edge-logo.webp" class="rounded me-1" width="100" height="100" alt="" aria-controls="#picker-editor">
-                                       <p class="lead">For better experience, we recommend you to use Microsoft Edge.</p>
-                                      </div>
-                                  </div>
-                                  <div class="modal-footer border-0">
-                                    <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">OK</button>
-                                  </div>
-                                </div>
-                              </div>
-                              </div>`;
-
-        let myModalEl = $(welcomeMsg);
+        let myModalEl = $('#modal-welcome-message');
 
         myModalEl.on('hidden.bs.modal', (event) => {
             // do something...

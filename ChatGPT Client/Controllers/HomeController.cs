@@ -1,5 +1,6 @@
 ﻿using AskLucy.Areas.Identity.Models;
 using AskLucy.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
@@ -38,6 +39,7 @@ namespace AskLucy.Controllers
             }
         }
 
+        [AllowAnonymous]
         public IActionResult Privacy()
         {
             return View();

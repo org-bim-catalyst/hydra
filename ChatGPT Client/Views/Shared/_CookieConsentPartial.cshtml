@@ -1,0 +1,60 @@
+﻿@using Microsoft.AspNetCore.Http.Features
+
+@{
+    var consentFeature = Context.Features.Get<ITrackingConsentFeature>();
+    var showBanner = !consentFeature?.CanTrack ?? false;
+    var cookieString = consentFeature?.CreateConsentCookie();
+}
+
+<div class="modal fade show" id="modal-welcome-message" tabindex="-1" aria-labelledby="modal-label-welcome-message" aria-modal="true" role="dialog" style="display: block;" data-mdb-backdrop="static" data-mdb-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h3 class="display-6 pt-3 ps-3">Welcome @Model.FirstName</h3>
+                <img src="/img/Lucy.png" class="rounded-circle shadow-1-strong" width="85" height="85" alt="" aria-controls="#picker-editor">
+            </div>
+            <div class="modal-body border-0">
+                <div id="cookieConsent" class="alert alert-light fade show" role="alert">
+
+                    <div class="d-flex justify-content-end align-items-end">
+                        <img src="/img/edge-logo.webp" class="rounded me-1" width="100" height="100" alt="" aria-controls="#picker-editor">
+                        <p class="lead">For better experience, we recommend you to use Microsoft Edge.</p>
+                    </div>
+                </div>
+
+                @if (showBanner)
+                {
+                    <hr />
+                    <div id="cookieConsent" class="alert alert-info fade show" role="alert">
+                        <strong>Ask Lucy</strong> uses cookies to enable and improve the use of the website.
+                        Please see our <a href="/Policy/Cookies" target="_blank">Cookie Policy</a> for more information.
+                        By clicking "Accept" or continuing to browse the site, you consent to our use of cookies.
+
+                    </div>
+
+                    <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal" aria-label="Close" data-cookie-string="@cookieString">
+                        <span aria-hidden="true">Accept</span>
+                    </button>
+                }
+
+            </div>
+
+            @if (!showBanner)
+            {
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">OK</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+
+<script>
+    (function () {
+        var button = document.querySelector("button[data-cookie-string]");
+        button.addEventListener("click", function (event) {
+            document.cookie = button.dataset.cookieString;
+        }, false);
+    })();
+</script>
