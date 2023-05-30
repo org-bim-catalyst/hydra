@@ -16,7 +16,11 @@ using Microsoft.AspNetCore.Builder;
 using System.Net.Http.Headers;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+string connectionString = builder.Configuration.GetConnectionString("ChatGPT_ClientContextConnection") ?? throw new InvalidOperationException("Connection string 'ChatGPT_ClientContextConnection' not found.");
+
+string CorsAllowAllOrigins = "_corsAllowAllOrigins";
 
 builder.Services.AddHttpClient("Default",
                         client =>
@@ -39,8 +43,6 @@ builder.Services.AddLogging(config =>
 
 builder.Services.AddTransient<ErrorHandlingMiddleware>();
 
-var connectionString = builder.Configuration.GetConnectionString("ChatGPT_ClientContextConnection") ?? throw new InvalidOperationException("Connection string 'ChatGPT_ClientContextConnection' not found.");
-
 builder.Services.AddDbContext<ChatGPT_ClientContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<ChatGPT_ClientContext>();
@@ -50,17 +52,6 @@ builder.Services.AddRazorPages();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 builder.Services.Configure<AuthMessageSenderOptions>(builder.Configuration);
-
-string CorsAllowAllOrigins = "_corsAllowAllOrigins";
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: CorsAllowAllOrigins,
-                      builder =>
-                      {
-                          builder.WithOrigins("*");
-                      });
-});
 
 builder.Services.Configure<IdentityOptions>(options =>
 {
@@ -85,6 +76,26 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.SignIn.RequireConfirmedEmail = true;
     options.SignIn.RequireConfirmedPhoneNumber = false;
 });
+
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    // This lambda determines whether user consent for non-essential 
+    // cookies is needed for a given request.
+    options.CheckConsentNeeded = context => true;
+
+    options.MinimumSameSitePolicy = SameSiteMode.None;
+    options.ConsentCookieValue = "true";
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: CorsAllowAllOrigins,
+                      builder =>
+                      {
+                          builder.WithOrigins("*");
+                      });
+});
+
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -218,6 +229,7 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseCookiePolicy();
 
 app.UseRouting();
 
