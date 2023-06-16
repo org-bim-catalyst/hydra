@@ -16,6 +16,8 @@ using Microsoft.AspNetCore.Builder;
 using System.Net.Http.Headers;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-7.0
+//https://learn.microsoft.com/en-us/aspnet/core/fundamentals/app-state?view=aspnetcore-7.0#session-state
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 string connectionString = builder.Configuration.GetConnectionString("ChatGPT_ClientContextConnection") ?? throw new InvalidOperationException("Connection string 'ChatGPT_ClientContextConnection' not found.");
@@ -41,7 +43,15 @@ builder.Services.AddLogging(config =>
     config.AddDebug();
 });
 
-builder.Services.AddTransient<ErrorHandlingMiddleware>();
+builder.Services.AddDistributedMemoryCache();
+
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".asklucy.Session";
+    options.IdleTimeout = TimeSpan.FromSeconds(10);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 
 builder.Services.AddDbContext<ChatGPT_ClientContext>(options => options.UseSqlServer(connectionString));
 
@@ -49,7 +59,11 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.R
 
 builder.Services.AddRazorPages();
 
+builder.Services.AddTransient<ErrorHandlingMiddleware>();
+
 builder.Services.AddTransient<IEmailSender, EmailSender>();
+
+builder.Services.AddTransient<IProfileManager, ProfileManager>();
 
 builder.Services.Configure<AuthMessageSenderOptions>(builder.Configuration);
 
@@ -237,6 +251,8 @@ app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseSession();
 
 app.MapRazorPages();
 

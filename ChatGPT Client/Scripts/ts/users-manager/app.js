@@ -28,12 +28,12 @@ var app = /** @class */ (function () {
                 dataSrc: ''
             }, columns: [
                 {
-                    data: "profilePicture", orderable: false, width: '25%',
+                    data: "profilePicture", orderable: false, width: '25%', className: 'dt-nowrap',
                     render: function (data, type, row) {
                         return "<img src=\"data:image/jpg;base64,".concat(row.profilePicture, "\" class=\"rounded-circle shadow-1-strong\" width=50 height=50> \n                                <br />\n                                <span><strong>Name: </strong> ").concat(row.firstName, " ").concat(row.lastName, "</span>\n                                <br />\n                                <span><strong>Id: </strong> ").concat(row.id, "</span>");
                     }
                 },
-                { data: "birthDate", orderable: true, width: '5%' },
+                { data: "birthDate", orderable: true, width: '5%', className: 'dt-nowrap' },
                 {
                     data: "userName", orderable: true, width: '5%',
                     render: function (data, type, row) {
@@ -46,9 +46,9 @@ var app = /** @class */ (function () {
                         return "<span>".concat(row.email, "</span><span class=\"float-end ").concat(row.emailConfirmed ? 'text-primary' : 'text-warning', "\"><i class=\"").concat(row.emailConfirmed ? 'fas fa-check-circle' : 'fas fa-exclamation-circle', "\"></i></span>\n                                <br />\n                                <span><strong>Normalized: </strong> ").concat(row.normalizedEmail, "</span>");
                     }
                 },
-                { data: "passwordHash", orderable: true, width: '10%' },
-                { data: "securityStamp", orderable: true, width: '10%' },
-                { data: "concurrencyStamp", orderable: true, width: '10%' },
+                { data: "passwordHash", orderable: true, width: '10%', className: 'dt-nowrap' },
+                { data: "securityStamp", orderable: true, width: '10%', className: 'dt-nowrap' },
+                { data: "concurrencyStamp", orderable: true, width: '10%', className: 'dt-nowrap' },
                 {
                     data: "phoneNumber", orderable: true, width: '5%',
                     render: function (data, type, row) {

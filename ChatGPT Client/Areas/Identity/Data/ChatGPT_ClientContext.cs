@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.ComponentModel;
+using AskLucy.Models;
 
 namespace AskLucy.Data;
 
@@ -77,6 +78,9 @@ public class ChatGPT_ClientContext : IdentityDbContext<ApplicationUser>
             .HaveConversion<NullableDateOnlyConverter>()
             .HaveColumnType("date");
     }
+
+    //https://github.com/dotnet/efcore/issues/24507
+    public DbSet<AskLucy.Models.UserChat> UserChats { get; set; } = default!;
 
 
 }

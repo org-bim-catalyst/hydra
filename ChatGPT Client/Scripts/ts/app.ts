@@ -347,6 +347,39 @@ export default class app {
                 });
             }
         });
+
+        $('#button-create-chat').on('click', (event) => {
+
+            event.preventDefault();
+
+            let chatName = $('#input-create-new-chat').val().toString();
+
+            if (chatName.length > 0) {
+                this.createNewChat(chatName);
+            } else {
+                alert("Chat name can't be empty.");
+            }
+        })
+    }
+
+    private createNewChat(chatTitle: string) {
+
+        return $.ajax({
+            type: 'POST',
+            dataType: 'json',
+            contentType: 'application/json',
+            url: '/api/UserChats',
+            data: JSON.stringify({ "Title": chatTitle }),
+        }).then((response, textStatus, xhr) => {
+            if (xhr.status === 200) {
+
+                let msg = response;
+                return msg;
+
+            }
+        }).fail((XMLHttpRequest, textStatus, errorThrown) => {
+            this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
+        });
     }
 
     private addToChatWindow(message: string, userFirstName: string, direction: Direction, profilePicture: string, isLoading: boolean) {
@@ -406,7 +439,7 @@ export default class app {
                                                 </div>`}
                                                 <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                             </div>
-                                            <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                            <div class="card-body">
                                                 <div class="mb-0 div-original" dir="auto">
                                                         ${message}
                                                 </div>
@@ -673,7 +706,7 @@ class VoiceRecognizer extends EventEmitter {
                 enableCaseInsensitiveFiltering: true,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
                 templates: {
-                    button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split" data-mdb-toggle="dropdown">
+                    button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle" data-mdb-toggle="dropdown">
                                 <span class="multiselect-selected-text"> </span>
                              </button>`,
                     ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
@@ -700,7 +733,6 @@ class VoiceRecognizer extends EventEmitter {
                 }
             });
 
-
             $('#select-languages').val('').multiselect({
                 nonSelectedText: 'Please select language',
                 disableIfEmpty: true,
@@ -712,10 +744,10 @@ class VoiceRecognizer extends EventEmitter {
                 enableCaseInsensitiveFiltering: true,
                 buttonContainer: '<div class="multiselect-buttons btn-group d-flex w-100"></div>',
                 templates: {
-                    button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle dropdown-toggle-split" data-mdb-toggle="dropdown">
+                    button: `<button type="button" class="multiselect dropdown-bordered dropdown-toggle" data-mdb-toggle="dropdown">
                                 <span class="multiselect-selected-text"> </span>
                              </button>`,
-                    ul: '<ul class="multiselect-container dropdown-menu custom-scrollbar w-100" ></ul>',
+                    ul: '<ul class="multiselect-container dropdown-menu dropdown-menu-end custom-scrollbar w-100"></ul>',
                     li: `<li>
                             <a class="dropdown-item">
                                 <label class="radio" data-mdb-toggle="tooltip" data-mdb-placement="right">
@@ -774,15 +806,15 @@ class VoiceRecognizer extends EventEmitter {
                 $('#select-languages').multiselect('rebuild');
 
                 $('.multiselect-container label').tooltip({
-                    placement: 'auto',
+                    placement: 'bottom',
+                    trigger: 'hover',
+                });
+
+                $('.multiselect span').tooltip({
+                    placement: 'bottom',
                     trigger: 'hover',
                 });
             });
-
-
-
-
-            /*console.log*/(this.voices);
 
             if (!this.voice) {
 
@@ -790,6 +822,45 @@ class VoiceRecognizer extends EventEmitter {
 
                 this.voice = this.getVoice(this.voices, this.language);
             }
+
+            $('#select-chats').val('').multiselect({
+                nonSelectedText: 'Please select a chat',
+                disableIfEmpty: true,
+                buttonClass: 'btn btn-primary',
+                buttonWidth: '100%',
+                maxHeight: 250,
+                selectedClass: 'active multiselect-selected',
+                includeSelectAllOption: false,
+                enableCaseInsensitiveFiltering: true,
+                buttonContainer: '<div class="btn-group"></div>',
+                templates: {
+                    button: `<button type="button" class="btn btn-primary btn-sm multiselect" data-mdb-toggle="modal" data-mdb-target="#modal-create-chat">
+                                <span class="material-icons" data-mdb-toggle="tooltip" title="Create a new chat">add</span>
+                             </button>
+                             <button type="button" class="btn btn-sm dropdown-toggle dropdown-toggle-split multiselect" id="button-dropdown-menu-chats" data-mdb-toggle="dropdown" aria-expanded="false">
+                                <span class="material-icons" data-mdb-toggle="tooltip" title="Please select a chat">history</span>
+                                <span class="badge rounded-pill badge-notification bg-danger d-none"> 1 </span>
+                             </button>
+                             `,
+                    ul: '<ul class="multiselect-container dropdown-menu dropdown-menu-end custom-scrollbar w-100" aria-labelledby="button-dropdown-menu"></ul>',
+                    li: `<li>
+                            <a class="dropdown-item">
+                                <label class="radio" data-mdb-toggle="tooltip" data-mdb-placement="right">
+                                <input class="preview-subject ellipsis font-weight-medium text-dark"></label>
+                            </a>
+                         </li>`,
+                    filter: `<div class="multiselect-filter p-1">
+                            <div class="input-group mb-3">
+                                <input class="form-control multiselect-search select-filter-input border-end-0" placeholder="Search..." role="searchbox" type="text">
+                            </div>
+                         </div>`,
+                    filterClearBtn: `<button class="btn btn-sm btn-outline-secondary multiselect-clear-filter" type="button"><i class="fas fa-times"></i></button>`
+                },
+                onChange: (option, checked) => {
+
+                }
+            });
+
         };
 
         this.recognition.onresult = (event) => {
@@ -940,7 +1011,7 @@ class VoiceRecognizer extends EventEmitter {
                                                 </div>`}
                                                 <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                             </div>
-                                            <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                            <div class="card-body">
                                                 <div class="mb-0 div-original" dir="auto">
                                                         ${message}
                                                 </div>
@@ -1058,7 +1129,7 @@ class VoiceRecognizer extends EventEmitter {
                                                         </div>
                                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                                     </div>
-                                                    <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                                    <div class="card-body">
                                                         <div class="mb-0 div-original" dir="auto">
                                                              ${msg}
                                                         </div>
@@ -1323,7 +1394,7 @@ class VoiceRecognizer extends EventEmitter {
                                         </div>
                                         <p class="text-muted small mb-0"><i class="far fa-clock"></i> ${moment().format("D MMM h:mm a")}</p>
                                     </div>
-                                    <div class="card-body" style="font-family: 'Neo Sans Arabic', sans-serif;">
+                                    <div class="card-body">
                                         ${msg}
                                     </div>
                                 </div>

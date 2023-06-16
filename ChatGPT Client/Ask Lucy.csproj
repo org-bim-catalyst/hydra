@@ -34,8 +34,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Twitter" Version="7.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="7.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="7.0.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.4">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -52,11 +52,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Areas\ControlPanel\Data\" />
+    <Folder Include="Areas\ControlPanel\Models\" />
     <Folder Include="Areas\UsersManager\Controllers\mvc\" />
     <Folder Include="Areas\UsersManager\Data\" />
     <Folder Include="Areas\UsersManager\Models\" />
     <Folder Include="Areas\UsersManager\Views\" />
     <Folder Include="node_modules\katex\contrib\render-a11y-string\test\" />
+    <Folder Include="Scripts\ts\classes\" />
   </ItemGroup>
 
 </Project>
