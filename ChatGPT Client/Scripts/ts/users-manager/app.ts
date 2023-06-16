@@ -33,7 +33,7 @@ export default class app {
                 dataSrc: ''
             }, columns: [
                 {
-                    data: "profilePicture", orderable: false, width: '25%',
+                    data: "profilePicture", orderable: false, width: '25%', className: 'dt-nowrap',
                     render: (data, type, row) => {
                         return `<img src="data:image/jpg;base64,${row.profilePicture}" class="rounded-circle shadow-1-strong" width=50 height=50> 
                                 <br />
@@ -42,7 +42,7 @@ export default class app {
                                 <span><strong>Id: </strong> ${row.id}</span>`;
                     }
                 },
-                { data: "birthDate", orderable: true, width: '5%' },
+                { data: "birthDate", orderable: true, width: '5%', className: 'dt-nowrap' },
                 {
                     data: "userName", orderable: true, width: '5%',
                     render: (data, type, row) => {
@@ -59,9 +59,9 @@ export default class app {
                                 <span><strong>Normalized: </strong> ${row.normalizedEmail}</span>`;
                     }
                 },
-                { data: "passwordHash", orderable: true, width: '10%' },
-                { data: "securityStamp", orderable: true, width: '10%' },
-                { data: "concurrencyStamp", orderable: true, width: '10%' },
+                { data: "passwordHash", orderable: true, width: '10%', className: 'dt-nowrap' },
+                { data: "securityStamp", orderable: true, width: '10%', className: 'dt-nowrap' },
+                { data: "concurrencyStamp", orderable: true, width: '10%', className: 'dt-nowrap' },
                 {
                     data: "phoneNumber", orderable: true, width: '5%',
                     render: (data, type, row) => {

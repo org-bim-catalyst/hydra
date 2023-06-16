@@ -11,7 +11,10 @@ namespace AskLucy.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
+        public const string SessionKeyName = "_Name";
 
+        // add session
+        // define the active chat in the current session
         public HomeController(ILogger<HomeController> logger, UserManager<ApplicationUser> userManager)
         {
             _logger = logger;
@@ -20,7 +23,10 @@ namespace AskLucy.Controllers
 
         public async Task<IActionResult> Index()
         {
+            HttpContext.Session.SetString(SessionKeyName, new Guid().ToString());
+
             string? userId = _userManager.GetUserId(User);
+
             if (userId == null)
             {
                 return View();
@@ -28,6 +34,7 @@ namespace AskLucy.Controllers
             else
             {
                 ApplicationUser? user = await _userManager.FindByIdAsync(userId);
+
                 if (user == null)
                 {
                     return Error();

@@ -76,7 +76,7 @@
                         </button>
                     </li>
 
-                    @*                    <li class="nav-item">
+                    @*<li class="nav-item">
                     <button type="button" class="btn btn-secondary btn-floating link-secondary ms-3" data-mdb-toggle="modal" data-mdb-target="#modal-translate-message" title="Translate">
                     <i class="fas fa-language"></i>
                     </button>
@@ -88,15 +88,22 @@
 
             <!-- Right elements -->
             <div class="d-flex align-items-center">
+
+                <!-- Notifications -->
+                <select class="select custom-scrollbar" id="select-chats">
+                    @foreach (UserChat chat in Model.UserChats)
+                    {
+                        <option value="@chat.Id">@chat.Title</option>
+                    }
+                    <option value="chat.Id">chat.Title</option>
+                </select>
+
                 <!-- Icon -->
                 <a class="nav-link link-danger mt-2" id="youtube" href="https://www.youtube.com/%40AskLucy" target="_blank" title="Watch us on YouTube">
                     <span data-mdb-toggle="tooltip" data-mdb-placement="bottom" title="Watch us on YouTube">
                         <i class="fab fa-youtube fa-2x"></i>
                     </span>
                 </a>
-
-                @*<h5 class="mb-3">@Model.FirstName</h5>*@
-
                 <!-- Avatar -->
                 <div class="dropdown">
                     <a class="dropdown-toggle d-flex align-items-center hidden-arrow"
@@ -112,7 +119,7 @@
                              alt="Black and White Portrait of a Man"
                              loading="lazy" />
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-lg-end dropr multiselect-container dcustom-scrollbar" aria-labelledby="navbarDropdownMenuAvatar">
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-lg-end dropr multiselect-container custom-scrollbar" aria-labelledby="navbarDropdownMenuAvatar">
                         <li class="multiselect-selected">
                             <a class="dropdown-item" id="profile" href="/Identity/Account/Manage/Index">
                                 <i class="fas fa-user"></i> <span>My Profile</span>
@@ -123,7 +130,20 @@
                                 <i class="fas fa-cog"></i> <span>Settings</span>
                             </a>
                         </li>
-                        @*                        <li class="multiselect-selected">
+
+                        
+
+                        @if(User.IsInRole("Super User"))
+                        {
+
+                            <li class="multiselect-selected">
+                                <a class="dropdown-item" id="control-panel" href="/ControlPanel/Home/Index">
+                                    <i class="fas fa-dashboard"></i> <span>Contol Panel</span>
+                                </a>
+                            </li> 
+                        }
+                        
+                        @*<li class="multiselect-selected">
                         <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="skinToggler" />
                         <label class="form-check-label" for="skinToggler">Enable Dark Mode.</label>
@@ -205,6 +225,7 @@
             </div>
         </div>
 
+        <!-- Modal Translate Message-->
         <div class="modal fade" id="modal-translate-message" tabindex="-1" aria-labelledby="modal-label-translate-message" aria-hidden="true" data-mdb-backdrop="static" data-mdb-keyboard="false">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -225,7 +246,8 @@
                 </div>
             </div>
         </div>
-
+        
+        <!-- Modal Attachments-->
         <div class="modal fade" id="modal-attachments" tabindex="-1" aria-labelledby="modal-label-attachments" aria-hidden="true" data-mdb-backdrop="static" data-mdb-keyboard="false">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -249,6 +271,28 @@
 
                     <div class="modal-footer border-0">
                         <button type="button" class="btn btn-sm btn-danger" data-mdb-dismiss="modal" id="button-attachments">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Create Chat-->
+        <div class="modal fade" id="modal-create-chat" tabindex="-1" aria-labelledby="modal-create-chat-out" aria-hidden="true" data-mdb-backdrop="static" data-mdb-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modal-label-create-chat">Create a new chat</h5>
+                        <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form class="form-inline">
+                            <label class="form-label" for="input-create-new-chat">Please enter chat title:</label>
+                            <input class="form-control" id="input-create-new-chat" autocomplete="on" aria-required="true" placeholder="Chat name..." />
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-primary" data-mdb-dismiss="modal" id="button-create-chat">Create</button>
+                        <button type="button" class="btn btn-sm btn-danger" data-mdb-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>

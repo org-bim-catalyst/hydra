@@ -17,7 +17,7 @@ namespace AskLucy.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.4")
+                .HasAnnotation("ProductVersion", "7.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -104,7 +104,7 @@ namespace AskLucy.Migrations
                             Id = "0eb8f096-33c7-45c5-9160-fd9cdd053e97",
                             AccessFailedCount = 0,
                             BirthDate = new DateTime(1981, 9, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ConcurrencyStamp = "cd599d89-83dc-44bb-8c59-85f36b412028",
+                            ConcurrencyStamp = "5ffcd3a2-e428-4dcb-aab1-e26a947847e0",
                             Email = "mustafa.salaheldin@yahoo.com",
                             EmailConfirmed = true,
                             FirstName = "Mustafa",
@@ -112,13 +112,45 @@ namespace AskLucy.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "MUSTAFA.SALAHELDIN@YAHOO.COM",
                             NormalizedUserName = "MUSTAFA.SALAHELDIN@YAHOO.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEO0jqF8T5oMcnLhzRZB13MelQkbhPr9spd4CcExZgaM8AHMAU51Ci9HEwQbr0zQCRg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAELa3ABl7MpP86GlB18bowVL3ehagJ+MCuKlbDQbBstPxbo6Zggj3mcvWKT2kuXi6DQ==",
                             PhoneNumber = "00971501342563",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "a149decd-3ad5-4953-827a-03ed3911f789",
+                            SecurityStamp = "52aa1aa3-b720-44b0-8157-848fc8d2e5d5",
                             TwoFactorEnabled = false,
                             UserName = "mustafa.salaheldin@yahoo.com"
                         });
+                });
+
+            modelBuilder.Entity("AskLucy.Models.UserChat", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApplicationUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreationDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastAccessDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationUserId");
+
+                    b.ToTable("UserChats");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -286,6 +318,13 @@ namespace AskLucy.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Models.UserChat", b =>
+                {
+                    b.HasOne("AskLucy.Areas.Identity.Models.ApplicationUser", null)
+                        .WithMany("UserChats")
+                        .HasForeignKey("ApplicationUserId");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -335,6 +374,11 @@ namespace AskLucy.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Areas.Identity.Models.ApplicationUser", b =>
+                {
+                    b.Navigation("UserChats");
                 });
 #pragma warning restore 612, 618
         }
