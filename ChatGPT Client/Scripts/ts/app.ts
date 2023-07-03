@@ -355,7 +355,9 @@ export default class app {
             let chatName = $('#input-create-new-chat').val().toString();
 
             if (chatName.length > 0) {
-                this.createNewChat(chatName);
+                this.createNewChat(chatName).then((chat) => {
+                    console.log(JSON.stringify(chat));
+                });
             } else {
                 alert("Chat name can't be empty.");
             }
@@ -371,12 +373,13 @@ export default class app {
             url: '/api/UserChats',
             data: JSON.stringify({ "Title": chatTitle }),
         }).then((response, textStatus, xhr) => {
+
             if (xhr.status === 200) {
 
-                let msg = response;
-                return msg;
+                return response;
 
             }
+
         }).fail((XMLHttpRequest, textStatus, errorThrown) => {
             this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);
         });

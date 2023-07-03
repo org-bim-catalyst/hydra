@@ -4,6 +4,7 @@ using AskLucy.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AskLucy.Migrations
 {
     [DbContext(typeof(ChatGPT_ClientContext))]
-    partial class ChatGPT_ClientContextModelSnapshot : ModelSnapshot
+    [Migration("20230618083830_Chat Identity")]
+    partial class ChatIdentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -104,7 +107,7 @@ namespace AskLucy.Migrations
                             Id = "0eb8f096-33c7-45c5-9160-fd9cdd053e97",
                             AccessFailedCount = 0,
                             BirthDate = new DateTime(1981, 9, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ConcurrencyStamp = "899b2583-11d0-4be6-9895-6b59b13c3856",
+                            ConcurrencyStamp = "9f2efd33-d9d3-4535-93a7-51fbd73a9e60",
                             Email = "mustafa.salaheldin@yahoo.com",
                             EmailConfirmed = true,
                             FirstName = "Mustafa",
@@ -112,10 +115,10 @@ namespace AskLucy.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "MUSTAFA.SALAHELDIN@YAHOO.COM",
                             NormalizedUserName = "MUSTAFA.SALAHELDIN@YAHOO.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEAOyoS3UVAdiN7ni8FgpkQIWsfg4ZveWy94UmfDkCpy5WqggUBnkIBx9Z4d8vv+xqg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEE7TwCd8XsIn9xOH0Ge/qZOCIDkoKGkesXZFrCHp8MAf3yocUKRI2l/VCMa1K1w9OQ==",
                             PhoneNumber = "00971501342563",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "12669264-3600-4d0a-83fe-e9456195550c",
+                            SecurityStamp = "0d14738d-e8aa-4917-9b6a-be28c09bb8ae",
                             TwoFactorEnabled = false,
                             UserName = "mustafa.salaheldin@yahoo.com"
                         });
@@ -319,11 +322,9 @@ namespace AskLucy.Migrations
 
             modelBuilder.Entity("AskLucy.Models.UserChat", b =>
                 {
-                    b.HasOne("AskLucy.Areas.Identity.Models.ApplicationUser", "User")
+                    b.HasOne("AskLucy.Areas.Identity.Models.ApplicationUser", null)
                         .WithMany("UserChats")
                         .HasForeignKey("ApplicationUserId");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

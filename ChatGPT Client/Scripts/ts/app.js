@@ -298,7 +298,9 @@ var app = /** @class */ (function () {
             event.preventDefault();
             var chatName = $('#input-create-new-chat').val().toString();
             if (chatName.length > 0) {
-                _this.createNewChat(chatName);
+                _this.createNewChat(chatName).then(function (chat) {
+                    console.log(JSON.stringify(chat));
+                });
             }
             else {
                 alert("Chat name can't be empty.");
@@ -315,8 +317,7 @@ var app = /** @class */ (function () {
             data: JSON.stringify({ "Title": chatTitle }),
         }).then(function (response, textStatus, xhr) {
             if (xhr.status === 200) {
-                var msg = response;
-                return msg;
+                return response;
             }
         }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
             _this.errMngr.logAjaxError(XMLHttpRequest, textStatus, errorThrown);

@@ -1,7 +1,13 @@
-﻿namespace AskLucy.Models
+﻿using AskLucy.Areas.Identity.Models;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace AskLucy.Models
 {
     public class UserChat
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public required string Title { get; set; }
         public string? SessionId { get; set; }
