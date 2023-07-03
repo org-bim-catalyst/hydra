@@ -16,6 +16,6 @@ namespace AskLucy.Areas.Identity.Models
         public DateOnly BirthDate { get; set; }
         public byte[]? ProfilePicture { get; set; }
 
-        public IEnumerable<UserChat> UserChats { get; set; }
+        public ICollection<UserChat> UserChats { get; set; }
     }
 }

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using AskLucy.Data;
 using AskLucy.Models;
+using AskLucy.Areas.Identity.Models;
+using Microsoft.AspNetCore.Identity;
 
 namespace AskLucy.Controllers.api
 {
@@ -15,10 +17,12 @@ namespace AskLucy.Controllers.api
     public class UserChatsController : ControllerBase
     {
         private readonly ChatGPT_ClientContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public UserChatsController(ChatGPT_ClientContext context)
+        public UserChatsController(ChatGPT_ClientContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: api/UserChats
@@ -29,6 +33,8 @@ namespace AskLucy.Controllers.api
           {
               return NotFound();
           }
+
+
             return await _context.UserChats.ToListAsync();
         }
 
@@ -95,7 +101,11 @@ namespace AskLucy.Controllers.api
             userChat.LastAccessDateTime = DateTime.Now;
             userChat.SessionId = HttpContext.Session.Id;
 
-            _context.UserChats.Add(userChat);
+            ApplicationUser? user = await _userManager.GetUserAsync(User);
+            user!.UserChats.Add(userChat);
+
+            _context.Users.Update(user);
+
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetUserChat", new { id = userChat.Id }, userChat);
