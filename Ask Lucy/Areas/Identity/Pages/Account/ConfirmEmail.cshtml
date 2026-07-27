@@ -1,0 +1,47 @@
+﻿@page
+@model ConfirmEmailModel
+@{
+    ViewData["Title"] = "Confirm email";
+}
+
+<section class="vh-100">
+    <div class="container py-5 h-100">
+        <div class="row d-flex align-items-center justify-content-center h-100">
+            <div class="col-md-8 col-lg-7 col-xl-6">
+                <img src="/img/login_bg.png" class="img-fluid img-thumbnail shadow-4-strong" alt="Login image">
+            </div>
+            <div class="col-md-7 col-lg-5 col-xl-5 offset-xl-1">
+                <div class="divider d-flex align-items-center my-4">
+                    <h1 class="text-primary fw-bold mx-3 text-center" style="font-family: var(--mdb-font-roboto);">Ask Lucy</h1>
+                </div>
+                <div class="col-md-12 col-lg-12 col-xl-12">
+                    @if (!String.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        var statusMessageClass = Model.StatusMessage.StartsWith("Error") ? "danger" : "success";
+
+                        <figure>
+                            <blockquote class="blockquote">
+                                <div class="note note-@statusMessageClass mt-3" role="note">
+                                    @await Html.PartialAsync("_EmailVerificationMessage", @Model)
+                                </div>
+                            </blockquote>                                
+                            @if(!Model.StatusMessage.StartsWith("Error")){
+                            <figcaption class="blockquote-footer mt-2">
+                                    You can login from <a href=@Url.PageLink("Login")>here</a>
+                            </figcaption>
+                            }
+                        </figure>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="vh-100">
+    <div class="container py-5 h-100">
+        <div class="row d-flex align-items-center justify-content-center h-100">
+
+        </div>
+    </div>
+</section>

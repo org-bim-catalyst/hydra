@@ -1,0 +1,62 @@
+﻿@{
+    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout != null)
+    {
+        Layout = parentLayout.ToString();
+    }
+    else
+    {
+        Layout = "/Areas/Identity/Pages/_Layout.cshtml";
+    }
+}
+<link href="~/lib/jqueryui/themes/base/jquery-ui.min.css" rel="stylesheet" />
+
+<section>
+    <div class="container-fluid m-0">
+        <section class="h-100">
+            <div class="bg-image h-100 w-100">
+                <div class="d-md-flex mt-3 align-items-center h-100">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card" style="height: auto;">
+                                    <div class="card-header">
+                                        <h2>Change your account settings</h2>
+                                    </div>
+
+                                    <div class="card-body" id="div-chat-dialogue">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="card" style="height: auto;">
+                                                    <div class="card-body">
+                                                        <partial name="_ManageNav" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-9">
+                                                <div class="card" style="height: auto;">
+                                                    <div class="card-body">
+                                                        @RenderBody()
+                                                    </div>
+                                                    <div class="card-footer">
+                                                        <a role="button" class="btn btn-lg btn-warning float-end" href="/home/index">Back to Lucy</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</section>
+
+@section Scripts {
+    <script type="text/javascript" src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
+    @RenderSection("Scripts", required: false)
+}

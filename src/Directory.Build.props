@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+    Applies only to the new src/AskLucy.* Clean Architecture projects (T003).
+    The legacy "Ask Lucy" project at the repository root is intentionally left
+    untouched per spec.md's Migration Strategy.
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

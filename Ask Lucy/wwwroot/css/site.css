@@ -1,0 +1,428 @@
+html {
+    font-size: 14px;
+    height: 100%;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+/*.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}*/
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin-bottom: 60px;
+    background-image: url(/img/bg-chat-tile-dark.png);
+    background-color: #eee;
+}
+
+main {
+    /*background-image: url(/img/bg-chat-tile-dark.png);*/
+    background-color: transparent;
+    background-size: auto;
+    background-repeat: repeat;
+}
+
+.shadow-demo {
+    width: 100px;
+    height: 100px;
+    background-color: #fff;
+}
+
+.shadow-demo-1 {
+    width: 100px;
+    height: 100px;
+    background-color: #ccc;
+}
+
+.shadow-demo-2 {
+    width: 100px;
+    height: 100px;
+    background-color: #000;
+}
+
+/*.mask-custom {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+    border: 0;
+    background-clip: padding-box;
+    box-shadow: 10px 10px 10px rgba(46, 54, 68, 0.03);
+}*/
+
+.custom-1 {
+    backdrop-filter: blur(30px);
+}
+
+.custom-2 {
+    backdrop-filter: blur(60px);
+}
+
+.custom-3 {
+    backdrop-filter: blur(40px);
+}
+
+.custom-4 {
+    backdrop-filter: blur(15px);
+}
+
+.custom-5 {
+    backdrop-filter: blur(5px);
+}
+
+/*.mask-custom-1 {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 0;
+    border: 0;
+    background-clip: padding-box;
+    box-shadow: 10px 10px 10px rgba(46, 54, 68, 0.03);
+}*/
+
+.custom-6 {
+    backdrop-filter: blur(30px);
+}
+
+.custom-7 {
+    backdrop-filter: blur(60px);
+}
+
+.custom-8 {
+    backdrop-filter: blur(40px);
+}
+
+.custom-9 {
+    backdrop-filter: blur(15px);
+}
+
+.custom-10 {
+    backdrop-filter: blur(5px);
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
+    background-color: #EFEFFF;
+    border-radius: 3px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
+    width: .25rem;
+    height: .25rem;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #3b71ca;
+    border-radius: 20px;
+}
+
+/*********************** Preview /************************/
+.dropdown-item, .dropdown-item > * {
+    cursor: pointer;
+}
+
+.multiselect-container li.active {
+    /*background-image: url(https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678134-sign-check-128.png);*/
+    background-repeat: no-repeat;
+    background-position: 1.25rem 50%;
+    background-size: 15px;
+    color: #00913b;
+    background-color: transparent;
+    border-left: 4px solid #00913b;
+}
+
+.multiselect-container li label {
+    display: block;
+}
+
+.multiselect-container li.active > a {
+    font-weight: 600;
+    color: #00913b;
+}
+
+.multiselect-container .dropdown-item input {
+    display: none;
+}
+
+.multiselect-container .dropdown-menu {
+    overflow-y: auto;
+    height: 450px;
+}
+
+    .multiselect-container .dropdown-menu > .active > a {
+        background-color: transparent;
+    }
+
+.multiselect-container .dropdown-item {
+    margin-bottom: 0;
+    padding: .5rem 1rem;
+    /*padding: 5px 0px 5px 15px;*/
+    /*border-bottom: 1px solid #dee2e6;*/
+    /*line-height: 1;*/
+    cursor: pointer;
+}
+
+.dropdown-item span {
+    padding: 0px 5px;
+    cursor: pointer;
+}
+
+.divider:after,
+.divider:before {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #eee;
+}
+.container-fluid {
+    /*background-image: url(/img/vecteezy_abstract-blue-background-simple-design-for-your-website_6852804.jpg);*/
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.list-unstyled {
+    font-family: 'soehne-buch', 'neo sans arabic';
+}
+
+    @media only screen and (min-width: 600px) {
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            padding-bottom: 35px;
+        }
+    }
+
+    @media only screen and (min-width: 800px) {
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            padding-bottom: 35px;
+        }
+    }
+
+    @media only screen and (min-width: 1350px) { /*G500 screen*/
+
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            margin: 0;
+        }
+    }
+
+    @media only screen and (min-width: 1536px) { /*Zbook screen*/
+
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            margin: 0;
+        }
+    }
+
+    @media only screen and (min-width: 1863px) {
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            padding-bottom: 35px;
+        }
+    }
+
+    @media only screen and (min-width: 1920px) { /*HP screen*/
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            margin: 0;
+        }
+    }
+
+    @media only screen and (min-width: 2503px) {
+        .list-unstyled {
+            overflow-y: auto;
+            overflow-x: clip;
+            height: calc(100vh - 9.15em);
+            padding: 9px 10px;
+            background-color: #eee;
+            border-radius: .5rem .5rem 0 0;
+            border-bottom: 4px solid #1A237E;
+            margin: 0;
+        }
+    }
+    /***************************************************Audio player****************************************/
+    html, body, .view {
+    height: 100%;
+}
+
+#mobile-box {
+    width: 360px;
+}
+
+.card {
+    -webkit-border-radius: 10px;
+    border-radius: 10px;
+}
+
+    .card .view {
+        -webkit-border-top-left-radius: 10px;
+        border-top-left-radius: 10px;
+        -webkit-border-top-right-radius: 10px;
+        border-top-right-radius: 10px;
+    }
+
+    .card h5 a {
+        color: #0d47a1;
+    }
+
+        .card h5 a:hover {
+            color: #072f6b;
+        }
+
+#pButton {
+    float: left;
+}
+
+#timeline {
+    width: 80%;
+    height: 3px;
+    margin-top: 18px;
+    margin-left: 10px;
+    float: left;
+    -webkit-border-radius: 15px;
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+#pButton {
+    margin-top: 12px;
+    cursor: pointer;
+}
+
+#playhead {
+    width: 9px;
+    height: 9px;
+    -webkit-border-radius: 50%;
+    border-radius: 50%;
+    margin-top: -3px;
+    background: black;
+    cursor: pointer;
+    border: 1px solid #00913b;
+}
+
+/**********************************************/
+.form-outline textarea.form-control {
+    min-height: 2.75em;
+    resize: none;
+    padding-right: 2.5em !important;
+}
+
+.dropdown-menu {
+    right: 0px;
+    left: auto;
+    top: 100%;
+    margin-top: .125rem;
+}
+
+/*******************Materials font ************************/
+.material-icons {
+    line-height: unset;
+}
+/**********************************************/
+
+.form-outline .trailing{
+    pointer-events:auto;
+}
+/******************* Translation Highlight ************************/
+.highlight {
+    /*background-color: yellow;*/
+/*    color: #616161;
+    font-weight: 500;*/
+}
+/**********************************************/
+
+/********************************************** Rules for sizing the icon **********************************************/
+.material-icons.md-14 {
+    font-size: 14px;
+}
+.material-icons.md-16 {
+    font-size: 16px;
+}
+.material-icons.md-18 {
+    font-size: 18px;
+}
+.material-icons.md-24 {
+    font-size: 24px;
+}
+
+.material-icons.md-36 {
+    font-size: 36px;
+}
+
+.material-icons.md-48 {
+    font-size: 48px;
+}
+
+/* Rules for using icons as black on a light background. */
+.material-icons.md-dark {
+    color: rgba(0, 0, 0, 0.54);
+}
+
+    .material-icons.md-dark.md-inactive {
+        color: rgba(0, 0, 0, 0.26);
+    }
+
+/* Rules for using icons as white on a dark background. */
+.material-icons.md-light {
+    color: rgba(255, 255, 255, 1);
+}
+
+    .material-icons.md-light.md-inactive {
+        color: rgba(255, 255, 255, 0.3);
+    }
+/**********************************************/
+
+/********************************************** dataTables **********************************************/
+
+.dtfh-floatingparent.dtfh-floatingparenthead {
+    background-color: white;
+}
+
+.btn-group-flat{
+    box-shadow: none;
+}
+
+.divider .img-fluid, .divider .img-thumbnail {
+    width: 9.5rem;
+    height: 9.5rem;
+}
