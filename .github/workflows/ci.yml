@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  backend-build-and-test:
+    name: Backend build, lint, and test (.NET 10)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore "Ask Lucy.sln"
+      - name: Build
+        run: dotnet build "Ask Lucy.sln" --no-restore --configuration Release
+      - name: Lint (format check)
+        run: dotnet format "Ask Lucy.sln" --no-restore --verify-no-changes --exclude "Ask Lucy/**"
+      - name: Test
+        run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: TestResults
+
+  frontend-build-lint-and-test:
+    name: Frontend build, lint, and test (React 19 + Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: Playwright regression matrix
+    runs-on: ubuntu-latest
+    # Requires a live deployment (backend + frontend + database + OpenAI key) — see
+    # tests/AskLucy.E2E.Tests/RegressionMatrix.spec.ts's header comment. Not runnable
+    # against an ephemeral CI checkout alone; wired here as a manually-triggered gate
+    # against a real environment, not a blocking check on every PR.
+    if: false
+    defaults:
+      run:
+        working-directory: tests/AskLucy.E2E.Tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm test
+        env:
+          E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+
+  deploy:
+    name: Deploy to site4now.net
+    needs: [backend-build-and-test, frontend-build-lint-and-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish backend
+        run: dotnet publish src/AskLucy.WebAPI --configuration Release --output publish/backend
+
+      # No Docker, no Azure App Service cutover this phase — deliberate, per the
+      # approved scope decision (spec.md § Assumptions, plan.md § Complexity Tracking).
+      # Deploys via FTP to the same site4now.net shared-hosting target the legacy app
+      # already used, replacing the previous manual FTP/MSDeploy publish step with an
+      # automated one (FR-029/FR-030).
+      - name: Deploy backend via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.SITE4NOW_FTP_SERVER }}
+          username: ${{ secrets.SITE4NOW_FTP_USERNAME }}
+          password: ${{ secrets.SITE4NOW_FTP_PASSWORD }}
+          local-dir: publish/backend/
+          server-dir: /api/
+
+      - name: Deploy frontend via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.SITE4NOW_FTP_SERVER }}
+          username: ${{ secrets.SITE4NOW_FTP_USERNAME }}
+          password: ${{ secrets.SITE4NOW_FTP_PASSWORD }}
+          local-dir: frontend/dist/
+          server-dir: /

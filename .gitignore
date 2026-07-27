@@ -361,3 +361,19 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# --- Added for the 000-legacy-modernization migration (new frontend/ + src/AskLucy.*) ---
+
+# Frontend (Vite/React) build output and env files
+frontend/dist/
+frontend/coverage/
+frontend/.vite/
+.env
+.env.*
+!.env.example
+
+# Playwright
+tests/AskLucy.E2E.Tests/node_modules/
+tests/AskLucy.E2E.Tests/playwright-report/
+tests/AskLucy.E2E.Tests/test-results/
+tests/AskLucy.E2E.Tests/dist/

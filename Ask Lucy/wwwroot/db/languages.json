@@ -1,0 +1,4126 @@
+{
+  "collection": [
+    {
+      "language": "ab",
+      "country": "Abkhazian"
+    },
+    {
+      "language": "ace",
+      "country": "Achinese"
+    },
+    {
+      "language": "ach",
+      "country": "Acoli"
+    },
+    {
+      "language": "ada",
+      "country": "Adangme"
+    },
+    {
+      "language": "ady",
+      "country": "Adyghe"
+    },
+    {
+      "language": "aa",
+      "country": "Afar"
+    },
+    {
+      "language": "aa-DJ",
+      "country": "Afar, Djibouti"
+    },
+    {
+      "language": "aa-ER",
+      "country": "Afar, Eritrea"
+    },
+    {
+      "language": "aa-ET",
+      "country": "Afar, Ethiopia"
+    },
+    {
+      "language": "aa-Ethi",
+      "country": "Afar(Ethiopic)"
+    },
+    {
+      "language": "afh",
+      "country": "Afrihili"
+    },
+    {
+      "language": "af",
+      "country": "Afrikaans"
+    },
+    {
+      "language": "af-NA",
+      "country": "Afrikaans, Namibia"
+    },
+    {
+      "language": "af-ZA",
+      "country": "Afrikaans, South Africa"
+    },
+    {
+      "language": "afa",
+      "country": "Afro-Asiatic Language"
+    },
+    {
+      "language": "ain",
+      "country": "Ainu"
+    },
+    {
+      "language": "ain-Latn",
+      "country": "Ainu(Latin)"
+    },
+    {
+      "language": "ak",
+      "country": "Akan"
+    },
+    {
+      "language": "ak-GH",
+      "country": "Akan, Ghana"
+    },
+    {
+      "language": "akk",
+      "country": "Akkadian"
+    },
+    {
+      "language": "sq",
+      "country": "Albanian"
+    },
+    {
+      "language": "sq-AL",
+      "country": "Albanian, Albania"
+    },
+    {
+      "language": "sq-ME",
+      "country": "Albanian, Montenegro"
+    },
+    {
+      "language": "sq-MK",
+      "country": "Albanian, North Macedonia"
+    },
+    {
+      "language": "ale",
+      "country": "Aleut"
+    },
+    {
+      "language": "alg",
+      "country": "Algonquian Language"
+    },
+    {
+      "language": "tut",
+      "country": "Altaic Language"
+    },
+    {
+      "language": "am",
+      "country": "Amharic"
+    },
+    {
+      "language": "am-ET",
+      "country": "Amharic, Ethiopia"
+    },
+    {
+      "language": "anp",
+      "country": "Angika"
+    },
+    {
+      "language": "apa",
+      "country": "Apache Language"
+    },
+    {
+      "language": "ar",
+      "country": "Arabic"
+    },
+    {
+      "language": "ar-145",
+      "country": "Arabic, Western Asia"
+    },
+    {
+      "language": "ar-DZ",
+      "country": "Arabic, Algeria"
+    },
+    {
+      "language": "ar-Arab",
+      "country": "Arabic(Perso-Arabic)"
+    },
+    {
+      "language": "ar-BH",
+      "country": "Arabic, Bahrain"
+    },
+    {
+      "language": "ar-DB",
+      "country": "Arabic, Dubai"
+    },
+    {
+      "language": "ar-EG",
+      "country": "Arabic, Egypt"
+    },
+    {
+      "language": "ar-IQ",
+      "country": "Arabic, Iraq"
+    },
+    {
+      "language": "ar-IL",
+      "country": "Arabic, Palastine"
+    },
+    {
+      "language": "ar-JO",
+      "country": "Arabic, Jordan"
+    },
+    {
+      "language": "ar-KW",
+      "country": "Arabic, Kuwait"
+    },
+    {
+      "language": "ar-LB",
+      "country": "Arabic, Lebanon"
+    },
+    {
+      "language": "ar-LY",
+      "country": "Arabic, Libya"
+    },
+    {
+      "language": "ar-MA",
+      "country": "Arabic, Morocco"
+    },
+    {
+      "language": "ar-OM",
+      "country": "Arabic, Oman"
+    },
+    {
+      "language": "ar-QA",
+      "country": "Arabic, Qatar"
+    },
+    {
+      "language": "ar-SA",
+      "country": "Arabic, Saudi Arabia"
+    },
+    {
+      "language": "ar-SD",
+      "country": "Arabic, Sudan"
+    },
+    {
+      "language": "ar-SY",
+      "country": "Arabic, Syria"
+    },
+    {
+      "language": "ar-TN",
+      "country": "Arabic, Tunisia"
+    },
+    {
+      "language": "ar-AE",
+      "country": "Arabic, United Arab Emirates"
+    },
+    {
+      "language": "ar-YE",
+      "country": "Arabic, Yemen"
+    },
+    {
+      "language": "an",
+      "country": "Aragonese"
+    },
+    {
+      "language": "arp",
+      "country": "Arapaho"
+    },
+    {
+      "language": "arn",
+      "country": "Araucanian"
+    },
+    {
+      "language": "arw",
+      "country": "Arawak"
+    },
+    {
+      "language": "hy",
+      "country": "Armenian"
+    },
+    {
+      "language": "hy-AM",
+      "country": "Armenian, Armenia"
+    },
+    {
+      "language": "rup",
+      "country": "Aromanian"
+    },
+    {
+      "language": "rup-Grek",
+      "country": "Aromanian(Greek)"
+    },
+    {
+      "language": "rup-Latn",
+      "country": "Aromanian(Latin)"
+    },
+    {
+      "language": "art",
+      "country": "Artificial Language"
+    },
+    {
+      "language": "as",
+      "country": "Assamese"
+    },
+    {
+      "language": "as-IN",
+      "country": "Assamese, India"
+    },
+    {
+      "language": "ast",
+      "country": "Asturian"
+    },
+    {
+      "language": "ath",
+      "country": "Athapascan Language"
+    },
+    {
+      "language": "cch",
+      "country": "Atsam"
+    },
+    {
+      "language": "cch-NG",
+      "country": "Atsam, Nigeria"
+    },
+    {
+      "language": "aus",
+      "country": "Australian Language"
+    },
+    {
+      "language": "map",
+      "country": "Austronesian Language"
+    },
+    {
+      "language": "av",
+      "country": "Avaric"
+    },
+    {
+      "language": "ae",
+      "country": "Avestan"
+    },
+    {
+      "language": "awa",
+      "country": "Awadhi"
+    },
+    {
+      "language": "ay",
+      "country": "Aymara"
+    },
+    {
+      "language": "az",
+      "country": "Azeri"
+    },
+    {
+      "language": "az-Arab",
+      "country": "Azeri(Perso-Arabic)"
+    },
+    {
+      "language": "az-AZ",
+      "country": "Azeri, Azerbaijan"
+    },
+    {
+      "language": "az-Cyrl-AZ",
+      "country": "Azeri, Azerbaijan(Cyrillic)"
+    },
+    {
+      "language": "az-Latn-AZ",
+      "country": "Azeri, Azerbaijan(Latin)"
+    },
+    {
+      "language": "az-Cyrl",
+      "country": "Azeri(Cyrillic)"
+    },
+    {
+      "language": "az-Latn",
+      "country": "Azeri(Latin)"
+    },
+    {
+      "language": "az-IR",
+      "country": "Azeri, Iran"
+    },
+    {
+      "language": "az-Arab-IR",
+      "country": "Azeri, Iran(Perso-Arabic)"
+    },
+    {
+      "language": "ban",
+      "country": "Balinese"
+    },
+    {
+      "language": "bat",
+      "country": "Baltic Language"
+    },
+    {
+      "language": "bal",
+      "country": "Baluchi"
+    },
+    {
+      "language": "bal-Arab",
+      "country": "Baluchi(Perso-Arabic)"
+    },
+    {
+      "language": "bm",
+      "country": "Bambara"
+    },
+    {
+      "language": "bai",
+      "country": "Bamileke Language"
+    },
+    {
+      "language": "bad",
+      "country": "Banda"
+    },
+    {
+      "language": "bnt",
+      "country": "Bantu"
+    },
+    {
+      "language": "bas",
+      "country": "Basa"
+    },
+    {
+      "language": "ba",
+      "country": "Bashkir"
+    },
+    {
+      "language": "eu",
+      "country": "Basque"
+    },
+    {
+      "language": "eu-FR",
+      "country": "Basque, France"
+    },
+    {
+      "language": "eu-ES",
+      "country": "Basque, Spain"
+    },
+    {
+      "language": "btk",
+      "country": "Batak"
+    },
+    {
+      "language": "bej",
+      "country": "Beja"
+    },
+    {
+      "language": "be",
+      "country": "Belarusian"
+    },
+    {
+      "language": "be-BY",
+      "country": "Belarusian, Belarus"
+    },
+    {
+      "language": "be-Cyrl",
+      "country": "Belarusian(Cyrillic)"
+    },
+    {
+      "language": "be-Latn",
+      "country": "Belarusian(Latin)"
+    },
+    {
+      "language": "bem",
+      "country": "Bemba"
+    },
+    {
+      "language": "bn",
+      "country": "bengali"
+    },
+    {
+      "language": "bn-bd",
+      "country": "bengali, bangladesh"
+    },
+    {
+      "language": "bn-IN",
+      "country": "Bengali, India"
+    },
+    {
+      "language": "ber",
+      "country": "Berber"
+    },
+    {
+      "language": "bho",
+      "country": "Bhojpuri"
+    },
+    {
+      "language": "bh",
+      "country": "Bihari"
+    },
+    {
+      "language": "bik",
+      "country": "Bikol"
+    },
+    {
+      "language": "bin",
+      "country": "Bini"
+    },
+    {
+      "language": "bi",
+      "country": "Bislama"
+    },
+    {
+      "language": "byn",
+      "country": "Blin"
+    },
+    {
+      "language": "byn-ER",
+      "country": "Blin, Eritrea"
+    },
+    {
+      "language": "zbl",
+      "country": "Blissymbols"
+    },
+    {
+      "language": "bs",
+      "country": "Bosnian"
+    },
+    {
+      "language": "bs-BA",
+      "country": "Bosnian, Bosnia and Herzegovina"
+    },
+    {
+      "language": "bra",
+      "country": "Braj"
+    },
+    {
+      "language": "br",
+      "country": "Breton"
+    },
+    {
+      "language": "bug",
+      "country": "Buginese"
+    },
+    {
+      "language": "bg",
+      "country": "Bulgarian"
+    },
+    {
+      "language": "bg-BG",
+      "country": "Bulgarian, Bulgaria"
+    },
+    {
+      "language": "bua",
+      "country": "Buriat"
+    },
+    {
+      "language": "my",
+      "country": "Burmese"
+    },
+    {
+      "language": "my-MM",
+      "country": "Burmese, Myanmar [Burma]"
+    },
+    {
+      "language": "cad",
+      "country": "Caddo"
+    },
+    {
+      "language": "car",
+      "country": "Carib"
+    },
+    {
+      "language": "ca",
+      "country": "Catalan"
+    },
+    {
+      "language": "ca-ES",
+      "country": "Catalan, Spain"
+    },
+    {
+      "language": "cau",
+      "country": "Caucasian Language"
+    },
+    {
+      "language": "ceb",
+      "country": "Cebuano"
+    },
+    {
+      "language": "cel",
+      "country": "Celtic Language"
+    },
+    {
+      "language": "cai",
+      "country": "Central American Indian Language"
+    },
+    {
+      "language": "km",
+      "country": "Khmer"
+    },
+    {
+      "language": "km-KH",
+      "country": "Khmer, Cambodia"
+    },
+    {
+      "language": "cmc",
+      "country": "Chamic Language"
+    },
+    {
+      "language": "cmc-Arab",
+      "country": "Chamic Language(Perso-Arabic)"
+    },
+    {
+      "language": "ch",
+      "country": "Chamorro"
+    },
+    {
+      "language": "ce",
+      "country": "Chechen"
+    },
+    {
+      "language": "chr",
+      "country": "Cherokee"
+    },
+    {
+      "language": "chy",
+      "country": "Cheyenne"
+    },
+    {
+      "language": "cnr",
+      "country": "Montenegrin"
+    },
+    {
+      "language": "cnr-ME",
+      "country": "Montenegrin, Montenegro"
+    },
+    {
+      "language": "cnr-RS",
+      "country": "Montenegrin, Serbia"
+    },
+    {
+      "language": "ny",
+      "country": "Nyanja"
+    },
+    {
+      "language": "ny-MW",
+      "country": "Nyanja, Malawi"
+    },
+    {
+      "language": "zh",
+      "country": "Chinese"
+    },
+    {
+      "language": "zh-CN",
+      "country": "Chinese, China"
+    },
+    {
+      "language": "zh-CN-liaoning",
+      "country": "Chinese, China(Liaoning)"
+    },
+    {
+      "language": "zh-CN-shaanxi",
+      "country": "Chinese, China(Shaanxi)"
+    },     {
+      "language": "zh-Hans-CN",
+      "country": "Chinese, China(Simplified Han)"
+    },
+    {
+      "language": "zh-HK",
+      "country": "Chinese, Hong Kong"
+    },
+    {
+      "language": "zh-Hans-HK",
+      "country": "Chinese, Hong Kong(Simplified Han)"
+    },
+    {
+      "language": "zh-Hant-HK",
+      "country": "Chinese, Hong Kong(Traditional Han)"
+    },
+    {
+      "language": "zh-MO",
+      "country": "Chinese, Macau"
+    },
+    {
+      "language": "zh-Hans-MO",
+      "country": "Chinese, Macau(Simplified Han)"
+    },
+    {
+      "language": "zh-Hant-MO",
+      "country": "Chinese, Macau(Traditional Han)"
+    },
+    {
+      "language": "zh-Hans",
+      "country": "Chinese(Simplified Han)"
+    },
+    {
+      "language": "zh-SG",
+      "country": "Chinese, Singapore"
+    },
+    {
+      "language": "zh-Hans-SG",
+      "country": "Chinese, Singapore(Simplified Han)"
+    },
+    {
+      "language": "zh-TW",
+      "country": "Chinese, Taiwan"
+    },
+    {
+      "language": "zh-Hant-TW",
+      "country": "Chinese, Taiwan(Traditional Han)"
+    },
+    {
+      "language": "zh-Hant",
+      "country": "Chinese(Traditional Han)"
+    },
+    {
+      "language": "zh-yue",
+      "country": "Chinese(Cantonese)"
+    },
+    {
+      "language": "chn",
+      "country": "Chinook Jargon"
+    },
+    {
+      "language": "chp",
+      "country": "Chipewyan"
+    },
+    {
+      "language": "cho",
+      "country": "Choctaw"
+    },
+    {
+      "language": "cu",
+      "country": "Church Slavic"
+    },
+    {
+      "language": "chk",
+      "country": "Chuukese"
+    },
+    {
+      "language": "cv",
+      "country": "Chuvash"
+    },
+    {
+      "language": "kw",
+      "country": "Cornish"
+    },
+    {
+      "language": "kw-GB",
+      "country": "Cornish, United Kingdom"
+    },
+    {
+      "language": "co",
+      "country": "Corsican"
+    },
+    {
+      "language": "cr",
+      "country": "Cree"
+    },
+    {
+      "language": "mus",
+      "country": "Creek"
+    },
+    {
+      "language": "crp",
+      "country": "Creole or Pidgin"
+    },
+    {
+      "language": "crh",
+      "country": "Crimean Turkish"
+    },
+    {
+      "language": "crh-Cyrl",
+      "country": "Crimean Turkish(Cyrillic)"
+    },
+    {
+      "language": "crh-Latn",
+      "country": "Crimean Turkish(Latin)"
+    },
+    {
+      "language": "hr",
+      "country": "Croatian"
+    },
+    {
+      "language": "hr-HR",
+      "country": "Croatian, Croatia"
+    },
+    {
+      "language": "hr-ME",
+      "country": "Croatian, Montenegro"
+    },
+    {
+      "language": "cus",
+      "country": "Cushitic Language"
+    },
+    {
+      "language": "cs",
+      "country": "Czech"
+    },
+    {
+      "language": "cs-CZ",
+      "country": "Czech, Czech Republic"
+    },
+    {
+      "language": "dak",
+      "country": "Dakota"
+    },
+    {
+      "language": "da",
+      "country": "Danish"
+    },
+    {
+      "language": "da-DK",
+      "country": "Danish, Denmark"
+    },
+    {
+      "language": "dar",
+      "country": "Dargwa"
+    },
+    {
+      "language": "day",
+      "country": "Dayak"
+    },
+    {
+      "language": "del",
+      "country": "Delaware"
+    },
+    {
+      "language": "din",
+      "country": "Dinka"
+    },
+    {
+      "language": "dv",
+      "country": "Divehi"
+    },
+    {
+      "language": "dv-MV",
+      "country": "Divehi, Maldives"
+    },
+    {
+      "language": "dv-Thaa",
+      "country": "Divehi(Thaana)"
+    },
+    {
+      "language": "doi",
+      "country": "Dogri"
+    },
+    {
+      "language": "dgr",
+      "country": "Dogrib"
+    },
+    {
+      "language": "dra",
+      "country": "Dravidian Language"
+    },
+    {
+      "language": "dua",
+      "country": "Duala"
+    },
+    {
+      "language": "nl",
+      "country": "Dutch"
+    },
+    {
+      "language": "nl-BE",
+      "country": "Dutch, Belgium"
+    },
+    {
+      "language": "nl-NL",
+      "country": "Dutch, Netherlands"
+    },
+    {
+      "language": "dyu",
+      "country": "Dyula"
+    },
+    {
+      "language": "dz",
+      "country": "Dzongkha"
+    },
+    {
+      "language": "dz-BT",
+      "country": "Dzongkha, Bhutan"
+    },
+    {
+      "language": "frs",
+      "country": "Eastern Frisian"
+    },
+    {
+      "language": "efi",
+      "country": "Efik"
+    },
+    {
+      "language": "eka",
+      "country": "Ekajuk"
+    },
+    {
+      "language": "en",
+      "country": "English"
+    },
+    {
+      "language": "en-AR",
+      "country": "English, Argentina"
+    },
+    {
+      "language": "en-AS",
+      "country": "English, American Samoa"
+    },
+    {
+      "language": "en-AT",
+      "country": "English, Austria"
+    },
+    {
+      "language": "en-AE",
+      "country": "English, Arabic Emirates"
+    },
+    {
+      "language": "en-AU",
+      "country": "English, Australia"
+    },
+    {
+      "language": "en-BH",
+      "country": "English, Bahrain"
+    },
+    {
+      "language": "en-BR",
+      "country": "English, Brazil"
+    },
+    {
+      "language": "cpe",
+      "country": "English-based Creole or Pidgin"
+    },
+    {
+      "language": "en-BE",
+      "country": "English, Belgium"
+    },
+    {
+      "language": "en-BZ",
+      "country": "English, Belize"
+    },
+    {
+      "language": "en-BW",
+      "country": "English, Botswana"
+    },
+    {
+      "language": "en-BN",
+      "country": "English, Brunei"
+    },
+    {
+      "language": "en-CA",
+      "country": "English, Canada"
+    },
+    {
+      "language": "en-CL",
+      "country": "English, Chile"
+    },
+    {
+      "language": "en-CN",
+      "country": "English, China"
+    },
+    {
+      "language": "en-CO",
+      "country": "English, Colombia"
+    },
+    {
+      "language": "en-HR",
+      "country": "English, Croatia"
+    },
+    {
+      "language": "en-CZ",
+      "country": "English, Czech Republic"
+    },
+    {
+      "language": "en-XY",
+      "country": "English, default"
+    },
+    {
+      "language": "en-Dsrt",
+      "country": "English(Deseret)"
+    },
+    {
+      "language": "en-DE",
+      "country": "English, Germany"
+    },
+    {
+      "language": "en-DK",
+      "country": "English, Denmark"
+    },
+    {
+      "language": "en-EG",
+      "country": "English, Egypt"
+    },
+    {
+      "language": "en-EE",
+      "country": "English, Estonia"
+    },
+    {
+      "language": "en-ET",
+      "country": "English, Ethiopia"
+    },
+    {
+      "language": "en-FI",
+      "country": "English, Finland"
+    },
+    {
+      "language": "en-FR",
+      "country": "English, France"
+    },
+    {
+      "language": "en-GI",
+      "country": "English, Gibraltar"
+    },
+    {
+      "language": "en-GH",
+      "country": "English, Ghana"
+    },
+    {
+      "language": "en-GR",
+      "country": "English, Greece"
+    },
+    {
+      "language": "en-GU",
+      "country": "English, Guam"
+    },
+    {
+      "language": "en-HK",
+      "country": "English, Hong Kong"
+    },
+    {
+      "language": "en-ID",
+      "country": "English, Indonesia"
+    },
+    {
+      "language": "en-IN",
+      "country": "English, India"
+    },
+    {
+      "language": "en-IE",
+      "country": "English, Ireland"
+    },
+    {
+      "language": "en-IL",
+      "country": "English, Palastine"
+    },
+    {
+      "language": "en-IS",
+      "country": "English, Island"
+    },
+    {
+      "language": "en-IT",
+      "country": "English, Italy"
+    },
+    {
+      "language": "en-JM",
+      "country": "English, Jamaica"
+    },
+    {
+      "language": "en-JO",
+      "country": "English, Jordan"
+    },
+    {
+      "language": "en-JP",
+      "country": "English, Japanese"
+    },
+    {
+      "language": "en-KE",
+      "country": "English, Kenia"
+    },
+    {
+      "language": "en-KH",
+      "country": "English, Cambodia"
+    },
+    {
+      "language": "en-KR",
+      "country": "English, Korea"
+    },
+    {
+      "language": "en-KW",
+      "country": "English, Kuwait"
+    },
+    {
+      "language": "en-LT",
+      "country": "English, Lithuania"
+    },
+    {
+      "language": "en-LU",
+      "country": "English, Luxembourg"
+    },
+    {
+      "language": "en-LV",
+      "country": "English, Latvia"
+    },
+    {
+      "language": "en-MY",
+      "country": "English, Malaysia"
+    },
+    {
+      "language": "en-MT",
+      "country": "English, Malta"
+    },
+    {
+      "language": "en-MH",
+      "country": "English, Marshall Islands"
+    },
+    {
+      "language": "en-MX",
+      "country": "English, Mexico"
+    },
+    {
+      "language": "en-MA",
+      "country": "English, Morocco"
+    },
+    {
+      "language": "en-MU",
+      "country": "English, Mauritius"
+    },
+    {
+      "language": "en-NA",
+      "country": "English, Namibia"
+    },
+    {
+      "language": "en-NG",
+      "country": "English, Nigeria"
+    },
+    {
+      "language": "en-NL",
+      "country": "English, Netherlands"
+    },
+    {
+      "language": "en-NO",
+      "country": "English, Norway"
+    },
+    {
+      "language": "en-NZ",
+      "country": "English, New Zealand"
+    },
+    {
+      "language": "en-MP",
+      "country": "English, Northern Mariana Islands"
+    },
+    {
+      "language": "en-OM",
+      "country": "English, Oman"
+    },
+    {
+      "language": "en-PL",
+      "country": "English, Poland"
+    },
+    {
+      "language": "en-PK",
+      "country": "English, Pakistan"
+    },
+    {
+      "language": "en-PH",
+      "country": "English, Philippines"
+    },
+    {
+      "language": "en-PT",
+      "country": "English, Portugal"
+    },
+    {
+      "language": "en-QA",
+      "country": "English, Qatar"
+    },
+    {
+      "language": "en-RO",
+      "country": "English, Romania"
+    },
+    {
+      "language": "en-RU",
+      "country": "English, Russia"
+    },
+    {
+      "language": "en-SA",
+      "country": "English, Saudi-Arabia"
+    },
+    {
+      "language": "en-Shaw",
+      "country": "English(Shavian)"
+    },
+    {
+      "language": "en-RS",
+      "country": "English, Serbia"
+    },
+    {
+      "language": "en-SI",
+      "country": "English, Slovenia"
+    },
+    {
+      "language": "en-SL",
+      "country": "English, Sierra Leonean"
+    },
+    {
+      "language": "en-SG",
+      "country": "English, Singapore"
+    },
+    {
+      "language": "en-TZ",
+      "country": "English, Tanzania"
+    },
+    {
+      "language": "en-ZA",
+      "country": "English, South Africa"
+    },
+    {
+      "language": "en-ES",
+      "country": "English, Spain"
+    },
+    {
+      "language": "en-SE",
+      "country": "English, Sweden"
+    },
+    {
+      "language": "en-CH",
+      "country": "English, Switzerland"
+    },
+    {
+      "language": "en-TN",
+      "country": "English, Tunisia"
+    },
+    {
+      "language": "en-TW",
+      "country": "English, Taiwan"
+    },
+    {
+      "language": "en-TH",
+      "country": "English, Thailand"
+    },
+    {
+      "language": "en-TT",
+      "country": "English, Trinidad and Tobago"
+    },
+    {
+      "language": "en-TR",
+      "country": "English, Turkey"
+    },
+    {
+      "language": "en-GB",
+      "country": "English, United Kingdom"
+    },
+    {
+      "language": "en-UA",
+      "country": "English, Ukraine"
+    },
+    {
+      "language": "en-US",
+      "country": "English, United States"
+    },
+    {
+      "language": "en-Dsrt-US",
+      "country": "English, United States(Deseret)"
+    },
+    {
+      "language": "en-UM",
+      "country": "English, U.S. Minor Outlying Islands"
+    },
+    {
+      "language": "en-USVI",
+      "country": "English, U.S. Virgin Islands"
+    },
+    {
+      "language": "en-VN",
+      "country": "English, Vietnam"
+    },
+    {
+      "language": "en-ZW",
+      "country": "English, Zimbabwe"
+    },
+    {
+      "language": "en-145",
+      "country": "English, Western Asia"
+    },
+    {
+      "language": "en-CY",
+      "country": "English, Cypress"
+    },
+    {
+      "language": "en-HU",
+      "country": "English, Hungary"
+    },
+    {
+      "language": "en-SK",
+      "country": "English, Slovakia"
+    },
+    {
+      "language": "en-BA",
+      "country": "English, Bosnia and Herzegovina"
+    },
+    {
+      "language": "en-XK",
+      "country": "English, Kosovo"
+    },
+    {
+      "language": "en-ME",
+      "country": "English, Montenegro"
+    },
+    {
+      "language": "en-KA",
+      "country": "English, Georgia"
+    },
+    {
+      "language": "en-KZ",
+      "country": "English, Kazakhstan"
+    },
+    {
+      "language": "en-KG",
+      "country": "English, Kyrgyzstan"
+    },
+    {
+      "language": "en-TJ",
+      "country": "English, Tajikistan"
+    },
+    {
+      "language": "en-TM",
+      "country": "English, Turkmenistan"
+    },
+    {
+      "language": "en-UZ",
+      "country": "English, Uzbekistan"
+    },
+    {
+      "language": "en-BG",
+      "country": "English, Bulgaria"
+    },
+    {
+      "language": "en-MK",
+      "country": "English, Macedonia"
+    },
+    {
+      "language": "en-MD",
+      "country": "English, Moldova Republic of"
+    },
+    {
+      "language": "en-AL",
+      "country": "English, Albania"
+    },
+    {
+      "language": "en-AD",
+      "country": "English, Andorra"
+    },
+    {
+      "language": "en-IC",
+      "country": "English, Canaries"
+    },
+    {
+      "language": "myv",
+      "country": "Erzya"
+    },
+    {
+      "language": "eo",
+      "country": "Esperanto"
+    },
+    {
+      "language": "et",
+      "country": "Estonian"
+    },
+    {
+      "language": "et-EE",
+      "country": "Estonian, Estonia"
+    },
+    {
+      "language": "et-LV",
+      "country": "Estonia, Latvia"
+    },
+    {
+      "language": "ee",
+      "country": "Ewe"
+    },
+    {
+      "language": "ee-GH",
+      "country": "Ewe, Ghana"
+    },
+    {
+      "language": "ee-TG",
+      "country": "Ewe, Togo"
+    },
+    {
+      "language": "ewo",
+      "country": "Ewondo"
+    },
+    {
+      "language": "fan",
+      "country": "Fang"
+    },
+    {
+      "language": "fat",
+      "country": "Fanti"
+    },
+    {
+      "language": "fo",
+      "country": "Faroese"
+    },
+    {
+      "language": "fo-FO",
+      "country": "Faroese, Faroe Islands"
+    },
+    {
+      "language": "fj",
+      "country": "Fijian"
+    },
+    {
+      "language": "fil",
+      "country": "Filipino"
+    },
+    {
+      "language": "fil-PH",
+      "country": "Filipino, Philippines"
+    },
+    {
+      "language": "fi",
+      "country": "Finnish"
+    },
+    {
+      "language": "fi-FI",
+      "country": "Finnish, Finland"
+    },
+    {
+      "language": "fi-Se",
+      "country": "Finnish, Sweden"
+    },
+    {
+      "language": "fiu",
+      "country": "Finno-Ugrian Language"
+    },
+    {
+      "language": "fon",
+      "country": "Fon"
+    },
+    {
+      "language": "fr",
+      "country": "French"
+    },
+    {
+      "language": "cpf",
+      "country": "French-based Creole or Pidgin"
+    },
+    {
+      "language": "fr-BE",
+      "country": "French, Belgium"
+    },
+    {
+      "language": "fr-CA",
+      "country": "French, Canada"
+    },
+    {
+      "language": "fr-FR",
+      "country": "French, France"
+    },
+    {
+      "language": "fr-LU",
+      "country": "French, Luxembourg"
+    },
+    {
+      "language": "fr-DE",
+      "country": "French, Germany"
+    },
+    {
+      "language": "fr-MC",
+      "country": "French, Monaco"
+    },
+    {
+      "language": "fr-SN",
+      "country": "French, Senegal"
+    },
+    {
+      "language": "fr-CH",
+      "country": "French, Switzerland"
+    },
+    {
+      "language": "fr-MA",
+      "country": "French, Morocco"
+    },
+    {
+      "language": "fr-MU",
+      "country": "French, Mauritius"
+    },
+    {
+      "language": "fr-CD",
+      "country": "French, Congo"
+    },
+    {
+      "language": "fr-CI",
+      "country": "French, Cote Ivoire"
+    },
+    {
+      "language": "fr-DZ",
+      "country": "French, Algiers"
+    },
+    {
+      "language": "fr-GP",
+      "country": "French, Guadeloupe"
+    },
+    {
+      "language": "fr-MQ",
+      "country": "French, Martinique"
+    },
+    {
+      "language": "fr-GF",
+      "country": "French, Guiana"
+    },
+    {
+      "language": "fr-RE",
+      "country": "French, Réunion"
+    },
+    {
+      "language": "fr-TN",
+      "country": "French, Tunisia"
+    },
+    {
+      "language": "fr-NC",
+      "country": "French, New Caledonia"
+    },
+    {
+      "language": "fur",
+      "country": "Friulian"
+    },
+    {
+      "language": "fur-IT",
+      "country": "Friulian, Italy"
+    },
+    {
+      "language": "ff",
+      "country": "Fulah"
+    },
+    {
+      "language": "ff-Arab",
+      "country": "Fulah(Perso-Arabic)"
+    },
+    {
+      "language": "ff-Latn",
+      "country": "Fulah(Latin)"
+    },
+    {
+      "language": "gaa",
+      "country": "Ga"
+    },
+    {
+      "language": "gd",
+      "country": "Scottish Gaelic"
+    },
+    {
+      "language": "gaa-GH",
+      "country": "Ga, Ghana"
+    },
+    {
+      "language": "gl",
+      "country": "Galician"
+    },
+    {
+      "language": "gl-ES",
+      "country": "Galician, Spain"
+    },
+    {
+      "language": "lg",
+      "country": "Ganda"
+    },
+    {
+      "language": "gay",
+      "country": "Gayo"
+    },
+    {
+      "language": "gba",
+      "country": "Gbaya"
+    },
+    {
+      "language": "gez",
+      "country": "Geez"
+    },
+    {
+      "language": "gez-ER",
+      "country": "Geez, Eritrea"
+    },
+    {
+      "language": "gez-ET",
+      "country": "Geez, Ethiopia"
+    },
+    {
+      "language": "ka",
+      "country": "Georgian"
+    },
+    {
+      "language": "ka-GE",
+      "country": "Georgian, Georgia"
+    },
+    {
+      "language": "de",
+      "country": "German"
+    },
+    {
+      "language": "de-AT",
+      "country": "German, Austria"
+    },
+    {
+      "language": "de-BE",
+      "country": "German, Belgium"
+    },
+    {
+      "language": "de-BG",
+      "country": "German, Bulgaria"
+    },
+    {
+      "language": "de-DE",
+      "country": "German, Germany"
+    },
+    {
+      "language": "gem",
+      "country": "Germanic Language"
+    },
+    {
+      "language": "de-LI",
+      "country": "German, Liechtenstein"
+    },
+    {
+      "language": "de-LU",
+      "country": "German, Luxembourg"
+    },
+    {
+      "language": "de-NL",
+      "country": "German, Netherlands"
+    },
+    {
+      "language": "de-CH",
+      "country": "German, Switzerland"
+    },
+    {
+      "language": "gil",
+      "country": "Gilbertese"
+    },
+    {
+      "language": "gon",
+      "country": "Gondi"
+    },
+    {
+      "language": "gor",
+      "country": "Gorontalo"
+    },
+    {
+      "language": "grb",
+      "country": "Grebo"
+    },
+    {
+      "language": "el",
+      "country": "Greek"
+    },
+    {
+      "language": "el-CY",
+      "country": "Greek, Cyprus"
+    },
+    {
+      "language": "el-GR",
+      "country": "Greek, Greece"
+    },
+    {
+      "language": "gn",
+      "country": "Guarani"
+    },
+    {
+      "language": "gu",
+      "country": "Gujarati"
+    },
+    {
+      "language": "gu-IN",
+      "country": "Gujarati, India"
+    },
+    {
+      "language": "gwi",
+      "country": "Gwichʼin"
+    },
+    {
+      "language": "hai",
+      "country": "Haida"
+    },
+    {
+      "language": "ht",
+      "country": "Haitian"
+    },
+    {
+      "language": "ht-HT",
+      "country": "Haitian Creole"
+    },
+    {
+      "language": "ha",
+      "country": "Hausa"
+    },
+    {
+      "language": "ha-Arab",
+      "country": "Hausa(Perso-Arabic)"
+    },
+    {
+      "language": "ha-GH",
+      "country": "Hausa, Ghana"
+    },
+    {
+      "language": "ha-Latn-GH",
+      "country": "Hausa, Ghana(Latin)"
+    },
+    {
+      "language": "ha-Latn",
+      "country": "Hausa(Latin)"
+    },
+    {
+      "language": "ha-NE",
+      "country": "Hausa, Niger"
+    },
+    {
+      "language": "ha-NG",
+      "country": "Hausa, Nigeria"
+    },
+    {
+      "language": "ha-Arab-NG",
+      "country": "Hausa, Nigeria(Perso-Arabic)"
+    },
+    {
+      "language": "ha-Latn-NG",
+      "country": "Hausa, Nigeria(Latin)"
+    },
+    {
+      "language": "ha-Latn-NE",
+      "country": "Hausa, Niger(Latin)"
+    },
+    {
+      "language": "ha-SD",
+      "country": "Hausa, Sudan"
+    },
+    {
+      "language": "ha-Arab-SD",
+      "country": "Hausa, Sudan(Perso-Arabic)"
+    },
+    {
+      "language": "haw",
+      "country": "Hawaiian"
+    },
+    {
+      "language": "haw-US",
+      "country": "Hawaiian, United States"
+    },
+    {
+      "language": "he",
+      "country": "Hebrew"
+    },
+    {
+      "language": "he-Hebr",
+      "country": "Hebrew(Hebrew)"
+    },
+    {
+      "language": "he-IL",
+      "country": "Hebrew, Palastine"
+    },
+    {
+      "language": "hz",
+      "country": "Herero"
+    },
+    {
+      "language": "hil",
+      "country": "Hiligaynon"
+    },
+    {
+      "language": "him",
+      "country": "Himachali"
+    },
+    {
+      "language": "hi",
+      "country": "Hindi"
+    },
+    {
+      "language": "hi-IN",
+      "country": "Hindi, India"
+    },
+    {
+      "language": "ho",
+      "country": "Hiri Motu"
+    },
+    {
+      "language": "hit",
+      "country": "Hittite"
+    },
+    {
+      "language": "hmn",
+      "country": "Hmong"
+    },
+    {
+      "language": "hu",
+      "country": "Hungarian"
+    },
+    {
+      "language": "hu-HU",
+      "country": "Hungarian, Hungary"
+    },
+    {
+      "language": "hup",
+      "country": "Hupa"
+    },
+    {
+      "language": "iba",
+      "country": "Iban"
+    },
+    {
+      "language": "is",
+      "country": "Icelandic"
+    },
+    {
+      "language": "is-IS",
+      "country": "Icelandic, Iceland"
+    },
+    {
+      "language": "io",
+      "country": "Ido"
+    },
+    {
+      "language": "ig",
+      "country": "Igbo"
+    },
+    {
+      "language": "ig-NG",
+      "country": "Igbo, Nigeria"
+    },
+    {
+      "language": "ijo",
+      "country": "Ijo"
+    },
+    {
+      "language": "ilo",
+      "country": "Iloko"
+    },
+    {
+      "language": "smn",
+      "country": "Inari Sami"
+    },
+    {
+      "language": "inc",
+      "country": "Indic Language"
+    },
+    {
+      "language": "ine",
+      "country": "Indo-European Language"
+    },
+    {
+      "language": "id",
+      "country": "Indonesian"
+    },
+    {
+      "language": "id-Arab",
+      "country": "Indonesian(Perso-Arabic)"
+    },
+    {
+      "language": "id-ID",
+      "country": "Indonesian, Indonesia"
+    },
+    {
+      "language": "id-Arab-ID",
+      "country": "Indonesian, Indonesia(Perso-Arabic)"
+    },
+    {
+      "language": "inh",
+      "country": "Ingush"
+    },
+    {
+      "language": "in",
+      "country": "Indonesian"
+    },
+    {
+      "language": "in-ID",
+      "country": "Indonesian, Indonesia"
+    },
+    {
+      "language": "ia",
+      "country": "Interlingua"
+    },
+    {
+      "language": "ie",
+      "country": "Interlingue"
+    },
+    {
+      "language": "iu",
+      "country": "Inuktitut"
+    },
+    {
+      "language": "iu-CA",
+      "country": "Inuktitut, Canada"
+    },
+    {
+      "language": "ik",
+      "country": "Inupiaq"
+    },
+    {
+      "language": "ira",
+      "country": "Iranian Language"
+    },
+    {
+      "language": "ga",
+      "country": "Irish"
+    },
+    {
+      "language": "ga-IE",
+      "country": "Irish, Ireland"
+    },
+    {
+      "language": "iro",
+      "country": "Iroquoian Language"
+    },
+    {
+      "language": "it",
+      "country": "Italian"
+    },
+    {
+      "language": "it-AT",
+      "country": "Italian, Austria"
+    },
+    {
+      "language": "it-IT",
+      "country": "Italian, Italy"
+    },
+    {
+      "language": "it-CH",
+      "country": "Italian, Switzerland"
+    },
+    {
+      "language": "ja",
+      "country": "Japanese"
+    },
+    {
+      "language": "ja-JP",
+      "country": "Japanese, Japan"
+    },
+    {
+      "language": "jv",
+      "country": "Javanese"
+    },
+    {
+      "language": "jv-ID",
+      "country": "Javanese, Latin, Indonesia"
+    },    {
+      "language": "jv-Java",
+      "country": "Javanese(Javanese)"
+    },
+    {
+      "language": "jv-Latn",
+      "country": "Javanese(Latin)"
+    },
+    {
+      "language": "jrb",
+      "country": "Judeo-Arabic"
+    },
+    {
+      "language": "jpr",
+      "country": "Judeo-Persian"
+    },
+    {
+      "language": "kbd",
+      "country": "Kabardian"
+    },
+    {
+      "language": "kab",
+      "country": "Kabyle"
+    },
+    {
+      "language": "kac",
+      "country": "Kachin"
+    },
+    {
+      "language": "kl",
+      "country": "Kalaallisut"
+    },
+    {
+      "language": "kl-GL",
+      "country": "Kalaallisut, Greenland"
+    },
+    {
+      "language": "xal",
+      "country": "Kalmyk"
+    },
+    {
+      "language": "xal-Cyrl",
+      "country": "Kalmyk(Cyrillic)"
+    },
+    {
+      "language": "xal-Mong",
+      "country": "Kalmyk(Mongolian)"
+    },
+    {
+      "language": "kam",
+      "country": "Kamba"
+    },
+    {
+      "language": "kam-KE",
+      "country": "Kamba, Kenya"
+    },
+    {
+      "language": "kn",
+      "country": "Kannada"
+    },
+    {
+      "language": "kn-IN",
+      "country": "Kannada, India"
+    },
+    {
+      "language": "kr",
+      "country": "Kanuri"
+    },
+    {
+      "language": "krc",
+      "country": "Karachay-Balkar"
+    },
+    {
+      "language": "kaa",
+      "country": "Kara-Kalpak"
+    },
+    {
+      "language": "krl",
+      "country": "Karelian"
+    },
+    {
+      "language": "kar",
+      "country": "Karen"
+    },
+    {
+      "language": "ks",
+      "country": "Kashmiri"
+    },
+    {
+      "language": "ks-Arab",
+      "country": "Kashmiri(Perso-Arabic)"
+    },
+    {
+      "language": "ks-Deva",
+      "country": "Kashmiri(Devanagari)"
+    },
+    {
+      "language": "ks-Latn",
+      "country": "Kashmiri(Latin)"
+    },
+    {
+      "language": "csb",
+      "country": "Kashubian"
+    },
+    {
+      "language": "kaw",
+      "country": "Kawi"
+    },
+    {
+      "language": "kk",
+      "country": "Kazakh"
+    },
+    {
+      "language": "kk-Arab",
+      "country": "Kazakh(Perso-Arabic)"
+    },
+    {
+      "language": "kk-Cyrl",
+      "country": "Kazakh(Cyrillic)"
+    },
+    {
+      "language": "kk-KZ",
+      "country": "Kazakh, Kazakhstan"
+    },
+    {
+      "language": "kk-Arab-KZ",
+      "country": "Kazakh, Kazakhstan(Perso-Arabic)"
+    },
+    {
+      "language": "kk-Cyrl-KZ",
+      "country": "Kazakh, Kazakhstan(Cyrillic)"
+    },
+    {
+      "language": "kk-Latn-KZ",
+      "country": "Kazakh, Kazakhstan(Latin)"
+    },
+    {
+      "language": "kk-Latn",
+      "country": "Kazakh(Latin)"
+    },
+    {
+      "language": "kha",
+      "country": "Khasi"
+    },
+    {
+      "language": "khi",
+      "country": "Khoisan Language"
+    },
+    {
+      "language": "kho",
+      "country": "Khotanese"
+    },
+    {
+      "language": "ki",
+      "country": "Kikuyu"
+    },
+    {
+      "language": "kmb",
+      "country": "Kimbundu"
+    },
+    {
+      "language": "rw",
+      "country": "Kinyarwanda"
+    },
+    {
+      "language": "rw-RW",
+      "country": "Kinyarwanda, Rwanda"
+    },
+    {
+      "language": "ky-Cyrl",
+      "country": "Kirghiz(Cyrillic)"
+    },
+    {
+      "language": "ky",
+      "country": "Kirghiz"
+    },
+    {
+      "language": "ky-Arab",
+      "country": "Kirghiz(Perso-Arabic)"
+    },
+    {
+      "language": "ky-KG",
+      "country": "Kirghiz, Kyrgyzstan"
+    },
+    {
+      "language": "ky-Latn",
+      "country": "Kirghiz(Latin)"
+    },
+    {
+      "language": "tlh",
+      "country": "Klingon"
+    },
+    {
+      "language": "kv",
+      "country": "Komi"
+    },
+    {
+      "language": "kg",
+      "country": "Kongo"
+    },
+    {
+      "language": "kok",
+      "country": "Konkani"
+    },
+    {
+      "language": "kok-IN",
+      "country": "Konkani, India"
+    },
+    {
+      "language": "kok-Knda-IN",
+      "country": "Konkani, India(Kannada)"
+    },
+    {
+      "language": "kok-Latn-IN",
+      "country": "Konkani, India(Latin)"
+    },
+    {
+      "language": "kok-Mlym-IN",
+      "country": "Konkani, India(Malayalam)"
+    },
+    {
+      "language": "kok-Knda",
+      "country": "Konkani(Kannada)"
+    },
+    {
+      "language": "kok-Latn",
+      "country": "Konkani(Latin)"
+    },
+    {
+      "language": "kok-Mlym",
+      "country": "Konkani(Malayalam)"
+    },
+    {
+      "language": "ko",
+      "country": "Korean"
+    },
+    {
+      "language": "ko-KR",
+      "country": "Korean, South Korea"
+    },
+    {
+      "language": "kfo",
+      "country": "Koro"
+    },
+    {
+      "language": "kfo-CI",
+      "country": "Koro, Ivory Coast"
+    },
+    {
+      "language": "kos",
+      "country": "Kosraean"
+    },
+    {
+      "language": "kpe",
+      "country": "Kpelle"
+    },
+    {
+      "language": "kpe-GN",
+      "country": "Kpelle, Guinea"
+    },
+    {
+      "language": "kpe-LR",
+      "country": "Kpelle, Liberia"
+    },
+    {
+      "language": "kro",
+      "country": "Kru"
+    },
+    {
+      "language": "kj",
+      "country": "Kuanyama"
+    },
+    {
+      "language": "kum",
+      "country": "Kumyk"
+    },
+    {
+      "language": "ku",
+      "country": "Kurdish"
+    },
+    {
+      "language": "ku-Arab",
+      "country": "Kurdish(Perso-Arabic)"
+    },
+    {
+      "language": "ku-IR",
+      "country": "Kurdish, Iran"
+    },
+    {
+      "language": "ku-Arab-IR",
+      "country": "Kurdish, Iran(Perso-Arabic)"
+    },
+    {
+      "language": "ku-IQ",
+      "country": "Kurdish, Iraq"
+    },
+    {
+      "language": "ku-Arab-IQ",
+      "country": "Kurdish, Iraq(Perso-Arabic)"
+    },
+    {
+      "language": "ku-Latn",
+      "country": "Kurdish(Latin)"
+    },
+    {
+      "language": "ku-SY",
+      "country": "Kurdish, Syria"
+    },
+    {
+      "language": "ku-Arab-SY",
+      "country": "Kurdish, Syria(Perso-Arabic)"
+    },
+    {
+      "language": "ku-TR",
+      "country": "Kurdish, Turkey"
+    },
+    {
+      "language": "ku-Latn-TR",
+      "country": "Kurdish, Turkey(Latin)"
+    },
+    {
+      "language": "kru",
+      "country": "Kurukh"
+    },
+    {
+      "language": "kut",
+      "country": "Kutenai"
+    },
+    {
+      "language": "lad",
+      "country": "Ladino"
+    },
+    {
+      "language": "lad-Hebr",
+      "country": "Ladino(Hebrew)"
+    },
+    {
+      "language": "lad-Latn",
+      "country": "Ladino(Latin)"
+    },
+    {
+      "language": "lah",
+      "country": "Lahnda"
+    },
+    {
+      "language": "lam",
+      "country": "Lamba"
+    },
+    {
+      "language": "lo",
+      "country": "Lao"
+    },
+    {
+      "language": "lo-LA",
+      "country": "Lao, Laos"
+    },
+    {
+      "language": "la",
+      "country": "Latin"
+    },
+    {
+      "language": "lv",
+      "country": "Latvian"
+    },
+    {
+      "language": "lv-LV",
+      "country": "Latvian, Latvia"
+    },
+    {
+      "language": "lez",
+      "country": "Lezghian"
+    },
+    {
+      "language": "li",
+      "country": "Limburgish"
+    },
+    {
+      "language": "ln",
+      "country": "Lingala"
+    },
+    {
+      "language": "ln-CG",
+      "country": "Lingala, Congo [Republic]"
+    },
+    {
+      "language": "ln-CD",
+      "country": "Lingala, Congo [DRC]"
+    },
+    {
+      "language": "lt",
+      "country": "Lithuanian"
+    },
+    {
+      "language": "lt-LT",
+      "country": "Lithuanian, Lithuania"
+    },
+    {
+      "language": "jbo",
+      "country": "Lojban"
+    },
+    {
+      "language": "dsb",
+      "country": "Lower Sorbian"
+    },
+    {
+      "language": "nds",
+      "country": "Low German"
+    },
+    {
+      "language": "nds-DE",
+      "country": "Low German, Germany"
+    },
+    {
+      "language": "loz",
+      "country": "Lozi"
+    },
+    {
+      "language": "lu",
+      "country": "Luba-Katanga"
+    },
+    {
+      "language": "lua",
+      "country": "Luba-Lulua"
+    },
+    {
+      "language": "lui",
+      "country": "Luiseno"
+    },
+    {
+      "language": "smj",
+      "country": "Lule Sami"
+    },
+    {
+      "language": "lun",
+      "country": "Lunda"
+    },
+    {
+      "language": "luo",
+      "country": "Luo"
+    },
+    {
+      "language": "lus",
+      "country": "Lushai"
+    },
+    {
+      "language": "lb",
+      "country": "Luxembourgish"
+    },
+    {
+      "language": "lb-LU",
+      "country": "Luxembourgish, Luxemburg"
+    },
+    {
+      "language": "mk",
+      "country": "Macedonian"
+    },
+    {
+      "language": "mk-MK",
+      "country": "Macedonian, North Macedonia"
+    },
+    {
+      "language": "mad",
+      "country": "Madurese"
+    },
+    {
+      "language": "mag",
+      "country": "Magahi"
+    },
+    {
+      "language": "mai",
+      "country": "Maithili"
+    },
+    {
+      "language": "mak",
+      "country": "Makasar"
+    },
+    {
+      "language": "mak-Bugi",
+      "country": "Makasar(Buginese)"
+    },
+    {
+      "language": "mak-Latn",
+      "country": "Makasar(Latin)"
+    },
+    {
+      "language": "mg",
+      "country": "Malagasy"
+    },
+    {
+      "language": "ms",
+      "country": "Malay"
+    },
+    {
+      "language": "ml",
+      "country": "Malayalam"
+    },
+    {
+      "language": "ml-Arab",
+      "country": "Malayalam(Perso-Arabic)"
+    },
+    {
+      "language": "ml-IN",
+      "country": "Malayalam, India"
+    },
+    {
+      "language": "ml-Arab-IN",
+      "country": "Malayalam, India(Perso-Arabic)"
+    },
+    {
+      "language": "ml-Mlym-IN",
+      "country": "Malayalam, India(Malayalam)"
+    },
+    {
+      "language": "ml-Mlym",
+      "country": "Malayalam(Malayalam)"
+    },
+    {
+      "language": "ms-Arab",
+      "country": "Malay(Perso-Arabic)"
+    },
+    {
+      "language": "ms-BN",
+      "country": "Malay, Brunei"
+    },
+    {
+      "language": "ms-Latn-BN",
+      "country": "Malay, Brunei(Latin)"
+    },
+    {
+      "language": "ms-Latn",
+      "country": "Malay(Latin)"
+    },
+    {
+      "language": "ms-MY",
+      "country": "Malay, Malaysia"
+    },
+    {
+      "language": "ms-Latn-MY",
+      "country": "Malay, Malaysia(Latin)"
+    },
+    {
+      "language": "mt",
+      "country": "Maltese"
+    },
+    {
+      "language": "mt-MT",
+      "country": "Maltese, Malta"
+    },
+    {
+      "language": "mnc",
+      "country": "Manchu"
+    },
+    {
+      "language": "mdr",
+      "country": "Mandar"
+    },
+    {
+      "language": "man",
+      "country": "Mandingo"
+    },
+    {
+      "language": "mni",
+      "country": "Manipuri"
+    },
+    {
+      "language": "mno",
+      "country": "Manobo Language"
+    },
+    {
+      "language": "gv",
+      "country": "Manx"
+    },
+    {
+      "language": "gv-GB",
+      "country": "Manx, United Kingdom"
+    },
+    {
+      "language": "mi",
+      "country": "Maori"
+    },
+    {
+      "language": "mr",
+      "country": "Marathi"
+    },
+    {
+      "language": "mr-IN",
+      "country": "Marathi, India"
+    },
+    {
+      "language": "chm",
+      "country": "Mari"
+    },
+    {
+      "language": "mh",
+      "country": "Marshallese"
+    },
+    {
+      "language": "mwr",
+      "country": "Marwari"
+    },
+    {
+      "language": "mas",
+      "country": "Masai"
+    },
+    {
+      "language": "myn",
+      "country": "Mayan Language"
+    },
+    {
+      "language": "men",
+      "country": "Mende"
+    },
+    {
+      "language": "mic",
+      "country": "Micmac"
+    },
+    {
+      "language": "min",
+      "country": "Minangkabau"
+    },
+    {
+      "language": "mwl",
+      "country": "Mirandese"
+    },
+    {
+      "language": "moh",
+      "country": "Mohawk"
+    },
+    {
+      "language": "mdf",
+      "country": "Moksha"
+    },
+    {
+      "language": "mo",
+      "country": "Moldavian"
+    },
+    {
+      "language": "mo-MD",
+      "country": "Moldavian, Moldova"
+    },
+    {
+      "language": "lol",
+      "country": "Mongo"
+    },
+    {
+      "language": "mn",
+      "country": "Mongolian"
+    },
+    {
+      "language": "mn-CN",
+      "country": "Mongolian, China"
+    },
+    {
+      "language": "mn-Mong-CN",
+      "country": "Mongolian, China(Mongolian)"
+    },
+    {
+      "language": "mn-Cyrl",
+      "country": "Mongolian(Cyrillic)"
+    },
+    {
+      "language": "mn-MN",
+      "country": "Mongolian, Mongolia"
+    },
+    {
+      "language": "mn-Cyrl-MN",
+      "country": "Mongolian, Mongolia(Cyrillic)"
+    },
+    {
+      "language": "mn-Mong",
+      "country": "Mongolian(Mongolian)"
+    },
+    {
+      "language": "mkh",
+      "country": "Mon-Khmer Language"
+    },
+    {
+      "language": "mos",
+      "country": "Mossi"
+    },
+    {
+      "language": "mul",
+      "country": "Multiple Languages"
+    },
+    {
+      "language": "mun",
+      "country": "Munda Language"
+    },
+    {
+      "language": "nah",
+      "country": "Nahuatl"
+    },
+    {
+      "language": "na",
+      "country": "Nauru"
+    },
+    {
+      "language": "nv",
+      "country": "Navajo"
+    },
+    {
+      "language": "nd",
+      "country": "North Ndebele"
+    },
+    {
+      "language": "nr",
+      "country": "South Ndebele"
+    },
+    {
+      "language": "nr-ZA",
+      "country": "South Ndebele, South Africa"
+    },
+    {
+      "language": "ng",
+      "country": "Ndonga"
+    },
+    {
+      "language": "nap",
+      "country": "Neapolitan"
+    },
+    {
+      "language": "new",
+      "country": "Newari"
+    },
+    {
+      "language": "ne",
+      "country": "Nepali"
+    },
+    {
+      "language": "ne-IN",
+      "country": "Nepali, India"
+    },
+    {
+      "language": "ne-NP",
+      "country": "Nepali, Nepal"
+    },
+    {
+      "language": "nia",
+      "country": "Nias"
+    },
+    {
+      "language": "nic",
+      "country": "Niger-Kordofanian Language"
+    },
+    {
+      "language": "ssa",
+      "country": "Nilo-Saharan Language"
+    },
+    {
+      "language": "niu",
+      "country": "Niuean"
+    },
+    {
+      "language": "nqo",
+      "country": "N’Ko"
+    },
+    {
+      "language": "nog",
+      "country": "Nogai"
+    },
+    {
+      "language": "zxx",
+      "country": "No linguistic content"
+    },
+    {
+      "language": "nai",
+      "country": "North American Indian Language"
+    },
+    {
+      "language": "frr",
+      "country": "Northern Frisian"
+    },
+    {
+      "language": "se",
+      "country": "Northern Sami"
+    },
+    {
+      "language": "se-FI",
+      "country": "Northern Sami, Finland"
+    },
+    {
+      "language": "se-NO",
+      "country": "Northern Sami, Norway"
+    },
+    {
+      "language": "no",
+      "country": "Norwegian Bokmål"
+    },
+    {
+      "language": "no-NO",
+      "country": "Norwegian, Norway"
+    },
+    {
+      "language": "nb",
+      "country": "Norwegian Bokmål"
+    },
+    {
+      "language": "nb-NO",
+      "country": "Norwegian Bokmål, Norway"
+    },
+    {
+      "language": "nn",
+      "country": "Norwegian Nynorsk"
+    },
+    {
+      "language": "nn-NO",
+      "country": "Norwegian Nynorsk, Norway"
+    },
+    {
+      "language": "nub",
+      "country": "Nubian Language"
+    },
+    {
+      "language": "nym",
+      "country": "Nyamwezi"
+    },
+    {
+      "language": "nyn",
+      "country": "Nyankole"
+    },
+    {
+      "language": "nyo",
+      "country": "Nyoro"
+    },
+    {
+      "language": "nzi",
+      "country": "Nzima"
+    },
+    {
+      "language": "oc",
+      "country": "Occitan"
+    },
+    {
+      "language": "oc-FR",
+      "country": "Occitan, France"
+    },
+    {
+      "language": "oj",
+      "country": "Ojibwa"
+    },
+    {
+      "language": "or",
+      "country": "Oriya"
+    },
+    {
+      "language": "or-IN",
+      "country": "Oriya, India"
+    },
+    {
+      "language": "om",
+      "country": "Oromo"
+    },
+    {
+      "language": "om-ET",
+      "country": "Oromo, Ethiopia"
+    },
+    {
+      "language": "om-KE",
+      "country": "Oromo, Kenya"
+    },
+    {
+      "language": "osa",
+      "country": "Osage"
+    },
+    {
+      "language": "os",
+      "country": "Ossetic"
+    },
+    {
+      "language": "os-Cyrl",
+      "country": "Ossetic(Cyrillic)"
+    },
+    {
+      "language": "os-Latn",
+      "country": "Ossetic(Latin)"
+    },
+    {
+      "language": "oto",
+      "country": "Otomian Language"
+    },
+    {
+      "language": "pal",
+      "country": "Pahlavi"
+    },
+    {
+      "language": "pau",
+      "country": "Palauan"
+    },
+    {
+      "language": "pi",
+      "country": "Pali"
+    },
+    {
+      "language": "pi-Deva",
+      "country": "Pali(Devanagari)"
+    },
+    {
+      "language": "pi-Sinh",
+      "country": "Pali(Sinhala)"
+    },
+    {
+      "language": "pi-Thai",
+      "country": "Pali(Thai)"
+    },
+    {
+      "language": "pam",
+      "country": "Pampanga"
+    },
+    {
+      "language": "pam-IN",
+      "country": "Pampanga, India"
+    },
+    {
+      "language": "pag",
+      "country": "Pangasinan"
+    },
+    {
+      "language": "pa-Arab",
+      "country": "Punjabi(Perso-Arabic)"
+    },
+    {
+      "language": "pa-Deva",
+      "country": "Punjabi(Devanagari)"
+    },
+    {
+      "language": "pa-Guru",
+      "country": "Punjabi(Gurmukhi)"
+    },
+    {
+      "language": "pa-Deva-IN",
+      "country": "Punjabi, India(Devanagari)"
+    },
+    {
+      "language": "pa-Guru-IN",
+      "country": "Punjabi, India(Gurmukhi)"
+    },
+    {
+      "language": "pa-Arab-PK",
+      "country": "Punjabi, Pakistan(Perso-Arabic)"
+    },
+    {
+      "language": "pa-Deva-PK",
+      "country": "Punjabi, Pakistan(Devanagari)"
+    },
+    {
+      "language": "pap",
+      "country": "Papiamento"
+    },
+    {
+      "language": "paa",
+      "country": "Papuan Language"
+    },
+    {
+      "language": "nso",
+      "country": "Northern Sotho"
+    },
+    {
+      "language": "nso-ZA",
+      "country": "Northern Sotho, South Africa"
+    },
+    {
+      "language": "fa",
+      "country": "Persian"
+    },
+    {
+      "language": "fa-AF",
+      "country": "Persian, Afghanistan"
+    },
+    {
+      "language": "fa-Arab",
+      "country": "Persian(Perso-Arabic)"
+    },
+    {
+      "language": "fa-Cyrl",
+      "country": "Persian(Cyrillic)"
+    },
+    {
+      "language": "fa-IR",
+      "country": "Persian, Iran"
+    },
+    {
+      "language": "phi",
+      "country": "Philippine Language"
+    },
+    {
+      "language": "pon",
+      "country": "Pohnpeian"
+    },
+    {
+      "language": "pl",
+      "country": "Polish"
+    },
+    {
+      "language": "pl-PL",
+      "country": "Polish, Poland"
+    },
+    {
+      "language": "pt",
+      "country": "Portuguese"
+    },
+    {
+      "language": "cpp",
+      "country": "Portuguese-based Creole or Pidgin"
+    },
+    {
+      "language": "pt-BR",
+      "country": "Portuguese, Brazil"
+    },
+    {
+      "language": "pt-PT",
+      "country": "Portuguese, Portugal"
+    },
+    {
+      "language": "pra",
+      "country": "Prakrit Language"
+    },
+    {
+      "language": "pa",
+      "country": "Punjabi"
+    },
+    {
+      "language": "pa-PK",
+      "country": "Punjabi, Pakistan"
+    },
+    {
+      "language": "ps",
+      "country": "Pushto"
+    },
+    {
+      "language": "ps-AF",
+      "country": "Pushto, Afghanistan"
+    },
+    {
+      "language": "ps-Arab",
+      "country": "Pushto(Perso-Arabic)"
+    },
+    {
+      "language": "qu",
+      "country": "Quechua"
+    },
+    {
+      "language": "qu-PE",
+      "country": "Quechua, Peru"
+    },
+    {
+      "language": "raj",
+      "country": "Rajasthani"
+    },
+    {
+      "language": "raj-Arab",
+      "country": "Rajasthani(Perso-Arabic)"
+    },
+    {
+      "language": "raj-Deva",
+      "country": "Rajasthani(Devanagari)"
+    },
+    {
+      "language": "rap",
+      "country": "Rapanui"
+    },
+    {
+      "language": "rar",
+      "country": "Rarotongan"
+    },
+    {
+      "language": "roa",
+      "country": "Romance Language"
+    },
+    {
+      "language": "ro",
+      "country": "Romanian"
+    },
+    {
+      "language": "ro-MD",
+      "country": "Romanian, Moldova"
+    },
+    {
+      "language": "ro-RO",
+      "country": "Romanian, Romania"
+    },
+    {
+      "language": "rm",
+      "country": "Romansh"
+    },
+    {
+      "language": "rom",
+      "country": "Romany"
+    },
+    {
+      "language": "rn",
+      "country": "Rundi"
+    },
+    {
+      "language": "ru",
+      "country": "Russian"
+    },
+    {
+      "language": "ru-EE",
+      "country": "Russian, Estonia"
+    },
+    {
+      "language": "ru-MD",
+      "country": "Russian, Moldova"
+    },
+    {
+      "language": "ru-LV",
+      "country": "Russian, Latvia"
+    },
+    {
+      "language": "ru-LT",
+      "country": "Russian, Lithuania"
+    },
+    {
+      "language": "ru-RU",
+      "country": "Russian, Russia"
+    },
+    {
+      "language": "ru-UA",
+      "country": "Russian, Ukraine"
+    },
+    {
+      "language": "ru-KZ",
+      "country": "Russian, Kazakhstan"
+    },
+    {
+      "language": "sal",
+      "country": "Salishan Language"
+    },
+    {
+      "language": "sam",
+      "country": "Samaritan Aramaic"
+    },
+    {
+      "language": "sam-Syrc",
+      "country": "Samaritan Aramaic(Syriac)"
+    },
+    {
+      "language": "smi",
+      "country": "Sami Language"
+    },
+    {
+      "language": "sm",
+      "country": "Samoan"
+    },
+    {
+      "language": "sad",
+      "country": "Sandawe"
+    },
+    {
+      "language": "sg",
+      "country": "Sango"
+    },
+    {
+      "language": "sa",
+      "country": "Sanskrit"
+    },
+    {
+      "language": "sa-IN",
+      "country": "Sanskrit, India"
+    },
+    {
+      "language": "sat",
+      "country": "Santali"
+    },
+    {
+      "language": "sat-Beng",
+      "country": "Santali(Bengali)"
+    },
+    {
+      "language": "sat-Deva",
+      "country": "Santali(Devanagari)"
+    },
+    {
+      "language": "sat-Latn",
+      "country": "Santali(Latin)"
+    },
+    {
+      "language": "sat-Orya",
+      "country": "Santali(Oriya)"
+    },
+    {
+      "language": "sc",
+      "country": "Sardinian"
+    },
+    {
+      "language": "sas",
+      "country": "Sasak"
+    },
+    {
+      "language": "sco",
+      "country": "Scots"
+    },
+    {
+      "language": "sel",
+      "country": "Selkup"
+    },
+    {
+      "language": "sem",
+      "country": "Semitic Language"
+    },
+    {
+      "language": "sr",
+      "country": "Serbian"
+    },
+    {
+      "language": "sr-BA",
+      "country": "Serbian, Bosnia and Herzegovina"
+    },
+    {
+      "language": "sr-Cyrl-BA",
+      "country": "Serbian, Bosnia and Herzegovina(Cyrillic)"
+    },
+    {
+      "language": "sr-Latn-BA",
+      "country": "Serbian, Bosnia and Herzegovina(Latin)"
+    },
+    {
+      "language": "sr-Cyrl",
+      "country": "Serbian(Cyrillic)"
+    },
+    {
+      "language": "sr-Latn",
+      "country": "Serbian(Latin)"
+    },
+    {
+      "language": "sr-XK",
+      "country": "Serbian, Kosovo"
+    },
+    {
+      "language": "sr-ME",
+      "country": "Serbian, Montenegro"
+    },
+    {
+      "language": "sr-Cyrl-ME",
+      "country": "Serbian, Montenegro(Cyrillic)"
+    },
+    {
+      "language": "sr-Latn-ME",
+      "country": "Serbian, Montenegro(Latin)"
+    },
+    {
+      "language": "sr-RS",
+      "country": "Serbian, Serbia"
+    },
+    {
+      "language": "sr-CS",
+      "country": "Serbian, Serbia and Montenegro"
+    },
+    {
+      "language": "sr-Cyrl-CS",
+      "country": "Serbian, Serbia and Montenegro(Cyrillic)"
+    },
+    {
+      "language": "sr-Latn-CS",
+      "country": "Serbian, Serbia and Montenegro(Latin)"
+    },
+    {
+      "language": "sr-Cyrl-RS",
+      "country": "Serbian, Serbia(Cyrillic)"
+    },
+    {
+      "language": "sr-Latn-RS",
+      "country": "Serbian, Serbia(Latin)"
+    },
+    {
+      "language": "sh",
+      "country": "Serbo-Croatian"
+    },
+    {
+      "language": "sh-BA",
+      "country": "Serbo-Croatian, Bosnia and Herzegovina"
+    },
+    {
+      "language": "sh-ME",
+      "country": "Serbo-Croatian, Montenegro"
+    },
+    {
+      "language": "sh-CS",
+      "country": "Serbo-Croatian, Serbia and Montenegro"
+    },
+    {
+      "language": "srr",
+      "country": "Serer"
+    },
+    {
+      "language": "srr-Arab",
+      "country": "Serer(Perso-Arabic)"
+    },
+    {
+      "language": "srr-Latn",
+      "country": "Serer(Latin)"
+    },
+    {
+      "language": "shn",
+      "country": "Shan"
+    },
+    {
+      "language": "sn",
+      "country": "Shona"
+    },
+    {
+      "language": "ii",
+      "country": "Sichuan Yi"
+    },
+    {
+      "language": "ii-CN",
+      "country": "Sichuan Yi, China"
+    },
+    {
+      "language": "ii-Yiii-CN",
+      "country": "Sichuan Yi, China(Yi)"
+    },
+    {
+      "language": "ii-Yiii",
+      "country": "Sichuan Yi(Yi)"
+    },
+    {
+      "language": "scn",
+      "country": "Sicilian"
+    },
+    {
+      "language": "sid",
+      "country": "Sidamo"
+    },
+    {
+      "language": "sid-ET",
+      "country": "Sidamo, Ethiopia"
+    },
+    {
+      "language": "sid-Ethi",
+      "country": "Sidamo(Ethiopic)"
+    },
+    {
+      "language": "sid-Latn",
+      "country": "Sidamo(Latin)"
+    },
+    {
+      "language": "sgn",
+      "country": "Sign Language"
+    },
+    {
+      "language": "bla",
+      "country": "Siksika"
+    },
+    {
+      "language": "sd",
+      "country": "Sindhi"
+    },
+    {
+      "language": "sd-Arab",
+      "country": "Sindhi(Perso-Arabic)"
+    },
+    {
+      "language": "sd-Deva",
+      "country": "Sindhi(Devanagari)"
+    },
+    {
+      "language": "sd-Guru",
+      "country": "Sindhi(Gurmukhi)"
+    },
+    {
+      "language": "si",
+      "country": "Sinhala"
+    },
+    {
+      "language": "si-LK",
+      "country": "Sinhala, Sri Lanka"
+    },
+    {
+      "language": "sit",
+      "country": "Sino-Tibetan Language"
+    },
+    {
+      "language": "sio",
+      "country": "Siouan Language"
+    },
+    {
+      "language": "sms",
+      "country": "Skolt Sami"
+    },
+    {
+      "language": "den",
+      "country": "Slave"
+    },
+    {
+      "language": "sla",
+      "country": "Slavic Language"
+    },
+    {
+      "language": "sk",
+      "country": "Slovak"
+    },
+    {
+      "language": "sk-SK",
+      "country": "Slovak, Slovakia"
+    },
+    {
+      "language": "sl",
+      "country": "Slovenian"
+    },
+    {
+      "language": "sl-SI",
+      "country": "Slovenian, Slovenia"
+    },
+    {
+      "language": "sog",
+      "country": "Sogdien"
+    },
+    {
+      "language": "so",
+      "country": "Somali"
+    },
+    {
+      "language": "so-Arab",
+      "country": "Somali(Perso-Arabic)"
+    },
+    {
+      "language": "so-DJ",
+      "country": "Somali, Djibouti"
+    },
+    {
+      "language": "so-ET",
+      "country": "Somali, Ethiopia"
+    },
+    {
+      "language": "so-KE",
+      "country": "Somali, Kenya"
+    },
+    {
+      "language": "so-SO",
+      "country": "Somali, Somalia"
+    },
+    {
+      "language": "son",
+      "country": "Songhai"
+    },
+    {
+      "language": "snk",
+      "country": "Soninke"
+    },
+    {
+      "language": "snk-Arab",
+      "country": "Soninke(Perso-Arabic)"
+    },
+    {
+      "language": "snk-Latn",
+      "country": "Soninke(Latin)"
+    },
+    {
+      "language": "wen",
+      "country": "Sorbian Language"
+    },
+    {
+      "language": "st",
+      "country": "Southern Sotho"
+    },
+    {
+      "language": "st-LS",
+      "country": "Southern Sotho, Lesotho"
+    },
+    {
+      "language": "st-ZA",
+      "country": "Southern Sotho, South Africa"
+    },
+    {
+      "language": "sai",
+      "country": "South American Indian Language"
+    },
+    {
+      "language": "alt",
+      "country": "Southern Altai"
+    },
+    {
+      "language": "sma",
+      "country": "Southern Sami"
+    },
+    {
+      "language": "es",
+      "country": "Spanish"
+    },
+    {
+      "language": "es-419",
+      "country": "Spanish, Latin America"
+    },
+    {
+      "language": "es-AD",
+      "country": "Spanish, Andorra"
+    },
+    {
+      "language": "es-AR",
+      "country": "Spanish, Argentina"
+    },
+    {
+      "language": "es-BO",
+      "country": "Spanish, Bolivia"
+    },
+    {
+      "language": "es-CL",
+      "country": "Spanish, Chile"
+    },
+    {
+      "language": "es-CO",
+      "country": "Spanish, Colombia"
+    },
+    {
+      "language": "es-CR",
+      "country": "Spanish, Costa Rica"
+    },
+    {
+      "language": "es-CU",
+      "country": "Spanish, Cuba"
+    },    {
+      "language": "es-DO",
+      "country": "Spanish, Dominican Republic"
+    },
+    {
+      "language": "es-EC",
+      "country": "Spanish, Ecuador"
+    },
+    {
+      "language": "es-ES",
+      "country": "Spanish, Spain"
+    },
+    {
+      "language": "es-GQ",
+      "country": "Spanish, Equatorial Guinea"
+    },
+    {
+      "language": "es-GT",
+      "country": "Spanish, Guatemala"
+    },    {
+      "language": "es-HN",
+      "country": "Spanish, Honduras"
+    },
+    {
+      "language": "es-IC",
+      "country": "Spanish, Canary Islands"
+    },
+    {
+      "language": "es-MX",
+      "country": "Spanish, Mexico"
+    },
+    {
+      "language": "es-NI",
+      "country": "Spanish, Nicaragua"
+    },
+    {
+      "language": "es-PA",
+      "country": "Spanish, Panama"
+    },
+    {
+      "language": "es-PE",
+      "country": "Spanish, Peru"
+    },
+    {
+      "language": "es-PT",
+      "country": "Spanish, Portugal"
+    },
+    {
+      "language": "es-PR",
+      "country": "Spanish, Puerto Rico"
+    },
+    {
+      "language": "es-PY",
+      "country": "Spanish, Paraguay"
+    },
+    {
+      "language": "es-SV",
+      "country": "Spanish, El Salvador"
+    },
+    {
+      "language": "es-US",
+      "country": "Spanish, United States"
+    },
+    {
+      "language": "es-UY",
+      "country": "Spanish, Uruguay"
+    },
+    {
+      "language": "es-VE",
+      "country": "Spanish, Venezuela"
+    },
+    {
+      "language": "srn",
+      "country": "Sranan Tongo"
+    },
+    {
+      "language": "suk",
+      "country": "Sukuma"
+    },
+    {
+      "language": "sux",
+      "country": "Sumerian"
+    },
+    {
+      "language": "su",
+      "country": "Sundanese"
+    },
+    {
+      "language": "su-Arab",
+      "country": "Sundanese(Perso-Arabic)"
+    },
+    {
+      "language": "su-ID",
+      "country": "Sundanese(Indonesia)"
+    },
+    {
+      "language": "su-Java",
+      "country": "Sundanese(Javanese)"
+    },    {
+      "language": "su-Latn",
+      "country": "Sundanese(Latin)"
+    },
+    {
+      "language": "sus",
+      "country": "Susu"
+    },
+    {
+      "language": "sus-Arab",
+      "country": "Susu(Perso-Arabic)"
+    },
+    {
+      "language": "sus-Latn",
+      "country": "Susu(Latin)"
+    },
+    {
+      "language": "sw",
+      "country": "Swahili"
+    },
+    {
+      "language": "sw-KE",
+      "country": "Swahili, Kenya"
+    },
+    {
+      "language": "sw-TZ",
+      "country": "Swahili, Tanzania"
+    },
+    {
+      "language": "ss",
+      "country": "Swati"
+    },
+    {
+      "language": "ss-ZA",
+      "country": "Swati, South Africa"
+    },
+    {
+      "language": "ss-SZ",
+      "country": "Swati, Swaziland"
+    },
+    {
+      "language": "sv",
+      "country": "Swedish"
+    },
+    {
+      "language": "sv-FI",
+      "country": "Swedish, Finland"
+    },
+    {
+      "language": "sv-SE",
+      "country": "Swedish, Sweden"
+    },
+    {
+      "language": "gsw",
+      "country": "Swiss German"
+    },
+    {
+      "language": "gsw-CH",
+      "country": "Swiss German, Switzerland"
+    },
+    {
+      "language": "syr",
+      "country": "Syriac"
+    },
+    {
+      "language": "syr-Cyrl",
+      "country": "Syriac(Cyrillic)"
+    },
+    {
+      "language": "syr-SY",
+      "country": "Syriac, Syria"
+    },
+    {
+      "language": "syr-Syrc",
+      "country": "Syriac(Syriac)"
+    },
+    {
+      "language": "syr-Cyrl-SY",
+      "country": "Syriac, Syria(Cyrillic)"
+    },
+    {
+      "language": "tl",
+      "country": "Tagalog"
+    },
+    {
+      "language": "tl-PH",
+      "country": "Tagalog, Philippines"
+    },
+    {
+      "language": "ty",
+      "country": "Tahitian"
+    },
+    {
+      "language": "tai",
+      "country": "Tai Language"
+    },
+    {
+      "language": "tg",
+      "country": "Tajik"
+    },
+    {
+      "language": "tg-Arab",
+      "country": "Tajik(Perso-Arabic)"
+    },
+    {
+      "language": "tg-Cyrl",
+      "country": "Tajik(Cyrillic)"
+    },
+    {
+      "language": "tg-Latn",
+      "country": "Tajik(Latin)"
+    },
+    {
+      "language": "tg-TJ",
+      "country": "Tajik, Tajikistan"
+    },
+    {
+      "language": "tg-Arab-TJ",
+      "country": "Tajik, Tajikistan(Perso-Arabic)"
+    },
+    {
+      "language": "tg-Cyrl-TJ",
+      "country": "Tajik, Tajikistan(Cyrillic)"
+    },
+    {
+      "language": "tg-Latn-TJ",
+      "country": "Tajik, Tajikistan(Latin)"
+    },
+    {
+      "language": "tmh",
+      "country": "Tamashek"
+    },
+    {
+      "language": "tmh-Arab",
+      "country": "Tamashek(Perso-Arabic)"
+    },
+    {
+      "language": "tmh-Latn",
+      "country": "Tamashek(Latin)"
+    },
+    {
+      "language": "tmh-Tfng",
+      "country": "Tamashek(Tifinagh)"
+    },
+    {
+      "language": "ta",
+      "country": "Tamil"
+    },
+    {
+      "language": "ta-IN",
+      "country": "Tamil, India"
+    }, 
+    {
+      "language": "ta-LK",
+      "country": "Tamil, Sri Lanka"
+    },
+    {
+      "language": "ta-MY",
+      "country": "Tamil, Malaysia"
+    },
+    {
+      "language": "ta-SG",
+      "country": "Tamil, Singapore"
+    },     {
+      "language": "tt",
+      "country": "Tatar"
+    },
+    {
+      "language": "tt-Cyrl",
+      "country": "Tatar(Cyrillic)"
+    },
+    {
+      "language": "tt-Latn",
+      "country": "Tatar(Latin)"
+    },
+    {
+      "language": "tt-RU",
+      "country": "Tatar, Russia"
+    },
+    {
+      "language": "tt-Cyrl-RU",
+      "country": "Tatar, Russia(Cyrillic)"
+    },
+    {
+      "language": "tt-Latn-RU",
+      "country": "Tatar, Russia(Latin)"
+    },
+    {
+      "language": "te",
+      "country": "Telugu"
+    },
+    {
+      "language": "te-IN",
+      "country": "Telugu, India"
+    },
+    {
+      "language": "ter",
+      "country": "Tereno"
+    },
+    {
+      "language": "tet",
+      "country": "Tetum"
+    },
+    {
+      "language": "th",
+      "country": "Thai"
+    },
+    {
+      "language": "th-TH",
+      "country": "Thai, Thailand"
+    },
+    {
+      "language": "bo",
+      "country": "Tibetan"
+    },
+    {
+      "language": "bo-CN",
+      "country": "Tibetan, China"
+    },
+    {
+      "language": "bo-IN",
+      "country": "Tibetan, India"
+    },
+    {
+      "language": "tig",
+      "country": "Tigre"
+    },
+    {
+      "language": "tig-ER",
+      "country": "Tigre, Eritrea"
+    },
+    {
+      "language": "ti",
+      "country": "Tigrinya"
+    },
+    {
+      "language": "ti-ER",
+      "country": "Tigrinya, Eritrea"
+    },
+    {
+      "language": "ti-ET",
+      "country": "Tigrinya, Ethiopia"
+    },
+    {
+      "language": "tem",
+      "country": "Timne"
+    },
+    {
+      "language": "tiv",
+      "country": "Tiv"
+    },
+    {
+      "language": "tli",
+      "country": "Tlingit"
+    },
+    {
+      "language": "tkl",
+      "country": "Tokelau"
+    },
+    {
+      "language": "tpi",
+      "country": "Tok Pisin"
+    },
+    {
+      "language": "tog",
+      "country": "Nyasa Tonga"
+    },
+    {
+      "language": "tog-TO",
+      "country": "Nyasa Tonga, Tonga"
+    },
+    {
+      "language": "to",
+      "country": "Tonga"
+    },
+    {
+      "language": "tsi",
+      "country": "Tsimshian"
+    },
+    {
+      "language": "tsi-ZA",
+      "country": "Tsimshian, South Africa"
+    },
+    {
+      "language": "ts",
+      "country": "Tsonga"
+    },
+    {
+      "language": "tn",
+      "country": "Tswana"
+    },
+    {
+      "language": "tn-ZA",
+      "country": "Tswana, South Africa"
+    },
+    {
+      "language": "tum",
+      "country": "Tumbuka"
+    },
+    {
+      "language": "tup",
+      "country": "Tupi Language"
+    },
+    {
+      "language": "tr",
+      "country": "Turkish"
+    },
+    {
+      "language": "tr-TR",
+      "country": "Turkish, Turkey"
+    },
+    {
+      "language": "tr-CY",
+      "country": "Turkish, Cyprus"
+    },
+    {
+      "language": "tk",
+      "country": "Turkmen"
+    },
+    {
+      "language": "tk-Arab",
+      "country": "Turkmen(Perso-Arabic)"
+    },
+    {
+      "language": "tk-Cyrl",
+      "country": "Turkmen(Cyrillic)"
+    },
+    {
+      "language": "tk-Latn",
+      "country": "Turkmen(Latin)"
+    },
+    {
+      "language": "tvl",
+      "country": "Tuvalu"
+    },
+    {
+      "language": "tyv",
+      "country": "Tuvinian"
+    },
+    {
+      "language": "tw",
+      "country": "Twi"
+    },
+    {
+      "language": "kcg",
+      "country": "Tyap"
+    },
+    {
+      "language": "kcg-NG",
+      "country": "Tyap, Nigeria"
+    },
+    {
+      "language": "udm",
+      "country": "Udmurt"
+    },
+    {
+      "language": "udm-Cyrl",
+      "country": "Udmurt(Cyrillic)"
+    },
+    {
+      "language": "udm-Latn",
+      "country": "Udmurt(Latin)"
+    },
+    {
+      "language": "uga",
+      "country": "Ugaritic"
+    },
+    {
+      "language": "ug",
+      "country": "Uyghur"
+    },
+    {
+      "language": "ug-Arab",
+      "country": "Uyghur(Perso-Arabic)"
+    },
+    {
+      "language": "ug-CN",
+      "country": "Uyghur, China"
+    },
+    {
+      "language": "ug-Arab-CN",
+      "country": "Uyghur, China(Perso-Arabic)"
+    },
+    {
+      "language": "ug-Cyrl-CN",
+      "country": "Uyghur, China(Cyrillic)"
+    },
+    {
+      "language": "ug-Latn-CN",
+      "country": "Uyghur, China(Latin)"
+    },
+    {
+      "language": "ug-Cyrl",
+      "country": "Uyghur(Cyrillic)"
+    },
+    {
+      "language": "ug-Latn",
+      "country": "Uyghur(Latin)"
+    },
+    {
+      "language": "uk",
+      "country": "Ukrainian"
+    },
+    {
+      "language": "uk-UA",
+      "country": "Ukrainian, Ukraine"
+    },
+    {
+      "language": "umb",
+      "country": "Umbundu"
+    },
+    {
+      "language": "mis",
+      "country": "Miscellaneous Language"
+    },
+    {
+      "language": "und",
+      "country": "Unknown Language"
+    },
+    {
+      "language": "hsb",
+      "country": "Upper Sorbian"
+    },
+    {
+      "language": "ur",
+      "country": "Urdu"
+    },
+    {
+      "language": "ur-Arab",
+      "country": "Urdu(Perso-Arabic)"
+    },
+    {
+      "language": "ur-IN",
+      "country": "Urdu, India"
+    },
+    {
+      "language": "ur-PK",
+      "country": "Urdu, Pakistan"
+    },
+    {
+      "language": "uz",
+      "country": "Uzbek"
+    },
+    {
+      "language": "uz-AF",
+      "country": "Uzbek, Afghanistan"
+    },
+    {
+      "language": "uz-Arab-AF",
+      "country": "Uzbek, Afghanistan(Perso-Arabic)"
+    },
+    {
+      "language": "uz-Arab",
+      "country": "Uzbek(Perso-Arabic)"
+    },
+    {
+      "language": "uz-Cyrl",
+      "country": "Uzbek(Cyrillic)"
+    },
+    {
+      "language": "uz-Latn",
+      "country": "Uzbek(Latin)"
+    },
+    {
+      "language": "uz-UZ",
+      "country": "Uzbek, Uzbekistan"
+    },
+    {
+      "language": "uz-Cyrl-UZ",
+      "country": "Uzbek, Uzbekistan(Cyrillic)"
+    },
+    {
+      "language": "uz-Latn-UZ",
+      "country": "Uzbek, Uzbekistan(Latin)"
+    },
+    {
+      "language": "vai",
+      "country": "Vai"
+    },
+    {
+      "language": "ve",
+      "country": "Venda"
+    },
+    {
+      "language": "ve-ZA",
+      "country": "Venda, South Africa"
+    },
+    {
+      "language": "vi",
+      "country": "Vietnamese"
+    },
+    {
+      "language": "vi-VN",
+      "country": "Vietnamese, Vietnam"
+    },
+    {
+      "language": "vo",
+      "country": "Volapük"
+    },
+    {
+      "language": "vot",
+      "country": "Votic"
+    },
+    {
+      "language": "wak",
+      "country": "Wakashan Language"
+    },
+    {
+      "language": "wal",
+      "country": "Walamo"
+    },
+    {
+      "language": "wal-ET",
+      "country": "Walamo, Ethiopia"
+    },
+    {
+      "language": "wa",
+      "country": "Walloon"
+    },
+    {
+      "language": "war",
+      "country": "Waray"
+    },
+    {
+      "language": "was",
+      "country": "Washo"
+    },
+    {
+      "language": "cy",
+      "country": "Welsh"
+    },
+    {
+      "language": "cy-GB",
+      "country": "Welsh, United Kingdom"
+    },
+    {
+      "language": "fy",
+      "country": "Western Frisian"
+    },
+    {
+      "language": "wo",
+      "country": "Wolof"
+    },
+    {
+      "language": "wo-Arab",
+      "country": "Wolof(Perso-Arabic)"
+    },
+    {
+      "language": "wo-Latn",
+      "country": "Wolof(Latin)"
+    },
+    {
+      "language": "wo-SN",
+      "country": "Wolof, Senegal"
+    },
+    {
+      "language": "wo-Arab-SN",
+      "country": "Wolof, Senegal(Perso-Arabic)"
+    },
+    {
+      "language": "wo-Latn-SN",
+      "country": "Wolof, Senegal(Latin)"
+    },
+    {
+      "language": "xh",
+      "country": "Xhosa"
+    },
+    {
+      "language": "xh-ZA",
+      "country": "Xhosa, South Africa"
+    },
+    {
+      "language": "xog",
+      "country": "Lusoga Bantu, Uganda"
+    },
+    {
+      "language": "sah",
+      "country": "Sakha"
+    },
+    {
+      "language": "yao",
+      "country": "Yao"
+    },
+    {
+      "language": "yap",
+      "country": "Yapese"
+    },
+    {
+      "language": "yi",
+      "country": "Yiddish"
+    },
+    {
+      "language": "yi-Hebr",
+      "country": "Yiddish(Hebrew)"
+    },
+    {
+      "language": "yo",
+      "country": "Yoruba"
+    },
+    {
+      "language": "yo-NG",
+      "country": "Yoruba, Nigeria"
+    },
+    {
+      "language": "ypk",
+      "country": "Yupik Language"
+    },
+    {
+      "language": "znd",
+      "country": "Zande"
+    },
+    {
+      "language": "zap",
+      "country": "Zapotec"
+    },
+    {
+      "language": "zza",
+      "country": "Zaza"
+    },
+    {
+      "language": "zen",
+      "country": "Zenaga"
+    },
+    {
+      "language": "za",
+      "country": "Zhuang"
+    },
+    {
+      "language": "zf",
+      "country": "Chinese(Traditional)"
+    },
+    {
+      "language": "zu",
+      "country": "Zulu"
+    },
+    {
+      "language": "zu-ZA",
+      "country": "Zulu, South Africa"
+    },
+    {
+      "language": "zun",
+      "country": "Zuni"
+    }
+  ]
+}
