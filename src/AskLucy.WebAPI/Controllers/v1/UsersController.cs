@@ -1,5 +1,7 @@
+using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Users;
+using AskLucy.Application.Users.Commands.DeleteMyAccount;
 using AskLucy.Application.Users.Commands.UpdateMyProfile;
 using AskLucy.Application.Users.Commands.UpdateUser;
 using AskLucy.Application.Users.Commands.UploadAvatar;
@@ -67,6 +69,26 @@ public sealed class UsersController(
 
         var stream = await fileStorage.OpenReadAsync(profile.AvatarFileName, cancellationToken);
         return File(stream, "application/octet-stream");
+    }
+
+    /// <summary>Legacy DownloadPersonalData.cshtml equivalent — a self-service JSON export of the caller's own profile fields.</summary>
+    [HttpGet("me/personal-data")]
+    public async Task<IActionResult> DownloadMyPersonalData(CancellationToken cancellationToken)
+    {
+        var profile = await mediator.Send(new GetMyProfileQuery(), cancellationToken);
+        var json = JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true });
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        return File(bytes, "application/json", "ask-lucy-personal-data.json");
+    }
+
+    /// <summary>Legacy DeletePersonalData.cshtml equivalent — irreversible, requires password re-confirmation.</summary>
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMe(DeleteAccountRequest request, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new DeleteMyAccountCommand(request.Password), cancellationToken);
+        return result.Status == IdentityResultStatus.Success
+            ? NoContent()
+            : Problem(title: "Account deletion failed", detail: string.Join(' ', result.Errors ?? []), statusCode: StatusCodes.Status400BadRequest);
     }
 
     /// <summary>

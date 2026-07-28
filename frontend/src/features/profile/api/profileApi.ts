@@ -35,3 +35,26 @@ export async function uploadAvatar(file: File): Promise<string> {
   const result = (await response.json()) as { avatarUrl: string }
   return result.avatarUrl
 }
+
+export async function downloadMyPersonalData(): Promise<void> {
+  const accessToken = useAuthStore.getState().accessToken
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+  const response = await fetch(`${API_BASE_URL}/users/me/personal-data`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Personal data download failed with ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'ask-lucy-personal-data.json'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export const deleteMyAccount = (password: string) =>
+  apiFetch<void>('/users/me', { method: 'DELETE', body: JSON.stringify({ password }) })

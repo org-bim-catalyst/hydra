@@ -1,7 +1,9 @@
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Divider, Link, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+import { Link as RouterLink, useNavigate } from 'react-router'
+import { API_BASE_URL } from '../../../api/httpClient'
+import { AuthLayout } from '../../../components/AuthLayout'
 import { useLogin, useLoginTwoFactor } from '../hooks/useAuth'
 
 interface LoginFormValues {
@@ -38,54 +40,53 @@ export function LoginPage() {
   })
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', p: 2 }}>
-      <Paper sx={{ p: 4, maxWidth: 400, width: '100%' }}>
-        <Typography variant="h5" sx={{ mb: 3 }}>
-          Sign in to Ask Lucy
-        </Typography>
-
-        {!pendingUserId ? (
-          <Box component="form" onSubmit={onSubmitLogin}>
-            <Stack spacing={2}>
-              {login.isError && <Alert severity="error">Invalid email or password.</Alert>}
-              <TextField
-                label="Email"
-                type="email"
-                fullWidth
-                {...loginForm.register('email', { required: true })}
-              />
-              <TextField
-                label="Password"
-                type="password"
-                fullWidth
-                {...loginForm.register('password', { required: true })}
-              />
-              <Button type="submit" variant="contained" disabled={login.isPending}>
-                Sign in
+    <AuthLayout title={pendingUserId ? 'Verify your identity' : 'Welcome back'}>
+      {!pendingUserId ? (
+        <Box component="form" onSubmit={onSubmitLogin}>
+          <Stack spacing={2.5}>
+            {login.isError && <Alert severity="error">Invalid email or password.</Alert>}
+            <TextField label="Email" type="email" fullWidth {...loginForm.register('email', { required: true })} />
+            <TextField
+              label="Password"
+              type="password"
+              fullWidth
+              {...loginForm.register('password', { required: true })}
+            />
+            <Button type="submit" variant="contained" size="large" fullWidth disabled={login.isPending}>
+              Sign in
+            </Button>
+            <Divider>
+              <Typography variant="caption" color="text.secondary">
+                or continue with
+              </Typography>
+            </Divider>
+            <Stack direction="row" spacing={1.5}>
+              <Button fullWidth variant="outlined" href={`${API_BASE_URL}/auth/external/google/challenge`}>
+                Google
               </Button>
-              <Stack direction="row" spacing={1}>
-                <Button fullWidth variant="outlined" href="/api/v1/auth/external/google">
-                  Google
-                </Button>
-                <Button fullWidth variant="outlined" href="/api/v1/auth/external/facebook">
-                  Facebook
-                </Button>
-              </Stack>
-            </Stack>
-          </Box>
-        ) : (
-          <Box component="form" onSubmit={onSubmitTwoFactor}>
-            <Stack spacing={2}>
-              <Typography>Enter your authenticator app code.</Typography>
-              {loginTwoFactor.isError && <Alert severity="error">Invalid code.</Alert>}
-              <TextField label="Code" fullWidth {...twoFactorForm.register('code', { required: true })} />
-              <Button type="submit" variant="contained" disabled={loginTwoFactor.isPending}>
-                Verify
+              <Button fullWidth variant="outlined" href={`${API_BASE_URL}/auth/external/facebook/challenge`}>
+                Facebook
               </Button>
             </Stack>
-          </Box>
-        )}
-      </Paper>
-    </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+              Don't have an account? <Link component={RouterLink} to="/register">Create one</Link>
+            </Typography>
+          </Stack>
+        </Box>
+      ) : (
+        <Box component="form" onSubmit={onSubmitTwoFactor}>
+          <Stack spacing={2.5}>
+            <Typography variant="body2" color="text.secondary">
+              Enter the code from your authenticator app.
+            </Typography>
+            {loginTwoFactor.isError && <Alert severity="error">Invalid code.</Alert>}
+            <TextField label="Code" fullWidth {...twoFactorForm.register('code', { required: true })} />
+            <Button type="submit" variant="contained" size="large" fullWidth disabled={loginTwoFactor.isPending}>
+              Verify
+            </Button>
+          </Stack>
+        </Box>
+      )}
+    </AuthLayout>
   )
 }

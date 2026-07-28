@@ -89,16 +89,63 @@ public sealed class IdentityService(
         return new IdentityOperationResult(IdentityResultStatus.Success, user.Id, claims);
     }
 
-    public async Task<IdentityOperationResult> ValidateExternalLoginAsync(
-        string provider, string providerKey, string? email, CancellationToken cancellationToken = default)
+    public async Task<IdentityOperationResult> ResolveExternalLoginAsync(
+        string provider, string providerKey, string? email, bool emailVerified, string? linkToUserId,
+        CancellationToken cancellationToken = default)
     {
-        var user = await userManager.FindByLoginAsync(provider, providerKey);
+        var existingLoginOwner = await userManager.FindByLoginAsync(provider, providerKey);
 
-        if (user is null && email is not null)
+        if (linkToUserId is not null)
         {
+            // FR-034: link an additional provider to the already-authenticated user. Refuse
+            // if that exact (provider, providerKey) pair is already claimed by someone else —
+            // never silently re-point an existing login at a different account.
+            if (existingLoginOwner is not null && existingLoginOwner.Id != linkToUserId)
+            {
+                return new IdentityOperationResult(
+                    IdentityResultStatus.Failed,
+                    Errors: ["This account is already linked to a different Ask Lucy user."]);
+            }
+
+            var linkTarget = await userManager.FindByIdAsync(linkToUserId)
+                ?? throw new InvalidOperationException($"User '{linkToUserId}' not found.");
+
+            if (existingLoginOwner is null)
+            {
+                var linkResult = await userManager.AddLoginAsync(linkTarget, new UserLoginInfo(provider, providerKey, provider));
+                if (!linkResult.Succeeded)
+                {
+                    return new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. linkResult.Errors.Select(e => e.Description)]);
+                }
+            }
+
+            var linkedClaims = await GetClaimsAsync(linkTarget.Id, cancellationToken);
+            return new IdentityOperationResult(IdentityResultStatus.Success, linkTarget.Id, linkedClaims);
+        }
+
+        // First-time / returning social sign-in (FR-010). `existingLoginOwner` is trusted here
+        // only because the caller has already verified `provider`/`providerKey` against the
+        // real OAuth provider — this method itself performs no such verification.
+        var user = existingLoginOwner;
+
+        if (user is null && emailVerified && email is not null)
+        {
+            // Only ever resolve/create by email when the *provider* asserts it's verified —
+            // never a client-supplied, unverified email (the previous implementation's flaw).
             user = await userManager.FindByEmailAsync(email);
             if (user is not null)
             {
+                await userManager.AddLoginAsync(user, new UserLoginInfo(provider, providerKey, provider));
+            }
+            else
+            {
+                user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+                var createResult = await userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                {
+                    return new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. createResult.Errors.Select(e => e.Description)]);
+                }
+
                 await userManager.AddLoginAsync(user, new UserLoginInfo(provider, providerKey, provider));
             }
         }
@@ -178,5 +225,100 @@ public sealed class IdentityService(
 
         var result = await userManager.ConfirmEmailAsync(user, token);
         return result.Succeeded;
+    }
+
+    public async Task<IdentityOperationResult> ChangePasswordAsync(
+        string userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        var result = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+
+        return result.Succeeded
+            ? new IdentityOperationResult(IdentityResultStatus.Success, user.Id)
+            : new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
+    }
+
+    public async Task<bool> VerifyPasswordAsync(string userId, string password, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        return await userManager.CheckPasswordAsync(user, password);
+    }
+
+    public async Task<bool> HasPasswordAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        return await userManager.HasPasswordAsync(user);
+    }
+
+    public async Task<string> GenerateChangeEmailTokenAsync(string userId, string newEmail, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        return await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+    }
+
+    public async Task<IdentityOperationResult> ChangeEmailAsync(
+        string userId, string newEmail, string token, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        var result = await userManager.ChangeEmailAsync(user, newEmail, token);
+        if (!result.Succeeded)
+        {
+            return new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
+        }
+
+        // ChangeEmailAsync does not update UserName — our app treats email as the
+        // username throughout (RegisterAsync sets UserName = email), so keep them in sync.
+        await userManager.SetUserNameAsync(user, newEmail);
+
+        return new IdentityOperationResult(IdentityResultStatus.Success, user.Id);
+    }
+
+    public async Task<IReadOnlyList<ExternalLoginDto>> GetExternalLoginsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        var logins = await userManager.GetLoginsAsync(user);
+        return [.. logins.Select(l => new ExternalLoginDto(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName ?? l.LoginProvider))];
+    }
+
+    public async Task<IdentityOperationResult> RemoveExternalLoginAsync(
+        string userId, string provider, string providerKey, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        var hasPassword = await userManager.HasPasswordAsync(user);
+        var logins = await userManager.GetLoginsAsync(user);
+        if (!hasPassword && logins.Count <= 1)
+        {
+            return new IdentityOperationResult(
+                IdentityResultStatus.Failed,
+                Errors: ["Cannot remove your only sign-in method. Set a password first."]);
+        }
+
+        var result = await userManager.RemoveLoginAsync(user, provider, providerKey);
+
+        return result.Succeeded
+            ? new IdentityOperationResult(IdentityResultStatus.Success, user.Id)
+            : new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
+    }
+
+    public async Task DeleteAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        await userManager.DeleteAsync(user);
     }
 }

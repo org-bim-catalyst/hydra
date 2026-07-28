@@ -2,7 +2,18 @@ import BrightnessMediumIcon from '@mui/icons-material/Brightness4'
 import ImageIcon from '@mui/icons-material/Image'
 import MenuIcon from '@mui/icons-material/Menu'
 import TranslateIcon from '@mui/icons-material/Translate'
-import { AppBar, Box, Drawer, IconButton, Stack, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material'
+import {
+  AppBar,
+  Avatar,
+  Box,
+  Drawer,
+  IconButton,
+  Stack,
+  Toolbar,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { generateImage, translate } from '../api/aiApi'
 import { ChatComposer } from '../components/ChatComposer'
@@ -10,6 +21,7 @@ import { ChatSidebar } from '../components/ChatSidebar'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
 import { useChatStream } from '../hooks/useChatStream'
+import { UserMenu } from '../../../components/UserMenu'
 import { useThemeStore } from '../../../store/themeStore'
 import { useTextToSpeech } from '../voice/useTextToSpeech'
 
@@ -60,9 +72,10 @@ export function ChatPage() {
                 <MenuIcon />
               </IconButton>
             )}
-            <Typography variant="h6" sx={{ flex: 1 }}>
-              Ask Lucy
-            </Typography>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flex: 1 }}>
+              <Avatar src="/lucy.png" alt="Ask Lucy" sx={{ width: 32, height: 32 }} />
+              <Typography variant="h6">Ask Lucy</Typography>
+            </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <LanguageSelector value={language} onChange={setLanguage} />
               <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
@@ -74,15 +87,23 @@ export function ChatPage() {
               <IconButton onClick={toggleTheme} aria-label="Toggle theme">
                 <BrightnessMediumIcon />
               </IconButton>
+              <UserMenu />
             </Stack>
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-          {messages.map((message, index) => (
-            <MessageBubble key={index} message={message} />
-          ))}
-          <div ref={scrollRef} />
+        <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}>
+          <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+            {messages.length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 8 }}>
+                Start a conversation with Ask Lucy.
+              </Typography>
+            )}
+            {messages.map((message, index) => (
+              <MessageBubble key={index} message={message} />
+            ))}
+            <div ref={scrollRef} />
+          </Box>
         </Box>
 
         <ChatComposer onSend={send} disabled={isStreaming} language={language} />
