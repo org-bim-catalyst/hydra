@@ -9,3 +9,5 @@ public sealed record UpdateProfileRequest(string? FirstName, string? LastName);
 public sealed record UpdateUserRequest(string? FirstName, string? LastName);
 
 public sealed record AvatarUploadResponse(string AvatarUrl);
+
+public sealed record DeleteAccountRequest(string Password);

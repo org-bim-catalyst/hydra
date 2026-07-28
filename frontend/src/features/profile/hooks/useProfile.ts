@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as profileApi from '../api/profileApi'
+import { useAuthStore } from '../../../store/authStore'
 
 const PROFILE_QUERY_KEY = ['profile', 'me']
 
@@ -21,5 +22,13 @@ export function useUploadAvatar() {
   return useMutation({
     mutationFn: (file: File) => profileApi.uploadAvatar(file),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY }),
+  })
+}
+
+export function useDeleteAccount() {
+  const clearSession = useAuthStore((s) => s.clear)
+  return useMutation({
+    mutationFn: (password: string) => profileApi.deleteMyAccount(password),
+    onSuccess: () => clearSession(),
   })
 }

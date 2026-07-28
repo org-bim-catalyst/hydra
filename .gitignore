@@ -377,3 +377,9 @@ tests/AskLucy.E2E.Tests/node_modules/
 tests/AskLucy.E2E.Tests/playwright-report/
 tests/AskLucy.E2E.Tests/test-results/
 tests/AskLucy.E2E.Tests/dist/
+
+# Production secrets overlay (FR-035/T074): populated by hand on the server, outside CI/CD,
+# never committed — ASP.NET Core layers it over appsettings.json automatically under
+# ASPNETCORE_ENVIRONMENT=Production. See CONTRIBUTING.md § Production secrets.
+src/AskLucy.WebAPI/appsettings.Production.json
+!src/AskLucy.WebAPI/appsettings.Production.json.example

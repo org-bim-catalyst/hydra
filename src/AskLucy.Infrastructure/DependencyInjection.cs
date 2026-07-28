@@ -5,12 +5,13 @@ using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace AskLucy.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddOptions<JwtOptions>()
             .Bind(configuration.GetSection(JwtOptions.SectionName))
@@ -42,8 +43,20 @@ public static class DependencyInjection
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
         services.AddScoped<IAIProvider, OpenAIProvider>();
-        services.AddScoped<IEmailSender, SendGridEmailSender>();
+
+        // Dev-only: lets a fresh clone complete first registration/login without a real
+        // SendGrid key (spec.md convergence note) — Production/Testing/every other
+        // environment always uses the real sender.
+        if (environment.IsDevelopment())
+        {
+            services.AddScoped<IEmailSender, ConsoleEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, SendGridEmailSender>();
+        }
 
         return services;
     }

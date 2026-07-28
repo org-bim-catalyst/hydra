@@ -47,3 +47,29 @@ being run against `mustafasalahuldin/Ask-Lucy`.
 
 Configure these under Settings → Secrets and variables → Actions. Never commit them to
 source control (constitution §8).
+
+## Production secrets (FR-035)
+
+The `deploy` job above only publishes `src/AskLucy.WebAPI`'s committed `appsettings.json`/
+`appsettings.Development.json`, which are intentionally secret-free (ADR-0001). Nothing in
+CI/CD populates the *new* application's own required secrets (JWT signing key, OpenAI key,
+SendGrid key, real database connection string) in production — and the `site4now.net` shared
+host has no environment-variable panel or secrets vault the way Azure App Service does.
+
+Instead, populate them via a gitignored `appsettings.Production.json`, pushed to the server
+**once, by hand, outside CI/CD**:
+
+1. Copy `src/AskLucy.WebAPI/appsettings.Production.json.example` to
+   `src/AskLucy.WebAPI/appsettings.Production.json` (already gitignored — will never be
+   committed) and fill in the real values.
+2. Upload that one file to the server's deployed `api/` directory alongside the CI-published
+   files (the same FTP credentials used by the `deploy` job work for this).
+3. Ensure `ASPNETCORE_ENVIRONMENT=Production` is set on the host. ASP.NET Core then layers
+   `appsettings.Production.json` over `appsettings.json` automatically — no code or pipeline
+   change is needed for this to take effect.
+4. Re-upload the file by hand only when a value changes (e.g. key rotation). It is never
+   touched by CI/CD, so a normal deploy can never overwrite or delete it.
+
+This is a deliberate, accepted trade-off: no automated rotation or drift-detection for this
+one file (see `spec.md` § Risks) — acceptable at the current small-scale, single-instance
+deployment, and revisit if a secrets-vault-capable host is ever adopted.

@@ -1,4 +1,4 @@
-import { Avatar, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Avatar, Box, Button, Divider, Paper, Stack, TextField, Typography } from '@mui/material'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMyProfile, useUpdateProfile, useUploadAvatar } from '../hooks/useProfile'
@@ -27,10 +27,13 @@ export function ProfilePage() {
   const onSubmit = handleSubmit((values) => updateProfile.mutate(values))
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-      <Paper sx={{ p: 4, maxWidth: 480, width: '100%' }}>
-        <Typography variant="h5" sx={{ mb: 3 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'center', p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
+      <Paper elevation={1} sx={{ p: { xs: 3, sm: 4 }, maxWidth: 480, width: '100%', height: 'fit-content' }}>
+        <Typography variant="h5" sx={{ mb: 0.5 }}>
           Your profile
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Manage your account details and avatar.
         </Typography>
 
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
@@ -45,15 +48,19 @@ export function ProfilePage() {
               if (file) void handleAvatarChange(file)
             }}
           />
-          <Button onClick={() => fileInputRef.current?.click()}>Change avatar</Button>
+          <Button variant="outlined" size="small" onClick={() => fileInputRef.current?.click()}>
+            Change avatar
+          </Button>
         </Stack>
 
+        <Divider sx={{ mb: 3 }} />
+
         <Box component="form" onSubmit={onSubmit}>
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
             <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
             <TextField label="First name" fullWidth {...register('firstName')} />
             <TextField label="Last name" fullWidth {...register('lastName')} />
-            <Button type="submit" variant="contained" disabled={updateProfile.isPending}>
+            <Button type="submit" variant="contained" size="large" disabled={updateProfile.isPending}>
               Save changes
             </Button>
           </Stack>

@@ -2,7 +2,7 @@ import MicIcon from '@mui/icons-material/Mic'
 import MicOffIcon from '@mui/icons-material/MicOff'
 import SendIcon from '@mui/icons-material/Send'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import { IconButton, Stack, TextField } from '@mui/material'
+import { Box, IconButton, Paper, Stack, TextField } from '@mui/material'
 import { useRef, useState } from 'react'
 import { transcribeAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
@@ -49,44 +49,65 @@ export function ChatComposer({ onSend, disabled, language }: ChatComposerProps) 
   }
 
   return (
-    <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end', p: 2 }}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.csv,audio/*"
-        hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) void handleFile(file)
-          e.target.value = ''
-        }}
-      />
-      <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
-        <AttachFileIcon />
-      </IconButton>
-      {voice.isSupported && (
-        <IconButton onClick={toggleVoice} aria-label="Voice input" color={voice.isListening ? 'error' : 'default'}>
-          {voice.isListening ? <MicOffIcon /> : <MicIcon />}
-        </IconButton>
-      )}
-      <TextField
-        fullWidth
-        multiline
-        maxRows={6}
-        placeholder="Message Ask Lucy..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            handleSend()
-          }
-        }}
-        disabled={disabled}
-      />
-      <IconButton color="primary" onClick={handleSend} disabled={disabled || !text.trim()} aria-label="Send message">
-        <SendIcon />
-      </IconButton>
-    </Stack>
+    <Box sx={{ p: 2, pt: 0 }}>
+      <Paper
+        variant="outlined"
+        sx={{ maxWidth: 800, mx: 'auto', borderRadius: 4, px: 1, py: 0.5 }}
+      >
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'flex-end' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.csv,audio/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void handleFile(file)
+              e.target.value = ''
+            }}
+          />
+          <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file" sx={{ mb: 0.5 }}>
+            <AttachFileIcon />
+          </IconButton>
+          {voice.isSupported && (
+            <IconButton
+              onClick={toggleVoice}
+              aria-label="Voice input"
+              color={voice.isListening ? 'error' : 'default'}
+              sx={{ mb: 0.5 }}
+            >
+              {voice.isListening ? <MicOffIcon /> : <MicIcon />}
+            </IconButton>
+          )}
+          <TextField
+            fullWidth
+            multiline
+            maxRows={6}
+            variant="standard"
+            placeholder="Message Ask Lucy..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSend()
+              }
+            }}
+            disabled={disabled}
+            slotProps={{ input: { disableUnderline: true } }}
+            sx={{ py: 1.25 }}
+          />
+          <IconButton
+            color="primary"
+            onClick={handleSend}
+            disabled={disabled || !text.trim()}
+            aria-label="Send message"
+            sx={{ mb: 0.5 }}
+          >
+            <SendIcon />
+          </IconButton>
+        </Stack>
+      </Paper>
+    </Box>
   )
 }
