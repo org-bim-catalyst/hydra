@@ -13,8 +13,9 @@
     "ApiKey": ""
   },
 
-  "SendGrid": {
-    "ApiKey": ""
+  "Smtp": {
+    "Username": "",
+    "Password": ""
   },
 
   "Authentication": {

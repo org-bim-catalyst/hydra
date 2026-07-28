@@ -13,7 +13,7 @@ export interface ChatMessage {
  * `ReadableStream` reader rather than the browser's native `EventSource`, since
  * `EventSource` cannot send a custom `Authorization` header.
  */
-export async function* streamChat(messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<string> {
+export async function* streamChat(chatId: string, messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<string> {
   const accessToken = useAuthStore.getState().accessToken
 
   const response = await fetch(`${API_BASE_URL}/ai/chat`, {
@@ -23,7 +23,7 @@ export async function* streamChat(messages: ChatMessage[], signal?: AbortSignal)
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ chatId, messages }),
   })
 
   if (!response.ok || !response.body) {
@@ -44,18 +44,27 @@ export async function* streamChat(messages: ChatMessage[], signal?: AbortSignal)
 
     for (const line of lines) {
       if (!line.startsWith('data:')) continue
-      const data = line.slice('data:'.length).trim()
+      // Per the SSE spec, strip at most the single protocol-mandated leading space after
+      // "data:" — NOT a full .trim(). The backend writes `data: {chunk}` (AiController.cs),
+      // and `chunk` itself frequently starts with its own meaningful space (OpenAI streams
+      // most word tokens with a leading space, e.g. " I", " can", " hear" — that space IS the
+      // word boundary). A full .trim() here silently ate every one of those, running every
+      // streamed word together with no spaces.
+      const data = line.slice('data:'.length).replace(/^ /, '')
       if (data === '[DONE]') return
       yield data
     }
   }
 }
 
-export const translate = (text: string, targetLanguage: string) =>
-  apiFetch<string>('/ai/translate', { method: 'POST', body: JSON.stringify({ text, targetLanguage }) })
+export const translate = (chatId: string, text: string, targetLanguage: string) =>
+  apiFetch<string>('/ai/translate', { method: 'POST', body: JSON.stringify({ chatId, text, targetLanguage }) })
 
-export async function generateImage(prompt: string): Promise<string> {
-  const result = await apiFetch<{ url: string }>('/ai/images', { method: 'POST', body: JSON.stringify({ prompt }) })
+export async function generateImage(chatId: string, prompt: string): Promise<string> {
+  const result = await apiFetch<{ url: string }>('/ai/images', {
+    method: 'POST',
+    body: JSON.stringify({ chatId, prompt }),
+  })
   return result.url
 }
 

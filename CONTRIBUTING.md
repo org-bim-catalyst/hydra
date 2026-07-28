@@ -53,8 +53,8 @@ source control (constitution §8).
 The `deploy` job above only publishes `src/AskLucy.WebAPI`'s committed `appsettings.json`/
 `appsettings.Development.json`, which are intentionally secret-free (ADR-0001). Nothing in
 CI/CD populates the *new* application's own required secrets (JWT signing key, OpenAI key,
-SendGrid key, real database connection string) in production — and the `site4now.net` shared
-host has no environment-variable panel or secrets vault the way Azure App Service does.
+SMTP credentials, real database connection string) in production — and the `site4now.net`
+shared host has no environment-variable panel or secrets vault the way Azure App Service does.
 
 Instead, populate them via a gitignored `appsettings.Production.json`, pushed to the server
 **once, by hand, outside CI/CD**:

@@ -28,10 +28,8 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<SendGridOptions>()
-            .Bind(configuration.GetSection(SendGridOptions.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+        services.AddOptions<SmtpOptions>()
+            .Bind(configuration.GetSection(SmtpOptions.SectionName));
 
         services.AddDataProtection();
 
@@ -46,16 +44,16 @@ public static class DependencyInjection
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
         services.AddScoped<IAIProvider, OpenAIProvider>();
 
-        // Dev-only: lets a fresh clone complete first registration/login without a real
-        // SendGrid key (spec.md convergence note) — Production/Testing/every other
-        // environment always uses the real sender.
+        // Dev-only: lets a fresh clone complete first registration/login without real SMTP
+        // credentials (spec.md convergence note) — Production/Testing/every other environment
+        // always uses the real sender.
         if (environment.IsDevelopment())
         {
             services.AddScoped<IEmailSender, ConsoleEmailSender>();
         }
         else
         {
-            services.AddScoped<IEmailSender, SendGridEmailSender>();
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
         }
 
         return services;

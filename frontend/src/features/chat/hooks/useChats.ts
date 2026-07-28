@@ -30,3 +30,11 @@ export function useDeleteChat() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CHATS_QUERY_KEY }),
   })
 }
+
+export function useChatMessages(chatId: string | null) {
+  return useQuery({
+    queryKey: ['chats', chatId, 'messages'],
+    queryFn: () => chatsApi.getChatMessages(chatId!),
+    enabled: chatId !== null,
+  })
+}

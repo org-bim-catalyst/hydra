@@ -25,7 +25,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Jwt:Audience"] = "https://tests.asklucy.io",
                 ["Jwt:SigningKey"] = "test-signing-key-not-for-production-use-minimum-32-chars",
                 ["OpenAI:ApiKey"] = "test-key",
-                ["SendGrid:ApiKey"] = "test-key",
+                ["Smtp:Host"] = "test-smtp.invalid",
                 ["FileStorage:RootPath"] = "App_Data/test-avatars",
                 ["App:FrontendBaseUrl"] = "https://tests.asklucy.io",
             });

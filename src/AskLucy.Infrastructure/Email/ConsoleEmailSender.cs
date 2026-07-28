@@ -4,10 +4,10 @@ using Microsoft.Extensions.Logging;
 namespace AskLucy.Infrastructure.Email;
 
 /// <summary>
-/// Dev-only stand-in for <see cref="SendGridEmailSender"/> — logs the email instead of
+/// Dev-only stand-in for <see cref="SmtpEmailSender"/> — logs the email instead of
 /// sending it, so a fresh clone can complete first registration/login (email confirmation)
-/// without a real SendGrid key. Registered only for the Development environment (see
-/// <see cref="DependencyInjection.AddInfrastructure"/>) — production always uses SendGrid.
+/// without real SMTP credentials. Registered only for the Development environment (see
+/// <see cref="DependencyInjection.AddInfrastructure"/>) — production always uses SMTP.
 /// </summary>
 public sealed class ConsoleEmailSender(ILogger<ConsoleEmailSender> logger) : IEmailSender
 {

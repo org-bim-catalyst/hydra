@@ -25,6 +25,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           color: isUser ? 'primary.contrastText' : 'text.primary',
           '& p:first-of-type': { mt: 0 },
           '& p:last-of-type': { mb: 0 },
+          '& img': { maxWidth: '100%', borderRadius: 1 },
         }}
       >
         <Typography component="div" variant="body1">
