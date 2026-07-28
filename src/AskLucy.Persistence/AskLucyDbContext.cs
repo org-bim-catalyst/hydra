@@ -18,6 +18,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
 {
     public DbSet<UserChat> UserChats => Set<UserChat>();
 
+    public DbSet<Message> Messages => Set<Message>();
+
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)

@@ -7,6 +7,18 @@ export interface UserChat {
   modifiedAtUtc: string | null
 }
 
+export type MessageRole = 'User' | 'Assistant'
+export type MessageKind = 'Text' | 'Image' | 'Translation'
+
+export interface PersistedMessage {
+  id: string
+  role: MessageRole
+  kind: MessageKind
+  content: string
+  sourceText: string | null
+  createdAtUtc: string
+}
+
 export const listChats = () => apiFetch<UserChat[]>('/chats')
 
 export const createChat = (title: string, sessionId?: string) =>
@@ -16,3 +28,5 @@ export const renameChat = (id: string, title: string) =>
   apiFetch<UserChat>(`/chats/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) })
 
 export const deleteChat = (id: string) => apiFetch<void>(`/chats/${id}`, { method: 'DELETE' })
+
+export const getChatMessages = (id: string) => apiFetch<PersistedMessage[]>(`/chats/${id}/messages`)

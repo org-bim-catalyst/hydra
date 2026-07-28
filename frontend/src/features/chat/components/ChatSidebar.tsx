@@ -3,12 +3,21 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Button, IconButton, List, ListItemButton, ListItemText, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
-import { useChats, useCreateChat, useDeleteChat, useRenameChat } from '../hooks/useChats'
+import { useChats, useDeleteChat, useRenameChat } from '../hooks/useChats'
 
-/** FR-008/FR-033: create, rename, and delete saved chats. */
-export function ChatSidebar() {
+interface ChatSidebarProps {
+  selectedChatId: string | null
+  onSelectChat: (id: string) => void
+  onNewChat: () => void
+}
+
+/**
+ * FR-008/FR-033: create (deferred to the first message sent, see useChatStream's
+ * ensureChatId), rename, delete, and select a saved chat to load its history (2026-07-28
+ * ChatGPT-style history decision).
+ */
+export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSidebarProps) {
   const { data: chats } = useChats()
-  const createChat = useCreateChat()
   const renameChat = useRenameChat()
   const deleteChat = useDeleteChat()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -31,7 +40,7 @@ export function ChatSidebar() {
           fullWidth
           variant="outlined"
           startIcon={<AddIcon />}
-          onClick={() => createChat.mutate('New chat')}
+          onClick={onNewChat}
           sx={{ justifyContent: 'flex-start', bgcolor: 'background.paper' }}
         >
           New chat
@@ -64,6 +73,8 @@ export function ChatSidebar() {
           ) : (
             <ListItemButton
               key={chat.id}
+              selected={chat.id === selectedChatId}
+              onClick={() => onSelectChat(chat.id)}
               sx={{ borderRadius: 2, mb: 0.5, '&:hover .chat-item-actions': { opacity: 1 } }}
             >
               <ListItemText primary={chat.title} slotProps={{ primary: { noWrap: true } }} />
@@ -84,6 +95,7 @@ export function ChatSidebar() {
                   onClick={(e) => {
                     e.stopPropagation()
                     deleteChat.mutate(chat.id)
+                    if (chat.id === selectedChatId) onNewChat()
                   }}
                   aria-label="Delete chat"
                 >

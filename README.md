@@ -39,11 +39,15 @@ frontend/                  # React 19 + TypeScript + Vite + Material UI
 dotnet user-secrets set "ConnectionStrings:ChatGPT_ClientContextConnection" "<your SQL Server connection string>" --project src/AskLucy.WebAPI
 dotnet user-secrets set "Jwt:SigningKey" "<a random 32+ character string>" --project src/AskLucy.WebAPI
 dotnet user-secrets set "OpenAI:ApiKey" "<your OpenAI API key>" --project src/AskLucy.WebAPI
-dotnet user-secrets set "SendGrid:ApiKey" "<your SendGrid API key>" --project src/AskLucy.WebAPI
+dotnet user-secrets set "Smtp:Username" "<your SMTP username, if the host requires auth>" --project src/AskLucy.WebAPI
+dotnet user-secrets set "Smtp:Password" "<your SMTP password, if the host requires auth>" --project src/AskLucy.WebAPI
 
 dotnet build "Ask Lucy.sln"
 dotnet run --project src/AskLucy.WebAPI
 ```
+
+In the `Development` environment, email is never actually sent — `ConsoleEmailSender` logs it
+instead, so the `Smtp:*` secrets above are only needed once you run outside `Development`.
 
 Never put real secrets in `appsettings.json` — see the `_comment_secrets` note in
 `src/AskLucy.WebAPI/appsettings.json` and constitution §8.

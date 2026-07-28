@@ -7,6 +7,7 @@ using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Persistence;
 using AskLucy.WebAPI.Auth;
+using AskLucy.WebAPI.DevSeed;
 using AskLucy.WebAPI.Middleware;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Facebook;
@@ -163,6 +164,21 @@ app.UseRateLimiter();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
+// missing/unreachable database at startup degrades to a logged warning, not a crashed host —
+// the rest of the app already tolerates the database being down until the first request needs it.
+if (app.Environment.IsDevelopment())
+{
+    try
+    {
+        await DevAdminSeeder.SeedAsync(app.Services, app.Logger);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Dev admin seed skipped — could not reach the database.");
+    }
+}
 
 app.Run();
 

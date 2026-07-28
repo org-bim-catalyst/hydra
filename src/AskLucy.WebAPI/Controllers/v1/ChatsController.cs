@@ -2,6 +2,7 @@ using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.CreateUserChat;
 using AskLucy.Application.Chats.Commands.DeleteUserChat;
 using AskLucy.Application.Chats.Commands.RenameUserChat;
+using AskLucy.Application.Chats.Queries.GetChatMessages;
 using AskLucy.Application.Chats.Queries.GetMyUserChats;
 using AskLucy.WebAPI.Contracts;
 using MediatR;
@@ -37,4 +38,8 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
         await mediator.Send(new DeleteUserChatCommand(id), cancellationToken);
         return NoContent();
     }
+
+    [HttpGet("{id:guid}/messages")]
+    public async Task<ActionResult<IReadOnlyList<MessageDto>>> GetMessages(Guid id, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetChatMessagesQuery(id), cancellationToken));
 }

@@ -2,7 +2,7 @@ import MicIcon from '@mui/icons-material/Mic'
 import MicOffIcon from '@mui/icons-material/MicOff'
 import SendIcon from '@mui/icons-material/Send'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import { Box, IconButton, Paper, Stack, TextField } from '@mui/material'
+import { Alert, Box, IconButton, Paper, Snackbar, Stack, TextField } from '@mui/material'
 import { useRef, useState } from 'react'
 import { transcribeAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
@@ -108,6 +108,11 @@ export function ChatComposer({ onSend, disabled, language }: ChatComposerProps) 
           </IconButton>
         </Stack>
       </Paper>
+      <Snackbar open={Boolean(voice.error)} autoHideDuration={5000} onClose={() => voice.clearError()}>
+        <Alert severity="error" variant="filled">
+          {voice.error}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
