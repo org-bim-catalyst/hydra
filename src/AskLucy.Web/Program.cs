@@ -140,6 +140,23 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // Chat/conversation-management endpoints (specs/002-chat-history-management) — none of
+    // these invoke an AI provider directly (that's ai-endpoints, above), but constitution §6
+    // still requires every public endpoint to be rate-limited; ChatsController previously had
+    // no policy at all (a pre-existing gap found while auditing this during T074), so this
+    // closes it with the same generous, non-AI-cost-tiered shape as admin-endpoints.
+    options.AddPolicy("chat-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -209,11 +226,15 @@ app.Use(async (context, next) =>
     }
 
     // SPA fallback: any GET that isn't a real static file and isn't one of this app's own
-    // non-file endpoints serves index.html so React Router can handle it. Excludes "/api"
-    // and "/health" so a typo'd/missing API route or the health check still reach routing
-    // below instead of silently returning the SPA shell.
+    // non-file endpoints serves index.html so React Router can handle it. Excludes "/api",
+    // "/health", and "/openapi" so a typo'd/missing API route, the health check, or the
+    // generated OpenAPI document (constitution §6 — every endpoint MUST be discoverable via
+    // it; found silently swallowed as the SPA shell here while verifying
+    // specs/002-chat-history-management tasks.md T075) still reach routing below instead of
+    // silently returning the SPA shell.
     if (HttpMethods.IsGet(context.Request.Method)
         && !requestPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        && !requestPath.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase)
         && !requestPath.Equals("/health", StringComparison.OrdinalIgnoreCase))
     {
         var indexFile = wwwrootProvider.GetFileInfo("index.html");

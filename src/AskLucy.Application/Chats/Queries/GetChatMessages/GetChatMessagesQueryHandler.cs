@@ -1,5 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Authorization;
+using AskLucy.Application.Chats.Commands.AppendMessage;
+using AskLucy.Application.Common;
 using MediatR;
 
 namespace AskLucy.Application.Chats.Queries.GetChatMessages;
@@ -8,15 +10,16 @@ namespace AskLucy.Application.Chats.Queries.GetChatMessages;
 public sealed class GetChatMessagesQueryHandler(
     IUserChatRepository chatRepository,
     IMessageRepository messageRepository,
-    ICurrentUserAccessor currentUser) : IRequestHandler<GetChatMessagesQuery, IReadOnlyList<MessageDto>>
+    ICurrentUserAccessor currentUser) : IRequestHandler<GetChatMessagesQuery, PagedResult<MessageDto>>
 {
-    public async Task<IReadOnlyList<MessageDto>> Handle(GetChatMessagesQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<MessageDto>> Handle(GetChatMessagesQuery request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         ChatOwnershipGuard.EnsureOwnedBy(await chatRepository.GetByIdAsync(request.ChatId, cancellationToken), userId);
 
-        var messages = await messageRepository.ListByChatIdAsync(request.ChatId, cancellationToken);
+        var (messages, nextCursor) = await messageRepository.ListPagedByChatIdAsync(
+            request.ChatId, request.Cursor, request.PageSize, cancellationToken);
 
-        return [.. messages.Select(m => new MessageDto(m.Id, m.Role.ToString(), m.Kind.ToString(), m.Content, m.SourceText, m.CreatedAtUtc))];
+        return new PagedResult<MessageDto>([.. messages.Select(AppendMessageCommandHandler.ToDto)], nextCursor);
     }
 }

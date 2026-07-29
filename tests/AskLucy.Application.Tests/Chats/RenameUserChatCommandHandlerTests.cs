@@ -28,6 +28,7 @@ public sealed class RenameUserChatCommandHandlerTests
         var result = await handler.Handle(new RenameUserChatCommand(chat.Id, "New title"), CancellationToken.None);
 
         result.Title.Should().Be("New title");
+        chat.IsTitleManuallySet.Should().BeTrue("FR-014: a manual rename must freeze auto-title generation");
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

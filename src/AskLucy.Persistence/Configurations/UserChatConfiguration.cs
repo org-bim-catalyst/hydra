@@ -22,6 +22,8 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.Property(c => c.Title).IsRequired().HasMaxLength(200);
         builder.Property(c => c.SessionId).HasMaxLength(100);
         builder.Property(c => c.UserId).IsRequired();
+        builder.Property(c => c.IsTitleManuallySet).IsRequired().HasDefaultValue(false);
+        builder.Property(c => c.IsFavorite).IsRequired().HasDefaultValue(false);
 
         builder.Property(c => c.CreatedBy).IsRequired();
         builder.Property(c => c.RowVersion).IsRowVersion();
@@ -30,6 +32,9 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
 
         builder.HasIndex(c => c.UserId);
         builder.HasIndex(c => c.CreatedAtUtc);
+        builder.HasIndex(c => c.ArchivedAtUtc);
+        builder.HasIndex(c => c.PinnedAtUtc);
+        builder.HasIndex(c => c.IsFavorite);
 
         builder.HasOne<ApplicationUser>()
             .WithMany(u => u.UserChats)

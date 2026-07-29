@@ -13,6 +13,10 @@ function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
   return persisted.map((m) => ({
     role: m.role === 'User' ? 'user' : 'assistant',
     content: m.kind === 'Image' ? `![${m.sourceText ?? 'Generated image'}](${m.content})` : m.content,
+    provider: m.provider,
+    model: m.model,
+    attachments: m.attachments,
+    citations: m.citations,
   }))
 }
 

@@ -24,6 +24,15 @@ public sealed class AiProviderUnavailableException(string message, Exception? in
 /// </summary>
 public interface IAIProvider
 {
+    /// <summary>The provider's display name (e.g., "OpenAI") — recorded against assistant messages (specs/002-chat-history-management FR-016), never a vendor SDK type leaking past this interface.</summary>
+    string ProviderName { get; }
+
+    /// <summary>The model identifier used for chat/translation completions — recorded against assistant messages (FR-016).</summary>
+    string ChatModel { get; }
+
+    /// <summary>The model identifier used for image generation — recorded against assistant messages (FR-016).</summary>
+    string ImageModel { get; }
+
     Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default);
 
     IAsyncEnumerable<string> StreamChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default);
