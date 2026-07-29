@@ -77,14 +77,14 @@ src/
 ├── AskLucy.Application/              # CQRS commands/queries/handlers, DTOs, validators, interfaces (MediatR, FluentValidation, AutoMapper)
 ├── AskLucy.Infrastructure/           # IAIProvider→OpenAIProvider, IFileStorage→LocalFileStorage, email sender, JWT/refresh-token services
 ├── AskLucy.Persistence/              # EF Core DbContext, entity configurations, migrations
-└── AskLucy.WebAPI/                   # controllers/minimal APIs, auth middleware, SSE endpoints, Swagger, DI composition root
+└── AskLucy.Web/                   # controllers/minimal APIs, auth middleware, SSE endpoints, Swagger, DI composition root
 
 tests/
 ├── AskLucy.Domain.Tests/
 ├── AskLucy.Application.Tests/
 ├── AskLucy.Infrastructure.Tests/
 ├── AskLucy.Persistence.Tests/        # Testcontainers-backed SQL Server tests
-├── AskLucy.WebAPI.Tests/             # WebApplicationFactory-based API tests
+├── AskLucy.Web.Tests/             # WebApplicationFactory-based API tests
 └── AskLucy.E2E.Tests/                # Playwright regression matrix (docs/TESTING.md §36)
 
 frontend/                             # new React 19 + Vite + MUI SPA, replacing Ask Lucy/Views + Scripts/ts

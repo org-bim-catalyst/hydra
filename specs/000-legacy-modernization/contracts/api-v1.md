@@ -22,8 +22,10 @@ Versioned REST API replacing today's unversioned, mostly-unauthenticated endpoin
 | PATCH | `/api/v1/users/me` | Authenticated | Updates the caller's own profile fields only (FR-018). |
 | PUT | `/api/v1/users/me/avatar` | Authenticated | Uploads a new avatar; stored per `research.md` Topic 6. |
 | GET | `/api/v1/users/me/avatar?exp=...&sig=...` | Signed URL (short-lived HMAC) | Serves the avatar file; never exposes the physical path (FR-025). |
-| GET | `/api/v1/users` | Authenticated + Administrator/Super User role | Admin user list, **DTO-projected** (no password hash/security stamp — closes the current exposure, FR-017/FR-019). |
+| GET | `/api/v1/users` | Authenticated + Administrator/Super User role | Admin user list, **DTO-projected** (no password hash/security stamp — closes the current exposure, FR-017/FR-019). Evolved by SPEC-001 to add search/sort/pagination — see `specs/001-admin-dashboard/contracts/api-v1.md`. |
 | PATCH | `/api/v1/users/{id}` | Authenticated + Administrator/Super User role | Admin update via an explicit, validated command — no client-supplied entity overposting (closes current mass-assignment gap). |
+
+**Additive in SPEC-001** (`specs/001-admin-dashboard/contracts/api-v1.md`): dashboard summary endpoint plus per-user lock/unlock/role-change/force-2FA-reset/delete actions — not part of this migration's scope, listed here only for cross-reference.
 
 ## Chats
 

@@ -23,5 +23,22 @@ public sealed class ApplicationUser : IdentityUser
     /// </summary>
     public string? AvatarFileName { get; set; }
 
+    /// <summary>
+    /// When this account was created. <see cref="IdentityUser"/> has no equivalent field, and
+    /// this type cannot inherit <see cref="AskLucy.Domain.Common.BaseEntity"/> (conflicting
+    /// <c>Id</c> types), so it is set explicitly at every creation call site rather than by the
+    /// generic audit interceptor. Drives the admin dashboard's registration-trend chart
+    /// (SPEC-001 FR-003). See specs/001-admin-dashboard/research.md Topic 1.
+    /// </summary>
+    public DateTime CreatedAtUtc { get; set; }
+
+    /// <summary>Soft-delete flag (SPEC-001 FR-016). Kept as an explicit column, not derived from
+    /// <see cref="DeletedAtUtc"/>, so the EF Core global query filter is a simple, indexable predicate.</summary>
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAtUtc { get; set; }
+
+    public string? DeletedBy { get; set; }
+
     public ICollection<UserChat> UserChats { get; set; } = new List<UserChat>();
 }

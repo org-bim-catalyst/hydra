@@ -50,7 +50,7 @@ source control (constitution §8).
 
 ## Production secrets (FR-035)
 
-The `deploy` job above only publishes `src/AskLucy.WebAPI`'s committed `appsettings.json`/
+The `deploy` job above only publishes `src/AskLucy.Web`'s committed `appsettings.json`/
 `appsettings.Development.json`, which are intentionally secret-free (ADR-0001). Nothing in
 CI/CD populates the *new* application's own required secrets (JWT signing key, OpenAI key,
 SMTP credentials, real database connection string) in production — and the `site4now.net`
@@ -59,8 +59,8 @@ shared host has no environment-variable panel or secrets vault the way Azure App
 Instead, populate them via a gitignored `appsettings.Production.json`, pushed to the server
 **once, by hand, outside CI/CD**:
 
-1. Copy `src/AskLucy.WebAPI/appsettings.Production.json.example` to
-   `src/AskLucy.WebAPI/appsettings.Production.json` (already gitignored — will never be
+1. Copy `src/AskLucy.Web/appsettings.Production.json.example` to
+   `src/AskLucy.Web/appsettings.Production.json` (already gitignored — will never be
    committed) and fill in the real values.
 2. Upload that one file to the server's deployed `api/` directory alongside the CI-published
    files (the same FTP credentials used by the `deploy` job work for this).

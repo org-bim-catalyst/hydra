@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>a1c0e915-be37-4677-87c8-85169e40c045</UserSecretsId>
+    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="appsettings.Production.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="appsettings.Production.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AskLucy.Application\AskLucy.Application.csproj" />
+    <ProjectReference Include="..\AskLucy.Infrastructure\AskLucy.Infrastructure.csproj" />
+    <ProjectReference Include="..\AskLucy.Persistence\AskLucy.Persistence.csproj" />
+    <ProjectReference Include="..\AskLucy.Domain\AskLucy.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- Builds ClientApp (the React/Vite SPA) and copies its output into wwwroot before every
+       build — hitting Run in Visual Studio, `dotnet run`, `dotnet build`, and Publish all go
+       through PreBuildEvent, so the backend always serves whatever ClientApp currently builds
+       to. Matches the same PreBuildEvent pattern the legacy project used. Requires `npm install`
+       to have been run once in ClientApp beforehand — this does not run npm ci/install itself,
+       to keep every build fast and avoid clobbering a developer's own node_modules mid-work. -->
+  <Target Name="BuildClientApp" BeforeTargets="PreBuildEvent">
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)\ClientApp" />
+  </Target>
+
+  <Target Name="CopyClientAppToWwwroot" AfterTargets="BuildClientApp" BeforeTargets="PreBuildEvent">
+    <ItemGroup>
+      <ClientAppDistFiles Include="$(MSBuildProjectDirectory)\ClientApp\dist\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ClientAppDistFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

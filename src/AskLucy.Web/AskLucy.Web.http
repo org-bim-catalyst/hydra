@@ -1,0 +1,6 @@
+@AskLucy.Web_HostAddress = http://localhost:5142
+
+GET {{AskLucy.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

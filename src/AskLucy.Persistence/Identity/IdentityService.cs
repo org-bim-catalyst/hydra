@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Users;
 using Microsoft.AspNetCore.Identity;
 
 namespace AskLucy.Persistence.Identity;
@@ -23,6 +24,7 @@ public sealed class IdentityService(
             Email = email,
             FirstName = firstName,
             LastName = lastName,
+            CreatedAtUtc = DateTime.UtcNow,
         };
 
         var result = await userManager.CreateAsync(user, password);
@@ -139,7 +141,7 @@ public sealed class IdentityService(
             }
             else
             {
-                user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+                user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, CreatedAtUtc = DateTime.UtcNow };
                 var createResult = await userManager.CreateAsync(user);
                 if (!createResult.Succeeded)
                 {
@@ -320,5 +322,47 @@ public sealed class IdentityService(
             ?? throw new InvalidOperationException($"User '{userId}' not found.");
 
         await userManager.DeleteAsync(user);
+    }
+
+    public async Task SetLockoutAsync(string userId, bool locked, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        await userManager.SetLockoutEnabledAsync(user, true);
+        await userManager.SetLockoutEndDateAsync(user, locked ? DateTimeOffset.MaxValue : null);
+    }
+
+    public async Task ChangeRoleAsync(string userId, string newRole, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        var currentRoles = await userManager.GetRolesAsync(user);
+        var currentPrivilegedRoles = currentRoles.Where(PrivilegedRoleNames.All.Contains).ToArray();
+        if (currentPrivilegedRoles.Length > 0)
+        {
+            await userManager.RemoveFromRolesAsync(user, currentPrivilegedRoles);
+        }
+
+        // "Regular" is a sentinel meaning "no privileged role" — never a real AspNetRoles row
+        // (data-model.md § Commands), so it is never passed to AddToRoleAsync.
+        if (newRole != PrivilegedRoleNames.Regular)
+        {
+            await userManager.AddToRoleAsync(user, newRole);
+        }
+    }
+
+    public async Task<IReadOnlyList<string>> GetRolesAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        return user is null ? [] : [.. await userManager.GetRolesAsync(user)];
+    }
+
+    public async Task<int> CountActiveSuperUsersAsync(CancellationToken cancellationToken = default)
+    {
+        var superUsers = await userManager.GetUsersInRoleAsync(PrivilegedRoleNames.SuperUser);
+        var now = DateTimeOffset.UtcNow;
+        return superUsers.Count(u => u.LockoutEnd is null || u.LockoutEnd <= now);
     }
 }

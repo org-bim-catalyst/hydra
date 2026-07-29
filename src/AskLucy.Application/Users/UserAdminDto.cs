@@ -12,4 +12,7 @@ public sealed record UserAdminDto(
     string? LastName,
     bool EmailConfirmed,
     bool TwoFactorEnabled,
-    bool LockoutEnabled);
+    bool LockoutEnabled,
+    bool IsLockedOut,
+    string Role,
+    DateTime CreatedAtUtc);

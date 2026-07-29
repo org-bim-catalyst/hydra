@@ -1,6 +1,0 @@
-@AskLucy.WebAPI_HostAddress = http://localhost:5142
-
-GET {{AskLucy.WebAPI_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

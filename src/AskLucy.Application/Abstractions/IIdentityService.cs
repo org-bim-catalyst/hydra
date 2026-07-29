@@ -81,6 +81,23 @@ public interface IIdentityService
     Task<IdentityOperationResult> RemoveExternalLoginAsync(string userId, string provider, string providerKey, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Admin lock/unlock (FR-012/FR-013) — indefinite, not a timed lockout.</summary>
+    Task SetLockoutAsync(string userId, bool locked, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Admin role change (FR-014). <paramref name="newRole"/> is <c>"Administrator"</c>,
+    /// <c>"Super User"</c>, or the sentinel <c>"Regular"</c> — the last means "remove every
+    /// privileged role, assign none" and is never itself a real <c>AspNetRoles</c> row
+    /// (data-model.md &#167; Commands).
+    /// </summary>
+    Task ChangeRoleAsync(string userId, string newRole, CancellationToken cancellationToken = default);
+
+    /// <summary>Roles currently held by <paramref name="userId"/> — used by the FR-023 last-Super-User guard.</summary>
+    Task<IReadOnlyList<string>> GetRolesAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Count of Super Users who are not currently locked out — the FR-023 last-Super-User guard's denominator.</summary>
+    Task<int> CountActiveSuperUsersAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed record ExternalLoginDto(string Provider, string ProviderKey, string DisplayName);

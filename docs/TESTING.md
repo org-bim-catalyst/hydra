@@ -121,7 +121,7 @@ AskLucy.Infrastructure.Tests
 
 AskLucy.Persistence.Tests
 
-AskLucy.WebAPI.Tests
+AskLucy.Web.Tests
 
 AskLucy.Frontend.Tests
 
