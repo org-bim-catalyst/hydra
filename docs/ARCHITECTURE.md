@@ -94,7 +94,7 @@ AskLucy.sln
 
     AskLucy.Persistence
 
-    AskLucy.WebAPI
+    AskLucy.Web
 
     AskLucy.Frontend
 

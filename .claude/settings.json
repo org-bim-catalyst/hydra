@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet publish *)",
+      "Read(//tmp/publish_test/**)",
+      "Bash(rm -rf /tmp/publish_test)",
+      "Bash(dotnet tool *)",
+      "Bash(mkdir -p .config)",
+      "Bash(git mv *)",
+      "Bash(mv src/AskLucy.Web/dotnet-tools.json .config/dotnet-tools.json)",
+      "Bash(dotnet ef *)",
+      "Bash(python3 -c \"import json; json.load\\(open\\('src/AskLucy.Web/appsettings.Production.json'\\)\\)\")",
+      "Bash(dotnet build *)",
+      "Bash(git rm *)",
+      "Bash(ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_URLS=http://localhost:5299 timeout 15 dotnet run --no-build -c Release)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:5299/)",
+      "Bash(curl -s http://localhost:5299/)",
+      "Bash(wait)",
+      "Bash(python3 -c \"import secrets; print\\(secrets.token_urlsafe\\(48\\)\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('src/AskLucy.Web/appsettings.Production.json'\\)\\); print\\(d['Jwt']\\)\")",
+      "Bash(rm -rf src/AskLucy.Web/wwwroot)",
+      "Bash(rm -rf C:/Users/musta/AppData/Local/Temp/claude/d--Workshop-BIM-Catalyst-Web-Apps-Platform-Ask-Lucy/6b922e0b-f8fa-44f5-bc16-bf38b3f7a948/scratchpad/publish_test)",
+      "Bash(dotnet test *)",
+      "Bash(curl -s -D - -o /tmp/asset_response.txt \"https://hydra.bimcatalyst.com/assets/index-CqB6k8G1.js\")",
+      "Bash(curl -v -s -o /dev/null \"https://hydra.bimcatalyst.com/\")",
+      "Bash(tasklist)",
+      "Bash(wmic process *)",
+      "Bash(powershell -NoProfile -Command \"Get-CimInstance Win32_Process -Filter 'ProcessId=25348' | Select-Object ProcessId,CommandLine | Format-List\")",
+      "Bash(taskkill //PID 25348 //F)",
+      "Bash(taskkill //PID 45388 //F)",
+      "PowerShell(try { Move-Item -Path \"src\\\\AskLucy.Web\" -Destination \"src\\\\AskLucy.Web\" -ErrorAction Stop; \"OK\" } catch { $_.Exception.Message; $_.Exception.GetType\\(\\).FullName })",
+      "Bash(mv \"AskLucy.Web.csproj\" \"AskLucy.Web.csproj\")",
+      "Bash(mv \"AskLucy.Web.http\" \"AskLucy.Web.http\")",
+      "Bash(rm -f \"AskLucy.Web.csproj.user\")",
+      "PowerShell(try { Move-Item -Path \"tests\\\\AskLucy.Web.Tests\" -Destination \"tests\\\\AskLucy.Web.Tests\" -ErrorAction Stop; \"OK\" } catch { $_.Exception.Message })",
+      "PowerShell(try { Move-Item -Path \"D:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\tests\\\\AskLucy.Web.Tests\" -Destination \"D:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\tests\\\\AskLucy.Web.Tests\" -ErrorAction Stop; \"OK\" } catch { $_.Exception.Message })",
+      "Bash(mv \"AskLucy.Web.Tests.csproj\" \"AskLucy.Web.Tests.csproj\")",
+      "Bash(rm -f \"AskLucy.Web.Tests.csproj.user\")"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

@@ -1,9 +1,0 @@
-{
-  "name": "User profile folders structure template",
-  "colllection": [
-    {
-      "title": "chat",
-      "description": "this folder contatins the history of the user's chat."
-    }
-  ]
-}

@@ -20,7 +20,7 @@ jobs:
       - name: Build
         run: dotnet build "Ask Lucy.sln" --no-restore --configuration Release
       - name: Lint (format check)
-        run: dotnet format "Ask Lucy.sln" --no-restore --verify-no-changes --exclude "Ask Lucy/**"
+        run: dotnet format "Ask Lucy.sln" --no-restore --verify-no-changes
       - name: Test
         run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults
       - name: Upload test results
@@ -35,14 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: src/AskLucy.Web/ClientApp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: src/AskLucy.Web/ClientApp/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Lint
@@ -91,36 +91,29 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: src/AskLucy.Web/ClientApp/package-lock.json
 
-      - name: Build frontend
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
+      - name: Install ClientApp dependencies
+        working-directory: src/AskLucy.Web/ClientApp
+        run: npm ci
 
-      - name: Publish backend
-        run: dotnet publish src/AskLucy.WebAPI --configuration Release --output publish/backend
+      # AskLucy.Web's PreBuildEvent target runs `npm run build` and copies ClientApp's
+      # output into wwwroot as part of this build — one publish produces one deployable
+      # site (backend + SPA together), no separate frontend build/deploy step needed.
+      - name: Publish
+        run: dotnet publish src/AskLucy.Web --configuration Release --output publish/backend
 
       # No Docker, no Azure App Service cutover this phase — deliberate, per the
       # approved scope decision (spec.md § Assumptions, plan.md § Complexity Tracking).
       # Deploys via FTP to the same site4now.net shared-hosting target the legacy app
       # already used, replacing the previous manual FTP/MSDeploy publish step with an
-      # automated one (FR-029/FR-030).
-      - name: Deploy backend via FTP
+      # automated one (FR-029/FR-030). Deploys to site root since AskLucy.Web now serves
+      # both the API and the SPA from the same origin.
+      - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.SITE4NOW_FTP_SERVER }}
           username: ${{ secrets.SITE4NOW_FTP_USERNAME }}
           password: ${{ secrets.SITE4NOW_FTP_PASSWORD }}
           local-dir: publish/backend/
-          server-dir: /api/
-
-      - name: Deploy frontend via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.SITE4NOW_FTP_SERVER }}
-          username: ${{ secrets.SITE4NOW_FTP_USERNAME }}
-          password: ${{ secrets.SITE4NOW_FTP_PASSWORD }}
-          local-dir: frontend/dist/
           server-dir: /

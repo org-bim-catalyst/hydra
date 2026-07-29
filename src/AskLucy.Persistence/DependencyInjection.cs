@@ -22,8 +22,8 @@ public static class DependencyInjection
         services.AddDbContext<AskLucyDbContext>((sp, options) =>
         {
             var connectionString = sp.GetRequiredService<IConfiguration>()
-                .GetConnectionString("ChatGPT_ClientContextConnection")
-                ?? throw new InvalidOperationException("Connection string 'ChatGPT_ClientContextConnection' not found.");
+                .GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             options.UseSqlServer(connectionString)
                    .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IUserAdminRepository, UserAdminRepository>();
+        services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
         services.AddScoped<IIdentityService, IdentityService>();
 
         return services;

@@ -10,8 +10,8 @@ namespace AskLucy.Persistence;
 
 /// <summary>
 /// Migrated from the legacy <c>ChatGPT_ClientContext</c>. Same physical database
-/// (connection string key unchanged — <c>ChatGPT_ClientContextConnection</c>) so existing
-/// production data is migrated in place, per spec.md FR-014/SC-009.
+/// (connection string key <c>DefaultConnection</c>) so existing production data
+/// is migrated in place, per spec.md FR-014/SC-009.
 /// </summary>
 public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
     : IdentityDbContext<ApplicationUser>(options)

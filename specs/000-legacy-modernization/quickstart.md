@@ -8,16 +8,15 @@ This is a validation guide, not an implementation guide — it proves the migrat
 - A restored copy of the production database for rehearsing the `UserChats` PK migration (`research.md` Topic 5) before it ever touches production.
 - Valid OpenAI API key in local user-secrets/environment (never in `appsettings.json`).
 
-## 1. Stand up the new backend alongside the legacy app
+## 1. Stand up the backend
 
 ```bash
-dotnet build "Ask Lucy.sln"          # legacy app still builds and runs, unchanged
-dotnet build src/AskLucy.WebAPI       # new Clean Architecture backend
-dotnet ef database update --project src/AskLucy.Persistence --startup-project src/AskLucy.WebAPI
-dotnet run --project src/AskLucy.WebAPI
+dotnet build "Ask Lucy.sln"          # Clean Architecture backend (legacy project decommissioned)
+dotnet ef database update --project src/AskLucy.Persistence --startup-project src/AskLucy.Web
+dotnet run --project src/AskLucy.Web
 ```
 
-Expected: both the legacy app and the new WebAPI run independently; the new WebAPI's `/swagger` shows the `contracts/api-v1.md` endpoints.
+Expected: the WebAPI runs and its `/swagger` shows the `contracts/api-v1.md` endpoints.
 
 ## 2. Stand up the new frontend
 
