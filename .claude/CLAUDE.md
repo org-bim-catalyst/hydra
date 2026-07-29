@@ -2,13 +2,13 @@
 
 > **Project:** Ask Lucy AI Workspace
 >
-> **Version:** 2.0
+> **Version:** 2.1
 >
 > **Status:** Production Architecture
 >
 > **Author:** Mustafa Salaheldin
 >
-> **Last Updated:** July 2026
+> **Last Updated:** July 2026 (v2.1: added Error Handling — no silent failures; voice output persona requirement)
 
 ---
 
@@ -388,6 +388,19 @@ Requirements:
 * Streaming responses
 * Copy-to-clipboard
 * Export conversations
+* Voice output uses a consistent young-adult female voice persona across every supported language — never whichever default voice a browser/platform happens to expose per locale
+
+---
+
+# Error Handling
+
+No silent failures, ever — in frontend or backend.
+
+Every exception, rejected promise, and failed request must be caught and surfaced — never swallowed, logged-only, or left as an unhandled rejection with no user-visible outcome.
+
+Backend: unhandled exceptions must reach global exception-handling middleware and come back as Problem Details. Catching an exception only to discard it, without rethrowing, logging, and (where the caller can act on it) returning a caller-visible failure, is not acceptable.
+
+Frontend: every async operation that can fail — data fetching, mutations, streaming responses, an event handler invoking an async function — must have an explicit error path that reaches the user through visible UI feedback (a toast, inline error, or retry affordance), not just a console log. Calling an async function without awaiting or catching it, such that a rejection becomes an unhandled promise rejection, is forbidden. This applies to custom hooks and locally-managed state too, not only requests routed through TanStack Query.
 
 ---
 

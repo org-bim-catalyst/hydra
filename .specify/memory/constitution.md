@@ -1,35 +1,23 @@
 <!--
 Sync Impact Report
-Version change: [TEMPLATE] → 1.0.0 (initial ratification)
-Modified principles: N/A (first concrete adoption of the constitution; template placeholders replaced)
+Version change: 1.0.0 → 1.1.0
+Modified principles: none renamed/removed
 Added sections:
-  - Vision
-  - Core Principles (I–VII)
-  - Architecture Rules
-  - Coding Standards
-  - Database Principles
-  - API Standards
-  - UI Principles
-  - Security
-  - AI Principles
-  - Testing Standards
-  - Git Workflow
-  - CI/CD
-  - Documentation
-  - Observability
-  - Performance
-  - Quality Gates
-  - Decision Making
-  - AI Coding Agent Rules
-  - Definition of Done
-  - Governance (amendments, versioning, compliance review)
-Removed sections: none (template placeholders only)
+  - Core Principle VIII: No Silent Failures (§2)
+  - UI Principles: new "Voice output" bullet (§7)
+Removed sections: none
+Cross-references updated:
+  - §4 Coding Standards "Error handling" bullet now points to Principle VIII as the
+    cross-cutting rule it implements, rather than restating it standalone.
 Templates requiring updates:
   - .specify/templates/plan-template.md — ✅ no changes needed (Constitution Check section is generic and reads gates from this file at runtime)
-  - .specify/templates/spec-template.md — ✅ no changes needed (technology-agnostic by design)
-  - .specify/templates/tasks-template.md — ✅ no changes needed (task categories already accommodate testing/observability/security phases)
-  - .claude/skills/speckit-*/SKILL.md — ✅ reviewed, generic references to "the constitution" only, no agent-specific or stale naming found
-Follow-up TODOs: none — all placeholders resolved from project context supplied by the user.
+  - .specify/templates/spec-template.md — ✅ no changes needed (technology-agnostic by design, no constitution/principle references)
+  - .specify/templates/tasks-template.md — ✅ no changes needed (technology-agnostic by design, no constitution/principle references)
+  - .claude/skills/speckit-*/SKILL.md — ✅ reviewed, generic references to "the constitution" only, no agent-specific or stale numbering found
+  - .claude/CLAUDE.md — ⚠ pending, tracked as a manual follow-up outside this command's scope (project instructions file, not a Spec Kit template)
+Follow-up TODOs:
+  - Implementing "no silent failures" and "young-woman voice, all languages" in actual code
+    (frontend error surfacing audit, TTS voice-selection logic) is deferred — see Next Actions.
 -->
 
 # Ask Lucy Constitution
@@ -143,6 +131,29 @@ than introducing a parallel bespoke mechanism. Configuration/flexibility is rese
 values that genuinely vary by environment or tenant (connection strings, provider API
 keys, feature flags) — not for structural decisions this constitution already settles.
 
+### VIII. No Silent Failures (NON-NEGOTIABLE)
+
+Every exception, rejected promise, and failed request MUST be caught and surfaced —
+never swallowed, logged-only, or left as an unhandled rejection with no user-visible
+outcome. Backend: a handler that catches an exception only to discard it, without
+rethrowing, logging, and (where the caller can act on it) returning a caller-visible
+failure, is a constitution violation; unhandled exceptions MUST reach the global
+exception-handling middleware and come out the other side as Problem Details (§6), never
+a silently-dropped response. Frontend: every async operation that can fail — data
+fetching, mutations, streaming responses, an event handler invoking an async function —
+MUST have an explicit error path that reaches the user through visible UI feedback (a
+toast/inline error/retry affordance), not just a console log; calling an async function
+without awaiting or catching it, such that a rejection becomes an unhandled promise
+rejection, is forbidden. This applies equally to custom hooks and state managed outside a
+data-fetching library — routing state through TanStack Query does not by itself satisfy
+this principle if the hook's own internal async logic has an uncaught path.
+
+**Rationale:** a failure a user experiences as "nothing happened" is worse than a failure
+they see and can react to — it erodes trust silently and is invisible to both support and
+telemetry until someone happens to notice. Every failure mode must be observable to the
+user experiencing it and to the team operating the system, not just theoretically
+catchable somewhere up the call stack.
+
 ## 3. Architecture Rules
 
 **Solution shape.** The backend solution MUST be organized as (at minimum)
@@ -251,7 +262,10 @@ that restate what the next line does are forbidden and MUST be removed in review
 MUST NOT swallow exceptions; a global exception-handling middleware translates
 exceptions to RFC 7807 Problem Details at the API boundary (see §6). Frontend data
 fetching MUST surface errors through TanStack Query's error state, not silent
-console-only failures.
+console-only failures. These are the API/data-fetching-specific instances of the
+general no-silent-failure requirement — see Principle VIII (§2) for the cross-cutting
+rule, which also covers custom hooks, streaming responses, and event handlers outside
+TanStack Query's own error state.
 
 **Logging.** All logging goes through Serilog structured logging (`ILogger<T>`) with
 named properties, never string-concatenated messages. Secrets, tokens, and raw prompt/
@@ -383,6 +397,12 @@ component and theming foundation.
   i18n framework is introduced for a locale beyond the platform default; until then, all
   user-facing copy is centralized (not scattered as literals) so i18n extraction is
   mechanical when needed.
+- **Voice output.** Text-to-speech/voice generation MUST use a consistent young-adult
+  female voice persona — matching "Lucy"'s brand identity — across every supported
+  language, not whichever default voice a browser/platform happens to expose per locale.
+  Adding a new language requires sourcing or configuring a voice that fits this persona
+  before the language ships; falling back to an arbitrary system default voice for a
+  language that lacks one is not acceptable.
 
 ## 8. Security
 
@@ -674,4 +694,4 @@ or, for anything non-trivial, in an ADR — silent complexity is treated as a de
 Stability is the default posture: this constitution changes deliberately and rarely, not
 reactively per feature.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-07-27
+**Version**: 1.1.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-07-29

@@ -3,10 +3,12 @@ import ImageIcon from '@mui/icons-material/Image'
 import MenuIcon from '@mui/icons-material/Menu'
 import TranslateIcon from '@mui/icons-material/Translate'
 import {
+  Alert,
   AppBar,
   Box,
   Drawer,
   IconButton,
+  Snackbar,
   Stack,
   Toolbar,
   Typography,
@@ -93,7 +95,11 @@ interface ConversationViewProps {
 
 function ConversationView({ chatId, language, onLanguageChange, onChatCreated, isMobile, onOpenSidebar }: ConversationViewProps) {
   const { data: persistedMessages } = useChatMessages(chatId)
-  const { messages, isStreaming, send, sendImage, sendTranslation } = useChatStream(chatId, persistedMessages, onChatCreated)
+  const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation } = useChatStream(
+    chatId,
+    persistedMessages,
+    onChatCreated,
+  )
   const theme = useTheme()
   const toggleTheme = useThemeStore((s) => s.toggle)
   const tts = useTextToSpeech()
@@ -174,6 +180,11 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
       </Box>
 
       <ChatComposer onSend={send} disabled={isStreaming} />
+      <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
+        <Alert severity="error" variant="filled" onClose={clearError}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
