@@ -55,8 +55,9 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
     try {
       const transcript = await transcribeMicrophoneAudio(wavBlob)
       if (transcript.trim()) {
-        setText('')
-        onSend(transcript.trim())
+        // Fills the composer rather than sending immediately — lets the user correct any
+        // misheard words before it goes out, since transcription isn't always perfect.
+        setText((prev) => `${prev} ${transcript.trim()}`.trim())
       }
     } catch {
       voice.setError('Voice input failed. Please try again.')
