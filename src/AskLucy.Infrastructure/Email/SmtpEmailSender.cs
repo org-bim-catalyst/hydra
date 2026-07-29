@@ -8,9 +8,11 @@ namespace AskLucy.Infrastructure.Email;
 
 /// <summary>
 /// Replaces SendGridEmailSender (2026-07-28 decision to move off SendGrid onto the
-/// organization's own SMTP host, mail.bimcatalyst.com, STARTTLS on port 587). Every current
-/// call site sends a transactional email (registration/email-change confirmation, password
-/// reset, 2FA), so this always sends from <see cref="SmtpOptions.FromTransactional"/>.
+/// hosting provider's own SMTP relay — site4now.net's, not a subdomain of the app's own
+/// custom domain, since the latter's TLS certificate doesn't cover a custom mail hostname
+/// and every send failed with a certificate-hostname-mismatch handshake error). Every
+/// current call site sends a transactional email (registration/email-change confirmation,
+/// password reset, 2FA), so this always sends from <see cref="SmtpOptions.FromTransactional"/>.
 /// </summary>
 public sealed class SmtpEmailSender(IOptions<SmtpOptions> options) : IEmailSender
 {
@@ -24,8 +26,14 @@ public sealed class SmtpEmailSender(IOptions<SmtpOptions> options) : IEmailSende
         message.Subject = subject;
         message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
 
+        var secureSocketOptions = _options.UseSsl
+            ? SecureSocketOptions.SslOnConnect
+            : _options.UseStartTls
+                ? SecureSocketOptions.StartTls
+                : SecureSocketOptions.None;
+
         using var client = new SmtpClient();
-        await client.ConnectAsync(_options.Host, _options.Port, SecureSocketOptions.StartTls, cancellationToken);
+        await client.ConnectAsync(_options.Host, _options.Port, secureSocketOptions, cancellationToken);
 
         if (!string.IsNullOrEmpty(_options.Username))
         {

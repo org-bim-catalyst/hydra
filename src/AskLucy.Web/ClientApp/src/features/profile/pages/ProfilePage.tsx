@@ -1,6 +1,7 @@
-import { Avatar, Box, Button, Divider, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Avatar, Box, Button, Divider, Paper, Stack, TextField } from '@mui/material'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { PageHeader } from '../../../components/PageHeader'
 import { useMyProfile, useUpdateProfile, useUploadAvatar } from '../hooks/useProfile'
 
 interface ProfileFormValues {
@@ -27,45 +28,48 @@ export function ProfilePage() {
   const onSubmit = handleSubmit((values) => updateProfile.mutate(values))
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <Paper elevation={1} sx={{ p: { xs: 3, sm: 4 }, maxWidth: 480, width: '100%', height: 'fit-content' }}>
-        <Typography variant="h5" sx={{ mb: 0.5 }}>
-          Your profile
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Manage your account details and avatar.
-        </Typography>
-
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
-          <Avatar src={avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void handleAvatarChange(file)
-            }}
+    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Box sx={{ maxWidth: 480, width: '100%' }}>
+          <PageHeader
+            backTo="/chat"
+            backLabel="Back to chat"
+            title="Your profile"
+            subtitle="Manage your account details and avatar."
           />
-          <Button variant="outlined" size="small" onClick={() => fileInputRef.current?.click()}>
-            Change avatar
-          </Button>
-        </Stack>
+          <Paper elevation={1} sx={{ p: { xs: 3, sm: 4 }, width: '100%', height: 'fit-content' }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
+              <Avatar src={avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void handleAvatarChange(file)
+                }}
+              />
+              <Button variant="outlined" size="small" onClick={() => fileInputRef.current?.click()}>
+                Change avatar
+              </Button>
+            </Stack>
 
-        <Divider sx={{ mb: 3 }} />
+            <Divider sx={{ mb: 3 }} />
 
-        <Box component="form" onSubmit={onSubmit}>
-          <Stack spacing={2.5}>
-            <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
-            <TextField label="First name" fullWidth {...register('firstName')} />
-            <TextField label="Last name" fullWidth {...register('lastName')} />
-            <Button type="submit" variant="contained" size="large" disabled={updateProfile.isPending}>
-              Save changes
-            </Button>
-          </Stack>
+            <Box component="form" onSubmit={onSubmit}>
+              <Stack spacing={2.5}>
+                <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
+                <TextField label="First name" fullWidth {...register('firstName')} />
+                <TextField label="Last name" fullWidth {...register('lastName')} />
+                <Button type="submit" variant="contained" size="large" disabled={updateProfile.isPending}>
+                  Save changes
+                </Button>
+              </Stack>
+            </Box>
+          </Paper>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   )
 }

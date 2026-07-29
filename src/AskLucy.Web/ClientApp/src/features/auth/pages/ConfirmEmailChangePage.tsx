@@ -20,7 +20,7 @@ export function ConfirmEmailChangePage() {
   }, [userId, newEmail, token, confirmEmailChange])
 
   return (
-    <AuthLayout title="Confirm your new email">
+    <AuthLayout eyebrow="Account" title="Confirm your new email">
       <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
         {!userId || !newEmail || !token ? (
           <Alert severity="error" sx={{ width: '100%' }}>

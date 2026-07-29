@@ -86,3 +86,23 @@ export async function transcribeAudio(file: File): Promise<string> {
   const result = (await response.json()) as { text: string }
   return result.text
 }
+
+/** Mic-dictation counterpart to {@link transcribeAudio} — see the backend endpoint's comment. */
+export async function transcribeMicrophoneAudio(wavBlob: Blob): Promise<string> {
+  const accessToken = useAuthStore.getState().accessToken
+  const form = new FormData()
+  form.append('file', wavBlob, 'recording.wav')
+
+  const response = await fetch(`${API_BASE_URL}/ai/transcriptions/microphone`, {
+    method: 'POST',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    body: form,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Transcription failed with ${response.status}`)
+  }
+
+  const result = (await response.json()) as { text: string }
+  return result.text
+}

@@ -18,7 +18,7 @@ export function RegisterPage() {
   const onSubmit = form.handleSubmit((values) => register.mutate(values))
 
   return (
-    <AuthLayout title="Create your account">
+    <AuthLayout eyebrow="Get started" title="Create your account">
       {register.isSuccess ? (
         <Alert severity="success">Check your email to confirm your account.</Alert>
       ) : (

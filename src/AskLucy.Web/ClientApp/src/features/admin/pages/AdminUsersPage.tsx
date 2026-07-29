@@ -12,11 +12,11 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
-  Typography,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import * as adminApi from '../api/adminApi'
 import type { UserSortBy } from '../api/adminApi'
+import { PageHeader } from '../../../components/PageHeader'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { useMyProfile } from '../../profile/hooks/useProfile'
 import { UserActionMenu } from '../components/UserActionMenu'
@@ -55,12 +55,12 @@ export function AdminUsersPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        User management
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        {data?.totalCount ?? 0} registered users
-      </Typography>
+      <PageHeader
+        backTo="/admin/dashboard"
+        backLabel="Back to dashboard"
+        title="User management"
+        subtitle={`${data?.totalCount ?? 0} registered users`}
+      />
       <TextField
         label="Search by name or email"
         size="small"

@@ -4,7 +4,6 @@ import MenuIcon from '@mui/icons-material/Menu'
 import TranslateIcon from '@mui/icons-material/Translate'
 import {
   AppBar,
-  Avatar,
   Box,
   Drawer,
   IconButton,
@@ -22,6 +21,7 @@ import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
 import { useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
+import { BrandMark } from '../../../components/BrandMark'
 import { UserMenu } from '../../../components/UserMenu'
 import { useThemeStore } from '../../../store/themeStore'
 import { useTextToSpeech } from '../voice/useTextToSpeech'
@@ -94,6 +94,7 @@ interface ConversationViewProps {
 function ConversationView({ chatId, language, onLanguageChange, onChatCreated, isMobile, onOpenSidebar }: ConversationViewProps) {
   const { data: persistedMessages } = useChatMessages(chatId)
   const { messages, isStreaming, send, sendImage, sendTranslation } = useChatStream(chatId, persistedMessages, onChatCreated)
+  const theme = useTheme()
   const toggleTheme = useThemeStore((s) => s.toggle)
   const tts = useTextToSpeech()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -139,7 +140,7 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
             </IconButton>
           )}
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flex: 1 }}>
-            <Avatar src="/lucy.png" alt="Ask Lucy" sx={{ width: 32, height: 32 }} />
+            <BrandMark size={28} color={theme.palette.primary.main} />
             <Typography variant="h6">Ask Lucy</Typography>
           </Stack>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -172,7 +173,7 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
         </Box>
       </Box>
 
-      <ChatComposer onSend={send} disabled={isStreaming} language={language} />
+      <ChatComposer onSend={send} disabled={isStreaming} />
     </Box>
   )
 }

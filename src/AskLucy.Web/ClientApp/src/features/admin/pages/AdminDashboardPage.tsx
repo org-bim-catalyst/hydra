@@ -1,5 +1,6 @@
 import { Box, Button, Grid, Paper, Skeleton, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router'
+import { PageHeader } from '../../../components/PageHeader'
 import { useAdminDashboard } from '../hooks/useAdminDashboard'
 import { NewUsersTrendChart } from '../charts/NewUsersTrendChart'
 import { RoleDistributionChart } from '../charts/RoleDistributionChart'
@@ -31,19 +32,17 @@ export function AdminDashboardPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-        <Box>
-          <Typography variant="h5" sx={{ mb: 0.5 }}>
-            Admin Dashboard
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Platform health and usage at a glance
-          </Typography>
-        </Box>
-        <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
-          Manage users
-        </Button>
-      </Box>
+      <PageHeader
+        backTo="/chat"
+        backLabel="Back to chat"
+        title="Admin Dashboard"
+        subtitle="Platform health and usage at a glance"
+        actions={
+          <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
+            Manage users
+          </Button>
+        }
+      />
 
       {isLoading || !summary ? (
         <Skeleton variant="rounded" height={400} />

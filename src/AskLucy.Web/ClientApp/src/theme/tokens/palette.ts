@@ -2,25 +2,27 @@ import type { PaletteOptions } from '@mui/material/styles'
 import type { ThemeMode } from '../../store/themeStore'
 
 export const radius = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  xs: 3,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
   pill: 999,
 } as const
 
-const gray = {
-  50: '#F9FAFB',
-  100: '#F3F4F6',
-  200: '#E5E7EB',
-  300: '#D1D5DB',
-  400: '#9CA3AF',
-  500: '#6B7280',
-  600: '#4B5563',
-  700: '#374151',
-  800: '#1F2937',
-  900: '#111827',
+// "Drafting table" neutrals: warm vellum paper / graphite ink, rather than the
+// clinical blue-gray gray-scale most AI-product UIs default to.
+const graphite = {
+  50: '#F7F6F2',
+  100: '#EEECE5',
+  200: '#DEDBD1',
+  300: '#C3BFB1',
+  400: '#9A9587',
+  500: '#726D62',
+  600: '#524E46',
+  700: '#3B3833',
+  800: '#26241F',
+  900: '#171613',
 }
 
 export function createPalette(mode: ThemeMode): PaletteOptions {
@@ -28,31 +30,36 @@ export function createPalette(mode: ThemeMode): PaletteOptions {
 
   return {
     mode,
+    // "Pen" — a desaturated technical-ink blue, standing in for the indigo/purple
+    // every AI product defaults to. Reads as precise and considered, not playful.
     primary: {
-      main: '#4F46E5',
-      light: '#818CF8',
-      dark: '#3730A3',
-      contrastText: '#FFFFFF',
+      main: '#1F4E5E',
+      light: '#4C7B8B',
+      dark: '#123340',
+      contrastText: '#F7F6F2',
     },
+    // "Redline" — the mark-up red an architect or engineer reaches for on a
+    // drawing review. Spent sparingly: the one deliberate accent, never on
+    // large surfaces, and never used where it could be mistaken for an error.
     secondary: {
-      main: '#0D9488',
-      light: '#5EEAD4',
-      dark: '#115E59',
-      contrastText: '#FFFFFF',
+      main: '#B8461F',
+      light: '#D97650',
+      dark: '#7E2E12',
+      contrastText: '#F7F6F2',
     },
-    success: { main: '#16A34A' },
-    warning: { main: '#F59E0B' },
-    error: { main: '#DC2626' },
-    info: { main: '#0EA5E9' },
-    grey: gray,
+    success: { main: '#3F7D4E' },
+    warning: { main: '#B8791F' },
+    error: { main: '#B23B2E' },
+    info: { main: '#1F4E5E' },
+    grey: graphite,
     background: {
-      default: isDark ? '#0E1015' : gray[50],
-      paper: isDark ? '#171922' : '#FFFFFF',
+      default: isDark ? '#14130F' : graphite[50],
+      paper: isDark ? '#1D1B17' : '#FFFFFF',
     },
     text: {
-      primary: isDark ? gray[100] : gray[900],
-      secondary: isDark ? gray[400] : gray[600],
+      primary: isDark ? graphite[100] : graphite[900],
+      secondary: isDark ? graphite[400] : graphite[600],
     },
-    divider: isDark ? 'rgba(255, 255, 255, 0.08)' : gray[200],
+    divider: isDark ? 'rgba(247, 246, 242, 0.1)' : graphite[200],
   }
 }

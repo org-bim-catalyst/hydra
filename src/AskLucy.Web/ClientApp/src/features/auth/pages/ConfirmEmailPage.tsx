@@ -19,7 +19,7 @@ export function ConfirmEmailPage() {
   }, [userId, token, confirmEmail])
 
   return (
-    <AuthLayout title="Confirm your email">
+    <AuthLayout eyebrow="Account" title="Confirm your email">
       <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
         {!userId || !token ? (
           <Alert severity="error" sx={{ width: '100%' }}>

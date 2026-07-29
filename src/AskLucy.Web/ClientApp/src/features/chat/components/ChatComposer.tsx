@@ -1,25 +1,28 @@
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
 import MicIcon from '@mui/icons-material/Mic'
-import MicOffIcon from '@mui/icons-material/MicOff'
 import SendIcon from '@mui/icons-material/Send'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import { Alert, Box, IconButton, Paper, Snackbar, Stack, TextField } from '@mui/material'
+import { Alert, Box, CircularProgress, IconButton, Paper, Snackbar, Stack, TextField, useTheme } from '@mui/material'
 import { useRef, useState } from 'react'
-import { transcribeAudio } from '../api/aiApi'
+import { transcribeAudio, transcribeMicrophoneAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
-import { useVoiceRecognition } from '../voice/useVoiceRecognition'
+import { useWavRecorder } from '../voice/useWavRecorder'
+import { VoiceWaveform } from './VoiceWaveform'
 
 interface ChatComposerProps {
   onSend: (text: string) => void
   disabled?: boolean
-  language: string
 }
 
 /** File-attach dispatch by MIME type (PDF/audio/CSV) and voice input — preserved from the legacy app. */
-export function ChatComposer({ onSend, disabled, language }: ChatComposerProps) {
+export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
   const [text, setText] = useState('')
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { extractText } = usePdfTextExtraction()
-  const voice = useVoiceRecognition(language)
+  const voice = useWavRecorder()
+  const theme = useTheme()
 
   const handleSend = () => {
     if (!text.trim()) return
@@ -40,11 +43,25 @@ export function ChatComposer({ onSend, disabled, language }: ChatComposerProps) 
     }
   }
 
-  const toggleVoice = () => {
-    if (voice.isListening) {
-      voice.stop()
-    } else {
-      voice.start((transcript) => setText((prev) => `${prev} ${transcript}`.trim()))
+  const handleCancelVoice = () => {
+    voice.discard()
+  }
+
+  const handleConfirmVoice = async () => {
+    const wavBlob = voice.stop()
+    if (!wavBlob) return
+
+    setIsTranscribing(true)
+    try {
+      const transcript = await transcribeMicrophoneAudio(wavBlob)
+      if (transcript.trim()) {
+        setText('')
+        onSend(transcript.trim())
+      }
+    } catch {
+      voice.setError('Voice input failed. Please try again.')
+    } finally {
+      setIsTranscribing(false)
     }
   }
 
@@ -52,61 +69,82 @@ export function ChatComposer({ onSend, disabled, language }: ChatComposerProps) 
     <Box sx={{ p: 2, pt: 0 }}>
       <Paper
         variant="outlined"
-        sx={{ maxWidth: 800, mx: 'auto', borderRadius: 4, px: 1, py: 0.5 }}
+        sx={{
+          maxWidth: 800,
+          mx: 'auto',
+          borderRadius: '999px',
+          px: 1,
+          minHeight: 56,
+          display: 'flex',
+          alignItems: 'center',
+        }}
       >
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'flex-end' }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.csv,audio/*"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void handleFile(file)
-              e.target.value = ''
-            }}
-          />
-          <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file" sx={{ mb: 0.5 }}>
-            <AttachFileIcon />
-          </IconButton>
-          {voice.isSupported && (
-            <IconButton
-              onClick={toggleVoice}
-              aria-label="Voice input"
-              color={voice.isListening ? 'error' : 'default'}
-              sx={{ mb: 0.5 }}
-            >
-              {voice.isListening ? <MicOffIcon /> : <MicIcon />}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.csv,audio/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void handleFile(file)
+            e.target.value = ''
+          }}
+        />
+        {voice.isRecording ? (
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', width: '100%' }}>
+            <IconButton onClick={handleCancelVoice} aria-label="Cancel voice input">
+              <CloseIcon />
             </IconButton>
-          )}
-          <TextField
-            fullWidth
-            multiline
-            maxRows={6}
-            variant="standard"
-            placeholder="Message Ask Lucy..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            disabled={disabled}
-            slotProps={{ input: { disableUnderline: true } }}
-            sx={{ py: 1.25 }}
-          />
-          <IconButton
-            color="primary"
-            onClick={handleSend}
-            disabled={disabled || !text.trim()}
-            aria-label="Send message"
-            sx={{ mb: 0.5 }}
-          >
-            <SendIcon />
-          </IconButton>
-        </Stack>
+            <Box sx={{ flex: 1, px: 1 }}>
+              <VoiceWaveform getLevels={voice.getLevels} color={theme.palette.primary.main} />
+            </Box>
+            <IconButton onClick={() => void handleConfirmVoice()} aria-label="Finish and send voice input" color="primary">
+              <CheckIcon />
+            </IconButton>
+          </Stack>
+        ) : isTranscribing ? (
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: '100%', px: 1.5 }}>
+            <CircularProgress size={20} />
+            <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Transcribing...</Box>
+          </Stack>
+        ) : (
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', width: '100%' }}>
+            <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
+              <AttachFileIcon />
+            </IconButton>
+            {voice.isSupported && (
+              <IconButton onClick={() => void voice.start()} aria-label="Voice input">
+                <MicIcon />
+              </IconButton>
+            )}
+            <TextField
+              fullWidth
+              multiline
+              maxRows={6}
+              variant="standard"
+              placeholder="Message Ask Lucy..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              disabled={disabled}
+              slotProps={{ input: { disableUnderline: true } }}
+              sx={{ py: 1.25 }}
+            />
+            <IconButton
+              color="primary"
+              onClick={handleSend}
+              disabled={disabled || !text.trim()}
+              aria-label="Send message"
+            >
+              <SendIcon />
+            </IconButton>
+          </Stack>
+        )}
       </Paper>
       <Snackbar open={Boolean(voice.error)} autoHideDuration={5000} onClose={() => voice.clearError()}>
         <Alert severity="error" variant="filled">

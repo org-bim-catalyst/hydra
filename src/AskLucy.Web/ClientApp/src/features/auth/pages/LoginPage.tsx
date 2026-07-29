@@ -1,9 +1,10 @@
-import { Alert, Box, Button, Divider, Link, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Link, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link as RouterLink, useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
 import { AuthLayout } from '../../../components/AuthLayout'
+import { DimensionDivider } from '../../../components/DimensionDivider'
 import { useLogin, useLoginTwoFactor } from '../hooks/useAuth'
 
 interface LoginFormValues {
@@ -40,7 +41,10 @@ export function LoginPage() {
   })
 
   return (
-    <AuthLayout title={pendingUserId ? 'Verify your identity' : 'Welcome back'}>
+    <AuthLayout
+      eyebrow={pendingUserId ? 'Two-factor' : 'Sign in'}
+      title={pendingUserId ? 'Verify your identity' : 'Welcome back'}
+    >
       {!pendingUserId ? (
         <Box component="form" onSubmit={onSubmitLogin}>
           <Stack spacing={2.5}>
@@ -55,11 +59,7 @@ export function LoginPage() {
             <Button type="submit" variant="contained" size="large" fullWidth disabled={login.isPending}>
               Sign in
             </Button>
-            <Divider>
-              <Typography variant="caption" color="text.secondary">
-                or continue with
-              </Typography>
-            </Divider>
+            <DimensionDivider>or continue with</DimensionDivider>
             <Stack direction="row" spacing={1.5}>
               <Button fullWidth variant="outlined" href={`${API_BASE_URL}/auth/external/google/challenge`}>
                 Google
