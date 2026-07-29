@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [master]
+    branches: [main]
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   backend-build-and-test:
@@ -79,7 +79,7 @@ jobs:
   deploy:
     name: Deploy to site4now.net
     needs: [backend-build-and-test, frontend-build-lint-and-test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     environment: production
     steps:
