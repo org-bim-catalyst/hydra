@@ -41,7 +41,7 @@ export function ExternalLoginCompletePage() {
   }, [code])
 
   return (
-    <AuthLayout title="Signing you in">
+    <AuthLayout eyebrow="Sign in" title="Signing you in">
       <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
         {error || !code ? (
           <Alert severity="error" sx={{ width: '100%' }}>

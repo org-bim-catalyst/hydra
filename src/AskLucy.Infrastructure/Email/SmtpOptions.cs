@@ -12,6 +12,14 @@ public sealed class SmtpOptions
 
     public int Port { get; init; } = 587;
 
+    /// <summary>Implicit TLS from the first byte of the connection (usually port 465).</summary>
+    public bool UseSsl { get; init; }
+
+    /// <summary>Upgrades a plaintext connection to TLS via STARTTLS (usually port 587). The
+    /// common case, and mutually exclusive with <see cref="UseSsl"/> — if both are false,
+    /// the connection is unencrypted.</summary>
+    public bool UseStartTls { get; init; } = true;
+
     /// <summary>Never committed — set via user-secrets/environment/appsettings.Production.json.</summary>
     public string Username { get; init; } = string.Empty;
 

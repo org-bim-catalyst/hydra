@@ -377,6 +377,10 @@ src/AskLucy.Web/ClientApp/.vite/
 tests/AskLucy.E2E.Tests/node_modules/
 tests/AskLucy.E2E.Tests/playwright-report/
 tests/AskLucy.E2E.Tests/test-results/
+
+# Runtime-local data: user avatars and the auto-downloaded Whisper ggml model
+# (WhisperLocalTranscriptionProvider fetches it on first use, ~100-300MB — never commit it)
+src/AskLucy.Web/App_Data/
 tests/AskLucy.E2E.Tests/dist/
 
 # Production secrets overlay (FR-035/T074): populated by hand on the server, outside CI/CD,

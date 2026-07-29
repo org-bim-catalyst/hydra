@@ -23,6 +23,9 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<WhisperOptions>()
+            .Bind(configuration.GetSection(WhisperOptions.SectionName));
+
         services.AddOptions<LocalFileStorageOptions>()
             .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
             .ValidateDataAnnotations()
@@ -43,6 +46,13 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
         services.AddScoped<IAIProvider, OpenAIProvider>();
+        // Singleton: caches the loaded WhisperFactory (and the one-time model download)
+        // across requests instead of reloading it every call. Registered as its concrete
+        // type too (mapped to the same instance) so WhisperWarmupHostedService can trigger
+        // that load at startup instead of on a user's first request.
+        services.AddSingleton<WhisperLocalTranscriptionProvider>();
+        services.AddSingleton<ITranscriptionProvider>(sp => sp.GetRequiredService<WhisperLocalTranscriptionProvider>());
+        services.AddHostedService<WhisperWarmupHostedService>();
 
         // Dev-only: lets a fresh clone complete first registration/login without real SMTP
         // credentials (spec.md convergence note) — Production/Testing/every other environment

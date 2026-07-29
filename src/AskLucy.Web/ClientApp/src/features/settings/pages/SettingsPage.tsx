@@ -23,6 +23,7 @@ import { type ReactNode, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
+import { PageHeader } from '../../../components/PageHeader'
 import {
   useChangePassword,
   useDisableTwoFactor,
@@ -313,9 +314,7 @@ export function SettingsPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        Settings
-      </Typography>
+      <PageHeader backTo="/chat" backLabel="Back to chat" title="Settings" />
       <Paper elevation={1} sx={{ maxWidth: 720 }}>
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="Security" />
