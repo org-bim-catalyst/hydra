@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace AskLucy.Web.Middleware;
 
@@ -31,6 +32,16 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
         if (statusCode >= 500)
         {
             ProblemDetailsMiddlewareLog.UnhandledException(logger, exception);
+        }
+
+        // FR-028 (specs/002-chat-history-management): access-denial responses are logged as
+        // security events here — the single cross-cutting boundary every request passes
+        // through (constitution §3) — rather than duplicated into each Application-layer
+        // ownership check (e.g. ChatOwnershipGuard), which would also require threading an
+        // ILogger into every command/query handler that calls it.
+        if (exception is KeyNotFoundException or UnauthorizedAccessException)
+        {
+            ProblemDetailsMiddlewareLog.AccessDenied(logger, context.Request.Path, statusCode);
         }
 
         var problemDetails = new ProblemDetails
@@ -65,6 +76,16 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "https://hydra.bimcatalyst.com/problems/validation-failed",
             "Validation failed",
             "One or more fields are invalid."),
+
+        // constitution §5: a stale RowVersion MUST be handled explicitly, not left to bubble
+        // as a 500 — surfaced here (cross-cutting, per constitution §3) rather than a
+        // try/catch duplicated into every command handler that mutates a concurrency-tracked
+        // entity (specs/002-chat-history-management tasks.md T073, research.md Topic 10).
+        DbUpdateConcurrencyException => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/concurrency-conflict",
+            "Concurrency conflict",
+            "This item was modified by another request. Please reload and try again."),
 
         DomainRuleViolationException domainEx => (
             StatusCodes.Status400BadRequest,
@@ -102,4 +123,7 @@ internal static partial class ProblemDetailsMiddlewareLog
 {
     [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception")]
     public static partial void UnhandledException(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Access denied: {Path} returned {StatusCode}")]
+    public static partial void AccessDenied(ILogger logger, PathString path, int statusCode);
 }

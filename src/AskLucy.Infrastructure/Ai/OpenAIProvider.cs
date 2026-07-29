@@ -31,6 +31,12 @@ public sealed class OpenAIProvider(
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
     private readonly OpenAIOptions _options = options.Value;
 
+    public string ProviderName => "OpenAI";
+
+    public string ChatModel => _options.ChatModel;
+
+    public string ImageModel => _options.ImageModel;
+
     public Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default) =>
         WithRetryAsync(async ct =>
         {

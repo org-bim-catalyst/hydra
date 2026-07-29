@@ -500,34 +500,42 @@ The server validates access before generating a temporary download URL.
 
 # 21. AI Chat Endpoints
 
+> **As shipped** (SPEC-000 + SPEC-002, `specs/002-chat-history-management/contracts/chats-api.md`):
+> the resource is `/api/v1/chats`, not `/conversations` (SPEC-000 established this first;
+> SPEC-002 extended it rather than renaming — research.md Topic 1). Non-CRUD state changes
+> are sub-resource actions (`/actions/{verb}`) per constitution §6, not separate top-level
+> resources. There is no message-level `/regenerate`; streaming goes through `/ai/chat`.
+
 Conversations
 
 ```
-GET /conversations
+GET /chats                          (search/filter/sort/paginate — FR-019–FR-024)
 
-POST /conversations
+POST /chats
 
-GET /conversations/{id}
+PATCH /chats/{id}                   (rename)
 
-PATCH /conversations/{id}
+DELETE /chats/{id}                  (soft delete → Recently Deleted)
 
-DELETE /conversations/{id}
+POST /chats/{id}/actions/archive
+POST /chats/{id}/actions/restore
+POST /chats/{id}/actions/pin
+POST /chats/{id}/actions/unpin
+POST /chats/{id}/actions/favorite
+POST /chats/{id}/actions/unfavorite
+POST /chats/{id}/actions/duplicate
+POST /chats/{id}/actions/clear      (requires { "confirm": true })
+DELETE /chats/{id}/actions/purge    (permanent delete — requires { "confirm": true })
+
+GET /chats/{id}/export
 ```
 
 Messages
 
 ```
-GET /conversations/{id}/messages
+GET /chats/{id}/messages            (cursor-paginated)
 
-POST /conversations/{id}/messages
-
-POST /chat/stream
-```
-
-Regenerate
-
-```
-POST /messages/{id}/regenerate
+POST /ai/chat                       (SSE streaming; persists via AppendMessageCommand)
 ```
 
 ---

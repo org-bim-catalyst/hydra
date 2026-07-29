@@ -16,7 +16,8 @@ import {
   useTheme,
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChatComposer } from '../components/ChatComposer'
 import { ChatSidebar } from '../components/ChatSidebar'
 import { LanguageSelector } from '../components/LanguageSelector'
@@ -94,7 +95,20 @@ interface ConversationViewProps {
 }
 
 function ConversationView({ chatId, language, onLanguageChange, onChatCreated, isMobile, onOpenSidebar }: ConversationViewProps) {
-  const { data: persistedMessages } = useChatMessages(chatId)
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useChatMessages(chatId)
+
+  // FR-024: a long conversation's full history is loaded incrementally (background-fetched
+  // page by page here) rather than all at once, then rendered with only the visible portion
+  // mounted (the virtualizer below) — the two together keep scrolling smooth regardless of
+  // conversation length.
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage()
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const persistedMessages = useMemo(() => data?.pages.flatMap((page) => page.items), [data])
+
   const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation } = useChatStream(
     chatId,
     persistedMessages,
@@ -104,6 +118,14 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
   const toggleTheme = useThemeStore((s) => s.toggle)
   const tts = useTextToSpeech()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const listParentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => listParentRef.current,
+    estimateSize: () => 96,
+    overscan: 8,
+  })
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -165,16 +187,25 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}>
+      <Box ref={listParentRef} sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}>
         <Box sx={{ maxWidth: 800, mx: 'auto' }}>
           {messages.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 8 }}>
               Start a conversation with Ask Lucy.
             </Typography>
           )}
-          {messages.map((message, index) => (
-            <MessageBubble key={index} message={message} />
-          ))}
+          <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
+            {virtualizer.getVirtualItems().map((virtualItem) => (
+              <Box
+                key={virtualItem.key}
+                data-index={virtualItem.index}
+                ref={virtualizer.measureElement}
+                sx={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
+              >
+                <MessageBubble message={messages[virtualItem.index]} />
+              </Box>
+            ))}
+          </Box>
           <div ref={scrollRef} />
         </Box>
       </Box>

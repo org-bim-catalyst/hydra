@@ -254,19 +254,31 @@ Stores:
 
 # 6. Conversation Context
 
-## Conversations
+> **Shipped in SPEC-002** (`specs/002-chat-history-management`), extending the `UserChats`/
+> `Messages` tables SPEC-000 migrated onto the standard entity conventions. The entity type
+> names remain `UserChat`/`Message` in code (research.md Topic 1 — extending the existing
+> aggregate rather than introducing a parallel `Conversation` rename); this section uses
+> "Conversation" only as the business-facing term. Fields below are what actually shipped —
+> narrower than this document's original pre-implementation sketch (System Prompt/Temperature
+> at the conversation level, System/Tool message roles, and `ConversationTags` were **not**
+> built; see Assumptions/Out-of-scope in `specs/002-chat-history-management/spec.md`).
+
+## Conversations (`UserChats` table)
 
 Stores:
 
-* Owner
-* Title
-* Provider
-* Model
-* System Prompt
-* Temperature
-* Archived
-* Pinned
-* Favorite
+* Owner (`UserId`)
+* Title, plus `IsTitleManuallySet` (freezes auto-title generation once a user renames it)
+* `ArchivedAtUtc` (nullable — archived state)
+* `PinnedAtUtc` (nullable — pinned state; also the pin-first sort key)
+* `IsFavorite`
+* Standard audit columns (`CreatedAtUtc`/`CreatedBy`, `ModifiedAtUtc`/`ModifiedBy`,
+  `DeletedAtUtc`/`DeletedBy` — soft delete doubles as the "Recently Deleted"/Trash state),
+  `RowVersion` (optimistic concurrency)
+
+Provider/model/system-prompt/temperature are **not** stored at the conversation level —
+each message records the provider/model/parameters that actually produced it (below),
+since a single conversation is not pinned to one model choice.
 
 ---
 
@@ -274,54 +286,45 @@ Stores:
 
 Stores:
 
-* Conversation
-* Role
-* Content
-* Model
-* Token Count
-* Cost
-* Generation Time
+* Conversation (`UserChatId`)
+* Role — **User** or **Assistant** only (System/Tool roles are not used by this feature)
+* Kind — Text, Image, or Translation (determines how `Content` is rendered)
+* Content, `SourceText` (the original prompt behind an Image/Translation-kind reply)
+* `Provider`, `Model` — the AI provider/model that produced this message (assistant messages only)
+* `GenerationParametersJson` — opaque JSON (shape varies by provider/model), not fixed columns
+* `InputTokenCount`, `OutputTokenCount` — null until the AI provider abstraction surfaces
+  real usage stats (not fabricated in the meantime)
+* Standard audit columns, `RowVersion`
 
-Roles:
-
-* User
-* Assistant
-* System
-* Tool
+Messages are immutable/append-only once created — no update path exists.
 
 ---
 
-## MessageAttachments
+## Attachments
 
-Stores uploaded files linked to messages.
+A file reference (not the file's bytes) associated with a message — `FileName`,
+`ContentType`, `AccessLocation` (the existing signed-URL/storage reference the file is
+already served from). Persists references produced by existing capabilities (uploads,
+generated images); does not introduce new upload/storage capability. Child of `Message`'s
+aggregate — no top-level `DbSet`, reachable only via `Message.Attachments`.
 
-Supports:
+## Citations
 
-PDF
-
-Images
-
-Office Documents
-
-Audio
-
-Video
+A source reference associated with an assistant message — `SourceLabel`,
+`SourceReference` (nullable URL/identifier). Same aggregate-child shape as Attachments.
 
 ---
 
-## ConversationTags
+## Full-text search
 
-Allows chat categorization.
+`UserChats.Title` and `Messages.Content` participate in a SQL Server full-text catalog
+(`ConversationSearchCatalog`), populated asynchronously (`CHANGE_TRACKING AUTO`) — this is
+what backs conversation search (title + message content) without a separate search engine.
 
-Examples:
+## Not implemented (reserved for a future spec)
 
-Work
-
-Research
-
-Personal
-
-Coding
+`ConversationTags` (chat categorization) and `ConversationParticipant`/sharing were
+explicitly out of scope for SPEC-002 — see that spec's Assumptions section.
 
 ---
 

@@ -1,10 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as chatsApi from '../api/chatsApi'
+import type { SearchChatsParams } from '../api/chatsApi'
 
 const CHATS_QUERY_KEY = ['chats']
 
-export function useChats() {
-  return useQuery({ queryKey: CHATS_QUERY_KEY, queryFn: chatsApi.listChats })
+/** Cursor-paginated ("infinite scroll") conversation search/filter/sort (FR-019–FR-022). */
+export function useSearchChats(params: SearchChatsParams) {
+  return useInfiniteQuery({
+    queryKey: [...CHATS_QUERY_KEY, 'search', params],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => chatsApi.searchChats({ ...params, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  })
 }
 
 export function useCreateChat() {
@@ -31,10 +38,13 @@ export function useDeleteChat() {
   })
 }
 
+/** Cursor-paginated ("infinite scroll") message history for one conversation (FR-022/FR-024). */
 export function useChatMessages(chatId: string | null) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['chats', chatId, 'messages'],
-    queryFn: () => chatsApi.getChatMessages(chatId!),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => chatsApi.getChatMessages(chatId!, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: chatId !== null,
   })
 }

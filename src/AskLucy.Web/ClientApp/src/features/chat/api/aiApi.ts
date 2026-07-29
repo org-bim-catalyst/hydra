@@ -6,6 +6,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
+  /** Display-only metadata (specs/002-chat-history-management FR-016/FR-017) — never sent to the AI provider, only rendered. */
+  provider?: string | null
+  model?: string | null
+  attachments?: { id: string; fileName: string; accessLocation: string }[]
+  citations?: { id: string; sourceLabel: string; sourceReference: string | null }[]
 }
 
 /**

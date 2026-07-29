@@ -20,6 +20,7 @@ public sealed class RenameUserChatCommandHandler(
             await repository.GetByIdAsync(request.ChatId, cancellationToken), userId);
 
         chat.Rename(request.NewTitle, userId);
+        chat.MarkTitleManuallySet();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new UserChatDto(chat.Id, chat.Title, chat.CreatedAtUtc, chat.ModifiedAtUtc);
