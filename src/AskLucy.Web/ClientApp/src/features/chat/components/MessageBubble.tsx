@@ -38,12 +38,6 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           </ReactMarkdown>
         </Typography>
 
-        {!isUser && (message.provider || message.model) && (
-          <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 0.5 }}>
-            {[message.provider, message.model].filter(Boolean).join(' · ')}
-          </Typography>
-        )}
-
         {(hasAttachments || hasCitations) && (
           <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
             {message.attachments?.map((a) => (
