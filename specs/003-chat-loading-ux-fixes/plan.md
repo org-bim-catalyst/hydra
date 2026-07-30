@@ -25,6 +25,19 @@ removed from render output while the underlying `provider`/`model` fields are le
 fixes are frontend-only, confined to `src/AskLucy.Web/ClientApp/src/features/chat/`, with no
 backend, contract, or data-model changes.
 
+**Amendment (2026-07-30, User Story 5)**: Post-release manual testing surfaced a fifth bug —
+reopening a conversation created and used earlier in the session (via the auto-create-on-send
+flow) shows a permanently blank pane instead of its real messages. Root cause (`research.md`
+Topic 6): `useChatStream`'s message-seeding effect only ever applied fetched data *once*,
+gated by whether `initialMessages` was merely *defined* — and a brand-new chat's first
+messages fetch races an in-progress reply, resolving empty and getting cached by TanStack
+Query. On the next mount, that stale-but-defined empty snapshot permanently blocks the later,
+corrected background refetch from ever being applied. Fixed by replacing the `initializedRef`
+"seed once" latch with a `hasSentRef` gate that only flips once the user actually sends in
+that view, so the seeding effect keeps tracking the query's data (including corrections and
+later paginated pages) until then. This is the same `useChatStream.ts` file already touched
+for Bug #2/#3; no new files or architectural surface are introduced by this amendment.
+
 ## Technical Context
 
 **Language/Version**: TypeScript ~6.0 (frontend, strict mode), targeting the existing React 19 SPA. No backend (.NET 10) changes are required for this feature.
@@ -43,7 +56,7 @@ backend, contract, or data-model changes.
 
 **Constraints**: No new npm dependencies expected — MUI already provides `CircularProgress`; the three-dot "thinking" indicator is a small custom component (CSS/MUI `keyframes`-based), justified under constitution §7 as a foundational, reusable messaging-UI primitive rather than a one-off. No enforced minimum display duration for either indicator (spec clarification). No reduced-motion fallback variant required (spec clarification) — still meets WCAG 2.1 AA, since respecting `prefers-reduced-motion` for non-flashing loading affordances is a AAA-level (2.3.3), not AA-level, success criterion.
 
-**Scale/Scope**: 3 existing components/hooks modified (`ChatPage.tsx`'s `ConversationView`, `MessageBubble.tsx`, `useChatStream.ts`), 1 new small presentational component added (`ThinkingIndicator`), plus corresponding test updates — no new routes, pages, or backend surface.
+**Scale/Scope**: 3 existing components/hooks modified (`ChatPage.tsx`'s `ConversationView`, `MessageBubble.tsx`, `useChatStream.ts` — the latter touched twice, once for the retry mechanism and once for the message-sync gate fix), 1 new small presentational component added (`ThinkingIndicator`), plus corresponding test updates — no new routes, pages, or backend surface.
 
 ## Constitution Check
 
@@ -57,7 +70,8 @@ backend, contract, or data-model changes.
 | §7 UI Principles — Accessibility (WCAG 2.1 AA) | New loading/error/thinking states MUST carry correct ARIA roles (`role="status"`/`aria-live="polite"` for the spinner and thinking indicator, `role="alert"` for the error state) and be covered by an axe check, matching the existing `ChatSidebar.a11y.test.tsx` pattern. Skipping a reduced-motion fallback does not violate AA (§ Constraints above). |
 | §7 UI Principles — State management | Loading/error state is read directly from TanStack Query's own status (`isPending`/`isError`/`error`), not duplicated into Zustand — consistent with the constitution's "server state lives in TanStack Query" rule. |
 | §3 Architecture Rules (Clean Architecture) | Not implicated — no Domain/Application/Infrastructure/Api changes; all work is in the `Frontend`/`ClientApp` presentation layer, which already communicates with the backend only via its public HTTP API. |
-| §10 Testing Standards | New/changed behavior gets test coverage in the same change: `ConversationView` loading/error/content branch rendering, `ThinkingIndicator` appearance/removal timing, `MessageBubble` no longer rendering attribution (existing test at `MessageBubble.test.tsx:16-19` asserting the opposite must be updated, not left contradicting the new behavior), and an a11y check for the new states. |
+| §10 Testing Standards | New/changed behavior gets test coverage in the same change: `ConversationView` loading/error/content branch rendering, `ThinkingIndicator` appearance/removal timing, `MessageBubble` no longer rendering attribution (existing test at `MessageBubble.test.tsx:16-19` asserting the opposite must be updated, not left contradicting the new behavior), and an a11y check for the new states. User Story 5's fix ships with two regression tests (T030/T031) — one verified to fail against the pre-fix code (confirmed by temporarily reverting the fix and re-running), one covering the beneficial pagination side effect. |
+| VIII. No Silent Failures (§2) — User Story 5 | Also directly satisfied: a conversation silently, permanently showing zero messages when it actually has content is exactly the class of failure this principle forbids — the fix makes the view eventually consistent with the true server state instead of silently discarding a corrected background refetch. |
 
 **Result**: PASS — no unjustified violations. No entries required in Complexity Tracking.
 

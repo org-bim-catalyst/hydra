@@ -46,6 +46,23 @@ generator finishes. No minimum dwell time is enforced in `Thinking` (spec clarif
 a response that fails or completes within a few milliseconds is allowed to skip visibly
 occupying that state.
 
+## Message-sync gate (`hasSentRef`, replaces the prior `initializedRef` — User Story 5, FR-012/FR-013)
+
+`useChatStream` tracks, per mounted view, whether the user has sent anything in *this specific
+view* — not whether the underlying query has ever returned a defined value. This single boolean
+gates whether the view's local `messages` state keeps tracking `useChatMessages`' data:
+
+| State | Condition | Behavior |
+|---|---|---|
+| `Following` | `!hasSentRef.current` | `messages` re-syncs from `initialMessages` on every change — including a corrected background refetch replacing an earlier incomplete/stale snapshot, and later-arriving paginated pages (FR-024). |
+| `Diverged` | `hasSentRef.current` | `messages` is driven entirely by local state (the in-progress/completed send and its streamed reply); the query's data is no longer applied to this view, even if it changes. |
+
+**Transition**: `Following` → `Diverged` happens exactly once per mount, at the start of `send`/
+`sendImage`/`sendTranslation`, and never reverses within that mount — reopening the conversation
+(a fresh mount) starts a new `Following` state from scratch. This is a one-way gate deliberately:
+its purpose is to stop a same-view fetch from clobbering an active/completed local conversation,
+not to stop legitimate updates before the user has acted.
+
 ## MessageBubble display fields (existing `ChatMessage` type — unchanged shape, changed usage)
 
 `provider`/`model` remain on `ChatMessage`/`PersistedMessage` exactly as today (still

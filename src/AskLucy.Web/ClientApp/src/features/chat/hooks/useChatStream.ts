@@ -38,7 +38,13 @@ export function useChatStream(
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const chatIdRef = useRef<string | null>(chatId)
-  const initializedRef = useRef(initialMessages !== undefined)
+  // Tracks whether the *user* has sent anything in this specific mounted view — not whether
+  // initialMessages has ever been defined. A brand-new chat's first messages fetch races an
+  // in-progress reply and can resolve empty; that empty result is still "defined", so gating
+  // on definedness alone would permanently block a later, corrected refetch from ever being
+  // applied (the "new chat blank on return" bug — see research.md Topic 6). This flag flips
+  // exactly once, inside send/sendImage/sendTranslation, and never reverses within this mount.
+  const hasSentRef = useRef(false)
   // Last user-message content actually attempted via send() — lets retry() (FR-008) resend
   // exactly what failed without the caller needing to remember/re-supply it.
   const lastAttemptedContentRef = useRef<string | null>(null)
@@ -57,9 +63,8 @@ export function useChatStream(
   }, [])
 
   useEffect(() => {
-    if (!initializedRef.current && initialMessages !== undefined) {
+    if (!hasSentRef.current && initialMessages !== undefined) {
       setMessages(toChatMessages(initialMessages))
-      initializedRef.current = true
     }
   }, [initialMessages])
 
@@ -88,7 +93,7 @@ export function useChatStream(
       // send, and can resolve with an incomplete snapshot (the assistant's reply is only
       // persisted after the full stream finishes) that would otherwise wipe out the
       // conversation that's live on screen right now.
-      initializedRef.current = true
+      hasSentRef.current = true
       lastAttemptedContentRef.current = content
 
       const userMessage: ChatMessage = { role: 'user', content }
@@ -126,7 +131,7 @@ export function useChatStream(
 
   const sendImage = useCallback(
     async (prompt: string) => {
-      initializedRef.current = true
+      hasSentRef.current = true
       const activeChatId = await ensureChatId(prompt)
       const url = await generateImage(activeChatId, prompt)
       if (isActiveRef.current) {
@@ -139,7 +144,7 @@ export function useChatStream(
 
   const sendTranslation = useCallback(
     async (text: string, targetLanguage: string) => {
-      initializedRef.current = true
+      hasSentRef.current = true
       const activeChatId = await ensureChatId(text)
       const html = await translate(activeChatId, text, targetLanguage)
       const container = document.createElement('div')

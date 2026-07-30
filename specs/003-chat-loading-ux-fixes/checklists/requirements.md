@@ -36,4 +36,10 @@
   four reported issues.
 - `/speckit-clarify` completed 2026-07-30 (4 questions: feedback latency, retry behavior,
   reduced-motion handling, minimum indicator display duration). All items remain passing.
-- Ready for `/speckit-plan`.
+- Amended 2026-07-30 after post-release testing: added User Story 5 (FR-012/FR-013, SC-006)
+  for the "new chat blank on return" bug found during manual QA of the shipped fix. All
+  checklist items re-reviewed against the amended spec and remain passing — the new story
+  follows the same testable-acceptance-criteria/measurable-outcome bar as the original four.
+- Ready for `/speckit-plan` (re-run only needed if design docs require structural changes;
+  for this amendment, `plan.md`/`research.md`/`data-model.md`/`tasks.md` were updated directly
+  since the change is additive and confined to files already in scope).

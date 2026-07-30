@@ -63,13 +63,27 @@
    animate exactly as before — per the spec clarification, no static/reduced-motion variant
    is implemented for this feature.
 
+## Scenario 5 — Reopening a newly-created chat shows its real content (User Story 5)
+
+1. Click "New chat", type a message, and send it. Wait for Lucy's reply to finish streaming
+   completely.
+2. Click a different conversation in the history panel.
+3. Click back on the conversation you just created (it should now have a real title in the
+   history list, derived from your message).
+4. **Expected**: both your message and Lucy's reply are shown — never a blank pane. (If you
+   click back very quickly, you may briefly see the loading spinner from Scenario 1 first;
+   that is expected and correct.)
+5. Repeat once more for good measure — switch away and back a second time. **Expected**: the
+   content remains stable and correct on every return, not just the first.
+
 ## Automated checks
 
 From `src/AskLucy.Web/ClientApp`:
 
 ```
 npm run test    # Vitest + React Testing Library, includes updated MessageBubble tests,
-                 # new ThinkingIndicator tests, and ConversationView loading/error branch tests
+                 # new ThinkingIndicator tests, ConversationView loading/error branch tests,
+                 # and the User Story 5 stale-snapshot/pagination-sync regression tests
 npm run lint
 ```
 
