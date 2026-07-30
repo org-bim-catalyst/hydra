@@ -13,9 +13,10 @@ describe('MessageBubble', () => {
     expect(document.querySelector('.katex')).not.toBeNull()
   })
 
-  it('renders provider/model metadata for assistant messages', () => {
+  it('does not render provider/model metadata even when present', () => {
     render(<MessageBubble message={{ role: 'assistant', content: 'Hello', provider: 'OpenAI', model: 'gpt-4' }} />)
-    expect(screen.getByText('OpenAI · gpt-4')).toBeInTheDocument()
+    expect(screen.queryByText('OpenAI · gpt-4')).not.toBeInTheDocument()
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument()
   })
 
   it('does not render metadata caption when absent', () => {

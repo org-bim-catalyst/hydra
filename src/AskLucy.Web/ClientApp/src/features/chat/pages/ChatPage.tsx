@@ -6,6 +6,8 @@ import {
   Alert,
   AppBar,
   Box,
+  Button,
+  CircularProgress,
   Drawer,
   IconButton,
   Snackbar,
@@ -22,6 +24,7 @@ import { ChatComposer } from '../components/ChatComposer'
 import { ChatSidebar } from '../components/ChatSidebar'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
+import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
 import { BrandMark } from '../../../components/BrandMark'
@@ -94,8 +97,16 @@ interface ConversationViewProps {
   onOpenSidebar: () => void
 }
 
-function ConversationView({ chatId, language, onLanguageChange, onChatCreated, isMobile, onOpenSidebar }: ConversationViewProps) {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useChatMessages(chatId)
+export function ConversationView({ chatId, language, onLanguageChange, onChatCreated, isMobile, onOpenSidebar }: ConversationViewProps) {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isPending: isMessagesPending,
+    isError: isMessagesError,
+    refetch: refetchMessages,
+  } = useChatMessages(chatId)
 
   // FR-024: a long conversation's full history is loaded incrementally (background-fetched
   // page by page here) rather than all at once, then rendered with only the visible portion
@@ -109,7 +120,7 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
 
   const persistedMessages = useMemo(() => data?.pages.flatMap((page) => page.items), [data])
 
-  const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation } = useChatStream(
+  const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, retry } = useChatStream(
     chatId,
     persistedMessages,
     onChatCreated,
@@ -189,30 +200,61 @@ function ConversationView({ chatId, language, onLanguageChange, onChatCreated, i
 
       <Box ref={listParentRef} sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}>
         <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-          {messages.length === 0 && (
+          {chatId === null ? (
+            // FR-001: this placeholder is reserved for "no conversation selected" only — it
+            // must never be the fallback for a selected conversation that's loading/erroring.
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 8 }}>
               Start a conversation with Ask Lucy.
             </Typography>
+          ) : isMessagesPending ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+              <CircularProgress role="status" aria-live="polite" aria-label="Loading conversation…" />
+            </Box>
+          ) : isMessagesError ? (
+            <Box role="alert" sx={{ textAlign: 'center', mt: 8 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Failed to load this conversation. Please try again.
+              </Typography>
+              <Button variant="outlined" onClick={() => void refetchMessages()}>
+                Retry
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const message = messages[virtualItem.index]
+                // FR-006/FR-007: the in-flight assistant placeholder (empty content while
+                // streaming) renders as the thinking indicator instead of an empty bubble.
+                const isThinking = isStreaming && message.role === 'assistant' && message.content === ''
+                return (
+                  <Box
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    sx={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
+                  >
+                    {isThinking ? <ThinkingIndicator /> : <MessageBubble message={message} />}
+                  </Box>
+                )
+              })}
+            </Box>
           )}
-          <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
-            {virtualizer.getVirtualItems().map((virtualItem) => (
-              <Box
-                key={virtualItem.key}
-                data-index={virtualItem.index}
-                ref={virtualizer.measureElement}
-                sx={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
-              >
-                <MessageBubble message={messages[virtualItem.index]} />
-              </Box>
-            ))}
-          </Box>
           <div ref={scrollRef} />
         </Box>
       </Box>
 
       <ChatComposer onSend={send} disabled={isStreaming} />
       <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
-        <Alert severity="error" variant="filled" onClose={clearError}>
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={clearError}
+          action={
+            <Button color="inherit" size="small" onClick={retry}>
+              Retry
+            </Button>
+          }
+        >
           {error}
         </Alert>
       </Snackbar>

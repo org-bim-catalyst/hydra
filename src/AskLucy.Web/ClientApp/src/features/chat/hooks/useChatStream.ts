@@ -39,6 +39,9 @@ export function useChatStream(
   const abortRef = useRef<AbortController | null>(null)
   const chatIdRef = useRef<string | null>(chatId)
   const initializedRef = useRef(initialMessages !== undefined)
+  // Last user-message content actually attempted via send() — lets retry() (FR-008) resend
+  // exactly what failed without the caller needing to remember/re-supply it.
+  const lastAttemptedContentRef = useRef<string | null>(null)
 
   // Guards every state update below against a stale completion — if the user switches to a
   // different chat (or starts a new one) while a message is still sending, this view
@@ -86,6 +89,7 @@ export function useChatStream(
       // persisted after the full stream finishes) that would otherwise wipe out the
       // conversation that's live on screen right now.
       initializedRef.current = true
+      lastAttemptedContentRef.current = content
 
       const userMessage: ChatMessage = { role: 'user', content }
       const history = [...messages, userMessage]
@@ -152,5 +156,12 @@ export function useChatStream(
   const stop = useCallback(() => abortRef.current?.abort(), [])
   const clearError = useCallback(() => setError(null), [])
 
-  return { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, stop }
+  /** Resends the message content from the most recent failed send() (FR-008). No-op if nothing has failed. */
+  const retry = useCallback(() => {
+    if (lastAttemptedContentRef.current !== null) {
+      void send(lastAttemptedContentRef.current)
+    }
+  }, [send])
+
+  return { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, stop, retry }
 }
