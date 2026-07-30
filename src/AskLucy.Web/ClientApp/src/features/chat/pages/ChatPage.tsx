@@ -1,36 +1,33 @@
-import BrightnessMediumIcon from '@mui/icons-material/Brightness4'
 import ImageIcon from '@mui/icons-material/Image'
-import MenuIcon from '@mui/icons-material/Menu'
 import TranslateIcon from '@mui/icons-material/Translate'
 import {
   Alert,
-  AppBar,
   Box,
   Button,
   CircularProgress,
-  Drawer,
   IconButton,
   Snackbar,
-  Stack,
   Toolbar,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { AssistantPanel } from '../components/AssistantPanel'
+import { AssistantToggleFab } from '../components/AssistantToggleFab'
 import { ChatComposer } from '../components/ChatComposer'
-import { ChatSidebar } from '../components/ChatSidebar'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
+import { MinimalTopBar } from '../components/MinimalTopBar'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
-import { BrandMark } from '../../../components/BrandMark'
-import { UserMenu } from '../../../components/UserMenu'
-import { useThemeStore } from '../../../store/themeStore'
 import { useTextToSpeech } from '../voice/useTextToSpeech'
+import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
+
+const SceneBackground = lazy(() =>
+  import('../scene/SceneBackground').then((m) => ({ default: m.SceneBackground })),
+)
 
 /**
  * Owns which chat is selected (2026-07-28 ChatGPT-style history decision). `ConversationView`
@@ -42,21 +39,20 @@ export function ChatPage() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const [viewKey, setViewKey] = useState(0)
   const [language, setLanguage] = useState('en')
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const queryClient = useQueryClient()
+  // Lifted above ConversationView so the same isSpeaking/intensity state drives both the
+  // actual voice playback (triggered from ConversationView) and the sphere reacting to it
+  // (SceneBackground, a sibling) — a separate hook instance per component wouldn't share state.
+  const tts = useTextToSpeech()
 
   const handleSelectChat = (id: string) => {
     setSelectedChatId(id)
     setViewKey((k) => k + 1)
-    setMobileSidebarOpen(false)
   }
 
   const handleNewChat = () => {
     setSelectedChatId(null)
     setViewKey((k) => k + 1)
-    setMobileSidebarOpen(false)
   }
 
   const handleChatCreated = (id: string) => {
@@ -64,26 +60,31 @@ export function ChatPage() {
     void queryClient.invalidateQueries({ queryKey: ['chats'] })
   }
 
-  const sidebar = <ChatSidebar selectedChatId={selectedChatId} onSelectChat={handleSelectChat} onNewChat={handleNewChat} />
-
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-      {isMobile ? (
-        <Drawer open={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)}>
-          {sidebar}
-        </Drawer>
-      ) : (
-        sidebar
-      )}
-      <ConversationView
-        key={viewKey}
-        chatId={selectedChatId}
-        language={language}
-        onLanguageChange={setLanguage}
-        onChatCreated={handleChatCreated}
-        isMobile={isMobile}
-        onOpenSidebar={() => setMobileSidebarOpen(true)}
-      />
+    <Box sx={{ position: 'relative', height: '100dvh', width: '100%', overflow: 'hidden' }}>
+      <Suspense
+        fallback={
+          <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, bgcolor: 'background.default' }} />
+        }
+      >
+        <SceneBackground getReactiveIntensity={tts.getIntensity} />
+      </Suspense>
+      <MinimalTopBar />
+      <AssistantPanel
+        selectedChatId={selectedChatId}
+        onSelectChat={handleSelectChat}
+        onNewChat={handleNewChat}
+      >
+        <ConversationView
+          key={viewKey}
+          chatId={selectedChatId}
+          language={language}
+          onLanguageChange={setLanguage}
+          onChatCreated={handleChatCreated}
+          tts={tts}
+        />
+      </AssistantPanel>
+      <AssistantToggleFab />
     </Box>
   )
 }
@@ -93,11 +94,16 @@ interface ConversationViewProps {
   language: string
   onLanguageChange: (language: string) => void
   onChatCreated: (id: string) => void
-  isMobile: boolean
-  onOpenSidebar: () => void
+  tts: ReturnType<typeof useTextToSpeech>
 }
 
-export function ConversationView({ chatId, language, onLanguageChange, onChatCreated, isMobile, onOpenSidebar }: ConversationViewProps) {
+export function ConversationView({
+  chatId,
+  language,
+  onLanguageChange,
+  onChatCreated,
+  tts,
+}: ConversationViewProps) {
   const {
     data,
     fetchNextPage,
@@ -120,14 +126,8 @@ export function ConversationView({ chatId, language, onLanguageChange, onChatCre
 
   const persistedMessages = useMemo(() => data?.pages.flatMap((page) => page.items), [data])
 
-  const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, retry } = useChatStream(
-    chatId,
-    persistedMessages,
-    onChatCreated,
-  )
-  const theme = useTheme()
-  const toggleTheme = useThemeStore((s) => s.toggle)
-  const tts = useTextToSpeech()
+  const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, retry } =
+    useChatStream(chatId, persistedMessages, onChatCreated)
   const scrollRef = useRef<HTMLDivElement>(null)
   const listParentRef = useRef<HTMLDivElement>(null)
 
@@ -145,16 +145,20 @@ export function ConversationView({ chatId, language, onLanguageChange, onChatCre
   // Restores the legacy app's behavior of speaking every AI reply aloud as soon as it
   // finishes streaming (FR-006) — the React migration had only kept the Translate button's
   // on-demand read-aloud, dropping the automatic one entirely.
+  const isPanelOpen = useAssistantPanelStore((s) => s.isOpen)
+  const markUnread = useAssistantPanelStore((s) => s.markUnread)
   const wasStreamingRef = useRef(false)
   useEffect(() => {
     if (wasStreamingRef.current && !isStreaming) {
       const last = messages[messages.length - 1]
       if (last?.role === 'assistant' && last.content) {
         tts.speak(last.content, language)
+        // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
+        if (!isPanelOpen) markUnread()
       }
     }
     wasStreamingRef.current = isStreaming
-  }, [isStreaming, messages, language, tts])
+  }, [isStreaming, messages, language, tts, isPanelOpen, markUnread])
 
   const handleTranslateLast = async () => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
@@ -171,34 +175,22 @@ export function ConversationView({ chatId, language, onLanguageChange, onChatCre
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-      <AppBar position="static" color="default" elevation={0}>
-        <Toolbar>
-          {isMobile && (
-            <IconButton onClick={onOpenSidebar} aria-label="Open chat list" sx={{ mr: 1 }}>
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flex: 1 }}>
-            <BrandMark size={28} color={theme.palette.primary.main} />
-            <Typography variant="h6">Ask Lucy</Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <LanguageSelector value={language} onChange={onLanguageChange} />
-            <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
-              <TranslateIcon />
-            </IconButton>
-            <IconButton onClick={handleGenerateImage} aria-label="Generate image">
-              <ImageIcon />
-            </IconButton>
-            <IconButton onClick={toggleTheme} aria-label="Toggle theme">
-              <BrightnessMediumIcon />
-            </IconButton>
-            <UserMenu />
-          </Stack>
-        </Toolbar>
-      </AppBar>
+      {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
+          live in MinimalTopBar, outside this panel. */}
+      <Toolbar variant="dense" sx={{ justifyContent: 'flex-end', gap: 0.5 }}>
+        <LanguageSelector value={language} onChange={onLanguageChange} />
+        <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
+          <TranslateIcon />
+        </IconButton>
+        <IconButton onClick={handleGenerateImage} aria-label="Generate image">
+          <ImageIcon />
+        </IconButton>
+      </Toolbar>
 
-      <Box ref={listParentRef} sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}>
+      <Box
+        ref={listParentRef}
+        sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}
+      >
         <Box sx={{ maxWidth: 800, mx: 'auto' }}>
           {chatId === null ? (
             // FR-001: this placeholder is reserved for "no conversation selected" only — it
@@ -208,7 +200,11 @@ export function ConversationView({ chatId, language, onLanguageChange, onChatCre
             </Typography>
           ) : isMessagesPending ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-              <CircularProgress role="status" aria-live="polite" aria-label="Loading conversation…" />
+              <CircularProgress
+                role="status"
+                aria-live="polite"
+                aria-label="Loading conversation…"
+              />
             </Box>
           ) : isMessagesError ? (
             <Box role="alert" sx={{ textAlign: 'center', mt: 8 }}>
@@ -225,13 +221,20 @@ export function ConversationView({ chatId, language, onLanguageChange, onChatCre
                 const message = messages[virtualItem.index]
                 // FR-006/FR-007: the in-flight assistant placeholder (empty content while
                 // streaming) renders as the thinking indicator instead of an empty bubble.
-                const isThinking = isStreaming && message.role === 'assistant' && message.content === ''
+                const isThinking =
+                  isStreaming && message.role === 'assistant' && message.content === ''
                 return (
                   <Box
                     key={virtualItem.key}
                     data-index={virtualItem.index}
                     ref={virtualizer.measureElement}
-                    sx={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
                   >
                     {isThinking ? <ThinkingIndicator /> : <MessageBubble message={message} />}
                   </Box>
@@ -256,6 +259,11 @@ export function ConversationView({ chatId, language, onLanguageChange, onChatCre
           }
         >
           {error}
+        </Alert>
+      </Snackbar>
+      <Snackbar open={Boolean(tts.error)} autoHideDuration={5000} onClose={tts.clearError}>
+        <Alert severity="error" variant="filled" onClose={tts.clearError}>
+          {tts.error}
         </Alert>
       </Snackbar>
     </Box>
