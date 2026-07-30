@@ -104,3 +104,66 @@ mechanisms rather than hand-rolling one.
 
 **Alternatives considered**: None — this is the standard, idiomatic TanStack Query
 mechanism for the exact scenario (re-run a failed query on user request).
+
+## Topic 6: Root cause of the "new chat blank on return" bug (FR-012/FR-013, User Story 5)
+
+**Decision**: Replace `useChatStream`'s "seed once, guarded by `initializedRef`" pattern with a
+persistent "sync from the query until the user sends in this view" pattern, gated by a
+`hasSentRef` flag that is set only inside `send`/`sendImage`/`sendTranslation`, never implicitly
+from whether `initialMessages` happened to be defined on a given render.
+
+**Rationale**: The existing guard conflates two different things under one flag
+(`initializedRef.current = initialMessages !== undefined`, and the seeding `useEffect` only ever
+applies `initialMessages` once, when `!initializedRef.current`):
+
+1. "Has the user started actively sending in this specific mounted view?" (the guard this flag
+   was actually added for, per its own comment — protecting a live, in-progress `send()` from
+   being clobbered by a same-view, mid-stream `useChatMessages` fetch that necessarily captures
+   an incomplete snapshot, since the assistant's reply is only persisted once the stream
+   finishes).
+2. "Has this view ever received a defined value for `initialMessages`?" — which becomes true the
+   *first time TanStack Query returns anything at all*, including a stale-but-cached empty array.
+
+When a brand-new chat is created mid-session (`ensureChatId` → `onChatCreated` → parent sets
+`selectedChatId`, without remounting `ConversationView`, by design — see the "2026-07-28
+ChatGPT-style history decision" comment in `ChatPage.tsx`), `useChatMessages(chatId)` starts
+fetching that brand-new chat's messages *while the reply is still streaming*. That fetch
+resolves with `{ items: [], nextCursor: null }` (nothing persisted yet) and TanStack Query caches
+it under `['chats', <newChatId>, 'messages']`. Meaning (2) becomes true immediately in that same
+view, correctly gated from clobbering the live conversation by (1) also being true (the user is
+mid-send) — so no bug is visible yet.
+
+The bug surfaces on the *next* mount: when the user later reopens that same conversation,
+`ConversationView` mounts fresh, `useChatMessages(chatId)` reads the *same query key* — and
+because the previous empty snapshot is still cached, TanStack Query returns it synchronously
+(`isPending: false`, cached stale data) before its background refetch resolves. On this fresh
+mount, `initialMessages` is therefore defined (as `[]`) on the very first render, so
+`initializedRef.current` initializes to `true` immediately — before the background refetch (which
+would return the real, persisted messages) ever completes. Because the seeding `useEffect` only
+acts when `!initializedRef.current`, the corrected data that arrives moments later is silently
+discarded, and `messages` stays `[]` forever for that mount: a blank pane, per User Story 5.
+
+**Fix**: `hasSentRef` starts `false` on every fresh mount and is set `true` only inside `send`/
+`sendImage`/`sendTranslation` — never derived from whether `initialMessages` is defined. The
+seeding `useEffect` drops the "only once" restriction and instead re-applies `initialMessages` to
+`messages` on *every* change, for as long as `!hasSentRef.current` — meaning a fresh mount keeps
+tracking the query's data (including a corrected background refetch) right up until the user
+actively sends something new in that view, at which point (matching the original, still-valid
+intent) the locally-tracked streaming conversation takes over and stops syncing from the query
+until the next mount.
+
+**Side effect (beneficial, not separately scoped)**: the same "only once" restriction was also
+silently preventing a long conversation's *later* paginated pages (fetched in the background via
+the existing `fetchNextPage` effect, per FR-024) from ever reaching the displayed `messages` after
+the first page resolved. The fix above resolves that too, as the identical root cause, without
+requiring separate work.
+
+**Alternatives considered**:
+- *Skip/disable the `useChatMessages` fetch entirely while `isStreaming` is true for a
+  same-view, mid-send chat-creation.* Would prevent the premature empty snapshot from being
+  fetched at all, but doesn't address the deeper issue: the seeding effect's "only once" gate is
+  wrong regardless of what triggered the first (possibly stale) `initialMessages` value, and would
+  leave the analogous pagination bug (see above) unfixed.
+- *Invalidate/refetch the specific chat's messages query once its stream completes.* Would paper
+  over the stale-cache symptom for this one scenario but not fix the underlying flag conflation,
+  and would need to be remembered for every future code path that seeds `messages` from a query.

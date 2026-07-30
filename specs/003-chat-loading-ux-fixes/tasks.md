@@ -16,7 +16,7 @@ description: "Task list template for feature implementation"
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (US1, US2, US3, US4)
+- **[Story]**: Which user story this task belongs to (US1, US2, US3, US4, US5)
 - Every task includes its exact file path
 
 ## Path Conventions
@@ -128,13 +128,39 @@ All paths are relative to the repository root, under the existing frontend proje
 
 - [x] T024 [US4] In `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, remove the provider/model attribution `<Typography variant="caption">` block (currently lines 41-45), leaving `ChatMessage.provider`/`ChatMessage.model` and all other rendering (attachments, citations, markdown content) unchanged (FR-009, FR-010).
 
-**Checkpoint**: All four user stories are now independently functional and verified.
+**Checkpoint**: All five user stories are now independently functional and verified.
+
+---
+
+## Phase 6b: User Story 5 - Returning to a newly-created chat (Priority: P1)
+
+**Note on numbering**: T030-T033 are numbered after the original T001-T029 range (added in a
+later amendment for User Story 5) but physically appear here, before Phase 7 — the same
+"numbered-after-the-fact, positioned-by-story" tradeoff already used for T027-T029 below.
+
+**Goal**: Reopening a conversation that was created and used earlier in the current session shows its real messages — never a blank pane — even though the first read of that conversation raced with an in-progress reply and captured an incomplete snapshot.
+
+**Independent Test**: Start a new chat, send a message, wait for the reply to finish, switch to a different conversation, then switch back — confirm both messages are shown, not a blank pane.
+
+**Root cause** (see `research.md` Topic 6): `useChatStream`'s seeding `useEffect` only ever applies `initialMessages` once, gated by `initializedRef.current = initialMessages !== undefined`. A brand-new chat's first messages fetch (which races an in-progress reply) resolves empty and gets cached by TanStack Query; on the *next* mount, that stale-but-defined empty array makes `initializedRef` `true` immediately, permanently blocking the later, corrected background refetch from ever being applied.
+
+### Tests for User Story 5
+
+- [x] T030 [P] [US5] Add regression test "shows a conversation's real messages when reopened after its first read captured an empty/stale snapshot" to `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.test.tsx`: using one shared `QueryClient` across two sequential mounts of `ConversationView` for the same `chatId` (matching the real remount-via-`key` pattern), mock `GET /api/v1/chats/:id/messages` to return an empty page on the first call (cached by the first mount) and a page with real messages on the second call (returned by the second mount's background refetch), and assert the real messages eventually appear rather than staying blank forever (FR-012, FR-013, US5 AC1/AC2).
+- [x] T031 [P] [US5] Add regression test "continues syncing later-arriving paginated pages into the displayed messages" to the same file, covering the beneficial side effect from research.md Topic 6: mock a two-page `GET /api/v1/chats/:id/messages` response (`hasNextPage`-driving `nextCursor` on page 1), render `ConversationView`, and assert messages from *both* pages eventually appear (proving the seeding effect no longer locks after the first `initialMessages` value).
+
+### Implementation for User Story 5
+
+- [x] T032 [US5] In `src/AskLucy.Web/ClientApp/src/features/chat/hooks/useChatStream.ts`, rename `initializedRef` to `hasSentRef`, initialize it to `false` unconditionally (not derived from `initialMessages !== undefined`), and set it to `true` only inside `send`, `sendImage`, and `sendTranslation` (replacing the existing `initializedRef.current = true` assignments in each).
+- [x] T033 [US5] In the same file, change the seeding `useEffect` from `if (!initializedRef.current && initialMessages !== undefined) { setMessages(...); initializedRef.current = true }` to `if (!hasSentRef.current && initialMessages !== undefined) { setMessages(...) }` (drop the one-time latch so it re-applies on every `initialMessages` change until the user sends).
+
+**Checkpoint**: User Story 5 is independently functional — reopening a newly-created conversation shows real content, and (as a side effect of the same fix) long-conversation pagination beyond the first page now reaches the display too.
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final verification across all four stories together
+**Purpose**: Final verification across all five stories together
 
 - [x] T025 [P] Run `npm run lint` and `npm run test` in `src/AskLucy.Web/ClientApp` and resolve any regressions across all changed/new files.
 - [ ] T026 Manually run through `quickstart.md` Scenarios 1-4 against the running dev server (`npm run dev` + backend) to validate the end-to-end experience, including the reduced-motion emulation check in Scenario 4.
@@ -156,8 +182,8 @@ All paths are relative to the repository root, under the existing frontend proje
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: No dependencies — start immediately.
-- **Foundational (Phase 2)**: Depends on Setup (T001) — BLOCKS US1 (Phase 3) and US2 (Phase 4) only, since both edit the same `ConversationView` branch scaffold. US3 (Phase 5) and US4 (Phase 6) do not depend on Phase 2 and may start immediately after Phase 1.
-- **Polish (Phase 7)**: Depends on all four user story phases being complete.
+- **Foundational (Phase 2)**: Depends on Setup (T001) — BLOCKS US1 (Phase 3) and US2 (Phase 4) only, since both edit the same `ConversationView` branch scaffold. US3 (Phase 5), US4 (Phase 6), and US5 (Phase 6b) do not depend on Phase 2 and may start immediately after Phase 1.
+- **Polish (Phase 7)**: Depends on all five user story phases being complete.
 
 ### User Story Dependencies
 
@@ -165,6 +191,7 @@ All paths are relative to the repository root, under the existing frontend proje
 - **US2 (P1)**: Depends on Foundational (T002). Fills in a different branch of the same scaffold as US1 (non-conflicting once T002 lands) — can be implemented in parallel with US1 by a different contributor, or immediately after.
 - **US3 (P2)**: No dependency on Foundational, US1, or US2 — different concern (message send vs. conversation switch), different code paths (`useChatStream.ts` + message-list item rendering).
 - **US4 (P3)**: No dependency on any other story — isolated to `MessageBubble.tsx`.
+- **US5 (P1)**: Touches `useChatStream.ts` (same file as US3's T020, but a different, non-overlapping part of it) — no dependency on Foundational/US1/US2/US3/US4; independently testable and shippable on its own.
 - **T027 (US1)**: Depends on T003-T006 existing (same file) — can run any time after Foundational; no dependency on T007/T008 since it's an independent `it` block.
 - **T028 (US1)**: Depends on T011 (file must exist) and T007 (error branch implemented) — runs after both, so after Phase 4's T011 lands even though the assertion belongs to US1.
 - **T029 (US3)**: Depends on T018 (component must exist) — can run immediately after T018, in parallel with T019-T021.
@@ -205,22 +232,24 @@ Task: "Add retry callback + last-attempted-content ref in useChatStream.ts"
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 + 2 Only)
+### MVP First (User Story 1 + 2 + 5 Only)
 
 1. Complete Phase 1: Setup (T001).
-2. Complete Phase 2: Foundational (T002) — required by both P1 stories.
-3. Complete Phase 3: User Story 1 (T003-T008).
+2. Complete Phase 2: Foundational (T002) — required by US1/US2.
+3. Complete Phase 3: User Story 1 (T003-T008, T027, T028).
 4. Complete Phase 4: User Story 2 (T009-T013).
-5. **STOP and VALIDATE**: Run `quickstart.md` Scenario 1 end-to-end. This alone fixes the most severe reported bug (empty-state flash on conversation switch).
-6. Deploy/demo if ready — US3 and US4 can ship in a follow-up increment.
+5. Complete Phase 6b: User Story 5 (T030-T033) — same P1 priority as US1/US2, independent of Foundational, can land in parallel with steps 2-4.
+6. **STOP and VALIDATE**: Run `quickstart.md` Scenarios 1 and 5 end-to-end. Together these fix the two most severe reported bugs (empty-state flash on conversation switch, and blank pane on returning to a newly-created chat).
+7. Deploy/demo if ready — US3 and US4 (P2/P3) can ship in a follow-up increment.
 
 ### Incremental Delivery
 
 1. Setup + Foundational → scaffold ready.
-2. US1 + US2 (both P1, same scaffold) → conversation-switching bug fully fixed → validate via quickstart Scenario 1 → ship (MVP).
-3. US3 (P2) → thinking indicator + retryable send failures → validate via quickstart Scenario 2 → ship.
-4. US4 (P3) → attribution line removed → validate via quickstart Scenario 3 → ship.
-5. Each increment adds value without breaking a previously shipped one — no story's implementation touches another story's files except the shared T002 scaffold.
+2. US1 + US2 (both P1, same scaffold) → conversation-switching bug fully fixed → validate via quickstart Scenario 1 → ship.
+3. US5 (P1, independent of the scaffold) → reopening a newly-created chat fixed → validate via quickstart Scenario 5 → ship (US1+US2+US5 together are the full P1 MVP).
+4. US3 (P2) → thinking indicator + retryable send failures → validate via quickstart Scenario 2 → ship.
+5. US4 (P3) → attribution line removed → validate via quickstart Scenario 3 → ship.
+6. Each increment adds value without breaking a previously shipped one — no story's implementation touches another story's files except the shared T002 scaffold.
 
 ### Parallel Team Strategy
 
@@ -229,8 +258,9 @@ With multiple contributors, after T001:
 - Contributor A: Foundational (T002) → US1 → US2.
 - Contributor B: US3 (T014-T021) — entirely independent files.
 - Contributor C: US4 (T022-T024) — entirely independent file.
+- Contributor D: US5 (T030-T033) — entirely independent files/logic.
 
-All three converge at Phase 7 (Polish) once their respective phases are complete.
+All four converge at Phase 7 (Polish) once their respective phases are complete.
 
 ---
 

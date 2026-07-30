@@ -265,3 +265,67 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     await waitFor(() => expect(screen.getByText('Recovered reply')).toBeInTheDocument())
   })
 })
+
+describe('ConversationView — reopening a newly-created conversation (User Story 5)', () => {
+  it('shows real messages when reopened after its first read captured an empty/stale snapshot', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([])), { once: true }),
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({ id: 'u1', role: 'User', content: 'Hi Lucy' }),
+            makeMessage({ id: 'a1', content: 'Hello! How can I help?' }),
+          ]),
+        ),
+      ),
+    )
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const renderAt = (viewKey: number) =>
+      render(
+        <MemoryRouter>
+          <QueryClientProvider client={queryClient}>
+            <ConversationView
+              key={viewKey}
+              chatId={CHAT_A}
+              language="en"
+              onLanguageChange={() => {}}
+              onChatCreated={() => {}}
+              isMobile={false}
+              onOpenSidebar={() => {}}
+            />
+          </QueryClientProvider>
+        </MemoryRouter>,
+      )
+
+    // First mount: captures the empty snapshot — matching a fetch that raced an in-progress
+    // reply for a chat that was just auto-created mid-send.
+    const first = renderAt(1)
+    await waitFor(() => expect(queryClient.getQueryData(['chats', CHAT_A, 'messages'])).toBeDefined())
+    first.unmount()
+
+    // Second mount (user navigated away and back): the cache still holds the stale empty
+    // result, but the background refetch should deliver — and this view should display —
+    // the real, now-persisted messages, not stay blank forever.
+    renderAt(2)
+
+    expect(await screen.findByText('Hello! How can I help?')).toBeInTheDocument()
+  })
+
+  it('continues syncing later-arriving paginated pages into the displayed messages', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get('cursor')
+        if (!cursor) {
+          return HttpResponse.json({ items: [makeMessage({ id: 'p1', content: 'Page one message' })], nextCursor: 'page2' })
+        }
+        return HttpResponse.json({ items: [makeMessage({ id: 'p2', content: 'Page two message' })], nextCursor: null })
+      }),
+    )
+
+    renderConversation(CHAT_A)
+
+    expect(await screen.findByText('Page one message')).toBeInTheDocument()
+    expect(await screen.findByText('Page two message')).toBeInTheDocument()
+  })
+})

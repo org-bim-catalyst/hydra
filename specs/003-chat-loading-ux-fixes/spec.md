@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Fix the following chat-experience issues in the conversation/history UI: (1) clicking a conversation in the history list sometimes shows the 'Start a conversation with Ask Lucy.' empty state instead of that conversation's messages; (2) the assistant reply bubble should show an animated three-dot thinking indicator while a response is being generated; (3) clicking a conversation name should show a loading spinner in the chat area while its messages are being fetched; (4) the trailing provider/model attribution line (e.g. 'OpenAI · gpt-3.5-turbo') must be removed from the user-facing reply bubble."
+**Input**: User description: "Fix the following chat-experience issues in the conversation/history UI: (1) clicking a conversation in the history list sometimes shows the 'Start a conversation with Ask Lucy.' empty state instead of that conversation's messages; (2) the assistant reply bubble should show an animated three-dot thinking indicator while a response is being generated; (3) clicking a conversation name should show a loading spinner in the chat area while its messages are being fetched; (4) the trailing provider/model attribution line (e.g. 'OpenAI · gpt-3.5-turbo') must be removed from the user-facing reply bubble." Amended 2026-07-30 after post-release testing: (5) after creating a new chat and sending a message, switching to a different conversation and then back to the new one leaves the chat pane completely blank (no messages, no empty-state copy, no error) — the new conversation's content appears lost even though it was sent and a reply was received.
 
 ## Clarifications
 
@@ -84,6 +84,21 @@ A user reading a past or current reply currently sees a trailing line naming the
 
 ---
 
+### User Story 5 - Returning to a newly-created chat (Priority: P1)
+
+A user starts a new chat and sends a message (which auto-creates the conversation behind the scenes and streams back a reply). They then switch to a different conversation in the history panel, and later click back on the new conversation they just created. Today the chat pane comes back completely blank — no messages, no "Start a conversation" copy, no error — as if the conversation and its content had vanished, even though the message was sent and a reply was received moments earlier.
+
+**Why this priority**: This is a data-loss-presenting bug, not just a missing-affordance bug — the user has direct evidence their message and Lucy's reply existed (they just saw it), so a blank pane on return reads as "my conversation disappeared," which is more alarming and trust-damaging than the empty-state/loading issues in User Story 1, even though it affects a narrower situation (only conversations created and first used in the current session).
+
+**Independent Test**: Can be fully tested by starting a new chat, sending a message and waiting for the reply to finish, switching to any other conversation, then clicking back on the newly-created one — confirming its messages (the sent message and the received reply) are shown, not a blank pane.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user starts a new chat and sends a message that receives a complete reply, **When** they switch to a different conversation and then switch back to the new one, **Then** the chat pane shows both the sent message and the received reply — not a blank pane.
+2. **Given** the same scenario, **When** the conversation is reopened, **Then** the chat pane never silently shows zero messages as if nothing were ever sent — it must show real content, a loading indicator, or an error state (per User Story 1/2), never a bare blank view.
+
+---
+
 ### Edge Cases
 
 - What happens when a user clicks the conversation that is already open/selected? The system should not show a loading state or re-fetch unnecessarily if the content is already loaded and current.
@@ -92,6 +107,7 @@ A user reading a past or current reply currently sees a trailing line naming the
 - How does the system handle the thinking indicator if the user cancels/stops generation mid-response?
 - How does the system handle extremely fast responses? There is no enforced minimum display duration for the thinking indicator or the loading spinner — if a response or fetch completes in a few milliseconds, the indicator is shown only as long as it is actually needed and is not artificially held on screen.
 - The three-dot thinking animation and the loading spinner animate the same way for all users; there is no reduced-motion/static fallback for users with an OS/browser "reduce motion" preference enabled.
+- What happens when a conversation that was just created and used in the current session is reopened after the user has navigated elsewhere? Its messages must be shown from whatever the system now holds as the source of truth for that conversation, even if the first attempt to read that conversation's content (e.g. immediately after creation, while a reply was still being generated) had captured an incomplete or empty snapshot. A conversation's displayed content must never get permanently stuck on an early, incomplete snapshot.
 
 ## Requirements *(mandatory)*
 
@@ -108,6 +124,8 @@ A user reading a past or current reply currently sees a trailing line naming the
 - **FR-009**: The system MUST NOT render any provider or model name/label (e.g. "OpenAI · gpt-3.5-turbo") within an assistant reply bubble, for both newly generated and previously stored replies.
 - **FR-010**: The system MAY continue to retain provider/model metadata internally (e.g., for usage tracking, billing, or analytics) associated with each reply; only its display within the reply bubble is removed.
 - **FR-011**: The three-dot thinking indicator and the conversation loading spinner MUST animate identically for all users; no static/reduced-motion fallback variant is required.
+- **FR-012**: Reopening a conversation MUST always reflect the conversation's current content, not a permanently "locked in" early snapshot from a prior view of that same conversation — specifically, a conversation created and used earlier in the session (whose first content read may have raced with an in-progress reply) MUST show its actual messages when reopened, never a blank pane.
+- **FR-013**: For a conversation that has content (at least one message was sent in it during the current session), the chat area MUST eventually display that content when the conversation is reopened — it MUST NOT silently and permanently show zero messages, as if nothing had ever been sent, because an earlier read of that conversation happened to race an in-progress reply and captured an incomplete snapshot. (A conversation that has never had any message sent in it is a distinct, pre-existing, out-of-scope case — see Edge Cases.)
 
 ## Success Criteria *(mandatory)*
 
@@ -118,6 +136,7 @@ A user reading a past or current reply currently sees a trailing line naming the
 - **SC-003**: Users see a visible "thinking" indicator in the reply bubble within 100ms of sending a message, every time, until response content begins streaming in.
 - **SC-004**: 0% of rendered assistant reply bubbles (new or historical) display provider/model attribution text to the user.
 - **SC-005**: User-reported issues describing "my chat disappeared," "wrong conversation showed up," or "nothing happens when I click a chat" drop to zero after release.
+- **SC-006**: 100% of conversations created and used earlier in the current session show their real messages when reopened after navigating away, never a blank pane.
 
 ## Assumptions
 
@@ -126,3 +145,4 @@ A user reading a past or current reply currently sees a trailing line naming the
 - Provider/model metadata is already being captured and stored for each reply for usage tracking purposes; this feature only changes what is rendered to the user, not what is recorded.
 - No new backend endpoints or data are required; this is a frontend state-management and rendering correctness fix within the existing Chat Engine UI.
 - "Start a conversation with Ask Lucy." remains the correct message for the true empty case (no conversation selected / brand-new session with no history).
+- A conversation's message history is driven by the frontend's data-fetching layer for as long as the user hasn't actively sent a new message within the current view of that conversation; once they do, the locally-tracked, actively-streaming conversation takes precedence over that same layer's data until the view is left and reopened.
