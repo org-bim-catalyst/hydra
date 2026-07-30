@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
+using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using Microsoft.Extensions.Configuration;
@@ -34,6 +35,11 @@ public static class DependencyInjection
         services.AddOptions<SmtpOptions>()
             .Bind(configuration.GetSection(SmtpOptions.SectionName));
 
+        services.AddOptions<CookiePolicyOptions>()
+            .Bind(configuration.GetSection(CookiePolicyOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddDataProtection();
 
         services.AddHttpClient("OpenAI", client =>
@@ -43,6 +49,7 @@ public static class DependencyInjection
 
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
+        services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
         services.AddScoped<IAIProvider, OpenAIProvider>();

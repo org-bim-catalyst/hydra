@@ -64,9 +64,12 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
                 .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
         }
 
-        context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = statusCode;
-        await context.Response.WriteAsJsonAsync(problemDetails);
+        // WriteAsJsonAsync's no-content-type overload unconditionally overwrites
+        // Response.ContentType to "application/json" — passing it explicitly here is what
+        // actually makes every error response RFC 9457-compliant (constitution §6); setting
+        // ContentType beforehand alone (the previous code) was silently discarded.
+        await context.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: "application/problem+json");
     }
 
     private static (int StatusCode, string Type, string Title, string Detail) Map(Exception exception) => exception switch
