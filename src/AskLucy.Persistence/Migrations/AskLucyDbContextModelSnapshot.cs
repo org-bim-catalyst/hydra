@@ -311,6 +311,61 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("UserChats", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Consent.CookieConsentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AnalyticsAccepted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("FunctionalAccepted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MarketingAccepted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.ToTable("CookieConsentRecords", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Persistence.Identity.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -573,6 +628,15 @@ namespace AskLucy.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Consent.CookieConsentRecord", b =>
+                {
+                    b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
+                        .WithMany("CookieConsentRecords")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -633,6 +697,8 @@ namespace AskLucy.Persistence.Migrations
 
             modelBuilder.Entity("AskLucy.Persistence.Identity.ApplicationUser", b =>
                 {
+                    b.Navigation("CookieConsentRecords");
+
                     b.Navigation("UserChats");
                 });
 #pragma warning restore 612, 618

@@ -36,6 +36,7 @@ import {
 } from '../../auth/hooks/useAuth'
 import { useDeleteAccount, useMyProfile } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
+import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
 
 function TabPanel({ value, index, children }: { value: number; index: number; children: ReactNode }) {
   if (value !== index) return null
@@ -320,6 +321,7 @@ export function SettingsPage() {
           <Tab label="Security" />
           <Tab label="Account" />
           <Tab label="Data" />
+          <Tab label="Cookies" />
         </Tabs>
         <Box sx={{ p: 3 }}>
           <TabPanel value={tab} index={0}>
@@ -330,6 +332,9 @@ export function SettingsPage() {
           </TabPanel>
           <TabPanel value={tab} index={2}>
             <DataTab />
+          </TabPanel>
+          <TabPanel value={tab} index={3}>
+            <CookiePreferencesPanel />
           </TabPanel>
         </Box>
       </Paper>

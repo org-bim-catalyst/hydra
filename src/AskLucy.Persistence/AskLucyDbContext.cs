@@ -1,6 +1,7 @@
 using System.Reflection;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Consent;
 using AskLucy.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
     public DbSet<Message> Messages => Set<Message>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<CookieConsentRecord> CookieConsentRecords => Set<CookieConsentRecord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

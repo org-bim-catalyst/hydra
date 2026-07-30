@@ -18,6 +18,9 @@ const ExternalLoginCompletePage = lazy(() =>
   import('../features/auth/pages/ExternalLoginCompletePage').then((m) => ({ default: m.ExternalLoginCompletePage })),
 )
 const ChatPage = lazy(() => import('../features/chat/pages/ChatPage').then((m) => ({ default: m.ChatPage })))
+const PrivacyPage = lazy(() =>
+  import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
+)
 const ProfilePage = lazy(() =>
   import('../features/profile/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 )
@@ -78,6 +81,16 @@ const router = createBrowserRouter([
     element: (
       <Lazy>
         <ExternalLoginCompletePage />
+      </Lazy>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    // Public — reachable pre-login (spec.md FR-009/FR-010), outside ProtectedRoute.
+    path: '/privacy',
+    element: (
+      <Lazy>
+        <PrivacyPage />
       </Lazy>
     ),
     errorElement: <ErrorPage />,
