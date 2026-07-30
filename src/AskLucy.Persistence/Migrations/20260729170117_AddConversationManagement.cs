@@ -149,36 +149,17 @@ namespace AskLucy.Persistence.Migrations
                 table: "Citations",
                 column: "MessageId");
 
-            // SQL Server Full-Text Search catalog/indexes (research.md Topic 5) — no fluent
-            // API exists for this in EF Core, so it's raw SQL. Population is asynchronous
-            // (CHANGE_TRACKING AUTO), which is what gives near-real-time search freshness
-            // (SC-001a) without a bespoke indexing pipeline.
-            migrationBuilder.Sql(@"
-IF NOT EXISTS (SELECT 1 FROM sys.fulltext_catalogs WHERE name = 'ConversationSearchCatalog')
-    CREATE FULLTEXT CATALOG ConversationSearchCatalog AS DEFAULT;
-
-CREATE FULLTEXT INDEX ON UserChats(Title)
-    KEY INDEX PK_UserChats ON ConversationSearchCatalog
-    WITH CHANGE_TRACKING AUTO;
-
-CREATE FULLTEXT INDEX ON Messages(Content)
-    KEY INDEX PK_Messages ON ConversationSearchCatalog
-    WITH CHANGE_TRACKING AUTO;
-");
+            // The SQL Server full-text catalog/indexes (research.md Topic 5) moved to their
+            // own migration, AddConversationFullTextSearch — CREATE FULLTEXT CATALOG/INDEX
+            // cannot run inside a transaction, and EF Core's own tooling warns that mixing a
+            // suppressTransaction: true command into a migration that also has transactional
+            // schema changes risks a partially-applied migration if it's interrupted. Keeping
+            // this migration schema-only (columns/tables/indexes) means it stays atomic.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"
-IF EXISTS (SELECT 1 FROM sys.fulltext_indexes WHERE object_id = OBJECT_ID('Messages'))
-    DROP FULLTEXT INDEX ON Messages;
-IF EXISTS (SELECT 1 FROM sys.fulltext_indexes WHERE object_id = OBJECT_ID('UserChats'))
-    DROP FULLTEXT INDEX ON UserChats;
-IF EXISTS (SELECT 1 FROM sys.fulltext_catalogs WHERE name = 'ConversationSearchCatalog')
-    DROP FULLTEXT CATALOG ConversationSearchCatalog;
-");
-
             migrationBuilder.DropTable(
                 name: "Attachments");
 
