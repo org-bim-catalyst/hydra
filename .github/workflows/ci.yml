@@ -10,19 +10,41 @@ jobs:
   backend-build-and-test:
     name: Backend build, lint, and test (.NET 10)
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src/AskLucy.Web/ClientApp
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: src/AskLucy.Web/ClientApp/package-lock.json
+
+      - name: Install ClientApp dependencies
+        run: npm ci
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+
       - name: Restore
+        working-directory: .
         run: dotnet restore "Ask Lucy.sln"
+
       - name: Build
+        working-directory: .
         run: dotnet build "Ask Lucy.sln" --no-restore --configuration Release
+
       - name: Lint (format check)
+        working-directory: .
         run: dotnet format "Ask Lucy.sln" --no-restore --verify-no-changes
+
       - name: Test
+        working-directory: .
         run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,38 +60,43 @@ jobs:
         working-directory: src/AskLucy.Web/ClientApp
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: "npm"
           cache-dependency-path: src/AskLucy.Web/ClientApp/package-lock.json
+
       - name: Install dependencies
         run: npm ci
+
       - name: Lint
         run: npm run lint
+
       - name: Unit tests
         run: npm run test
+
       - name: Build
         run: npm run build
 
   e2e:
     name: Playwright regression matrix
     runs-on: ubuntu-latest
-    # Requires a live deployment (backend + frontend + database + OpenAI key) — see
-    # tests/AskLucy.E2E.Tests/RegressionMatrix.spec.ts's header comment. Not runnable
-    # against an ephemeral CI checkout alone; wired here as a manually-triggered gate
-    # against a real environment, not a blocking check on every PR.
     if: false
     defaults:
       run:
         working-directory: tests/AskLucy.E2E.Tests
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+
       - run: npm ci
+
       - run: npx playwright install --with-deps
+
       - run: npm test
         env:
           E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
@@ -84,9 +111,11 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -97,18 +126,9 @@ jobs:
         working-directory: src/AskLucy.Web/ClientApp
         run: npm ci
 
-      # AskLucy.Web's PreBuildEvent target runs `npm run build` and copies ClientApp's
-      # output into wwwroot as part of this build — one publish produces one deployable
-      # site (backend + SPA together), no separate frontend build/deploy step needed.
       - name: Publish
         run: dotnet publish src/AskLucy.Web --configuration Release --output publish/backend
 
-      # No Docker, no Azure App Service cutover this phase — deliberate, per the
-      # approved scope decision (spec.md § Assumptions, plan.md § Complexity Tracking).
-      # Deploys via FTP to the same site4now.net shared-hosting target the legacy app
-      # already used, replacing the previous manual FTP/MSDeploy publish step with an
-      # automated one (FR-029/FR-030). Deploys to site root since AskLucy.Web now serves
-      # both the API and the SPA from the same origin.
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
