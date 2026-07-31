@@ -1,8 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
+import { selectPersonaVoice } from './selectPersonaVoice'
 
 const DECAY_PER_SECOND = 3.2 // envelope drops from 1 to 0 in ~0.3s of silence between words
 
-/** Client-side voice output (FR-006) via the browser's native SpeechSynthesis API.
+/** Client-side voice output (FR-006) via the browser's native SpeechSynthesis API,
+ * with a curated/heuristic persona-matching voice (spec 010-lucy-brand-refresh FR-001–005,
+ * contracts/voice-persona-mapping.md) so playback sounds like the same young-adult female
+ * persona across browsers/languages instead of an arbitrary per-platform default — closes
+ * the gap ADR-0005 deferred.
  * Also drives the workspace's 3D sphere (FR-018): `isSpeaking` and `getIntensity()`
  * approximate a real audio envelope from the utterance's own timing events, since
  * `window.speechSynthesis` doesn't expose its audio as an analyzable stream
@@ -56,11 +61,19 @@ export function useTextToSpeech() {
         return
       }
 
+      // FR-001–005/contracts/voice-persona-mapping.md: a curated or heuristically-scored
+      // persona-matching voice, never the browser's own arbitrary per-language default.
+      const { voice } = selectPersonaVoice(lang, window.speechSynthesis.getVoices())
+      if (!voice) {
+        // constitution §2.VIII / FR-005: no voice for this language at all is a visible
+        // failure, never a silent speak() with an unset (browser-arbitrary) voice.
+        setError('Voice output failed. Please try again.')
+        return
+      }
+
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = lang
-
-      const voice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith(lang))
-      if (voice) utterance.voice = voice
+      utterance.voice = voice
 
       utterance.onstart = () => {
         isSpeakingRef.current = true

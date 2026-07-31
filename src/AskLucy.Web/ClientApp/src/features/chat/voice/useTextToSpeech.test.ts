@@ -12,7 +12,15 @@ interface FakeUtteranceInstance {
   onerror: (() => void) | null
 }
 
-function installSpeechSynthesis() {
+const DEFAULT_VOICES = [
+  { name: 'Microsoft David Desktop', lang: 'en-US', localService: true, default: false, voiceURI: 'david' },
+  { name: 'Microsoft Zira Desktop', lang: 'en-US', localService: true, default: false, voiceURI: 'zira' },
+] as SpeechSynthesisVoice[]
+
+/** Defaults to a voice list containing the curated en/chromium voice (`selectPersonaVoice`,
+ * spec 010-lucy-brand-refresh) so existing lifecycle tests still get past the voice-selection
+ * step unchanged; pass `voices: []` explicitly to exercise the no-voice-available error path. */
+function installSpeechSynthesis(voices: SpeechSynthesisVoice[] = DEFAULT_VOICES) {
   const instances: FakeUtteranceInstance[] = []
 
   class FakeUtterance implements FakeUtteranceInstance {
@@ -32,7 +40,10 @@ function installSpeechSynthesis() {
   const speak = vi.fn()
   const cancel = vi.fn()
   vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance)
-  vi.stubGlobal('speechSynthesis', { speak, cancel, getVoices: () => [] })
+  vi.stubGlobal('speechSynthesis', { speak, cancel, getVoices: () => voices })
+  // detectBrowserEngine reads navigator.userAgentData/userAgent — force 'chromium' so the
+  // curated lookup in DEFAULT_VOICES actually resolves deterministically in tests.
+  vi.stubGlobal('navigator', { userAgent: 'Chrome/120.0.0.0', userAgentData: undefined })
 
   return { instances, speak, cancel }
 }
@@ -54,6 +65,29 @@ describe('useTextToSpeech', () => {
     act(() => result.current.speak('hello', 'en'))
 
     expect(result.current.error).toBe('Voice output is not supported in this browser.')
+  })
+
+  it('applies the curated persona voice to the utterance (FR-001/FR-003, contracts/voice-persona-mapping.md)', () => {
+    const { instances, speak: speakSpy } = installSpeechSynthesis()
+    const { result } = renderHook(() => useTextToSpeech())
+
+    act(() => result.current.speak('hello', 'en'))
+
+    expect(instances[0].voice).toEqual(
+      expect.objectContaining({ name: 'Microsoft Zira Desktop' }),
+    )
+    expect(speakSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('surfaces a visible error and never calls speechSynthesis.speak() when no voice matches the language (FR-005)', () => {
+    const { instances, speak: speakSpy } = installSpeechSynthesis([])
+    const { result } = renderHook(() => useTextToSpeech())
+
+    act(() => result.current.speak('hello', 'en'))
+
+    expect(instances).toHaveLength(0)
+    expect(speakSpy).not.toHaveBeenCalled()
+    expect(result.current.error).toBe('Voice output failed. Please try again.')
   })
 
   it('tracks isSpeaking across the utterance lifecycle', () => {
