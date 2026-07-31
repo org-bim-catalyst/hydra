@@ -64,9 +64,18 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
                 .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
         }
 
-        context.Response.ContentType = "application/problem+json";
+        // FR-028: pass the vendor's own Retry-After hint through when it supplied one.
+        if (exception is AiProviderRateLimitedException { RetryAfter: { } retryAfter })
+        {
+            context.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         context.Response.StatusCode = statusCode;
-        await context.Response.WriteAsJsonAsync(problemDetails);
+        // WriteAsJsonAsync's no-content-type overload unconditionally overwrites
+        // Response.ContentType to "application/json" — passing it explicitly here is what
+        // actually makes every error response RFC 9457-compliant (constitution §6); setting
+        // ContentType beforehand alone (the previous code) was silently discarded.
+        await context.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: "application/problem+json");
     }
 
     private static (int StatusCode, string Type, string Title, string Detail) Map(Exception exception) => exception switch
@@ -98,6 +107,21 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
             "AI provider unavailable",
             "The AI service could not process your request. Please try again."),
+
+        // specs/005-multi-provider-ai-engine FR-028/FR-029 (research.md Decision 9): every
+        // vendor's authentication/rate-limit failures translate to these two shared types,
+        // regardless of which provider produced them.
+        AiProviderAuthenticationException => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-authentication-failed",
+            "AI provider authentication failed",
+            "The AI provider rejected the configured credential. An administrator needs to check the provider's API key."),
+
+        AiProviderRateLimitedException => (
+            StatusCodes.Status429TooManyRequests,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-rate-limited",
+            "AI provider rate limited",
+            "The AI provider is rate-limiting requests right now. Please try again shortly."),
 
         UnauthorizedAccessException => (
             StatusCodes.Status403Forbidden,

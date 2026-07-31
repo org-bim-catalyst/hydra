@@ -38,7 +38,8 @@ public sealed class AppendMessageCommandHandler(
         var message = Message.Create(
             request.ChatId, request.Role, request.Kind, request.Content, request.SourceText, userId,
             provider, model, request.GenerationParametersJson,
-            request.InputTokenCount, request.OutputTokenCount);
+            request.InputTokenCount, request.OutputTokenCount,
+            request.CachedTokenCount, request.ReasoningTokenCount, request.LatencyMs, request.EstimatedCostUsd);
 
         foreach (var attachment in request.Attachments ?? [])
         {
@@ -78,6 +79,10 @@ public sealed class AppendMessageCommandHandler(
         message.GenerationParametersJson,
         message.InputTokenCount,
         message.OutputTokenCount,
+        message.CachedTokenCount,
+        message.ReasoningTokenCount,
+        message.LatencyMs,
+        message.EstimatedCostUsd,
         [.. message.Attachments.Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.AccessLocation))],
         [.. message.Citations.Select(c => new CitationDto(c.Id, c.SourceLabel, c.SourceReference))]);
 }

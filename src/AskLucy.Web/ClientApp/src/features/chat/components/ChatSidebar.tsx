@@ -47,7 +47,7 @@ import {
 } from '../hooks/useConversationActions'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 
-interface ChatSidebarProps {
+interface ConversationListProps {
   selectedChatId: string | null
   onSelectChat: (id: string) => void
   onNewChat: () => void
@@ -70,7 +70,11 @@ const SORTS: { value: ConversationSort; label: string }[] = [
   { value: 'Alphabetical', label: 'Alphabetical' },
 ]
 
-function filterToParams(filter: FilterChip): { view: ConversationView; pinned?: boolean; favorite?: boolean } {
+function filterToParams(filter: FilterChip): {
+  view: ConversationView
+  pinned?: boolean
+  favorite?: boolean
+} {
   switch (filter) {
     case 'favorite':
       return { view: 'Active', favorite: true }
@@ -90,7 +94,11 @@ function dateGroupFor(dateIso: string | null, createdIso: string): string {
   const date = new Date(dateIso ?? createdIso)
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const daysAgo = Math.floor((startOfToday.getTime() - new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) / 86_400_000)
+  const daysAgo = Math.floor(
+    (startOfToday.getTime() -
+      new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) /
+      86_400_000,
+  )
 
   if (daysAgo <= 0) return 'Today'
   if (daysAgo === 1) return 'Yesterday'
@@ -121,8 +129,18 @@ function downloadBlob(blob: Blob, fileName: string) {
  * menu adds pin/favorite/archive/restore/duplicate/clear/export/permanent-delete (User
  * Stories 3–5), each using optimistic mutations (useConversationActions.ts) with a Snackbar
  * surfacing any failure (constitution §2.VIII No Silent Failures, SC-005).
+ *
+ * Extracted from the old fixed-width `ChatSidebar` shell (research.md §7, spec.md FR-008)
+ * so the same list/search/filter/sort/action logic can be reused inside a bounded-height
+ * container — a `ConversationSwitcher` Popover — not just a full-height column. This
+ * component itself makes no assumption about its container's width/height beyond filling
+ * it (`height: '100%'`); the caller supplies both the size and any chrome around it.
  */
-export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSidebarProps) {
+export function ConversationList({
+  selectedChatId,
+  onSelectChat,
+  onNewChat,
+}: ConversationListProps) {
   const [filter, setFilter] = useState<FilterChip>('all')
   const [sort, setSort] = useState<ConversationSort>('Newest')
   const [searchInput, setSearchInput] = useState('')
@@ -130,7 +148,10 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
   const [editingTitle, setEditingTitle] = useState('')
   const [menuChat, setMenuChat] = useState<ConversationSummary | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
-  const [confirmAction, setConfirmAction] = useState<{ chatId: string; kind: 'clear' | 'purge' } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{
+    chatId: string
+    kind: 'clear' | 'purge'
+  } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const { view, pinned, favorite } = filterToParams(filter)
@@ -197,7 +218,9 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
 
   const runAction = (action: () => Promise<unknown>) => {
     closeMenu()
-    action().catch((err) => setActionError(err instanceof Error ? err.message : 'Action failed. Please try again.'))
+    action().catch((err) =>
+      setActionError(err instanceof Error ? err.message : 'Action failed. Please try again.'),
+    )
   }
 
   const handleExport = async (chatId: string, title: string) => {
@@ -211,17 +234,7 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
   }
 
   return (
-    <Box
-      sx={{
-        width: 300,
-        borderRight: 1,
-        borderColor: 'divider',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        bgcolor: 'background.default',
-      }}
-    >
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <Box sx={{ p: 1.5 }}>
         <Button
           fullWidth
@@ -242,7 +255,15 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
           aria-label="Search conversations"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
         />
       </Box>
 
@@ -280,7 +301,7 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
         ref={listParentRef}
         onScroll={handleScroll}
         data-testid="conversation-list"
-        sx={{ overflowY: 'auto', flex: 1, px: 1 }}
+        sx={{ overflowY: 'auto', flex: 1, minHeight: 0, px: 1 }}
       >
         {chats.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1 }}>
@@ -295,10 +316,20 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
                 key={virtualItem.key}
                 data-index={virtualItem.index}
                 ref={virtualizer.measureElement}
-                sx={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
               >
                 {row.type === 'header' ? (
-                  <Typography variant="overline" color="text.secondary" sx={{ px: 1, display: 'block' }}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ px: 1, display: 'block' }}
+                  >
                     {row.header}
                   </Typography>
                 ) : (
@@ -314,7 +345,8 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
                       setEditingTitle(row.chat!.title)
                     }}
                     onCommitRename={() => {
-                      if (editingTitle.trim()) renameChat.mutate({ id: row.chat!.id, title: editingTitle.trim() })
+                      if (editingTitle.trim())
+                        renameChat.mutate({ id: row.chat!.id, title: editingTitle.trim() })
                       setEditingId(null)
                     }}
                     onDelete={() => {
@@ -332,84 +364,141 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
           })}
         </Box>
         {isFetchingNextPage && (
-          <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 1, display: 'block' }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ px: 2, py: 1, display: 'block' }}
+          >
             Loading more…
           </Typography>
         )}
       </Box>
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
-        {menuChat?.isDeleted ? (
-          [
-            <MenuItem key="restore" onClick={() => runAction(() => restoreChat.mutateAsync(menuChat.id))}>
-              <ListItemIcon><RestoreIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Restore</ListItemText>
-            </MenuItem>,
-            <MenuItem
-              key="purge"
-              onClick={() => {
-                setConfirmAction({ chatId: menuChat.id, kind: 'purge' })
-                closeMenu()
-              }}
-            >
-              <ListItemIcon><DeleteForeverIcon fontSize="small" color="error" /></ListItemIcon>
-              <ListItemText>Delete permanently</ListItemText>
-            </MenuItem>,
-          ]
-        ) : (
-          [
-            <MenuItem
-              key="pin"
-              onClick={() => runAction(() => (menuChat!.isPinned ? unpinChat.mutateAsync(menuChat!.id) : pinChat.mutateAsync(menuChat!.id)))}
-            >
-              <ListItemIcon>{menuChat?.isPinned ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}</ListItemIcon>
-              <ListItemText>{menuChat?.isPinned ? 'Unpin' : 'Pin'}</ListItemText>
-            </MenuItem>,
-            <MenuItem
-              key="favorite"
-              onClick={() =>
-                runAction(() => (menuChat!.isFavorite ? unfavoriteChat.mutateAsync(menuChat!.id) : favoriteChat.mutateAsync(menuChat!.id)))
-              }
-            >
-              <ListItemIcon>{menuChat?.isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}</ListItemIcon>
-              <ListItemText>{menuChat?.isFavorite ? 'Unfavorite' : 'Favorite'}</ListItemText>
-            </MenuItem>,
-            menuChat?.isArchived ? (
-              <MenuItem key="restore" onClick={() => runAction(() => restoreChat.mutateAsync(menuChat.id))}>
-                <ListItemIcon><RestoreIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>Restore from Archive</ListItemText>
-              </MenuItem>
-            ) : (
-              <MenuItem key="archive" onClick={() => runAction(() => archiveChat.mutateAsync(menuChat!.id))}>
-                <ListItemIcon><ArchiveIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>Archive</ListItemText>
-              </MenuItem>
-            ),
-            <MenuItem key="duplicate" onClick={() => runAction(() => duplicateChat.mutateAsync(menuChat!.id))}>
-              <ListItemIcon><FileCopyIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Duplicate</ListItemText>
-            </MenuItem>,
-            <MenuItem key="export" onClick={() => void handleExport(menuChat!.id, menuChat!.title)}>
-              <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Export</ListItemText>
-            </MenuItem>,
-            <MenuItem
-              key="clear"
-              onClick={() => {
-                setConfirmAction({ chatId: menuChat!.id, kind: 'clear' })
-                closeMenu()
-              }}
-            >
-              <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Clear messages</ListItemText>
-            </MenuItem>,
-          ]
-        )}
+        {menuChat?.isDeleted
+          ? [
+              <MenuItem
+                key="restore"
+                onClick={() => runAction(() => restoreChat.mutateAsync(menuChat.id))}
+              >
+                <ListItemIcon>
+                  <RestoreIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Restore</ListItemText>
+              </MenuItem>,
+              <MenuItem
+                key="purge"
+                onClick={() => {
+                  setConfirmAction({ chatId: menuChat.id, kind: 'purge' })
+                  closeMenu()
+                }}
+              >
+                <ListItemIcon>
+                  <DeleteForeverIcon fontSize="small" color="error" />
+                </ListItemIcon>
+                <ListItemText>Delete permanently</ListItemText>
+              </MenuItem>,
+            ]
+          : [
+              <MenuItem
+                key="pin"
+                onClick={() =>
+                  runAction(() =>
+                    menuChat!.isPinned
+                      ? unpinChat.mutateAsync(menuChat!.id)
+                      : pinChat.mutateAsync(menuChat!.id),
+                  )
+                }
+              >
+                <ListItemIcon>
+                  {menuChat?.isPinned ? (
+                    <PushPinIcon fontSize="small" />
+                  ) : (
+                    <PushPinOutlinedIcon fontSize="small" />
+                  )}
+                </ListItemIcon>
+                <ListItemText>{menuChat?.isPinned ? 'Unpin' : 'Pin'}</ListItemText>
+              </MenuItem>,
+              <MenuItem
+                key="favorite"
+                onClick={() =>
+                  runAction(() =>
+                    menuChat!.isFavorite
+                      ? unfavoriteChat.mutateAsync(menuChat!.id)
+                      : favoriteChat.mutateAsync(menuChat!.id),
+                  )
+                }
+              >
+                <ListItemIcon>
+                  {menuChat?.isFavorite ? (
+                    <StarIcon fontSize="small" />
+                  ) : (
+                    <StarBorderIcon fontSize="small" />
+                  )}
+                </ListItemIcon>
+                <ListItemText>{menuChat?.isFavorite ? 'Unfavorite' : 'Favorite'}</ListItemText>
+              </MenuItem>,
+              menuChat?.isArchived ? (
+                <MenuItem
+                  key="restore"
+                  onClick={() => runAction(() => restoreChat.mutateAsync(menuChat.id))}
+                >
+                  <ListItemIcon>
+                    <RestoreIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Restore from Archive</ListItemText>
+                </MenuItem>
+              ) : (
+                <MenuItem
+                  key="archive"
+                  onClick={() => runAction(() => archiveChat.mutateAsync(menuChat!.id))}
+                >
+                  <ListItemIcon>
+                    <ArchiveIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Archive</ListItemText>
+                </MenuItem>
+              ),
+              <MenuItem
+                key="duplicate"
+                onClick={() => runAction(() => duplicateChat.mutateAsync(menuChat!.id))}
+              >
+                <ListItemIcon>
+                  <FileCopyIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Duplicate</ListItemText>
+              </MenuItem>,
+              <MenuItem
+                key="export"
+                onClick={() => void handleExport(menuChat!.id, menuChat!.title)}
+              >
+                <ListItemIcon>
+                  <DownloadIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Export</ListItemText>
+              </MenuItem>,
+              <MenuItem
+                key="clear"
+                onClick={() => {
+                  setConfirmAction({ chatId: menuChat!.id, kind: 'clear' })
+                  closeMenu()
+                }}
+              >
+                <ListItemIcon>
+                  <DeleteIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Clear messages</ListItemText>
+              </MenuItem>,
+            ]}
       </Menu>
 
       <ConfirmDialog
         open={confirmAction !== null}
-        title={confirmAction?.kind === 'purge' ? 'Permanently delete this conversation?' : 'Clear all messages?'}
+        title={
+          confirmAction?.kind === 'purge'
+            ? 'Permanently delete this conversation?'
+            : 'Clear all messages?'
+        }
         description={
           confirmAction?.kind === 'purge'
             ? 'This cannot be undone. The conversation and all its messages will be permanently removed.'
@@ -421,20 +510,58 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
           if (!confirmAction) return
           const { chatId, kind } = confirmAction
           setConfirmAction(null)
-          const action = kind === 'purge' ? purgeChat.mutateAsync(chatId) : clearChatMessages.mutateAsync(chatId)
+          const action =
+            kind === 'purge' ? purgeChat.mutateAsync(chatId) : clearChatMessages.mutateAsync(chatId)
           action
             .then(() => {
               if (kind === 'purge' && chatId === selectedChatId) onNewChat()
             })
-            .catch((err) => setActionError(err instanceof Error ? err.message : 'Action failed. Please try again.'))
+            .catch((err) =>
+              setActionError(
+                err instanceof Error ? err.message : 'Action failed. Please try again.',
+              ),
+            )
         }}
       />
 
-      <Snackbar open={Boolean(actionError)} autoHideDuration={5000} onClose={() => setActionError(null)}>
+      <Snackbar
+        open={Boolean(actionError)}
+        autoHideDuration={5000}
+        onClose={() => setActionError(null)}
+      >
         <Alert severity="error" variant="filled" onClose={() => setActionError(null)}>
           {actionError}
         </Alert>
       </Snackbar>
+    </Box>
+  )
+}
+
+interface ChatSidebarProps {
+  selectedChatId: string | null
+  onSelectChat: (id: string) => void
+  onNewChat: () => void
+}
+
+/** The original fixed 300px permanent column shell around `ConversationList`. No longer
+ * used by ChatPage (FR-008 replaced it with `ConversationSwitcher`'s popover), kept as
+ * the standalone, directly-testable entry point it always was. */
+export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSidebarProps) {
+  return (
+    <Box
+      sx={{
+        width: 300,
+        borderRight: 1,
+        borderColor: 'divider',
+        height: '100%',
+        bgcolor: 'background.default',
+      }}
+    >
+      <ConversationList
+        selectedChatId={selectedChatId}
+        onSelectChat={onSelectChat}
+        onNewChat={onNewChat}
+      />
     </Box>
   )
 }
@@ -493,7 +620,12 @@ function ConversationRow({
     >
       <ListItemText
         primary={
-          <Typography data-testid="conversation-title" component="span" noWrap sx={{ display: 'block' }}>
+          <Typography
+            data-testid="conversation-title"
+            component="span"
+            noWrap
+            sx={{ display: 'block' }}
+          >
             {chat.isPinned ? '📌 ' : ''}
             {chat.isFavorite ? '⭐ ' : ''}
             {chat.title}
@@ -502,7 +634,11 @@ function ConversationRow({
         secondary={new Date(lastActivity).toLocaleString()}
         slotProps={{ primary: { noWrap: true }, secondary: { variant: 'caption' } }}
       />
-      <Stack direction="row" className="chat-item-actions" sx={{ opacity: 0, transition: 'opacity 150ms' }}>
+      <Stack
+        direction="row"
+        className="chat-item-actions"
+        sx={{ opacity: 0, transition: 'opacity 150ms' }}
+      >
         {!chat.isDeleted && (
           <IconButton
             size="small"

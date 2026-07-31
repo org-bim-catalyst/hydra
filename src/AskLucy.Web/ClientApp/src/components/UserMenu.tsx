@@ -1,6 +1,7 @@
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
+import PolicyIcon from '@mui/icons-material/Policy'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { Avatar, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material'
 import { useState } from 'react'
@@ -54,6 +55,12 @@ export function UserMenu() {
             <ListItemText>Admin panel</ListItemText>
           </MenuItem>
         )}
+        <MenuItem onClick={() => goTo('/privacy')}>
+          <ListItemIcon>
+            <PolicyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Privacy Policy</ListItemText>
+        </MenuItem>
         <Divider />
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>

@@ -864,7 +864,29 @@ Examples:
 
 ---
 
-# 26. Architecture Principles
+# 26. Consent & Privacy Engine
+
+Introduced in specs/004-cookie-consent-privacy. A narrowly-scoped module (`Domain/Consent`,
+`Application/Consent`, `CookieConsentController`) that records each user's cookie-category
+consent decisions as an append-only history (`CookieConsentRecord` — a preference change is
+always a new inserted row, never an update) and exposes the currently published
+cookie/privacy policy version (`ICookiePolicyProvider`, configuration-bound, not a database
+table) via one public endpoint.
+
+**Binding convention for any future analytics/marketing integration**: this feature does
+not add an analytics or marketing SDK — none exists in the codebase today. `useCookieConsent()`
+(`ClientApp/src/features/consent/hooks/useCookieConsent.ts`) is the single source of truth
+for which categories the current user has granted. Any analytics or marketing script
+loader added in the future — a tag manager, a pixel, a marketing SDK — **MUST** check
+`consent.analytics` / `consent.marketing` from this hook before initializing, and MUST NOT
+fire before it resolves. This is what makes the strict-opt-in requirement ("no
+Functional/Analytics/Marketing cookie activity before an explicit decision," spec.md
+FR-019) a real, enforceable gate rather than aspirational documentation — the enforcement
+point already exists even though nothing calls it yet.
+
+---
+
+# 27. Architecture Principles
 
 Before implementing any feature, ask:
 

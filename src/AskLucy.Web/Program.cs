@@ -157,6 +157,38 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // AI provider/model catalog, preferences, and usage-summary reads
+    // (specs/005-multi-provider-ai-engine) — these don't invoke a provider (that's still
+    // ai-endpoints, above), so they get a generous, non-cost-tiered limit like
+    // admin-endpoints/chat-endpoints rather than the AI-invoking policy (research.md
+    // Decision 6).
+    options.AddPolicy("ai-catalog-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
+    // Cookie-consent endpoints (specs/004-cookie-consent-privacy) — includes one anonymous
+    // endpoint (GET /api/v1/cookie-policy), so the partition key falls back to remote IP for
+    // unauthenticated callers, same as every other policy here.
+    options.AddPolicy("consent-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---

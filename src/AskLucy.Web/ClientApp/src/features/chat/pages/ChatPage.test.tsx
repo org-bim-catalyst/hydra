@@ -6,10 +6,21 @@ import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PagedResult, PersistedMessage } from '../api/chatsApi'
+import type { useTextToSpeech } from '../voice/useTextToSpeech'
 import { ConversationView } from './ChatPage'
 
 const CHAT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const CHAT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+
+const mockTts: ReturnType<typeof useTextToSpeech> = {
+  isSupported: true,
+  speak: () => {},
+  stop: () => {},
+  isSpeaking: false,
+  getIntensity: () => 0,
+  error: null,
+  clearError: () => {},
+}
 
 function makeMessage(overrides: Partial<PersistedMessage>): PersistedMessage {
   return {
@@ -51,7 +62,42 @@ function sseStream(chunks: string[], firstChunkDelayMs = 0): ReadableStream<Uint
   })
 }
 
-const server = setupServer()
+// specs/005-multi-provider-ai-engine: ChatComposer now stays disabled until a provider/model
+// is selected, so every test that sends a message needs the catalog to resolve to something —
+// these are base handlers (survive `server.resetHandlers()`), not per-test overrides.
+const server = setupServer(
+  http.get('*/api/v1/ai/providers', () =>
+    HttpResponse.json([
+      { id: 'provider-1', providerKey: 'openai', displayName: 'OpenAI', healthStatus: 'Healthy', healthStatusCheckedAtUtc: null },
+    ]),
+  ),
+  http.get('*/api/v1/ai/providers/provider-1/models', () =>
+    HttpResponse.json([
+      {
+        id: 'model-1',
+        modelKey: 'gpt-4',
+        displayName: 'GPT-4',
+        contextWindowTokens: 128000,
+        maxOutputTokens: 4096,
+        capabilities: {
+          streaming: true,
+          vision: false,
+          functionCalling: false,
+          jsonMode: false,
+          reasoning: false,
+          embeddings: false,
+          imageInput: false,
+          imageOutput: false,
+          audio: false,
+        },
+        pricing: null,
+        releaseDate: null,
+        providerId: 'provider-1',
+        providerDisplayName: 'OpenAI',
+      },
+    ]),
+  ),
+)
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
 afterEach(() => server.resetHandlers())
@@ -78,8 +124,7 @@ function renderConversation(chatId: string | null) {
           language="en"
           onLanguageChange={() => {}}
           onChatCreated={() => {}}
-          isMobile={false}
-          onOpenSidebar={() => {}}
+          tts={mockTts}
         />
       </QueryClientProvider>
     </MemoryRouter>,
@@ -130,7 +175,9 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
   })
 
   it('shows a visible error state with a Retry button when the selected conversation fails to load', async () => {
-    server.use(http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => new HttpResponse(null, { status: 500 })))
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => new HttpResponse(null, { status: 500 })),
+    )
     renderConversation(CHAT_A)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load this conversation')
@@ -140,7 +187,9 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
 
   it('clicking Retry re-fetches and shows the conversation messages after a prior load failure', async () => {
     server.use(
-      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => new HttpResponse(null, { status: 500 }), { once: true }),
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => new HttpResponse(null, { status: 500 }), {
+        once: true,
+      }),
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
         HttpResponse.json(messagesPage([makeMessage({ id: 'm1', content: 'Recovered message' })])),
       ),
@@ -158,10 +207,14 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, async () => {
         await new Promise((resolve) => setTimeout(resolve, 100))
-        return HttpResponse.json(messagesPage([makeMessage({ id: 'a1', content: 'Conversation A content' })]))
+        return HttpResponse.json(
+          messagesPage([makeMessage({ id: 'a1', content: 'Conversation A content' })]),
+        )
       }),
       http.get(`*/api/v1/chats/${CHAT_B}/messages`, () =>
-        HttpResponse.json(messagesPage([makeMessage({ id: 'b1', content: 'Conversation B content' })])),
+        HttpResponse.json(
+          messagesPage([makeMessage({ id: 'b1', content: 'Conversation B content' })]),
+        ),
       ),
     )
 
@@ -175,8 +228,7 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
             language="en"
             onLanguageChange={() => {}}
             onChatCreated={() => {}}
-            isMobile={false}
-            onOpenSidebar={() => {}}
+            tts={mockTts}
           />
         </QueryClientProvider>
       </MemoryRouter>,
@@ -193,8 +245,7 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
             language="en"
             onLanguageChange={() => {}}
             onChatCreated={() => {}}
-            isMobile={false}
-            onOpenSidebar={() => {}}
+            tts={mockTts}
           />
         </QueryClientProvider>
       </MemoryRouter>,
@@ -220,6 +271,10 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
+    // The composer stays disabled until the provider/model catalog resolves and auto-selects
+    // (specs/005-multi-provider-ai-engine) — wait for that before typing, since userEvent
+    // cannot type into a disabled field.
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
@@ -237,6 +292,10 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
+    // The composer stays disabled until the provider/model catalog resolves and auto-selects
+    // (specs/005-multi-provider-ai-engine) — wait for that before typing, since userEvent
+    // cannot type into a disabled field.
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
@@ -256,6 +315,10 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
+    // The composer stays disabled until the provider/model catalog resolves and auto-selects
+    // (specs/005-multi-provider-ai-engine) — wait for that before typing, since userEvent
+    // cannot type into a disabled field.
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
@@ -269,7 +332,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 describe('ConversationView — reopening a newly-created conversation (User Story 5)', () => {
   it('shows real messages when reopened after its first read captured an empty/stale snapshot', async () => {
     server.use(
-      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([])), { once: true }),
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([])), {
+        once: true,
+      }),
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
         HttpResponse.json(
           messagesPage([
@@ -291,8 +356,7 @@ describe('ConversationView — reopening a newly-created conversation (User Stor
               language="en"
               onLanguageChange={() => {}}
               onChatCreated={() => {}}
-              isMobile={false}
-              onOpenSidebar={() => {}}
+              tts={mockTts}
             />
           </QueryClientProvider>
         </MemoryRouter>,
@@ -301,7 +365,9 @@ describe('ConversationView — reopening a newly-created conversation (User Stor
     // First mount: captures the empty snapshot — matching a fetch that raced an in-progress
     // reply for a chat that was just auto-created mid-send.
     const first = renderAt(1)
-    await waitFor(() => expect(queryClient.getQueryData(['chats', CHAT_A, 'messages'])).toBeDefined())
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['chats', CHAT_A, 'messages'])).toBeDefined(),
+    )
     first.unmount()
 
     // Second mount (user navigated away and back): the cache still holds the stale empty
@@ -317,9 +383,15 @@ describe('ConversationView — reopening a newly-created conversation (User Stor
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, ({ request }) => {
         const cursor = new URL(request.url).searchParams.get('cursor')
         if (!cursor) {
-          return HttpResponse.json({ items: [makeMessage({ id: 'p1', content: 'Page one message' })], nextCursor: 'page2' })
+          return HttpResponse.json({
+            items: [makeMessage({ id: 'p1', content: 'Page one message' })],
+            nextCursor: 'page2',
+          })
         }
-        return HttpResponse.json({ items: [makeMessage({ id: 'p2', content: 'Page two message' })], nextCursor: null })
+        return HttpResponse.json({
+          items: [makeMessage({ id: 'p2', content: 'Page two message' })],
+          nextCursor: null,
+        })
       }),
     )
 

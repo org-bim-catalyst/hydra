@@ -13,10 +13,13 @@ describe('MessageBubble', () => {
     expect(document.querySelector('.katex')).not.toBeNull()
   })
 
-  it('does not render provider/model metadata even when present', () => {
-    render(<MessageBubble message={{ role: 'assistant', content: 'Hello', provider: 'OpenAI', model: 'gpt-4' }} />)
-    expect(screen.queryByText('OpenAI · gpt-4')).not.toBeInTheDocument()
-    expect(screen.queryByText(/·/)).not.toBeInTheDocument()
+  it('renders a provider/model attribution chip when present (specs/005-multi-provider-ai-engine FR-011)', () => {
+    render(
+      <MessageBubble
+        message={{ role: 'assistant', content: 'Hello', provider: 'OpenAI', model: 'gpt-4' }}
+      />,
+    )
+    expect(screen.getByText('OpenAI · gpt-4')).toBeInTheDocument()
   })
 
   it('does not render metadata caption when absent', () => {
@@ -44,7 +47,9 @@ describe('MessageBubble', () => {
         message={{
           role: 'assistant',
           content: 'Per the source',
-          citations: [{ id: 'c1', sourceLabel: 'Handbook', sourceReference: 'https://example.com/handbook' }],
+          citations: [
+            { id: 'c1', sourceLabel: 'Handbook', sourceReference: 'https://example.com/handbook' },
+          ],
         }}
       />,
     )
