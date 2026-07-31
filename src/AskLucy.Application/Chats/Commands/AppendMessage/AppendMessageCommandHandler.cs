@@ -2,7 +2,6 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Authorization;
 using AskLucy.Domain.Chats;
 using MediatR;
-using System.Linq;
 
 namespace AskLucy.Application.Chats.Commands.AppendMessage;
 
