@@ -39,7 +39,7 @@ jobs:
 
       - name: Lint (format check)
         working-directory: .
-        run: dotnet format "Ask Lucy.sln" --no-restore --verify-no-changes
+        run: dotnet format "Ask Lucy.sln" --no-restore --verify-no-changes --severity error
 
       - name: Test
         working-directory: .
