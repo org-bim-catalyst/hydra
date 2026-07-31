@@ -18,7 +18,9 @@ public sealed record AppendMessageCitationInput(string SourceLabel, string? Sour
 /// already-tested behavior.
 /// Extended for specs/002-chat-history-management (FR-016/FR-017) with provider/model/
 /// token/generation-parameter metadata and optional attachments/citations — all optional so
-/// existing callers (user-message appends, which have none of this) are unaffected.
+/// existing callers (user-message appends, which have none of this) are unaffected. Further
+/// extended for specs/005-multi-provider-ai-engine (FR-020) with cached/reasoning token
+/// counts, latency, and estimated cost — same optionality rule.
 /// </summary>
 public sealed record AppendMessageCommand(
     Guid ChatId,
@@ -31,5 +33,9 @@ public sealed record AppendMessageCommand(
     string? GenerationParametersJson = null,
     int? InputTokenCount = null,
     int? OutputTokenCount = null,
+    int? CachedTokenCount = null,
+    int? ReasoningTokenCount = null,
+    int? LatencyMs = null,
+    decimal? EstimatedCostUsd = null,
     IReadOnlyList<AppendMessageAttachmentInput>? Attachments = null,
     IReadOnlyList<AppendMessageCitationInput>? Citations = null) : IRequest<MessageDto>;

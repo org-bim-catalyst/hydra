@@ -24,12 +24,21 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(m => m.InputTokenCount);
         builder.Property(m => m.OutputTokenCount);
 
+        // specs/005-multi-provider-ai-engine (FR-020/FR-025):
+        builder.Property(m => m.CachedTokenCount);
+        builder.Property(m => m.ReasoningTokenCount);
+        builder.Property(m => m.LatencyMs);
+        builder.Property(m => m.EstimatedCostUsd).HasColumnType("decimal(18,6)");
+        builder.Property(m => m.ComparisonGroupId);
+        builder.Property(m => m.IsIncludedInContext).IsRequired().HasDefaultValue(true);
+
         builder.Property(m => m.CreatedBy).IsRequired();
         builder.Property(m => m.RowVersion).IsRowVersion();
 
         builder.HasQueryFilter(m => m.DeletedAtUtc == null);
 
         builder.HasIndex(m => new { m.UserChatId, m.CreatedAtUtc });
+        builder.HasIndex(m => m.ComparisonGroupId);
 
         builder.HasOne<UserChat>()
             .WithMany()

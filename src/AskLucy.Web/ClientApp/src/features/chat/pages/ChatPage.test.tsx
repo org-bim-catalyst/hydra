@@ -62,7 +62,42 @@ function sseStream(chunks: string[], firstChunkDelayMs = 0): ReadableStream<Uint
   })
 }
 
-const server = setupServer()
+// specs/005-multi-provider-ai-engine: ChatComposer now stays disabled until a provider/model
+// is selected, so every test that sends a message needs the catalog to resolve to something —
+// these are base handlers (survive `server.resetHandlers()`), not per-test overrides.
+const server = setupServer(
+  http.get('*/api/v1/ai/providers', () =>
+    HttpResponse.json([
+      { id: 'provider-1', providerKey: 'openai', displayName: 'OpenAI', healthStatus: 'Healthy', healthStatusCheckedAtUtc: null },
+    ]),
+  ),
+  http.get('*/api/v1/ai/providers/provider-1/models', () =>
+    HttpResponse.json([
+      {
+        id: 'model-1',
+        modelKey: 'gpt-4',
+        displayName: 'GPT-4',
+        contextWindowTokens: 128000,
+        maxOutputTokens: 4096,
+        capabilities: {
+          streaming: true,
+          vision: false,
+          functionCalling: false,
+          jsonMode: false,
+          reasoning: false,
+          embeddings: false,
+          imageInput: false,
+          imageOutput: false,
+          audio: false,
+        },
+        pricing: null,
+        releaseDate: null,
+        providerId: 'provider-1',
+        providerDisplayName: 'OpenAI',
+      },
+    ]),
+  ),
+)
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
 afterEach(() => server.resetHandlers())
@@ -236,6 +271,10 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
+    // The composer stays disabled until the provider/model catalog resolves and auto-selects
+    // (specs/005-multi-provider-ai-engine) — wait for that before typing, since userEvent
+    // cannot type into a disabled field.
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
@@ -253,6 +292,10 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
+    // The composer stays disabled until the provider/model catalog resolves and auto-selects
+    // (specs/005-multi-provider-ai-engine) — wait for that before typing, since userEvent
+    // cannot type into a disabled field.
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
@@ -272,6 +315,10 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
+    // The composer stays disabled until the provider/model catalog resolves and auto-selects
+    // (specs/005-multi-provider-ai-engine) — wait for that before typing, since userEvent
+    // cannot type into a disabled field.
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 

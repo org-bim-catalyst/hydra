@@ -16,5 +16,11 @@ public sealed record MessageDto(
     string? GenerationParametersJson,
     int? InputTokenCount,
     int? OutputTokenCount,
+    // The four fields below were added for specs/005-multi-provider-ai-engine (FR-020/FR-021) —
+    // see AppendMessageCommandHandler.ToDto for how they're populated.
+    int? CachedTokenCount,
+    int? ReasoningTokenCount,
+    int? LatencyMs,
+    decimal? EstimatedCostUsd,
     IReadOnlyList<AttachmentDto> Attachments,
     IReadOnlyList<CitationDto> Citations);

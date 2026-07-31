@@ -1,23 +1,27 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 → 1.1.0
-Modified principles: none renamed/removed
-Added sections:
-  - Core Principle VIII: No Silent Failures (§2)
-  - UI Principles: new "Voice output" bullet (§7)
+Version change: 1.1.0 → 1.1.1
+Modified principles: none
+Added sections: none
 Removed sections: none
-Cross-references updated:
-  - §4 Coding Standards "Error handling" bullet now points to Principle VIII as the
-    cross-cutting rule it implements, rather than restating it standalone.
+Wording fix (PATCH, per this file's own Versioning policy — corrects a factual error,
+changes nothing required/forbidden):
+  - §11 Git Workflow and §12 CI/CD referred to the primary branch as `master`. The
+    repository's actual default/primary branch is `main`; `master` is a legacy branch
+    that still exists but is not where work lands. All `master` references in the
+    branching/CI/CD rules corrected to `main`.
+Cross-references updated: none
 Templates requiring updates:
-  - .specify/templates/plan-template.md — ✅ no changes needed (Constitution Check section is generic and reads gates from this file at runtime)
-  - .specify/templates/spec-template.md — ✅ no changes needed (technology-agnostic by design, no constitution/principle references)
-  - .specify/templates/tasks-template.md — ✅ no changes needed (technology-agnostic by design, no constitution/principle references)
-  - .claude/skills/speckit-*/SKILL.md — ✅ reviewed, generic references to "the constitution" only, no agent-specific or stale numbering found
-  - .claude/CLAUDE.md — ⚠ pending, tracked as a manual follow-up outside this command's scope (project instructions file, not a Spec Kit template)
-Follow-up TODOs:
-  - Implementing "no silent failures" and "young-woman voice, all languages" in actual code
-    (frontend error surfacing audit, TTS voice-selection logic) is deferred — see Next Actions.
+  - .specify/templates/plan-template.md — ✅ no changes needed (no branch-name reference)
+  - .specify/templates/spec-template.md — ✅ no changes needed (no branch-name reference)
+  - .specify/templates/tasks-template.md — ✅ no changes needed (no branch-name reference)
+  - .claude/skills/speckit-*/SKILL.md — ✅ no repo-specific branch-name references found
+  - .claude/CLAUDE.md — ✅ no branch-name reference to correct
+  - docs/adr/0002-defer-docker-azure-cutover.md — intentionally left as-is: it directly
+    quotes this constitution's §12 as it read on 2026-07-27 (the ADR's own date); ADRs are
+    historical records, not living docs, so the quote is correct as a citation of the past
+    text even though the source it quotes has since been corrected.
+Follow-up TODOs: none
 -->
 
 # Ask Lucy Constitution
@@ -497,9 +501,11 @@ Security is a delivered feature of every change, not a follow-up task.
 
 ## 11. Git Workflow
 
-- **Branching.** `master` is always releasable. Work happens on short-lived feature
+- **Branching.** `main` is always releasable. Work happens on short-lived feature
   branches named `<###-feature-slug>` (matching the Spec Kit `specs/` numbering) or
-  `fix/<slug>`, branched from and merged back to `master` via pull request.
+  `fix/<slug>`, branched from and merged back to `main` via pull request. `master` is a
+  legacy branch retained for historical reasons — it is not where work lands and MUST NOT
+  be treated as the primary branch.
 - **Commit messages.** Commits use Conventional Commits style (`feat:`, `fix:`, `docs:`,
   `refactor:`, `test:`, `chore:`) with an imperative, present-tense summary line; body
   explains *why* when not obvious from the diff.
@@ -526,8 +532,8 @@ Every pull request MUST pass, in order, before merge is permitted:
 4. **Security scanning** — dependency vulnerability scanning and secret scanning run on
    every PR; a detected secret blocks merge until rotated and removed from history.
 5. **Artifact generation** — Docker images are built for backend and frontend on merge
-   to `master`, tagged with the commit SHA and, on release, the SemVer tag.
-6. **Deployment approval** — deployment to staging is automatic on `master`;
+   to `main`, tagged with the commit SHA and, on release, the SemVer tag.
+6. **Deployment approval** — deployment to staging is automatic on `main`;
    deployment to production requires an explicit manual approval gate.
 
 CI/CD is implemented via GitHub Actions; pipeline definitions live in version control
@@ -694,4 +700,4 @@ or, for anything non-trivial, in an ADR — silent complexity is treated as a de
 Stability is the default posture: this constitution changes deliberately and rarely, not
 reactively per feature.
 
-**Version**: 1.1.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-07-29
+**Version**: 1.1.1 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-07-30

@@ -12,6 +12,7 @@ using AskLucy.Application.Chats.Commands.RenameUserChat;
 using AskLucy.Application.Chats.Commands.RestoreUserChat;
 using AskLucy.Application.Chats.Commands.UnfavoriteUserChat;
 using AskLucy.Application.Chats.Commands.UnpinUserChat;
+using AskLucy.Application.Chats.Commands.UpdateChatModelSelection;
 using AskLucy.Application.Chats.Queries.ExportUserChat;
 using AskLucy.Application.Chats.Queries.GetChatMessages;
 using AskLucy.Application.Chats.Queries.SearchUserChats;
@@ -59,6 +60,15 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await mediator.Send(new DeleteUserChatCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>specs/005-multi-provider-ai-engine FR-009 — applies to messages sent after this call only; prior messages keep their original attribution (FR-011).</summary>
+    [HttpPatch("{id:guid}/model-selection")]
+    public async Task<IActionResult> UpdateModelSelection(Guid id, UpdateChatModelSelectionRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new UpdateChatModelSelectionCommand(id, request.ProviderId, request.ModelId, request.GenerationParameters), cancellationToken);
         return NoContent();
     }
 

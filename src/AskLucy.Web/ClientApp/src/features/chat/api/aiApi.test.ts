@@ -39,7 +39,7 @@ describe('streamChat', () => {
     )
 
     const chunks: string[] = []
-    for await (const chunk of streamChat('chat-1', [{ role: 'user', content: 'Hello' }])) {
+    for await (const chunk of streamChat('chat-1', [{ role: 'user', content: 'Hello' }], 'provider-1', 'model-1', undefined)) {
       chunks.push(chunk)
     }
 

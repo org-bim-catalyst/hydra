@@ -24,6 +24,24 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<AnthropicOptions>()
+            .Bind(configuration.GetSection(AnthropicOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<GoogleGeminiOptions>()
+            .Bind(configuration.GetSection(GoogleGeminiOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<OpenRouterOptions>()
+            .Bind(configuration.GetSection(OpenRouterOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<ProviderHealthCheckOptions>()
+            .Bind(configuration.GetSection(ProviderHealthCheckOptions.SectionName));
+
         services.AddOptions<WhisperOptions>()
             .Bind(configuration.GetSection(WhisperOptions.SectionName));
 
@@ -47,12 +65,39 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromMinutes(2);
         });
 
+        services.AddHttpClient("Anthropic", client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
+        services.AddHttpClient("GoogleGemini", client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
+        services.AddHttpClient("OpenRouter", client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
+        // Unkeyed: legacy single-model call sites (Translate, image generation,
+        // AppendMessageCommandHandler attribution) predate multi-provider selection and stay
+        // wired to OpenAI directly, per IAIProvider.cs's doc comment.
         services.AddScoped<IAIProvider, OpenAIProvider>();
+
+        // Keyed: multi-provider chat/comparison flows resolve by provider key via
+        // IAIProviderResolver (research.md Decision 3) — never by concrete type.
+        services.AddKeyedScoped<IAIProvider, OpenAIProvider>("openai");
+        services.AddKeyedScoped<IAIProvider, AnthropicProvider>("anthropic");
+        services.AddKeyedScoped<IAIProvider, GoogleGeminiProvider>("google-gemini");
+        services.AddKeyedScoped<IAIProvider, OpenRouterProvider>("openrouter");
+        services.AddScoped<IAIProviderResolver, AiProviderResolver>();
+        services.AddSingleton<IAiCredentialProtector, AiCredentialProtector>();
         // Singleton: caches the loaded WhisperFactory (and the one-time model download)
         // across requests instead of reloading it every call. Registered as its concrete
         // type too (mapped to the same instance) so WhisperWarmupHostedService can trigger
@@ -60,6 +105,7 @@ public static class DependencyInjection
         services.AddSingleton<WhisperLocalTranscriptionProvider>();
         services.AddSingleton<ITranscriptionProvider>(sp => sp.GetRequiredService<WhisperLocalTranscriptionProvider>());
         services.AddHostedService<WhisperWarmupHostedService>();
+        services.AddHostedService<ProviderHealthCheckHostedService>();
 
         // Dev-only: lets a fresh clone complete first registration/login without real SMTP
         // credentials (spec.md convergence note) — Production/Testing/every other environment
