@@ -30,6 +30,15 @@ public sealed class UserChat : BaseEntity
     /// <summary>Favorite flag (FR-009), independent of archive/pin/deleted state.</summary>
     public bool IsFavorite { get; private set; }
 
+    /// <summary>The conversation's current provider (specs/005-multi-provider-ai-engine FR-008/FR-009). Unlike <see cref="Message.Provider"/>, this is a live FK — it reflects "what happens next," so it must be able to go stale when a provider is disabled (FR-018's fallback behavior detects that).</summary>
+    public Guid? ProviderId { get; private set; }
+
+    /// <summary>The conversation's current model, same reasoning as <see cref="ProviderId"/>.</summary>
+    public Guid? ModelId { get; private set; }
+
+    /// <summary>Conversation-level generation parameter overrides (FR-014), inherited by new messages unless overridden per-send.</summary>
+    public string? GenerationParametersJson { get; private set; }
+
     private UserChat()
     {
         // Required by EF Core materialization.
@@ -163,6 +172,16 @@ public sealed class UserChat : BaseEntity
         }
 
         IsFavorite = false;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>FR-008/FR-009/FR-014: applies to messages sent after this call only — prior messages keep the attribution already stamped onto them (FR-011).</summary>
+    public void SetModelSelection(Guid providerId, Guid modelId, string? generationParametersJson, string actor)
+    {
+        ProviderId = providerId;
+        ModelId = modelId;
+        GenerationParametersJson = generationParametersJson;
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }

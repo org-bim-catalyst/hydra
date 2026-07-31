@@ -1,4 +1,5 @@
 import { apiFetch } from '../../../api/httpClient'
+import type { GenerationParameters } from './aiApi'
 
 export interface UserChat {
   id: string
@@ -119,6 +120,18 @@ export const clearChatMessages = (id: string) =>
 /** Permanent delete (FR-004) — irreversible. Requires explicit confirmation. */
 export const purgeChat = (id: string) =>
   apiFetch<void>(`/chats/${id}/actions/purge`, { method: 'DELETE', body: JSON.stringify({ confirm: true }) })
+
+/** specs/005-multi-provider-ai-engine FR-009 — applies to messages sent after this call only; prior messages keep their original attribution (FR-011). */
+export const updateChatModelSelection = (
+  id: string,
+  providerId: string,
+  modelId: string,
+  generationParameters?: GenerationParameters,
+) =>
+  apiFetch<void>(`/chats/${id}/model-selection`, {
+    method: 'PATCH',
+    body: JSON.stringify({ providerId, modelId, generationParameters }),
+  })
 
 /** Downloads a structured export of the conversation (FR-025). */
 export async function exportChat(id: string): Promise<Blob> {

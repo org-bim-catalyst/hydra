@@ -1,3 +1,4 @@
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,13 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.Property(c => c.IsTitleManuallySet).IsRequired().HasDefaultValue(false);
         builder.Property(c => c.IsFavorite).IsRequired().HasDefaultValue(false);
 
+        // specs/005-multi-provider-ai-engine (FR-008/FR-009/FR-014): the conversation's
+        // *current* selection — a live FK, unlike Message.Provider/Model's historical
+        // string snapshot (see MessageConfiguration).
+        builder.Property(c => c.ProviderId);
+        builder.Property(c => c.ModelId);
+        builder.Property(c => c.GenerationParametersJson);
+
         builder.Property(c => c.CreatedBy).IsRequired();
         builder.Property(c => c.RowVersion).IsRowVersion();
 
@@ -35,10 +43,22 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.HasIndex(c => c.ArchivedAtUtc);
         builder.HasIndex(c => c.PinnedAtUtc);
         builder.HasIndex(c => c.IsFavorite);
+        builder.HasIndex(c => c.ProviderId);
+        builder.HasIndex(c => c.ModelId);
 
         builder.HasOne<ApplicationUser>()
             .WithMany(u => u.UserChats)
             .HasForeignKey(c => c.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<AIProvider>()
+            .WithMany()
+            .HasForeignKey(c => c.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<AIModel>()
+            .WithMany()
+            .HasForeignKey(c => c.ModelId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

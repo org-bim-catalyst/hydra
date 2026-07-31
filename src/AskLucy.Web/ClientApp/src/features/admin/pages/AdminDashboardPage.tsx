@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Paper, Skeleton, Typography } from '@mui/material'
+import { Box, Button, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router'
 import { PageHeader } from '../../../components/PageHeader'
 import { useAdminDashboard } from '../hooks/useAdminDashboard'
@@ -38,9 +38,14 @@ export function AdminDashboardPage() {
         title="Admin Dashboard"
         subtitle="Platform health and usage at a glance"
         actions={
-          <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
-            Manage users
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
+              Manage users
+            </Button>
+            <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small">
+              Manage AI providers
+            </Button>
+          </Stack>
         }
       />
 

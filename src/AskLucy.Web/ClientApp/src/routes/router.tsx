@@ -33,6 +33,9 @@ const AdminUsersPage = lazy(() =>
 const AdminDashboardPage = lazy(() =>
   import('../features/admin/pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
 )
+const AdminAiProvidersPage = lazy(() =>
+  import('../features/admin/pages/AdminAiProvidersPage').then((m) => ({ default: m.AdminAiProvidersPage })),
+)
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={null}>{children}</Suspense>
@@ -148,6 +151,19 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AdminUsersPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/ai-providers',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <AdminAiProvidersPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

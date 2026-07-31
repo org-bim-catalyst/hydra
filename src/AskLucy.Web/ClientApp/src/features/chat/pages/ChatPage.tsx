@@ -19,6 +19,7 @@ import { ChatComposer } from '../components/ChatComposer'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
 import { MinimalTopBar } from '../components/MinimalTopBar'
+import { ProviderModelSelector } from '../components/ProviderModelSelector'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
@@ -126,8 +127,19 @@ export function ConversationView({
 
   const persistedMessages = useMemo(() => data?.pages.flatMap((page) => page.items), [data])
 
-  const { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, retry } =
-    useChatStream(chatId, persistedMessages, onChatCreated)
+  const {
+    messages,
+    isStreaming,
+    error,
+    clearError,
+    send,
+    sendImage,
+    sendTranslation,
+    retry,
+    providerId,
+    modelId,
+    setSelection,
+  } = useChatStream(chatId, persistedMessages, onChatCreated)
   const scrollRef = useRef<HTMLDivElement>(null)
   const listParentRef = useRef<HTMLDivElement>(null)
 
@@ -178,6 +190,7 @@ export function ConversationView({
       {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
           live in MinimalTopBar, outside this panel. */}
       <Toolbar variant="dense" sx={{ justifyContent: 'flex-end', gap: 0.5 }}>
+        <ProviderModelSelector providerId={providerId} modelId={modelId} onSelect={setSelection} />
         <LanguageSelector value={language} onChange={onLanguageChange} />
         <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
           <TranslateIcon />
@@ -246,7 +259,7 @@ export function ConversationView({
         </Box>
       </Box>
 
-      <ChatComposer onSend={send} disabled={isStreaming} />
+      <ChatComposer onSend={send} disabled={isStreaming || !providerId || !modelId} />
       <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
         <Alert
           severity="error"

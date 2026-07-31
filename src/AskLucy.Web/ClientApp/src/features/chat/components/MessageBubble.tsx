@@ -13,6 +13,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
   const hasAttachments = (message.attachments?.length ?? 0) > 0
   const hasCitations = (message.citations?.length ?? 0) > 0
+  const hasAttribution = !isUser && Boolean(message.provider || message.model)
 
   return (
     <Box sx={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', mb: 2 }}>
@@ -66,6 +67,20 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
                 clickable={Boolean(c.sourceReference)}
               />
             ))}
+          </Stack>
+        )}
+
+        {/* specs/005-multi-provider-ai-engine FR-011: attribution is a snapshot of what
+            actually produced this message, independent of the conversation's current
+            provider/model selection. */}
+        {(hasAttribution || message.isIncomplete) && (
+          <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
+            {hasAttribution && (
+              <Chip size="small" variant="outlined" label={[message.provider, message.model].filter(Boolean).join(' · ')} />
+            )}
+            {message.isIncomplete && (
+              <Chip size="small" color="warning" variant="outlined" label="Incomplete — connection dropped" />
+            )}
           </Stack>
         )}
       </Paper>

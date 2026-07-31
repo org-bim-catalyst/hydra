@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Domain.Ai;
 using FluentAssertions;
 using FluentValidation;
 using NSubstitute;
@@ -8,37 +9,62 @@ using Xunit;
 
 namespace AskLucy.Application.Tests.Ai;
 
+/// <summary>
+/// specs/005-multi-provider-ai-engine T062 — the resolver is faked, proving the handler
+/// resolves by the selected provider's key rather than depending on a single injected
+/// <see cref="IAIProvider"/> (research.md Decision 3).
+/// </summary>
 public sealed class SendChatMessageCommandHandlerTests
 {
-    private readonly IAIProvider _aiProvider = Substitute.For<IAIProvider>();
+    private readonly IAIProvider _resolvedProvider = Substitute.For<IAIProvider>();
+    private readonly IAIProviderResolver _resolver = Substitute.For<IAIProviderResolver>();
+    private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
+    private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
     private readonly SendChatMessageCommandHandler _handler;
+    private readonly AIProvider _openAiProvider;
+    private readonly AIModel _gpt41;
 
     public SendChatMessageCommandHandlerTests()
     {
-        _handler = new SendChatMessageCommandHandler(_aiProvider, new SendChatMessageCommandValidator());
+        _openAiProvider = AIProvider.Create("openai", "OpenAI", "test");
+        _openAiProvider.SetCredential("ciphertext", "test");
+        _openAiProvider.Enable("test");
+
+        _gpt41 = AIModel.Create(
+            _openAiProvider.Id, "gpt-4.1", "GPT-4.1", 128000, 16384,
+            new AIModelCapabilities(true, true, true, true, false, false, true, false, false), null, null, "test");
+
+        _providers.GetByIdAsync(_openAiProvider.Id, Arg.Any<CancellationToken>()).Returns(_openAiProvider);
+        _models.GetByIdAsync(_gpt41.Id, Arg.Any<CancellationToken>()).Returns(_gpt41);
+        _resolver.Resolve("openai").Returns(_resolvedProvider);
+
+        _handler = new SendChatMessageCommandHandler(
+            _resolver, _providers, _models, new SendChatMessageCommandValidator(_providers, _models));
     }
 
     [Fact]
-    public async Task Handle_ShouldYieldProviderChunks_WhenMessagesAreValid()
+    public async Task Handle_ShouldResolveByTheSelectedProvidersKey_AndStreamItsChunks()
     {
-        _aiProvider.StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<CancellationToken>())
-            .Returns(ToAsyncEnumerable(["Hello", " world"]));
+        _resolvedProvider
+            .StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable([new StreamChunk("Hello"), new StreamChunk(" world")]));
 
-        var command = new SendChatMessageCommand([new ChatMessageDto("user", "Hi")]);
+        var command = new SendChatMessageCommand([new ChatMessageDto("user", "Hi")], _openAiProvider.Id, _gpt41.Id, null);
 
-        var chunks = new List<string>();
+        var chunks = new List<StreamChunk>();
         await foreach (var chunk in _handler.Handle(command, CancellationToken.None))
         {
             chunks.Add(chunk);
         }
 
-        chunks.Should().Equal("Hello", " world");
+        chunks.Select(c => c.ContentDelta).Should().Equal("Hello", " world");
+        _resolver.Received(1).Resolve("openai");
     }
 
     [Fact]
     public async Task Handle_ShouldThrowValidationException_WhenMessagesAreEmpty()
     {
-        var command = new SendChatMessageCommand([]);
+        var command = new SendChatMessageCommand([], _openAiProvider.Id, _gpt41.Id, null);
 
         var act = async () =>
         {
@@ -50,7 +76,25 @@ public sealed class SendChatMessageCommandHandlerTests
         await act.Should().ThrowAsync<ValidationException>();
     }
 
-    private static async IAsyncEnumerable<string> ToAsyncEnumerable(IEnumerable<string> items)
+    [Fact]
+    public async Task Handle_ShouldThrowValidationException_WhenProviderIsNotEnabled()
+    {
+        var disabledProvider = AIProvider.Create("anthropic", "Anthropic", "test");
+        _providers.GetByIdAsync(disabledProvider.Id, Arg.Any<CancellationToken>()).Returns(disabledProvider);
+
+        var command = new SendChatMessageCommand([new ChatMessageDto("user", "Hi")], disabledProvider.Id, _gpt41.Id, null);
+
+        var act = async () =>
+        {
+            await foreach (var _ in _handler.Handle(command, CancellationToken.None))
+            {
+            }
+        };
+
+        await act.Should().ThrowAsync<ValidationException>();
+    }
+
+    private static async IAsyncEnumerable<StreamChunk> ToAsyncEnumerable(IEnumerable<StreamChunk> items)
     {
         foreach (var item in items)
         {

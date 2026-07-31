@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -5,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
+using AskLucy.Domain.Ai;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -17,11 +20,16 @@ internal static partial class OpenAIProviderLog
 }
 
 /// <summary>
-/// The sole <see cref="IAIProvider"/> implementation for this migration (FR-022). Every
-/// call retries exactly once with backoff on a transient failure (timeout/5xx/429) before
-/// raising <see cref="AiProviderUnavailableException"/>, per research.md Topic 4 and FR-032.
-/// Replaces the legacy <c>ChatGPTController</c>'s inline, unauthenticated, unabstracted
-/// OpenAI calls.
+/// One of four <see cref="IAIProvider"/> implementations (specs/005-multi-provider-ai-engine).
+/// Registered both as the plain, unkeyed <see cref="IAIProvider"/> (for legacy single-model
+/// call sites — Translate, image generation, <c>AppendMessageCommandHandler</c> attribution)
+/// and as the keyed <c>"openai"</c> service resolved via <see cref="IAIProviderResolver"/> for
+/// multi-provider chat/comparison. Every call retries exactly once with backoff on a
+/// transient failure (timeout/5xx/429) before raising <see cref="AiProviderUnavailableException"/>
+/// (auth failures raise <see cref="AiProviderAuthenticationException"/> instead — never
+/// retried, since retrying a bad credential just wastes the retry budget); research.md
+/// Decision 9. Replaces the legacy <c>ChatGPTController</c>'s inline, unauthenticated,
+/// unabstracted OpenAI calls.
 /// </summary>
 public sealed class OpenAIProvider(
     IHttpClientFactory httpClientFactory,
@@ -37,16 +45,19 @@ public sealed class OpenAIProvider(
 
     public string ImageModel => _options.ImageModel;
 
-    public Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default) =>
+    public async Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default)
+    {
+        var result = await ChatAsync(messages, _options.ChatModel, parameters: null, cancellationToken);
+        return result.Content;
+    }
+
+    public Task<ChatCompletionResult> ChatAsync(
+        IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, CancellationToken cancellationToken = default) =>
         WithRetryAsync(async ct =>
         {
+            var stopwatch = Stopwatch.StartNew();
             using var client = CreateClient();
-            var payload = new
-            {
-                model = _options.ChatModel,
-                messages = messages.Select(ToOpenAiMessage),
-                stream = false,
-            };
+            var payload = BuildChatPayload(messages, model, parameters, stream: false);
 
             using var response = await client.PostAsJsonAsync("chat/completions", payload, ct);
             await EnsureSuccessAsync(response, ct);
@@ -54,24 +65,28 @@ public sealed class OpenAIProvider(
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-            return document.RootElement
+            var content = document.RootElement
                 .GetProperty("choices")[0]
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString() ?? string.Empty;
+
+            var usage = ParseUsage(document.RootElement, (int)stopwatch.ElapsedMilliseconds);
+            return new ChatCompletionResult(content, usage);
         }, cancellationToken);
 
-    public async IAsyncEnumerable<string> StreamChatAsync(
+    public IAsyncEnumerable<string> StreamChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default) =>
+        StripToContentAsync(StreamChatAsync(messages, _options.ChatModel, parameters: null, cancellationToken), cancellationToken);
+
+    public async IAsyncEnumerable<StreamChunk> StreamChatAsync(
         IReadOnlyList<ChatMessage> messages,
+        string model,
+        GenerationParametersDto? parameters,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        var stopwatch = Stopwatch.StartNew();
         using var client = CreateClient();
-        var payload = new
-        {
-            model = _options.ChatModel,
-            messages = messages.Select(ToOpenAiMessage),
-            stream = true,
-        };
+        var payload = BuildChatPayload(messages, model, parameters, stream: true);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -83,6 +98,10 @@ public sealed class OpenAIProvider(
         {
             response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             await EnsureSuccessAsync(response, cancellationToken);
+        }
+        catch (AiProviderAuthenticationException)
+        {
+            throw;
         }
         catch (Exception ex) when (IsTransient(ex))
         {
@@ -109,14 +128,29 @@ public sealed class OpenAIProvider(
                 }
 
                 using var document = JsonDocument.Parse(data);
-                var delta = document.RootElement.GetProperty("choices")[0].GetProperty("delta");
+                var root = document.RootElement;
 
+                // The final chunk of a stream_options.include_usage=true stream has an empty
+                // `choices` array and a top-level `usage` object instead of a delta.
+                if (root.TryGetProperty("usage", out var usageElement) && usageElement.ValueKind != JsonValueKind.Null)
+                {
+                    yield return new StreamChunk(ContentDelta: null, Usage: ParseUsage(root, (int)stopwatch.ElapsedMilliseconds));
+                    continue;
+                }
+
+                var choices = root.GetProperty("choices");
+                if (choices.GetArrayLength() == 0)
+                {
+                    continue;
+                }
+
+                var delta = choices[0].GetProperty("delta");
                 if (delta.TryGetProperty("content", out var contentElement))
                 {
                     var chunk = contentElement.GetString();
                     if (!string.IsNullOrEmpty(chunk))
                     {
-                        yield return chunk;
+                        yield return new StreamChunk(chunk);
                     }
                 }
             }
@@ -124,10 +158,13 @@ public sealed class OpenAIProvider(
     }
 
     public Task<Uri> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
+        GenerateImageAsync(prompt, _options.ImageModel, cancellationToken);
+
+    public Task<Uri> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         WithRetryAsync(async ct =>
         {
             using var client = CreateClient();
-            var payload = new { model = _options.ImageModel, prompt, n = 1, size = "1024x1024" };
+            var payload = new { model, prompt, n = 1, size = "1024x1024" };
 
             using var response = await client.PostAsJsonAsync("images/generations", payload, ct);
             await EnsureSuccessAsync(response, ct);
@@ -162,12 +199,125 @@ public sealed class OpenAIProvider(
             return document.RootElement.GetProperty("text").GetString() ?? string.Empty;
         }, cancellationToken);
 
+    public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var client = CreateClient();
+            using var response = await client.GetAsync("models", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (IsTransient(ex))
+        {
+            return false;
+        }
+    }
+
+    public async Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default)
+    {
+        using var client = CreateClient();
+        using var response = await client.GetAsync("models", cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        var results = new List<ProviderModelInfo>();
+        foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
+        {
+            var id = model.GetProperty("id").GetString();
+            if (string.IsNullOrEmpty(id) || !id.Contains("gpt", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // OpenAI's models list carries no context-window/capability metadata — this is
+            // deliberately a rough starting point for an administrator to review and correct
+            // via the sync-diff flow (research.md Decision 5), not an authoritative catalog.
+            results.Add(new ProviderModelInfo(
+                id, id, ContextWindowTokens: 0, MaxOutputTokens: 0,
+                new AIModelCapabilities(
+                    Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
+                    Reasoning: id.Contains('o', StringComparison.OrdinalIgnoreCase),
+                    Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
+        }
+
+        return results;
+    }
+
     private HttpClient CreateClient()
     {
         var client = httpClientFactory.CreateClient("OpenAI");
         client.BaseAddress = new Uri(_options.BaseUrl);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
         return client;
+    }
+
+    private static object BuildChatPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
+    {
+        // SystemPrompt/DeveloperPrompt (if set) are expected to already be present in
+        // `messages` as a ChatRole.System entry — the caller (Application layer) owns
+        // assembling the message list, consistent with how TranslateCommandHandler already
+        // builds its own system message today.
+        var payload = new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["messages"] = messages.Select(ToOpenAiMessage).ToList(),
+            ["stream"] = stream,
+        };
+
+        if (stream)
+        {
+            payload["stream_options"] = new { include_usage = true };
+        }
+
+        if (parameters is not null)
+        {
+            if (parameters.Temperature is { } temperature) payload["temperature"] = temperature;
+            if (parameters.TopP is { } topP) payload["top_p"] = topP;
+            if (parameters.PresencePenalty is { } presencePenalty) payload["presence_penalty"] = presencePenalty;
+            if (parameters.FrequencyPenalty is { } frequencyPenalty) payload["frequency_penalty"] = frequencyPenalty;
+            if (parameters.MaxTokens is { } maxTokens) payload["max_tokens"] = maxTokens;
+            if (parameters.StopSequences is { Count: > 0 } stop) payload["stop"] = stop;
+            if (parameters.Seed is { } seed) payload["seed"] = seed;
+            if (parameters.ReasoningLevel is { Length: > 0 } reasoningEffort) payload["reasoning_effort"] = reasoningEffort;
+            if (parameters.JsonMode == true) payload["response_format"] = new { type = "json_object" };
+        }
+
+        return payload;
+    }
+
+    private static ChatUsage ParseUsage(JsonElement root, int elapsedMs)
+    {
+        if (!root.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object)
+        {
+            return new ChatUsage(null, null, null, null, elapsedMs);
+        }
+
+        int? inputTokens = usage.TryGetProperty("prompt_tokens", out var p) ? p.GetInt32() : null;
+        int? outputTokens = usage.TryGetProperty("completion_tokens", out var c) ? c.GetInt32() : null;
+
+        int? cachedTokens = usage.TryGetProperty("prompt_tokens_details", out var promptDetails)
+            && promptDetails.TryGetProperty("cached_tokens", out var cached)
+            ? cached.GetInt32() : null;
+
+        int? reasoningTokens = usage.TryGetProperty("completion_tokens_details", out var completionDetails)
+            && completionDetails.TryGetProperty("reasoning_tokens", out var reasoning)
+            ? reasoning.GetInt32() : null;
+
+        return new ChatUsage(inputTokens, outputTokens, cachedTokens, reasoningTokens, elapsedMs);
+    }
+
+    private static async IAsyncEnumerable<string> StripToContentAsync(
+        IAsyncEnumerable<StreamChunk> chunks, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var chunk in chunks.WithCancellation(cancellationToken))
+        {
+            if (chunk.ContentDelta is { Length: > 0 } delta)
+            {
+                yield return delta;
+            }
+        }
     }
 
     private static object ToOpenAiMessage(ChatMessage message) => new
@@ -189,6 +339,18 @@ public sealed class OpenAIProvider(
         }
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            throw new AiProviderAuthenticationException($"OpenAI rejected the configured credential ({(int)response.StatusCode}).");
+        }
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            var retryAfter = response.Headers.RetryAfter?.Delta;
+            throw new AiProviderRateLimitedException("OpenAI rate-limited this request.", retryAfter);
+        }
+
         throw new HttpRequestException(
             $"OpenAI request failed with {(int)response.StatusCode}: {body}",
             inner: null,
@@ -201,6 +363,12 @@ public sealed class OpenAIProvider(
         {
             return await operation(cancellationToken);
         }
+        catch (AiProviderAuthenticationException)
+        {
+            // Never retry a bad credential — retrying wastes the retry budget on a failure
+            // mode that will not resolve itself between attempts (research.md Decision 9).
+            throw;
+        }
         catch (Exception ex) when (IsTransient(ex))
         {
             OpenAIProviderLog.RetryingAfterTransientFailure(logger, ex, RetryDelay.TotalMilliseconds);
@@ -209,6 +377,10 @@ public sealed class OpenAIProvider(
             try
             {
                 return await operation(cancellationToken);
+            }
+            catch (AiProviderAuthenticationException)
+            {
+                throw;
             }
             catch (Exception retryEx) when (IsTransient(retryEx))
             {
