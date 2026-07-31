@@ -16,7 +16,14 @@ interface LanguageSelectorProps {
 /** FR-013: target-language selector driving AI-assisted translation. */
 export function LanguageSelector({ value, onChange }: LanguageSelectorProps) {
   return (
-    <TextField select size="small" label="Language" value={value} onChange={(e) => onChange(e.target.value)} sx={{ minWidth: 140 }}>
+    <TextField
+      select
+      size="small"
+      label="Language"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      sx={{ minWidth: 140 }}
+    >
       {LANGUAGES.map((lang) => (
         <MenuItem key={lang.code} value={lang.code}>
           {lang.label}

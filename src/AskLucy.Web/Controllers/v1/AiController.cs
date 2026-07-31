@@ -1,5 +1,8 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.GenerateImage;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Ai.Commands.Transcribe;
@@ -25,12 +28,21 @@ namespace AskLucy.Web.Controllers.v1;
 /// spec.md Clarifications). Persistence is composed here, at the controller, rather than
 /// added to the AI commands themselves, so SendChatMessageCommand/TranslateCommand/
 /// GenerateImageCommand keep their original, already-tested behavior unchanged.
+///
+/// <c>Chat</c> additionally resolves provider/model attribution and estimated cost
+/// (specs/005-multi-provider-ai-engine contracts/chat.md) — it injects
+/// <see cref="IAIProviderRepository"/>/<see cref="IAIModelRepository"/> directly (same
+/// established convention as <c>UsersController</c> injecting repositories alongside
+/// <see cref="ISender"/>) purely to read the display name/pricing needed to attribute and
+/// cost the persisted message; the actual generation still goes through
+/// <see cref="SendChatMessageCommand"/>/<see cref="IAIProviderResolver"/>.
 /// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("ai-endpoints")]
 [Route("api/v1/ai")]
-public sealed partial class AiController(ISender mediator) : ControllerBase
+public sealed partial class AiController(
+    ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository) : ControllerBase
 {
     [HttpPost("chat")]
     public async Task Chat(ChatRequest request, CancellationToken cancellationToken)
@@ -44,17 +56,41 @@ public sealed partial class AiController(ISender mediator) : ControllerBase
         Response.Headers.CacheControl = "no-cache";
 
         var assistantContent = new StringBuilder();
-        await foreach (var chunk in mediator.CreateStream(new SendChatMessageCommand(request.Messages), cancellationToken))
+        ChatUsage? finalUsage = null;
+
+        await foreach (var chunk in mediator.CreateStream(
+            new SendChatMessageCommand(request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
+            cancellationToken))
         {
-            assistantContent.Append(chunk);
-            await Response.WriteAsync($"data: {chunk}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            if (!string.IsNullOrEmpty(chunk.ContentDelta))
+            {
+                assistantContent.Append(chunk.ContentDelta);
+                await Response.WriteAsync($"data: {chunk.ContentDelta}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            if (chunk.Usage is not null)
+            {
+                finalUsage = chunk.Usage;
+            }
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
 
+        var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
+        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
+        var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, finalUsage?.InputTokenCount, finalUsage?.OutputTokenCount);
+        var generationParametersJson = request.GenerationParameters is null
+            ? null
+            : JsonSerializer.Serialize(request.GenerationParameters);
+
         await mediator.Send(
-            new AppendMessageCommand(request.ChatId, MessageRole.Assistant, MessageKind.Text, assistantContent.ToString(), null),
+            new AppendMessageCommand(
+                request.ChatId, MessageRole.Assistant, MessageKind.Text, assistantContent.ToString(), null,
+                Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
+                InputTokenCount: finalUsage?.InputTokenCount, OutputTokenCount: finalUsage?.OutputTokenCount,
+                CachedTokenCount: finalUsage?.CachedTokenCount, ReasoningTokenCount: finalUsage?.ReasoningTokenCount,
+                LatencyMs: finalUsage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd),
             cancellationToken);
     }
 

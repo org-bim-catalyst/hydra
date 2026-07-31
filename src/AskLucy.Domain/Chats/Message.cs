@@ -25,6 +25,10 @@ public enum MessageKind
 /// Provider/model/token/generation-parameter metadata and Attachments/Citations were added
 /// for SPEC-002 (specs/002-chat-history-management, FR-016/FR-017); Attachments/Citations
 /// are children of this aggregate, not independently reachable (constitution &#167;5).
+/// Cached/reasoning token counts, latency, estimated cost, and comparison-context fields
+/// were added for SPEC-005 (specs/005-multi-provider-ai-engine, FR-020/FR-025) — Provider/
+/// Model stay free-text (not FKs to AIProvider/AIModel) so this immutable history survives a
+/// provider/model being disabled, deprecated, or removed from the catalog entirely (FR-011).
 /// </summary>
 public sealed class Message : BaseEntity
 {
@@ -56,6 +60,28 @@ public sealed class Message : BaseEntity
 
     public int? OutputTokenCount { get; private set; }
 
+    /// <summary>Populated only when the provider reports it (FR-020, specs/005-multi-provider-ai-engine).</summary>
+    public int? CachedTokenCount { get; private set; }
+
+    /// <summary>Populated only for reasoning-capable models (FR-020).</summary>
+    public int? ReasoningTokenCount { get; private set; }
+
+    public int? LatencyMs { get; private set; }
+
+    /// <summary>Null (not zero) when pricing is unavailable (FR-022) — never a fabricated value.</summary>
+    public decimal? EstimatedCostUsd { get; private set; }
+
+    /// <summary>Non-null only for assistant messages produced by a model-comparison call (User Story 7) — groups the N candidate responses to one comparison.</summary>
+    public Guid? ComparisonGroupId { get; private set; }
+
+    /// <summary>
+    /// Whether this message is fed back as context on the next send. True for every ordinary
+    /// message; for comparison candidates (FR-025), true only for the one the user chose to
+    /// continue from — decided once at creation, never flipped afterward (this entity stays
+    /// append-only/immutable).
+    /// </summary>
+    public bool IsIncludedInContext { get; private set; } = true;
+
     public IReadOnlyCollection<Attachment> Attachments => _attachments;
 
     public IReadOnlyCollection<Citation> Citations => _citations;
@@ -76,7 +102,13 @@ public sealed class Message : BaseEntity
         string? model = null,
         string? generationParametersJson = null,
         int? inputTokenCount = null,
-        int? outputTokenCount = null)
+        int? outputTokenCount = null,
+        int? cachedTokenCount = null,
+        int? reasoningTokenCount = null,
+        int? latencyMs = null,
+        decimal? estimatedCostUsd = null,
+        Guid? comparisonGroupId = null,
+        bool isIncludedInContext = true)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -96,6 +128,12 @@ public sealed class Message : BaseEntity
             GenerationParametersJson = generationParametersJson,
             InputTokenCount = inputTokenCount,
             OutputTokenCount = outputTokenCount,
+            CachedTokenCount = cachedTokenCount,
+            ReasoningTokenCount = reasoningTokenCount,
+            LatencyMs = latencyMs,
+            EstimatedCostUsd = estimatedCostUsd,
+            ComparisonGroupId = comparisonGroupId,
+            IsIncludedInContext = isIncludedInContext,
             CreatedAtUtc = DateTime.UtcNow,
             CreatedBy = actor,
         };

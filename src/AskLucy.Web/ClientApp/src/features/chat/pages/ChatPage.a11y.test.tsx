@@ -5,11 +5,23 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ConversationView } from './ChatPage'
+import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
+import type { useTextToSpeech } from '../voice/useTextToSpeech'
+import { ChatPage, ConversationView } from './ChatPage'
 
 expect.extend(toHaveNoViolations)
 
 const CHAT_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+
+const mockTts: ReturnType<typeof useTextToSpeech> = {
+  isSupported: true,
+  speak: () => {},
+  stop: () => {},
+  isSpeaking: false,
+  getIntensity: () => 0,
+  error: null,
+  clearError: () => {},
+}
 
 const server = setupServer()
 
@@ -33,8 +45,7 @@ function renderConversation() {
           language="en"
           onLanguageChange={() => {}}
           onChatCreated={() => {}}
-          isMobile={false}
-          onOpenSidebar={() => {}}
+          tts={mockTts}
         />
       </QueryClientProvider>
     </MemoryRouter>,
@@ -57,10 +68,48 @@ describe('ConversationView accessibility (constitution §7, §10)', () => {
   })
 
   it('has no automatically detectable a11y violations in the error/Retry state', async () => {
-    server.use(http.get(`*/api/v1/chats/${CHAT_ID}/messages`, () => new HttpResponse(null, { status: 500 })))
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_ID}/messages`, () => new HttpResponse(null, { status: 500 })),
+    )
     const { container, findByRole } = renderConversation()
 
     await findByRole('alert')
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+})
+
+describe('ChatPage accessibility — full immersive layout (SPEC-006, constitution §7/§10)', () => {
+  beforeEach(() => {
+    useAssistantPanelStore.setState({ isOpen: true, hasUnreadWhileCollapsed: false })
+  })
+
+  function renderChatPage() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <ChatPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  it('has no automatically detectable a11y violations with the assistant panel open (FR-013)', async () => {
+    const { container, findByText } = renderChatPage()
+
+    await findByText('Start a conversation with Ask Lucy.')
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no automatically detectable a11y violations with the assistant panel collapsed (FR-013/FR-014)', async () => {
+    useAssistantPanelStore.setState({ isOpen: false, hasUnreadWhileCollapsed: false })
+    const { container, findByRole } = renderChatPage()
+
+    await findByRole('button', { name: 'Expand Ask Lucy assistant' })
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

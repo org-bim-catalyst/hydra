@@ -9,8 +9,28 @@ export interface ChatMessage {
   /** Display-only metadata (specs/002-chat-history-management FR-016/FR-017) — never sent to the AI provider, only rendered. */
   provider?: string | null
   model?: string | null
+  /** FR-030: a connection dropped mid-stream — the content shown is whatever arrived before that, not the full reply. */
+  isIncomplete?: boolean
   attachments?: { id: string; fileName: string; accessLocation: string }[]
   citations?: { id: string; sourceLabel: string; sourceReference: string | null }[]
+}
+
+/** specs/005-multi-provider-ai-engine contracts/chat.md — mirrors `GenerationParametersDto`. Every field optional; an unset field falls back through the server-side inheritance chain. */
+export interface GenerationParameters {
+  temperature?: number
+  topP?: number
+  topK?: number
+  presencePenalty?: number
+  frequencyPenalty?: number
+  maxTokens?: number
+  stopSequences?: string[]
+  seed?: number
+  reasoningLevel?: string
+  responseFormat?: string
+  jsonMode?: boolean
+  streaming?: boolean
+  systemPrompt?: string
+  developerPrompt?: string
 }
 
 /**
@@ -18,7 +38,14 @@ export interface ChatMessage {
  * `ReadableStream` reader rather than the browser's native `EventSource`, since
  * `EventSource` cannot send a custom `Authorization` header.
  */
-export async function* streamChat(chatId: string, messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<string> {
+export async function* streamChat(
+  chatId: string,
+  messages: ChatMessage[],
+  providerId: string,
+  modelId: string,
+  generationParameters: GenerationParameters | undefined,
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
   const accessToken = useAuthStore.getState().accessToken
 
   const response = await fetch(`${API_BASE_URL}/ai/chat`, {
@@ -28,11 +55,15 @@ export async function* streamChat(chatId: string, messages: ChatMessage[], signa
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ chatId, messages }),
+    body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters }),
   })
 
   if (!response.ok || !response.body) {
-    throw new Error(`Chat request failed with ${response.status}`)
+    // RFC 7807 Problem Details (constitution §6) — surface the vendor-agnostic translated
+    // message (e.g. "AI provider rate limited") rather than a generic status-code string,
+    // so the user sees why the send actually failed (FR-028).
+    const problem = await response.json().catch(() => undefined)
+    throw new Error(problem?.detail ?? problem?.title ?? `Chat request failed with ${response.status}`)
   }
 
   const reader = response.body.getReader()

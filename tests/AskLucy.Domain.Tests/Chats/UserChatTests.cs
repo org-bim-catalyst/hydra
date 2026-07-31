@@ -145,4 +145,21 @@ public sealed class UserChatTests
         chat.Title.Should().Be("Derived title");
         chat.IsTitleManuallySet.Should().BeFalse("auto-titling itself must not flip the manual flag");
     }
+
+    [Fact]
+    public void SetModelSelection_ShouldUpdateProviderModelAndParameters_AndModifiedAudit()
+    {
+        // specs/005-multi-provider-ai-engine FR-008/FR-009/FR-014.
+        var chat = UserChat.Create("Chat", "owner-1", null, "owner-1");
+        var providerId = Guid.NewGuid();
+        var modelId = Guid.NewGuid();
+
+        chat.SetModelSelection(providerId, modelId, "{\"temperature\":0.5}", "owner-1");
+
+        chat.ProviderId.Should().Be(providerId);
+        chat.ModelId.Should().Be(modelId);
+        chat.GenerationParametersJson.Should().Be("{\"temperature\":0.5}");
+        chat.ModifiedBy.Should().Be("owner-1");
+        chat.ModifiedAtUtc.Should().NotBeNull();
+    }
 }

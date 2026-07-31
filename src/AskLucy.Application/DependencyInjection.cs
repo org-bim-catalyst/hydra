@@ -1,4 +1,5 @@
 using System.Reflection;
+using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
 using AskLucy.Application.Options;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
         services.AddScoped<TokenIssuer>();
+        services.AddScoped<DefaultProviderResolver>();
 
         services.AddOptions<AppOptions>()
             .Bind(configuration.GetSection(AppOptions.SectionName))

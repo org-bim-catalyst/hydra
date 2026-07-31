@@ -1,4 +1,5 @@
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Consent;
 using Microsoft.AspNetCore.Identity;
 
 namespace AskLucy.Persistence.Identity;
@@ -41,4 +42,7 @@ public sealed class ApplicationUser : IdentityUser
     public string? DeletedBy { get; set; }
 
     public ICollection<UserChat> UserChats { get; set; } = new List<UserChat>();
+
+    /// <summary>Append-only consent-decision history (specs/004-cookie-consent-privacy); cascade-deleted with the account.</summary>
+    public ICollection<CookieConsentRecord> CookieConsentRecords { get; set; } = new List<CookieConsentRecord>();
 }

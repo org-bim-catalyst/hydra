@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
-import { generateImage, streamChat, translate, type ChatMessage } from '../api/aiApi'
+import { generateImage, streamChat, translate, type ChatMessage, type GenerationParameters } from '../api/aiApi'
 
 const TITLE_MAX_LENGTH = 60
 
@@ -49,6 +49,13 @@ export function useChatStream(
   // exactly what failed without the caller needing to remember/re-supply it.
   const lastAttemptedContentRef = useRef<string | null>(null)
 
+  // specs/005-multi-provider-ai-engine FR-008/FR-009 — the conversation's current
+  // provider/model selection. Not yet seeded from the persisted `UserChat.ProviderId`/
+  // `ModelId` on load (that would need those fields threaded onto `UserChatDto` too) — the
+  // caller (ChatPage) is expected to default this from the enabled-provider catalog.
+  const [providerId, setProviderId] = useState<string | null>(null)
+  const [modelId, setModelId] = useState<string | null>(null)
+
   // Guards every state update below against a stale completion — if the user switches to a
   // different chat (or starts a new one) while a message is still sending, this view
   // unmounts but the in-flight send() keeps running (JS doesn't cancel promises on unmount).
@@ -85,8 +92,26 @@ export function useChatStream(
     [onChatCreated],
   )
 
+  /** FR-009: persists the new selection so it applies to messages sent after this call (FR-011 leaves prior messages' attribution untouched). No-op on the backend until a chat actually exists. */
+  const setSelection = useCallback(
+    (newProviderId: string, newModelId: string, generationParameters?: GenerationParameters) => {
+      setProviderId(newProviderId)
+      setModelId(newModelId)
+      if (chatIdRef.current) {
+        chatsApi.updateChatModelSelection(chatIdRef.current, newProviderId, newModelId, generationParameters).catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : 'Failed to save the model selection.')
+        })
+      }
+    },
+    [],
+  )
+
   const send = useCallback(
     async (content: string) => {
+      if (!providerId || !modelId) {
+        setError('Choose an AI provider and model before sending a message.')
+        return
+      }
       // Once the user has started actively chatting in this view, the persisted-messages
       // fetch triggered below (by ensureChatId changing the chatId prop) must never be
       // allowed to seed/overwrite local state again — it's racing the still-in-progress
@@ -105,10 +130,10 @@ export function useChatStream(
       const controller = new AbortController()
       abortRef.current = controller
 
+      let assistantContent = ''
       try {
         const activeChatId = await ensureChatId(content)
-        let assistantContent = ''
-        for await (const chunk of streamChat(activeChatId, history, controller.signal)) {
+        for await (const chunk of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
           assistantContent += chunk
           if (isActiveRef.current) {
             setMessages([...history, { role: 'assistant', content: assistantContent }])
@@ -116,9 +141,10 @@ export function useChatStream(
         }
       } catch (err) {
         if (isActiveRef.current) {
-          // Drop the empty placeholder assistant bubble rather than leaving it stuck
-          // on-screen forever with no content and no explanation.
-          setMessages(history)
+          // FR-030: keep whatever partial content already streamed in (flagged incomplete)
+          // rather than discarding it — a connection drop mid-stream shouldn't erase a
+          // reply the user could already see arriving.
+          setMessages([...history, { role: 'assistant', content: assistantContent, isIncomplete: true }])
           setError(err instanceof Error ? err.message : 'Failed to send message. Please try again.')
         }
       } finally {
@@ -126,7 +152,7 @@ export function useChatStream(
         abortRef.current = null
       }
     },
-    [messages, ensureChatId],
+    [messages, ensureChatId, providerId, modelId],
   )
 
   const sendImage = useCallback(
@@ -168,5 +194,5 @@ export function useChatStream(
     }
   }, [send])
 
-  return { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, stop, retry }
+  return { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, stop, retry, providerId, modelId, setSelection }
 }

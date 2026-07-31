@@ -1,6 +1,8 @@
 using System.Reflection;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Consent;
 using AskLucy.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,16 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
     public DbSet<Message> Messages => Set<Message>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<CookieConsentRecord> CookieConsentRecords => Set<CookieConsentRecord>();
+
+    public DbSet<AIProvider> AIProviders => Set<AIProvider>();
+
+    public DbSet<AIModel> AIModels => Set<AIModel>();
+
+    public DbSet<ProviderHealthCheck> ProviderHealthChecks => Set<ProviderHealthCheck>();
+
+    public DbSet<UserAiPreference> UserAiPreferences => Set<UserAiPreference>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

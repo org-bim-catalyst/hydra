@@ -1,5 +1,6 @@
 import { Box, Stack, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
+import { AppFooter } from './AppFooter'
 import { BrandMark } from './BrandMark'
 
 interface AuthLayoutProps {
@@ -54,6 +55,7 @@ export function AuthLayout({ eyebrow, title, children }: AuthLayoutProps) {
         sx={{
           flex: 1,
           display: 'flex',
+          flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           p: { xs: 3, sm: 5 },
@@ -68,6 +70,9 @@ export function AuthLayout({ eyebrow, title, children }: AuthLayoutProps) {
             {title}
           </Typography>
           {children}
+        </Box>
+        <Box sx={{ mt: 6, width: '100%' }}>
+          <AppFooter />
         </Box>
       </Box>
     </Box>

@@ -28,6 +28,8 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Smtp:Host"] = "test-smtp.invalid",
                 ["FileStorage:RootPath"] = "App_Data/test-avatars",
                 ["App:FrontendBaseUrl"] = "https://tests.asklucy.io",
+                ["CookiePolicy:CurrentVersion"] = "2026-07-30.1",
+                ["CookiePolicy:EffectiveAtUtc"] = "2026-07-30T00:00:00Z",
             });
         });
     }

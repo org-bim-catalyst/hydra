@@ -26,6 +26,35 @@ public sealed class MessageTests
     }
 
     [Fact]
+    public void Create_ShouldSetUsageAndComparisonFields()
+    {
+        // specs/005-multi-provider-ai-engine FR-020/FR-025.
+        var comparisonGroupId = Guid.NewGuid();
+
+        var message = Message.Create(
+            ChatId, MessageRole.Assistant, MessageKind.Text, "Hello", null, "user-1",
+            provider: "Anthropic", model: "claude-3-5-sonnet-20241022",
+            cachedTokenCount: 5, reasoningTokenCount: 10, latencyMs: 842, estimatedCostUsd: 0.0032m,
+            comparisonGroupId: comparisonGroupId, isIncludedInContext: false);
+
+        message.CachedTokenCount.Should().Be(5);
+        message.ReasoningTokenCount.Should().Be(10);
+        message.LatencyMs.Should().Be(842);
+        message.EstimatedCostUsd.Should().Be(0.0032m);
+        message.ComparisonGroupId.Should().Be(comparisonGroupId);
+        message.IsIncludedInContext.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_ShouldDefaultIsIncludedInContextToTrue_ForOrdinaryMessages()
+    {
+        var message = Message.Create(ChatId, MessageRole.Assistant, MessageKind.Text, "Hello", null, "user-1");
+
+        message.IsIncludedInContext.Should().BeTrue();
+        message.ComparisonGroupId.Should().BeNull();
+    }
+
+    [Fact]
     public void Create_ShouldLeaveMetadataNull_ForUserMessages()
     {
         var message = Message.Create(ChatId, MessageRole.User, MessageKind.Text, "Hi", null, "user-1");

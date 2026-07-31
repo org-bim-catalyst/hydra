@@ -3,7 +3,17 @@ import CloseIcon from '@mui/icons-material/Close'
 import MicIcon from '@mui/icons-material/Mic'
 import SendIcon from '@mui/icons-material/Send'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import { Alert, Box, CircularProgress, IconButton, Paper, Snackbar, Stack, TextField, useTheme } from '@mui/material'
+import {
+  Alert,
+  Box,
+  CircularProgress,
+  IconButton,
+  Paper,
+  Snackbar,
+  Stack,
+  TextField,
+  useTheme,
+} from '@mui/material'
 import { useRef, useState } from 'react'
 import { transcribeAudio, transcribeMicrophoneAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
@@ -99,12 +109,20 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
             <Box sx={{ flex: 1, px: 1 }}>
               <VoiceWaveform getLevels={voice.getLevels} color={theme.palette.primary.main} />
             </Box>
-            <IconButton onClick={() => void handleConfirmVoice()} aria-label="Finish and send voice input" color="primary">
+            <IconButton
+              onClick={() => void handleConfirmVoice()}
+              aria-label="Finish and send voice input"
+              color="primary"
+            >
               <CheckIcon />
             </IconButton>
           </Stack>
         ) : isTranscribing ? (
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: '100%', px: 1.5 }}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{ alignItems: 'center', width: '100%', px: 1.5 }}
+          >
             <CircularProgress size={20} />
             <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Transcribing...</Box>
           </Stack>
@@ -147,7 +165,11 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
           </Stack>
         )}
       </Paper>
-      <Snackbar open={Boolean(voice.error)} autoHideDuration={5000} onClose={() => voice.clearError()}>
+      <Snackbar
+        open={Boolean(voice.error)}
+        autoHideDuration={5000}
+        onClose={() => voice.clearError()}
+      >
         <Alert severity="error" variant="filled">
           {voice.error}
         </Alert>

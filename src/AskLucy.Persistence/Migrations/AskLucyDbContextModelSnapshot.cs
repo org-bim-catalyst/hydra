@@ -22,6 +22,275 @@ namespace AskLucy.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AskLucy.Domain.Ai.AIModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ContextWindowTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("MaxOutputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModelKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ReleaseDate")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("SupportsAudio")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsEmbeddings")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsFunctionCalling")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsImageInput")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsImageOutput")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsJsonMode")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsReasoning")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsStreaming")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SupportsVision")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderId", "ModelKey")
+                        .IsUnique();
+
+                    b.ToTable("AIModels", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Ai.AIProvider", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CredentialCiphertext")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CredentialLastRotatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DefaultModelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HealthStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("HealthStatusCheckedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultModelId");
+
+                    b.HasIndex("ProviderKey")
+                        .IsUnique();
+
+                    b.ToTable("AIProviders", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Ai.ProviderHealthCheck", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CheckedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsHealthy")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderId", "CheckedAtUtc");
+
+                    b.ToTable("ProviderHealthChecks", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Ai.UserAiPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DefaultGenerationParametersJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("DefaultModelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("DefaultProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultModelId");
+
+                    b.HasIndex("DefaultProviderId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserAiPreferences", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Authentication.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -168,6 +437,12 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("CachedTokenCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ComparisonGroupId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -185,16 +460,27 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal?>("EstimatedCostUsd")
+                        .HasColumnType("decimal(18,6)");
+
                     b.Property<string>("GenerationParametersJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("InputTokenCount")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsIncludedInContext")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("LatencyMs")
+                        .HasColumnType("int");
 
                     b.Property<string>("Model")
                         .HasMaxLength(100)
@@ -212,6 +498,9 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("Provider")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("ReasoningTokenCount")
+                        .HasColumnType("int");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -231,6 +520,8 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ComparisonGroupId");
 
                     b.HasIndex("UserChatId", "CreatedAtUtc");
 
@@ -258,6 +549,9 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("GenerationParametersJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsFavorite")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -268,6 +562,9 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("ModelId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -276,6 +573,9 @@ namespace AskLucy.Persistence.Migrations
 
                     b.Property<DateTime?>("PinnedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProviderId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -304,11 +604,70 @@ namespace AskLucy.Persistence.Migrations
 
                     b.HasIndex("IsFavorite");
 
+                    b.HasIndex("ModelId");
+
                     b.HasIndex("PinnedAtUtc");
+
+                    b.HasIndex("ProviderId");
 
                     b.HasIndex("UserId");
 
                     b.ToTable("UserChats", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Consent.CookieConsentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AnalyticsAccepted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("FunctionalAccepted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MarketingAccepted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.ToTable("CookieConsentRecords", (string)null);
                 });
 
             modelBuilder.Entity("AskLucy.Persistence.Identity.ApplicationUser", b =>
@@ -537,6 +896,74 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Ai.AIModel", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("AskLucy.Domain.Ai.ModelPricing", "Pricing", b1 =>
+                        {
+                            b1.Property<Guid>("AIModelId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("InputPerMillionTokensUsd")
+                                .HasColumnType("decimal(18,6)")
+                                .HasColumnName("InputPricePerMillionTokensUsd");
+
+                            b1.Property<decimal>("OutputPerMillionTokensUsd")
+                                .HasColumnType("decimal(18,6)")
+                                .HasColumnName("OutputPricePerMillionTokensUsd");
+
+                            b1.HasKey("AIModelId");
+
+                            b1.ToTable("AIModels");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AIModelId");
+                        });
+
+                    b.Navigation("Pricing");
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Ai.AIProvider", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Ai.AIModel", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultModelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Ai.ProviderHealthCheck", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Ai.UserAiPreference", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Ai.AIModel", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultModelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Chats.Attachment", b =>
                 {
                     b.HasOne("AskLucy.Domain.Chats.Message", null)
@@ -566,8 +993,27 @@ namespace AskLucy.Persistence.Migrations
 
             modelBuilder.Entity("AskLucy.Domain.Chats.UserChat", b =>
                 {
+                    b.HasOne("AskLucy.Domain.Ai.AIModel", null)
+                        .WithMany()
+                        .HasForeignKey("ModelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
                         .WithMany("UserChats")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Consent.CookieConsentRecord", b =>
+                {
+                    b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
+                        .WithMany("CookieConsentRecords")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -633,6 +1079,8 @@ namespace AskLucy.Persistence.Migrations
 
             modelBuilder.Entity("AskLucy.Persistence.Identity.ApplicationUser", b =>
                 {
+                    b.Navigation("CookieConsentRecords");
+
                     b.Navigation("UserChats");
                 });
 #pragma warning restore 612, 618
