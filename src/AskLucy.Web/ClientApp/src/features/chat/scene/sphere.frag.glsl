@@ -1,18 +1,24 @@
-// Simple directional-light shading, tinted from the idle color toward the reactive
-// color as vDisplacement (from sphere.vert.glsl) grows — so the sphere visibly "lights
-// up" while it's deforming in response to voice output, not just moving.
+// Draws each point as a soft circular sprite — discarding fragments outside a UV-space
+// radius in `gl_PointCoord` — instead of the previous solid-surface Lambertian shading, so
+// the sphere reads as a mesh of individual dots (spec 010-lucy-brand-refresh FR-006).
+// Colors still mix from uColorIdle toward uColorReactive as vDisplacement (from
+// sphere.vert.glsl) grows, same "lights up while deforming" behavior the prior solid
+// sphere had — uColorIdle/uColorReactive are now theme-driven (FR-008, dotMeshTheme.ts)
+// rather than fixed literals.
 
 uniform vec3 uColorIdle;
 uniform vec3 uColorReactive;
 
-varying vec3 vNormal;
 varying float vDisplacement;
 
 void main() {
-  float diffuse = max(dot(normalize(vNormal), normalize(vec3(0.35, 0.55, 1.0))), 0.0);
-  float reactiveMix = smoothstep(0.0, 0.35, abs(vDisplacement));
-  vec3 baseColor = mix(uColorIdle, uColorReactive, reactiveMix);
-  vec3 shaded = baseColor * (0.45 + 0.65 * diffuse);
+  vec2 fromCenter = gl_PointCoord - vec2(0.5);
+  float dist = length(fromCenter);
+  if (dist > 0.5) discard;
 
-  gl_FragColor = vec4(shaded, 1.0);
+  float alpha = smoothstep(0.5, 0.3, dist);
+  float reactiveMix = smoothstep(0.0, 0.35, abs(vDisplacement));
+  vec3 color = mix(uColorIdle, uColorReactive, reactiveMix);
+
+  gl_FragColor = vec4(color, alpha);
 }

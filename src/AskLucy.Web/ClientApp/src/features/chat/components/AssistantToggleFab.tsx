@@ -1,12 +1,14 @@
-import ChatIcon from '@mui/icons-material/Chat'
 import CloseIcon from '@mui/icons-material/Close'
 import { Badge, Fab } from '@mui/material'
 import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
+import { LucyPortrait } from '../branding/LucyPortrait'
 
 /** FR-006/FR-016: persistent round toggle for the floating assistant panel — stays
  * visible and reachable regardless of the panel's open/collapsed state, and surfaces a
  * dot indicator when an assistant reply arrived while collapsed. Docked bottom-right so
- * it never overlaps the left-anchored panel's own footprint (FR-005) in either state. */
+ * it never overlaps the left-anchored panel's own footprint (FR-005) in either state.
+ * Displays Lucy's portrait when collapsed (spec 010-lucy-brand-refresh FR-010) so the
+ * closed state reads as "Lucy," not a generic chat icon. */
 export function AssistantToggleFab() {
   const isOpen = useAssistantPanelStore((s) => s.isOpen)
   const hasUnread = useAssistantPanelStore((s) => s.hasUnreadWhileCollapsed)
@@ -36,8 +38,9 @@ export function AssistantToggleFab() {
               : 'Expand Ask Lucy assistant'
         }
         aria-expanded={isOpen}
+        sx={isOpen ? undefined : { p: 0, overflow: 'hidden' }}
       >
-        {isOpen ? <CloseIcon /> : <ChatIcon />}
+        {isOpen ? <CloseIcon /> : <LucyPortrait variant="toggle" alt="Lucy" />}
       </Fab>
     </Badge>
   )
