@@ -1,8 +1,25 @@
 # ADR-0005: Defer TTS voice-persona-consistency fix from the immersive 3D workspace redesign
 
-**Status**: Accepted
+**Status**: Resolved — see Resolution below
 **Date**: 2026-07-30
 **Deciders**: Recorded during `/speckit-plan` and `/speckit-analyze` for `specs/006-immersive-3d-workspace`
+
+## Resolution (2026-07-31, `specs/010-lucy-brand-refresh`)
+
+The follow-up this ADR called for has been implemented. `useTextToSpeech.ts` now selects a
+voice via `selectPersonaVoice()` (`features/chat/voice/selectPersonaVoice.ts`), which combines
+a curated, versioned `voicePersonaMap.ts` mapping of persona-matching voice names per
+(language, browser engine) with a scored heuristic fallback for uncurated combinations —
+see `specs/010-lucy-brand-refresh/spec.md` (FR-001–005), `research.md` §3, and
+`contracts/voice-persona-mapping.md`. This is the **client-side voice-selection/tuning**
+option from that feature's Alternatives (not the server-rendered audio pipeline this ADR
+originally floated) — a deliberate, separately-recorded scope decision, not a reopening of
+the alternative rejected below.
+
+Constitution §7's persona requirement is now met for text going through this hook. The 3D
+sphere's audio-reactive deformation (feature 006, FR-018) remains an approximation
+(utterance-timing envelope, not true `AnalyserNode` audio analysis) — that trade-off is
+unchanged and still tracked separately (see Consequences below, now historical).
 
 ## Context
 

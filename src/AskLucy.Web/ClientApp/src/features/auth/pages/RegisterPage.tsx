@@ -23,7 +23,7 @@ export function RegisterPage() {
         <Alert severity="success">Check your email to confirm your account.</Alert>
       ) : (
         <Box component="form" onSubmit={onSubmit}>
-          <Stack spacing={2.5}>
+          <Stack spacing={3}>
             {register.isError && <Alert severity="error">Registration failed. Please try again.</Alert>}
             <Stack direction="row" spacing={1.5}>
               <TextField label="First name" fullWidth {...form.register('firstName')} />
@@ -37,7 +37,14 @@ export function RegisterPage() {
               helperText="At least 8 characters"
               {...form.register('password', { required: true, minLength: 8 })}
             />
-            <Button type="submit" variant="contained" size="large" fullWidth disabled={register.isPending}>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={register.isPending}
+              sx={{ mt: 0.5 }}
+            >
               Create account
             </Button>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>

@@ -1,12 +1,17 @@
-// Displaces an icosahedron's vertices along their normals using 3D simplex noise,
-// driven by uTime (idle drift) and uAmplitude/uFrequency (idle vs. voice-reactive —
-// ReactiveSphere.tsx animates these; see research.md §2/§3).
+// Displaces each point's radial position using 3D simplex noise, driven by uTime (idle
+// drift) and uAmplitude/uFrequency (idle vs. voice-reactive — ReactiveSphere.tsx animates
+// these; see research.md §1/§2/§3). Point positions themselves are pre-sampled on a
+// ring-based sphere lattice in ReactiveSphere.tsx (spec 010-lucy-brand-refresh FR-006) —
+// this shader only moves them, it doesn't generate them. `normalize(position)` stands in
+// for a per-vertex normal (a point cloud has none): valid here because every point starts
+// exactly on the unit sphere, so its own direction from the origin *is* its outward
+// normal.
 
 uniform float uTime;
 uniform float uAmplitude;
 uniform float uFrequency;
+uniform float uBasePointSize;
 
-varying vec3 vNormal;
 varying float vDisplacement;
 
 // Ashima Arts 3D simplex noise (webgl-noise, MIT license) — the standard inline GLSL
@@ -77,11 +82,15 @@ float snoise(vec3 v) {
 }
 
 void main() {
+  vec3 direction = normalize(position);
   float displacement = snoise(position * uFrequency + vec3(0.0, 0.0, uTime * 0.15)) * uAmplitude;
-  vec3 displaced = position + normal * displacement;
-
-  vNormal = normalize(normalMatrix * normal);
+  vec3 displaced = position + direction * displacement;
   vDisplacement = displacement;
 
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+  vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+
+  // Standard point-sprite size attenuation so dots stay a consistent visual size
+  // regardless of camera distance/zoom (research.md §1).
+  gl_PointSize = uBasePointSize * (300.0 / -mvPosition.z);
 }
