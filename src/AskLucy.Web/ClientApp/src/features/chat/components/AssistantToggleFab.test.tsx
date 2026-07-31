@@ -41,6 +41,20 @@ describe('AssistantToggleFab', () => {
     expect(badgeDot).toHaveClass('MuiBadge-invisible')
   })
 
+  it('shows Lucy\'s portrait when collapsed (spec 010-lucy-brand-refresh FR-010)', () => {
+    useAssistantPanelStore.setState({ isOpen: false, hasUnreadWhileCollapsed: false })
+    render(<AssistantToggleFab />)
+
+    expect(screen.getByRole('img', { name: 'Lucy' })).toBeInTheDocument()
+  })
+
+  it('shows the close icon, not the portrait, when expanded', () => {
+    resetStore()
+    render(<AssistantToggleFab />)
+
+    expect(screen.queryByRole('img', { name: 'Lucy' })).not.toBeInTheDocument()
+  })
+
   it('clears the unread indicator on click (opening the panel)', async () => {
     useAssistantPanelStore.setState({ isOpen: false, hasUnreadWhileCollapsed: true })
     const user = userEvent.setup()

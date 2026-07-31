@@ -47,7 +47,7 @@ export function LoginPage() {
     >
       {!pendingUserId ? (
         <Box component="form" onSubmit={onSubmitLogin}>
-          <Stack spacing={2.5}>
+          <Stack spacing={3}>
             {login.isError && <Alert severity="error">Invalid email or password.</Alert>}
             <TextField label="Email" type="email" fullWidth {...loginForm.register('email', { required: true })} />
             <TextField
@@ -56,15 +56,30 @@ export function LoginPage() {
               fullWidth
               {...loginForm.register('password', { required: true })}
             />
-            <Button type="submit" variant="contained" size="large" fullWidth disabled={login.isPending}>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={login.isPending}
+              sx={{ mt: 0.5 }}
+            >
               Sign in
             </Button>
             <DimensionDivider>or continue with</DimensionDivider>
-            <Stack direction="row" spacing={1.5}>
-              <Button fullWidth variant="outlined" href={`${API_BASE_URL}/auth/external/google/challenge`}>
+            <Stack direction="row" spacing={1.5} sx={{ width: '100%' }}>
+              <Button
+                variant="outlined"
+                href={`${API_BASE_URL}/auth/external/google/challenge`}
+                sx={{ flex: '1 1 0%', minWidth: 0, px: 0 }}
+              >
                 Google
               </Button>
-              <Button fullWidth variant="outlined" href={`${API_BASE_URL}/auth/external/facebook/challenge`}>
+              <Button
+                variant="outlined"
+                href={`${API_BASE_URL}/auth/external/facebook/challenge`}
+                sx={{ flex: '1 1 0%', minWidth: 0, px: 0 }}
+              >
                 Facebook
               </Button>
             </Stack>
@@ -75,7 +90,7 @@ export function LoginPage() {
         </Box>
       ) : (
         <Box component="form" onSubmit={onSubmitTwoFactor}>
-          <Stack spacing={2.5}>
+          <Stack spacing={3}>
             <Typography variant="body2" color="text.secondary">
               Enter the code from your authenticator app.
             </Typography>
