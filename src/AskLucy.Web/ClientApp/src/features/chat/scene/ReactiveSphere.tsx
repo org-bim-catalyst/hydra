@@ -38,8 +38,18 @@ const POINT_COUNT_BY_TIER = { full: 8000, reduced: 500 } as const
 // of reading as individual dots — the actual product goal (matching the user-supplied
 // reference image/implementation, which uses small, distinctly separated flat dots, no
 // glow wash). Point size is now small enough that neighboring dots don't touch at typical
-// display size. 'reduced' keeps 010's original size (normal blending, no overlap risk).
-const BASE_POINT_SIZE_BY_TIER = { full: 0.12, reduced: 6 } as const
+// display size.
+//
+// 'reduced' originally kept 010-lucy-brand-refresh's point size (6) verbatim, on the
+// assumption that its much lower point count (500) meant overlap wasn't a risk. That
+// assumption broke when this feature's shared sphere.frag.glsl softened the per-point
+// alpha falloff (smoothstep(0.5, 0.3, dist) → smoothstep(0.5, 0.0, dist)) for the 'full'
+// tier's crisp-dot look — the same falloff applies to 'reduced' too, and combined with a
+// point size that large (nearly 4x the whole sphere's radius), it fully saturated into a
+// single solid blob with no visible dots at all (confirmed live on production — see
+// hydra.bimcatalyst.com incident 2026-08-02). Re-tuned in isolation the same way 'full'
+// was: verified via screenshot that individual dots stay visually distinct at this size.
+const BASE_POINT_SIZE_BY_TIER = { full: 0.12, reduced: 0.3 } as const
 // With points no longer overlapping heavily, intensity can go back up near 1 — each dot
 // should read as a fully visible, saturated color, not a faint speck. 'reduced' stays at
 // 1.0 (unchanged from 010 — normal blending never needed this lever).
