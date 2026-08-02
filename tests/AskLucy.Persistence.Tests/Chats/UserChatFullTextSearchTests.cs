@@ -27,13 +27,11 @@ public sealed class UserChatFullTextSearchTests(PersistenceTestFixture fixture)
             await dbContext.SaveChangesAsync();
         }
 
-        await WaitForFullTextPopulationAsync();
-
         await using var readContext = fixture.CreateDbContext();
         var repository = new UserChatRepository(readContext);
 
-        var (items, _) = await repository.SearchAsync(
-            userId, ConversationView.Active, null, null, "budget", ConversationSort.Newest, null, 50, CancellationToken.None);
+        var items = await SearchUntilAsync(
+            repository, userId, "budget", results => results.Any(c => c.Id == matching.Id));
 
         items.Should().ContainSingle(c => c.Id == matching.Id);
     }
@@ -53,19 +51,38 @@ public sealed class UserChatFullTextSearchTests(PersistenceTestFixture fixture)
             await dbContext.SaveChangesAsync();
         }
 
-        await WaitForFullTextPopulationAsync();
-
         await using var readContext = fixture.CreateDbContext();
         var repository = new UserChatRepository(readContext);
 
-        var (items, _) = await repository.SearchAsync(
-            userId, ConversationView.Active, null, null, "reimbursement", ConversationSort.Newest, null, 50, CancellationToken.None);
+        var items = await SearchUntilAsync(
+            repository, userId, "reimbursement", results => results.Any(c => c.Id == chat.Id));
 
         items.Should().ContainSingle(c => c.Id == chat.Id);
     }
 
     // SQL Server FTS index population is asynchronous (CHANGE_TRACKING AUTO, research.md
-    // Topic 5) — a short wait is the simplest way to assert "near-real-time" without coupling
-    // this test to sys.dm_fts_index_population internals.
-    private static Task WaitForFullTextPopulationAsync() => Task.Delay(TimeSpan.FromSeconds(3));
+    // Topic 5). Rather than a single fixed delay — which proved too short under CI load,
+    // where the shared test database's catalog can lag well past "near-real-time" — poll the
+    // actual search behavior under test until the expected row appears or the deadline passes,
+    // returning whatever the last attempt saw so a genuine mismatch still fails with a clear
+    // assertion.
+    private static async Task<IReadOnlyList<UserChat>> SearchUntilAsync(
+        UserChatRepository repository, string userId, string searchTerm, Func<IReadOnlyList<UserChat>, bool> isReady)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        IReadOnlyList<UserChat> items = [];
+        do
+        {
+            (items, _) = await repository.SearchAsync(
+                userId, ConversationView.Active, null, null, searchTerm, ConversationSort.Newest, null, 50, CancellationToken.None);
+            if (isReady(items))
+            {
+                return items;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500));
+        } while (DateTime.UtcNow < deadline);
+
+        return items;
+    }
 }
