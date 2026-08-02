@@ -27,6 +27,7 @@ public sealed class MessagePersistenceTests(PersistenceTestFixture fixture)
 
         await using (var dbContext = fixture.CreateDbContext())
         {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.Add(message);
             await dbContext.SaveChangesAsync();

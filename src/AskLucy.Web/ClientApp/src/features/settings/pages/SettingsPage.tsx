@@ -20,7 +20,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
@@ -330,13 +330,15 @@ export function AiProvidersTab() {
 
   // Seed the draft from the resolved preference once it loads — a real saved choice or the
   // platform fallback, either way a starting point the user can then change (User Story 3,
-  // Acceptance Scenario 1).
-  useEffect(() => {
-    if (preference && draftProviderId === null) {
-      setDraftProviderId(preference.defaultProviderId)
-      setDraftModelId(preference.defaultModelId)
-    }
-  }, [preference, draftProviderId])
+  // Acceptance Scenario 1). React's sanctioned "adjust state during render" pattern (not an
+  // effect, per react-hooks/set-state-in-effect): guarded by `hasSeededDraft` so this only
+  // ever fires once, the same render pass `preference` first arrives.
+  const [hasSeededDraft, setHasSeededDraft] = useState(false)
+  if (preference && !hasSeededDraft) {
+    setHasSeededDraft(true)
+    setDraftProviderId(preference.defaultProviderId)
+    setDraftModelId(preference.defaultModelId)
+  }
 
   const handleProviderChange = (providerId: string) => {
     setDraftProviderId(providerId)

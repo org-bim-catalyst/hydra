@@ -33,6 +33,7 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
 
         await using (var seedContext = fixture.CreateDbContext())
         {
+            seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             seedContext.UserChats.AddRange(chats);
             await seedContext.SaveChangesAsync();
         }
@@ -58,6 +59,7 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
 
         await using (var seedContext = fixture.CreateDbContext())
         {
+            seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             seedContext.UserChats.Add(chat);
             for (var batchStart = 0; batchStart < MessageCountInLargeConversation; batchStart += 1000)
             {

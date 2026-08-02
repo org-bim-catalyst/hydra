@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
+import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { PagedResult, UserAdmin } from '../api/adminApi'
 import { AdminUsersPage } from './AdminUsersPage'
@@ -62,7 +63,9 @@ function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <AdminUsersPage />
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }

@@ -18,19 +18,24 @@ interface ProviderModelSelectorProps {
 export function ProviderModelSelector({ providerId, modelId, onSelect }: ProviderModelSelectorProps) {
   const { data: providers } = useAiProviders()
   const [draftProviderId, setDraftProviderId] = useState<string | null>(null)
-  const effectiveProviderId = draftProviderId ?? providerId
+  // Falls back to the first provider (once loaded) whenever neither an explicit draft nor
+  // the `providerId` prop is set, computed during render rather than via an effect + setState
+  // (react-hooks/set-state-in-effect) — this is purely derived from other reactive values.
+  const effectiveProviderId = draftProviderId ?? providerId ?? providers?.[0]?.id ?? null
   const { data: models } = useAiModels(effectiveProviderId)
 
-  useEffect(() => {
-    if (!providerId && !draftProviderId && providers && providers.length > 0) {
-      setDraftProviderId(providers[0].id)
-    }
-  }, [providerId, draftProviderId, providers])
+  // React's sanctioned "adjust state during render" pattern (not an effect): whenever the
+  // `providerId` prop changes — which happens once the parent adopts a selection this
+  // component committed via `onSelect` below — the local draft override is no longer needed.
+  const [syncedProviderId, setSyncedProviderId] = useState(providerId)
+  if (providerId !== syncedProviderId) {
+    setSyncedProviderId(providerId)
+    setDraftProviderId(null)
+  }
 
   useEffect(() => {
     if (effectiveProviderId && models && models.length > 0 && (effectiveProviderId !== providerId || !modelId)) {
       onSelect(effectiveProviderId, models[0].id)
-      setDraftProviderId(null)
     }
   }, [effectiveProviderId, providerId, modelId, models, onSelect])
 

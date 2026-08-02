@@ -25,6 +25,7 @@ public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture
 
         await using (var dbContext = fixture.CreateDbContext())
         {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             await dbContext.SaveChangesAsync();
         }
@@ -57,6 +58,7 @@ public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture
 
         await using (var dbContext = fixture.CreateDbContext())
         {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.Add(message);
             await dbContext.SaveChangesAsync();

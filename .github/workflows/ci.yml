@@ -10,6 +10,14 @@ jobs:
   backend-build-and-test:
     name: Backend build, lint, and test (.NET 10)
     runs-on: windows-latest
+    # AskLucy.Persistence.Tests runs against a real, shared test SQL Server instance rather
+    # than a per-run Testcontainers instance (windows-latest's Docker daemon can't run that
+    # Linux image — see PersistenceTestFixture.cs). Serialize this job so two concurrent runs
+    # never reset/query the shared database at the same time; cancel-in-progress is false so
+    # a newer push waits its turn instead of aborting a run that might already be mid-test.
+    concurrency:
+      group: backend-tests-shared-db
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: src/AskLucy.Web/ClientApp
@@ -44,6 +52,8 @@ jobs:
       - name: Test
         working-directory: .
         run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults
+        env:
+          PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}
 
       - name: Upload test results
         if: always()

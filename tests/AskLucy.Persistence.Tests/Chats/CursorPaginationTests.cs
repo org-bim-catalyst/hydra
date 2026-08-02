@@ -22,6 +22,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
 
         await using (var dbContext = fixture.CreateDbContext())
         {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.AddRange(chats);
             await dbContext.SaveChangesAsync();
         }
@@ -51,6 +52,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
 
         await using (var dbContext = fixture.CreateDbContext())
         {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.AddRange(chats);
             await dbContext.SaveChangesAsync();
         }
@@ -88,6 +90,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
 
         await using (var dbContext = fixture.CreateDbContext())
         {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.AddRange(messages);
             await dbContext.SaveChangesAsync();
