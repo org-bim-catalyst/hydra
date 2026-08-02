@@ -1,46 +1,100 @@
+using System;
 using System.Threading.Tasks;
 using AskLucy.Persistence;
+using AskLucy.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
-using Testcontainers.MsSql;
 
 namespace AskLucy.Persistence.Tests;
 
 /// <summary>
-/// Spins up a real SQL Server instance via Testcontainers (constitution &#167;10: integration
-/// tests run against a real/test SQL Server instance, not a fake provider) and applies every
-/// migration once, so tests exercise the actual global query filters/indexes/constraints EF
-/// Core generates — not an in-memory approximation of them.
+/// Connects to a real, dedicated test SQL Server instance (constitution &#167;10: integration
+/// tests run against a real/test SQL Server instance, not a fake provider) and resets it to a
+/// clean schema on every run, so tests exercise the actual global query filters/indexes/
+/// constraints EF Core generates — not an in-memory approximation of them.
+///
+/// Previously used Testcontainers to spin up a throwaway Linux SQL Server container per run;
+/// removed because the backend CI job runs on <c>windows-latest</c>, whose Docker daemon
+/// cannot run that (Linux-only) image — every run failed with
+/// <c>DockerImageNotFoundException</c>, on CI and on Windows dev machines alike. This instance
+/// is a persistent, shared test database instead, so <see cref="InitializeAsync"/> deletes
+/// every row from every table (schema untouched) to guarantee the same fresh-data guarantee
+/// Testcontainers gave, rather than migrating/creating the database itself: this account is a
+/// shared-hosting (site4now.net) database user scoped to this one already-provisioned
+/// database, with no rights to touch <c>master</c> at all. Both
+/// <see cref="RelationalDatabaseFacadeExtensions.EnsureDeletedAsync"/> and, surprisingly,
+/// <see cref="RelationalDatabaseFacadeExtensions.MigrateAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade)"/>
+/// itself were tried first — both fail here with "CREATE DATABASE permission denied in
+/// database 'master'", because EF Core's migration pipeline always runs a database-exists
+/// check against <c>master</c> before applying migrations, regardless of whether the database
+/// already has every migration applied. Schema changes for this database are therefore applied
+/// separately via the `dotnet ef database update` CLI (which hits the same check, but is run
+/// deliberately by a maintainer, not implicitly on every test run) — see docs/TESTING.md §13.
+/// Because the database is shared rather than per-run, CI serializes the job that uses it (see
+/// the `concurrency` group on `backend-build-and-test` in ci.yml) so two runs never reset/query
+/// it at the same time.
 /// </summary>
 public sealed class PersistenceTestFixture : IAsyncLifetime
 {
-    private readonly MsSqlBuilder _builder = new("mcr.microsoft.com/mssql/server:2022-latest");
-    private MsSqlContainer? _container;
+    private const string ConnectionStringEnvVar = "PERSISTENCE_TESTS_CONNECTION_STRING";
+
+    private static string ResolveConnectionString()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvVar);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                $"Persistence tests need a real test SQL Server instance. Set the " +
+                $"{ConnectionStringEnvVar} environment variable to its connection string " +
+                $"(dotnet user-secrets or a local .env for development; a GitHub Actions " +
+                $"secret in CI) — see docs/TESTING.md §13.");
+        }
+
+        return connectionString;
+    }
 
     public async ValueTask InitializeAsync()
     {
-        _container = _builder.Build();
-        await _container.StartAsync();
-
         await using var dbContext = CreateDbContext();
-        await dbContext.Database.MigrateAsync();
+
+        // Clears every table's data (schema untouched) so each run starts from the same
+        // empty-tables state a fresh Testcontainers instance gave, without ever touching the
+        // database itself. sp_MSforeachtable is SQL Server's standard (if undocumented)
+        // mechanism for this, and runs under the caller's own permissions on the current
+        // database only — no master access, no elevated rights needed.
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "EXEC sp_MSforeachtable 'ALTER TABLE ? NOCHECK CONSTRAINT ALL'");
+        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_MSforeachtable 'DELETE FROM ?'");
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL'");
     }
 
     public AskLucyDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AskLucyDbContext>()
-            .UseSqlServer(_container!.GetConnectionString())
+            .UseSqlServer(ResolveConnectionString())
             .Options;
 
         return new AskLucyDbContext(options);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Builds the <see cref="ApplicationUser"/> row a test's fabricated owner/user id must have
+    /// before it can be used as a foreign key: <c>UserChats.UserId</c>/<c>Messages</c> enforce a
+    /// real FK to <c>AspNetUsers</c> (<see cref="AskLucy.Persistence.Configurations.UserChatConfiguration"/>),
+    /// which the in-memory provider never checked but this real SQL Server instance does.
+    /// </summary>
+    public static ApplicationUser CreateTestUser(string userId) => new()
     {
-        if (_container is not null)
-        {
-            await _container.DisposeAsync();
-        }
-    }
+        Id = userId,
+        UserName = userId,
+        NormalizedUserName = userId.ToUpperInvariant(),
+        Email = $"{userId}@persistence.tests.local",
+        NormalizedEmail = $"{userId}@persistence.tests.local".ToUpperInvariant(),
+        EmailConfirmed = true,
+        CreatedAtUtc = DateTime.UtcNow,
+    };
 }
 
 // CA1711 flags the "Collection" suffix, but this is xUnit's own required naming pattern

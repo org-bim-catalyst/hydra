@@ -94,7 +94,8 @@ The project includes:
 * FluentAssertions
 * Moq (or NSubstitute)
 * ASP.NET Core Test Host
-* Testcontainers (preferred for integration tests)
+* A real, dedicated test SQL Server instance for persistence integration tests (reset to a
+  clean schema on every run — see §13; not Testcontainers, which the CI runner's OS can't run)
 
 ## Frontend
 
@@ -219,7 +220,12 @@ Verify:
 * Migrations
 * Repository behavior
 
-Use SQL Server through Testcontainers where practical.
+Run against a real, dedicated test SQL Server instance (connection string via the
+`PERSISTENCE_TESTS_CONNECTION_STRING` environment variable — `dotnet user-secrets` locally,
+a GitHub Actions secret in CI). `PersistenceTestFixture` drops and recreates the schema at the
+start of every run, so tests still get the same clean-slate guarantee a throwaway container
+would have given. Not Testcontainers: the CI runner is `windows-latest`, which cannot run the
+Linux-only `mcr.microsoft.com/mssql/server` image.
 
 Avoid the EF Core InMemory provider for relational behavior.
 
