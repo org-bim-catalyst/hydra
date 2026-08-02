@@ -1,8 +1,11 @@
 import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Box } from '@mui/material'
-import { Component, type ReactNode, useState } from 'react'
+import { Component, type ReactNode, useRef, useState } from 'react'
+import type { Group } from 'three'
+import { ParticleSphereBloom } from './ParticleSphereBloom'
 import { ReactiveSphere } from './ReactiveSphere'
+import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
 interface SceneBackgroundProps {
@@ -60,10 +63,25 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
   // `isReady` flag just cross-fades the canvas in on top of it once R3F's `onCreated`
   // signals the WebGL context actually exists, instead of popping in abruptly.
   const [isReady, setIsReady] = useState(false)
+  // FR-004/research.md §3: shared with ParticleSphereBloom's `selection` so the scoped bloom
+  // pass targets exactly this object, not the rest of the scene.
+  const sphereGroupRef = useRef<Group>(null)
 
   if (tier === 'static-fallback') {
     return <StaticFallback />
   }
+
+  // FR-004/FR-010: bloom is part of the "full" tier's richer technique only — the "reduced"
+  // tier's simpler technique (sphereRenderTechnique.ts) never mounts the bloom pass.
+  const { bloomEnabled } = getSphereRenderTechnique(tier)
+  // Temporarily disabled at the call site (live user review): SelectiveBloom's
+  // `luminanceSmoothing` filter made the sphere visibly "ramp up" from crisp individual
+  // dots into a blurred glow over the first couple of seconds after mount — a real bug in
+  // the effect's adaptive convergence, not just an intensity/threshold tuning problem — and
+  // the reference image/implementation this feature is meant to match has no glow at all.
+  // The plumbing (ParticleSphereBloom, bloomEnabled) stays in place and unit-tested for
+  // later opt-in polish; it's just not wired into the live scene right now.
+  const BLOOM_TEMPORARILY_DISABLED = true
 
   return (
     <SceneErrorBoundary fallback={<StaticFallback />}>
@@ -82,7 +100,7 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
       >
         <Canvas
           dpr={[1, 2]}
-          camera={{ position: [0, 0, 4], fov: 45 }}
+          camera={{ position: [0, 0, 8], fov: 45 }}
           onCreated={() => setIsReady(true)}
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
@@ -93,15 +111,19 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
             getReactiveIntensity={getReactiveIntensity}
             qualityTier={tier}
             reducedMotion={prefersReducedMotion}
+            groupRef={sphereGroupRef}
           />
+          {bloomEnabled && !BLOOM_TEMPORARILY_DISABLED && (
+            <ParticleSphereBloom sphereRef={sphereGroupRef} />
+          )}
           <OrbitControls
             enablePan
             enableZoom
             enableRotate
             enableDamping
             dampingFactor={0.08}
-            minDistance={2.5}
-            maxDistance={8}
+            minDistance={5}
+            maxDistance={16}
           />
         </Canvas>
       </Box>

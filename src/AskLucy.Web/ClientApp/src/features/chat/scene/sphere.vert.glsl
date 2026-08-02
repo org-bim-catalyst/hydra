@@ -10,6 +10,11 @@
 uniform float uTime;
 uniform float uAmplitude;
 uniform float uFrequency;
+// spec 011-particle-sphere-engine FR-006, research.md §4 — a slow idle "breathing" pulse,
+// computed once per frame on the CPU (sphereBreath.ts) and added here alongside the noise/
+// reactive displacement so breathing, idle wobble, and voice-reactive deformation all layer
+// additively rather than needing separate branching logic.
+uniform float uBreath;
 uniform float uBasePointSize;
 
 varying float vDisplacement;
@@ -83,7 +88,7 @@ float snoise(vec3 v) {
 
 void main() {
   vec3 direction = normalize(position);
-  float displacement = snoise(position * uFrequency + vec3(0.0, 0.0, uTime * 0.15)) * uAmplitude;
+  float displacement = snoise(position * uFrequency + vec3(0.0, 0.0, uTime * 0.15)) * uAmplitude + uBreath;
   vec3 displaced = position + direction * displacement;
   vDisplacement = displacement;
 
