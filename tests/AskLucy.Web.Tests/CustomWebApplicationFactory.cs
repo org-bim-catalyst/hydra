@@ -19,8 +19,15 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         {
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                // CI has no LocalDB instance provisioned, so it points this at the same
+                // real, persistent test SQL Server instance AskLucy.Persistence.Tests uses
+                // (see PersistenceTestFixture) via the same environment variable, serialized
+                // against it by the same `backend-tests-shared-db` concurrency group in
+                // ci.yml. Falls back to LocalDB for local development machines that already
+                // have it provisioned and don't set the variable.
                 ["ConnectionStrings:DefaultConnection"] =
-                    "Server=(localdb)\\mssqllocaldb;Database=AskLucyTests;Trusted_Connection=True;",
+                    Environment.GetEnvironmentVariable("PERSISTENCE_TESTS_CONNECTION_STRING")
+                    ?? "Server=(localdb)\\mssqllocaldb;Database=AskLucyTests;Trusted_Connection=True;",
                 ["Jwt:Issuer"] = "https://tests.asklucy.io",
                 ["Jwt:Audience"] = "https://tests.asklucy.io",
                 ["Jwt:SigningKey"] = "test-signing-key-not-for-production-use-minimum-32-chars",
