@@ -12,8 +12,8 @@ const DECAY_PER_SECOND = 3.2 // envelope drops from 1 to 0 in ~0.3s of silence b
  * approximate a real audio envelope from the utterance's own timing events, since
  * `window.speechSynthesis` doesn't expose its audio as an analyzable stream
  * (research.md §3, ADR-0005). `getIntensity` is a ref-based getter rather than React
- * state — matching `VoiceWaveform`'s `getLevels` pattern — because it updates every
- * animation frame while speaking, far past a sane React re-render rate. */
+ * state because it updates every animation frame while speaking, far past a sane React
+ * re-render rate. */
 export function useTextToSpeech() {
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
 

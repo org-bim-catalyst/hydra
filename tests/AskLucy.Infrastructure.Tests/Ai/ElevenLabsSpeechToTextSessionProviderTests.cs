@@ -42,6 +42,25 @@ public sealed class ElevenLabsSpeechToTextSessionProviderTests
         handler.LastRequest!.Headers.GetValues("xi-api-key").Should().ContainSingle().Which.Should().Be("raw-api-key");
     }
 
+    /// <summary>Production incident, SPEC-013: the original path (`speech-to-text/realtime/token`)
+    /// was never actually called until SPEC-013 wired a live mic control, and 404'd against
+    /// every real request. Locks in the verified path
+    /// (https://elevenlabs.io/docs/api-reference/tokens/create) so it can't silently regress.</summary>
+    [Fact]
+    public async Task CreateSessionAsync_ShouldPostToTheVerifiedSingleUseTokenEndpoint()
+    {
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"token":"short-lived-token"}""", Encoding.UTF8, "application/json"),
+        }, out var handler);
+
+        await provider.CreateSessionAsync("en", CancellationToken.None);
+
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Post);
+        handler.LastRequest.RequestUri.Should().Be(
+            new Uri("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe"));
+    }
+
     [Fact]
     public async Task CreateSessionAsync_ShouldThrowAiProviderAuthenticationException_When401()
     {

@@ -6,54 +6,50 @@ import TouchAppIcon from '@mui/icons-material/TouchApp'
 import VolumeOffIcon from '@mui/icons-material/VolumeOff'
 import VolumeUpIcon from '@mui/icons-material/VolumeUp'
 import { Alert, Box, IconButton, Stack, Tooltip } from '@mui/material'
-import type { VoiceStateName } from '../voice/useVoiceState'
+import type { MicrophonePermissionState } from '../voice/useSpeechRecognition'
 
 export interface VoiceControlBarProps {
   isAvailable: boolean
-  voiceState: VoiceStateName
-  errorMessage: string | null
-  conversationMode: 'PushToTalk' | 'Continuous'
+  isListening: boolean
+  isSpeaking: boolean
   isMuted: boolean
+  conversationMode: 'PushToTalk' | 'Continuous'
+  errorMessage: string | null
+  permissionState: MicrophonePermissionState
   onStart: () => void
-  onCancelListening: () => void
   onStop: () => void
+  onCancel: () => void
+  onStopSpeaking: () => void
   onToggleMode: () => void
   onToggleMute: () => void
   onClearError: () => void
 }
 
-const STATE_LABEL: Partial<Record<VoiceStateName, string>> = {
-  Listening: 'Listening for your voice…',
-  UserSpeaking: "You're speaking…",
-  Processing: 'Processing what you said…',
-  AiThinking: 'Lucy is thinking…',
-  AiSpeaking: 'Lucy is speaking…',
-  Interrupted: 'Go ahead, listening…',
-}
-
-const SPEAKING_STATES: ReadonlySet<VoiceStateName> = new Set([
-  'Processing',
-  'AiThinking',
-  'AiSpeaking',
-  'Interrupted',
-])
-
 /**
- * The consolidated voice control surface (US4, tasks.md T069/T070) — replaces the ad hoc
- * mic/mode-toggle controls added directly to `ChatComposer.tsx` during US1/US2 with a single,
- * dedicated, fully keyboard-operable component (FR-024) driven entirely by `useVoiceState`
- * (FR-020). Mic/mode/mute/stop are the same four control surfaces spec.md's Voice Controls
- * section describes.
+ * SPEC-013's restored voice control surface — mic status/toggle, mute, and mode switch,
+ * driven directly by `useSpeechRecognition`'s `isListening`/`permissionState` and
+ * `useVoiceOutput`'s `isSpeaking`/`isMuted` (contracts/voice-control-integration.md),
+ * rather than the `useVoiceState` conversation-turn machine the original spec
+ * 012-elevenlabs-voice-engine version of this component reflected. Markup, icons, and
+ * keyboard-operability pattern (FR-010/FR-024) are unchanged from that version — only the
+ * props feeding them.
+ *
+ * The mode toggle is disabled while a Push-to-Talk capture is actively in progress
+ * (`isListening && conversationMode === 'PushToTalk'`) per Clarification Q4 — switching
+ * mid-capture is blocked, not auto-finished or discarded (research.md Decision 6).
  */
 export function VoiceControlBar({
   isAvailable,
-  voiceState,
-  errorMessage,
-  conversationMode,
+  isListening,
+  isSpeaking,
   isMuted,
+  conversationMode,
+  errorMessage,
+  permissionState,
   onStart,
-  onCancelListening,
   onStop,
+  onCancel,
+  onStopSpeaking,
   onToggleMode,
   onToggleMute,
   onClearError,
@@ -62,17 +58,13 @@ export function VoiceControlBar({
     return null
   }
 
-  const isIdle = voiceState === 'Idle'
-  const isListeningPhase = voiceState === 'Listening' || voiceState === 'UserSpeaking'
-  const isSpeakingPhase = SPEAKING_STATES.has(voiceState)
+  const isModeSwitchBlocked = isListening && conversationMode === 'PushToTalk'
 
   const handleMicClick = () => {
-    if (isIdle) {
-      onStart()
-    } else if (isListeningPhase) {
-      onCancelListening()
-    } else {
+    if (isListening) {
       onStop()
+    } else {
+      onStart()
     }
   }
 
@@ -80,21 +72,29 @@ export function VoiceControlBar({
     <Stack
       direction="row"
       spacing={1}
-      sx={{ alignItems: 'center', px: 1.5, py: voiceState === 'Error' || !isIdle ? 1 : 0 }}
+      sx={{ alignItems: 'center', px: 1.5, py: errorMessage || isListening || isSpeaking ? 1 : 0 }}
     >
-      <Tooltip title={isIdle ? 'Start a spoken conversation' : 'Stop voice conversation'}>
+      <Tooltip title={isListening ? 'Stop listening' : 'Start voice input'}>
         <IconButton
           onClick={handleMicClick}
-          aria-label={isIdle ? 'Start voice conversation' : 'Stop voice conversation'}
-          color={voiceState === 'Error' ? 'error' : 'primary'}
+          aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+          color={errorMessage ? 'error' : 'primary'}
         >
-          {isIdle ? <GraphicEqIcon /> : <MicOffIcon />}
+          {isListening ? <MicOffIcon /> : <GraphicEqIcon />}
         </IconButton>
       </Tooltip>
 
-      {isSpeakingPhase && (
+      {isListening && (
+        <Tooltip title="Cancel — discard without sending">
+          <IconButton onClick={onCancel} aria-label="Cancel voice input" color="default">
+            <MicOffIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+
+      {isSpeaking && (
         <Tooltip title="Stop the reply">
-          <IconButton onClick={onStop} aria-label="Stop AI reply" color="error">
+          <IconButton onClick={onStopSpeaking} aria-label="Stop AI reply" color="error">
             <StopIcon />
           </IconButton>
         </Tooltip>
@@ -108,35 +108,48 @@ export function VoiceControlBar({
 
       <Tooltip
         title={
-          conversationMode === 'Continuous'
-            ? 'Continuous Conversation Mode — click for Push-to-Talk'
-            : 'Push-to-Talk Mode — click for Continuous Conversation'
+          isModeSwitchBlocked
+            ? 'Release the microphone to switch modes'
+            : conversationMode === 'Continuous'
+              ? 'Continuous Conversation Mode — click for Push-to-Talk'
+              : 'Push-to-Talk Mode — click for Continuous Conversation'
         }
       >
-        <IconButton
-          onClick={onToggleMode}
-          aria-label={
-            conversationMode === 'Continuous'
-              ? 'Switch to Push-to-Talk mode'
-              : 'Switch to Continuous Conversation mode'
-          }
-          size="small"
-        >
-          {conversationMode === 'Continuous' ? (
-            <AllInclusiveIcon fontSize="small" />
-          ) : (
-            <TouchAppIcon fontSize="small" />
-          )}
-        </IconButton>
+        {/* span wrapper so the tooltip still shows while the button is disabled */}
+        <span>
+          <IconButton
+            onClick={onToggleMode}
+            disabled={isModeSwitchBlocked}
+            aria-label={
+              conversationMode === 'Continuous'
+                ? 'Switch to Push-to-Talk mode'
+                : 'Switch to Continuous Conversation mode'
+            }
+            size="small"
+          >
+            {conversationMode === 'Continuous' ? (
+              <AllInclusiveIcon fontSize="small" />
+            ) : (
+              <TouchAppIcon fontSize="small" />
+            )}
+          </IconButton>
+        </span>
       </Tooltip>
 
-      {!isIdle && voiceState !== 'Error' && (
-        <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-          {STATE_LABEL[voiceState] ?? voiceState}
-        </Box>
+      {isListening && (
+        <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Listening…</Box>
+      )}
+      {!isListening && isSpeaking && (
+        <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Lucy is speaking…</Box>
       )}
 
-      {voiceState === 'Error' && errorMessage && (
+      {permissionState === 'denied' && (
+        <Alert severity="warning" variant="outlined" sx={{ py: 0 }}>
+          Microphone access denied.
+        </Alert>
+      )}
+
+      {errorMessage && (
         <Alert severity="error" variant="outlined" onClose={onClearError} sx={{ py: 0 }}>
           {errorMessage}
         </Alert>
