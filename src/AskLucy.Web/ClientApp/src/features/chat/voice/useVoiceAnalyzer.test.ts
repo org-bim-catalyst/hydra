@@ -25,8 +25,14 @@ class FakeAudioContext {
 }
 
 class FakeSourceBuffer extends EventTarget {
+  static instances: FakeSourceBuffer[] = []
   updating = false
   appendBuffer = vi.fn()
+
+  constructor() {
+    super()
+    FakeSourceBuffer.instances.push(this)
+  }
 }
 
 class FakeMediaSource extends EventTarget {
@@ -59,6 +65,7 @@ class FakeAudioElement extends EventTarget {
 function installVoiceAnalyzerEnvironment() {
   FakeMediaSource.instances = []
   FakeAudioElement.instances = []
+  FakeSourceBuffer.instances = []
   vi.stubGlobal('AudioContext', FakeAudioContext)
   vi.stubGlobal('MediaSource', FakeMediaSource)
   vi.stubGlobal('Audio', FakeAudioElement)
@@ -144,13 +151,49 @@ describe('useVoiceAnalyzer', () => {
 
     const { result } = renderHook(() => useVoiceAnalyzer(onPlaybackError))
 
-    await act(async () => {
+    act(() => {
       result.current.playAudioChunk('YWJj')
+    })
+
+    // play() is only attempted once the SourceBuffer's first append actually completes
+    // (not immediately in ensureGraph — see the doc comment on startPlaybackOnce for why),
+    // so drive 'sourceopen' then 'updateend' the same way a real browser would.
+    act(() => {
+      FakeMediaSource.instances[0].dispatchEvent(new Event('sourceopen'))
+    })
+
+    await act(async () => {
+      FakeSourceBuffer.instances[0].dispatchEvent(new Event('updateend'))
       await Promise.resolve()
       await Promise.resolve()
     })
 
     expect(onPlaybackError).toHaveBeenCalledWith(expect.stringContaining('Playback failed to start'))
+  })
+
+  it('drains chunks queued before sourceopen fired, instead of deadlocking (draining otherwise only happens inside updateend, which never fires without a first appendBuffer call)', () => {
+    installVoiceAnalyzerEnvironment()
+    const { result } = renderHook(() => useVoiceAnalyzer())
+
+    // Both chunks arrive before 'sourceopen' has fired — sourceBufferRef.current is still
+    // null, so playAudioChunk queues both rather than appending either directly.
+    act(() => {
+      result.current.playAudioChunk('YWJj')
+      result.current.playAudioChunk('ZGVm')
+    })
+
+    act(() => {
+      FakeMediaSource.instances[0].dispatchEvent(new Event('sourceopen'))
+    })
+
+    const sourceBuffer = FakeSourceBuffer.instances[0]
+    expect(sourceBuffer.appendBuffer).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      sourceBuffer.dispatchEvent(new Event('updateend'))
+    })
+
+    expect(sourceBuffer.appendBuffer).toHaveBeenCalledTimes(2)
   })
 
   it('reports a playback error via onPlaybackError when the audio element fires a native error event', () => {
