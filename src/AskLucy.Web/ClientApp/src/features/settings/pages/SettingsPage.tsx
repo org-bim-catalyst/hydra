@@ -9,18 +9,21 @@ import {
   DialogContentText,
   DialogTitle,
   Divider,
+  FormControlLabel,
   List,
   ListItem,
   ListItemText,
   MenuItem,
   Paper,
+  Slider,
   Stack,
+  Switch,
   Tab,
   Tabs,
   TextField,
   Typography,
 } from '@mui/material'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
@@ -40,8 +43,17 @@ import { useDeleteAccount, useMyProfile } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
 import { useAiPreferences, useSaveAiPreferences } from '../hooks/useAiPreferences'
+import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 
-function TabPanel({ value, index, children }: { value: number; index: number; children: ReactNode }) {
+function TabPanel({
+  value,
+  index,
+  children,
+}: {
+  value: number
+  index: number
+  children: ReactNode
+}) {
   if (value !== index) return null
   return <Box sx={{ pt: 3 }}>{children}</Box>
 }
@@ -67,7 +79,11 @@ function SecurityTab() {
         </Typography>
         <Box component="form" onSubmit={onChangePassword} sx={{ maxWidth: 400 }}>
           <Stack spacing={2}>
-            {changePassword.isError && <Alert severity="error">Could not change password. Check your current password.</Alert>}
+            {changePassword.isError && (
+              <Alert severity="error">
+                Could not change password. Check your current password.
+              </Alert>
+            )}
             {changePassword.isSuccess && <Alert severity="success">Password changed.</Alert>}
             <TextField
               label="Current password"
@@ -82,7 +98,12 @@ function SecurityTab() {
               helperText="At least 8 characters"
               {...passwordForm.register('newPassword', { required: true, minLength: 8 })}
             />
-            <Button type="submit" variant="contained" disabled={changePassword.isPending} sx={{ alignSelf: 'flex-start' }}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={changePassword.isPending}
+              sx={{ alignSelf: 'flex-start' }}
+            >
               Update password
             </Button>
           </Stack>
@@ -125,11 +146,20 @@ function SecurityTab() {
 
         <Stack direction="row" spacing={1.5}>
           {profile?.twoFactorEnabled ? (
-            <Button variant="outlined" color="error" onClick={() => disableTwoFactor.mutate()} disabled={disableTwoFactor.isPending}>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => disableTwoFactor.mutate()}
+              disabled={disableTwoFactor.isPending}
+            >
               Disable 2FA
             </Button>
           ) : (
-            <Button variant="outlined" onClick={() => enableTwoFactor.mutate()} disabled={enableTwoFactor.isPending}>
+            <Button
+              variant="outlined"
+              onClick={() => enableTwoFactor.mutate()}
+              disabled={enableTwoFactor.isPending}
+            >
               Enable 2FA
             </Button>
           )}
@@ -164,7 +194,9 @@ function AccountTab() {
   // first mint a short-lived link ticket over an authenticated request, then navigate with it.
   const startLink = async (provider: (typeof LINKABLE_PROVIDERS)[number]) => {
     const ticket = await issueLinkTicket.mutateAsync()
-    window.location.assign(`${API_BASE_URL}/auth/external/${provider}/link?ticket=${encodeURIComponent(ticket)}`)
+    window.location.assign(
+      `${API_BASE_URL}/auth/external/${provider}/link?ticket=${encodeURIComponent(ticket)}`,
+    )
   }
 
   return (
@@ -178,12 +210,24 @@ function AccountTab() {
         </Typography>
         <Box component="form" onSubmit={onRequestEmailChange} sx={{ maxWidth: 400 }}>
           <Stack spacing={2}>
-            {requestEmailChange.isError && <Alert severity="error">Could not request email change.</Alert>}
+            {requestEmailChange.isError && (
+              <Alert severity="error">Could not request email change.</Alert>
+            )}
             {requestEmailChange.isSuccess && (
               <Alert severity="success">Check your new inbox for a confirmation link.</Alert>
             )}
-            <TextField label="New email" type="email" fullWidth {...emailForm.register('newEmail', { required: true })} />
-            <Button type="submit" variant="contained" disabled={requestEmailChange.isPending} sx={{ alignSelf: 'flex-start' }}>
+            <TextField
+              label="New email"
+              type="email"
+              fullWidth
+              {...emailForm.register('newEmail', { required: true })}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={requestEmailChange.isPending}
+              sx={{ alignSelf: 'flex-start' }}
+            >
               Request email change
             </Button>
           </Stack>
@@ -214,7 +258,12 @@ function AccountTab() {
                   <Button
                     size="small"
                     color="error"
-                    onClick={() => removeExternalLogin.mutate({ provider: login.provider, providerKey: login.providerKey })}
+                    onClick={() =>
+                      removeExternalLogin.mutate({
+                        provider: login.provider,
+                        providerKey: login.providerKey,
+                      })
+                    }
                     disabled={removeExternalLogin.isPending}
                   >
                     Remove
@@ -228,7 +277,8 @@ function AccountTab() {
         )}
         <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
           {LINKABLE_PROVIDERS.filter(
-            (provider) => !externalLogins?.some((login) => login.provider.toLowerCase() === provider),
+            (provider) =>
+              !externalLogins?.some((login) => login.provider.toLowerCase() === provider),
           ).map((provider) => (
             <Button
               key={provider}
@@ -290,9 +340,14 @@ function DataTab() {
         <DialogTitle>Delete your account?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            This permanently deletes your account, conversations, and files. Enter your password to confirm.
+            This permanently deletes your account, conversations, and files. Enter your password to
+            confirm.
           </DialogContentText>
-          {deleteAccount.isError && <Alert severity="error" sx={{ mb: 2 }}>Incorrect password.</Alert>}
+          {deleteAccount.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              Incorrect password.
+            </Alert>
+          )}
           <TextField
             label="Password"
             type="password"
@@ -304,7 +359,11 @@ function DataTab() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button color="error" onClick={handleDelete} disabled={!password || deleteAccount.isPending}>
+          <Button
+            color="error"
+            onClick={handleDelete}
+            disabled={!password || deleteAccount.isPending}
+          >
             Delete permanently
           </Button>
         </DialogActions>
@@ -357,8 +416,8 @@ export function AiProvidersTab() {
           Default AI provider &amp; model
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Applies to every new conversation you start — it never changes a conversation already
-          in progress.
+          Applies to every new conversation you start — it never changes a conversation already in
+          progress.
         </Typography>
         {preference?.isPlatformDefault && (
           <Alert severity="info" sx={{ mb: 2, maxWidth: 480 }}>
@@ -423,6 +482,159 @@ export function AiProvidersTab() {
   )
 }
 
+/**
+ * spec 012-elevenlabs-voice-engine, contracts/voice-preferences.md (FR-029/FR-030). Every
+ * field auto-persists on change via `voicePreferencesStore.update()` — same
+ * immediate-persist convention as a live conversation's `ProviderModelSelector`, not
+ * AiProvidersTab's explicit-Save-button pattern, since these are lightweight per-field
+ * toggles rather than a provider+model pair that only makes sense saved together.
+ */
+export function VoiceTab() {
+  const preferences = useVoicePreferencesStore()
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+
+  useEffect(() => {
+    void preferences.hydrateFromServer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    navigator.mediaDevices
+      ?.enumerateDevices()
+      .then(setDevices)
+      .catch(() => setDevices([]))
+  }, [])
+
+  const microphones = devices.filter((d) => d.kind === 'audioinput')
+  const speakers = devices.filter((d) => d.kind === 'audiooutput')
+
+  return (
+    <Stack spacing={4}>
+      {preferences.error && (
+        <Alert severity="error" sx={{ maxWidth: 480 }} onClose={preferences.clearError}>
+          {preferences.error}
+        </Alert>
+      )}
+
+      <Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Voice conversation
+        </Typography>
+        <Stack spacing={2} sx={{ maxWidth: 480 }}>
+          <TextField
+            select
+            label="Conversation mode"
+            value={preferences.conversationMode}
+            onChange={(e) =>
+              preferences.update({
+                conversationMode: e.target.value as 'PushToTalk' | 'Continuous',
+              })
+            }
+          >
+            <MenuItem value="PushToTalk">Push to talk</MenuItem>
+            <MenuItem value="Continuous">Continuous</MenuItem>
+          </TextField>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.isMuted}
+                onChange={(e) => preferences.update({ isMuted: e.target.checked })}
+              />
+            }
+            label="Mute voice output"
+          />
+        </Stack>
+      </Box>
+
+      <Divider />
+
+      <Box>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Advanced
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Overrides the platform default voice for your account. Leave blank to use the default.
+        </Typography>
+        <Stack spacing={3} sx={{ maxWidth: 480 }}>
+          <TextField
+            label="Voice ID"
+            value={preferences.selectedVoiceId ?? ''}
+            onChange={(e) => preferences.update({ selectedVoiceId: e.target.value || null })}
+          />
+          <Box>
+            <Typography variant="body2" gutterBottom>
+              Speed
+            </Typography>
+            <Slider
+              min={0.5}
+              max={2}
+              step={0.05}
+              value={preferences.voiceSpeed ?? 1}
+              onChange={(_, value) => preferences.update({ voiceSpeed: value as number })}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+          <Box>
+            <Typography variant="body2" gutterBottom>
+              Style
+            </Typography>
+            <Slider
+              min={0}
+              max={1}
+              step={0.05}
+              value={preferences.voiceStyle ?? 0}
+              onChange={(_, value) => preferences.update({ voiceStyle: value as number })}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        </Stack>
+      </Box>
+
+      <Divider />
+
+      <Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Devices
+        </Typography>
+        <Stack direction="row" spacing={2} sx={{ maxWidth: 480 }}>
+          <TextField
+            select
+            label="Microphone"
+            fullWidth
+            value={preferences.preferredMicrophoneDeviceId ?? ''}
+            onChange={(e) =>
+              preferences.update({ preferredMicrophoneDeviceId: e.target.value || null })
+            }
+          >
+            <MenuItem value="">System default</MenuItem>
+            {microphones.map((device) => (
+              <MenuItem key={device.deviceId} value={device.deviceId}>
+                {device.label || 'Microphone'}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Speaker"
+            fullWidth
+            value={preferences.preferredSpeakerDeviceId ?? ''}
+            onChange={(e) =>
+              preferences.update({ preferredSpeakerDeviceId: e.target.value || null })
+            }
+          >
+            <MenuItem value="">System default</MenuItem>
+            {speakers.map((device) => (
+              <MenuItem key={device.deviceId} value={device.deviceId}>
+                {device.label || 'Speaker'}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </Box>
+    </Stack>
+  )
+}
+
 export function SettingsPage() {
   const [tab, setTab] = useState(0)
 
@@ -430,10 +642,15 @@ export function SettingsPage() {
     <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
       <PageHeader backTo="/chat" backLabel="Back to chat" title="Settings" />
       <Paper elevation={1} sx={{ maxWidth: 720 }}>
-        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs
+          value={tab}
+          onChange={(_, value: number) => setTab(value)}
+          sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+        >
           <Tab label="Security" />
           <Tab label="Account" />
           <Tab label="AI Providers" />
+          <Tab label="Voice" />
           <Tab label="Data" />
           <Tab label="Cookies" />
         </Tabs>
@@ -448,9 +665,12 @@ export function SettingsPage() {
             <AiProvidersTab />
           </TabPanel>
           <TabPanel value={tab} index={3}>
-            <DataTab />
+            <VoiceTab />
           </TabPanel>
           <TabPanel value={tab} index={4}>
+            <DataTab />
+          </TabPanel>
+          <TabPanel value={tab} index={5}>
             <CookiePreferencesPanel />
           </TabPanel>
         </Box>

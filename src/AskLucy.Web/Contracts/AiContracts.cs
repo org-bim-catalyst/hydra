@@ -29,3 +29,24 @@ public sealed record SaveUserAiPreferenceRequest(Guid DefaultProviderId, Guid De
 public sealed record UpdateAiModelStatusRequest(AIModelStatus Status);
 
 public sealed record ApplyProviderModelSyncRequest(IReadOnlyList<ProviderModelInfo> Added, IReadOnlyList<RemovedModelDto> RemovedFromVendor);
+
+public sealed record CreateSpeechToTextSessionRequest(string Language);
+
+public sealed record SaveVoicePreferenceRequest(
+    string ConversationMode,
+    bool IsMuted,
+    string? SelectedVoiceId,
+    double? VoiceSpeed,
+    double? VoiceStyle,
+    string? PreferredMicrophoneDeviceId,
+    string? PreferredSpeakerDeviceId);
+
+public sealed record VoiceReplyRequest(
+    Guid ChatId,
+    IReadOnlyList<ChatMessageDto> Messages,
+    Guid ProviderId,
+    Guid ModelId,
+    GenerationParametersDto? GenerationParameters,
+    string Language);
+
+public sealed record SynthesizeSpeechRequest(string Text, string Language);

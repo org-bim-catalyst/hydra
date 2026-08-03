@@ -23,7 +23,7 @@ import { ProviderModelSelector } from '../components/ProviderModelSelector'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
-import { useTextToSpeech } from '../voice/useTextToSpeech'
+import { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
 
 const SceneBackground = lazy(() =>
@@ -44,7 +44,7 @@ export function ChatPage() {
   // Lifted above ConversationView so the same isSpeaking/intensity state drives both the
   // actual voice playback (triggered from ConversationView) and the sphere reacting to it
   // (SceneBackground, a sibling) — a separate hook instance per component wouldn't share state.
-  const tts = useTextToSpeech()
+  const tts = useVoiceOutput()
 
   const handleSelectChat = (id: string) => {
     setSelectedChatId(id)
@@ -95,7 +95,7 @@ interface ConversationViewProps {
   language: string
   onLanguageChange: (language: string) => void
   onChatCreated: (id: string) => void
-  tts: ReturnType<typeof useTextToSpeech>
+  tts: ReturnType<typeof useVoiceOutput>
 }
 
 export function ConversationView({
