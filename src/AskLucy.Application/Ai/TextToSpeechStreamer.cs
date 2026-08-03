@@ -22,7 +22,7 @@ internal static class TextToSpeechStreamer
         string userId,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(text) || !HasSpeakableContent(text))
         {
             yield break;
         }
@@ -109,4 +109,22 @@ internal static class TextToSpeechStreamer
     }
 
     private static string Truncate(string message) => message.Length > 500 ? message[..500] : message;
+
+    /// <summary>ElevenLabs strips emojis and speaker-tag-like markup before checking for
+    /// non-empty text, and 400s with "input_text_empty" on whatever's left — a chunk of pure
+    /// punctuation/emoji/markdown decoration passes our own <see cref="string.IsNullOrWhiteSpace"/>
+    /// check but has nothing ElevenLabs would consider speakable. Skip such chunks up front so a
+    /// stray emoji-only sentence doesn't fail (and fail over) the entire reply's audio.</summary>
+    private static bool HasSpeakableContent(string text)
+    {
+        foreach (var ch in text)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
