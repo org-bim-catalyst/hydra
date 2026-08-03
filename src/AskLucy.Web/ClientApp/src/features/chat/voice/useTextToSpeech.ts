@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { selectPersonaVoice } from './selectPersonaVoice'
 
 const DECAY_PER_SECOND = 3.2 // envelope drops from 1 to 0 in ~0.3s of silence between words
@@ -24,6 +24,24 @@ export function useTextToSpeech() {
   const rafRef = useRef<number | null>(null)
   const lastTickRef = useRef<number | null>(null)
   const isSpeakingRef = useRef(false)
+  // Chromium populates speechSynthesis.getVoices() asynchronously — the first call after
+  // page load routinely returns [] before the browser has finished enumerating, firing
+  // 'voiceschanged' once it's ready. Priming here (mount time, well before the user's first
+  // message triggers speak()) and caching whatever 'voiceschanged' delivers means speak()
+  // itself can stay synchronous instead of needing to wait mid-utterance.
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+
+    const synth = window.speechSynthesis
+    const updateVoices = () => {
+      voicesRef.current = synth.getVoices()
+    }
+    updateVoices()
+    synth.addEventListener('voiceschanged', updateVoices)
+    return () => synth.removeEventListener('voiceschanged', updateVoices)
+  }, [])
 
   const stopDecayLoop = useCallback(() => {
     if (rafRef.current !== null) {
@@ -63,7 +81,11 @@ export function useTextToSpeech() {
 
       // FR-001–005/contracts/voice-persona-mapping.md: a curated or heuristically-scored
       // persona-matching voice, never the browser's own arbitrary per-language default.
-      const { voice } = selectPersonaVoice(lang, window.speechSynthesis.getVoices())
+      // Prefer the primed/cached list (see the mount effect above); falling back to a
+      // direct call covers the rare case where speak() fires before that effect has run.
+      const voices =
+        voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices()
+      const { voice } = selectPersonaVoice(lang, voices)
       if (!voice) {
         // constitution §2.VIII / FR-005: no voice for this language at all is a visible
         // failure, never a silent speak() with an unset (browser-arbitrary) voice.

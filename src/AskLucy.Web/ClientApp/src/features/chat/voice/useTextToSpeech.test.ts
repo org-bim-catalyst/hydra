@@ -13,8 +13,20 @@ interface FakeUtteranceInstance {
 }
 
 const DEFAULT_VOICES = [
-  { name: 'Microsoft David Desktop', lang: 'en-US', localService: true, default: false, voiceURI: 'david' },
-  { name: 'Microsoft Zira Desktop', lang: 'en-US', localService: true, default: false, voiceURI: 'zira' },
+  {
+    name: 'Microsoft David Desktop',
+    lang: 'en-US',
+    localService: true,
+    default: false,
+    voiceURI: 'david',
+  },
+  {
+    name: 'Microsoft Zira Desktop',
+    lang: 'en-US',
+    localService: true,
+    default: false,
+    voiceURI: 'zira',
+  },
 ] as SpeechSynthesisVoice[]
 
 /** Defaults to a voice list containing the curated en/chromium voice (`selectPersonaVoice`,
@@ -22,6 +34,7 @@ const DEFAULT_VOICES = [
  * step unchanged; pass `voices: []` explicitly to exercise the no-voice-available error path. */
 function installSpeechSynthesis(voices: SpeechSynthesisVoice[] = DEFAULT_VOICES) {
   const instances: FakeUtteranceInstance[] = []
+  let currentVoices = voices
 
   class FakeUtterance implements FakeUtteranceInstance {
     text: string
@@ -39,13 +52,30 @@ function installSpeechSynthesis(voices: SpeechSynthesisVoice[] = DEFAULT_VOICES)
 
   const speak = vi.fn()
   const cancel = vi.fn()
+  const addEventListener = vi.fn()
+  const removeEventListener = vi.fn()
   vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance)
-  vi.stubGlobal('speechSynthesis', { speak, cancel, getVoices: () => voices })
+  vi.stubGlobal('speechSynthesis', {
+    speak,
+    cancel,
+    getVoices: () => currentVoices,
+    addEventListener,
+    removeEventListener,
+  })
   // detectBrowserEngine reads navigator.userAgentData/userAgent — force 'chromium' so the
   // curated lookup in DEFAULT_VOICES actually resolves deterministically in tests.
   vi.stubGlobal('navigator', { userAgent: 'Chrome/120.0.0.0', userAgentData: undefined })
 
-  return { instances, speak, cancel }
+  return {
+    instances,
+    speak,
+    cancel,
+    addEventListener,
+    removeEventListener,
+    setVoices: (next: SpeechSynthesisVoice[]) => {
+      currentVoices = next
+    },
+  }
 }
 
 describe('useTextToSpeech', () => {
@@ -73,9 +103,7 @@ describe('useTextToSpeech', () => {
 
     act(() => result.current.speak('hello', 'en'))
 
-    expect(instances[0].voice).toEqual(
-      expect.objectContaining({ name: 'Microsoft Zira Desktop' }),
-    )
+    expect(instances[0].voice).toEqual(expect.objectContaining({ name: 'Microsoft Zira Desktop' }))
     expect(speakSpy).toHaveBeenCalledTimes(1)
   })
 
@@ -88,6 +116,24 @@ describe('useTextToSpeech', () => {
     expect(instances).toHaveLength(0)
     expect(speakSpy).not.toHaveBeenCalled()
     expect(result.current.error).toBe('Voice output failed. Please try again.')
+  })
+
+  it('recovers once voiceschanged delivers a populated list, even though getVoices() was empty at mount (Chromium async-enumeration race)', () => {
+    const { instances, speak: speakSpy, addEventListener, setVoices } = installSpeechSynthesis([])
+    const { result } = renderHook(() => useTextToSpeech())
+
+    // Simulate the browser finishing its async voice enumeration after mount.
+    setVoices(DEFAULT_VOICES)
+    const voiceschangedHandler = addEventListener.mock.calls.find(
+      ([event]) => event === 'voiceschanged',
+    )?.[1]
+    act(() => voiceschangedHandler?.())
+
+    act(() => result.current.speak('hello', 'en'))
+
+    expect(instances[0].voice).toEqual(expect.objectContaining({ name: 'Microsoft Zira Desktop' }))
+    expect(speakSpy).toHaveBeenCalledTimes(1)
+    expect(result.current.error).toBeNull()
   })
 
   it('tracks isSpeaking across the utterance lifecycle', () => {
