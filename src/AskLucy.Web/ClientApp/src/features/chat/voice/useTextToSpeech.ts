@@ -24,11 +24,13 @@ export function useTextToSpeech() {
   const rafRef = useRef<number | null>(null)
   const lastTickRef = useRef<number | null>(null)
   const isSpeakingRef = useRef(false)
-  // Chromium populates speechSynthesis.getVoices() asynchronously — the first call after
-  // page load routinely returns [] before the browser has finished enumerating, firing
-  // 'voiceschanged' once it's ready. Priming here (mount time, well before the user's first
-  // message triggers speak()) and caching whatever 'voiceschanged' delivers means speak()
-  // itself can stay synchronous instead of needing to wait mid-utterance.
+  // Chromium/Edge populate speechSynthesis.getVoices() asynchronously — the first call
+  // after page load routinely returns [] before the browser has finished enumerating.
+  // 'voiceschanged' is supposed to fire once it's ready, but doesn't always do so
+  // reliably, and enumeration can take longer than the gap between mount and the first
+  // spoken reply. Priming here (mount time) and polling as a backup until the list is
+  // populated means speak() itself can stay synchronous instead of needing to wait
+  // mid-utterance.
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
 
   useEffect(() => {
@@ -40,7 +42,27 @@ export function useTextToSpeech() {
     }
     updateVoices()
     synth.addEventListener('voiceschanged', updateVoices)
-    return () => synth.removeEventListener('voiceschanged', updateVoices)
+
+    let pollId: ReturnType<typeof setInterval> | null = null
+    let pollTimeoutId: ReturnType<typeof setTimeout> | null = null
+    if (voicesRef.current.length === 0) {
+      pollId = setInterval(() => {
+        const voices = synth.getVoices()
+        if (voices.length > 0) {
+          voicesRef.current = voices
+          if (pollId !== null) clearInterval(pollId)
+        }
+      }, 200)
+      pollTimeoutId = setTimeout(() => {
+        if (pollId !== null) clearInterval(pollId)
+      }, 5000)
+    }
+
+    return () => {
+      synth.removeEventListener('voiceschanged', updateVoices)
+      if (pollId !== null) clearInterval(pollId)
+      if (pollTimeoutId !== null) clearTimeout(pollTimeoutId)
+    }
   }, [])
 
   const stopDecayLoop = useCallback(() => {

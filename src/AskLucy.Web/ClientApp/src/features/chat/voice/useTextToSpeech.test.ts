@@ -136,6 +136,31 @@ describe('useTextToSpeech', () => {
     expect(result.current.error).toBeNull()
   })
 
+  it('recovers via polling when voiceschanged never fires (Chromium/Edge do not always fire it reliably)', () => {
+    vi.useFakeTimers()
+    try {
+      const { instances, speak: speakSpy, setVoices } = installSpeechSynthesis([])
+      const { result } = renderHook(() => useTextToSpeech())
+
+      // The browser's async enumeration finishes, but only discoverable via polling here —
+      // 'voiceschanged' is never fired, unlike the sibling test above.
+      setVoices(DEFAULT_VOICES)
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      act(() => result.current.speak('hello', 'en'))
+
+      expect(instances[0].voice).toEqual(
+        expect.objectContaining({ name: 'Microsoft Zira Desktop' }),
+      )
+      expect(speakSpy).toHaveBeenCalledTimes(1)
+      expect(result.current.error).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('tracks isSpeaking across the utterance lifecycle', () => {
     const { instances } = installSpeechSynthesis()
     const { result } = renderHook(() => useTextToSpeech())
