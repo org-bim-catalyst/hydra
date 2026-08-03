@@ -30,6 +30,7 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   const pendingChunksRef = useRef<Uint8Array<ArrayBuffer>[]>([])
   const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
   const isMutedRef = useRef(false)
+  const hasStartedPlaybackRef = useRef(false)
 
   const ensureGraph = useCallback(() => {
     if (audioContextRef.current) return
@@ -40,10 +41,13 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
 
     // The passive `autoplay` attribute above fails silently if the browser's autoplay
     // policy blocks it — no console error, no rejected promise anywhere in our code, just
-    // an element that never makes a sound (constitution §2.VIII: no silent failures).
-    // Calling play() explicitly (after src is assigned, below) surfaces that as a catchable
-    // rejection, and the element's own 'error' event catches mid-stream decode/network
-    // failures that a blocked-autoplay check alone wouldn't.
+    // an element that never makes a sound (constitution §2.VIII: no silent failures). The
+    // element's own 'error' event catches that plus mid-stream decode/network failures.
+    // play() itself is called later, from the SourceBuffer's first successful append (see
+    // below) rather than here: calling it immediately, before any audio bytes exist, made
+    // Chromium reject it with MEDIA_ERR_SRC_NOT_SUPPORTED ("no supported source was
+    // found") — confirmed in production console logs — since there was nothing playable
+    // yet for the browser to evaluate.
     audioElement.addEventListener('error', () => {
       const code = audioElement.error?.code
       onPlaybackError?.(`Audio element reported a playback error (code ${code ?? 'unknown'}).`)
@@ -52,20 +56,33 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     const mediaSource = new MediaSource()
     audioElement.src = URL.createObjectURL(mediaSource)
 
-    void audioElement.play().catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err)
-      onPlaybackError?.(`Playback failed to start: ${message}`)
-    })
+    const startPlaybackOnce = () => {
+      if (hasStartedPlaybackRef.current) return
+      hasStartedPlaybackRef.current = true
+      void audioElement.play().catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err)
+        onPlaybackError?.(`Playback failed to start: ${message}`)
+      })
+    }
 
     mediaSource.addEventListener('sourceopen', () => {
       const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg')
       sourceBuffer.addEventListener('updateend', () => {
+        startPlaybackOnce()
         const next = pendingChunksRef.current.shift()
         if (next && !sourceBuffer.updating) {
           sourceBuffer.appendBuffer(next)
         }
       })
       sourceBufferRef.current = sourceBuffer
+
+      // A chunk may have already arrived (and been queued below) before 'sourceopen'
+      // fired — without this, the queue would never drain: draining otherwise only
+      // happens inside 'updateend', which never fires without a first appendBuffer call.
+      const queued = pendingChunksRef.current.shift()
+      if (queued) {
+        sourceBuffer.appendBuffer(queued)
+      }
     })
 
     const source = audioContext.createMediaElementSource(audioElement)
@@ -142,6 +159,7 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   /** FR-023: stop clears the queue and tears down the graph so the next turn starts fresh. */
   const reset = useCallback(() => {
     pendingChunksRef.current = []
+    hasStartedPlaybackRef.current = false
     audioElementRef.current?.pause()
     if (audioElementRef.current) {
       audioElementRef.current.removeAttribute('src')
