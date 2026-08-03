@@ -146,4 +146,4 @@ jobs:
           username: ${{ secrets.SITE4NOW_FTP_USERNAME }}
           password: ${{ secrets.SITE4NOW_FTP_PASSWORD }}
           local-dir: publish/backend/
-          server-dir: /
+          server-dir: /hydra/
