@@ -34,6 +34,10 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
 
     public DbSet<UserAiPreference> UserAiPreferences => Set<UserAiPreference>();
 
+    public DbSet<UserVoicePreference> UserVoicePreferences => Set<UserVoicePreference>();
+
+    public DbSet<VoiceProviderFailoverEvent> VoiceProviderFailoverEvents => Set<VoiceProviderFailoverEvent>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

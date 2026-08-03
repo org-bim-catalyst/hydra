@@ -6,16 +6,16 @@ import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
-import type { useTextToSpeech } from '../voice/useTextToSpeech'
+import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { ChatPage, ConversationView } from './ChatPage'
 
 expect.extend(toHaveNoViolations)
 
 const CHAT_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
 
-const mockTts: ReturnType<typeof useTextToSpeech> = {
+const mockTts: ReturnType<typeof useVoiceOutput> = {
   isSupported: true,
-  speak: () => {},
+  speak: async () => {},
   stop: () => {},
   isSpeaking: false,
   getIntensity: () => 0,

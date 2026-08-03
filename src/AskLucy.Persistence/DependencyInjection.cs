@@ -62,6 +62,8 @@ public static class DependencyInjection
         services.AddScoped<IAIModelRepository, AIModelRepository>();
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();
+        services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();
+        services.AddScoped<IVoiceProviderFailoverEventRepository, VoiceProviderFailoverEventRepository>();
 
         return services;
     }
