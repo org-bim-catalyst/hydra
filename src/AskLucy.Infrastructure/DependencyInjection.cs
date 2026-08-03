@@ -7,6 +7,7 @@ using AskLucy.Infrastructure.Files;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Infrastructure;
 
@@ -45,6 +46,10 @@ public static class DependencyInjection
         services.AddOptions<WhisperOptions>()
             .Bind(configuration.GetSection(WhisperOptions.SectionName));
 
+        services.AddOptions<ElevenLabsOptions>()
+            .Bind(configuration.GetSection(ElevenLabsOptions.SectionName))
+            .ValidateOnStart();
+
         services.AddOptions<LocalFileStorageOptions>()
             .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
             .ValidateDataAnnotations()
@@ -80,6 +85,16 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromMinutes(2);
         });
 
+        // spec 012-elevenlabs-voice-engine: BaseAddress must be set here, not per-call — both
+        // ElevenLabsTextToSpeechProvider and ElevenLabsSpeechToTextSessionProvider issue
+        // relative-URI requests against this named client.
+        services.AddHttpClient("ElevenLabs", (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<ElevenLabsOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
@@ -106,6 +121,10 @@ public static class DependencyInjection
         services.AddSingleton<ITranscriptionProvider>(sp => sp.GetRequiredService<WhisperLocalTranscriptionProvider>());
         services.AddHostedService<WhisperWarmupHostedService>();
         services.AddHostedService<ProviderHealthCheckHostedService>();
+
+        services.AddScoped<ITextToSpeechProvider, ElevenLabsTextToSpeechProvider>();
+        services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();
+        services.AddScoped<IVoiceProviderHealthRecorder, VoiceProviderHealthRecorder>();
 
         // Dev-only: lets a fresh clone complete first registration/login without real SMTP
         // credentials (spec.md convergence note) — Production/Testing/every other environment

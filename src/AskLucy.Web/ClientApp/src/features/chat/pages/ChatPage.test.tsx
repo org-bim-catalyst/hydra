@@ -6,15 +6,15 @@ import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PagedResult, PersistedMessage } from '../api/chatsApi'
-import type { useTextToSpeech } from '../voice/useTextToSpeech'
+import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { ConversationView } from './ChatPage'
 
 const CHAT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const CHAT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
-const mockTts: ReturnType<typeof useTextToSpeech> = {
+const mockTts: ReturnType<typeof useVoiceOutput> = {
   isSupported: true,
-  speak: () => {},
+  speak: async () => {},
   stop: () => {},
   isSpeaking: false,
   getIntensity: () => 0,
@@ -68,7 +68,13 @@ function sseStream(chunks: string[], firstChunkDelayMs = 0): ReadableStream<Uint
 const server = setupServer(
   http.get('*/api/v1/ai/providers', () =>
     HttpResponse.json([
-      { id: 'provider-1', providerKey: 'openai', displayName: 'OpenAI', healthStatus: 'Healthy', healthStatusCheckedAtUtc: null },
+      {
+        id: 'provider-1',
+        providerKey: 'openai',
+        displayName: 'OpenAI',
+        healthStatus: 'Healthy',
+        healthStatusCheckedAtUtc: null,
+      },
     ]),
   ),
   http.get('*/api/v1/ai/providers/provider-1/models', () =>
