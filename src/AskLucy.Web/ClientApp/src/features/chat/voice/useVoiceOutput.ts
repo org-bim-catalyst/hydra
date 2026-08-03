@@ -19,11 +19,24 @@ import { probeRecoveryIfDegraded, useVoiceProviderStatus } from './voiceProvider
  */
 export function useVoiceOutput() {
   const fallback = useTextToSpeech()
-  const analyzer = useVoiceAnalyzer()
   const { provider, failOver } = useVoiceProviderStatus()
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Surfaces failures from the ElevenLabs audio element itself (blocked autoplay, a
+  // mid-stream decode error) — constitution §2.VIII: these must reach the user the same
+  // way a failed ElevenLabs HTTP request does, not just this hook's own console.error.
+  const handlePlaybackError = useCallback(
+    (message: string) => {
+      console.error(`Voice output: ${message}`)
+      failOver()
+      setError('Voice output failed. Please try again.')
+    },
+    [failOver],
+  )
+
+  const analyzer = useVoiceAnalyzer(handlePlaybackError)
 
   const clearError = useCallback(() => {
     setError(null)

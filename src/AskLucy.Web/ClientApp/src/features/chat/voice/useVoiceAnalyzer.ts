@@ -20,7 +20,7 @@ const FFT_SIZE = 256
  * suppresses audible output — `getReactiveIntensity()` keeps reacting to the real signal
  * regardless of mute state.
  */
-export function useVoiceAnalyzer() {
+export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
   const mediaSourceRef = useRef<MediaSource | null>(null)
@@ -38,8 +38,24 @@ export function useVoiceAnalyzer() {
     const audioElement = new Audio()
     audioElement.autoplay = true
 
+    // The passive `autoplay` attribute above fails silently if the browser's autoplay
+    // policy blocks it — no console error, no rejected promise anywhere in our code, just
+    // an element that never makes a sound (constitution §2.VIII: no silent failures).
+    // Calling play() explicitly (after src is assigned, below) surfaces that as a catchable
+    // rejection, and the element's own 'error' event catches mid-stream decode/network
+    // failures that a blocked-autoplay check alone wouldn't.
+    audioElement.addEventListener('error', () => {
+      const code = audioElement.error?.code
+      onPlaybackError?.(`Audio element reported a playback error (code ${code ?? 'unknown'}).`)
+    })
+
     const mediaSource = new MediaSource()
     audioElement.src = URL.createObjectURL(mediaSource)
+
+    void audioElement.play().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err)
+      onPlaybackError?.(`Playback failed to start: ${message}`)
+    })
 
     mediaSource.addEventListener('sourceopen', () => {
       const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg')
@@ -68,7 +84,7 @@ export function useVoiceAnalyzer() {
     analyserRef.current = analyser
     gainRef.current = gain
     frequencyDataRef.current = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount))
-  }, [])
+  }, [onPlaybackError])
 
   /** Call for every `audio-chunk` event, in arrival order (contracts/voice-reply-stream.md). */
   const playAudioChunk = useCallback(

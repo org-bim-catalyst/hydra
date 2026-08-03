@@ -41,15 +41,24 @@ class FakeMediaSource extends EventTarget {
   }
 }
 
-class FakeAudioElement {
+class FakeAudioElement extends EventTarget {
+  static instances: FakeAudioElement[] = []
   autoplay = false
   src = ''
+  error: { code: number } | null = null
   pause = vi.fn()
   removeAttribute = vi.fn()
+  play = vi.fn().mockResolvedValue(undefined)
+
+  constructor() {
+    super()
+    FakeAudioElement.instances.push(this)
+  }
 }
 
 function installVoiceAnalyzerEnvironment() {
   FakeMediaSource.instances = []
+  FakeAudioElement.instances = []
   vi.stubGlobal('AudioContext', FakeAudioContext)
   vi.stubGlobal('MediaSource', FakeMediaSource)
   vi.stubGlobal('Audio', FakeAudioElement)
@@ -117,5 +126,48 @@ describe('useVoiceAnalyzer', () => {
       result.current.playAudioChunk('ZGVm')
     })
     expect(FakeMediaSource.instances).toHaveLength(2)
+  })
+
+  it('reports a playback error via onPlaybackError when audioElement.play() rejects (constitution §2.VIII — the passive autoplay attribute fails silently otherwise)', async () => {
+    installVoiceAnalyzerEnvironment()
+    const onPlaybackError = vi.fn()
+
+    // Make every future FakeAudioElement's play() reject, before the hook creates one.
+    const OriginalFakeAudioElement = FakeAudioElement
+    class RejectingAudioElement extends OriginalFakeAudioElement {
+      constructor() {
+        super()
+        this.play = vi.fn().mockRejectedValue(new Error('NotAllowedError'))
+      }
+    }
+    vi.stubGlobal('Audio', RejectingAudioElement)
+
+    const { result } = renderHook(() => useVoiceAnalyzer(onPlaybackError))
+
+    await act(async () => {
+      result.current.playAudioChunk('YWJj')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(onPlaybackError).toHaveBeenCalledWith(expect.stringContaining('Playback failed to start'))
+  })
+
+  it('reports a playback error via onPlaybackError when the audio element fires a native error event', () => {
+    installVoiceAnalyzerEnvironment()
+    const onPlaybackError = vi.fn()
+    const { result } = renderHook(() => useVoiceAnalyzer(onPlaybackError))
+
+    act(() => {
+      result.current.playAudioChunk('YWJj')
+    })
+
+    const audioElement = FakeAudioElement.instances[0]
+    audioElement.error = { code: 3 }
+    act(() => {
+      audioElement.dispatchEvent(new Event('error'))
+    })
+
+    expect(onPlaybackError).toHaveBeenCalledWith(expect.stringContaining('code 3'))
   })
 })
