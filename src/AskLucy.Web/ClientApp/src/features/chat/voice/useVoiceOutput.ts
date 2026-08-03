@@ -54,9 +54,15 @@ export function useVoiceOutput() {
               analyzer.playAudioChunk(event.audio)
               break
             case 'audio-failed':
+              console.error(
+                'Voice output: ElevenLabs reported audio-failed mid-stream; failing over.',
+              )
               failOver()
               break
             case 'error':
+              console.error(
+                `Voice output: ElevenLabs stream error — ${event.errorType}: ${event.detail}`,
+              )
               setError(event.detail)
               break
             case 'done':
@@ -66,10 +72,11 @@ export function useVoiceOutput() {
               break
           }
         }
-      } catch {
+      } catch (err) {
         if (!controller.signal.aborted) {
           // ElevenLabs unreachable at the network level (not just a mid-stream failure the
           // backend already reported as `audio-failed`) — same visible-failover contract.
+          console.error('Voice output: /ai/voice/speak request failed.', err)
           failOver()
         }
       } finally {

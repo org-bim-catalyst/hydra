@@ -111,6 +111,9 @@ export function useTextToSpeech() {
       if (!voice) {
         // constitution §2.VIII / FR-005: no voice for this language at all is a visible
         // failure, never a silent speak() with an unset (browser-arbitrary) voice.
+        console.error(
+          `Voice output: no voice matched language "${lang}" among ${voices.length} available voices.`,
+        )
         setError('Voice output failed. Please try again.')
         return
       }
@@ -132,7 +135,8 @@ export function useTextToSpeech() {
         setIsSpeaking(false)
       }
       // constitution §2.VIII: a failed utterance must reach the user, not just fail silently.
-      utterance.onerror = () => {
+      utterance.onerror = (event) => {
+        console.error(`Voice output: SpeechSynthesisUtterance error "${event.error}".`)
         isSpeakingRef.current = false
         setIsSpeaking(false)
         intensityRef.current = 0

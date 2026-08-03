@@ -9,7 +9,7 @@ interface FakeUtteranceInstance {
   onstart: (() => void) | null
   onboundary: (() => void) | null
   onend: (() => void) | null
-  onerror: (() => void) | null
+  onerror: ((event: { error: string }) => void) | null
 }
 
 const DEFAULT_VOICES = [
@@ -43,7 +43,7 @@ function installSpeechSynthesis(voices: SpeechSynthesisVoice[] = DEFAULT_VOICES)
     onstart: (() => void) | null = null
     onboundary: (() => void) | null = null
     onend: (() => void) | null = null
-    onerror: (() => void) | null = null
+    onerror: ((event: { error: string }) => void) | null = null
     constructor(text: string) {
       this.text = text
       instances.push(this)
@@ -198,7 +198,7 @@ describe('useTextToSpeech', () => {
 
     act(() => result.current.speak('hello', 'en'))
     act(() => instances[0].onstart?.())
-    act(() => instances[0].onerror?.())
+    act(() => instances[0].onerror?.({ error: 'synthesis-failed' }))
 
     expect(result.current.isSpeaking).toBe(false)
     expect(result.current.getIntensity()).toBe(0)
