@@ -139,6 +139,19 @@ jobs:
       - name: Publish
         run: dotnet publish src/AskLucy.Web --configuration Release --output publish/backend
 
+      # IIS/ANCM keeps every loaded assembly file-locked for as long as the app process is
+      # running (research/incident: three consecutive deploys failed with FTP 550 "process
+      # cannot access the file" on whichever DLL actually changed — not transient, since it
+      # reproduced on every retry). app_offline.htm is ANCM's documented signal to unload the
+      # app and release those locks before the file copy, restored once the copy is done.
+      # https://learn.microsoft.com/aspnet/core/host-and-deploy/aspnet-core-module
+      - name: Take app offline (releases IIS/ANCM's file locks before the FTP sync)
+        shell: pwsh
+        run: |
+          Set-Content -Path app_offline.htm -Value "Ask Lucy is being updated — back in a moment." -Encoding utf8
+          curl.exe --fail --silent --show-error --user "${{ secrets.SITE4NOW_FTP_USERNAME }}:${{ secrets.SITE4NOW_FTP_PASSWORD }}" -T app_offline.htm "ftp://${{ secrets.SITE4NOW_FTP_SERVER }}/hydra/app_offline.htm"
+          Start-Sleep -Seconds 10
+
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -147,3 +160,9 @@ jobs:
           password: ${{ secrets.SITE4NOW_FTP_PASSWORD }}
           local-dir: publish/backend/
           server-dir: /hydra/
+
+      - name: Bring app back online
+        if: always()
+        shell: pwsh
+        run: |
+          curl.exe --fail --silent --show-error --user "${{ secrets.SITE4NOW_FTP_USERNAME }}:${{ secrets.SITE4NOW_FTP_PASSWORD }}" -Q "DELE /hydra/app_offline.htm" "ftp://${{ secrets.SITE4NOW_FTP_SERVER }}/"
