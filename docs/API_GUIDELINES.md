@@ -564,30 +564,61 @@ PUT /settings/ai
 
 # 23. Knowledge Base Endpoints
 
+> **As shipped** (SPEC-014, `specs/014-knowledge-base-management/contracts/`): organization/
+> lifecycle only — no embedding/indexing/RAG-retrieval endpoints exist yet (a future spec), so
+> there is no `/documents/{id}/reindex`. Categories/tags are a separate sibling controller
+> (`KnowledgeBaseTaxonomyController`), not nested under one knowledge base, since they're
+> caller-scoped lists referenced *by* many knowledge bases, not sub-resources of one.
+
 ```
-GET /knowledge-bases
+GET /knowledge-bases                          (search/filter/sort/paginate — FR-022–FR-024)
+GET /knowledge-bases/dashboard-summary        (cached per-user, 60s TTL — FR-029)
 
 POST /knowledge-bases
-
 GET /knowledge-bases/{id}
+PATCH /knowledge-bases/{id}                   (full-replace update — FR-003)
+DELETE /knowledge-bases/{id}                  (soft delete → Deleted view)
 
-PATCH /knowledge-bases/{id}
+POST /knowledge-bases/{id}/actions/activate   (Draft → Active)
+POST /knowledge-bases/{id}/actions/archive
+POST /knowledge-bases/{id}/actions/restore
+POST /knowledge-bases/{id}/actions/favorite
+POST /knowledge-bases/{id}/actions/unfavorite
+POST /knowledge-bases/{id}/actions/pin
+POST /knowledge-bases/{id}/actions/unpin
+POST /knowledge-bases/{id}/actions/duplicate  (deep copy — independent folder tree + files)
+DELETE /knowledge-bases/{id}/actions/purge    (permanent delete — requires { "confirm": true })
 
-DELETE /knowledge-bases/{id}
+GET /knowledge-bases/{id}/export              (JSON metadata download)
+```
+
+Folders
+
+```
+GET /knowledge-bases/{knowledgeBaseId}/folders                              (full tree)
+POST /knowledge-bases/{knowledgeBaseId}/folders
+PATCH /knowledge-bases/{knowledgeBaseId}/folders/{folderId}                 (rename)
+POST /knowledge-bases/{knowledgeBaseId}/folders/{folderId}/actions/move
+DELETE /knowledge-bases/{knowledgeBaseId}/folders/{folderId}                (requires { "confirm": true } if non-empty)
 ```
 
 Documents
 
 ```
-POST /knowledge-bases/{id}/documents
-
-GET /knowledge-bases/{id}/documents
+GET /knowledge-bases/{knowledgeBaseId}/documents                            (?folderId=... optional)
+POST /knowledge-bases/{knowledgeBaseId}/documents                           (multipart/form-data)
+POST /knowledge-bases/{knowledgeBaseId}/documents/{documentId}/actions/move
+DELETE /knowledge-bases/{knowledgeBaseId}/documents/{documentId}
 ```
 
-Re-index
+Categories & tags (`KnowledgeBaseTaxonomyController`)
 
 ```
-POST /documents/{id}/reindex
+GET /knowledge-bases/categories               (predefined + caller's own custom categories)
+POST /knowledge-bases/categories
+DELETE /knowledge-bases/categories/{id}        (referencing knowledge bases fall back to Uncategorized)
+
+GET /knowledge-bases/tags                     (?q=prefix optional)
 ```
 
 ---

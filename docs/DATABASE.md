@@ -330,69 +330,87 @@ explicitly out of scope for SPEC-002 — see that spec's Assumptions section.
 
 # 7. Knowledge Context
 
+> **Shipped in SPEC-014** (`specs/014-knowledge-base-management`) — organization/lifecycle
+> only, narrower than this section's original pre-implementation sketch. Embedding generation,
+> vector storage, and RAG retrieval (`DocumentChunks`, `Embeddings`, semantic search) are
+> explicitly **out of scope** and reserved for a future spec (data-model.md's "Explicitly Not
+> Modeled" section); this feature stores and organizes documents, it does not index their
+> content. `KnowledgeBaseMembers`/team-sharing is likewise **not** built — every knowledge
+> base is private to its owner in this release (`Visibility` is a single fixed value, not yet
+> a real access-control dimension).
+
 ## KnowledgeBases
 
 Stores:
 
-* Owner
-* Name
-* Description
-* Visibility
-* Default Embedding Model
+* `OwnerId` — sole owner; no sharing in this release
+* `Name`, `Description`, `Color`, `Icon` — display/branding
+* `Status` — `Draft` / `Active` / `Archived` (no `Deleted` status value; soft delete is a
+  separate `DeletedAtUtc` flag, orthogonal to `Status`, so a knowledge base can be
+  soft-deleted from any status)
+* `CategoryId` (nullable FK to `KnowledgeBaseCategories`) — `null` renders as "Uncategorized"
+* `Notes` — free-form owner notes
+* `IsFavorite` (bool), `PinnedAtUtc` (nullable — pinned state; also the pin-first sort key,
+  same shape as `UserChats.PinnedAtUtc`)
+* Cached statistics, updated incrementally on document add/remove (not recomputed per-read):
+  `DocumentCount`, `TotalPageCount`, `StorageSizeBytes`
+* `PurgeScheduledAtUtc` (nullable) — set to +30 days on soft delete (FR-036); cleared on
+  restore; read by `KnowledgeBasePurgeHostedService`'s periodic sweep
+* Standard audit columns (`CreatedAtUtc`/`CreatedBy`, `ModifiedAtUtc`/`ModifiedBy`,
+  `DeletedAtUtc`/`DeletedBy`), `RowVersion` (optimistic concurrency)
 
 ---
 
-## KnowledgeBaseMembers
+## KnowledgeBaseFolders
 
-Future collaboration support.
+A node in one knowledge base's folder hierarchy. Stores `KnowledgeBaseId`,
+`ParentFolderId` (nullable — null means root), `Name`, `Depth` (computed and stored at
+create/move time, not recomputed per-read, so the max-nesting-depth check — 10 by default,
+configurable — is a cheap comparison). Standard audit columns.
 
-Roles:
+## KnowledgeBaseDocuments
 
-Owner
+Associates one uploaded file (via the existing `IFileStorage` abstraction) with exactly one
+knowledge base and at most one folder. Stores `KnowledgeBaseId`, `FolderId` (nullable — null
+means the knowledge base's root), `FileName` (original/display name), `StoredFileName` (the
+opaque storage reference — never exposed to clients), `ContentType`, `SizeBytes`, `PageCount`
+(nullable — null for non-paginated types like `.csv`/`.md`/`.txt`, or when extraction failed
+for a paginated type), `ProcessingStatus` (`Uploaded`/`Ready`/`Failed` — this feature's own
+lightweight post-upload work, not a RAG-ingestion status), `UploadedAtUtc`. Standard audit
+columns.
 
-Editor
+## KnowledgeBaseTags
 
-Viewer
+A free-form, reusable, owner-scoped label. Has its own `DbSet`/query filter (unlike
+`Attachments`/`Citations`, which are pure aggregate children) because tag-filter/autocomplete
+queries need to search across a user's knowledge bases, not just within one — the same reason
+`Messages` has its own repository separate from `UserChats`. Stores `KnowledgeBaseId`,
+`OwnerId`, `Value`.
 
----
+## KnowledgeBaseCategories
 
-## Documents
+A classification value, predefined-and-shared or custom-and-private. `OwnerId` (nullable) is
+the sole discriminator: `null` means predefined and shared platform-wide (8 categories seeded
+by migration `AddKnowledgeBaseManagement`); non-null means custom and private to that owner,
+never visible to another user. Deleting a custom category clears `CategoryId` to `null`
+(Uncategorized) on every knowledge base that referenced it, in the same transaction — never
+leaves a dangling reference. Stores `OwnerId` (nullable), `Name`. Standard audit columns
+(soft-deletable, though only ever hard-removed via the owner-triggered delete flow above).
 
-Stores:
+## KnowledgeBaseAuditLogs
 
-* Knowledge Base
-* File
-* Parser
-* Status
-* Language
-* Page Count
+Append-only, immutable record of lifecycle-relevant actions (`Created`/`Edited`/`Archived`/
+`Restored`/`Deleted`/`PermanentlyDeleted`/`Duplicated`) — folder/document-level events are
+deliberately not separately audited (YAGNI; no requirement calls for it). Not FK'd to
+`KnowledgeBaseId` with a hard/cascading foreign key — an audit entry for a permanently purged
+knowledge base is deliberately retained. Stores `KnowledgeBaseId`, `UserId`, `Action`,
+`OccurredAtUtc`, `DetailsJson` (a short, sanitized summary — never raw content or a secret).
 
----
+## Not implemented (reserved for a future RAG spec)
 
-## DocumentChunks
-
-Stores:
-
-* Document
-* Chunk Index
-* Text
-* Token Count
-* Embedding Status
-
----
-
-## Embeddings
-
-Stores:
-
-* Chunk
-* Embedding Model
-* Embedding Vector
-* Dimensions
-
-Initial implementation uses SQL Server vector support.
-
-Future implementations simply replace the repository.
+`DocumentChunks`/`Embeddings`/vector storage, and `KnowledgeBaseMembers`/team-sharing — see
+this section's intro note above and `specs/014-knowledge-base-management/data-model.md`'s
+"Explicitly Not Modeled" section for the full rationale.
 
 ---
 
@@ -690,13 +708,15 @@ User
  │                          │
  │                          └──────── Attachments
  │
- ├──────── KnowledgeBases
+ ├──────── KnowledgeBases ──────── KnowledgeBaseCategories (nullable FK, shared or private)
  │              │
- │              └──────── Documents
- │                           │
- │                           └──────── Chunks
- │                                        │
- │                                        └──────── Embeddings
+ │              ├──────── KnowledgeBaseFolders (self-referencing, ParentFolderId)
+ │              │
+ │              ├──────── KnowledgeBaseDocuments (each in at most one Folder)
+ │              │
+ │              └──────── KnowledgeBaseTags
+ │
+ ├──────── KnowledgeBaseAuditLogs (append-only, not hard-FK'd to KnowledgeBases)
  │
  ├──────── PromptTemplates
  │

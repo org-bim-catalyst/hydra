@@ -3,6 +3,7 @@ using AskLucy.Domain.Ai;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
+using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,18 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
     public DbSet<UserVoicePreference> UserVoicePreferences => Set<UserVoicePreference>();
 
     public DbSet<VoiceProviderFailoverEvent> VoiceProviderFailoverEvents => Set<VoiceProviderFailoverEvent>();
+
+    public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
+
+    public DbSet<KnowledgeBaseFolder> KnowledgeBaseFolders => Set<KnowledgeBaseFolder>();
+
+    public DbSet<KnowledgeBaseDocument> KnowledgeBaseDocuments => Set<KnowledgeBaseDocument>();
+
+    public DbSet<KnowledgeBaseTag> KnowledgeBaseTags => Set<KnowledgeBaseTag>();
+
+    public DbSet<KnowledgeBaseCategory> KnowledgeBaseCategories => Set<KnowledgeBaseCategory>();
+
+    public DbSet<KnowledgeBaseAuditLog> KnowledgeBaseAuditLogs => Set<KnowledgeBaseAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
