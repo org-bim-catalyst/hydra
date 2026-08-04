@@ -4,6 +4,7 @@ using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
+using AskLucy.Infrastructure.KnowledgeBases;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -63,7 +64,12 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<KnowledgeBasePurgeOptions>()
+            .Bind(configuration.GetSection(KnowledgeBasePurgeOptions.SectionName));
+
         services.AddDataProtection();
+        // Concrete IMemoryCache registration for KnowledgeBaseDashboardSummaryCache (Application) — see that DI's comment for why the registration itself lives here, not in Application.
+        services.AddMemoryCache();
 
         services.AddHttpClient("OpenAI", client =>
         {
@@ -99,6 +105,10 @@ public static class DependencyInjection
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
+        services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddHostedService<KnowledgeBasePurgeHostedService>();
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
         // Unkeyed: legacy single-model call sites (Translate, image generation,
         // AppendMessageCommandHandler attribution) predate multi-provider selection and stay

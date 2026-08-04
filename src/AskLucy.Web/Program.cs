@@ -175,6 +175,21 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    // Knowledge Base management endpoints (specs/014-knowledge-base-management) — none of
+    // these invoke an AI provider directly, so they get the same generous, non-cost-tiered
+    // limit as chat-endpoints/ai-catalog-endpoints rather than the AI-invoking policy.
+    options.AddPolicy("knowledge-base-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
     // Cookie-consent endpoints (specs/004-cookie-consent-privacy) — includes one anonymous
     // endpoint (GET /api/v1/cookie-policy), so the partition key falls back to remote IP for
     // unauthenticated callers, same as every other policy here.

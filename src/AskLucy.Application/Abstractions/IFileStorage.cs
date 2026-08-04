@@ -10,6 +10,9 @@ public interface IFileStorage
     Task<string> SaveAsync(Stream content, string fileNameHint, CancellationToken cancellationToken = default);
 
     Task<Stream> OpenReadAsync(string storedFileName, CancellationToken cancellationToken = default);
+
+    /// <summary>Permanently removes a stored file (specs/014-knowledge-base-management research.md Decision 3). A no-op if the file is already gone — deletion is idempotent, never a caller-visible failure for "already deleted."</summary>
+    Task DeleteAsync(string storedFileName, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
