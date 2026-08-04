@@ -38,6 +38,18 @@ public sealed class LocalFileStorage(IOptions<LocalFileStorageOptions> options) 
         return Task.FromResult<Stream>(File.OpenRead(fullPath));
     }
 
+    public Task DeleteAsync(string storedFileName, CancellationToken cancellationToken = default)
+    {
+        var fullPath = ResolveSafePath(storedFileName);
+
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private string ResolveSafePath(string storedFileName)
     {
         // storedFileName is always a GUID-based name minted by SaveAsync above; reject

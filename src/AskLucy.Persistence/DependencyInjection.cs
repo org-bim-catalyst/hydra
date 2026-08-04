@@ -64,6 +64,11 @@ public static class DependencyInjection
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();
         services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();
         services.AddScoped<IVoiceProviderFailoverEventRepository, VoiceProviderFailoverEventRepository>();
+        services.AddScoped<IKnowledgeBaseRepository, KnowledgeBaseRepository>();
+        services.AddScoped<IKnowledgeBaseAuditLogRepository, KnowledgeBaseAuditLogRepository>();
+        services.AddScoped<IKnowledgeBaseDocumentRepository, KnowledgeBaseDocumentRepository>();
+        services.AddScoped<IKnowledgeBaseFolderRepository, KnowledgeBaseFolderRepository>();
+        services.AddScoped<IKnowledgeBaseCategoryRepository, KnowledgeBaseCategoryRepository>();
 
         return services;
     }

@@ -1,4 +1,5 @@
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import FolderIcon from '@mui/icons-material/Folder'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import PolicyIcon from '@mui/icons-material/Policy'
@@ -46,6 +47,12 @@ export function UserMenu() {
             <SettingsIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Settings</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goTo('/knowledge-bases')}>
+          <ListItemIcon>
+            <FolderIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Knowledge Bases</ListItemText>
         </MenuItem>
         {isAdmin && (
           <MenuItem onClick={() => goTo('/admin/dashboard')}>

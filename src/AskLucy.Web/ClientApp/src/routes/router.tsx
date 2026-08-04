@@ -18,6 +18,12 @@ const ExternalLoginCompletePage = lazy(() =>
   import('../features/auth/pages/ExternalLoginCompletePage').then((m) => ({ default: m.ExternalLoginCompletePage })),
 )
 const ChatPage = lazy(() => import('../features/chat/pages/ChatPage').then((m) => ({ default: m.ChatPage })))
+const KnowledgeBaseDashboardPage = lazy(() =>
+  import('../features/knowledge-base/pages/KnowledgeBaseDashboardPage').then((m) => ({ default: m.KnowledgeBaseDashboardPage })),
+)
+const KnowledgeBaseDetailPage = lazy(() =>
+  import('../features/knowledge-base/pages/KnowledgeBaseDetailPage').then((m) => ({ default: m.KnowledgeBaseDetailPage })),
+)
 const PrivacyPage = lazy(() =>
   import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
 )
@@ -104,6 +110,28 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <Lazy>
           <ChatPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/knowledge-bases',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <KnowledgeBaseDashboardPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/knowledge-bases/:id',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <KnowledgeBaseDetailPage />
         </Lazy>
       </ProtectedRoute>
     ),

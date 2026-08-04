@@ -102,6 +102,12 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "Request violates a business rule",
             domainEx.Message),
 
+        DuplicateResourceException duplicateEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/duplicate-resource",
+            "Duplicate resource",
+            duplicateEx.Message),
+
         AiProviderUnavailableException => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
