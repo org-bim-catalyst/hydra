@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AskLucy.Application.Common;
 using AskLucy.Application.KnowledgeBases;
 using AskLucy.Application.KnowledgeBases.Commands.ActivateKnowledgeBase;
@@ -30,7 +31,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Text.Json;
 
 namespace AskLucy.Web.Controllers.v1;
 
