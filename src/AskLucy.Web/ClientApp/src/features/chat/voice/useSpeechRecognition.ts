@@ -7,6 +7,7 @@ const MAX_RECONNECT_ATTEMPTS = 2 // research.md Decision 8
 const RECONNECT_DELAY_MS = 1000
 const SILENCE_COMMIT_DELAY_MS = 800 // FR-002: pause before auto-processing
 const LOCAL_SPEECH_RMS_THRESHOLD = 0.02 // research.md Decision 10's fast local pre-trigger
+const SAMPLE_RATE_HZ = 16000 // matches downsampleTo16kHz below and the `pcm_16000` audio_format
 
 export type ConversationMode = 'push-to-talk' | 'continuous'
 export type MicrophonePermissionState = 'unknown' | 'granted' | 'denied'
@@ -30,14 +31,26 @@ interface UseSpeechRecognitionOptions {
 /**
  * Primary-path speech-to-text: mints a session token via `voiceApi.createSttSession`, opens a
  * WebSocket **directly to ElevenLabs** (research.md Decision 2 — the backend never sees the
- * raw audio for this path), and streams 16kHz PCM chunks captured via the same
- * `AudioWorkletNode` technique `useWavRecorder.ts` already uses for the fallback path.
+ * raw audio for this path), and streams 16kHz PCM chunks captured via an `AudioWorkletNode`.
  *
- * Note on the wire protocol: the exact realtime message shapes below (`audio_chunk`,
- * `partial_transcript`, `committed_transcript`) reflect what research.md's fetched
- * documentation confirmed (PCM_16000 input, single-use token auth, `commit()` to finalize) —
- * the precise JSON field names are a residual verification item (research.md) to confirm
- * against ElevenLabs' current realtime API reference before production.
+ * Wire protocol verified 2026-08-03 against ElevenLabs' realtime STT documentation
+ * (research.md Decision 8, SPEC-013 T010 — this closed the "residual verification item"
+ * spec 012's research.md had flagged and left unconfirmed):
+ * https://elevenlabs.io/docs/api-reference/speech-to-text/v-1-speech-to-text-realtime and
+ * https://elevenlabs.io/docs/eleven-api/guides/how-to/speech-to-text/realtime/event-reference
+ *
+ * Corrections made from the original (unverified) implementation:
+ * - The message discriminator field is `message_type`, not `type`, on both the client→server
+ *   and server→client sides.
+ * - There is no standalone "commit" message. The client always sends `input_audio_chunk`
+ *   messages; setting `commit: true` on one finalizes the current utterance. An empty-audio
+ *   `input_audio_chunk` with `commit: true` is sent when committing without new audio to hand
+ *   (e.g. the silence-timeout auto-commit).
+ * - The audio bytes field is `audio_base_64`, not `audio`, and each chunk must also carry
+ *   `sample_rate` (matches `downsampleTo16kHz` below).
+ * - The connection URL takes `model_id` and `audio_format` query params alongside `token`.
+ * - `partial_transcript`/`committed_transcript` (server→client) were already correct; only
+ *   their envelope's discriminator field name (`message_type`) needed fixing.
  */
 export function useSpeechRecognition({
   language,
@@ -103,7 +116,7 @@ export function useSpeechRecognition({
     try {
       const session = await createSttSession(language)
       const socket = new WebSocket(
-        `wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${encodeURIComponent(session.token)}`,
+        `wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${encodeURIComponent(session.token)}&model_id=scribe_v2_realtime&audio_format=pcm_16000`,
       )
 
       await new Promise<void>((resolve, reject) => {
@@ -144,7 +157,17 @@ export function useSpeechRecognition({
     clearSilenceTimer()
     const socket = socketRef.current
     if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'commit' }))
+      // No standalone "commit" message exists — finalizing means sending an `input_audio_chunk`
+      // with `commit: true`; an empty-audio one when (as here) there's no new audio to attach it
+      // to, e.g. the silence-timeout auto-commit.
+      socket.send(
+        JSON.stringify({
+          message_type: 'input_audio_chunk',
+          audio_base_64: '',
+          sample_rate: SAMPLE_RATE_HZ,
+          commit: true,
+        }),
+      )
     }
   }, [])
 
@@ -159,13 +182,16 @@ export function useSpeechRecognition({
     (socket: WebSocket) => {
       socket.addEventListener('message', (event) => {
         try {
-          const data = JSON.parse(event.data as string) as { type?: string; text?: string }
-          if (data.type === 'partial_transcript' && data.text) {
+          const data = JSON.parse(event.data as string) as {
+            message_type?: string
+            text?: string
+          }
+          if (data.message_type === 'partial_transcript' && data.text) {
             onPartialTranscript(data.text)
             if (modeRef.current === 'continuous') {
               scheduleAutoCommit()
             }
-          } else if (data.type === 'committed_transcript' && data.text) {
+          } else if (data.message_type === 'committed_transcript' && data.text) {
             clearSilenceTimer()
             onFinalTranscript(data.text)
           }
@@ -260,7 +286,14 @@ export function useSpeechRecognition({
       const pcm = float32ToInt16Pcm(downsampled)
       const currentSocket = socketRef.current
       if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
-        currentSocket.send(JSON.stringify({ type: 'audio_chunk', audio: toBase64(pcm) }))
+        currentSocket.send(
+          JSON.stringify({
+            message_type: 'input_audio_chunk',
+            audio_base_64: toBase64(pcm),
+            sample_rate: SAMPLE_RATE_HZ,
+            commit: false,
+          }),
+        )
       }
     }
 

@@ -249,17 +249,72 @@ describe('useSpeechRecognition', () => {
     })
 
     act(() => {
-      FakeWebSocket.instances[0].triggerMessage({ type: 'partial_transcript', text: 'Hello' })
+      FakeWebSocket.instances[0].triggerMessage({
+        message_type: 'partial_transcript',
+        text: 'Hello',
+      })
     })
     expect(onPartialTranscript).toHaveBeenCalledWith('Hello')
 
     act(() => {
       FakeWebSocket.instances[0].triggerMessage({
-        type: 'committed_transcript',
+        message_type: 'committed_transcript',
         text: 'Hello there',
       })
     })
     expect(onFinalTranscript).toHaveBeenCalledWith('Hello there')
+  })
+
+  it('sends outbound messages in ElevenLabs\' verified realtime STT wire format (SPEC-013 T010)', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(createSttSession).mockResolvedValue({
+      token: 'tok-1',
+      expiresAtUtc: new Date().toISOString(),
+    })
+
+    const { result } = renderHook(() =>
+      useSpeechRecognition({
+        language: 'en',
+        mode: 'push-to-talk',
+        onPartialTranscript: vi.fn(),
+        onFinalTranscript: vi.fn(),
+      }),
+    )
+
+    await act(async () => {
+      const promise = result.current.start()
+      await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1))
+      FakeWebSocket.instances[0].triggerOpen()
+      await promise
+    })
+
+    const socket = FakeWebSocket.instances[0]
+    expect(socket.url).toContain('model_id=scribe_v2_realtime')
+    expect(socket.url).toContain('audio_format=pcm_16000')
+
+    const worklet = FakeAudioWorkletNode.instances[0]
+    act(() => {
+      worklet.port.onmessage?.({ data: new Float32Array([0.1, -0.1, 0.1]) })
+    })
+
+    const audioChunkMessage = JSON.parse(socket.sentMessages[0]) as Record<string, unknown>
+    expect(audioChunkMessage).toMatchObject({
+      message_type: 'input_audio_chunk',
+      sample_rate: 16000,
+      commit: false,
+    })
+    expect(typeof audioChunkMessage.audio_base_64).toBe('string')
+    expect(audioChunkMessage).not.toHaveProperty('audio')
+    expect(audioChunkMessage).not.toHaveProperty('type')
+
+    act(() => {
+      result.current.stop()
+    })
+
+    const commitMessage = JSON.parse(
+      socket.sentMessages[socket.sentMessages.length - 1],
+    ) as Record<string, unknown>
+    expect(commitMessage).toMatchObject({ message_type: 'input_audio_chunk', commit: true })
   })
 
   it('auto-commits after a silence pause in continuous mode, without waiting for a manual stop (FR-014)', async () => {
@@ -288,20 +343,24 @@ describe('useSpeechRecognition', () => {
 
     const socket = FakeWebSocket.instances[0]
     act(() => {
-      socket.triggerMessage({ type: 'partial_transcript', text: 'Hello' })
+      socket.triggerMessage({ message_type: 'partial_transcript', text: 'Hello' })
     })
 
     // No commit yet — still within the silence window.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
-    expect(socket.sentMessages.some((m) => JSON.parse(m).type === 'commit')).toBe(false)
+    expect(
+      socket.sentMessages.some((m) => JSON.parse(m).message_type === 'input_audio_chunk' && JSON.parse(m).commit === true),
+    ).toBe(false)
 
     // Silence persists past the threshold — auto-commits without any manual action.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
     })
-    expect(socket.sentMessages.some((m) => JSON.parse(m).type === 'commit')).toBe(true)
+    expect(
+      socket.sentMessages.some((m) => JSON.parse(m).message_type === 'input_audio_chunk' && JSON.parse(m).commit === true),
+    ).toBe(true)
   })
 
   it('resets the silence timer on each new partial transcript, in continuous mode (FR-005)', async () => {
@@ -330,7 +389,7 @@ describe('useSpeechRecognition', () => {
 
     const socket = FakeWebSocket.instances[0]
     act(() => {
-      socket.triggerMessage({ type: 'partial_transcript', text: 'Hello' })
+      socket.triggerMessage({ message_type: 'partial_transcript', text: 'Hello' })
     })
 
     await act(async () => {
@@ -339,18 +398,22 @@ describe('useSpeechRecognition', () => {
 
     // A fresh partial arrives just before the 800ms threshold — the timer must restart.
     act(() => {
-      socket.triggerMessage({ type: 'partial_transcript', text: 'Hello there' })
+      socket.triggerMessage({ message_type: 'partial_transcript', text: 'Hello there' })
     })
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(700)
     })
-    expect(socket.sentMessages.some((m) => JSON.parse(m).type === 'commit')).toBe(false)
+    expect(
+      socket.sentMessages.some((m) => JSON.parse(m).message_type === 'input_audio_chunk' && JSON.parse(m).commit === true),
+    ).toBe(false)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200)
     })
-    expect(socket.sentMessages.some((m) => JSON.parse(m).type === 'commit')).toBe(true)
+    expect(
+      socket.sentMessages.some((m) => JSON.parse(m).message_type === 'input_audio_chunk' && JSON.parse(m).commit === true),
+    ).toBe(true)
   })
 
   it('fires the local speech pre-trigger on a loud audio chunk, but not on a quiet one (research.md Decision 10)', async () => {

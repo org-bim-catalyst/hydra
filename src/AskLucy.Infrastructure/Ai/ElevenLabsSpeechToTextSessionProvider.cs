@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using Microsoft.Extensions.Options;
@@ -17,33 +16,30 @@ namespace AskLucy.Infrastructure.Ai;
 /// on failure — retrying here too would double the retry budget in a way neither layer could
 /// see.
 ///
-/// The exact token-mint endpoint path/response field names are a residual verification item
-/// (research.md, "Residual verification risk" #1) — the ElevenLabs API reference pages for
-/// this specific endpoint returned 404 during planning-time research. <see cref="TokenMintPath"/>
-/// and the response field names below MUST be confirmed against ElevenLabs' current API
-/// reference before this reaches production.
+/// Endpoint verified 2026-08-03 (SPEC-013 production incident — this path was never actually
+/// exercised in production until SPEC-013 wired a live mic control to it; the original,
+/// unverified guess (research.md's "Residual verification risk" #1, `speech-to-text/realtime/token`)
+/// 404'd against every real call) against
+/// https://elevenlabs.io/docs/api-reference/tokens/create: `POST /v1/single-use-token/{token_type}`,
+/// `token_type = realtime_scribe` for this use case, no request body, response is `{ "token":
+/// "..." }` only (no expiry field — the `expires_at` fallback below already handled that).
 /// </summary>
 public sealed class ElevenLabsSpeechToTextSessionProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ElevenLabsOptions> options) : ISpeechToTextSessionProvider
 {
-    private const string TokenMintPath = "speech-to-text/realtime/token";
+    private const string TokenMintPath = "single-use-token/realtime_scribe";
 
     private readonly ElevenLabsOptions _options = options.Value;
 
     public async Task<SpeechToTextSession> CreateSessionAsync(string language, CancellationToken cancellationToken = default)
     {
         using var client = CreateClient();
-        var payload = new Dictionary<string, object?>
-        {
-            ["model_id"] = _options.ModelId,
-            ["language_code"] = string.IsNullOrWhiteSpace(language) ? null : language,
-        };
 
         HttpResponseMessage response;
         try
         {
-            response = await client.PostAsJsonAsync(TokenMintPath, payload, cancellationToken);
+            response = await client.PostAsync(TokenMintPath, content: null, cancellationToken);
         }
         catch (Exception ex) when (IsTransient(ex))
         {

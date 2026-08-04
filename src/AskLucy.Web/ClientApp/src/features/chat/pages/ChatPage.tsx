@@ -12,7 +12,7 @@ import {
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AssistantPanel } from '../components/AssistantPanel'
 import { AssistantToggleFab } from '../components/AssistantToggleFab'
 import { ChatComposer } from '../components/ChatComposer'
@@ -21,9 +21,12 @@ import { MessageBubble } from '../components/MessageBubble'
 import { MinimalTopBar } from '../components/MinimalTopBar'
 import { ProviderModelSelector } from '../components/ProviderModelSelector'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
+import { VoiceControlBar } from '../components/VoiceControlBar'
 import { useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
+import { useSpeechRecognition } from '../voice/useSpeechRecognition'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
+import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
 
 const SceneBackground = lazy(() =>
@@ -45,6 +48,16 @@ export function ChatPage() {
   // actual voice playback (triggered from ConversationView) and the sphere reacting to it
   // (SceneBackground, a sibling) — a separate hook instance per component wouldn't share state.
   const tts = useVoiceOutput()
+
+  // FR-011/SC-004: restores a returning user's mute/input-mode preference without requiring
+  // a detour through Settings first (research.md Decision 9 — VoiceTab already hydrates on
+  // its own mount, but a user who never opens Settings needs this too). Mounted once here,
+  // not in ConversationView, since ConversationView remounts on every chat switch.
+  const hydrateVoicePreferences = useVoicePreferencesStore((s) => s.hydrateFromServer)
+  useEffect(() => {
+    void hydrateVoicePreferences()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSelectChat = (id: string) => {
     setSelectedChatId(id)
@@ -156,7 +169,9 @@ export function ConversationView({
 
   // Restores the legacy app's behavior of speaking every AI reply aloud as soon as it
   // finishes streaming (FR-006) — the React migration had only kept the Translate button's
-  // on-demand read-aloud, dropping the automatic one entirely.
+  // on-demand read-aloud, dropping the automatic one entirely. `tts.speak()` itself no-ops
+  // while muted (useVoiceOutput.ts, SPEC-013 Decision 3), so this effect needs no isMuted
+  // check of its own.
   const isPanelOpen = useAssistantPanelStore((s) => s.isOpen)
   const markUnread = useAssistantPanelStore((s) => s.markUnread)
   const wasStreamingRef = useRef(false)
@@ -171,6 +186,114 @@ export function ConversationView({
     }
     wasStreamingRef.current = isStreaming
   }, [isStreaming, messages, language, tts, isPanelOpen, markUnread])
+
+  // SPEC-013 US1 (FR-001/FR-003): keeps the extended useVoiceOutput's real-time mute gate
+  // in sync with the persisted preference — store is the source of truth (VoiceControlBar
+  // and Settings' VoiceTab both write through it), tts.isMuted is only its live effect.
+  const isMutedPreference = useVoicePreferencesStore((s) => s.isMuted)
+  const updateVoicePreference = useVoicePreferencesStore((s) => s.update)
+  // FR-012/constitution §2.VIII: a rejected `update({ isMuted })` (e.g. offline, 500) rolls
+  // back to the last-known-good state inside the store itself (voicePreferencesStore.ts) —
+  // this just makes that failure visible instead of leaving it store-internal only.
+  const voicePreferenceError = useVoicePreferencesStore((s) => s.error)
+  const clearVoicePreferenceError = useVoicePreferencesStore((s) => s.clearError)
+  useEffect(() => {
+    tts.setMuted(isMutedPreference)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMutedPreference])
+
+  const conversationMode = useVoicePreferencesStore((s) => s.conversationMode)
+  const updateConversationMode = useVoicePreferencesStore((s) => s.update)
+
+  // SPEC-013 US2: the composer's text field is lifted here (rather than owned internally by
+  // ChatComposer) so a Push-to-Talk transcript can fill it directly (research.md Decision 4),
+  // the same way a Continuous-mode transcript calls `send()` directly below.
+  const [composerText, setComposerText] = useState('')
+  const handleSend = () => {
+    if (!composerText.trim()) return
+    send(composerText.trim())
+    setComposerText('')
+  }
+
+  // `useSpeechRecognition` attaches its WebSocket 'message' listener exactly once per
+  // connection (inside `start()`), closing over whatever `onFinalTranscript` instance was
+  // current in *that* render — a plain inline arrow function here would freeze `providerId`/
+  // `modelId`/`isStreaming`/`conversationMode` at their values from the render Continuous
+  // mode happened to auto-start listening in (often before the provider/model catalog has
+  // finished loading), and never see later updates for the rest of that connection's
+  // lifetime. Routing through a ref that's refreshed every render (and calling through a
+  // stable wrapper) keeps the handler reading current values on every call instead.
+  const handleFinalTranscriptRef = useRef<(transcript: string) => void>(() => {})
+  useEffect(() => {
+    handleFinalTranscriptRef.current = (transcript: string) => {
+      if (!transcript.trim()) return
+      // Continuous mode can start listening (e.g. on mount, if the mode was already
+      // Continuous from a prior session) before the provider/model catalog has finished
+      // loading/auto-selecting — auto-sending in that window would hit the same
+      // "Choose an AI provider and model" guard useChatStream's send() already enforces for
+      // the manual Send button, but silently discard the user's spoken words instead of just
+      // rejecting a typed one. Fall back to filling the composer instead of sending, so a
+      // transcript is never lost — the user can send manually once ready, same as
+      // Push-to-Talk's normal behavior.
+      if (conversationMode === 'Continuous' && providerId && modelId && !isStreaming) {
+        send(transcript.trim())
+      } else {
+        setComposerText((prev) => `${prev} ${transcript}`.trim())
+      }
+    }
+  })
+  const handleFinalTranscript = useCallback(
+    (transcript: string) => handleFinalTranscriptRef.current(transcript),
+    [],
+  )
+
+  // SPEC-013 US2 (research.md Decision 1/4): a single `useSpeechRecognition` instance, owned
+  // here (mirroring `tts`'s existing lifted-hook convention), shared by `ChatComposer` (mic
+  // control + transcript target) and `VoiceControlBar` (status display) below — not
+  // `useConversationAudio`, which would coincidentally also speak the reply and regress the
+  // "every reply is spoken, typed or voice" behavior the mute effect above preserves.
+  const recognition = useSpeechRecognition({
+    language,
+    mode: conversationMode === 'Continuous' ? 'continuous' : 'push-to-talk',
+    onPartialTranscript: () => {},
+    onFinalTranscript: handleFinalTranscript,
+  })
+
+  // FR-006: Continuous mode has no per-utterance activation — selecting it starts listening
+  // immediately (and keeps listening across utterances); switching away stops it. Push-to-Talk
+  // capture itself is started/stopped by ChatComposer's mic control, not this effect.
+  //
+  // Also pauses Continuous listening while Lucy is speaking (`tts.isSpeaking`) and resumes it
+  // once she finishes — without this, the always-on mic hears her own TTS audio through the
+  // speakers and transcribes it as if the user said it, producing replies to nothing anyone
+  // actually said. `cancel()` (discard), not `stop()` (commit), since by the time a reply is
+  // audible the user's real utterance was already finalized well before generation/TTS synthesis
+  // finished (the silence-commit window is 800ms; a full reply takes far longer) — anything
+  // still accumulating when playback starts is not a genuine new utterance to process. This
+  // only applies to Continuous mode: a Push-to-Talk hold is an explicit user gesture (e.g. a
+  // deliberate barge-in) and is never force-stopped just because Lucy is talking.
+  useEffect(() => {
+    if (conversationMode === 'Continuous') {
+      if (tts.isSpeaking) {
+        if (recognition.isListening) recognition.cancel()
+      } else if (!recognition.isListening) {
+        void recognition.start()
+      }
+    } else if (recognition.isListening) {
+      recognition.stop()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationMode, tts.isSpeaking])
+
+  // FR-007/Clarification Q4 (research.md Decision 6): blocks switching away from Push-to-Talk
+  // while a capture (hold or toggle) is actively in progress, until it's released/stopped.
+  const isModeSwitchBlocked = conversationMode === 'PushToTalk' && recognition.isListening
+  const handleToggleMode = () => {
+    if (isModeSwitchBlocked) return
+    void updateConversationMode({
+      conversationMode: conversationMode === 'PushToTalk' ? 'Continuous' : 'PushToTalk',
+    })
+  }
 
   const handleTranslateLast = async () => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
@@ -259,7 +382,36 @@ export function ConversationView({
         </Box>
       </Box>
 
-      <ChatComposer onSend={send} disabled={isStreaming || !providerId || !modelId} />
+      <VoiceControlBar
+        isAvailable={tts.isSupported}
+        isListening={recognition.isListening}
+        isSpeaking={tts.isSpeaking}
+        isMuted={tts.isMuted}
+        conversationMode={conversationMode}
+        errorMessage={recognition.error}
+        permissionState={recognition.permissionState}
+        onStart={() => void recognition.start()}
+        onStop={recognition.stop}
+        onCancel={recognition.cancel}
+        onStopSpeaking={tts.stop}
+        onToggleMode={handleToggleMode}
+        onToggleMute={() => updateVoicePreference({ isMuted: !isMutedPreference })}
+        onClearError={recognition.clearError}
+      />
+      <ChatComposer
+        value={composerText}
+        onChange={setComposerText}
+        onSend={handleSend}
+        disabled={isStreaming || !providerId || !modelId}
+        conversationMode={conversationMode}
+        isListening={recognition.isListening}
+        permissionState={recognition.permissionState}
+        captureError={recognition.error}
+        onStartCapture={() => void recognition.start()}
+        onStopCapture={recognition.stop}
+        onCancelCapture={recognition.cancel}
+        onClearCaptureError={recognition.clearError}
+      />
       <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
         <Alert
           severity="error"
@@ -277,6 +429,15 @@ export function ConversationView({
       <Snackbar open={Boolean(tts.error)} autoHideDuration={5000} onClose={tts.clearError}>
         <Alert severity="error" variant="filled" onClose={tts.clearError}>
           {tts.error}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={Boolean(voicePreferenceError)}
+        autoHideDuration={5000}
+        onClose={clearVoicePreferenceError}
+      >
+        <Alert severity="error" variant="filled" onClose={clearVoicePreferenceError}>
+          {voicePreferenceError}
         </Alert>
       </Snackbar>
     </Box>
