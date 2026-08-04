@@ -5,9 +5,16 @@ import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as voiceApi from '../api/voiceApi'
 import type { PagedResult, PersistedMessage } from '../api/chatsApi'
+import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
-import { ConversationView } from './ChatPage'
+import { ChatPage, ConversationView } from './ChatPage'
+
+vi.mock('../api/voiceApi', async () => {
+  const actual = await vi.importActual<typeof voiceApi>('../api/voiceApi')
+  return { ...actual, getVoicePreferences: vi.fn(), saveVoicePreferences: vi.fn() }
+})
 
 const CHAT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const CHAT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
@@ -20,6 +27,9 @@ const mockTts: ReturnType<typeof useVoiceOutput> = {
   getIntensity: () => 0,
   error: null,
   clearError: () => {},
+  isMuted: false,
+  setMuted: () => {},
+  toggleMute: () => {},
 }
 
 function makeMessage(overrides: Partial<PersistedMessage>): PersistedMessage {
@@ -118,6 +128,20 @@ beforeEach(() => {
   // jsdom does not implement scrollIntoView at all (spyOn requires an existing property);
   // ConversationView calls it on every messages change.
   HTMLElement.prototype.scrollIntoView = vi.fn()
+  // Resets voicePreferencesStore for every test in this file, not just the describe blocks
+  // that explicitly exercise it — without this, a test that lands on Continuous mode (e.g.
+  // the hydration test) would leak that into unrelated tests, triggering an unwanted
+  // `recognition.start()`/`createSttSession` call via ConversationView's auto-start effect.
+  useVoicePreferencesStore.setState({
+    conversationMode: 'PushToTalk',
+    isMuted: false,
+    selectedVoiceId: null,
+    voiceSpeed: null,
+    voiceStyle: null,
+    preferredMicrophoneDeviceId: null,
+    preferredSpeakerDeviceId: null,
+    error: null,
+  })
 })
 
 function renderConversation(chatId: string | null) {
@@ -136,6 +160,90 @@ function renderConversation(chatId: string | null) {
     </MemoryRouter>,
   )
 }
+
+describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011/SC-004)', () => {
+  function renderChatPage() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <ChatPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  beforeEach(() => {
+    useVoicePreferencesStore.setState({
+      conversationMode: 'PushToTalk',
+      isMuted: false,
+      selectedVoiceId: null,
+      voiceSpeed: null,
+      voiceStyle: null,
+      preferredMicrophoneDeviceId: null,
+      preferredSpeakerDeviceId: null,
+      error: null,
+    })
+  })
+
+  it('calls hydrateFromServer on mount and reflects the server-provided preferences', async () => {
+    vi.mocked(voiceApi.getVoicePreferences).mockResolvedValue({
+      conversationMode: 'Continuous',
+      isMuted: true,
+      selectedVoiceId: null,
+      voiceSpeed: null,
+      voiceStyle: null,
+      preferredMicrophoneDeviceId: null,
+      preferredSpeakerDeviceId: null,
+    })
+
+    renderChatPage()
+
+    await waitFor(() => expect(voiceApi.getVoicePreferences).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(useVoicePreferencesStore.getState().isMuted).toBe(true)
+      expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous')
+    })
+  })
+})
+
+describe('ConversationView — mute control (SPEC-013 US1, FR-001/FR-003/FR-012)', () => {
+  beforeEach(() => {
+    useVoicePreferencesStore.setState({
+      conversationMode: 'PushToTalk',
+      isMuted: false,
+      selectedVoiceId: null,
+      voiceSpeed: null,
+      voiceStyle: null,
+      preferredMicrophoneDeviceId: null,
+      preferredSpeakerDeviceId: null,
+      error: null,
+    })
+  })
+
+  it('surfaces a visible error instead of failing silently when saving the mute preference fails', async () => {
+    vi.mocked(voiceApi.saveVoicePreferences).mockRejectedValue(new Error('Could not save.'))
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await user.click(await screen.findByRole('button', { name: /^mute$/i }))
+
+    expect(await screen.findByText('Could not save.')).toBeInTheDocument()
+  })
+
+  it('mutes without error when saving succeeds', async () => {
+    vi.mocked(voiceApi.saveVoicePreferences).mockImplementation((preference) =>
+      Promise.resolve(preference),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await user.click(await screen.findByRole('button', { name: /^mute$/i }))
+
+    await waitFor(() => expect(useVoicePreferencesStore.getState().isMuted).toBe(true))
+    expect(screen.queryByText('Could not save.')).not.toBeInTheDocument()
+  })
+})
 
 describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
   it('shows the empty-state placeholder when no conversation is selected', () => {

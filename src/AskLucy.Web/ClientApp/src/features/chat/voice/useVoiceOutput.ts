@@ -22,6 +22,7 @@ export function useVoiceOutput() {
   const { provider, failOver } = useVoiceProviderStatus()
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isMuted, setIsMutedState] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Surfaces failures from the ElevenLabs audio element itself (blocked autoplay, a
@@ -46,6 +47,9 @@ export function useVoiceOutput() {
   const speak = useCallback(
     async (text: string, language: string) => {
       if (!text.trim()) return
+      // FR-003/Clarification Q2: a reply is never queued or started while muted, so there is
+      // nothing left to become audible later — unmuting only affects the *next* speak() call.
+      if (isMuted) return
 
       await probeRecoveryIfDegraded(language)
       if (useVoiceProviderStatus.getState().provider === 'fallback') {
@@ -102,7 +106,7 @@ export function useVoiceOutput() {
         fallback.speak(text, language)
       }
     },
-    [fallback, analyzer, failOver],
+    [fallback, analyzer, failOver, isMuted],
   )
 
   const stop = useCallback(() => {
@@ -113,13 +117,34 @@ export function useVoiceOutput() {
     fallback.stop()
   }, [analyzer, fallback])
 
+  const combinedIsSpeaking = isSpeaking || fallback.isSpeaking
+
+  // US1/FR-002/FR-003 (research.md Decision 3): muting stops whatever is currently audible
+  // immediately (rather than just silently continuing in the background, which would risk
+  // becoming audible again on unmute) but never interrupts or delays reply generation —
+  // by the time this hook's speak() runs, the AI's text reply has already fully generated.
+  const setMuted = useCallback(
+    (muted: boolean) => {
+      setIsMutedState(muted)
+      if (muted && combinedIsSpeaking) {
+        stop()
+      }
+    },
+    [combinedIsSpeaking, stop],
+  )
+
+  const toggleMute = useCallback(() => setMuted(!isMuted), [setMuted, isMuted])
+
   return {
     isSupported: true,
     speak,
     stop,
-    isSpeaking: isSpeaking || fallback.isSpeaking,
+    isSpeaking: combinedIsSpeaking,
     getIntensity: provider === 'fallback' ? fallback.getIntensity : analyzer.getReactiveIntensity,
     error: error ?? fallback.error,
     clearError,
+    isMuted,
+    setMuted,
+    toggleMute,
   }
 }

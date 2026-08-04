@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
+import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { ChatPage, ConversationView } from './ChatPage'
 
 expect.extend(toHaveNoViolations)
@@ -21,6 +22,9 @@ const mockTts: ReturnType<typeof useVoiceOutput> = {
   getIntensity: () => 0,
   error: null,
   clearError: () => {},
+  isMuted: false,
+  setMuted: () => {},
+  toggleMute: () => {},
 }
 
 const server = setupServer()
@@ -33,6 +37,16 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(56)
   HTMLElement.prototype.scrollIntoView = vi.fn()
+  useVoicePreferencesStore.setState({
+    conversationMode: 'PushToTalk',
+    isMuted: false,
+    selectedVoiceId: null,
+    voiceSpeed: null,
+    voiceStyle: null,
+    preferredMicrophoneDeviceId: null,
+    preferredSpeakerDeviceId: null,
+    error: null,
+  })
 })
 
 function renderConversation() {
@@ -74,6 +88,29 @@ describe('ConversationView accessibility (constitution §7, §10)', () => {
     const { container, findByRole } = renderConversation()
 
     await findByRole('alert')
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+})
+
+describe('ConversationView voice controls accessibility (SPEC-013 T020, constitution §7/§10)', () => {
+  // Note: VoiceControlBar.test.tsx and ChatComposer.test.tsx already a11y-test the muted,
+  // listening, and permission-denied states directly against those components with
+  // deterministic props — this integration-level check instead covers a state that's only
+  // reachable by the real, page-level `voicePreferencesStore` (unlike `isMuted`, which the
+  // mocked `tts` here doesn't reactively reflect): Continuous mode's real structural
+  // difference (no mic button rendered in `ChatComposer`).
+  it('has no automatically detectable a11y violations in Continuous mode (no mic button, listening status only)', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_ID}/messages`, () =>
+        HttpResponse.json({ items: [], nextCursor: null }),
+      ),
+    )
+    useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
+    const { container, findByLabelText } = renderConversation()
+
+    await findByLabelText('Switch to Push-to-Talk mode')
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
