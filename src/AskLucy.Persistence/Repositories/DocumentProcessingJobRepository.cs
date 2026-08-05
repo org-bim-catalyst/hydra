@@ -53,9 +53,14 @@ public sealed class DocumentProcessingJobRepository(AskLucyDbContext dbContext) 
     /// </summary>
     public async Task<DocumentDashboardCounts> GetDashboardCountsAsync(string? ownerId, DateTime todayStartUtc, CancellationToken cancellationToken = default)
     {
-        var currentJobs = await GetCurrentJobsQuery(ownerId)
-            .Select(j => new { j.Status, j.CompletedAtUtc })
-            .ToListAsync(cancellationToken);
+        // Deliberately no further .Select(...) projection chained onto GetCurrentJobsQuery's
+        // GroupBy(...).Select(g => g.OrderByDescending(...).First()) shape — composing an
+        // additional projection on top of that "first per group" translation trips a real EF
+        // Core query-translation bug (KeyNotFoundException: "EmptyProjectionMember"). Materializing
+        // the full entities still gets the one-query goal (vs. four separate CountAsync calls
+        // each re-running the grouped subquery); the extra unused columns are immaterial at
+        // dashboard-count scale (one row per document).
+        var currentJobs = await GetCurrentJobsQuery(ownerId).ToListAsync(cancellationToken);
 
         var queueDepth = currentJobs.Count(j => j.Status == DocumentProcessingJobStatus.Queued);
         var inProgressCount = currentJobs.Count(j => j.Status == DocumentProcessingJobStatus.InProgress);
