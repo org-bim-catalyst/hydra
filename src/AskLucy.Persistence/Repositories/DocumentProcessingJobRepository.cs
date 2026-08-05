@@ -73,12 +73,28 @@ public sealed class DocumentProcessingJobRepository(AskLucyDbContext dbContext) 
 
     public async Task<IReadOnlyList<DocumentRetryQueueEntry>> GetRetryQueueAsync(string? ownerId, CancellationToken cancellationToken = default)
     {
-        var failedCurrentJobs = GetCurrentJobsQuery(ownerId).Where(j => j.Status == DocumentProcessingJobStatus.Failed);
+        // Same EF Core GroupBy-First translation limitation as GetDashboardCountsAsync above —
+        // composing a further Where/join/Select onto GetCurrentJobsQuery's "first per group"
+        // shape trips it, so the current jobs are materialized fully first and everything else
+        // (filtering to Failed, joining to Documents for file names) happens afterward.
+        var currentJobs = await GetCurrentJobsQuery(ownerId).ToListAsync(cancellationToken);
+        var failedJobsByDocumentId = currentJobs
+            .Where(j => j.Status == DocumentProcessingJobStatus.Failed)
+            .ToDictionary(j => j.DocumentId, j => j.FailureReason);
 
-        return await (
-            from job in failedCurrentJobs
-            join document in dbContext.Documents on job.DocumentId equals document.Id
-            select new DocumentRetryQueueEntry(document.Id, document.FileName, job.FailureReason ?? "Unknown failure."))
+        if (failedJobsByDocumentId.Count == 0)
+        {
+            return [];
+        }
+
+        var failedDocumentIds = failedJobsByDocumentId.Keys.ToList();
+        var documents = await dbContext.Documents
+            .Where(d => failedDocumentIds.Contains(d.Id))
+            .Select(d => new { d.Id, d.FileName })
             .ToListAsync(cancellationToken);
+
+        return documents
+            .Select(d => new DocumentRetryQueueEntry(d.Id, d.FileName, failedJobsByDocumentId[d.Id] ?? "Unknown failure."))
+            .ToList();
     }
 }
