@@ -25,17 +25,20 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
 
     private async Task<(Guid DocumentId, Guid VersionId)> SeedDocumentAsync(string ownerId, string fileName)
     {
-        var versionId = Guid.CreateVersion7();
         var checksum = DocumentChecksum.Create($"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..64], ownerId);
-        var document = Document.Create(Guid.CreateVersion7(), ownerId, fileName, DocumentFileType.Pdf, 1024, versionId, ownerId);
-        var version = DocumentVersion.Create(document.Id, 1, 0, "stored.bin", fileName, 1024, checksum.Id, ownerId);
+        var documentId = Guid.CreateVersion7();
+        var version = DocumentVersion.Create(documentId, 1, 0, "stored.bin", fileName, 1024, checksum.Id, ownerId);
+        // DocumentVersion.Create generates its own Id internally (Guid.CreateVersion7()) — this
+        // must be read back from the created entity, not a separately-generated local Guid, since
+        // it's what DocumentProcessingJob.DocumentVersionId's real FK actually has to match.
+        var document = Document.Create(documentId, ownerId, fileName, DocumentFileType.Pdf, 1024, version.Id, ownerId);
 
         await using var dbContext = fixture.CreateDbContext();
         dbContext.Documents.Add(document);
         dbContext.DocumentChecksums.Add(checksum);
         dbContext.DocumentVersions.Add(version);
         await dbContext.SaveChangesAsync();
-        return (document.Id, versionId);
+        return (document.Id, version.Id);
     }
 
     [Fact]
