@@ -18,6 +18,9 @@ const ExternalLoginCompletePage = lazy(() =>
   import('../features/auth/pages/ExternalLoginCompletePage').then((m) => ({ default: m.ExternalLoginCompletePage })),
 )
 const ChatPage = lazy(() => import('../features/chat/pages/ChatPage').then((m) => ({ default: m.ChatPage })))
+const DocumentWorkspacePage = lazy(() =>
+  import('../features/documents/pages/DocumentWorkspacePage').then((m) => ({ default: m.DocumentWorkspacePage })),
+)
 const KnowledgeBaseDashboardPage = lazy(() =>
   import('../features/knowledge-base/pages/KnowledgeBaseDashboardPage').then((m) => ({ default: m.KnowledgeBaseDashboardPage })),
 )
@@ -110,6 +113,17 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <Lazy>
           <ChatPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/documents',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <DocumentWorkspacePage />
         </Lazy>
       </ProtectedRoute>
     ),

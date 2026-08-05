@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
@@ -56,16 +57,48 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
     {
         await using var dbContext = CreateDbContext();
 
-        // Clears every table's data (schema untouched) so each run starts from the same
-        // empty-tables state a fresh Testcontainers instance gave, without ever touching the
-        // database itself. sp_MSforeachtable is SQL Server's standard (if undocumented)
-        // mechanism for this, and runs under the caller's own permissions on the current
-        // database only — no master access, no elevated rights needed.
-        await dbContext.Database.ExecuteSqlRawAsync(
-            "EXEC sp_MSforeachtable 'ALTER TABLE ? NOCHECK CONSTRAINT ALL'");
-        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_MSforeachtable 'DELETE FROM ?'");
-        await dbContext.Database.ExecuteSqlRawAsync(
-            "EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL'");
+        // Clears every EF-mapped table's data (schema untouched) so each run starts from the
+        // same empty-tables state a fresh Testcontainers instance gave, without ever touching
+        // the database itself.
+        //
+        // Previously used `sp_MSforeachtable`. Replaced for two reasons found while adding
+        // specs/015's DocumentStatistics table (which has a filtered index):
+        //  1. `sp_MSforeachtable`/`sp_MSforeach_worker` are system procedures whose own
+        //     QUOTED_IDENTIFIER setting is fixed at the compile time of the SQL Server instance,
+        //     not inherited from the caller's connection — the DELETE it runs internally fails
+        //     against any table with a filtered index/computed column/indexed view (here:
+        //     DocumentStatistics, and even AspNetUsers/AspNetRoles's own filtered unique
+        //     indexes) with "DELETE failed because the following SET options have incorrect
+        //     settings: 'QUOTED_IDENTIFIER'" — reproduced identically via both sqlcmd and the
+        //     real Microsoft.Data.SqlClient connection this fixture uses. Building each
+        //     statement in C# and executing it directly runs under this connection's own
+        //     (correct) SET options, sidestepping the problem entirely.
+        //  2. `sp_MSforeachtable` enumerates every user table in the database indiscriminately,
+        //     including `__EFMigrationsHistory` — wiping the maintainer's migration-history
+        //     record for this shared database on every test run, not just domain data. Deriving
+        //     the table list from the EF Core model instead means `__EFMigrationsHistory` (which
+        //     isn't part of the model) is never touched, by construction rather than by an
+        //     exclusion filter.
+        var tableNames = dbContext.Model.GetEntityTypes()
+            .Select(entityType => entityType.GetSchemaQualifiedTableName())
+            .Where(name => name is not null)
+            .Distinct()
+            .ToList();
+
+        foreach (var tableName in tableNames)
+        {
+            await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE {tableName} NOCHECK CONSTRAINT ALL");
+        }
+
+        foreach (var tableName in tableNames)
+        {
+            await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM {tableName}");
+        }
+
+        foreach (var tableName in tableNames)
+        {
+            await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE {tableName} WITH CHECK CHECK CONSTRAINT ALL");
+        }
     }
 
     public AskLucyDbContext CreateDbContext()

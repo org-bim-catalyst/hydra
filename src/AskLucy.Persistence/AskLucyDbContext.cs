@@ -3,6 +3,7 @@ using AskLucy.Domain.Ai;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
+using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -50,6 +51,40 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
     public DbSet<KnowledgeBaseCategory> KnowledgeBaseCategories => Set<KnowledgeBaseCategory>();
 
     public DbSet<KnowledgeBaseAuditLog> KnowledgeBaseAuditLogs => Set<KnowledgeBaseAuditLog>();
+
+    public DbSet<Document> Documents => Set<Document>();
+
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+
+    public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
+
+    public DbSet<DocumentMetadata> DocumentMetadata => Set<DocumentMetadata>();
+
+    public DbSet<DocumentLanguage> DocumentLanguages => Set<DocumentLanguage>();
+
+    public DbSet<DocumentCategory> DocumentCategories => Set<DocumentCategory>();
+
+    public DbSet<DocumentClassification> DocumentClassifications => Set<DocumentClassification>();
+
+    public DbSet<DocumentPreview> DocumentPreviews => Set<DocumentPreview>();
+
+    public DbSet<DocumentProcessingJob> DocumentProcessingJobs => Set<DocumentProcessingJob>();
+
+    public DbSet<DocumentProcessingStage> DocumentProcessingStages => Set<DocumentProcessingStage>();
+
+    public DbSet<DocumentProcessingLog> DocumentProcessingLogs => Set<DocumentProcessingLog>();
+
+    public DbSet<DocumentTag> DocumentTags => Set<DocumentTag>();
+
+    public DbSet<DocumentAuditLog> DocumentAuditLogs => Set<DocumentAuditLog>();
+
+    public DbSet<DocumentChecksum> DocumentChecksums => Set<DocumentChecksum>();
+
+    public DbSet<DocumentStatistics> DocumentStatistics => Set<DocumentStatistics>();
+
+    public DbSet<DocumentNotification> DocumentNotifications => Set<DocumentNotification>();
+
+    public DbSet<DocumentUploadSession> DocumentUploadSessions => Set<DocumentUploadSession>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
