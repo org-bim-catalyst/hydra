@@ -95,9 +95,18 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
             await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM {tableName}");
         }
 
+        // Deliberately "CHECK CONSTRAINT" (re-arm future enforcement), not "WITH CHECK CHECK
+        // CONSTRAINT" (re-arm AND re-validate every existing row against the constraint right
+        // now). Every table is already empty from the delete loop above, so there is nothing
+        // meaningful to re-validate — and re-validating is exactly what failed in CI: SQL Server
+        // scans a referencing table's current rows against the referenced table's current rows
+        // as of that specific statement, table by table, so a table processed early in this loop
+        // can be validated against a not-yet-fully-quiesced view of another table it references,
+        // surfacing a spurious "conflicted with the FOREIGN KEY constraint" error even though
+        // every table ends this method empty either way.
         foreach (var tableName in tableNames)
         {
-            await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE {tableName} WITH CHECK CHECK CONSTRAINT ALL");
+            await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE {tableName} CHECK CONSTRAINT ALL");
         }
     }
 
