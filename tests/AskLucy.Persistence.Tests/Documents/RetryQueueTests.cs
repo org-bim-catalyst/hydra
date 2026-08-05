@@ -23,7 +23,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         return ownerId;
     }
 
-    private async Task<Guid> SeedDocumentAsync(string ownerId, string fileName)
+    private async Task<(Guid DocumentId, Guid VersionId)> SeedDocumentAsync(string ownerId, string fileName)
     {
         var versionId = Guid.CreateVersion7();
         var checksum = DocumentChecksum.Create($"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..64], ownerId);
@@ -35,16 +35,16 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         dbContext.DocumentChecksums.Add(checksum);
         dbContext.DocumentVersions.Add(version);
         await dbContext.SaveChangesAsync();
-        return document.Id;
+        return (document.Id, versionId);
     }
 
     [Fact]
     public async Task GetRetryQueueAsync_ShouldIncludeADocument_WhoseCurrentJobIsFailed()
     {
         var ownerId = await SeedOwnerAsync();
-        var documentId = await SeedDocumentAsync(ownerId, "bad.pdf");
+        var (documentId, versionId) = await SeedDocumentAsync(ownerId, "bad.pdf");
 
-        var job = DocumentProcessingJob.Create(documentId, Guid.CreateVersion7(), ownerId);
+        var job = DocumentProcessingJob.Create(documentId, versionId, ownerId);
         job.Start("hangfire-1", ownerId);
         job.Fail("The file could not be parsed.", ownerId);
 
@@ -66,9 +66,9 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
     public async Task GetRetryQueueAsync_ShouldNotIncludeADocument_ThatFailedOnceButLaterSucceededAfterRetry()
     {
         var ownerId = await SeedOwnerAsync();
-        var documentId = await SeedDocumentAsync(ownerId, "recovered.pdf");
+        var (documentId, versionId) = await SeedDocumentAsync(ownerId, "recovered.pdf");
 
-        var job = DocumentProcessingJob.Create(documentId, Guid.CreateVersion7(), ownerId);
+        var job = DocumentProcessingJob.Create(documentId, versionId, ownerId);
         job.Start("hangfire-1", ownerId);
         job.Fail("Transient failure.", ownerId);
         job.Retry(ownerId);
@@ -97,11 +97,11 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
     {
         var ownerId = await SeedOwnerAsync();
         var otherOwnerId = await SeedOwnerAsync();
-        var documentId = await SeedDocumentAsync(ownerId, "mine.pdf");
-        var otherDocumentId = await SeedDocumentAsync(otherOwnerId, "theirs.pdf");
+        var (documentId, versionId) = await SeedDocumentAsync(ownerId, "mine.pdf");
+        var (otherDocumentId, otherVersionId) = await SeedDocumentAsync(otherOwnerId, "theirs.pdf");
 
-        var job = DocumentProcessingJob.Create(documentId, Guid.CreateVersion7(), ownerId);
-        var otherJob = DocumentProcessingJob.Create(otherDocumentId, Guid.CreateVersion7(), otherOwnerId);
+        var job = DocumentProcessingJob.Create(documentId, versionId, ownerId);
+        var otherJob = DocumentProcessingJob.Create(otherDocumentId, otherVersionId, otherOwnerId);
         otherJob.Start("hangfire-1", otherOwnerId);
         otherJob.Fail("Not mine.", otherOwnerId);
 
