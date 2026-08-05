@@ -69,6 +69,12 @@ public static class DependencyInjection
         services.AddScoped<IKnowledgeBaseDocumentRepository, KnowledgeBaseDocumentRepository>();
         services.AddScoped<IKnowledgeBaseFolderRepository, KnowledgeBaseFolderRepository>();
         services.AddScoped<IKnowledgeBaseCategoryRepository, KnowledgeBaseCategoryRepository>();
+        services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IDocumentFolderRepository, DocumentFolderRepository>();
+        services.AddScoped<IDocumentProcessingJobRepository, DocumentProcessingJobRepository>();
+        services.AddScoped<IDocumentNotificationRepository, DocumentNotificationRepository>();
+        services.AddScoped<IDocumentUploadSessionRepository, DocumentUploadSessionRepository>();
+        services.AddScoped<IDocumentStatisticsRepository, DocumentStatisticsRepository>();
 
         return services;
     }

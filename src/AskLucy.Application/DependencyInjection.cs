@@ -2,6 +2,9 @@ using System.Reflection;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
+using AskLucy.Application.Documents.Commands;
+using AskLucy.Application.Documents.Processing;
+using AskLucy.Application.Documents.Processing.Stages;
 using AskLucy.Application.KnowledgeBases;
 using AskLucy.Application.Options;
 using FluentValidation;
@@ -24,6 +27,15 @@ public static class DependencyInjection
 
         services.AddScoped<TokenIssuer>();
         services.AddScoped<DefaultProviderResolver>();
+        services.AddScoped<IDocumentProcessingPipeline, DocumentProcessingPipeline>();
+        services.AddScoped<DocumentUploadFinalizer>();
+        services.AddScoped<IProcessingStageHandler, ValidationStageHandler>();
+        services.AddScoped<IProcessingStageHandler, OcrStageHandler>();
+        services.AddScoped<IProcessingStageHandler, TextExtractionStageHandler>();
+        services.AddScoped<IProcessingStageHandler, MetadataExtractionStageHandler>();
+        services.AddScoped<IProcessingStageHandler, ClassificationStageHandler>();
+        services.AddScoped<IProcessingStageHandler, LanguageDetectionStageHandler>();
+        services.AddScoped<IProcessingStageHandler, PreviewGenerationStageHandler>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's
         // composition root, not here — Application depends only on the IMemoryCache interface
@@ -43,6 +55,16 @@ public static class DependencyInjection
 
         services.AddOptions<KnowledgeBaseDocumentOptions>()
             .Bind(configuration.GetSection(KnowledgeBaseDocumentOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<DocumentUploadOptions>()
+            .Bind(configuration.GetSection(DocumentUploadOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<DocumentStorageQuotaOptions>()
+            .Bind(configuration.GetSection(DocumentStorageQuotaOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 

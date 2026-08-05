@@ -37,6 +37,17 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # TesseractOcrEngineTests (SPEC-015) exercises real OCR recognition, which needs an actual
+      # .traineddata language pack. App_Data/ is gitignored (never committed — see README.md
+      # "Deployment prerequisites"), so a fresh checkout has none; fetch just the one language
+      # this test needs from the official tessdata repo rather than checking in a binary fixture.
+      - name: Fetch Tesseract OCR trained data (eng) for TesseractOcrEngineTests
+        working-directory: .
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src/AskLucy.Web/App_Data/tessdata | Out-Null
+          curl.exe --fail --silent --show-error -L -o src/AskLucy.Web/App_Data/tessdata/eng.traineddata https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata
+
       - name: Restore
         working-directory: .
         run: dotnet restore "Ask Lucy.sln"

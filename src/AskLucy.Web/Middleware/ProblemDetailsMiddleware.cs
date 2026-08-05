@@ -70,6 +70,20 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             context.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        // FR-029, contracts/document-processing-api.md: the client needs a machine-readable
+        // reason code (not just a human-readable Detail string) to distinguish this specific
+        // 409 case from any other conflict.
+        if (exception is AskLucy.Domain.Documents.ProcessingNotInFailedStateException)
+        {
+            problemDetails.Extensions["reason"] = "NotInFailedState";
+        }
+
+        // FR-041, contracts/document-versions-folders-api.md: same machine-readable-reason pattern as above.
+        if (exception is AskLucy.Domain.Documents.VersionUploadInProgressException)
+        {
+            problemDetails.Extensions["reason"] = "VersionUploadInProgress";
+        }
+
         context.Response.StatusCode = statusCode;
         // WriteAsJsonAsync's no-content-type overload unconditionally overwrites
         // Response.ContentType to "application/json" — passing it explicitly here is what
@@ -107,6 +121,18 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "https://hydra.bimcatalyst.com/problems/duplicate-resource",
             "Duplicate resource",
             duplicateEx.Message),
+
+        AskLucy.Domain.Documents.ProcessingNotInFailedStateException processingConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/processing-not-in-failed-state",
+            "Processing job not in failed state",
+            processingConflictEx.Message),
+
+        AskLucy.Domain.Documents.VersionUploadInProgressException versionConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/version-upload-in-progress",
+            "A version upload is already in progress",
+            versionConflictEx.Message),
 
         AiProviderUnavailableException => (
             StatusCodes.Status502BadGateway,

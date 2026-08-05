@@ -1,0 +1,80 @@
+import CloseIcon from '@mui/icons-material/Close'
+import { Alert, Box, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
+import { useCompareVersions } from '../hooks/useDocuments'
+
+interface VersionCompareDialogProps {
+  documentId: string
+  fromVersionId: string
+  toVersionId: string
+  onClose: () => void
+}
+
+function diffLineColor(line: string): string | undefined {
+  if (line.startsWith('+ ')) return 'success.main'
+  if (line.startsWith('- ')) return 'error.main'
+  return undefined
+}
+
+/** FR-042, US5 AC — diffs extracted text and each version's own intrinsic fields (see CompareVersionsQueryHandler for why "metadata" here means the version row's own fields, not DocumentMetadata). */
+export function VersionCompareDialog({ documentId, fromVersionId, toVersionId, onClose }: VersionCompareDialogProps) {
+  const { data, isLoading, isError } = useCompareVersions(documentId, fromVersionId, toVersionId)
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        Compare versions
+        <IconButton aria-label="Close" onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        {isError && <Alert severity="error">Could not load the comparison. Please try again.</Alert>}
+        {isLoading && <CircularProgress size={24} aria-label="Loading version comparison" />}
+
+        {data && (
+          <>
+            {Object.keys(data.metadataDiff).length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                  Changed fields
+                </Typography>
+                <Stack spacing={0.5}>
+                  {Object.entries(data.metadataDiff).map(([field, diff]) => (
+                    <Typography variant="body2" key={field}>
+                      <strong>{field}</strong>: {diff.from ?? '—'} → {diff.to ?? '—'}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              Extracted text
+            </Typography>
+            <Box
+              component="pre"
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: 13,
+                whiteSpace: 'pre-wrap',
+                overflowX: 'auto',
+                bgcolor: 'action.hover',
+                p: 1.5,
+                borderRadius: 1,
+                m: 0,
+              }}
+            >
+              {data.extractedTextDiff
+                ? data.extractedTextDiff.split('\n').map((line, index) => (
+                    <Box key={`${index}-${line}`} component="span" sx={{ display: 'block', color: diffLineColor(line) }}>
+                      {line}
+                    </Box>
+                  ))
+                : 'No text differences.'}
+            </Box>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}

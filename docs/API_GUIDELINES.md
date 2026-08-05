@@ -623,7 +623,89 @@ GET /knowledge-bases/tags                     (?q=prefix optional)
 
 ---
 
-# 24. Prompt Library
+# 24. Document Intelligence Endpoints
+
+> **As shipped** (SPEC-015, `specs/015-document-intelligence-pipeline/contracts/`): a
+> user's own document workspace — upload, processing, folders, versions, search, dashboard,
+> and notifications. Distinct from the Knowledge Base Engine's `/knowledge-bases/{id}/documents`
+> (§23), which are files scoped to one knowledge base for future RAG retrieval; these are a
+> user's general document library with its own processing pipeline and no KB attachment.
+
+```
+GET /documents                                          (?view=Active|Archived|Deleted, cursor-paginated — FR-034)
+GET /documents/{id}
+PATCH /documents/{id}                                    (rename)
+DELETE /documents/{id}
+POST /documents/{id}/actions/archive
+POST /documents/{id}/actions/restore
+POST /documents/{id}/actions/duplicate
+GET /documents/{id}/download                             (mints a signed URL)
+GET /documents/{id}/preview                              (FR-043/FR-044 — Unavailable is a valid, non-error result)
+```
+
+Upload (single-request and resumable/chunked)
+
+```
+POST /documents/uploads/simple                            (multipart/form-data — small files)
+POST /documents/uploads                                   (?documentId=... to target a version replacement — US5)
+PUT /documents/uploads/{uploadSessionId}/chunks/{chunkIndex}
+POST /documents/uploads/{uploadSessionId}/complete
+POST /documents/uploads/{uploadSessionId}/complete-as-version
+POST /documents/uploads/{uploadSessionId}/complete-as-new
+DELETE /documents/uploads/{uploadSessionId}
+```
+
+Processing
+
+```
+GET /documents/{id}/processing
+GET /documents/{id}/processing/history
+POST /documents/{id}/processing/actions/retry
+```
+
+Metadata, classification, tags
+
+```
+PATCH /documents/{id}/metadata                            (optimistic concurrency via rowVersion)
+PUT /documents/{id}/classification
+GET /documents/tags
+POST /documents/{id}/tags
+DELETE /documents/{id}/tags/{name}
+GET /documents/categories
+```
+
+Folders
+
+```
+GET /documents/folders/tree
+POST /documents/folders
+PATCH /documents/folders/{id}                             (rename)
+PATCH /documents/folders/{id}/parent                      (move)
+DELETE /documents/folders/{id}                            (?onContainedDocuments=MoveToParent|ArchiveAll|DeleteAll)
+PATCH /documents/{id}/folder                              (move a document)
+```
+
+Versions (US5)
+
+```
+GET /documents/{id}/versions
+GET /documents/{id}/versions/compare                      (?fromVersionId=...&toVersionId=...)
+POST /documents/{id}/versions                              (replace — new version from an upload session)
+POST /documents/{id}/versions/{versionId}/actions/restore
+```
+
+Dashboard & notifications (US6)
+
+```
+GET /documents/dashboard                                  (per-user, 5s poll fallback alongside SignalR push)
+GET /documents/dashboard/organization                     (admin-only)
+GET /documents/notifications                              (?unreadOnly=..., cursor-paginated)
+POST /documents/notifications/{id}/actions/mark-read
+```
+
+---
+
+# 25. Prompt Library
 
 ```
 GET /prompts
@@ -637,7 +719,7 @@ DELETE /prompts/{id}
 
 ---
 
-# 25. Agent Endpoints
+# 26. Agent Endpoints
 
 ```
 GET /agents
@@ -653,7 +735,7 @@ POST /agents/{id}/execute
 
 ---
 
-# 26. MCP Endpoints
+# 27. MCP Endpoints
 
 ```
 GET /mcp/servers
@@ -667,7 +749,7 @@ Tool execution must validate permissions before invocation.
 
 ---
 
-# 27. User Profile
+# 28. User Profile
 
 ```
 GET /profile
@@ -681,7 +763,7 @@ DELETE /profile/avatar
 
 ---
 
-# 28. Authentication Endpoints
+# 29. Authentication Endpoints
 
 ```
 POST /auth/register
@@ -705,7 +787,7 @@ POST /auth/2fa/verify
 
 ---
 
-# 29. Billing
+# 30. Billing
 
 ```
 GET /subscriptions
@@ -719,7 +801,7 @@ GET /payments
 
 ---
 
-# 30. Administration
+# 31. Administration
 
 ```
 GET /admin/users
@@ -737,7 +819,7 @@ All administrative endpoints require elevated authorization.
 
 ---
 
-# 31. HTTP Status Codes
+# 32. HTTP Status Codes
 
 Use consistent status codes.
 
@@ -773,7 +855,7 @@ Use consistent status codes.
 
 ---
 
-# 32. Rate Limiting
+# 33. Rate Limiting
 
 Apply rate limits by endpoint category.
 
@@ -805,7 +887,7 @@ Include retry information in response headers where appropriate.
 
 ---
 
-# 33. OpenAPI Standards
+# 34. OpenAPI Standards
 
 Every endpoint must include:
 
@@ -822,7 +904,7 @@ Swagger should be production quality.
 
 ---
 
-# 34. API Security
+# 35. API Security
 
 Validate
 
@@ -836,7 +918,7 @@ Never trust client-provided IDs without verifying ownership.
 
 ---
 
-# 35. API Observability
+# 36. API Observability
 
 Every request should log:
 
@@ -852,7 +934,7 @@ Sensitive request bodies should not be logged.
 
 ---
 
-# 36. Error Codes
+# 37. Error Codes
 
 Every error should include a machine-readable code.
 
@@ -880,7 +962,7 @@ These codes should remain stable across API versions.
 
 ---
 
-# 37. API Evolution
+# 38. API Evolution
 
 Breaking changes require a new API version.
 
@@ -895,7 +977,7 @@ Never remove or repurpose existing fields within the same API version.
 
 ---
 
-# 38. Client SDK Compatibility
+# 39. Client SDK Compatibility
 
 The API should be designed so SDKs can be generated for:
 
@@ -909,7 +991,7 @@ Avoid ambiguous payloads and polymorphic responses unless clearly documented.
 
 ---
 
-# 39. REST vs. Real-Time
+# 40. REST vs. Real-Time
 
 Use the appropriate communication style:
 
@@ -937,7 +1019,7 @@ Choose the simplest transport that satisfies the requirement.
 
 ---
 
-# 40. API Design Checklist
+# 41. API Design Checklist
 
 Before publishing any endpoint, verify:
 

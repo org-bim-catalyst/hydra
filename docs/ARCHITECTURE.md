@@ -886,7 +886,54 @@ point already exists even though nothing calls it yet.
 
 ---
 
-# 27. Architecture Principles
+# 27. Document Intelligence Pipeline
+
+Introduced in specs/015-document-intelligence-pipeline. Lives in `Domain/Documents`,
+`Application/Documents`, `Infrastructure/Documents`, `Persistence` (via `AskLucyDbContext`),
+and the three Documents controllers under `Web/Controllers/v1`. Frontend lives in
+`ClientApp/src/features/documents`.
+
+**Upload**: two paths share one duplicate-detection/validation pipeline — a `multipart/form-data`
+single-request path (`POST /documents/uploads/simple`) for small files, and a resumable
+chunked path (`DocumentUploadSession` + `IResumableUploadStorage`, sequential chunk indices
+derived from actual bytes-on-disk rather than a separate counter, with a
+`DeclaredSizeBytes`-derived ceiling rejecting chunks that would exceed the declared upload
+size). SHA-256 checksums drive duplicate detection; a duplicate can be resolved as either a
+new version of an existing document (US5) or a separate new document.
+
+**Processing pipeline**: a Hangfire-durable job (`DocumentProcessingPipeline`, driven by
+injected `IBackgroundJobClient` rather than the static `Hangfire.BackgroundJob` facade, for
+testability) runs a fixed sequence of `IProcessingStageHandler` strategies — validation, OCR
+(Tesseract, `IOcrEngine`), text extraction, metadata extraction, classification, language
+detection, preview generation — each returning `ProcessingStageOutcome.Completed` or
+`.Skipped` (skipped is not a failure). Re-processing a document (a new version replacing an
+old one) uses idempotent upsert methods (`DocumentMetadata.ApplyReExtraction`,
+`DocumentClassification.ApplyAutomaticReclassification`) that no-op when the user already
+manually edited that field, so automatic reprocessing never silently overwrites a user's
+edit. Progress pushes live over SignalR (`DocumentProcessingHub`), with 5-second REST polling
+as a reconciliation fallback, never the primary path.
+
+**Storage and delivery**: files are never served by physical path. `ISignedUrlService` mints
+short-lived, resource-id-bound tokens via ASP.NET Core Data Protection (the resource id is
+itself the encrypted/authenticated payload, so a signature minted for one id cannot validate
+against another); `[AllowAnonymous]` download/preview actions validate the signature before
+streaming any bytes. Preview supports page images (PDF, via Docnet.Core — never combine with
+another PDFium-wrapping package in the same process; see `pdfium_native_dll_collision`
+memory note), image thumbnails, structured content (Office documents, extracted headings/
+paragraphs/tables/lists as JSON, rendered without pixel-perfect layout), and direct Markdown
+rendering (`react-markdown` with no raw-HTML passthrough plugin — deliberately, so an
+uploaded `.md` file can't inject a script tag).
+
+**Organization**: documents can live in a nested folder tree (`DocumentFolder`), carry
+system or user-defined categories/tags, and support cursor-based (keyset) pagination
+throughout (`DocumentCursor`) rather than offset paging. A per-user dashboard
+(`IDocumentStatisticsRepository`) and an admin-only organization-wide dashboard share one
+`DashboardBody` component; live counts are computed from only the latest processing job per
+document, so a document that failed and later succeeded on retry is never double-counted.
+
+---
+
+# 28. Architecture Principles
 
 Before implementing any feature, ask:
 

@@ -5,10 +5,12 @@ using AskLucy.Application;
 using AskLucy.Application.Abstractions;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Auth;
+using AskLucy.Infrastructure.Documents;
 using AskLucy.Persistence;
 using AskLucy.Web.Auth;
 using AskLucy.Web.DevSeed;
 using AskLucy.Web.Middleware;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -63,6 +65,24 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
+        };
+
+        // SignalR's browser client cannot set an Authorization header on the WebSocket/SSE
+        // handshake (specs/015-document-intelligence-pipeline, research.md Decision 7) — it
+        // sends the access token via an "access_token" query string parameter instead, which
+        // JwtBearerHandler only reads here, not from the header, and only for hub paths.
+        bearerOptions.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
         };
     });
 
@@ -204,6 +224,37 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // Document Intelligence Pipeline endpoints (specs/015-document-intelligence-pipeline) — none
+    // of these invoke an AI provider directly (classification/language detection are background
+    // jobs, not request-synchronous), so this gets the same generous, non-cost-tiered shape as
+    // knowledge-base-endpoints/chat-endpoints (constitution §6).
+    options.AddPolicy("document-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
+    // Upload-chunk endpoint specifically (research.md Decision 6) — tighter than
+    // document-endpoints above since each call carries a file chunk's worth of I/O cost, not a
+    // cheap metadata read/write.
+    options.AddPolicy("document-upload-chunk-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 30,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -220,9 +271,19 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod());
 });
 
-builder.Services.AddControllers();
+// Global fix (discovered during specs/015 US7 work): AddControllers() alone leaves enums
+// serializing as their raw numeric ordinal (System.Text.Json's default), but every DTO across
+// every module returns enums directly and every frontend TypeScript type/comparison assumes a
+// string (e.g. `status.processingStatus === 'Completed'`). Without this converter, every such
+// comparison silently evaluates to false at runtime — verified empirically before this fix:
+// serializing a DocumentProcessingStatus.Completed field produced {"status":3}, not
+// {"status":"Completed"}. Applied globally (not per-DTO) since the mismatch is universal, not
+// specific to the Documents module.
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -307,8 +368,24 @@ app.UseAuthorization();
 
 app.UseRateLimiter();
 
+// Document Intelligence Pipeline's job dashboard (specs/015-document-intelligence-pipeline,
+// research.md Decision 2) — administrator/operator-only, see HangfireDashboardAuthorizationFilter
+// for why a direct browser visit won't authenticate on this JWT-Bearer-only host.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new HangfireDashboardAuthorizationFilter()],
+});
+
+// US6 — refreshes DocumentStatistics (dashboard aggregates) every minute; the dashboard's live
+// counts (queue depth, in-progress, etc.) are computed directly on every request instead, so
+// this interval only governs the slower-changing totals/storage/distribution fields
+// (data-model.md, SC-011). Idempotent — safe to call on every startup.
+RecurringJob.AddOrUpdate<DocumentStatisticsRecomputeJob>(
+    "document-statistics-recompute", job => job.RecomputeAllAsync(CancellationToken.None), Cron.Minutely);
+
 app.MapControllers();
 app.MapHealthChecks("/health");
+app.MapHub<DocumentProcessingHub>("/hubs/document-processing");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —

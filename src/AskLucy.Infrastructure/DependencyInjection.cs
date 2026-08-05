@@ -2,9 +2,14 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Consent;
+using AskLucy.Infrastructure.Documents;
+using AskLucy.Infrastructure.Documents.Extraction;
+using AskLucy.Infrastructure.Documents.Ocr;
+using AskLucy.Infrastructure.Documents.Preview;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.KnowledgeBases;
+using Hangfire;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -56,6 +61,16 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<ResumableUploadStorageOptions>()
+            .Bind(configuration.GetSection(ResumableUploadStorageOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<TesseractOcrOptions>()
+            .Bind(configuration.GetSection(TesseractOcrOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddOptions<SmtpOptions>()
             .Bind(configuration.GetSection(SmtpOptions.SectionName));
 
@@ -66,6 +81,24 @@ public static class DependencyInjection
 
         services.AddOptions<KnowledgeBasePurgeOptions>()
             .Bind(configuration.GetSection(KnowledgeBasePurgeOptions.SectionName));
+
+        // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
+        // pipeline, research.md Decision 2). Connection string resolved lazily from the
+        // container's IConfiguration at configuration time, not eagerly from the `configuration`
+        // parameter captured here — same reasoning as AddPersistence's DbContext registration.
+        services.AddHangfire((sp, config) =>
+        {
+            var connectionString = sp.GetRequiredService<IConfiguration>()
+                .GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+            config.UseSqlServerStorage(connectionString);
+        });
+        services.AddHangfireServer();
+        // Resolved by Hangfire's job activator for both the on-demand processing pipeline jobs
+        // and this US6 recurring job — Hangfire resolves concrete job classes directly from the
+        // container, not just through their interfaces, so this explicit registration is required.
+        services.AddScoped<DocumentStatisticsRecomputeJob>();
 
         services.AddDataProtection();
         // Concrete IMemoryCache registration for KnowledgeBaseDashboardSummaryCache (Application) — see that DI's comment for why the registration itself lives here, not in Application.
@@ -107,6 +140,15 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();
+        services.AddSingleton<IDocumentFileValidator, DocumentFileValidator>();
+        services.AddSingleton<IResumableUploadStorage, ResumableUploadStorage>();
+        services.AddScoped<IOcrEngine, TesseractOcrEngine>();
+        services.AddSingleton<IDocumentTextExtractor, OpenXmlTextExtractor>();
+        services.AddSingleton<IDocumentTextExtractor, DocnetPdfTextExtractor>();
+        services.AddSingleton<IDocumentPreviewGenerator, PdfPreviewGenerator>();
+        services.AddSingleton<IDocumentPreviewGenerator, ImageThumbnailGenerator>();
+        services.AddScoped<IDocumentLanguageAndClassifier, AiDocumentLanguageAndClassifier>();
+        services.AddScoped<IProcessingNotifier, ProcessingNotifier>();
         services.AddSingleton(TimeProvider.System);
         services.AddHostedService<KnowledgeBasePurgeHostedService>();
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();
