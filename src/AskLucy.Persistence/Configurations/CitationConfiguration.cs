@@ -17,11 +17,16 @@ public sealed class CitationConfiguration : IEntityTypeConfiguration<Citation>
         builder.Property(c => c.SourceLabel).IsRequired().HasMaxLength(500);
         builder.Property(c => c.SourceReference).HasMaxLength(2048);
 
+        // RAG-specific reference fields (spec.md FR-030, research.md Decision 9) — null for any
+        // non-RAG citation source; a soft-reference, so a later-deleted chunk never breaks this row.
+        builder.Property(c => c.Section).HasMaxLength(500);
+
         builder.Property(c => c.CreatedBy).IsRequired();
         builder.Property(c => c.RowVersion).IsRowVersion();
 
         builder.HasQueryFilter(c => c.DeletedAtUtc == null);
 
         builder.HasIndex(c => c.MessageId);
+        builder.HasIndex(c => c.DocumentChunkId);
     }
 }

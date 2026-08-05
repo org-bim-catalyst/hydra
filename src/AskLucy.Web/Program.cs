@@ -6,6 +6,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
+using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Persistence;
 using AskLucy.Web.Auth;
 using AskLucy.Web.DevSeed;
@@ -255,6 +256,35 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // RAG search/dashboard endpoints (specs/016-rag-semantic-search, research.md Decision 12) —
+    // none of these invoke the chat AI provider directly (that's still ai-endpoints), so they get
+    // the same generous, non-cost-tiered shape as knowledge-base-endpoints/document-endpoints.
+    options.AddPolicy("retrieval-search-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
+    // RAG indexing-trigger endpoints (research.md Decision 12) — tighter than search, mirroring
+    // document-upload-chunk-endpoints, given the cost of a full/incremental reindex.
+    options.AddPolicy("retrieval-indexing-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 10,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -386,6 +416,7 @@ RecurringJob.AddOrUpdate<DocumentStatisticsRecomputeJob>(
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<DocumentProcessingHub>("/hubs/document-processing");
+app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —

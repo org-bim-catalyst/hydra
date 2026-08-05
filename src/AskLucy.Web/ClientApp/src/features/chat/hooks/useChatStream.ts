@@ -131,13 +131,28 @@ export function useChatStream(
       abortRef.current = controller
 
       let assistantContent = ''
+      let citations: ChatMessage['citations']
+      let retrievalOutcome: ChatMessage['retrievalOutcome']
+      let retrievalError: ChatMessage['retrievalError']
       try {
         const activeChatId = await ensureChatId(content)
-        for await (const chunk of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
-          assistantContent += chunk
-          if (isActiveRef.current) {
-            setMessages([...history, { role: 'assistant', content: assistantContent }])
+        for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
+          if (event.type === 'content') {
+            assistantContent += event.delta
+            if (isActiveRef.current) {
+              setMessages([...history, { role: 'assistant', content: assistantContent }])
+            }
+          } else {
+            // specs/016-rag-semantic-search US1 — carried on the stream's trailing event so
+            // citations/the retrieval-unavailable warning render immediately, without waiting
+            // for a page reload to re-fetch the persisted message (FR-037a: never silent).
+            retrievalOutcome = event.outcome
+            retrievalError = event.error
+            citations = event.citations.map((c, index) => ({ id: `pending-${index}`, ...c }))
           }
+        }
+        if (isActiveRef.current) {
+          setMessages([...history, { role: 'assistant', content: assistantContent, citations, retrievalOutcome, retrievalError }])
         }
       } catch (err) {
         if (isActiveRef.current) {

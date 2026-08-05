@@ -33,6 +33,12 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.Property(c => c.ModelId);
         builder.Property(c => c.GenerationParametersJson);
 
+        // Retrieval settings overrides (spec.md FR-020, FR-023, FR-024, research.md Decision 10).
+        builder.Property(c => c.RetrievalSearchMode).HasConversion<string>().HasMaxLength(10);
+        builder.Property(c => c.RetrievalTopK);
+        builder.Property(c => c.RetrievalSimilarityThreshold).HasPrecision(5, 4);
+        builder.Property(c => c.RetrievalMaxContextTokens);
+
         builder.Property(c => c.CreatedBy).IsRequired();
         builder.Property(c => c.RowVersion).IsRowVersion();
 

@@ -7,6 +7,9 @@ using AskLucy.Application.Documents.Processing;
 using AskLucy.Application.Documents.Processing.Stages;
 using AskLucy.Application.KnowledgeBases;
 using AskLucy.Application.Options;
+using AskLucy.Application.Retrieval;
+using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.Abstractions;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +39,12 @@ public static class DependencyInjection
         services.AddScoped<IProcessingStageHandler, ClassificationStageHandler>();
         services.AddScoped<IProcessingStageHandler, LanguageDetectionStageHandler>();
         services.AddScoped<IProcessingStageHandler, PreviewGenerationStageHandler>();
+
+        // Retrieval (specs/016-rag-semantic-search) — Foundational.
+        services.AddScoped<IIndexingOrchestrator, IndexingOrchestrator>();
+        services.AddScoped<SearchResultEnricher>();
+        // User Story 1 ("Chat with your documents and get cited answers").
+        services.AddScoped<IRagService, RagService>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's
         // composition root, not here — Application depends only on the IMemoryCache interface

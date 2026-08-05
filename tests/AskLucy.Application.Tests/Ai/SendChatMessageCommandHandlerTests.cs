@@ -20,9 +20,12 @@ public sealed class SendChatMessageCommandHandlerTests
     private readonly IAIProviderResolver _resolver = Substitute.For<IAIProviderResolver>();
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
+    private readonly IConversationKnowledgeBaseRepository _conversationKnowledgeBases = Substitute.For<IConversationKnowledgeBaseRepository>();
+    private readonly IRagService _ragService = Substitute.For<IRagService>();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
+    private readonly Guid _chatId = Guid.NewGuid();
 
     public SendChatMessageCommandHandlerTests()
     {
@@ -38,8 +41,13 @@ public sealed class SendChatMessageCommandHandlerTests
         _models.GetByIdAsync(_gpt41.Id, Arg.Any<CancellationToken>()).Returns(_gpt41);
         _resolver.Resolve("openai").Returns(_resolvedProvider);
 
+        // No knowledge bases attached by default — RAG retrieval never runs, matching every
+        // existing test's expectation of unaugmented chat behavior (US1 AC2/AC3).
+        _conversationKnowledgeBases.GetByConversationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new List<AskLucy.Domain.Retrieval.ConversationKnowledgeBase>());
+
         _handler = new SendChatMessageCommandHandler(
-            _resolver, _providers, _models, new SendChatMessageCommandValidator(_providers, _models));
+            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, new SendChatMessageCommandValidator(_providers, _models));
     }
 
     [Fact]
@@ -49,9 +57,9 @@ public sealed class SendChatMessageCommandHandlerTests
             .StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable([new StreamChunk("Hello"), new StreamChunk(" world")]));
 
-        var command = new SendChatMessageCommand([new ChatMessageDto("user", "Hi")], _openAiProvider.Id, _gpt41.Id, null);
+        var command = new SendChatMessageCommand(_chatId, [new ChatMessageDto("user", "Hi")], _openAiProvider.Id, _gpt41.Id, null);
 
-        var chunks = new List<StreamChunk>();
+        var chunks = new List<ChatStreamChunk>();
         await foreach (var chunk in _handler.Handle(command, CancellationToken.None))
         {
             chunks.Add(chunk);
@@ -64,7 +72,7 @@ public sealed class SendChatMessageCommandHandlerTests
     [Fact]
     public async Task Handle_ShouldThrowValidationException_WhenMessagesAreEmpty()
     {
-        var command = new SendChatMessageCommand([], _openAiProvider.Id, _gpt41.Id, null);
+        var command = new SendChatMessageCommand(_chatId, [], _openAiProvider.Id, _gpt41.Id, null);
 
         var act = async () =>
         {
@@ -82,7 +90,7 @@ public sealed class SendChatMessageCommandHandlerTests
         var disabledProvider = AIProvider.Create("anthropic", "Anthropic", "test");
         _providers.GetByIdAsync(disabledProvider.Id, Arg.Any<CancellationToken>()).Returns(disabledProvider);
 
-        var command = new SendChatMessageCommand([new ChatMessageDto("user", "Hi")], disabledProvider.Id, _gpt41.Id, null);
+        var command = new SendChatMessageCommand(_chatId, [new ChatMessageDto("user", "Hi")], disabledProvider.Id, _gpt41.Id, null);
 
         var act = async () =>
         {

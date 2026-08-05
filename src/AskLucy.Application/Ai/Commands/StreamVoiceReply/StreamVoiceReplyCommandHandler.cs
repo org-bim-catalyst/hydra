@@ -47,7 +47,7 @@ public sealed partial class StreamVoiceReplyCommandHandler(
         var ttsFailed = false;
 
         await foreach (var chunk in mediator.CreateStream(
-            new SendChatMessageCommand(request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
+            new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
             cancellationToken))
         {
             if (!string.IsNullOrEmpty(chunk.ContentDelta))

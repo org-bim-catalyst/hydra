@@ -1,3 +1,4 @@
+using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -27,6 +28,7 @@ public sealed class KnowledgeBaseDocumentConfiguration : IEntityTypeConfiguratio
 
         builder.HasIndex(d => d.KnowledgeBaseId);
         builder.HasIndex(d => d.FolderId);
+        builder.HasIndex(d => d.DocumentId);
 
         builder.HasOne<KnowledgeBase>()
             .WithMany()
@@ -36,6 +38,13 @@ public sealed class KnowledgeBaseDocumentConfiguration : IEntityTypeConfiguratio
         builder.HasOne<KnowledgeBaseFolder>()
             .WithMany()
             .HasForeignKey(d => d.FolderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // research.md Decision 2 — nullable link into the Document Intelligence Pipeline,
+        // populated lazily by the RAG indexing pipeline.
+        builder.HasOne<Document>()
+            .WithMany()
+            .HasForeignKey(d => d.DocumentId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

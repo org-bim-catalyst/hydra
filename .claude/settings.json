@@ -113,7 +113,12 @@
       "Bash(git rev-list *)",
       "Bash(npx prettier *)",
       "Bash(gh run *)",
-      "Bash(timeout 480 bash -c ' *)"
+      "Bash(timeout 480 bash -c ' *)",
+      "Bash(sqlcmd -S \"\\(localdb\\)\\\\mssqllocaldb\" -d \"AskLucyDev\" -Q \"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='KnowledgeBases' AND COLUMN_NAME='VectorStoreProvider';\")",
+      "Bash(gh api *)",
+      "Bash(gh secret *)",
+      "Bash(git check-ignore *)",
+      "Bash(python -c \"import json; json.load\\(open\\('src/AskLucy.Web/appsettings.Production.json'\\)\\)\")"
     ],
     "additionalDirectories": [
       "\\tmp",

@@ -47,7 +47,16 @@ public sealed class AppendMessageCommandHandler(
 
         foreach (var citation in request.Citations ?? [])
         {
-            message.AddCitation(citation.SourceLabel, citation.SourceReference, userId);
+            if (citation.DocumentChunkId is { } documentChunkId)
+            {
+                message.AddCitationFromChunk(
+                    citation.SourceLabel, citation.SourceReference, documentChunkId, citation.KnowledgeBaseId!.Value,
+                    citation.DocumentId!.Value, citation.DocumentVersionId!.Value, citation.PageNumber, citation.Section, userId);
+            }
+            else
+            {
+                message.AddCitation(citation.SourceLabel, citation.SourceReference, userId);
+            }
         }
 
         messageRepository.Add(message);
@@ -83,5 +92,6 @@ public sealed class AppendMessageCommandHandler(
         message.LatencyMs,
         message.EstimatedCostUsd,
         [.. message.Attachments.Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.AccessLocation))],
-        [.. message.Citations.Select(c => new CitationDto(c.Id, c.SourceLabel, c.SourceReference))]);
+        [.. message.Citations.Select(c => new CitationDto(
+            c.Id, c.SourceLabel, c.SourceReference, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))]);
 }

@@ -152,4 +152,16 @@ public sealed class Message : BaseEntity
         _citations.Add(citation);
         return citation;
     }
+
+    /// <summary>research.md Decision 9 — attaches a RAG-grounded citation (spec.md FR-030, FR-032).</summary>
+    public Citation AddCitationFromChunk(
+        string sourceLabel, string? sourceReference, Guid documentChunkId, Guid knowledgeBaseId,
+        Guid documentId, Guid documentVersionId, int? pageNumber, string? section, string actor)
+    {
+        var citation = Citation.CreateFromChunk(
+            Id, sourceLabel, sourceReference, documentChunkId, knowledgeBaseId, documentId,
+            documentVersionId, pageNumber, section, actor);
+        _citations.Add(citation);
+        return citation;
+    }
 }

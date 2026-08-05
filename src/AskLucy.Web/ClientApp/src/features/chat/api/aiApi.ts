@@ -3,6 +3,23 @@ import { useAuthStore } from '../../../store/authStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
+/** The trailing RAG-specific fields (specs/016-rag-semantic-search US1, research.md Decision 9) are undefined for a plain, non-RAG citation. */
+export interface Citation {
+  id: string
+  sourceLabel: string
+  sourceReference: string | null
+  documentChunkId?: string | null
+  knowledgeBaseId?: string | null
+  documentId?: string | null
+  documentVersionId?: string | null
+  pageNumber?: number | null
+  section?: string | null
+  /** The retrieved passage text — only present on citations captured live from a just-streamed reply (not yet re-fetched from persisted history). */
+  excerpt?: string | null
+}
+
+export type RagRetrievalOutcome = 'Grounded' | 'NoRelevantContent' | 'Unavailable'
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -12,7 +29,11 @@ export interface ChatMessage {
   /** FR-030: a connection dropped mid-stream — the content shown is whatever arrived before that, not the full reply. */
   isIncomplete?: boolean
   attachments?: { id: string; fileName: string; accessLocation: string }[]
-  citations?: { id: string; sourceLabel: string; sourceReference: string | null }[]
+  citations?: Citation[]
+  /** specs/016-rag-semantic-search US1 (research.md Decision 8) — undefined when no knowledge base was attached to the conversation ("not applicable"). */
+  retrievalOutcome?: RagRetrievalOutcome
+  /** Populated only when `retrievalOutcome === 'Unavailable'` (FR-037a) — a non-silent, visible warning; the message content itself is still complete. */
+  retrievalError?: string | null
 }
 
 /** specs/005-multi-provider-ai-engine contracts/chat.md — mirrors `GenerationParametersDto`. Every field optional; an unset field falls back through the server-side inheritance chain. */
@@ -33,6 +54,13 @@ export interface GenerationParameters {
   developerPrompt?: string
 }
 
+/** One event from {@link streamChat} — either a plain content delta, or (specs/016-rag-semantic-search US1) the RAG retrieval outcome carried on the trailing `__RAG__` event. */
+export type ChatStreamEvent =
+  | { type: 'content'; delta: string }
+  | { type: 'retrieval'; outcome: RagRetrievalOutcome; citations: Omit<Citation, 'id'>[]; error: string | null }
+
+const RAG_EVENT_PREFIX = '__RAG__'
+
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
  * `ReadableStream` reader rather than the browser's native `EventSource`, since
@@ -45,7 +73,7 @@ export async function* streamChat(
   modelId: string,
   generationParameters: GenerationParameters | undefined,
   signal?: AbortSignal,
-): AsyncGenerator<string> {
+): AsyncGenerator<ChatStreamEvent> {
   const accessToken = useAuthStore.getState().accessToken
 
   const response = await fetch(`${API_BASE_URL}/ai/chat`, {
@@ -88,7 +116,43 @@ export async function* streamChat(
       // streamed word together with no spaces.
       const data = line.slice('data:'.length).replace(/^ /, '')
       if (data === '[DONE]') return
-      yield data
+
+      if (data.startsWith(RAG_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(RAG_EVENT_PREFIX.length)) as {
+          retrievalOutcome: RagRetrievalOutcome
+          citations: {
+            documentChunkId: string
+            knowledgeBaseId: string
+            documentId: string
+            documentVersionId: string
+            documentTitle: string
+            knowledgeBaseName: string
+            pageNumber: number | null
+            section: string | null
+            excerpt: string
+          }[]
+          retrievalError: string | null
+        }
+        yield {
+          type: 'retrieval',
+          outcome: payload.retrievalOutcome,
+          error: payload.retrievalError,
+          citations: payload.citations.map((c) => ({
+            sourceLabel: c.documentTitle,
+            sourceReference: null,
+            documentChunkId: c.documentChunkId,
+            knowledgeBaseId: c.knowledgeBaseId,
+            documentId: c.documentId,
+            documentVersionId: c.documentVersionId,
+            pageNumber: c.pageNumber,
+            section: c.section,
+            excerpt: c.excerpt,
+          })),
+        }
+        continue
+      }
+
+      yield { type: 'content', delta: data }
     }
   }
 }

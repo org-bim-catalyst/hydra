@@ -8,6 +8,9 @@ public interface IKnowledgeBaseRepository
 {
     Task<KnowledgeBase?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Batch lookup by id — used where a caller already has a resolved id set and needs per-entity fields (e.g. <see cref="KnowledgeBase.VectorStoreProvider"/>) for all of them without an N+1 query loop.</summary>
+    Task<IReadOnlyList<KnowledgeBase>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
+
     /// <summary>Looks up a knowledge base by id bypassing the global soft-delete query filter — needed by Restore/Purge, which must act on an already-soft-deleted knowledge base.</summary>
     Task<KnowledgeBase?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -32,6 +35,16 @@ public interface IKnowledgeBaseRepository
 
     /// <summary>Every knowledge base referencing a category — used by `DeleteCategoryCommand` to clear the FK on all of them before the category itself is removed (FR-021).</summary>
     Task<IReadOnlyList<KnowledgeBase>> ListByCategoryIdAsync(Guid categoryId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolves the effective set of knowledge base ids a search should run against (spec.md
+    /// FR-021, FR-045): every knowledge base <paramref name="ownerId"/> owns, optionally narrowed
+    /// to <paramref name="candidateIds"/> (a caller-requested scope — an id the caller doesn't own
+    /// is silently excluded, never an error or a leak), minus <paramref name="excludeIds"/>.
+    /// <paramref name="candidateIds"/> null/empty means "every owned knowledge base."
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ResolveOwnedIdsAsync(
+        string ownerId, IReadOnlyCollection<Guid>? candidateIds, IReadOnlyCollection<Guid>? excludeIds, CancellationToken cancellationToken = default);
 
     /// <summary>Aggregate counts for the dashboard summary cards (FR-029) — one query, not the naive N+1 of calling <see cref="SearchAsync"/> five times with different filters.</summary>
     Task<KnowledgeBaseDashboardSummaryDto> GetDashboardSummaryAsync(string ownerId, DateTime recentSinceUtc, CancellationToken cancellationToken = default);

@@ -9,6 +9,10 @@ using AskLucy.Infrastructure.Documents.Preview;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.KnowledgeBases;
+using AskLucy.Infrastructure.Retrieval;
+using AskLucy.Infrastructure.Retrieval.Chunking;
+using AskLucy.Infrastructure.Retrieval.Embeddings;
+using AskLucy.Infrastructure.Retrieval.VectorStores;
 using Hangfire;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -82,6 +86,19 @@ public static class DependencyInjection
         services.AddOptions<KnowledgeBasePurgeOptions>()
             .Bind(configuration.GetSection(KnowledgeBasePurgeOptions.SectionName));
 
+        services.AddOptions<OpenAiEmbeddingOptions>()
+            .Bind(configuration.GetSection(OpenAiEmbeddingOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<OnnxEmbeddingOptions>()
+            .Bind(configuration.GetSection(OnnxEmbeddingOptions.SectionName));
+
+        services.AddOptions<PineconeOptions>()
+            .Bind(configuration.GetSection(PineconeOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -134,6 +151,16 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromMinutes(2);
         });
 
+        // ADR-0007: PineconeVectorStore issues relative-URI requests against this named client.
+        services.AddHttpClient("Pinecone", (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<PineconeOptions>>().Value;
+            client.BaseAddress = new Uri(options.IndexHost);
+            client.DefaultRequestHeaders.Add("Api-Key", options.ApiKey);
+            client.DefaultRequestHeaders.Add("X-Pinecone-Api-Version", options.ApiVersion);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
@@ -149,6 +176,34 @@ public static class DependencyInjection
         services.AddSingleton<IDocumentPreviewGenerator, ImageThumbnailGenerator>();
         services.AddScoped<IDocumentLanguageAndClassifier, AiDocumentLanguageAndClassifier>();
         services.AddScoped<IProcessingNotifier, ProcessingNotifier>();
+
+        // Retrieval (specs/016-rag-semantic-search) — Foundational.
+        services.AddSingleton<IChunkingStrategy, FixedSizeChunkingStrategy>();
+        services.AddSingleton<IChunkingStrategy, RecursiveChunkingStrategy>();
+        // Registered as itself too — HeadingChunkingStrategy/TableChunkingStrategy take a
+        // concrete ParagraphChunkingStrategy as their fallback constructor dependency, not the
+        // IChunkingStrategy interface (which would resolve ambiguously across all 8 strategies).
+        services.AddSingleton<ParagraphChunkingStrategy>();
+        services.AddSingleton<IChunkingStrategy>(sp => sp.GetRequiredService<ParagraphChunkingStrategy>());
+        services.AddSingleton<IChunkingStrategy, SentenceChunkingStrategy>();
+        services.AddSingleton<IChunkingStrategy, MarkdownChunkingStrategy>();
+        services.AddSingleton<IChunkingStrategy, HeadingChunkingStrategy>();
+        services.AddSingleton<IChunkingStrategy, TableChunkingStrategy>();
+        services.AddScoped<IChunkingStrategy, SemanticChunkingStrategy>();
+        services.AddScoped<IChunkingService, ChunkingService>();
+        services.AddScoped<IEmbeddingService, OpenAiEmbeddingProvider>();
+        services.AddSingleton<OnnxLocalEmbeddingProvider>();
+        services.AddSingleton<IEmbeddingService>(sp => sp.GetRequiredService<OnnxLocalEmbeddingProvider>());
+        services.AddScoped<IEmbeddingServiceResolver, EmbeddingServiceResolver>();
+        // ADR-0007: Pinecone, the second IVectorStore implementation. SqlServerVectorStore's
+        // registration stays in Persistence/DependencyInjection.cs (it needs AskLucyDbContext) —
+        // both are unkeyed IVectorStore registrations resolved only through IVectorStoreResolver
+        // from here on, never injected directly (constitution §2-VIII: an unkeyed
+        // GetRequiredService<IVectorStore>() with two registrations would silently resolve
+        // whichever was registered last).
+        services.AddScoped<IVectorStore, PineconeVectorStore>();
+        services.AddScoped<IVectorStoreResolver, VectorStoreResolver>();
+        services.AddScoped<IRetrievalIndexingNotifier, RetrievalIndexingNotifier>();
         services.AddSingleton(TimeProvider.System);
         services.AddHostedService<KnowledgeBasePurgeHostedService>();
         services.AddSingleton<IExternalLoginCodeStore, InMemoryExternalLoginCodeStore>();

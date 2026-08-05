@@ -1,5 +1,6 @@
 using AskLucy.Domain.Common;
 using AskLucy.Domain.KnowledgeBases;
+using AskLucy.Domain.Retrieval;
 using FluentAssertions;
 using Xunit;
 
@@ -190,5 +191,50 @@ public sealed class KnowledgeBaseTests
 
         knowledgeBase.IsOwnedBy("owner-1").Should().BeTrue();
         knowledgeBase.IsOwnedBy("someone-else").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_ShouldDefaultVectorStoreProviderToPinecone()
+    {
+        var knowledgeBase = KnowledgeBase.Create("KB", "user-1", "user-1");
+
+        knowledgeBase.VectorStoreProvider.Should().Be(VectorStoreProvider.Pinecone);
+    }
+
+    [Fact]
+    public void UpdateRetrievalSettings_ShouldSetVectorStoreProvider_WhenNotRequiringDataResidency()
+    {
+        var knowledgeBase = KnowledgeBase.Create("KB", "user-1", "user-1");
+
+        knowledgeBase.UpdateRetrievalSettings(
+            ChunkingStrategy.Recursive, embeddingProviderId: null, EmbeddingHostingType.Cloud,
+            VectorStoreProvider.Pinecone, requiresDataResidency: false, "user-1");
+
+        knowledgeBase.VectorStoreProvider.Should().Be(VectorStoreProvider.Pinecone);
+    }
+
+    [Fact]
+    public void UpdateRetrievalSettings_ShouldThrow_WhenRequiresDataResidencyAndVectorStoreProviderIsPinecone()
+    {
+        var knowledgeBase = KnowledgeBase.Create("KB", "user-1", "user-1");
+
+        var act = () => knowledgeBase.UpdateRetrievalSettings(
+            ChunkingStrategy.Recursive, embeddingProviderId: null, EmbeddingHostingType.Local,
+            VectorStoreProvider.Pinecone, requiresDataResidency: true, "user-1");
+
+        act.Should().Throw<DomainRuleViolationException>();
+    }
+
+    [Fact]
+    public void UpdateRetrievalSettings_ShouldSucceed_WhenRequiresDataResidencyAndVectorStoreProviderIsSqlServer()
+    {
+        var knowledgeBase = KnowledgeBase.Create("KB", "user-1", "user-1");
+
+        knowledgeBase.UpdateRetrievalSettings(
+            ChunkingStrategy.Recursive, embeddingProviderId: null, EmbeddingHostingType.Local,
+            VectorStoreProvider.SqlServer, requiresDataResidency: true, "user-1");
+
+        knowledgeBase.VectorStoreProvider.Should().Be(VectorStoreProvider.SqlServer);
+        knowledgeBase.RequiresDataResidency.Should().BeTrue();
     }
 }

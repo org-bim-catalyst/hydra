@@ -6,8 +6,16 @@ namespace AskLucy.Application.Chats.Commands.AppendMessage;
 /// <summary>A file to attach to the message being appended (FR-017).</summary>
 public sealed record AppendMessageAttachmentInput(string FileName, string ContentType, string AccessLocation);
 
-/// <summary>A source citation to attach to the message being appended (FR-017).</summary>
-public sealed record AppendMessageCitationInput(string SourceLabel, string? SourceReference);
+/// <summary>
+/// A source citation to attach to the message being appended (FR-017). The trailing RAG-specific
+/// fields (research.md Decision 9, spec.md FR-030) are populated only for a RAG-grounded citation
+/// (specs/016-rag-semantic-search US1) — when <see cref="DocumentChunkId"/> is set, the handler
+/// calls <c>Message.AddCitationFromChunk</c> instead of the plain <c>Message.AddCitation</c>.
+/// </summary>
+public sealed record AppendMessageCitationInput(
+    string SourceLabel, string? SourceReference,
+    Guid? DocumentChunkId = null, Guid? KnowledgeBaseId = null, Guid? DocumentId = null,
+    Guid? DocumentVersionId = null, int? PageNumber = null, string? Section = null);
 
 /// <summary>
 /// Persists one turn of a chat's history (2026-07-28 decision to add ChatGPT-style

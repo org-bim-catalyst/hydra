@@ -10,6 +10,14 @@ public sealed class KnowledgeBaseRepository(AskLucyDbContext dbContext) : IKnowl
     public Task<KnowledgeBase?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.KnowledgeBases.Include(k => k.Tags).FirstOrDefaultAsync(k => k.Id == id, cancellationToken);
 
+    public Task<IReadOnlyList<KnowledgeBase>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default) =>
+        ids.Count == 0
+            ? Task.FromResult<IReadOnlyList<KnowledgeBase>>([])
+            : GetByIdsCoreAsync(ids, cancellationToken);
+
+    private async Task<IReadOnlyList<KnowledgeBase>> GetByIdsCoreAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        await dbContext.KnowledgeBases.Where(k => ids.Contains(k.Id)).ToListAsync(cancellationToken);
+
     public Task<KnowledgeBase?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.KnowledgeBases.IgnoreQueryFilters().Include(k => k.Tags).FirstOrDefaultAsync(k => k.Id == id, cancellationToken);
 
@@ -275,4 +283,22 @@ public sealed class KnowledgeBaseRepository(AskLucyDbContext dbContext) : IKnowl
 
     public async Task<IReadOnlyList<KnowledgeBase>> ListByCategoryIdAsync(Guid categoryId, CancellationToken cancellationToken = default) =>
         await dbContext.KnowledgeBases.Include(k => k.Tags).Where(k => k.CategoryId == categoryId).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> ResolveOwnedIdsAsync(
+        string ownerId, IReadOnlyCollection<Guid>? candidateIds, IReadOnlyCollection<Guid>? excludeIds, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.KnowledgeBases.Where(k => k.OwnerId == ownerId).Select(k => k.Id);
+
+        if (candidateIds is { Count: > 0 })
+        {
+            query = query.Where(id => candidateIds.Contains(id));
+        }
+
+        if (excludeIds is { Count: > 0 })
+        {
+            query = query.Where(id => !excludeIds.Contains(id));
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
 }

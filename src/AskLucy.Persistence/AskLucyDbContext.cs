@@ -5,6 +5,7 @@ using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
+using AskLucy.Domain.Retrieval;
 using AskLucy.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,28 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
     public DbSet<DocumentNotification> DocumentNotifications => Set<DocumentNotification>();
 
     public DbSet<DocumentUploadSession> DocumentUploadSessions => Set<DocumentUploadSession>();
+
+    public DbSet<DocumentChunk> DocumentChunks => Set<DocumentChunk>();
+
+    public DbSet<Embedding> Embeddings => Set<Embedding>();
+
+    public DbSet<EmbeddingProvider> EmbeddingProviders => Set<EmbeddingProvider>();
+
+    public DbSet<IndexingJob> IndexingJobs => Set<IndexingJob>();
+
+    public DbSet<IndexingLog> IndexingLogs => Set<IndexingLog>();
+
+    public DbSet<RetrievalHistory> RetrievalHistories => Set<RetrievalHistory>();
+
+    public DbSet<RetrievalResult> RetrievalResults => Set<RetrievalResult>();
+
+    public DbSet<SearchHistory> SearchHistories => Set<SearchHistory>();
+
+    public DbSet<ChunkStatistics> ChunkStatistics => Set<ChunkStatistics>();
+
+    public DbSet<SearchAnalytics> SearchAnalytics => Set<SearchAnalytics>();
+
+    public DbSet<ConversationKnowledgeBase> ConversationKnowledgeBases => Set<ConversationKnowledgeBase>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

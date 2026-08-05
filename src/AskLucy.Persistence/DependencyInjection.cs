@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Interceptors;
 using AskLucy.Persistence.Repositories;
+using AskLucy.Persistence.Retrieval;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -75,6 +76,15 @@ public static class DependencyInjection
         services.AddScoped<IDocumentNotificationRepository, DocumentNotificationRepository>();
         services.AddScoped<IDocumentUploadSessionRepository, DocumentUploadSessionRepository>();
         services.AddScoped<IDocumentStatisticsRepository, DocumentStatisticsRepository>();
+
+        // Retrieval (specs/016-rag-semantic-search) — Foundational.
+        services.AddScoped<IDocumentChunkRepository, DocumentChunkRepository>();
+        services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
+        services.AddScoped<IEmbeddingProviderRepository, EmbeddingProviderRepository>();
+        services.AddScoped<IIndexingJobRepository, IndexingJobRepository>();
+        services.AddScoped<IConversationKnowledgeBaseRepository, ConversationKnowledgeBaseRepository>();
+        services.AddScoped<IVectorStore, SqlServerVectorStore>();
+        services.AddScoped<IKeywordSearchService, FullTextKeywordSearch>();
 
         return services;
     }

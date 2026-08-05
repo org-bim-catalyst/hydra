@@ -39,8 +39,8 @@ describe('streamChat', () => {
     )
 
     const chunks: string[] = []
-    for await (const chunk of streamChat('chat-1', [{ role: 'user', content: 'Hello' }], 'provider-1', 'model-1', undefined)) {
-      chunks.push(chunk)
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'Hello' }], 'provider-1', 'model-1', undefined)) {
+      if (event.type === 'content') chunks.push(event.delta)
     }
 
     expect(chunks.join('')).toBe('Yes, I can hear you.')
