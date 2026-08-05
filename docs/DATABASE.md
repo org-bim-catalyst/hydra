@@ -414,7 +414,98 @@ this section's intro note above and `specs/014-knowledge-base-management/data-mo
 
 ---
 
-# 8. Memory Context
+# 8. Document Intelligence Context
+
+> **Shipped in SPEC-015** (`specs/015-document-intelligence-pipeline`) — a user's general
+> document library and its automated processing pipeline. A deliberately separate bounded
+> context from §7's `KnowledgeBaseDocuments` (research.md Decision 1): this document's
+> lifecycle (OCR, versioning, classification) has no relationship to knowledge-base
+> membership, and `DocumentFileType` here is its own enum, not `KnowledgeBaseDocumentType`.
+
+## Documents
+
+The aggregate root. Stores `OwnerId` (sole owner, no sharing), `FolderId` (nullable FK to
+`DocumentFolders`), `FileName`, `FileType`, `SizeBytes`, `CurrentVersionId` (no DB-enforced
+FK — the first `DocumentVersion` must reference this row's id before it exists, so this is
+an application-level ordering concern only, resolved by the caller generating the id
+upfront), `ProcessingStatus` (`Uploaded`/`Queued`/`Processing`/`Completed`/`Failed`),
+`ArchivedAtUtc` (nullable — independent of `ProcessingStatus` and of the standard
+`DeletedAtUtc` soft-delete column; a document can be archived without losing its processing
+outcome). Standard audit columns, `RowVersion` (optimistic concurrency).
+
+## DocumentVersions
+
+One immutable content revision per row (US5). Holds the version label, size, file type, and
+the storage reference for that specific revision; restoring an old version repoints
+`Documents.CurrentVersionId` without deleting any version row, so history is never lost.
+
+## DocumentChecksums
+
+SHA-256 content hash per version, driving duplicate-upload detection — a matching checksum
+lets the upload flow offer "save as a new version of this existing document" instead of
+silently creating a duplicate.
+
+## DocumentFolders
+
+A node in one owner's folder hierarchy. Self-referencing `ParentFolderId` (nullable — null
+means root), `Name`, `Depth` (computed and stored at create/move time, same pattern as
+`KnowledgeBaseFolders.Depth`).
+
+## DocumentMetadata / DocumentLanguage / DocumentClassification / DocumentTag
+
+Extracted or user-edited descriptive data. `DocumentMetadata` (title/author/dates/keywords)
+and `DocumentClassification` (category) both carry an "auto-extracted vs. user-edited" flag —
+automatic reprocessing after a new version is upserted idempotently and never overwrites a
+field the user already edited manually. `DocumentLanguage` supports multiple detected
+languages per document with a Primary/Secondary role. `DocumentTag` is free-form and
+reusable across a user's documents, same shape as `KnowledgeBaseTags`.
+
+## DocumentProcessingJob / DocumentProcessingStage / DocumentProcessingLog
+
+`DocumentProcessingJob` is one Hangfire-durable pipeline run; `DocumentProcessingStage`
+records each stage's (`Validation`/`Ocr`/`TextExtraction`/`MetadataExtraction`/
+`Classification`/`LanguageDetection`/`PreviewGeneration`) individual outcome
+(`Completed`/`Failed`/`Skipped` — skipped is not a failure); `DocumentProcessingLog` is an
+append-only event trail surfaced as the document's processing history. Live dashboard counts
+are computed from only the latest job per document, so a document that failed and later
+succeeded on retry is never double-counted.
+
+## DocumentPreview
+
+The generated preview artifact reference (page image, thumbnail, or extracted structured-
+content JSON) for a version, keyed by `DocumentPreviewType`. Never stores a physical path
+directly reachable by a client — delivery goes through `ISignedUrlService`.
+
+## DocumentNotification
+
+An in-app notification (`UploadCompleted`/`ProcessingCompleted`/`ProcessingFailed`/
+`OcrFailed`/`VersionCreated`/`StorageLimitReached`), cursor-paginated like `Documents` itself,
+pushed live over SignalR with REST as the reconciliation fallback.
+
+## DocumentStatistics
+
+Per-owner (and organization-wide, admin-only) aggregate counters — total documents, storage
+bytes, average processing duration, file-type/language distributions — recomputed
+incrementally by a Hangfire recurring job rather than aggregated per-read.
+
+## DocumentAuditLog
+
+Append-only lifecycle audit trail, same rationale as `KnowledgeBaseAuditLogs` (§7).
+
+## DocumentCategory
+
+Classification value, predefined-and-shared or custom-and-private — same `OwnerId`-nullable
+discriminator pattern as `KnowledgeBaseCategories` (§7).
+
+## Not implemented (reserved for a future RAG spec)
+
+Embedding generation and vector storage for this document library — this feature stores,
+organizes, and extracts text from documents, it does not index their content for semantic
+search (that remains scoped to the Knowledge Base Engine's own future RAG spec, §7).
+
+---
+
+# 9. Memory Context
 
 ## UserMemories
 
@@ -440,7 +531,7 @@ Reduces token usage.
 
 ---
 
-# 9. Prompt Library
+# 10. Prompt Library
 
 ## PromptCategories
 
@@ -474,7 +565,7 @@ Favorites
 
 ---
 
-# 10. Agent Context
+# 11. Agent Context
 
 ## Agents
 
@@ -508,7 +599,7 @@ Stores:
 
 ---
 
-# 11. MCP Context
+# 12. MCP Context
 
 ## MCPServers
 
@@ -547,7 +638,7 @@ Audit every tool execution.
 
 ---
 
-# 12. File Context
+# 13. File Context
 
 ## Files
 
@@ -569,7 +660,7 @@ Stores temporary signed URLs.
 
 ---
 
-# 13. Payment Context
+# 14. Payment Context
 
 ## SubscriptionPlans
 
@@ -621,7 +712,7 @@ Uploads
 
 ---
 
-# 14. Administration Context
+# 15. Administration Context
 
 ## FeatureFlags
 
@@ -651,7 +742,7 @@ Platform messages.
 
 ---
 
-# 15. Audit Context
+# 16. Audit Context
 
 ## AuditLogs
 
@@ -697,7 +788,7 @@ Application-level exceptions.
 
 ---
 
-# 16. Relationships
+# 17. Relationships
 
 ```text
 User
@@ -729,7 +820,7 @@ User
 
 ---
 
-# 17. Indexing Strategy
+# 18. Indexing Strategy
 
 Create indexes for:
 
@@ -754,7 +845,7 @@ Vector indexes should be created on embedding columns when SQL Server vector ind
 
 ---
 
-# 18. Data Retention
+# 19. Data Retention
 
 Default:
 
@@ -768,7 +859,7 @@ Background jobs may permanently purge soft-deleted records after the configured 
 
 ---
 
-# 19. Security
+# 20. Security
 
 Never store:
 
@@ -781,7 +872,7 @@ Sensitive secrets should be encrypted using ASP.NET Core Data Protection or an e
 
 ---
 
-# 20. Future Expansion
+# 21. Future Expansion
 
 The schema must support future additions without breaking existing relationships.
 

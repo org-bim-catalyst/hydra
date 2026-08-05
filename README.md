@@ -76,6 +76,20 @@ dotnet test                                          # all backend test projects
 cd src/AskLucy.Web/ClientApp && npm run test         # frontend unit tests
 ```
 
+## Deployment prerequisites
+
+- **Tesseract OCR language data** (SPEC-015 Document Intelligence Pipeline, `TesseractOcrEngine`):
+  the `Tesseract` NuGet package brings its own native Windows engine binaries, but it does
+  **not** ship any `.traineddata` language files, and `App_Data/` (where `TesseractOcr:DataPath`
+  in `appsettings.json` points, `App_Data/tessdata`) is gitignored — it is never populated by
+  a fresh clone, a CI build, or a deploy. On any new deployment host/container image, the
+  needed `.traineddata` files (at minimum `eng.traineddata`; add others from the
+  [tessdata repo](https://github.com/tesseract-ocr/tessdata) to match the languages your users
+  upload) must be placed under `App_Data/tessdata` manually before OCR will produce any text.
+  Missing a language pack is not fatal — `TesseractOcrEngine` falls back to whichever trained
+  data is actually present (defaulting to `eng`) rather than failing the pipeline — but a
+  missing `eng.traineddata` means OCR silently returns no text for every document.
+
 ## Documentation
 
 - [`.specify/memory/constitution.md`](.specify/memory/constitution.md) — the project's
