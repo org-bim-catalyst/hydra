@@ -1,4 +1,5 @@
 using AskLucy.Domain.Common;
+using AskLucy.Domain.Retrieval;
 
 namespace AskLucy.Domain.Chats;
 
@@ -38,6 +39,15 @@ public sealed class UserChat : BaseEntity
 
     /// <summary>Conversation-level generation parameter overrides (FR-014), inherited by new messages unless overridden per-send.</summary>
     public string? GenerationParametersJson { get; private set; }
+
+    /// <summary>Retrieval settings overrides (spec.md FR-020, FR-023, FR-024, research.md Decision 10) — null means "use the system default," same convention as <see cref="GenerationParametersJson"/>.</summary>
+    public SearchMode? RetrievalSearchMode { get; private set; }
+
+    public int? RetrievalTopK { get; private set; }
+
+    public decimal? RetrievalSimilarityThreshold { get; private set; }
+
+    public int? RetrievalMaxContextTokens { get; private set; }
 
     private UserChat()
     {
@@ -187,4 +197,15 @@ public sealed class UserChat : BaseEntity
     }
 
     public bool IsOwnedBy(string userId) => UserId == userId;
+
+    /// <summary>FR-037 — applies to messages sent after this call only; prior messages' <c>RetrievalHistory</c>/citations are unaffected (each field may be null to revert to the system default).</summary>
+    public void UpdateRetrievalSettings(SearchMode? searchMode, int? topK, decimal? similarityThreshold, int? maxContextTokens, string actor)
+    {
+        RetrievalSearchMode = searchMode;
+        RetrievalTopK = topK;
+        RetrievalSimilarityThreshold = similarityThreshold;
+        RetrievalMaxContextTokens = maxContextTokens;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
 }

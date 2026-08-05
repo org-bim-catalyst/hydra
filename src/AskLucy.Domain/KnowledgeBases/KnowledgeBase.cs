@@ -1,4 +1,5 @@
 using AskLucy.Domain.Common;
+using AskLucy.Domain.Retrieval;
 
 namespace AskLucy.Domain.KnowledgeBases;
 
@@ -19,6 +20,27 @@ public enum KnowledgeBaseStatus
 public enum KnowledgeBaseVisibility
 {
     Private,
+}
+
+/// <summary>A knowledge base's RAG index status (spec.md FR-014, research.md Decision 11) — an independent axis from <see cref="KnowledgeBaseStatus"/>.</summary>
+public enum KnowledgeBaseIndexStatus
+{
+    NotIndexed,
+    InitialIndexQueued,
+    Indexing,
+    PartiallyIndexed,
+    Indexed,
+    Failed,
+}
+
+/// <summary>Which backing store holds this knowledge base's vectors (ADR-0007). <see cref="Pinecone"/>
+/// is the default for new knowledge bases; <see cref="SqlServer"/> remains available and is
+/// mandatory when <see cref="KnowledgeBase.RequiresDataResidency"/> is set, since Pinecone is a
+/// third-party US-hosted SaaS.</summary>
+public enum VectorStoreProvider
+{
+    SqlServer,
+    Pinecone,
 }
 
 /// <summary>
@@ -65,6 +87,22 @@ public sealed class KnowledgeBase : BaseEntity
 
     /// <summary>Set to <c>DeletedAtUtc + 30 days</c> on soft delete (FR-036); cleared on <see cref="Restore"/>. Read by the periodic purge sweep.</summary>
     public DateTime? PurgeScheduledAtUtc { get; private set; }
+
+    /// <summary>RAG chunking strategy (spec.md FR-001, research.md Decision 11). Defaults to <see cref="ChunkingStrategy.Recursive"/> at creation.</summary>
+    public ChunkingStrategy ChunkingStrategy { get; private set; } = ChunkingStrategy.Recursive;
+
+    /// <summary>The <c>EmbeddingProvider</c> this knowledge base uses to generate embeddings (FR-006). Null = the platform's default cloud provider.</summary>
+    public Guid? EmbeddingProviderId { get; private set; }
+
+    /// <summary>FR-009a (spec.md Clarifications Q1) — when true, <see cref="EmbeddingProviderId"/> must resolve to a <see cref="EmbeddingHostingType.Local"/> provider, and <see cref="VectorStoreProvider"/> must be <see cref="VectorStoreProvider.SqlServer"/>.</summary>
+    public bool RequiresDataResidency { get; private set; }
+
+    /// <summary>ADR-0007 — defaults to <see cref="VectorStoreProvider.Pinecone"/> for new knowledge bases; existing rows are backfilled to <see cref="VectorStoreProvider.SqlServer"/> by the migration since their vectors already live there.</summary>
+    public VectorStoreProvider VectorStoreProvider { get; private set; } = VectorStoreProvider.Pinecone;
+
+    public KnowledgeBaseIndexStatus IndexStatus { get; private set; } = KnowledgeBaseIndexStatus.NotIndexed;
+
+    public DateTime? LastIndexedAtUtc { get; private set; }
 
     public IReadOnlyCollection<KnowledgeBaseTag> Tags => _tags;
 
@@ -275,4 +313,96 @@ public sealed class KnowledgeBase : BaseEntity
     }
 
     public bool IsOwnedBy(string userId) => OwnerId == userId;
+
+    /// <summary>
+    /// FR-001, FR-004, FR-009a, research.md Decision 11, ADR-0007 — <paramref name="resolvedProviderHostingType"/>
+    /// is the effective <see cref="EmbeddingProvider"/>'s hosting type that <paramref name="embeddingProviderId"/>
+    /// resolves to (the caller/Application layer always resolves this — including the "null means the
+    /// platform default cloud provider" case — before calling, so Domain enforces the invariant against
+    /// a real value rather than trusting the caller). Both the embedding-hosting guard and the
+    /// vector-store guard are validated together here, in one method, because
+    /// <see cref="RequiresDataResidency"/> is a single cross-cutting invariant spanning both — splitting
+    /// this into two methods would let a caller flip <paramref name="requiresDataResidency"/> to true via
+    /// one call while leaving a stale non-compliant choice set by a prior call to the other. Returns
+    /// <see langword="true"/> when the chunking strategy, embedding provider, or vector store provider
+    /// actually changed, so the caller knows whether FR-004's automatic reindex trigger applies.
+    /// </summary>
+    public bool UpdateRetrievalSettings(
+        ChunkingStrategy chunkingStrategy, Guid? embeddingProviderId, EmbeddingHostingType resolvedProviderHostingType,
+        VectorStoreProvider vectorStoreProvider, bool requiresDataResidency, string actor)
+    {
+        if (requiresDataResidency && resolvedProviderHostingType != EmbeddingHostingType.Local)
+        {
+            throw new DomainRuleViolationException("A knowledge base requiring data residency must use a local/self-hosted embedding provider.");
+        }
+
+        if (requiresDataResidency && vectorStoreProvider != VectorStoreProvider.SqlServer)
+        {
+            throw new DomainRuleViolationException("A knowledge base requiring data residency must use SQL Server for vector storage.");
+        }
+
+        var changed = ChunkingStrategy != chunkingStrategy || EmbeddingProviderId != embeddingProviderId || VectorStoreProvider != vectorStoreProvider;
+
+        ChunkingStrategy = chunkingStrategy;
+        EmbeddingProviderId = embeddingProviderId;
+        VectorStoreProvider = vectorStoreProvider;
+        RequiresDataResidency = requiresDataResidency;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+
+        return changed;
+    }
+
+    /// <summary>FR-010a, FR-011 — requires <see cref="Status"/> to be <see cref="KnowledgeBaseStatus.Active"/> (RAG indexing eligibility) and <see cref="IndexStatus"/> to not already be in progress (§5 Concurrency).</summary>
+    public void MarkInitialIndexQueued(string actor)
+    {
+        if (Status != KnowledgeBaseStatus.Active)
+        {
+            throw new DomainRuleViolationException("Only an Active knowledge base can be indexed.");
+        }
+
+        if (IndexStatus is KnowledgeBaseIndexStatus.InitialIndexQueued or KnowledgeBaseIndexStatus.Indexing)
+        {
+            throw new DomainRuleViolationException("This knowledge base already has an indexing job in progress.");
+        }
+
+        IndexStatus = KnowledgeBaseIndexStatus.InitialIndexQueued;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>FR-011 — a reindex on an already-indexed knowledge base; same concurrency guard as <see cref="MarkInitialIndexQueued"/>.</summary>
+    public void MarkReindexQueued(string actor)
+    {
+        if (IndexStatus is KnowledgeBaseIndexStatus.InitialIndexQueued or KnowledgeBaseIndexStatus.Indexing)
+        {
+            throw new DomainRuleViolationException("This knowledge base already has an indexing job in progress.");
+        }
+
+        IndexStatus = KnowledgeBaseIndexStatus.Indexing;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    public void MarkIndexing(string actor)
+    {
+        IndexStatus = KnowledgeBaseIndexStatus.Indexing;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    public void MarkIndexed(bool partial, string actor)
+    {
+        IndexStatus = partial ? KnowledgeBaseIndexStatus.PartiallyIndexed : KnowledgeBaseIndexStatus.Indexed;
+        LastIndexedAtUtc = DateTime.UtcNow;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    public void MarkIndexFailed(string actor)
+    {
+        IndexStatus = KnowledgeBaseIndexStatus.Failed;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
 }

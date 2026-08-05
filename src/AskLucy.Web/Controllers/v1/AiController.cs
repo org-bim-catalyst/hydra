@@ -63,9 +63,10 @@ public sealed partial class AiController(
 
         var assistantContent = new StringBuilder();
         ChatUsage? finalUsage = null;
+        RagRetrievalOutcome? retrievalOutcome = null;
 
         await foreach (var chunk in mediator.CreateStream(
-            new SendChatMessageCommand(request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
+            new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
             cancellationToken))
         {
             if (!string.IsNullOrEmpty(chunk.ContentDelta))
@@ -79,6 +80,39 @@ public sealed partial class AiController(
             {
                 finalUsage = chunk.Usage;
             }
+
+            if (chunk.RetrievalOutcome is not null)
+            {
+                retrievalOutcome = chunk.RetrievalOutcome;
+            }
+        }
+
+        // US1 (specs/016-rag-semantic-search) — a distinguishable trailing JSON event, never
+        // mistakeable for a raw content delta (aiApi.ts's streamChat detects the "__RAG__"
+        // prefix before falling back to treating a line as plain content). Surfaces the
+        // retrieval outcome/citations/error to the client within the same request, without
+        // changing the plain-text wire format every other line already uses.
+        if (retrievalOutcome is not null)
+        {
+            var ragPayload = new
+            {
+                retrievalOutcome = retrievalOutcome.Type.ToString(),
+                citations = retrievalOutcome.Citations.Select(c => new
+                {
+                    documentChunkId = c.DocumentChunkId,
+                    knowledgeBaseId = c.KnowledgeBaseId,
+                    documentId = c.DocumentId,
+                    documentVersionId = c.DocumentVersionId,
+                    documentTitle = c.DocumentTitle,
+                    knowledgeBaseName = c.KnowledgeBaseName,
+                    pageNumber = c.PageNumber,
+                    section = c.Section,
+                    excerpt = c.Excerpt,
+                }),
+                retrievalError = retrievalOutcome.UnavailableReason,
+            };
+            await Response.WriteAsync($"data: __RAG__{JsonSerializer.Serialize(ragPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
@@ -90,13 +124,23 @@ public sealed partial class AiController(
             ? null
             : JsonSerializer.Serialize(request.GenerationParameters);
 
+        // US1: RAG-grounded citations are attached to the persisted assistant message only when
+        // retrieval actually found relevant content — NoRelevantContent/Unavailable never attach
+        // citations (research.md Decision 8).
+        var citations = retrievalOutcome?.Type == RagRetrievalOutcomeType.Grounded
+            ? retrievalOutcome.Citations
+                .Select(c => new AppendMessageCitationInput(
+                    c.DocumentTitle, null, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))
+                .ToList()
+            : null;
+
         await mediator.Send(
             new AppendMessageCommand(
                 request.ChatId, MessageRole.Assistant, MessageKind.Text, assistantContent.ToString(), null,
                 Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
                 InputTokenCount: finalUsage?.InputTokenCount, OutputTokenCount: finalUsage?.OutputTokenCount,
                 CachedTokenCount: finalUsage?.CachedTokenCount, ReasoningTokenCount: finalUsage?.ReasoningTokenCount,
-                LatencyMs: finalUsage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd),
+                LatencyMs: finalUsage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
             cancellationToken);
     }
 
@@ -231,7 +275,7 @@ public sealed partial class AiController(
         try
         {
             await foreach (var voiceEvent in mediator.CreateStream(
-                new StreamVoiceReplyCommand(request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, request.Language),
+                new StreamVoiceReplyCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, request.Language),
                 cancellationToken))
             {
                 if (voiceEvent.TranscriptDelta is not null)

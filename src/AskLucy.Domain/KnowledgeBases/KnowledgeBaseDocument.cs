@@ -38,6 +38,14 @@ public sealed class KnowledgeBaseDocument : BaseEntity
 
     public DateTime UploadedAtUtc { get; private set; }
 
+    /// <summary>
+    /// Nullable link into the Document Intelligence Pipeline's <c>Document</c> aggregate
+    /// (research.md Decision 2). Null until this document is first indexed for RAG — an
+    /// already-processed document's extracted text is reused, never re-parsed, once this link is
+    /// populated by the indexing pipeline (spec.md FR-010, FR-010a).
+    /// </summary>
+    public Guid? DocumentId { get; private set; }
+
     private KnowledgeBaseDocument()
     {
         // Required by EF Core materialization.
@@ -94,5 +102,13 @@ public sealed class KnowledgeBaseDocument : BaseEntity
     {
         DeletedAtUtc = DateTime.UtcNow;
         DeletedBy = actor;
+    }
+
+    /// <summary>research.md Decision 2 — populated once the indexing pipeline has created/located a <c>Document</c> for this knowledge-base document's already-stored file.</summary>
+    public void LinkToDocument(Guid documentId, string actor)
+    {
+        DocumentId = documentId;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
     }
 }

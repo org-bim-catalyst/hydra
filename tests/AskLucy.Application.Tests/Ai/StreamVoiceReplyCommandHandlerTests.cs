@@ -38,14 +38,14 @@ public sealed class StreamVoiceReplyCommandHandlerTests
         _handler = new StreamVoiceReplyCommandHandler(_mediator, _textToSpeech, _healthRecorder, _voicePreferences, _currentUser);
     }
 
-    private void SetUpLlmStream(params StreamChunk[] chunks) =>
+    private void SetUpLlmStream(params ChatStreamChunk[] chunks) =>
         _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable(chunks));
 
     [Fact]
     public async Task Handle_ShouldSplitGrowingTextIntoSentences_AndSynthesizeEachWithContinuingSequence()
     {
-        SetUpLlmStream(new StreamChunk("Hello world. "), new StreamChunk("How are you?"));
+        SetUpLlmStream(new ChatStreamChunk("Hello world. ", null), new ChatStreamChunk("How are you?", null));
 
         _textToSpeech
             .StreamSpeechAsync("Hello world.", DefaultSettings, Arg.Any<CancellationToken>())
@@ -54,7 +54,7 @@ public sealed class StreamVoiceReplyCommandHandlerTests
             .StreamSpeechAsync("How are you?", DefaultSettings, Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable<byte[]>([[5, 6]]));
 
-        var events = await CollectAsync(new StreamVoiceReplyCommand([], Guid.NewGuid(), Guid.NewGuid(), null, "en"));
+        var events = await CollectAsync(new StreamVoiceReplyCommand(Guid.NewGuid(), [], Guid.NewGuid(), Guid.NewGuid(), null, "en"));
 
         events.Where(e => e.Type == "transcript-delta").Select(e => e.TranscriptDelta)
             .Should().Equal("Hello world. ", "How are you?");
@@ -72,13 +72,13 @@ public sealed class StreamVoiceReplyCommandHandlerTests
     [Fact]
     public async Task Handle_ShouldEmitAudioFailed_AndRecordFailover_ButStillCompleteTheTextStream_WhenTtsFails()
     {
-        SetUpLlmStream(new StreamChunk("First sentence. "), new StreamChunk("Second sentence."));
+        SetUpLlmStream(new ChatStreamChunk("First sentence. ", null), new ChatStreamChunk("Second sentence.", null));
 
         _textToSpeech
             .StreamSpeechAsync("First sentence.", DefaultSettings, Arg.Any<CancellationToken>())
             .Returns(_ => throw new AiProviderUnavailableException("ElevenLabs TTS is down."));
 
-        var events = await CollectAsync(new StreamVoiceReplyCommand([], Guid.NewGuid(), Guid.NewGuid(), null, "en"));
+        var events = await CollectAsync(new StreamVoiceReplyCommand(Guid.NewGuid(), [], Guid.NewGuid(), Guid.NewGuid(), null, "en"));
 
         events.Should().ContainSingle(e => e.Type == "audio-failed");
         events.Where(e => e.Type == "transcript-delta").Select(e => e.TranscriptDelta)

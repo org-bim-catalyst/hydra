@@ -1,12 +1,12 @@
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import LinkIcon from '@mui/icons-material/Link'
-import { Box, Chip, Paper, Stack, Typography } from '@mui/material'
+import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material'
 import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import type { ChatMessage } from '../api/aiApi'
+import { CitationBadge } from '../../retrieval/components/CitationBadge'
 
 /** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. */
 export function MessageBubble({ message }: { message: ChatMessage }) {
@@ -55,19 +55,24 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               />
             ))}
             {message.citations?.map((c) => (
-              <Chip
-                key={c.id}
-                size="small"
-                icon={<LinkIcon />}
-                label={c.sourceLabel}
-                component={c.sourceReference ? 'a' : 'div'}
-                href={c.sourceReference ?? undefined}
-                target={c.sourceReference ? '_blank' : undefined}
-                rel={c.sourceReference ? 'noopener noreferrer' : undefined}
-                clickable={Boolean(c.sourceReference)}
-              />
+              <CitationBadge key={c.id} citation={c} />
             ))}
           </Stack>
+        )}
+
+        {/* specs/016-rag-semantic-search US1 (research.md Decision 8) — a non-silent, visible
+            indicator for a degraded response: NoRelevantContent means the message answered
+            without grounding because nothing relevant was found; Unavailable means retrieval
+            itself failed but the response still generated (FR-037a — never blocked, never silent). */}
+        {message.retrievalOutcome === 'NoRelevantContent' && (
+          <Alert severity="info" variant="outlined" sx={{ mt: 1, py: 0 }}>
+            No relevant content was found in the attached knowledge base(s) — this response isn't grounded in your documents.
+          </Alert>
+        )}
+        {message.retrievalOutcome === 'Unavailable' && (
+          <Alert severity="warning" variant="outlined" sx={{ mt: 1, py: 0 }}>
+            {message.retrievalError ?? 'Knowledge base retrieval was temporarily unavailable — this response isn\'t grounded in your documents.'}
+          </Alert>
         )}
 
         {/* specs/005-multi-provider-ai-engine FR-011: attribution is a snapshot of what

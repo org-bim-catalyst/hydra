@@ -522,6 +522,18 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("DocumentChunkId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("DocumentVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("MessageId")
                         .HasColumnType("uniqueidentifier");
 
@@ -531,11 +543,18 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("ModifiedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("PageNumber")
+                        .HasColumnType("int");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<string>("Section")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("SourceLabel")
                         .IsRequired()
@@ -547,6 +566,8 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("nvarchar(2048)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DocumentChunkId");
 
                     b.HasIndex("MessageId");
 
@@ -697,6 +718,20 @@ namespace AskLucy.Persistence.Migrations
 
                     b.Property<Guid?>("ProviderId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("RetrievalMaxContextTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RetrievalSearchMode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal?>("RetrievalSimilarityThreshold")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
+
+                    b.Property<int?>("RetrievalTopK")
+                        .HasColumnType("int");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -1820,6 +1855,11 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ChunkingStrategy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("Color")
                         .HasMaxLength(7)
                         .HasColumnType("nvarchar(7)");
@@ -1846,14 +1886,25 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<Guid?>("EmbeddingProviderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Icon")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("IndexStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<bool>("IsFavorite")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("LastIndexedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("datetime2");
@@ -1880,6 +1931,11 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<DateTime?>("PurgeScheduledAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("RequiresDataResidency")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -1901,6 +1957,13 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("VectorStoreProvider")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("SqlServer");
+
                     b.Property<string>("Visibility")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1911,6 +1974,10 @@ namespace AskLucy.Persistence.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("EmbeddingProviderId");
+
+                    b.HasIndex("IndexStatus");
 
                     b.HasIndex("IsFavorite");
 
@@ -2051,6 +2118,9 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(260)
@@ -2094,6 +2164,8 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DocumentId");
 
                     b.HasIndex("FolderId");
 
@@ -2204,6 +2276,740 @@ namespace AskLucy.Persistence.Migrations
                     b.HasIndex("OwnerId", "Value");
 
                     b.ToTable("KnowledgeBaseTags", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.ChunkStatistics", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ComputedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<long>("StorageBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("TotalChunks")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalEmbeddings")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KnowledgeBaseId")
+                        .IsUnique();
+
+                    b.ToTable("ChunkStatistics", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.ConversationKnowledgeBase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AttachedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("UserChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KnowledgeBaseId");
+
+                    b.HasIndex("UserChatId", "KnowledgeBaseId")
+                        .IsUnique();
+
+                    b.ToTable("ConversationKnowledgeBases", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.DocumentChunk", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CharacterCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ChunkingStrategy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DocumentVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Heading")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("KnowledgeBaseDocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(35)
+                        .HasColumnType("nvarchar(35)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Section")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("TokenCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentHash");
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("DocumentVersionId");
+
+                    b.HasIndex("KnowledgeBaseDocumentId");
+
+                    b.HasIndex("KnowledgeBaseId");
+
+                    b.HasIndex("DocumentVersionId", "Position");
+
+                    b.ToTable("DocumentChunks", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.Embedding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("DocumentChunkId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("EmbeddingProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentChunkId");
+
+                    b.HasIndex("EmbeddingProviderId");
+
+                    b.HasIndex("DocumentChunkId", "IsCurrent");
+
+                    b.ToTable("Embeddings", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.EmbeddingProvider", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Dimensionality")
+                        .HasColumnType("int");
+
+                    b.Property<string>("HostingType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("ModelKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Vendor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HostingType");
+
+                    b.HasIndex("HostingType", "IsDefault");
+
+                    b.ToTable("EmbeddingProviders", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.IndexingJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("HangfireJobId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("JobType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid?>("KnowledgeBaseDocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MaxRetries")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RetryCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KnowledgeBaseDocumentId");
+
+                    b.HasIndex("KnowledgeBaseId");
+
+                    b.HasIndex("KnowledgeBaseId", "Status");
+
+                    b.ToTable("IndexingJobs", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.IndexingLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("IndexingJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IndexingJobId", "OccurredAtUtc");
+
+                    b.ToTable("IndexingLogs", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.RetrievalHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("KnowledgeBaseIdsSearchedJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxContextTokens")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Query")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("ResultCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SearchMode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal>("SimilarityThreshold")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
+
+                    b.Property<int>("TopK")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("MessageId");
+
+                    b.HasIndex("UserChatId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RetrievalHistories", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.RetrievalResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BoostFactorsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("DocumentChunkId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("KeywordScore")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RelevanceScore")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<Guid>("RetrievalHistoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<decimal?>("SemanticScore")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentChunkId");
+
+                    b.HasIndex("RetrievalHistoryId");
+
+                    b.ToTable("RetrievalResults", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.SearchAnalytics", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("AverageRetrievalTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("AverageSimilarityScore")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
+
+                    b.Property<DateTime>("ComputedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EmptySearchCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FailedSearchCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SearchCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TopDocumentsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KnowledgeBaseId");
+
+                    b.HasIndex("UserId", "KnowledgeBaseId");
+
+                    b.ToTable("SearchAnalytics", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.SearchHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FiltersJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("KnowledgeBaseIdsSearchedJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Query")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("ResultCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SearchMode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SearchHistories", (string)null);
                 });
 
             modelBuilder.Entity("AskLucy.Persistence.Identity.ApplicationUser", b =>
@@ -2698,6 +3504,11 @@ namespace AskLucy.Persistence.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("AskLucy.Domain.Retrieval.EmbeddingProvider", null)
+                        .WithMany()
+                        .HasForeignKey("EmbeddingProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
@@ -2707,6 +3518,11 @@ namespace AskLucy.Persistence.Migrations
 
             modelBuilder.Entity("AskLucy.Domain.KnowledgeBases.KnowledgeBaseDocument", b =>
                 {
+                    b.HasOne("AskLucy.Domain.Documents.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBaseFolder", null)
                         .WithMany()
                         .HasForeignKey("FolderId")
@@ -2740,6 +3556,132 @@ namespace AskLucy.Persistence.Migrations
                         .HasForeignKey("KnowledgeBaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.ChunkStatistics", b =>
+                {
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.ConversationKnowledgeBase", b =>
+                {
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Chats.UserChat", null)
+                        .WithMany()
+                        .HasForeignKey("UserChatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.DocumentChunk", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Documents.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Documents.DocumentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBaseDocument", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.Embedding", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Retrieval.DocumentChunk", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentChunkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Retrieval.EmbeddingProvider", null)
+                        .WithMany()
+                        .HasForeignKey("EmbeddingProviderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.IndexingJob", b =>
+                {
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBaseDocument", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.IndexingLog", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Retrieval.IndexingJob", null)
+                        .WithMany()
+                        .HasForeignKey("IndexingJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.RetrievalHistory", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Chats.Message", null)
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AskLucy.Domain.Chats.UserChat", null)
+                        .WithMany()
+                        .HasForeignKey("UserChatId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.RetrievalResult", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Retrieval.DocumentChunk", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentChunkId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Retrieval.RetrievalHistory", null)
+                        .WithMany()
+                        .HasForeignKey("RetrievalHistoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Retrieval.SearchAnalytics", b =>
+                {
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("DocumentDocumentTag", b =>

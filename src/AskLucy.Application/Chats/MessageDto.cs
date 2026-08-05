@@ -2,7 +2,11 @@ namespace AskLucy.Application.Chats;
 
 public sealed record AttachmentDto(Guid Id, string FileName, string ContentType, string AccessLocation);
 
-public sealed record CitationDto(Guid Id, string SourceLabel, string? SourceReference);
+/// <summary>The trailing RAG-specific fields (research.md Decision 9) are null for a plain, non-RAG citation.</summary>
+public sealed record CitationDto(
+    Guid Id, string SourceLabel, string? SourceReference,
+    Guid? DocumentChunkId = null, Guid? KnowledgeBaseId = null, Guid? DocumentId = null,
+    Guid? DocumentVersionId = null, int? PageNumber = null, string? Section = null);
 
 public sealed record MessageDto(
     Guid Id,

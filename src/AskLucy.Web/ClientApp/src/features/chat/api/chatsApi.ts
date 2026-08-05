@@ -37,10 +37,17 @@ export interface PersistedAttachment {
   accessLocation: string
 }
 
+/** The trailing RAG-specific fields (specs/016-rag-semantic-search US1, research.md Decision 9) are null for a plain, non-RAG citation. */
 export interface PersistedCitation {
   id: string
   sourceLabel: string
   sourceReference: string | null
+  documentChunkId?: string | null
+  knowledgeBaseId?: string | null
+  documentId?: string | null
+  documentVersionId?: string | null
+  pageNumber?: number | null
+  section?: string | null
 }
 
 export interface PersistedMessage {
