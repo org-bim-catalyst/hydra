@@ -28,6 +28,9 @@ const KnowledgeBaseDashboardPage = lazy(() =>
 const KnowledgeBaseDetailPage = lazy(() =>
   import('../features/knowledge-base/pages/KnowledgeBaseDetailPage').then((m) => ({ default: m.KnowledgeBaseDetailPage })),
 )
+const MemoryCenterPage = lazy(() =>
+  import('../features/memory/pages/MemoryCenterPage').then((m) => ({ default: m.MemoryCenterPage })),
+)
 const PrivacyPage = lazy(() =>
   import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
 )
@@ -157,6 +160,17 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <Lazy>
           <KnowledgeBaseDetailPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/memory',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <MemoryCenterPage />
         </Lazy>
       </ProtectedRoute>
     ),

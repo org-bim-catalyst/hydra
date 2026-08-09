@@ -17,6 +17,8 @@ using AskLucy.Application.Chats.Queries.ExportUserChat;
 using AskLucy.Application.Chats.Queries.GetChatMessages;
 using AskLucy.Application.Chats.Queries.SearchUserChats;
 using AskLucy.Application.Common;
+using AskLucy.Application.Memory.Queries.GetMemoryReferences;
+using AskLucy.Application.Projects.Commands.AssignConversationToProject;
 using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -76,6 +78,19 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     public async Task<ActionResult<PagedResult<MessageDto>>> GetMessages(
         Guid id, [FromQuery] string? cursor = null, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default) =>
         Ok(await mediator.Send(new GetChatMessagesQuery(id, cursor, pageSize), cancellationToken));
+
+    /// <summary>specs/018-ai-memory-system, FR-014 — the "why does Lucy know this" trace for one assistant message (contracts/memories-api.md).</summary>
+    [HttpGet("{id:guid}/messages/{messageId:guid}/memory-references")]
+    public async Task<ActionResult<IReadOnlyList<MemoryReferenceDto>>> GetMemoryReferences(Guid id, Guid messageId, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetMemoryReferencesQuery(id, messageId), cancellationToken));
+
+    /// <summary>specs/018-ai-memory-system, FR-002a — assigns (or, with a null `projectId`, removes) this conversation's Project (contracts/projects-api.md). Mirrors the existing `PUT /api/v1/chats/{id}/knowledge-bases` sub-resource-action shape from specs/016.</summary>
+    [HttpPut("{id:guid}/project")]
+    public async Task<IActionResult> AssignProject(Guid id, AssignProjectRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new AssignConversationToProjectCommand(id, request.ProjectId), cancellationToken);
+        return NoContent();
+    }
 
     [HttpPost("{id:guid}/actions/archive")]
     public async Task<ActionResult<UserChatSummaryDto>> Archive(Guid id, CancellationToken cancellationToken) =>

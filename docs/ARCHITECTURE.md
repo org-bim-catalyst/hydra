@@ -2,7 +2,7 @@
 
 > **Project:** Ask Lucy AI Workspace
 >
-> **Version:** 2.0
+> **Version:** 2.1
 >
 > **Architecture:** Clean Architecture + Modular Monolith
 >
@@ -10,7 +10,7 @@
 >
 > **Frontend:** React + TypeScript + Vite
 >
-> **Last Updated:** July 2026
+> **Last Updated:** August 2026 (v2.1: added §28 AI Memory System, specs/018)
 
 ---
 
@@ -933,7 +933,76 @@ document, so a document that failed and later succeeded on retry is never double
 
 ---
 
-# 28. Architecture Principles
+# 28. AI Memory System
+
+Introduced in specs/018-ai-memory-system. Lives in `Domain/Memory`, `Domain/Projects`,
+`Application/Memory`, `Application/Projects`, `Infrastructure/Memory`, `Persistence` (via
+`AskLucyDbContext` and `SqlServerMemoryVectorStore`), and `MemoriesController`/
+`ProjectsController` under `Web/Controllers/v1`. Frontend lives in
+`ClientApp/src/features/memory`. Supersedes/extends the earlier "Memory Engine" sketch in
+§12 with the shipped design.
+
+**Lifecycle**: `Memory` moves through `PendingApproval → Active → Archived` (soft-deleted,
+never hard-deleted, so audit history survives). Candidates originate from passive conversation
+analysis (`MemoryExtractionJob`, a Hangfire job enqueued fire-and-forget per chat turn from
+`SendChatMessageCommandHandler`) or explicit user save requests. Each `MemoryCategoryPreference`
+independently selects an `MemoryApprovalMode` (`Automatic` / `Manual` / `Disabled`); sensitive
+categories always require manual approval regardless of preference. Approved/auto-approved
+candidates become `Active` immediately; a rejected or expired (never-reinforced) candidate is
+soft-deleted by the recurring `MemoryCleanupJob`.
+
+**Retrieval and injection** (`IMemoryService.RetrieveRelevantMemoriesAsync`): before generation,
+the Chat Engine asks the Memory Engine for relevant memories, ranked by a composite score —
+`similarity × recencyDecay × importance × confidence` — filtered to the caller's own `Active`
+memories, the current Project scope (or general/unscoped), and any category the user hasn't
+disabled. Results are injected as a `<user_memory>`-framed system message ahead of the RAG
+system message (defensive framing prevents memory content from being interpreted as
+instructions). A `MemoryReference` row is recorded per assistant message per memory used, so
+the UI can show *why* Lucy remembered something (`MemoryTraceIndicator`, `GET
+/chats/{id}/messages/{messageId}/memory-references`).
+
+**Storage abstraction**: `IMemoryVectorStore` is a narrow, provider-neutral interface —
+`SqlServerMemoryVectorStore` is the only implementation, using SQL Server's native `vector(n)`
+column type and `VECTOR_DISTANCE` (raw ADO.NET, isolated to `AskLucy.Persistence`; the
+`Domain`/`Application` Memory assemblies never reference `Microsoft.Data.SqlClient` or any AI
+vendor SDK — enforced by `MemoryLayeringTests`). No `CREATE VECTOR INDEX` is issued — on
+non-Azure SQL Server 2025 it makes the table read-only (see `sql_server_2025_vector_index_readonly`
+memory note); retrieval instead does a filtered full scan (`State = 'Active'`), acceptable at
+current per-user memory volumes.
+
+**Conflict detection** (`IMemoryConflictDetectionService`): before a new candidate is upserted,
+its embedding is compared against the user's existing memory pool; a single AI classification
+call determines `NoConflict` / `DirectContradiction` / `AmbiguousConflict`. A direct
+contradiction (e.g. "I use Angular" → "I moved to React") auto-merges, archiving the old
+memory. An ambiguous conflict creates a `MemoryConflictNeedsConfirmation` notification and
+leaves both memories `Active` until the user resolves it (`ResolveMemoryConflictCommand`:
+`KeepExisting` / `KeepNew` / `KeepBoth`).
+
+**Memory Center** (`/memory`, `MemoryCenterPage`): list/search/edit/delete, an approval queue,
+per-category preferences, a notification feed (delivered live via `MemoryHub`, SignalR,
+per-user groups keyed off `ClaimTypes.NameIdentifier`), and Projects management. **Projects**
+(`Domain/Projects`) are a lightweight grouping construct — a conversation may be assigned to
+one Project (`PUT /chats/{id}/project`), and memories are scoped `general` (no Project),
+Project-specific, or queried across all scopes; deleting a Project archives its scoped
+memories rather than deleting them.
+
+**Privacy controls** (FR-023–FR-026): users can disable memory entirely, disable individual
+categories, clear all memories (`ClearAllMemoriesCommand`, requires explicit `confirm: true`),
+or request an export (`MemoryExportJob` entity tracks async generation status — never a bare
+guessable filename — polled via `GetMemoryExportStatusQuery`, delivered through the same
+signed-URL pattern as Document downloads). Account deletion (`DeleteMyAccountCommandHandler`)
+anonymizes `MemoryAuditLog`/`MemoryNotification` rows (the two tables deliberately not FK-linked
+to the user for audit-retention reasons) before the real hard delete; `Memory`/`Project`/
+`MemoryPreference`/`MemoryCategoryPreference` cascade-delete via FK `ON DELETE CASCADE`.
+
+**Security** (FR-027, SC-005): every Memory/Project endpoint is implicitly scoped to the
+caller via `MemoryOwnershipGuard`/`ProjectOwnershipGuard`; a request naming another user's
+memory or Project returns `404`, never `403` (least-information-disclosure, consistent with
+the rest of the codebase's ownership-guard convention).
+
+---
+
+# 29. Architecture Principles
 
 Before implementing any feature, ask:
 

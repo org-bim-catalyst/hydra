@@ -242,6 +242,9 @@ namespace AskLucy.Persistence.Migrations
             // SQL defers parsing so the IF branch is safely skippable on LocalDB without a parse
             // error, while still creating the real index on any full SQL Server edition with the
             // feature installed (expected for staging/production).
+            // suppressTransaction: true — CREATE FULLTEXT CATALOG/INDEX cannot run inside a user
+            // transaction ("CREATE FULLTEXT CATALOG statement cannot be used inside a user
+            // transaction"), which EF Core wraps every migration in by default on SQL Server.
             migrationBuilder.Sql(
                 """
                 IF (SELECT CAST(SERVERPROPERTY('IsFullTextInstalled') AS int)) = 1
@@ -250,7 +253,8 @@ namespace AskLucy.Persistence.Migrations
                         EXEC('CREATE FULLTEXT CATALOG RetrievalFullTextCatalog');
                     EXEC('CREATE FULLTEXT INDEX ON [DocumentChunks]([Content]) KEY INDEX [PK_DocumentChunks] ON RetrievalFullTextCatalog WITH CHANGE_TRACKING AUTO');
                 END
-                """);
+                """,
+                suppressTransaction: true);
 
             migrationBuilder.CreateTable(
                 name: "EmbeddingProviders",
@@ -769,7 +773,8 @@ namespace AskLucy.Persistence.Migrations
                 name: "IndexingJobs");
 
             // Must drop the full-text index (if it was created — see Up()) before the table
-            // itself can be dropped.
+            // itself can be dropped. suppressTransaction: true — same "cannot be used inside a
+            // user transaction" restriction applies to DROP FULLTEXT INDEX/CATALOG as CREATE.
             migrationBuilder.Sql(
                 """
                 IF (SELECT CAST(SERVERPROPERTY('IsFullTextInstalled') AS int)) = 1
@@ -779,7 +784,8 @@ namespace AskLucy.Persistence.Migrations
                     IF EXISTS (SELECT 1 FROM sys.fulltext_catalogs WHERE name = 'RetrievalFullTextCatalog')
                         EXEC('DROP FULLTEXT CATALOG RetrievalFullTextCatalog');
                 END
-                """);
+                """,
+                suppressTransaction: true);
 
             migrationBuilder.DropTable(
                 name: "DocumentChunks");
