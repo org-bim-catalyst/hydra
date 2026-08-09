@@ -26,11 +26,12 @@ import {
   MenuItem,
   Snackbar,
   TextField,
-  Typography,
 } from '@mui/material'
+import FolderOpenIcon from '@mui/icons-material/FolderOpenOutlined'
 import { useState } from 'react'
 import type { KnowledgeBaseDocument, KnowledgeBaseFolder } from '../api/knowledgeBaseFoldersApi'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
+import { EmptyState } from '../../../components/EmptyState'
 import {
   buildFolderTree,
   useKnowledgeBaseDndSensors,
@@ -126,9 +127,11 @@ export function KnowledgeBaseFolderTree({ knowledgeBaseId }: KnowledgeBaseFolder
       </DndContext>
 
       {(data?.folders.length ?? 0) === 0 && (data?.rootDocuments.length ?? 0) === 0 && (
-        <Typography color="text.secondary" sx={{ mt: 2 }}>
-          No folders or documents yet.
-        </Typography>
+        <EmptyState
+          icon={<FolderOpenIcon fontSize="inherit" />}
+          title="No folders or documents yet"
+          description="Create a folder or upload a document to get started."
+        />
       )}
 
       <Dialog open={newFolderParentId !== undefined} onClose={() => setNewFolderParentId(undefined)}>

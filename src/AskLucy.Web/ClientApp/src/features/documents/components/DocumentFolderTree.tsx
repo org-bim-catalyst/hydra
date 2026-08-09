@@ -25,6 +25,8 @@ import { useState } from 'react'
 import type { DocumentFolder, OnContainedDocumentsAction } from '../api/documentsApi'
 import { useFolderTree } from '../hooks/useDocuments'
 import { useCreateFolder, useDeleteFolder } from '../hooks/useDocumentMutations'
+import { ErrorState } from '../../../components/ErrorState'
+import { SkeletonBlock } from '../../../components/SkeletonBlock'
 
 interface DocumentFolderTreeProps {
   selectedFolderId: string | null
@@ -33,7 +35,7 @@ interface DocumentFolderTreeProps {
 
 /** FR-033 — folder navigation (create, delete with explicit contained-document handling, select-to-filter). Rename/move are available via each row's own detail actions in a future pass; this component covers the tree's core navigation and lifecycle. */
 export function DocumentFolderTree({ selectedFolderId, onSelectFolder }: DocumentFolderTreeProps) {
-  const { data: folders, isLoading, isError } = useFolderTree()
+  const { data: folders, isLoading, isError, refetch } = useFolderTree()
   const createFolder = useCreateFolder()
   const deleteFolder = useDeleteFolder()
 
@@ -69,7 +71,7 @@ export function DocumentFolderTree({ selectedFolderId, onSelectFolder }: Documen
   }
 
   if (isError) {
-    return <Alert severity="error">Could not load folders.</Alert>
+    return <ErrorState title="Could not load folders" onRetry={() => void refetch()} />
   }
 
   return (
@@ -89,6 +91,12 @@ export function DocumentFolderTree({ selectedFolderId, onSelectFolder }: Documen
             <ListItemText primary="All documents" />
           </ListItemButton>
         </ListItem>
+
+        {isLoading && (
+          <Box sx={{ px: 2, py: 1 }}>
+            <SkeletonBlock variant="row" count={3} />
+          </Box>
+        )}
 
         {!isLoading &&
           folders?.map((folder) => (

@@ -1,7 +1,8 @@
 import CloseIcon from '@mui/icons-material/Close'
-import { Alert, Box, Divider, Drawer, IconButton, Stack, Typography } from '@mui/material'
+import { Box, Divider, Drawer, IconButton, Stack, Typography } from '@mui/material'
 import type { DocumentSummary } from '../api/documentsApi'
 import { useDocument, useDocumentProcessingStatus } from '../hooks/useDocuments'
+import { ErrorState } from '../../../components/ErrorState'
 import { useDocumentProcessingHub } from '../hooks/useDocumentProcessingHub'
 import { DocumentPreviewPane } from './DocumentPreviewPane'
 import { MetadataPanel } from './MetadataPanel'
@@ -18,7 +19,7 @@ interface DocumentDetailPanelProps {
 export function DocumentDetailPanel({ document, onClose }: DocumentDetailPanelProps) {
   const open = document !== null
   const { data: status, isLoading, isError } = useDocumentProcessingStatus(document?.id ?? null)
-  const { data: detail, isError: isDetailError } = useDocument(document?.id ?? null)
+  const { data: detail, isError: isDetailError, refetch: refetchDetail } = useDocument(document?.id ?? null)
   const { isLive } = useDocumentProcessingHub(document?.id ?? null)
 
   return (
@@ -46,7 +47,7 @@ export function DocumentDetailPanel({ document, onClose }: DocumentDetailPanelPr
           Processing
         </Typography>
 
-        {isError && <Alert severity="error">Could not load processing status. Please try again.</Alert>}
+        {isError && <ErrorState title="Could not load processing status" description="Retrying automatically…" />}
         {!isLoading && !isError && status && document && (
           <ProcessingStatusBadge documentId={document.id} status={status} isLive={isLive} />
         )}
@@ -58,7 +59,9 @@ export function DocumentDetailPanel({ document, onClose }: DocumentDetailPanelPr
 
         <Divider sx={{ my: 3 }} />
 
-        {isDetailError && <Alert severity="error">Could not load document details. Please try again.</Alert>}
+        {isDetailError && (
+          <ErrorState title="Could not load document details" onRetry={() => void refetchDetail()} />
+        )}
         {!isDetailError && detail && document && <MetadataPanel documentId={document.id} document={detail} />}
 
         <Divider sx={{ my: 3 }} />

@@ -1,7 +1,7 @@
 import { Avatar, Box, Button, Divider, Paper, Stack, TextField } from '@mui/material'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
 import { useMyProfile, useUpdateProfile, useUploadAvatar } from '../hooks/useProfile'
 
 interface ProfileFormValues {
@@ -28,15 +28,9 @@ export function ProfilePage() {
   const onSubmit = handleSubmit((values) => updateProfile.mutate(values))
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
+    <AppShell title="Your profile" subtitle="Manage your account details and avatar.">
       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
         <Box sx={{ maxWidth: 480, width: '100%' }}>
-          <PageHeader
-            backTo="/chat"
-            backLabel="Back to chat"
-            title="Your profile"
-            subtitle="Manage your account details and avatar."
-          />
           <Paper elevation={1} sx={{ p: { xs: 3, sm: 4 }, width: '100%', height: 'fit-content' }}>
             <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
               <Avatar src={avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
@@ -62,7 +56,12 @@ export function ProfilePage() {
                 <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
                 <TextField label="First name" fullWidth {...register('firstName')} />
                 <TextField label="Last name" fullWidth {...register('lastName')} />
-                <Button type="submit" variant="contained" size="large" disabled={updateProfile.isPending}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={updateProfile.isPending}
+                >
                   Save changes
                 </Button>
               </Stack>
@@ -70,6 +69,6 @@ export function ProfilePage() {
           </Paper>
         </Box>
       </Box>
-    </Box>
+    </AppShell>
   )
 }

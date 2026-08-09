@@ -1,11 +1,16 @@
 import DownloadIcon from '@mui/icons-material/Download'
-import { Alert, Box, Button, CircularProgress, List, ListItem, ListItemText, Typography } from '@mui/material'
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
+import { Box, Button, List, ListItem, ListItemText, Typography } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import * as documentsApi from '../api/documentsApi'
 import { resolveSignedUrl } from '../api/documentsApi'
 import type { DocumentFileType } from '../api/documentsApi'
 import { useDocumentPreview } from '../hooks/useDocuments'
+import { EmptyState } from '../../../components/EmptyState'
+import { ErrorState } from '../../../components/ErrorState'
+import { SkeletonBlock } from '../../../components/SkeletonBlock'
+import { radius } from '../../../theme'
 
 interface StructureElement {
   type: string
@@ -70,26 +75,27 @@ interface DocumentPreviewPaneProps {
 
 /** FR-043, FR-044 — an inline preview for PDF (page image), images (thumbnail), Office documents (structured content), and Markdown (rendered directly); offers download instead when unavailable, never an error. */
 export function DocumentPreviewPane({ documentId, fileType }: DocumentPreviewPaneProps) {
-  const { data, isLoading, isError } = useDocumentPreview(documentId)
+  const { data, isLoading, isError, refetch } = useDocumentPreview(documentId)
 
   if (isError) {
-    return <Alert severity="error">Could not load the preview. Please try again.</Alert>
+    return <ErrorState title="Could not load the preview" onRetry={() => void refetch()} />
   }
 
   if (isLoading) {
-    return <CircularProgress size={24} aria-label="Loading preview" />
+    return <SkeletonBlock variant="card" />
   }
 
   if (!data || data.previewType === 'Unavailable') {
     return (
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          No preview available for this document.
-        </Typography>
-        <Button size="small" startIcon={<DownloadIcon fontSize="small" />} onClick={() => void documentsApi.downloadDocument(documentId)}>
-          Download instead
-        </Button>
-      </Box>
+      <EmptyState
+        icon={<InsertDriveFileOutlinedIcon fontSize="inherit" />}
+        title="No preview available"
+        action={
+          <Button size="small" startIcon={<DownloadIcon fontSize="small" />} onClick={() => void documentsApi.downloadDocument(documentId)}>
+            Download instead
+          </Button>
+        }
+      />
     )
   }
 
@@ -109,7 +115,7 @@ export function DocumentPreviewPane({ documentId, fileType }: DocumentPreviewPan
         component="img"
         src={resolveSignedUrl(data.url)}
         alt={`Preview of ${documentId}`}
-        sx={{ maxWidth: '100%', display: 'block', borderRadius: 1 }}
+        sx={{ maxWidth: '100%', display: 'block', borderRadius: `${radius.sm}px` }}
       />
     )
   }

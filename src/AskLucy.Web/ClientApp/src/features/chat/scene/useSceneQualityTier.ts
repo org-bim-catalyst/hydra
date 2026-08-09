@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
 
 export type SceneQualityTier = 'full' | 'reduced' | 'static-fallback'
 
@@ -37,30 +38,24 @@ function initialTier(): SceneQualityTier {
  * §2.III KISS/YAGNI. */
 export function useSceneQualityTier() {
   const [tier, setTier] = useState<SceneQualityTier>(initialTier)
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    () => matchMediaSafe('(prefers-reduced-motion: reduce)')?.matches ?? false,
-  )
+  // SPEC-017 FR-010/research.md #4: sourced from the app-wide shared hook (rather than a
+  // second, independent matchMedia subscription) so this scene's reduced-motion behavior
+  // can never drift from every other surface's.
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
-    const reducedMotionQuery = matchMediaSafe('(prefers-reduced-motion: reduce)')
     const mobileQuery = matchMediaSafe(`(max-width: ${MOBILE_BREAKPOINT_PX - 0.05}px)`)
-    if (!reducedMotionQuery && !mobileQuery) return
+    if (!mobileQuery) return
 
-    const onReducedMotionChange = () =>
-      setPrefersReducedMotion(Boolean(reducedMotionQuery?.matches))
     const onMobileChange = () => {
       // A no-WebGL2 fallback never upgrades; otherwise reflect the current breakpoint.
       setTier((current) =>
-        current === 'static-fallback' ? current : mobileQuery?.matches ? 'reduced' : 'full',
+        current === 'static-fallback' ? current : mobileQuery.matches ? 'reduced' : 'full',
       )
     }
 
-    reducedMotionQuery?.addEventListener('change', onReducedMotionChange)
-    mobileQuery?.addEventListener('change', onMobileChange)
-    return () => {
-      reducedMotionQuery?.removeEventListener('change', onReducedMotionChange)
-      mobileQuery?.removeEventListener('change', onMobileChange)
-    }
+    mobileQuery.addEventListener('change', onMobileChange)
+    return () => mobileQuery.removeEventListener('change', onMobileChange)
   }, [])
 
   const reportPerformanceRegression = useCallback(() => {

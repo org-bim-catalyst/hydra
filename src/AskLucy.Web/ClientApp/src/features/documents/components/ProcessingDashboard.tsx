@@ -1,5 +1,7 @@
-import { Alert, Box, CircularProgress, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material'
+import { Box, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material'
 import type { DocumentDashboardSummary } from '../api/documentsApi'
+import { ErrorState } from '../../../components/ErrorState'
+import { SkeletonBlock } from '../../../components/SkeletonBlock'
 
 function StatTile({ label, value, emphasizeAsError }: { label: string; value: number; emphasizeAsError?: boolean }) {
   return (
@@ -62,11 +64,12 @@ interface DashboardProps {
 /** FR-045, US6 AC1 — per-user processing dashboard; live counts poll every 5s (research.md Decision 7's reconciliation pattern). */
 export function ProcessingDashboard({ data, isLoading, isError }: DashboardProps) {
   if (isError) {
-    return <Alert severity="error">Could not load your dashboard. Please try again.</Alert>
+    // Polls every 5s (research.md Decision 7) — no manual retry action needed, it self-heals.
+    return <ErrorState title="Could not load your dashboard" description="Retrying automatically…" />
   }
 
   if (isLoading || !data) {
-    return <CircularProgress size={24} aria-label="Loading your document processing dashboard" />
+    return <SkeletonBlock variant="card" count={4} />
   }
 
   return <DashboardBody data={data} />

@@ -1,5 +1,6 @@
 import AddIcon from '@mui/icons-material/Add'
 import ArchiveIcon from '@mui/icons-material/Archive'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -46,6 +47,8 @@ import {
   useUnpinChat,
 } from '../hooks/useConversationActions'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
+import { EmptyState } from '../../../components/EmptyState'
+import { radius } from '../../../theme'
 
 interface ConversationListProps {
   selectedChatId: string | null
@@ -304,9 +307,15 @@ export function ConversationList({
         sx={{ overflowY: 'auto', flex: 1, minHeight: 0, px: 1 }}
       >
         {chats.length === 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1 }}>
-            No conversations found.
-          </Typography>
+          <EmptyState
+            icon={<ChatBubbleOutlineIcon fontSize="inherit" />}
+            title={searchInput.trim() || filter !== 'all' ? 'No matching conversations' : 'No conversations yet'}
+            description={
+              searchInput.trim() || filter !== 'all'
+                ? 'Try a different search term or filter.'
+                : 'Start a new chat to begin.'
+            }
+          />
         )}
         <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((virtualItem) => {
@@ -616,20 +625,26 @@ function ConversationRow({
       data-testid="conversation-item"
       selected={selected}
       onClick={onSelect}
-      sx={{ borderRadius: 2, mb: 0.5, '&:hover .chat-item-actions': { opacity: 1 } }}
+      sx={{ borderRadius: `${radius.md}px`, mb: 0.5, '&:hover .chat-item-actions': { opacity: 1 } }}
     >
       <ListItemText
         primary={
-          <Typography
+          <Stack
             data-testid="conversation-title"
-            component="span"
-            noWrap
-            sx={{ display: 'block' }}
+            direction="row"
+            spacing={0.5}
+            sx={{ alignItems: 'center' }}
           >
-            {chat.isPinned ? '📌 ' : ''}
-            {chat.isFavorite ? '⭐ ' : ''}
-            {chat.title}
-          </Typography>
+            {chat.isPinned && (
+              <PushPinIcon fontSize="inherit" aria-hidden="true" sx={{ color: 'text.disabled', flexShrink: 0 }} />
+            )}
+            {chat.isFavorite && (
+              <StarIcon fontSize="inherit" aria-hidden="true" sx={{ color: 'warning.main', flexShrink: 0 }} />
+            )}
+            <Typography component="span" noWrap sx={{ display: 'block' }}>
+              {chat.title}
+            </Typography>
+          </Stack>
         }
         secondary={new Date(lastActivity).toLocaleString()}
         slotProps={{ primary: { noWrap: true }, secondary: { variant: 'caption' } }}
@@ -637,7 +652,7 @@ function ConversationRow({
       <Stack
         direction="row"
         className="chat-item-actions"
-        sx={{ opacity: 0, transition: 'opacity 150ms' }}
+        sx={{ opacity: 0, transition: (t) => t.transitions.create('opacity') }}
       >
         {!chat.isDeleted && (
           <IconButton

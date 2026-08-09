@@ -31,7 +31,7 @@ export function ConversationSwitcher({
         onClick={(e) => setAnchorEl(e.currentTarget)}
         aria-haspopup="true"
         aria-expanded={open}
-        sx={{ justifyContent: 'space-between', textTransform: 'none' }}
+        sx={{ justifyContent: 'space-between', textTransform: 'none', fontWeight: 600, color: 'text.primary' }}
       >
         Conversations
       </Button>

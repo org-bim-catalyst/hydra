@@ -1,4 +1,4 @@
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { KnowledgeBaseSummary } from '../api/knowledgeBasesApi'
@@ -180,11 +180,7 @@ export function KnowledgeBaseEditDialog({ open, knowledgeBase, submitting, error
               </Stack>
             )}
 
-            {errorMessage && (
-              <Box role="alert" sx={{ color: 'error.main', fontSize: '0.875rem' }}>
-                {errorMessage}
-              </Box>
-            )}
+            {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
