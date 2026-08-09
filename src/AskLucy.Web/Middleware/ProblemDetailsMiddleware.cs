@@ -134,6 +134,18 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "A version upload is already in progress",
             versionConflictEx.Message),
 
+        AskLucy.Domain.Memory.MemoryNotPendingApprovalException memoryApprovalConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/memory-not-pending-approval",
+            "Memory is not pending approval",
+            memoryApprovalConflictEx.Message),
+
+        AskLucy.Domain.Memory.MemoryConflictNotPendingException memoryResolveConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/memory-conflict-not-pending",
+            "Memory conflict is not awaiting resolution",
+            memoryResolveConflictEx.Message),
+
         AiProviderUnavailableException => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
