@@ -146,6 +146,14 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "Memory conflict is not awaiting resolution",
             memoryResolveConflictEx.Message),
 
+        // spec.md FR-042/FR-043 (specs/020-ai-agent-framework): a rate/capacity limit, not an
+        // invalid request — 429, not DomainRuleViolationException's generic 400.
+        AskLucy.Domain.Agents.AgentConcurrencyLimitExceededException agentConcurrencyEx => (
+            StatusCodes.Status429TooManyRequests,
+            "https://hydra.bimcatalyst.com/problems/agent-concurrency-limit-exceeded",
+            "Agent execution concurrency limit exceeded",
+            agentConcurrencyEx.Message),
+
         AiProviderUnavailableException => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",

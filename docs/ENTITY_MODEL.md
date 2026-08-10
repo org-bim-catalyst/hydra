@@ -659,6 +659,12 @@ DisplayOrder
 
 # 10. Agent Aggregate
 
+Shipped in specs/020-ai-agent-framework (superseding the earlier sketch below) as four
+aggregates: `Agent` (definition/versioning), `AgentExecution` (one run and everything it
+produced), `AgentPolicy` (administrator auto-approval rules), `AgentAuditLog` (security audit,
+standalone). See `specs/020-ai-agent-framework/data-model.md` for the authoritative field list;
+this section lists structure and business rules only.
+
 ## Aggregate Root
 
 Agent
@@ -668,70 +674,212 @@ Properties
 ```text
 OwnerId
 
-Name
+Name, Description
 
-Description
+AgentType (Conversational | Research | Document | Knowledge | Task)
 
-Instructions
+Status (Draft | Published | Archived)
 
-PreferredProvider
+PreArchiveStatus (nullable — where Restore returns to)
 
-PreferredModel
+Instructions (SystemInstructions, Objectives, Constraints, BehavioralRules,
+OutputRequirements, ToolUsageRules, SafetyRules)
 
-Temperature
+ModelProviderId, ModelId
 
-Enabled
+OutputFormat (PlainText | Markdown | Json | StructuredOutput | Files)
+
+ExecutionPolicy (MaxSteps, MaxExecutionDurationSeconds, MaxTokens, MaxCost,
+MaxToolCalls, MaxRetries — all nullable, fall back to AgentRuntimeOptions defaults)
+
+PublishedVersionNumber (nullable)
 ```
 
 Navigation
 
 ```text
-Tools
+Tools (AgentTool)
 
-Runs
+KnowledgeBases (AgentKnowledgeBase)
+
+MemoryPolicy (AgentMemoryPolicy, 0..1)
+
+Versions (AgentVersion)
 ```
 
 Business Rules
 
-Agents may only execute authorized tools.
+Agents may only be configured with tools/Knowledge Bases the owner is authorized for — an
+agent's effective access at execution time is always the intersection of its configuration and
+the executing user's own authorization, never broader. Publishing snapshots the current draft
+into an immutable `AgentVersion`; a published version's fields never change afterward.
+Duplicate/Archive/Restore/Delete never touch version or execution history.
 
 ---
 
 ## Entity
 
-AgentTool
+AgentTool / AgentKnowledgeBase / AgentMemoryPolicy
 
-Properties
-
-```text
-AgentId
-
-ToolId
-```
+The agent's *draft* configuration — mutated freely until publish. `AgentTool` and
+`AgentKnowledgeBase` are simple `(AgentId, ToolName | KnowledgeBaseId, …)` join rows;
+`AgentMemoryPolicy` is a 0..1 owned entity (`AllowRead`, `AllowWriteProposals`,
+`PreApprovedCategoriesJson`).
 
 ---
 
 ## Entity
 
-AgentRun
+AgentVersion
 
 Properties
 
 ```text
-AgentId
+AgentId, VersionNumber (unique per agent)
 
-StartedAt
+Instructions, ModelProviderId, ModelId, ExecutionPolicy, OutputFormat (snapshotted)
 
-CompletedAt
+ToolsSnapshotJson, KnowledgeBasesSnapshotJson, MemoryPolicySnapshotJson
 
-Success
-
-InputTokens
-
-OutputTokens
-
-Cost
+ChangeDescription
 ```
+
+Business Rules
+
+Immutable once created — every `AgentExecution` references the exact `AgentVersionId` it ran
+under, so a later draft edit or republish never retroactively changes what a past execution
+reports.
+
+---
+
+## Aggregate Root
+
+AgentExecution
+
+Properties
+
+```text
+AgentId, AgentVersionId, RunByUserId, Objective
+
+Status (Queued | Running | Paused | WaitingForApproval | Completed | Failed | Cancelled)
+
+IsTestExecution, ConversationIntegrationMode (Standalone | NewConversation |
+ExistingConversation), UserChatId
+
+PlanJson, FinalOutputText, FinalOutputJson, TerminationReason
+
+StartedAtUtc, CompletedAtUtc
+```
+
+Navigation
+
+```text
+Steps (AgentExecutionStep)
+
+Events (AgentExecutionEvent, append-only)
+
+Approvals (AgentApproval)
+
+Errors (AgentExecutionError)
+
+Usage (AgentExecutionUsage, 0..1), Cost (AgentExecutionCost, 0..1)
+```
+
+Business Rules
+
+Never hard-deleted. Resumable: a pause persists all state needed to continue from exactly
+where it stopped, never re-running a completed step. A test execution (`IsTestExecution`)
+never invokes a mutating tool.
+
+---
+
+## Entity
+
+AgentExecutionStep / AgentToolCall
+
+`AgentExecutionStep` (`StepIndex` unique per execution, `StepType`: ToolCall | ModelReasoning
+| Validation, `Status`: Pending | Running | Completed | Failed | Skipped | Cancelled |
+WaitingForApproval) is one plan step. `AgentToolCall` (`RiskLevel`, `RequiredPermissionsJson`,
+`ValidatedInputJson`/`ValidatedOutputJson`, `WasApprovalRequired`) is one specific tool
+invocation within a `ToolCall`-type step.
+
+---
+
+## Entity
+
+AgentApproval
+
+Properties
+
+```text
+AgentExecutionId, AgentToolCallId (nullable)
+
+IntendedActionDescription, IntendedParametersJson
+
+Decision (Pending | Approved | Rejected), DecidedByUserId, WasPolicyBased,
+MatchedAgentPolicyId
+```
+
+---
+
+## Aggregate Root
+
+AgentPolicy
+
+Properties
+
+```text
+OrganizationId (reserved, always null this release)
+
+Name, Description, ToolName, ConditionsJson (flat parameter-equality match; empty =
+always), IsEnabled
+
+CreatedByUserId (must hold Administrator/Super User role)
+```
+
+Business Rules
+
+Administrator/Super User only. Matched against an intended High/Critical-risk tool call
+before it pauses for interactive approval.
+
+---
+
+## Entity
+
+AgentUserExecutionLimit
+
+Properties
+
+```text
+UserId (unique), MaxConcurrentExecutions, SetByUserId
+```
+
+Business Rules
+
+Per-user override of `AgentRuntimeOptions.DefaultMaxConcurrentExecutions` (FR-042/043); no
+`SubscriptionTier` concept exists yet.
+
+---
+
+## Aggregate Root
+
+AgentAuditLog
+
+Properties
+
+```text
+AgentExecutionId (not a hard FK — survives a later-purged execution), UserId
+
+Action (PermissionChecked | PermissionDenied | ApprovalDecided |
+CrossUserAccessAttempted | ExecutionCompleted | ExecutionFailed)
+
+DetailsJson, OccurredAtUtc
+```
+
+Business Rules
+
+Append-only, tamper-resistant. Distinct from the operational `AgentExecutionEvent` stream —
+this is the security-audit record.
 
 ---
 
@@ -1059,12 +1207,16 @@ Public
 
 ---
 
-## AgentRunStatus
+## AgentExecutionStatus
 
 ```text
-Pending
+Queued
 
 Running
+
+Paused
+
+WaitingForApproval
 
 Completed
 
@@ -1131,7 +1283,7 @@ Value Objects are immutable.
 | KnowledgeBase | Documents     | Cascade Soft Delete |
 | Document      | Chunks        | Cascade             |
 | Chunk         | Embedding     | Cascade             |
-| Agent         | AgentRuns     | Restrict            |
+| Agent         | AgentExecutions | Restrict — never cascades (FR-050 audit trail) |
 | Subscription  | Payments      | Restrict            |
 
 ---
@@ -1196,11 +1348,15 @@ EmbeddingGenerated
 
 KnowledgeBaseIndexed
 
-AgentCreated
+AgentPublished
 
-AgentRunStarted
+AgentExecutionStarted
 
-AgentRunCompleted
+AgentExecutionCompleted
+
+AgentExecutionFailed
+
+AgentApprovalRequested
 
 FileUploaded
 
@@ -1242,7 +1398,7 @@ Examples:
 * A Message cannot exist without a Conversation.
 * A Chunk cannot exist without a Document.
 * An Embedding cannot exist without a Chunk.
-* An AgentRun cannot reference a disabled Agent.
+* An AgentExecution always references the exact AgentVersion it ran under, never the Agent's current draft.
 * A PaymentTransaction cannot exist without a Subscription.
 * A SignedDownload cannot be used after expiration.
 * A User cannot have multiple active default AI settings.

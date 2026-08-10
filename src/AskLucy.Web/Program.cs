@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using AskLucy.Application;
 using AskLucy.Application.Abstractions;
 using AskLucy.Infrastructure;
+using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Memory;
@@ -33,7 +34,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture));
 
 // --- Application / Persistence / Infrastructure (Clean Architecture composition root) ---
-builder.Services.AddApplication(builder.Configuration);
+builder.Services.AddApplication(builder.Configuration, builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"));
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
@@ -320,6 +321,23 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // Agent Framework endpoints (specs/020-ai-agent-framework) — same generous, non-cost-tiered
+    // shape as prompt-endpoints/memory-endpoints: starting an execution only enqueues a Hangfire
+    // job (cheap), it never synchronously invokes an AI provider within the request itself, so it
+    // doesn't need the cost-tiered "ai-endpoints" policy. FR-042's per-user concurrency cap, not
+    // HTTP rate limiting, is what bounds actual AI cost exposure for this feature.
+    options.AddPolicy("agent-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -461,6 +479,7 @@ app.MapHealthChecks("/health");
 app.MapHub<DocumentProcessingHub>("/hubs/document-processing");
 app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
 app.MapHub<MemoryHub>("/hubs/memory");
+app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —

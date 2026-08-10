@@ -1,4 +1,7 @@
 using System.Reflection;
+using AskLucy.Application.Abstractions;
+using AskLucy.Application.Agents.Runtime;
+using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
@@ -10,7 +13,6 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
-using AskLucy.Application.Abstractions;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +21,8 @@ namespace AskLucy.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
+    /// <summary><paramref name="isNonProductionEnvironment"/> gates dev/test-only registrations (e.g. <see cref="Agents.Tools.FakeHighRiskTool"/>, spec.md User Story 3 T105) — a plain <see cref="bool"/>, not <c>IHostEnvironment</c>, to avoid adding a hosting-abstraction package reference to this layer purely for one conditional (constitution §2.III, mirrors <c>AskLucy.Infrastructure.DependencyInjection</c>'s <c>environment.IsDevelopment()</c> gate for <c>ConsoleEmailSender</c>, but expressed at the call site instead).</summary>
+    public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration, bool isNonProductionEnvironment = false)
     {
         var assembly = Assembly.GetExecutingAssembly();
 
@@ -89,6 +92,50 @@ public static class DependencyInjection
 
         services.AddOptions<DocumentStorageQuotaOptions>()
             .Bind(configuration.GetSection(DocumentStorageQuotaOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // AI Agent Framework & Agent Runtime (specs/020-ai-agent-framework) — Foundational.
+        // Individual IAgentTool implementations register themselves as each is added (US2+);
+        // an empty IEnumerable<IAgentTool> is a valid state for the catalog itself.
+        services.AddScoped<AgentToolCatalog>();
+
+        // User Story 1 ("Create and Run a Simple Agent"). AgentExecutionOrchestrator/
+        // AgentExecutionRunner live in Application (not Infrastructure) mirroring
+        // IDocumentProcessingPipeline/DocumentProcessingPipeline's precedent — the Hangfire
+        // entry point for a multi-step orchestration is itself Application-layer logic, not an
+        // Infrastructure concern, since Hangfire's IBackgroundJobClient is already referenced
+        // directly from Application elsewhere (SendChatMessageCommandHandler).
+        services.AddScoped<IAgentPlanner, AgentPlanner>();
+        services.AddScoped<AgentExecutionOrchestrator>();
+        services.AddScoped<IAgentExecutionRunner, AgentExecutionRunner>();
+
+        // User Story 2 ("Multi-Step Task Execution with Tools") — the 8 built-in IAgentTool
+        // implementations (contracts/agent-tool-contract.md). Each wraps an existing platform
+        // capability through its existing abstraction — no new business logic (FR-024).
+        services.AddScoped<IAgentTool, ConversationTool>();
+        services.AddScoped<IAgentTool, KnowledgeSearchTool>();
+        services.AddScoped<IAgentTool, DocumentSearchTool>();
+        services.AddScoped<IAgentTool, MemorySearchTool>();
+        services.AddScoped<IAgentTool, MemoryWriteTool>();
+        services.AddScoped<IAgentTool, PromptExecutionTool>();
+        services.AddScoped<IAgentTool, FileReadTool>();
+        services.AddScoped<IAgentTool, FileMetadataTool>();
+        services.AddScoped<AgentBudgetGuard>();
+        services.AddScoped<AgentDuplicateToolCallDetector>();
+
+        // User Story 3 ("Approval for Sensitive Actions").
+        services.AddScoped<AgentPolicyEvaluator>();
+        if (isNonProductionEnvironment)
+        {
+            // Test/dev-only fixture (quickstart.md Scenario 3) — never present in a Production
+            // catalog, since no real High-risk tool ships in this release (research.md's Initial
+            // Tools are all Low/Medium risk).
+            services.AddScoped<IAgentTool, FakeHighRiskTool>();
+        }
+
+        services.AddOptions<AgentRuntimeOptions>()
+            .Bind(configuration.GetSection(AgentRuntimeOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
