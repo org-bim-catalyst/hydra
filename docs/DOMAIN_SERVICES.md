@@ -611,30 +611,47 @@ IRagService
 
 # 21. Agent Service
 
-Manages AI agents.
+Shipped in specs/020-ai-agent-framework as a set of MediatR command/query handlers
+(`Application/Agents`) plus `AgentExecutionOrchestrator` — no single `IAgentService` facade;
+each capability is its own command/query, matching the CQRS convention every other engine in
+this document already follows once implemented (compare §11 Memory Service).
 
 Functions
 
-* Create Agent
-* Update Agent
-* Execute Agent
-* Disable Agent
+* Create/Update/Publish/Duplicate/Archive/Restore/Delete Agent
+* Start/Pause/Resume/Cancel Execution
+* Approve/Reject a pending high-risk action
+* List/Get execution history (steps, tool calls, usage/cost, events)
+
+Orchestration
+
+```text
+Objective
+↓
+Planner (one structured IAIProvider call)
+↓
+Step loop: ModelReasoning turn, or ToolCall (permission check → approval gate if High/
+Critical risk and unmatched by policy → execute → validate output)
+↓
+Final output (citations preserved) + usage/cost
+```
 
 Interface
 
 ```csharp
-IAgentService
+AgentExecutionOrchestrator   // Application/Agents/Runtime — the runtime itself
+IAgentTool                   // Application/Agents/Tools — one class per built-in tool
+IAgentExecutionNotifier      // Application/Abstractions — live push, implemented over SignalR in Infrastructure
 ```
 
-Agents may invoke:
+Agents may invoke, each through its own existing service abstraction (never duplicated):
 
-Memory
+Memory (`IMemoryService`) · Knowledge Bases (`IRagService`) · Documents
+(`IDocumentRepository`) · Prompts (delegates to the Prompt feature) · Conversation
+(`IMessageRepository`) · exactly one AI Provider/model per version (`IAIProvider`)
 
-Tools
-
-Knowledge Bases
-
-Multiple models
+An agent's effective access to any of the above is always the intersection of its own
+configuration and the executing user's own authorization — never broader.
 
 ---
 
