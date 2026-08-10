@@ -5,11 +5,14 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 export class ApiError extends Error {
   status: number
   detail?: string
+  /** The `errors` Problem Details extension (`ProblemDetailsMiddleware.cs`) — per-field/per-entry messages for a `validation-failed` (400) response. Undefined for every other error shape. */
+  errors?: Record<string, string[]>
 
-  constructor(status: number, message: string, detail?: string) {
+  constructor(status: number, message: string, detail?: string, errors?: Record<string, string[]>) {
     super(message)
     this.status = status
     this.detail = detail
+    this.errors = errors
   }
 }
 
@@ -38,7 +41,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!response.ok) {
     const problem = await response.json().catch(() => undefined)
-    throw new ApiError(response.status, problem?.title ?? 'Request failed', problem?.detail)
+    throw new ApiError(response.status, problem?.title ?? 'Request failed', problem?.detail, problem?.errors)
   }
 
   if (response.status === 204) {

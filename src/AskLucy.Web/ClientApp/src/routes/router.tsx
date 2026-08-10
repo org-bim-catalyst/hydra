@@ -31,6 +31,12 @@ const KnowledgeBaseDetailPage = lazy(() =>
 const MemoryCenterPage = lazy(() =>
   import('../features/memory/pages/MemoryCenterPage').then((m) => ({ default: m.MemoryCenterPage })),
 )
+const PromptLibraryPage = lazy(() =>
+  import('../features/prompts/pages/PromptLibraryPage').then((m) => ({ default: m.PromptLibraryPage })),
+)
+const PromptEditorPage = lazy(() =>
+  import('../features/prompts/pages/PromptEditorPage').then((m) => ({ default: m.PromptEditorPage })),
+)
 const PrivacyPage = lazy(() =>
   import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
 )
@@ -171,6 +177,39 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <Lazy>
           <MemoryCenterPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/prompts',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <PromptLibraryPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/prompts/new',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <PromptEditorPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/prompts/:id',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <PromptEditorPage />
         </Lazy>
       </ProtectedRoute>
     ),

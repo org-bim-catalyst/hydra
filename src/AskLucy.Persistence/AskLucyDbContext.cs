@@ -7,6 +7,7 @@ using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Projects;
+using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Memory;
@@ -137,6 +138,31 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<MemoryEntities.MemoryExportJob> MemoryExportJobs => Set<MemoryEntities.MemoryExportJob>();
 
     public DbSet<Project> Projects => Set<Project>();
+
+    // Prompt Library & Prompt Engineering Workspace (specs/019-prompt-library-workspace).
+    public DbSet<Prompt> Prompts => Set<Prompt>();
+
+    public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();
+
+    public DbSet<PromptVariable> PromptVariables => Set<PromptVariable>();
+
+    public DbSet<PromptCategory> PromptCategories => Set<PromptCategory>();
+
+    public DbSet<PromptTag> PromptTags => Set<PromptTag>();
+
+    public DbSet<PromptFolder> PromptFolders => Set<PromptFolder>();
+
+    public DbSet<PromptTestCase> PromptTestCases => Set<PromptTestCase>();
+
+    public DbSet<PromptExecution> PromptExecutions => Set<PromptExecution>();
+
+    public DbSet<PromptExecutionResult> PromptExecutionResults => Set<PromptExecutionResult>();
+
+    public DbSet<PromptRating> PromptRatings => Set<PromptRating>();
+
+    public DbSet<PromptUsageStatistics> PromptUsageStatistics => Set<PromptUsageStatistics>();
+
+    public DbSet<PromptAuditLog> PromptAuditLogs => Set<PromptAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
