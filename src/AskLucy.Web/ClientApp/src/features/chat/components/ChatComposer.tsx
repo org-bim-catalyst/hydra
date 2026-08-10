@@ -1,3 +1,4 @@
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import MicIcon from '@mui/icons-material/Mic'
 import MicOffIcon from '@mui/icons-material/MicOff'
@@ -35,6 +36,8 @@ export interface ChatComposerProps {
   onStopCapture: () => void
   onCancelCapture: () => void
   onClearCaptureError: () => void
+  /** spec.md FR-080, User Story 5 — omitted (button hidden) when there's no active conversation yet. */
+  onInsertPromptClick?: () => void
 }
 
 const HOLD_THRESHOLD_MS = 350
@@ -56,6 +59,7 @@ export function ChatComposer({
   onStopCapture,
   onCancelCapture,
   onClearCaptureError,
+  onInsertPromptClick,
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { extractText } = usePdfTextExtraction()
@@ -185,6 +189,12 @@ export function ChatComposer({
           <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
             <AttachFileIcon />
           </IconButton>
+
+          {onInsertPromptClick && (
+            <IconButton onClick={onInsertPromptClick} aria-label="Insert saved prompt">
+              <ArticleOutlinedIcon />
+            </IconButton>
+          )}
 
           {showMicButton && (
             <IconButton

@@ -118,11 +118,26 @@
       "Bash(gh api *)",
       "Bash(gh secret *)",
       "Bash(git check-ignore *)",
-      "Bash(python -c \"import json; json.load\\(open\\('src/AskLucy.Web/appsettings.Production.json'\\)\\)\")"
+      "Bash(python -c \"import json; json.load\\(open\\('src/AskLucy.Web/appsettings.Production.json'\\)\\)\")",
+      "Bash(xargs grep -l \"UserMenu\")",
+      "Bash(grep -n \"borderRadius\\\\|fontFamily: 'monospace'\\\\|#[0-9A-Fa-f]\\\\{3,6\\\\}\" features/consent/components/CookiePreferencesPanel.tsx features/privacy/pages/PrivacyPage.tsx)",
+      "Bash(python skills/ui-ux-pro-max/scripts/search.py \"AI workspace SaaS productivity enterprise professional tool\" --design-system -p \"Ask Lucy\")",
+      "Bash(python3 \"d:/Workshop/BIM Catalyst/Web Apps/Platform/Ask Lucy/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"AI workspace SaaS productivity enterprise professional tool\" --design-system -p \"Ask Lucy\")",
+      "Bash(python \"d:/Workshop/BIM Catalyst/Web Apps/Platform/Ask Lucy/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"AI chat workspace SaaS calm minimal premium dark\" --design-system --variance 4 --motion 4 --density 5 -p \"Ask Lucy\")",
+      "Bash(python \"d:/Workshop/BIM Catalyst/Web Apps/Platform/Ask Lucy/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"professional technical monochrome architecture engineering\" --domain color -n 5)",
+      "Bash(python \"d:/Workshop/BIM Catalyst/Web Apps/Platform/Ask Lucy/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"editorial minimal technical precise calm\" --domain style -n 5)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(cd \"d:/Workshop/BIM Catalyst/Web Apps/Platform/Ask Lucy\" && mkdir -p specs/018-ai-memory-system/checklists && ls specs/018-ai-memory-system)",
+      "PowerShell(& \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\.specify\\\\scripts\\\\powershell\\\\check-prerequisites.ps1\" -Json -PathsOnly)",
+      "PowerShell(& \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\.specify\\\\scripts\\\\powershell\\\\setup-plan.ps1\" -Json)",
+      "PowerShell(& \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\.specify\\\\scripts\\\\powershell\\\\setup-tasks.ps1\" -Json)",
+      "Bash(awk '$1>1')",
+      "Bash(awk 'BEGIN{p=0} {if\\($1!=p+1\\) print \"GAP after T\"p\" -> T\"$1; p=$1} END{print \"last: T\"p}')"
     ],
     "additionalDirectories": [
       "\\tmp",
-      "D:\\Workshop\\BIM Catalyst\\Web Apps\\Others\\ChatGPT-Client\\ChatGPT-Client\\ChatGPT Client\\wwwroot\\img"
+      "D:\\Workshop\\BIM Catalyst\\Web Apps\\Others\\ChatGPT-Client\\ChatGPT-Client\\ChatGPT Client\\wwwroot\\img",
+      "d:\\Workshop\\BIM Catalyst\\Web Apps\\Platform\\Ask Lucy\\specs\\018-ai-memory-system"
     ]
   },
   "enabledPlugins": {
