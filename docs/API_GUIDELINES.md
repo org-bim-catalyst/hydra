@@ -737,15 +737,43 @@ POST /agents/{id}/execute
 
 # 27. MCP Endpoints
 
+Shipped in specs/021-mcp-integration as two controllers — see `specs/021-mcp-integration/contracts/mcp-api.md`
+for full request/response shapes. There is no "execute a tool" endpoint: an MCP tool is invoked
+only as part of an agent execution, through the existing `POST /agents/{id}/execute`-driven
+runtime (§26), never a direct HTTP call.
+
 ```
-GET /mcp/servers
+# McpServersController — Administrator/Super User only, api/v1/admin/mcp/servers
 
-GET /mcp/tools
+POST   /admin/mcp/servers
+GET    /admin/mcp/servers                                          (cursor-paginated; status/transport/enabled filters)
+GET    /admin/mcp/servers/{id}
+PUT    /admin/mcp/servers/{id}
+DELETE /admin/mcp/servers/{id}                                     (422 if any agent tool still references it)
+POST   /admin/mcp/servers/{id}/actions/enable
+POST   /admin/mcp/servers/{id}/actions/disable
+POST   /admin/mcp/servers/{id}/actions/test-connection
+POST   /admin/mcp/servers/{id}/actions/refresh-capabilities
+POST   /admin/mcp/servers/{id}/actions/rotate-credential            (write-only; never echoes the credential back)
+GET    /admin/mcp/servers/{id}/health
+GET    /admin/mcp/servers/{id}/references                          (which agents/tools currently use it)
+GET    /admin/mcp/servers/{id}/tools                                (admin view — includes PendingReview/Deactivated)
+GET    /admin/mcp/servers/{id}/audit-log                            (cursor-paginated)
+POST   /admin/mcp/servers/{id}/tools/{toolId}/actions/activate      (the mandatory admin review gate)
+POST   /admin/mcp/servers/{id}/tools/{toolId}/actions/deactivate
 
-POST /mcp/tools/{id}/execute
+# McpCatalogController — any authenticated user, api/v1/mcp/catalog
+
+GET    /mcp/catalog/tools                                          (only Active+Available+enabled+healthy — exactly what an agent could call)
+GET    /mcp/catalog/tools/{namespacedName}                          (full detail — schema, capabilities, version)
+GET    /mcp/catalog/resources
+GET    /mcp/catalog/prompts                                         (MCP-sourced only; merge with native prompts client-side)
+POST   /mcp/catalog/prompts/{namespacedName}/actions/duplicate      (201 — creates an independent, editable native Prompt)
 ```
 
-Tool execution must validate permissions before invocation.
+Enabling/disabling an MCP tool for a specific agent is not a separate endpoint either — it's the
+existing `PUT /agents/{id}` body (§26) accepting `mcp:{serverId}:{toolName}`-namespaced strings in
+its `tools` array alongside native tool names, zero schema change.
 
 ---
 

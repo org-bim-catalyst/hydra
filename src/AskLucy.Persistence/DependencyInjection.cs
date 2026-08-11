@@ -114,6 +114,13 @@ public static class DependencyInjection
         services.AddScoped<IAgentPolicyRepository, AgentPolicyRepository>();
         services.AddScoped<IAgentAuditLogRepository, AgentAuditLogRepository>();
 
+        // MCP Integration (specs/021-mcp-integration) — Foundational.
+        services.AddScoped<IMcpServerRepository, McpServerRepository>();
+        services.AddScoped<IMcpToolRepository, McpToolRepository>();
+        services.AddScoped<IMcpResourceRepository, McpResourceRepository>();
+        services.AddScoped<IMcpPromptRepository, McpPromptRepository>();
+        services.AddScoped<IMcpAuditLogRepository, McpAuditLogRepository>();
+
         return services;
     }
 }

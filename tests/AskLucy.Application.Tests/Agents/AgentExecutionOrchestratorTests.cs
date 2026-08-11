@@ -29,7 +29,14 @@ public sealed class AgentExecutionOrchestratorTests
 
     // Sealed, dependency-free (or trivially-configured) helpers — real instances rather than
     // mocks, matching how the codebase already treats pure helpers like PromptVariableResolver.
-    private readonly AgentToolCatalog _toolCatalog = new([]);
+    private static IMcpToolRegistry EmptyMcpToolRegistry()
+    {
+        var registry = Substitute.For<IMcpToolRegistry>();
+        registry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)[]);
+        return registry;
+    }
+
+    private readonly AgentToolCatalog _toolCatalog = new([], EmptyMcpToolRegistry());
     private readonly AgentBudgetGuard _budgetGuard = new(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions()));
     private readonly AgentDuplicateToolCallDetector _duplicateDetector = new();
     private readonly AgentPolicyEvaluator _policyEvaluator;
