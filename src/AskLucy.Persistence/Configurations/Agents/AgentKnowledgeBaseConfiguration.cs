@@ -19,15 +19,19 @@ public sealed class AgentKnowledgeBaseConfiguration : IEntityTypeConfiguration<A
 
         builder.HasIndex(k => new { k.AgentId, k.KnowledgeBaseId }).IsUnique();
 
-        // Real FK for referential integrity; a normal (soft) KnowledgeBase delete leaves this
-        // row untouched (the KB row itself still exists) — FR-049 re-validates access
-        // per-execution regardless, so a soft-deleted-but-still-configured KB simply drops out
-        // of the caller's authorized set at execution time. Cascade only fires on a genuine
-        // hard/purge delete of the KnowledgeBase.
+        // Restrict, not Cascade, on the KnowledgeBase side — SQL Server rejects two cascade paths
+        // converging on the same join table ("may cause cycles or multiple cascade paths"): both
+        // Agents and KnowledgeBases cascade from ApplicationUser, and both would cascade into this
+        // table. Same conflict already hit and fixed the same way in
+        // ConversationKnowledgeBaseConfiguration. Deleting an agent still auto-cleans its rows
+        // (Agent cascade in AgentConfiguration); a normal (soft) KnowledgeBase delete leaves this
+        // row untouched (FR-049 re-validates access per-execution regardless, so a
+        // soft-deleted-but-still-configured KB simply drops out of the caller's authorized set at
+        // execution time).
         builder.HasOne<KnowledgeBase>()
             .WithMany()
             .HasForeignKey(k => k.KnowledgeBaseId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         // The Agent <-> AgentKnowledgeBase relationship is configured from AgentConfiguration.
     }

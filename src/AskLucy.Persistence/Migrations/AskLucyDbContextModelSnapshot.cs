@@ -6577,7 +6577,7 @@ namespace AskLucy.Persistence.Migrations
                     b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
                         .WithMany()
                         .HasForeignKey("KnowledgeBaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
