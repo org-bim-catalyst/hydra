@@ -540,7 +540,7 @@ namespace AskLucy.Persistence.Migrations
                         column: x => x.AgentToolCallId,
                         principalTable: "AgentToolCalls",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(

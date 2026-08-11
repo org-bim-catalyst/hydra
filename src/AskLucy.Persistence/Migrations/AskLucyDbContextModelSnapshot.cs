@@ -6492,7 +6492,7 @@ namespace AskLucy.Persistence.Migrations
                     b.HasOne("AskLucy.Domain.Agents.AgentToolCall", null)
                         .WithMany()
                         .HasForeignKey("AgentToolCallId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecution", b =>
