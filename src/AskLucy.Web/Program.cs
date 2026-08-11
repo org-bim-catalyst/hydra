@@ -7,6 +7,7 @@ using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
+using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Persistence;
@@ -338,6 +339,39 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // MCP server administration (specs/021-mcp-integration) — Administrator/Super User only, same
+    // admin-CRUD cost tier as admin-endpoints; a dedicated policy (not a reuse of admin-endpoints)
+    // because test-connection/refresh-capabilities make outbound calls to external MCP servers,
+    // which is a materially different cost/risk profile worth capping independently of the rest
+    // of the admin surface.
+    options.AddPolicy("mcp-admin-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 60,
+            QueueLimit = 0,
+        });
+    });
+
+    // MCP catalog browsing (specs/021-mcp-integration, User Story 4's McpCatalogController) — any
+    // authenticated user, read-only, never invokes an MCP server directly (that only happens
+    // during agent execution, which the per-server/per-tool IMcpRateLimiter already bounds) — same
+    // generous, non-cost-tiered shape as agent-endpoints.
+    options.AddPolicy("mcp-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -473,6 +507,16 @@ RecurringJob.AddOrUpdate<MemoryExtractionSweepJob>(
     "memory-extraction-sweep", job => job.RunAsync(CancellationToken.None), "*/15 * * * *");
 RecurringJob.AddOrUpdate<MemoryCleanupJob>(
     "memory-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily);
+
+// spec 021-mcp-integration User Story 6 (research.md Decision 10) — a 5-minute cadence matching
+// McpRuntimeOptions.HealthCheckIntervalMinutes's own default; each run only actually
+// checks/refreshes what's due (health check: every enabled server every cycle; capability
+// refresh: only servers past their own per-server CapabilityRefreshIntervalMinutes). Both
+// idempotent — safe to call on every startup.
+RecurringJob.AddOrUpdate<McpServerHealthCheckJob>(
+    "mcp-server-health-check", job => job.RunAsync(CancellationToken.None), "*/5 * * * *");
+RecurringJob.AddOrUpdate<McpCapabilityRefreshJob>(
+    "mcp-capability-refresh", job => job.RunAsync(CancellationToken.None), "*/5 * * * *");
 
 app.MapControllers();
 app.MapHealthChecks("/health");

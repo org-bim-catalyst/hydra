@@ -885,6 +885,12 @@ this is the security-audit record.
 
 # 11. MCP Aggregate
 
+Shipped in specs/021-mcp-integration (superseding the earlier `McpServer`/`McpTool`/`McpExecution`
+sketch) as eight entities — no `McpExecution` entity was built; an MCP tool call reuses spec 020's
+existing `AgentToolCall`/`AgentExecutionStep` unmodified (research.md Decision — see
+`specs/021-mcp-integration/data-model.md` for the authoritative field list; this section lists
+structure and business rules only).
+
 ## Aggregate Root
 
 McpServer
@@ -892,22 +898,88 @@ McpServer
 Properties
 
 ```text
-Name
+Name, Description, Endpoint, Transport (StreamableHttp | Stdio)
 
-DisplayName
+AuthenticationType (None | ApiKey | BearerToken | OAuth2ClientCredentials)
 
-Endpoint
+RequiresUnauthenticatedConfirmation, AllowInsecureTransport,
+InsecureTransportJustification
 
-AuthenticationType
+EndpointValidationOverride, EndpointValidationJustification
 
-Enabled
+IsEnabled, OwnerUserId, ConfigurationVersion, CapabilityRefreshIntervalMinutes
+
+LastHealthCheckAtUtc, LastCapabilityDiscoveryAtUtc
 ```
 
-Navigation
+Business Rules
+
+`(Endpoint, Transport)` unique platform-wide. Starts `IsEnabled: false` regardless of input —
+an administrator must explicitly enable it. Registration and every update independently
+re-validates the endpoint against SSRF rules (`IMcpEndpointValidator`); a private/loopback/
+link-local/cloud-metadata destination is rejected unless explicitly overridden with a
+justification. Soft-delete is blocked while any `AgentTool.ToolName` still references one of
+its tools (`McpServerHasReferencesException`).
+
+---
+
+## Entity
+
+McpServerCredential
+
+Properties
 
 ```text
-Tools
+McpServerId (unique), CiphertextBlob, RotatedAtUtc, RotatedByUserId
 ```
+
+Business Rules
+
+Server-side only; never a plaintext value in any DTO, log, or audit record. Rotation replaces
+`CiphertextBlob` in place (never delete+re-insert) and invalidates the connection-pool entry for
+that server so the next call reconnects with the new value — an already in-flight call on the old
+connection is unaffected and completes/fails independently.
+
+---
+
+## Entity
+
+McpServerHealth
+
+Properties
+
+```text
+McpServerId (unique — one current row per server, overwritten on every check)
+
+Status (Healthy | Degraded | Unavailable | AuthenticationFailed | ConfigurationError |
+Unknown)
+
+FailureCategory (nullable), Detail, CheckedAtUtc, ConsecutiveFailureCount
+```
+
+Business Rules
+
+Checked on-demand (admin "Test connection") and by a 5-minute recurring job, both through the
+same command handler. `Unavailable`/`AuthenticationFailed` excludes every tool on that server
+from `IMcpToolRegistry.ActiveTools` the moment the health-check job's sweep completes.
+
+---
+
+## Entity
+
+McpCapabilitySnapshot
+
+Properties
+
+```text
+McpServerId, SnapshotVersion (unique per server), DiscoveredAtUtc,
+DeclaredCapabilitiesJson, ChangeSummaryJson, WasSuccessful, FailureCategory (nullable)
+```
+
+Business Rules
+
+Append-only. A failed discovery run leaves every prior successful snapshot's `McpTool`/
+`McpResource`/`McpPrompt` rows untouched.
 
 ---
 
@@ -918,40 +990,77 @@ McpTool
 Properties
 
 ```text
-ServerId
+McpServerId, McpCapabilitySnapshotId, NamespacedName (unique — "mcp:{serverId}:{toolName}",
+the same string `AgentTool.ToolName`/`AgentToolCall.ToolName`/`AgentPolicy.ToolName`
+reference), ToolName, DisplayName, Description
 
-Name
+InputSchemaJson, OutputSchemaJson, DeclaredCapabilitiesJson
 
-Description
+ServerDeclaredRiskLevel (nullable, advisory only), EffectiveRiskLevel (governs runtime
+behavior), RequiredPermissionsJson
 
-InputSchema
+ActivationStatus (PendingReview | Active | Deactivated), ActivatedByUserId, ActivatedAtUtc
 
-OutputSchema
-
-Enabled
+Version, IsAvailable
 ```
+
+Business Rules
+
+Always starts (or reverts to, on any detected schema/description change since the prior
+snapshot) `PendingReview` — an administrator must explicitly activate it before any agent can
+call it, regardless of what risk level the server itself declares. `EffectiveRiskLevel` defaults
+to `Critical` when the server declares none.
 
 ---
 
 ## Entity
 
-McpExecution
+McpResource / McpPrompt
 
 Properties
 
 ```text
-ToolId
+McpResource: McpServerId, McpCapabilitySnapshotId, NamespacedName (unique), Uri, Name,
+Description, ContentType, IsAvailable
 
-ConversationId
-
-StartedAt
-
-CompletedAt
-
-Status
-
-Result
+McpPrompt: McpServerId, McpCapabilitySnapshotId, NamespacedName (unique), Name,
+Description, ContentTemplate, IsAvailable
 ```
+
+Business Rules
+
+`McpResource` is a normal snapshot-per-discovery row, like `McpTool`. `McpPrompt` is instead a
+read-only mirror mutated in place on every refresh (`RefreshFromSnapshot`, never a new row per
+snapshot) — a user who wants an editable copy duplicates it into an independent, native `Prompt`
+(`DuplicateMcpPromptCommand`), after which the two have no further relationship.
+
+---
+
+## Aggregate Root
+
+McpAuditLog
+
+Properties
+
+```text
+McpServerId (not a hard FK — survives a later-purged server), UserId
+
+Action (ServerRegistered | ServerUpdated | ServerEnabled | ServerDisabled |
+ServerRemovalBlocked | ServerRemoved | CredentialRotated | CapabilityDiscoveryStarted |
+CapabilityDiscoverySucceeded | CapabilityDiscoveryFailed | HealthStateChanged |
+ToolActivated | ToolDeactivated | UnauthorizedAccessAttempted)
+
+FailureCategory (nullable), DetailsJson, OccurredAtUtc
+```
+
+Business Rules
+
+Administrative/security events only — deliberately does not duplicate `AgentToolCall`'s
+per-execution tool-call activity (already captured there, distinct from but
+cross-referenceable with this table). A failed MCP tool *call* (as opposed to a server-level
+administrative action) never writes here; its granular `McpFailureCategory` is instead embedded
+as a `[CategoryName]` prefix in the same `AgentToolCall.FailureReason` text every native tool's
+failure already uses.
 
 ---
 

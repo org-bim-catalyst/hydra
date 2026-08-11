@@ -84,6 +84,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             problemDetails.Extensions["reason"] = "VersionUploadInProgress";
         }
 
+        // spec.md FR-005/FR-065 (specs/021-mcp-integration): the admin UI lists exactly which
+        // agent/tool pairs must be cleared before removal can proceed, without a follow-up request.
+        if (exception is AskLucy.Domain.Mcp.McpServerHasReferencesException hasReferencesException)
+        {
+            problemDetails.Extensions["referencingAgentTools"] = hasReferencesException.ReferencingAgentTools
+                .Select(r => new { agentId = r.AgentId, toolName = r.ToolName })
+                .ToArray();
+        }
+
         context.Response.StatusCode = statusCode;
         // WriteAsJsonAsync's no-content-type overload unconditionally overwrites
         // Response.ContentType to "application/json" — passing it explicitly here is what
@@ -153,6 +162,24 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "https://hydra.bimcatalyst.com/problems/agent-concurrency-limit-exceeded",
             "Agent execution concurrency limit exceeded",
             agentConcurrencyEx.Message),
+
+        // spec.md FR-050 (specs/021-mcp-integration, research.md Decision 8): the request is
+        // well-formed, the destination is simply disallowed — 422, not DomainRuleViolationException's
+        // generic 400.
+        AskLucy.Domain.Mcp.McpEndpointNotAllowedException endpointNotAllowedEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/mcp-endpoint-not-allowed",
+            "Endpoint not allowed",
+            endpointNotAllowedEx.Message),
+
+        // spec.md FR-005 (specs/021-mcp-integration, clarification): removal is blocked, not
+        // invalid — 422, with the referencing agent/tool pairs surfaced as a machine-readable
+        // extension so the admin UI can list them without a follow-up request.
+        AskLucy.Domain.Mcp.McpServerHasReferencesException hasReferencesEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/mcp-server-has-references",
+            "MCP server has references",
+            hasReferencesEx.Message),
 
         AiProviderUnavailableException => (
             StatusCodes.Status502BadGateway,

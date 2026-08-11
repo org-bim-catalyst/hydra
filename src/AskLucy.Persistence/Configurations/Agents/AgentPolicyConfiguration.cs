@@ -16,7 +16,9 @@ public sealed class AgentPolicyConfiguration : IEntityTypeConfiguration<AgentPol
 
         builder.Property(p => p.Name).IsRequired().HasMaxLength(200);
         builder.Property(p => p.Description).HasMaxLength(1000);
-        builder.Property(p => p.ToolName).IsRequired().HasMaxLength(100);
+        // Widened from 100 (spec 021-mcp-integration, research.md Decision 3) — see
+        // AgentExecutionStepConfiguration for the full rationale.
+        builder.Property(p => p.ToolName).IsRequired().HasMaxLength(400);
         builder.Property(p => p.ConditionsJson);
         builder.Property(p => p.CreatedByUserId).IsRequired();
         builder.Property(p => p.IsEnabled).IsRequired().HasDefaultValue(true);
