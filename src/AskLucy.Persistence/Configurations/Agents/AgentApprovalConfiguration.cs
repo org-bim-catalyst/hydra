@@ -22,10 +22,18 @@ public sealed class AgentApprovalConfiguration : IEntityTypeConfiguration<AgentA
 
         builder.HasIndex(a => a.AgentExecutionId);
 
+        // Restrict, not Cascade — AgentExecution already cascades directly into AgentApproval
+        // (AgentExecutionId FK, configured in AgentExecutionConfiguration) AND transitively via
+        // AgentExecution -> AgentExecutionStep -> AgentToolCall, so a second cascade edge here
+        // would give SQL Server two convergent cascade paths into this table from the same
+        // ancestor ("may cause cycles or multiple cascade paths" — same conflict already fixed on
+        // AgentKnowledgeBaseConfiguration). The AgentExecutionId cascade already deletes this row
+        // when its execution goes; this FK exists purely for referential integrity on the
+        // optional tool-call link.
         builder.HasOne<AgentToolCall>()
             .WithMany()
             .HasForeignKey(a => a.AgentToolCallId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         // AgentPolicy is a soft reference (MatchedAgentPolicyId, no FK) — a policy can be
         // deleted after having auto-approved past actions; the approval record must still be
