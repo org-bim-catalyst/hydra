@@ -156,7 +156,7 @@ namespace AskLucy.Persistence.Migrations
                         column: x => x.KnowledgeBaseId,
                         principalTable: "KnowledgeBases",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
