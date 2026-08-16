@@ -2,6 +2,8 @@ import { Alert, CircularProgress, Link, Stack, Typography } from '@mui/material'
 import { useEffect, useRef } from 'react'
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router'
 import { AuthLayout } from '../../../components/AuthLayout'
+import { useFunnelAnalytics } from '../../analytics/hooks/useFunnelAnalytics'
+import { PublicConsentGate } from '../../consent/components/PublicConsentGate'
 import { useCompleteExternalLogin } from '../hooks/useAuth'
 
 /**
@@ -22,6 +24,7 @@ export function ExternalLoginCompletePage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const completeExternalLogin = useCompleteExternalLogin()
+  const { recordFunnelCompleted } = useFunnelAnalytics()
   const requested = useRef(false)
 
   const code = searchParams.get('code')
@@ -33,33 +36,39 @@ export function ExternalLoginCompletePage() {
 
     completeExternalLogin
       .mutateAsync(code)
-      .then(() => navigate('/chat', { replace: true }))
+      .then(() => {
+        // FR-021: a social-login round-trip is a sign-in funnel completion too.
+        recordFunnelCompleted('SignIn')
+        navigate('/chat', { replace: true })
+      })
       .catch(() => {
         // completeExternalLogin.isError drives the error alert below; nothing further to do.
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mutateAsync/navigate are stable; re-running on their identity would defeat the one-shot `requested` guard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mutateAsync/navigate/recordFunnelCompleted are stable; re-running on their identity would defeat the one-shot `requested` guard.
   }, [code])
 
   return (
-    <AuthLayout eyebrow="Sign in" title="Signing you in">
-      <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
-        {error || !code ? (
-          <Alert severity="error" sx={{ width: '100%' }}>
-            That sign-in link is invalid or has expired. Please try again.
-          </Alert>
-        ) : completeExternalLogin.isError ? (
-          <Alert severity="error" sx={{ width: '100%' }}>
-            We couldn't complete sign-in. Please try again.
-          </Alert>
-        ) : (
-          <CircularProgress size={32} />
-        )}
-        <Typography variant="body2" color="text.secondary">
-          <Link component={RouterLink} to="/login">
-            Back to sign in
-          </Link>
-        </Typography>
-      </Stack>
-    </AuthLayout>
+    <PublicConsentGate>
+      <AuthLayout title="Signing you in">
+        <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
+          {error || !code ? (
+            <Alert severity="error" sx={{ width: '100%' }}>
+              That sign-in link is invalid or has expired. Please try again.
+            </Alert>
+          ) : completeExternalLogin.isError ? (
+            <Alert severity="error" sx={{ width: '100%' }}>
+              We couldn't complete sign-in. Please try again.
+            </Alert>
+          ) : (
+            <CircularProgress size={32} />
+          )}
+          <Typography variant="body2" color="text.secondary">
+            <Link component={RouterLink} to="/login">
+              Back to sign in
+            </Link>
+          </Typography>
+        </Stack>
+      </AuthLayout>
+    </PublicConsentGate>
   )
 }

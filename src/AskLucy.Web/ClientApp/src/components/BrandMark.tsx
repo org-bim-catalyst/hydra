@@ -1,26 +1,48 @@
 interface BrandMarkProps {
   size?: number
   color?: string
+  /** Background swatch behind the mark — pass the Flumeria green for the rounded-square
+   * badge treatment used on the public landing/auth pages; omit for a bare mark (e.g. on
+   * a dark scrim where the badge would be redundant). */
+  background?: string
+}
+
+function MarkGlyph({ color }: { color: string }) {
+  return (
+    <g transform="translate(3 5)">
+      <rect x="0" y="8" width="9" height="12" rx="1.5" fill={color} opacity="0.9" />
+      <rect x="12" y="4" width="8" height="16" rx="1.5" fill={color} opacity="0.9" />
+      <rect x="25" y="10" width="9" height="10" rx="1.5" fill={color} opacity="0.9" />
+      <path
+        d="M0 30 C8 26, 12 34, 18 30 C24 26, 28 34, 36 30"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <circle cx="36" cy="30" r="2.5" fill={color} />
+    </g>
+  )
 }
 
 /**
- * The Ask Lucy mark: a compass-seal ring (a nod to the drafting instruments of
- * the BIM/AEC audience) with an "L" cut from two square-cornered strokes, and a
- * single pivot dot standing in for a dimension-line terminus. Deliberately not
- * a rounded, friendly "AI sparkle" mark — this reads as instrument-precise.
+ * The Flumeria mark: a winding river/site-path threading through a cluster of massing
+ * blocks — a nod to urban design worked over spatial/site data, replacing the earlier
+ * compass-seal "L" mark (which read as an unrelated initial, not the Flumeria brand).
  */
-export function BrandMark({ size = 40, color = 'currentColor' }: BrandMarkProps) {
+export function BrandMark({ size = 40, color = 'currentColor', background }: BrandMarkProps) {
+  if (!background) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 48 48" fill="none" role="img" aria-label="Flumeria">
+        <MarkGlyph color={color} />
+      </svg>
+    )
+  }
+
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" role="img" aria-label="Ask Lucy">
-      <circle cx="24" cy="24" r="19.5" stroke={color} strokeWidth="1.5" />
-      <path
-        d="M18 15V32H30"
-        stroke={color}
-        strokeWidth="3"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-      />
-      <circle cx="33.5" cy="14.5" r="2.25" fill={color} />
+    <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="Flumeria">
+      <rect width="48" height="48" rx="12" fill={background} />
+      <MarkGlyph color={color} />
     </svg>
   )
 }

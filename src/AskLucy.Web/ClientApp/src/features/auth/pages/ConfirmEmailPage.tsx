@@ -2,6 +2,7 @@ import { Alert, CircularProgress, Link, Stack, Typography } from '@mui/material'
 import { useEffect, useRef } from 'react'
 import { Link as RouterLink, useSearchParams } from 'react-router'
 import { AuthLayout } from '../../../components/AuthLayout'
+import { PublicConsentGate } from '../../consent/components/PublicConsentGate'
 import { useConfirmEmail } from '../hooks/useAuth'
 
 export function ConfirmEmailPage() {
@@ -19,29 +20,31 @@ export function ConfirmEmailPage() {
   }, [userId, token, confirmEmail])
 
   return (
-    <AuthLayout eyebrow="Account" title="Confirm your email">
-      <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
-        {!userId || !token ? (
-          <Alert severity="error" sx={{ width: '100%' }}>
-            This confirmation link is missing required information.
-          </Alert>
-        ) : confirmEmail.isPending || confirmEmail.isIdle ? (
-          <CircularProgress size={32} />
-        ) : confirmEmail.isSuccess ? (
-          <Alert severity="success" sx={{ width: '100%' }}>
-            Your email is confirmed. You can now sign in.
-          </Alert>
-        ) : (
-          <Alert severity="error" sx={{ width: '100%' }}>
-            This confirmation link is invalid or has expired.
-          </Alert>
-        )}
-        <Typography variant="body2" color="text.secondary">
-          <Link component={RouterLink} to="/login">
-            Back to sign in
-          </Link>
-        </Typography>
-      </Stack>
-    </AuthLayout>
+    <PublicConsentGate>
+      <AuthLayout title="Confirm your email">
+        <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
+          {!userId || !token ? (
+            <Alert severity="error" sx={{ width: '100%' }}>
+              This confirmation link is missing required information.
+            </Alert>
+          ) : confirmEmail.isPending || confirmEmail.isIdle ? (
+            <CircularProgress size={32} />
+          ) : confirmEmail.isSuccess ? (
+            <Alert severity="success" sx={{ width: '100%' }}>
+              Your email is confirmed. You can now sign in.
+            </Alert>
+          ) : (
+            <Alert severity="error" sx={{ width: '100%' }}>
+              This confirmation link is invalid or has expired.
+            </Alert>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            <Link component={RouterLink} to="/login">
+              Back to sign in
+            </Link>
+          </Typography>
+        </Stack>
+      </AuthLayout>
+    </PublicConsentGate>
   )
 }
