@@ -62,8 +62,12 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           sx={{ alignItems: 'center', textDecoration: 'none', color: 'text.primary' }}
         >
           <BrandMark size={24} color={theme.palette.primary.main} />
+          {/* Branding text inside the persistent home-link, not a document-outline heading —
+              subtitle1's default <h6> mapping would otherwise create a heading-order violation
+              against every page's own <h5> title (found via WorkflowDesignerPage.a11y.test.tsx). */}
           <Typography
             variant="subtitle1"
+            component="span"
             sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}
           >
             Ask Lucy

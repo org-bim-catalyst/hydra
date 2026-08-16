@@ -712,7 +712,66 @@ validation/permission/approval pipeline, unchanged. `McpResourceReadTool` is the
 
 ---
 
-# 24. File Storage Service
+# 24. Workflow Orchestration Service
+
+Shipped in specs/022-workflow-orchestration-engine as a set of MediatR command/query handlers
+(`Application/Workflows`) plus `WorkflowExecutionOrchestrator` — no single `IWorkflowService`
+facade, matching the same convention §21 Agent Service already establishes. Coexists with the
+Agent Service (§21) rather than replacing it: a Workflow is an explicit, predefined,
+deterministic node graph; an `AiAgent` node is one way a Workflow can invoke §21's own
+orchestrator as a single step, never a re-implementation of its planning loop.
+
+Functions
+
+* Create/Update/Validate/Publish/Duplicate/Archive/Restore/Delete Workflow
+* Disable/Enable/Deprecate a published Workflow (stops event-trigger dispatch; Deprecate also
+  blocks new manual starts)
+* Start/Pause/Resume/Cancel Execution; manually retry a failed node
+* Approve/Reject/Request Changes on a pending Human Approval node
+* List/Get execution history (nodes, errors, approvals, events, usage/cost) and aggregate
+  Workflow Monitoring statistics
+* Set a per-user execution concurrency override (Administrator/Super User)
+
+Orchestration
+
+```text
+Start node
+↓
+Node dispatch loop: resolve {{...}} expressions (sandboxed) → IWorkflowNodeExecutor.ExecuteAsync
+  → capability node? delegate to the matching IAgentTool (§21's own catalog, unchanged)
+  → High/Critical risk or Human Approval? pause for WorkflowPolicy/interactive decision
+  → node fails? apply its retry policy, then the workflow's failure strategy
+↓
+End node → final output + usage/cost
+```
+
+Interface
+
+```csharp
+WorkflowExecutionOrchestrator   // Application/Workflows/Runtime — the runtime itself
+IWorkflowNodeExecutor           // Application/Workflows/Runtime — one implementation per node type
+IWorkflowExpressionEvaluator    // Application/Workflows/Expressions — sandboxed {{...}} resolution, never arbitrary code
+IWorkflowExecutionNotifier      // Application/Abstractions — live push, implemented over SignalR in Infrastructure
+```
+
+Workflow capability nodes invoke, each through the Agent Runtime's own existing `IAgentTool`
+abstraction (§21), never a duplicated path: Knowledge Bases (`RagSearch` → `KnowledgeSearchTool`)
+· Memory (`MemorySearch` → `MemorySearchTool`) · Files (`FileOperation` →
+`FileReadTool`/`FileMetadataTool`) · MCP tools (`McpTool`, §23) · native platform tools
+(`NativeTool`) · an AI Agent (`AiAgent`, §21's own orchestrator) · a Prompt (`AiPrompt`, §7). A
+node's effective access is always exactly what the underlying tool already enforces for the
+execution's initiating user — never broader, never re-derived per node.
+
+`WorkflowEventTriggerHandler` (`Application/Workflows/EventTriggers`) is the one place this
+service extends another module's public contract — it subscribes to `DocumentUploadedNotification`/
+`DocumentProcessedNotification`/`KnowledgeBaseUpdatedNotification`, published post-commit by the
+Documents/KnowledgeBases services (§14, §13), and starts a matching Event-Driven workflow's
+execution automatically, re-checking the triggering workflow's own owner's current authorization
+first.
+
+---
+
+# 25. File Storage Service
 
 Abstraction
 
@@ -744,7 +803,7 @@ Generate Signed URL
 
 ---
 
-# 25. Authentication Service
+# 26. Authentication Service
 
 Responsibilities
 
@@ -763,7 +822,7 @@ IAuthenticationService
 
 ---
 
-# 26. User Settings Service
+# 27. User Settings Service
 
 Stores user preferences.
 
@@ -793,7 +852,7 @@ IUserSettingsService
 
 ---
 
-# 27. Billing Service
+# 28. Billing Service
 
 Responsibilities
 
@@ -811,7 +870,7 @@ IBillingService
 
 ---
 
-# 28. Notification Service
+# 29. Notification Service
 
 Supports
 
@@ -833,7 +892,7 @@ INotificationService
 
 ---
 
-# 29. Usage Analytics Service
+# 30. Usage Analytics Service
 
 Tracks
 
@@ -857,7 +916,7 @@ IUsageAnalyticsService
 
 ---
 
-# 30. Audit Service
+# 31. Audit Service
 
 Records
 
@@ -877,7 +936,7 @@ IAuditService
 
 ---
 
-# 31. Background Job Service
+# 32. Background Job Service
 
 Long-running tasks.
 
@@ -897,7 +956,7 @@ IBackgroundTaskService
 
 ---
 
-# 32. Service Dependency Rules
+# 33. Service Dependency Rules
 
 The following dependency direction is mandatory:
 
@@ -921,7 +980,7 @@ Application services must never reference concrete implementations.
 
 ---
 
-# 33. Cross-Service Communication
+# 34. Cross-Service Communication
 
 Services communicate through interfaces, MediatR requests, and domain events.
 
@@ -945,7 +1004,7 @@ BillingService
 
 ---
 
-# 34. Service Lifetime Guidelines
+# 35. Service Lifetime Guidelines
 
 | Service Type                   | Lifetime                                    |
 | ------------------------------ | ------------------------------------------- |
@@ -962,7 +1021,7 @@ Never inject `DbContext` into singleton services.
 
 ---
 
-# 35. Resilience
+# 36. Resilience
 
 External integrations must implement:
 
@@ -976,7 +1035,7 @@ Use Polly (or the .NET resilience pipeline) for outbound HTTP calls.
 
 ---
 
-# 36. Future Services
+# 37. Future Services
 
 The architecture should allow additional services without breaking existing interfaces.
 
@@ -999,7 +1058,7 @@ Each new capability should be introduced as a new service rather than expanding 
 
 ---
 
-# 37. Service Design Checklist
+# 38. Service Design Checklist
 
 Before introducing a new service, verify:
 

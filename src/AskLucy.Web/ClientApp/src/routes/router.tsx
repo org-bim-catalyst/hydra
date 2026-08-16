@@ -71,6 +71,18 @@ const McpAdministrationPage = lazy(() =>
   import('../features/mcp/pages/McpAdministrationPage').then((m) => ({ default: m.McpAdministrationPage })),
 )
 const McpCatalogPage = lazy(() => import('../features/mcp/pages/McpCatalogPage').then((m) => ({ default: m.McpCatalogPage })))
+const WorkflowLibraryPage = lazy(() =>
+  import('../features/workflows/pages/WorkflowLibraryPage').then((m) => ({ default: m.WorkflowLibraryPage })),
+)
+const WorkflowDesignerPage = lazy(() =>
+  import('../features/workflows/pages/WorkflowDesignerPage').then((m) => ({ default: m.WorkflowDesignerPage })),
+)
+const WorkflowExecutionPage = lazy(() =>
+  import('../features/workflows/pages/WorkflowExecutionPage').then((m) => ({ default: m.WorkflowExecutionPage })),
+)
+const WorkflowPoliciesAdminPage = lazy(() =>
+  import('../features/workflows/pages/WorkflowPoliciesAdminPage').then((m) => ({ default: m.WorkflowPoliciesAdminPage })),
+)
 
 // Each route mounts a fresh <Lazy> instance, so Fade's default `in`-from-mount behavior
 // gives every route a consistent, theme-timed fade-in (FR-010/SC-007) — no per-route
@@ -276,6 +288,39 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
+    path: '/workflows',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <WorkflowLibraryPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/workflows/:id',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <WorkflowDesignerPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/workflows/:workflowId/executions/:executionId',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <WorkflowExecutionPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
     path: '/profile',
     element: (
       <ProtectedRoute>
@@ -343,6 +388,19 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AgentPoliciesAdminPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/workflow-policies',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <WorkflowPoliciesAdminPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>
