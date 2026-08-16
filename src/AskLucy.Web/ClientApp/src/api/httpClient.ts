@@ -48,5 +48,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     return undefined as T
   }
 
-  return (await response.json()) as T
+  // Read as text first: some 2xx responses (e.g. 202 Accepted from fire-and-forget
+  // endpoints like the funnel-analytics recorder) have no body at all, and `.json()`
+  // throws a SyntaxError on an empty string rather than returning something falsy.
+  const text = await response.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
