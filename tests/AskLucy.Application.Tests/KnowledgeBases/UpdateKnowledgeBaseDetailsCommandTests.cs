@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.KnowledgeBases.Commands.UpdateKnowledgeBaseDetails;
 using AskLucy.Domain.KnowledgeBases;
 using FluentAssertions;
+using MediatR;
 using NSubstitute;
 using Xunit;
 
@@ -11,10 +12,11 @@ public sealed class UpdateKnowledgeBaseDetailsCommandHandlerTests
 {
     private readonly IKnowledgeBaseRepository _repository = Substitute.For<IKnowledgeBaseRepository>();
     private readonly IKnowledgeBaseAuditLogRepository _auditLogRepository = Substitute.For<IKnowledgeBaseAuditLogRepository>();
+    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
 
-    private UpdateKnowledgeBaseDetailsCommandHandler CreateHandler() => new(_repository, _auditLogRepository, _unitOfWork, _currentUser);
+    private UpdateKnowledgeBaseDetailsCommandHandler CreateHandler() => new(_repository, _auditLogRepository, _publisher, _unitOfWork, _currentUser);
 
     [Fact]
     public async Task Handle_ShouldReplaceEveryField()

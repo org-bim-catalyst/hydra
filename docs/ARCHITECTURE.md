@@ -1231,7 +1231,107 @@ tools are callable (activation, deactivation, server enable/disable, health tran
 `ActiveTools` — the live, in-memory snapshot the orchestrator reads — never drifts from the
 database for longer than one invalidation cycle.
 
-# 32. Architecture Principles
+# 32. Workflow & Tool Orchestration Engine
+
+Introduced in specs/022-workflow-orchestration-engine. Lives in `Domain/Workflows`,
+`Application/Workflows` (`Runtime/`, `Commands/`, `Queries/`, `EventTriggers/`, `Validation/`,
+`Expressions/`, `Authorization/`), `Infrastructure` (`WorkflowExecutionHub`/
+`WorkflowExecutionNotifier` only — SignalR is never referenced from `Application`), `Persistence`
+(via `AskLucyDbContext`), and `WorkflowsController`/`WorkflowExecutionsController`/
+`WorkflowPoliciesController` under `Web/Controllers/v1`. Frontend lives in
+`ClientApp/src/features/workflows`. Coexists with, never replaces, the Agent Runtime (§30): an
+Agent is goal-driven with the model deciding its next action; a Workflow is an explicit,
+predefined, deterministic node graph — an AI Agent may be one node inside a Workflow, but a
+Workflow never re-implements the Agent Runtime's own planning loop.
+
+**Orchestration model**: `WorkflowExecutionOrchestrator.RunAsync` (Application, not
+Infrastructure — the same "Hangfire-driven, multi-step orchestration belongs in Application"
+precedent §21/§27 already establish) walks a published `WorkflowVersion`'s node graph from its
+`Start` node, dispatching each node through a uniform `IWorkflowNodeExecutor` interface regardless
+of node type (`Start`/`End`/`AiPrompt`/`AiAgent`/`RagSearch`/`MemorySearch`/`DocumentProcessing`/
+`FileOperation`/`McpTool`/`NativeTool`/`Transform`/`Condition`/`Parallel`/`Merge`/`HumanApproval`/
+`Validation`/`Delay`), resolving `{{...}}` variable/step-output references via a sandboxed
+`IWorkflowExpressionEvaluator` before each dispatch — never arbitrary user-supplied C#/JavaScript.
+It is fully **resumable**: a Human Approval pause, a user-initiated pause, or a manually retried
+failed node all persist state and return; the next `RunAsync` invocation reuses whichever
+`WorkflowExecutionNode` rows already completed and resumes from the first `Pending`/
+`WaitingForApproval` row, exactly mirroring `AgentExecutionOrchestrator`'s (§30) own
+resume-without-re-running guarantee. A lightweight `IWorkflowExecutionRepository.GetStatusAsync`
+(untracked read), checked first thing every dispatch-loop iteration, lets a concurrent
+`PauseWorkflowExecutionCommand`/`CancelWorkflowExecutionCommand` stop the run at the next node
+boundary without conflicting over the same tracked aggregate (FR-048, SC-007).
+
+**Node model**: every capability node (`AiPrompt`/`AiAgent`/`RagSearch`/`MemorySearch`/
+`DocumentProcessing`/`FileOperation`/`McpTool`/`NativeTool`) is a thin adapter wrapping an
+*existing* `IAgentTool` from the Agent Runtime's own catalog (§30) via `AgentToolCatalog` and a
+shared `WorkflowCapabilityToolInvoker` — zero new retrieval/search/provider/MCP logic, the same
+"reuse, never duplicate" rule §28/§29/§30 already establish. Security inheritance follows
+automatically: `WorkflowNodeExecutionContext.UserId` (the execution's own initiating user, set
+once at start, never re-derived per node or accepted from node configuration) is passed straight
+into `AgentToolExecutionContext.UserId`, so a node's effective access is always exactly what the
+underlying tool already enforces for that user — never broader (`WorkflowToolAccessBoundaryTests`,
+SC-005). `Condition`/`Parallel`/`Merge`/bounded-`Transform`-loop nodes are pure control-flow, no
+tool involved; `Parallel` respects a configurable max-concurrency semaphore and one of four Merge
+strategies (All Completed/First Completed/Any Completed/Collect All).
+
+**Approval gate**: reuses the Agent Runtime's exact risk-based pause pattern (§30) rather than a
+parallel implementation — a `HumanApproval` node, or any High/Critical-risk capability node,
+pauses the execution (`WaitingForApproval`, a `WorkflowApproval` row created `Pending`) unless an
+administrator-published `WorkflowPolicy` matches it (`WorkflowPolicyEvaluator`, the same flat
+JSON parameter-equality match `AgentPolicyEvaluator` uses). A workflow author's own stricter
+`ApprovalPolicy` opt-in can never be bypassed by a `WorkflowPolicy` — only the platform's own
+baseline is ever policy-matchable.
+
+**Error handling**: per-node retry with configurable backoff (`WorkflowNodeRetryPolicyParser`),
+idempotency-key reuse of a prior `Completed` row's output for mutating nodes retried after a
+pause/resume cycle (`WorkflowNode.IdempotencyKeyExpression`), per-node timeout via a linked
+`CancellationTokenSource`, and workflow-level failure strategies (Stop/Continue/Retry/Fallback/
+Compensate, `WorkflowErrorPolicyParser`) that govern what happens when a node exhausts its own
+retries. `Fallback`/`Compensate` both reuse the single `WorkflowNode.CompensatingNodeId` field for
+mutually-exclusive purposes (run instead of me vs. run to undo me) — no second field, since
+spec.md never described one.
+
+**Event-driven triggers** (FR-063/FR-064): the one place this feature extends an existing
+module's public contract rather than only reusing one — `DocumentUploadedNotification`/
+`DocumentProcessedNotification`/`KnowledgeBaseUpdatedNotification` (MediatR `INotification`s) are
+published, immediately after an already-successful commit, from the three existing handlers that
+own those state transitions. `WorkflowEventTriggerHandler` (one `INotificationHandler<T>` per
+event type) matches the event against every published Event-Driven `Workflow`'s trigger scope,
+re-checks the **workflow owner's** current authorization (not the event's own actor's — the
+trigger runs as whoever configured it) and the same concurrency cap a manual start respects, then
+starts an execution exactly as `StartWorkflowExecutionCommand` would. This is the first real
+instance of "domain events dispatched after a successful commit" (constitution §3) actually
+implemented anywhere in this codebase.
+
+**Real-time visibility**: `WorkflowExecutionHub` (SignalR, `/hubs/workflow-execution`) and
+`WorkflowExecutionNotifier` mirror `AgentExecutionHub`/`AgentExecutionNotifier` (§30) exactly —
+one per-user group, a live push at every orchestrator transition mirroring an already-persisted
+`WorkflowExecutionEvent` row, and a 2s REST poll as the actual source of truth/reconnect-gap
+fallback.
+
+**Versioning**: `Workflow.Publish` snapshots the current draft (`DraftDefinitionJson`, parsed by
+the Application layer — Domain never parses raw JSON) into an immutable `WorkflowVersion`; every
+`WorkflowExecution` references the exact `WorkflowVersionId` it ran under, so a later draft edit
+or republish can never retroactively change what an already-started or historical execution
+reports (FR-014, mirrors §30's `AgentVersion` guarantee identically). `Disable` stops event-trigger
+dispatch only (manual starts remain allowed); `Deprecate` is one-way and blocks both manual and
+event-triggered starts.
+
+**Audit**: `WorkflowAuditLog` (deliberately not hard-FK'd to `Workflow`/`WorkflowExecution`,
+mirroring `AgentAuditLog`) records creation/modification/publication, execution
+start/completion/failure/cancellation, approval decisions, a verified cross-user access attempt,
+and a node's own permission denial — written by the calling command handlers/orchestrator, never
+inside a guard itself (guards stay pure).
+
+**Security**: every Workflows/WorkflowExecutions endpoint is implicitly scoped to the caller via
+`WorkflowOwnershipGuard`/`WorkflowExecutionOwnershipGuard`, returning `404` (never `403`) for
+another user's workflow or execution — identical to `AgentOwnershipGuard`'s convention (§30).
+`WorkflowPoliciesController` (policy CRUD and the per-user concurrency override) is
+Administrator/Super User only. A workflow's effective permissions are always the intersection of
+its configuration and the executing user's own authorization, never broader — the same guarantee
+§30 establishes for Agents, extended here through every node type rather than re-derived.
+
+# 33. Architecture Principles
 
 Before implementing any feature, ask:
 

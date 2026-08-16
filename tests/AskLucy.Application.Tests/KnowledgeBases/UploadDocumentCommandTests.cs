@@ -5,6 +5,7 @@ using AskLucy.Application.Options;
 using AskLucy.Domain.Common;
 using AskLucy.Domain.KnowledgeBases;
 using FluentAssertions;
+using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -21,13 +22,14 @@ public sealed class UploadDocumentCommandHandlerTests
     private readonly IDocumentPageCountExtractor _pageCountExtractor = Substitute.For<IDocumentPageCountExtractor>();
     private readonly IFileStorage _fileStorage = Substitute.For<IFileStorage>();
     private readonly KnowledgeBaseDashboardSummaryCache _dashboardSummaryCache = new(new MemoryCache(new MemoryCacheOptions()));
+    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
 
     private UploadDocumentCommandHandler CreateHandler(long maxFileSizeBytes = 50 * 1024 * 1024) => new(
         _knowledgeBaseRepository, _folderRepository, _documentRepository, _contentValidator, _pageCountExtractor, _fileStorage,
         Microsoft.Extensions.Options.Options.Create(new KnowledgeBaseDocumentOptions { MaxFileSizeBytes = maxFileSizeBytes }),
-        _dashboardSummaryCache, _unitOfWork, _currentUser);
+        _dashboardSummaryCache, _publisher, _unitOfWork, _currentUser);
 
     private KnowledgeBase SetUpOwnedKnowledgeBase()
     {

@@ -16,6 +16,9 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.Workflows.Expressions;
+using AskLucy.Application.Workflows.Runtime;
+using AskLucy.Application.Workflows.Validation;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -153,6 +156,11 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<WorkflowRuntimeOptions>()
+            .Bind(configuration.GetSection(WorkflowRuntimeOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
         // McpToolAdapter instances must never hold a Scoped dependency (constitution §3), and the
@@ -161,6 +169,38 @@ public static class DependencyInjection
         services.AddSingleton<IMcpToolRegistry, McpToolRegistry>();
         services.AddSingleton<McpConnectionResiliencePolicy>();
         services.AddSingleton<IJsonSchemaValidator, JsonSchemaValidator>();
+
+        // Workflow & Tool Orchestration Engine (specs/022-workflow-orchestration-engine) — Foundational.
+        services.AddSingleton<IWorkflowExpressionEvaluator, WorkflowExpressionEvaluator>();
+        services.AddScoped<WorkflowGraphValidator>();
+        services.AddScoped<WorkflowNodeExecutorRegistry>();
+
+        // User Story 1 ("Create and Run a Simple Deterministic Workflow"). WorkflowExecutionOrchestrator/
+        // WorkflowExecutionRunner live in Application (not Infrastructure), mirroring
+        // AgentExecutionOrchestrator/AgentExecutionRunner's precedent exactly (research.md
+        // Decision 7) — Hangfire's IBackgroundJobClient is already referenced directly from
+        // Application elsewhere.
+        services.AddScoped<WorkflowBudgetGuard>();
+        services.AddScoped<WorkflowPolicyEvaluator>();
+        services.AddScoped<WorkflowExecutionOrchestrator>();
+        services.AddScoped<IWorkflowExecutionRunner, WorkflowExecutionRunner>();
+
+        // Individual IWorkflowNodeExecutor implementations register themselves as each is added
+        // (research.md Decision 1). Only Parallel/Start/End/HumanApproval/Delay are handled
+        // directly by WorkflowExecutionOrchestrator, not via a registered executor — Condition and
+        // Merge are ordinary registered executors (see each class's own doc comment for why).
+        services.AddScoped<IWorkflowNodeExecutor, TransformNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, RagSearchNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, MemorySearchNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, DocumentProcessingNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, FileOperationNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, McpToolNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, NativeToolNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, PromptNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, AgentNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, ValidationNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, ConditionNodeExecutor>();
+        services.AddScoped<IWorkflowNodeExecutor, MergeNodeExecutor>();
 
         return services;
     }

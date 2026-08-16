@@ -11,6 +11,7 @@ using AskLucy.Domain.Mcp;
 using AskLucy.Domain.Projects;
 using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
+using AskLucy.Domain.Workflows;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Memory;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -214,6 +215,36 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<McpPrompt> McpPrompts => Set<McpPrompt>();
 
     public DbSet<McpAuditLog> McpAuditLogs => Set<McpAuditLog>();
+
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+
+    public DbSet<WorkflowVersion> WorkflowVersions => Set<WorkflowVersion>();
+
+    public DbSet<WorkflowNode> WorkflowNodes => Set<WorkflowNode>();
+
+    public DbSet<WorkflowConnection> WorkflowConnections => Set<WorkflowConnection>();
+
+    public DbSet<WorkflowVariable> WorkflowVariables => Set<WorkflowVariable>();
+
+    public DbSet<WorkflowExecution> WorkflowExecutions => Set<WorkflowExecution>();
+
+    public DbSet<WorkflowExecutionNode> WorkflowExecutionNodes => Set<WorkflowExecutionNode>();
+
+    public DbSet<WorkflowExecutionEvent> WorkflowExecutionEvents => Set<WorkflowExecutionEvent>();
+
+    public DbSet<WorkflowApproval> WorkflowApprovals => Set<WorkflowApproval>();
+
+    public DbSet<WorkflowError> WorkflowErrors => Set<WorkflowError>();
+
+    public DbSet<WorkflowExecutionUsage> WorkflowExecutionUsages => Set<WorkflowExecutionUsage>();
+
+    public DbSet<WorkflowExecutionCost> WorkflowExecutionCosts => Set<WorkflowExecutionCost>();
+
+    public DbSet<WorkflowPolicy> WorkflowPolicies => Set<WorkflowPolicy>();
+
+    public DbSet<WorkflowUserExecutionLimit> WorkflowUserExecutionLimits => Set<WorkflowUserExecutionLimit>();
+
+    public DbSet<WorkflowAuditLog> WorkflowAuditLogs => Set<WorkflowAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

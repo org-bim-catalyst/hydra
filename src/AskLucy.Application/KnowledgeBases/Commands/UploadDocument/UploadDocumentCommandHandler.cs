@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.KnowledgeBases.Authorization;
 using AskLucy.Application.Options;
+using AskLucy.Application.Workflows.EventTriggers;
 using AskLucy.Domain.Common;
 using AskLucy.Domain.KnowledgeBases;
 using MediatR;
@@ -24,6 +25,7 @@ public sealed class UploadDocumentCommandHandler(
     IFileStorage fileStorage,
     IOptions<KnowledgeBaseDocumentOptions> documentOptions,
     KnowledgeBaseDashboardSummaryCache dashboardSummaryCache,
+    IPublisher publisher,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser) : IRequestHandler<UploadDocumentCommand, KnowledgeBaseDocumentDto>
 {
@@ -71,6 +73,10 @@ public sealed class UploadDocumentCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         dashboardSummaryCache.Invalidate(userId);
+
+        // research.md Decision 12 — the event-trigger dispatch point for FR-063's "document
+        // uploaded" trigger; published only after the commit above has succeeded.
+        await publisher.Publish(new DocumentUploadedNotification(document.Id, request.KnowledgeBaseId, userId, request.FileName), cancellationToken);
 
         return KnowledgeBaseDocumentDto.FromEntity(document);
     }
