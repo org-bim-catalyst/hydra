@@ -2,12 +2,14 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import DescriptionIcon from '@mui/icons-material/Description'
 import FolderIcon from '@mui/icons-material/Folder'
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import PolicyIcon from '@mui/icons-material/Policy'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import { Avatar, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material'
 import { useState } from 'react'
@@ -15,6 +17,7 @@ import { useNavigate } from 'react-router'
 import { useLogout } from '../features/auth/hooks/useAuth'
 import { useMyProfile } from '../features/profile/hooks/useProfile'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import { SETTINGS_TAB_INDEX } from '../features/settings/settingsTabs'
 
 export function UserMenu() {
   const navigate = useNavigate()
@@ -28,6 +31,13 @@ export function UserMenu() {
   const goTo = (path: string) => {
     setAnchorEl(null)
     navigate(path)
+  }
+
+  // specs/025-chat-configuration-settings FR-011: lands directly on the requested Settings
+  // tab via `location.state.tab` (research.md Decision 4), rather than the default Security tab.
+  const goToSettingsTab = (tab: number) => {
+    setAnchorEl(null)
+    navigate('/settings', { state: { tab } })
   }
 
   const handleLogout = () => {
@@ -52,6 +62,18 @@ export function UserMenu() {
             <SettingsIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Settings</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goToSettingsTab(SETTINGS_TAB_INDEX.ChatConfiguration)}>
+          <ListItemIcon>
+            <TuneOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Chat Configuration</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goToSettingsTab(SETTINGS_TAB_INDEX.ChatHistory)}>
+          <ListItemIcon>
+            <HistoryOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Chat History</ListItemText>
         </MenuItem>
         <MenuItem onClick={() => goTo('/documents')}>
           <ListItemIcon>

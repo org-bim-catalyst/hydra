@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as voiceApi from '../api/voiceApi'
 import type { PagedResult, PersistedMessage } from '../api/chatsApi'
+import { useActiveConversationStore } from '../activeConversationStore'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
@@ -77,6 +78,11 @@ function sseStream(chunks: string[], firstChunkDelayMs = 0): ReadableStream<Uint
 // specs/005-multi-provider-ai-engine: ChatComposer now stays disabled until a provider/model
 // is selected, so every test that sends a message needs the catalog to resolve to something —
 // these are base handlers (survive `server.resetHandlers()`), not per-test overrides.
+//
+// specs/025-chat-configuration-settings, T021: the in-toolbar `ProviderModelSelector` that
+// used to auto-select a provider/model on mount was removed (relocated to Chat Configuration
+// in Settings) — `ConversationView` now seeds its selection from `/ai/preferences` (a brand
+// new conversation) or `GET /chats/{id}` (reopening one), so both need a base handler here too.
 const server = setupServer(
   http.get('*/api/v1/ai/providers', () =>
     HttpResponse.json([
@@ -115,6 +121,17 @@ const server = setupServer(
       },
     ]),
   ),
+  http.get('*/api/v1/ai/preferences', () =>
+    HttpResponse.json({
+      defaultProviderId: 'provider-1',
+      defaultModelId: 'model-1',
+      defaultGenerationParameters: null,
+      isPlatformDefault: false,
+    }),
+  ),
+  http.get('*/api/v1/chats/:id', ({ params }) =>
+    HttpResponse.json({ id: params.id, title: 'Test chat', providerId: 'provider-1', modelId: 'model-1' }),
+  ),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
@@ -130,6 +147,11 @@ beforeEach(() => {
   // jsdom does not implement scrollIntoView at all (spyOn requires an existing property);
   // ConversationView calls it on every messages change.
   HTMLElement.prototype.scrollIntoView = vi.fn()
+  // specs/025-chat-configuration-settings: resets the shared active-conversation store for
+  // every test in this file — otherwise a test that selects/creates a chat would leak that
+  // id into a later test's `renderChatPage()`, which now seeds its initial `selectedChatId`
+  // from this store (FR-007).
+  useActiveConversationStore.setState({ activeChatId: null })
   // Resets voicePreferencesStore for every test in this file, not just the describe blocks
   // that explicitly exercise it — without this, a test that lands on Continuous mode (e.g.
   // the hydration test) would leak that into unrelated tests, triggering an unwanted
@@ -217,13 +239,23 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
   function renderChatPage() {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    return render(
+    const utils = render(
       <MemoryRouter initialEntries={['/studio']}>
         <QueryClientProvider client={queryClient}>
           <ChatPage />
         </QueryClientProvider>
       </MemoryRouter>,
     )
+    return { ...utils, queryClient }
+  }
+
+  // specs/025-chat-configuration-settings: ConversationView (always mounted, even while the
+  // chat panel is collapsed) resolves an `ai/preferences` query on mount to seed its model
+  // selection (research.md-adjacent T021 change). Waiting for that settle via the query
+  // cache (rather than a blind timeout) keeps this act()-safe before driving keyboard
+  // interactions in the tests below, so userEvent isn't racing a concurrent re-render.
+  async function waitForModelSeeding(queryClient: QueryClient) {
+    await waitFor(() => expect(queryClient.getQueryData(['ai', 'preferences'])).toBeDefined())
   }
 
   it('sets the page title to "Flumeria Studio" (FR-001)', () => {
@@ -247,6 +279,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     for (const label of [
       'Profile',
       'Settings',
+      'Chat Configuration',
+      'Chat History',
       'Documents',
       'Knowledge Bases',
       'Memory Center',
@@ -259,6 +293,17 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     ]) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
+  })
+
+  it('reaches Chat Configuration and Chat History from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
+    renderChatPage()
+
+    // Click 1: open the account control. Click 2: the destination itself — matches FR-011's
+    // "two clicks or fewer" requirement for reaching either Settings destination from the
+    // workspace.
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    expect(screen.getByRole('button', { name: 'Chat Configuration' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Chat History' })).toBeInTheDocument()
   })
 
   it('shows real icon actions (not placeholder text) for layers/navigation/selection/analysis, opening a "coming soon" dialog on click (FR-012/FR-021)', () => {
@@ -321,7 +366,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
   it('Tab visits every control, in the same top-cluster → right-stack → bottom-end order they render (FR-009, US4)', async () => {
     const user = userEvent.setup()
-    renderChatPage()
+    const { queryClient } = renderChatPage()
+    await waitForModelSeeding(queryClient)
 
     for (const label of [
       'Toggle theme',
@@ -340,7 +386,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
   it('Enter expands a focused control, Tab reaches its revealed content, and Escape collapses it and returns focus (FR-007/FR-009, US4)', async () => {
     const user = userEvent.setup()
-    renderChatPage()
+    const { queryClient } = renderChatPage()
+    await waitForModelSeeding(queryClient)
 
     const viewModeButton = screen.getByRole('button', { name: 'View mode' })
     viewModeButton.focus()
@@ -357,7 +404,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
   it('Space also expands a focused control (FR-009, US4)', async () => {
     const user = userEvent.setup()
-    renderChatPage()
+    const { queryClient } = renderChatPage()
+    await waitForModelSeeding(queryClient)
 
     const layersButton = screen.getByRole('button', { name: 'Layers' })
     layersButton.focus()
@@ -394,8 +442,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
   })
 
   it('sends a message through the chat control and streams a response with zero behavior change (FR-014/SC-006)', async () => {
-    // Mounts the full ChatPage (all seven controls, AssistantPanel, ConversationSwitcher,
-    // virtualizer) rather than the lighter renderConversation() other send/stream tests in
+    // Mounts the full ChatPage (all seven controls, AssistantPanel, virtualizer) rather than
+    // the lighter renderConversation() other send/stream tests in
     // this file use — needs more than the 5s default given the provider-catalog fetch +
     // typing + SSE stream all happen sequentially on top of that heavier mount.
     server.use(
@@ -422,6 +470,37 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
     expect(await screen.findByText('Hello from the chat control')).toBeInTheDocument()
   }, 15000)
+
+  it('no longer renders a provider/model switcher or a conversation-history panel in the chat control (specs/025-chat-configuration-settings FR-008)', () => {
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+
+    // Plain text/label queries (not getByRole) — role queries with a `name` filter hit a
+    // known jsdom CSS-engine bug against this tree's animated/transition styles when hunting
+    // for a role that has zero matches (same class of issue noted elsewhere in this file).
+    expect(screen.queryByLabelText('Provider')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Model')).not.toBeInTheDocument()
+    expect(screen.queryByText('Conversations')).not.toBeInTheDocument()
+  })
+
+  it('"New chat" is directly clickable in the chat control and starts a fresh conversation (FR-009)', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(messagesPage([makeMessage({ id: 'a1', content: 'Existing conversation content' })])),
+      ),
+    )
+    useActiveConversationStore.setState({ activeChatId: CHAT_A })
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    expect(await screen.findByText('Existing conversation content')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
+
+    expect(await screen.findByText('Start a conversation with Ask Lucy.')).toBeInTheDocument()
+    expect(useActiveConversationStore.getState().activeChatId).toBeNull()
+  })
 
   it('collapsing chat leaves the rest of the workspace interactive', () => {
     renderChatPage()

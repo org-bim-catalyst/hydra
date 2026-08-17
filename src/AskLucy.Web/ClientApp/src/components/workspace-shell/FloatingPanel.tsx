@@ -54,7 +54,7 @@ export function FloatingPanel({ controlId, titleId, onRequestClose, children }: 
         height: { xs: 'min(70vh, 600px)', sm: 560 },
         overflow: 'hidden',
         // CircularAction's expanded pill background is a fixed dark chrome color, but
-        // this panel's content (AssistantPanel/ConversationSwitcher/ChatComposer, etc.)
+        // this panel's content (AssistantPanel/ConversationView/ChatComposer, etc.)
         // is pre-existing, themed content built assuming a light theme.palette.background
         // surface — carries its own light card here so that content stays readable
         // regardless of the ancestor pill's color.

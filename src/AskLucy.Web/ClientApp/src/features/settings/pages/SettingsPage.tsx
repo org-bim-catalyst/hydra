@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
 import { AppShell } from '../../../components/AppShell'
 import { EmptyState } from '../../../components/EmptyState'
@@ -46,6 +46,9 @@ import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
 import { useAiPreferences, useSaveAiPreferences } from '../hooks/useAiPreferences'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
+import { SETTINGS_TAB_INDEX } from '../settingsTabs'
+import { ChatConfigurationTab } from './ChatConfigurationTab'
+import { ChatHistoryTab } from './ChatHistoryTab'
 
 function TabPanel({
   value,
@@ -569,6 +572,7 @@ export function VoiceTab() {
               Speed
             </Typography>
             <Slider
+              aria-label="Speed"
               min={0.5}
               max={2}
               step={0.05}
@@ -582,6 +586,7 @@ export function VoiceTab() {
               Style
             </Typography>
             <Slider
+              aria-label="Style"
               min={0}
               max={1}
               step={0.05}
@@ -639,7 +644,26 @@ export function VoiceTab() {
 }
 
 export function SettingsPage() {
-  const [tab, setTab] = useState(0)
+  const location = useLocation()
+  // specs/025-chat-configuration-settings, research.md Decision 4 — lets both the account
+  // menus and Chat Configuration's own entry-point links land on a specific tab, without
+  // introducing per-tab routes.
+  const [tab, setTab] = useState(() => (location.state as { tab?: number } | null)?.tab ?? 0)
+  // `useState`'s initializer only runs on the very first mount — a navigation to `/settings`
+  // while SettingsPage is *already* mounted (e.g. Chat Configuration's own "Go to AI
+  // Providers"/"Go to Voice" links, both already on `/settings`) doesn't remount the
+  // component, so it wouldn't otherwise pick up the new `location.state.tab`. `location.key`
+  // changes on every `navigate()` call, including same-pathname ones, so this re-syncs the
+  // active tab each time a caller asks for a specific one (discovered via manual browser
+  // verification of quickstart.md — the automated tests only asserted the `navigate()` call
+  // itself, not this already-mounted re-render case).
+  useEffect(() => {
+    const requestedTab = (location.state as { tab?: number } | null)?.tab
+    if (requestedTab !== undefined) {
+      setTab(requestedTab)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key])
 
   return (
     <AppShell title="Settings">
@@ -653,26 +677,34 @@ export function SettingsPage() {
           <Tab label="Account" />
           <Tab label="AI Providers" />
           <Tab label="Voice" />
+          <Tab label="Chat Configuration" />
+          <Tab label="Chat History" />
           <Tab label="Data" />
           <Tab label="Cookies" />
         </Tabs>
         <Box sx={{ p: 3 }}>
-          <TabPanel value={tab} index={0}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
             <SecurityTab />
           </TabPanel>
-          <TabPanel value={tab} index={1}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
             <AccountTab />
           </TabPanel>
-          <TabPanel value={tab} index={2}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.AiProviders}>
             <AiProvidersTab />
           </TabPanel>
-          <TabPanel value={tab} index={3}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Voice}>
             <VoiceTab />
           </TabPanel>
-          <TabPanel value={tab} index={4}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.ChatConfiguration}>
+            <ChatConfigurationTab />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.ChatHistory}>
+            <ChatHistoryTab />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
             <DataTab />
           </TabPanel>
-          <TabPanel value={tab} index={5}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
             <CookiePreferencesPanel />
           </TabPanel>
         </Box>
