@@ -1,42 +1,47 @@
-import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
-import AltRouteOutlinedIcon from '@mui/icons-material/AltRouteOutlined'
-import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
-import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined'
-import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined'
-import CropFreeOutlinedIcon from '@mui/icons-material/CropFreeOutlined'
-import DescriptionIcon from '@mui/icons-material/Description'
-import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined'
-import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined'
-import FolderIcon from '@mui/icons-material/Folder'
-import GestureOutlinedIcon from '@mui/icons-material/GestureOutlined'
-import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined'
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
-import HighlightAltIcon from '@mui/icons-material/HighlightAlt'
-import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
-import InsightsIcon from '@mui/icons-material/Insights'
-import LayersIcon from '@mui/icons-material/Layers'
-import LocationCityOutlinedIcon from '@mui/icons-material/LocationCityOutlined'
-import LogoutIcon from '@mui/icons-material/Logout'
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
-import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
-import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined'
-import NavigationIcon from '@mui/icons-material/Navigation'
-import PersonIcon from '@mui/icons-material/Person'
-import PolicyIcon from '@mui/icons-material/Policy'
-import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
-import SettingsIcon from '@mui/icons-material/Settings'
-import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
-import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation'
-import TouchAppOutlinedIcon from '@mui/icons-material/TouchAppOutlined'
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
-import WaterDropOutlinedIcon from '@mui/icons-material/WaterDropOutlined'
-import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined'
-import ZoomInMapOutlinedIcon from '@mui/icons-material/ZoomInMapOutlined'
-import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import {
+  RiAdminLine,
+  RiArrowLeftRightLine,
+  RiArticleLine,
+  RiBankLine,
+  RiBox3Line,
+  RiBrush2Line,
+  RiBuilding2Line,
+  RiCompassLine,
+  RiCursorLine,
+  RiDropLine,
+  RiFileTextLine,
+  RiFilterLine,
+  RiFingerprintLine,
+  RiFlashlightLine,
+  RiFlowChart,
+  RiFocus3Line,
+  RiFolderLine,
+  RiFullscreenLine,
+  RiGpsLine,
+  RiGridLine,
+  RiGroupLine,
+  RiHistoryLine,
+  RiLineChartLine,
+  RiLogoutBoxLine,
+  RiMapLine,
+  RiNavigationLine,
+  RiRobotLine,
+  RiRouteLine,
+  RiSettings3Line,
+  RiShieldCheckLine,
+  RiShoppingCartLine,
+  RiStackLine,
+  RiSunLine,
+  RiEqualizerLine,
+  RiUserLine,
+  RiUserSettingsLine,
+  RiBrainLine,
+} from '@remixicon/react'
 import { useNavigate } from 'react-router'
-import { ExpandableActionGroup, type ExpandableActionGroupAction } from '../../components/workspace-shell/ExpandableActionGroup'
+import {
+  ExpandableActionGroup,
+  type ExpandableActionGroupAction,
+} from '../../components/workspace-shell/ExpandableActionGroup'
 import type { ControlDefinition } from '../../components/workspace-shell/types'
 import { useLogout } from '../auth/hooks/useAuth'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -61,49 +66,65 @@ export function useAccountControl(): ControlDefinition {
   const logout = useLogout()
 
   const actions: ExpandableActionGroupAction[] = [
-    { id: 'profile', label: 'Profile', icon: <PersonIcon fontSize="small" />, onSelect: () => navigate('/profile') },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" />, onSelect: () => navigate('/settings') },
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: <RiUserLine size={20} />,
+      onSelect: () => navigate('/profile'),
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: <RiSettings3Line size={20} />,
+      onSelect: () => navigate('/settings'),
+    },
     {
       id: 'chat-configuration',
       label: 'Chat Configuration',
-      icon: <TuneOutlinedIcon fontSize="small" />,
-      onSelect: () => navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatConfiguration } }),
+      icon: <RiEqualizerLine size={20} />,
+      onSelect: () =>
+        navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatConfiguration } }),
     },
     {
       id: 'chat-history',
       label: 'Chat History',
-      icon: <HistoryOutlinedIcon fontSize="small" />,
+      icon: <RiHistoryLine size={20} />,
       onSelect: () => navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatHistory } }),
     },
     {
       id: 'documents',
       label: 'Documents',
-      icon: <DescriptionIcon fontSize="small" />,
+      icon: <RiFileTextLine size={20} />,
       onSelect: () => navigate('/documents'),
     },
     {
       id: 'knowledge-bases',
       label: 'Knowledge Bases',
-      icon: <FolderIcon fontSize="small" />,
+      icon: <RiFolderLine size={20} />,
       onSelect: () => navigate('/knowledge-bases'),
     },
     {
       id: 'memory',
       label: 'Memory Center',
-      icon: <PsychologyOutlinedIcon fontSize="small" />,
+      icon: <RiBrainLine size={20} />,
       onSelect: () => navigate('/memory'),
     },
-    { id: 'prompts', label: 'Prompts', icon: <ArticleOutlinedIcon fontSize="small" />, onSelect: () => navigate('/prompts') },
+    {
+      id: 'prompts',
+      label: 'Prompts',
+      icon: <RiArticleLine size={20} />,
+      onSelect: () => navigate('/prompts'),
+    },
     {
       id: 'agents',
       label: 'Agents',
-      icon: <SmartToyOutlinedIcon fontSize="small" />,
+      icon: <RiRobotLine size={20} />,
       onSelect: () => navigate('/agents'),
     },
     {
       id: 'workflows',
       label: 'Workflows',
-      icon: <AccountTreeOutlinedIcon fontSize="small" />,
+      icon: <RiFlowChart size={20} />,
       onSelect: () => navigate('/workflows'),
     },
     ...(isAdmin
@@ -111,24 +132,30 @@ export function useAccountControl(): ControlDefinition {
           {
             id: 'admin',
             label: 'Admin panel',
-            icon: <AdminPanelSettingsIcon fontSize="small" />,
+            icon: <RiAdminLine size={20} />,
             onSelect: () => navigate('/admin/dashboard'),
           },
         ]
       : []),
-    { id: 'privacy', label: 'Privacy Policy', icon: <PolicyIcon fontSize="small" />, onSelect: () => navigate('/privacy') },
+    {
+      id: 'privacy',
+      label: 'Privacy Policy',
+      icon: <RiShieldCheckLine size={20} />,
+      onSelect: () => navigate('/privacy'),
+    },
     {
       id: 'logout',
       label: 'Log out',
-      icon: <LogoutIcon fontSize="small" />,
-      onSelect: () => logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) }),
+      icon: <RiLogoutBoxLine size={20} />,
+      onSelect: () =>
+        logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) }),
     },
   ]
 
   return {
     id: 'account',
     label: 'Account',
-    icon: <ManageAccountsIcon />,
+    icon: <RiUserSettingsLine />,
     status: 'functional',
     kind: 'action-group',
     placement: 'top-cluster',
@@ -147,14 +174,14 @@ export function useViewModeControl(): ControlDefinition {
     {
       id: '2d',
       label: '2D',
-      icon: <MapOutlinedIcon fontSize="small" />,
+      icon: <RiMapLine size={20} />,
       onSelect: () => setViewMode('2D'),
       highlighted: viewMode === '2D',
     },
     {
       id: '3d',
       label: '3D',
-      icon: <ThreeDRotationIcon fontSize="small" />,
+      icon: <RiBox3Line size={20} />,
       onSelect: () => setViewMode('3D'),
       highlighted: viewMode === '3D',
     },
@@ -163,7 +190,7 @@ export function useViewModeControl(): ControlDefinition {
   return {
     id: 'view-mode',
     label: 'View mode',
-    icon: <ThreeDRotationIcon />,
+    icon: <RiBox3Line />,
     status: 'functional',
     kind: 'action-group',
     placement: 'right-stack',
@@ -181,36 +208,41 @@ export function useViewModeControl(): ControlDefinition {
 export const layersControl: ControlDefinition = {
   id: 'layers',
   label: 'Layers',
-  icon: <LayersIcon />,
+  icon: <RiStackLine />,
   status: 'functional',
   kind: 'action-group',
   placement: 'right-stack',
   content: (
     <ExpandableActionGroup
       actions={[
-        { id: 'base-map', label: 'Base map', icon: <MapOutlinedIcon fontSize="small" />, onSelect: () => comingSoon('Layers') },
+        {
+          id: 'base-map',
+          label: 'Base map',
+          icon: <RiMapLine size={20} />,
+          onSelect: () => comingSoon('Layers'),
+        },
         {
           id: 'amenities',
           label: 'Amenities',
-          icon: <ShoppingCartOutlinedIcon fontSize="small" />,
+          icon: <RiShoppingCartLine size={20} />,
           onSelect: () => comingSoon('Layers'),
         },
         {
           id: 'buildings',
           label: 'Buildings',
-          icon: <LocationCityOutlinedIcon fontSize="small" />,
+          icon: <RiBuilding2Line size={20} />,
           onSelect: () => comingSoon('Layers'),
         },
         {
           id: 'landmarks',
           label: 'Landmarks',
-          icon: <AccountBalanceOutlinedIcon fontSize="small" />,
+          icon: <RiBankLine size={20} />,
           onSelect: () => comingSoon('Layers'),
         },
         {
           id: 'layer-settings',
           label: 'Layer settings',
-          icon: <TuneOutlinedIcon fontSize="small" />,
+          icon: <RiEqualizerLine size={20} />,
           onSelect: () => comingSoon('Layers'),
         },
       ]}
@@ -221,30 +253,35 @@ export const layersControl: ControlDefinition = {
 export const navigationControl: ControlDefinition = {
   id: 'navigation',
   label: 'Navigation',
-  icon: <NavigationIcon />,
+  icon: <RiNavigationLine />,
   status: 'functional',
   kind: 'action-group',
   placement: 'right-stack',
   content: (
     <ExpandableActionGroup
       actions={[
-        { id: 'explore', label: 'Explore', icon: <ExploreOutlinedIcon fontSize="small" />, onSelect: () => comingSoon('Navigation') },
+        {
+          id: 'explore',
+          label: 'Explore',
+          icon: <RiCompassLine size={20} />,
+          onSelect: () => comingSoon('Navigation'),
+        },
         {
           id: 'my-location',
           label: 'My location',
-          icon: <MyLocationOutlinedIcon fontSize="small" />,
+          icon: <RiGpsLine size={20} />,
           onSelect: () => comingSoon('Navigation'),
         },
         {
           id: 'route',
           label: 'Route',
-          icon: <AltRouteOutlinedIcon fontSize="small" />,
+          icon: <RiRouteLine size={20} />,
           onSelect: () => comingSoon('Navigation'),
         },
         {
           id: 'zoom-to-fit',
           label: 'Zoom to fit',
-          icon: <ZoomInMapOutlinedIcon fontSize="small" />,
+          icon: <RiFullscreenLine size={20} />,
           onSelect: () => comingSoon('Navigation'),
         },
       ]}
@@ -255,7 +292,7 @@ export const navigationControl: ControlDefinition = {
 export const selectionControl: ControlDefinition = {
   id: 'selection',
   label: 'Selection',
-  icon: <HighlightAltIcon />,
+  icon: <RiCursorLine />,
   status: 'functional',
   kind: 'action-group',
   placement: 'right-stack',
@@ -265,20 +302,25 @@ export const selectionControl: ControlDefinition = {
         {
           id: 'marquee',
           label: 'Marquee select',
-          icon: <CropFreeOutlinedIcon fontSize="small" />,
+          icon: <RiFocus3Line size={20} />,
           onSelect: () => comingSoon('Selection'),
         },
-        { id: 'tap', label: 'Tap select', icon: <TouchAppOutlinedIcon fontSize="small" />, onSelect: () => comingSoon('Selection') },
+        {
+          id: 'tap',
+          label: 'Tap select',
+          icon: <RiFingerprintLine size={20} />,
+          onSelect: () => comingSoon('Selection'),
+        },
         {
           id: 'freehand',
           label: 'Freehand select',
-          icon: <GestureOutlinedIcon fontSize="small" />,
+          icon: <RiBrush2Line size={20} />,
           onSelect: () => comingSoon('Selection'),
         },
         {
           id: 'filter',
           label: 'Filter selection',
-          icon: <FilterAltOutlinedIcon fontSize="small" />,
+          icon: <RiFilterLine size={20} />,
           onSelect: () => comingSoon('Selection'),
         },
       ]}
@@ -289,37 +331,47 @@ export const selectionControl: ControlDefinition = {
 export const analysisControl: ControlDefinition = {
   id: 'analysis',
   label: 'Analysis',
-  icon: <InsightsIcon />,
+  icon: <RiLineChartLine />,
   status: 'functional',
   kind: 'action-group',
   placement: 'right-stack',
   content: (
     <ExpandableActionGroup
       actions={[
-        { id: 'sunlight', label: 'Sunlight', icon: <WbSunnyOutlinedIcon fontSize="small" />, onSelect: () => comingSoon('Analysis') },
+        {
+          id: 'sunlight',
+          label: 'Sunlight',
+          icon: <RiSunLine size={20} />,
+          onSelect: () => comingSoon('Analysis'),
+        },
         {
           id: 'compare',
           label: 'Compare scenarios',
-          icon: <CompareArrowsOutlinedIcon fontSize="small" />,
+          icon: <RiArrowLeftRightLine size={20} />,
           onSelect: () => comingSoon('Analysis'),
         },
         {
           id: 'density',
           label: 'Population density',
-          icon: <GroupsOutlinedIcon fontSize="small" />,
+          icon: <RiGroupLine size={20} />,
           onSelect: () => comingSoon('Analysis'),
         },
         {
           id: 'drainage',
           label: 'Drainage',
-          icon: <WaterDropOutlinedIcon fontSize="small" />,
+          icon: <RiDropLine size={20} />,
           onSelect: () => comingSoon('Analysis'),
         },
-        { id: 'grid', label: 'Grid overlay', icon: <GridViewOutlinedIcon fontSize="small" />, onSelect: () => comingSoon('Analysis') },
+        {
+          id: 'grid',
+          label: 'Grid overlay',
+          icon: <RiGridLine size={20} />,
+          onSelect: () => comingSoon('Analysis'),
+        },
         {
           id: 'run',
           label: 'Run analysis',
-          icon: <BoltOutlinedIcon fontSize="small" />,
+          icon: <RiFlashlightLine size={20} />,
           onSelect: () => comingSoon('Analysis'),
           highlighted: true,
         },
