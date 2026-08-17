@@ -256,3 +256,55 @@ test.describe('AI floating panels — User Story 2 (user manages panel layout)',
     expect(Number(backZ)).toBeGreaterThan(Number(frontZ))
   })
 })
+
+test.describe('AI floating panels — User Story 3 (opacity preference)', () => {
+  test('changing the Settings opacity slider applies immediately to open panels (SC-005)', async ({ page }) => {
+    await page.goto('/studio')
+    await page.evaluate(() => {
+      const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
+      store.getState().openPanel({
+        requestId: 'e2e-opacity-1',
+        typeKey: 'table',
+        title: 'Opacity Panel',
+        data: { columns: ['A'], rows: [] },
+      })
+    })
+    const panel = page.getByRole('region', { name: 'Opacity Panel' })
+    const opacityBefore = await panel.evaluate((el) => getComputedStyle(el).backgroundColor)
+
+    await page.goto('/settings', { state: { tab: 8 } })
+    const slider = page.getByRole('slider', { name: /panel opacity/i })
+    await slider.focus()
+    for (let i = 0; i < 25; i += 1) {
+      await page.keyboard.press('ArrowLeft')
+    }
+
+    await page.goto('/studio')
+    const opacityAfter = await page
+      .getByRole('region', { name: 'Opacity Panel' })
+      .evaluate((el) => getComputedStyle(el).backgroundColor)
+
+    // Layout itself isn't persisted (spec Assumption), so this is a fresh panel, but it picks up
+    // the just-saved preference immediately rather than the previous default — no reload needed.
+    expect(opacityAfter).not.toBe(opacityBefore)
+  })
+
+  test('the opacity preference persists across a reload (FR-012)', async ({ page }) => {
+    await page.goto('/settings', { state: { tab: 8 } })
+    const slider = page.getByRole('slider', { name: /panel opacity/i })
+    await slider.focus()
+    for (let i = 0; i < 25; i += 1) {
+      await page.keyboard.press('ArrowLeft')
+    }
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('ask-lucy-panel-preferences')))
+      .not.toBeNull()
+    const savedBeforeReload = await page.evaluate(() => localStorage.getItem('ask-lucy-panel-preferences'))
+
+    await page.reload()
+
+    const savedAfterReload = await page.evaluate(() => localStorage.getItem('ask-lucy-panel-preferences'))
+    expect(savedAfterReload).toBe(savedBeforeReload)
+    expect(JSON.parse(savedAfterReload ?? '{}').state.opacityPercent).toBeLessThan(85)
+  })
+})

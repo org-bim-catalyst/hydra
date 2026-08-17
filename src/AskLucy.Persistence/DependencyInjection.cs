@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();
         services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();
+        services.AddScoped<IUserPanelPreferenceRepository, UserPanelPreferenceRepository>();
         services.AddScoped<IVoiceProviderFailoverEventRepository, VoiceProviderFailoverEventRepository>();
         services.AddScoped<IKnowledgeBaseRepository, KnowledgeBaseRepository>();
         services.AddScoped<IKnowledgeBaseAuditLogRepository, KnowledgeBaseAuditLogRepository>();

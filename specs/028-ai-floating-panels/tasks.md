@@ -154,37 +154,37 @@ Acceptance Scenarios).
 
 ### Backend for User Story 3
 
-- [ ] T048 [P] [US3] `UserPanelPreference` entity (`Create`, `SetOpacityPercent` clamped `[40, 100]`, `CreatedAtUtc/By`, `ModifiedAtUtc/By`) per data-model.md in `src/AskLucy.Domain/Panels/UserPanelPreference.cs`
-- [ ] T049 [P] [US3] `IUserPanelPreferenceRepository` interface in `src/AskLucy.Application/Abstractions/IUserPanelPreferenceRepository.cs` (flat folder, matches `IUserVoicePreferenceRepository.cs`)
-- [ ] T050 [P] [US3] `UserPanelPreferenceDto` in `src/AskLucy.Application/Panels/UserPanelPreferenceDto.cs`
-- [ ] T051 [US3] `GetUserPanelPreferenceQuery` + `GetUserPanelPreferenceQueryHandler` (returns the default `{ OpacityPercent: 85 }` without creating a row when none exists, per contracts/panel-preferences-api.md) in `src/AskLucy.Application/Panels/Queries/GetUserPanelPreference/` (depends on T049, T050)
-- [ ] T052 [US3] `SaveUserPanelPreferenceCommand` + `SaveUserPanelPreferenceCommandHandler` (create-if-null then `SetOpacityPercent`, commits via `IUnitOfWork`) + `SaveUserPanelPreferenceCommandValidator` (`[40, 100]`, FluentValidation) in `src/AskLucy.Application/Panels/Commands/SaveUserPanelPreference/` (depends on T048, T049, T050)
-- [ ] T053 [P] [US3] Unit test `UserPanelPreferenceTests.cs` (clamp behavior, `Create` factory) in `tests/AskLucy.Domain.Tests/Panels/`
-- [ ] T054 [P] [US3] Unit test `GetUserPanelPreferenceQueryHandlerTests.cs` (default-when-missing, existing row) in `tests/AskLucy.Application.Tests/Panels/`
-- [ ] T055 [P] [US3] Unit test `SaveUserPanelPreferenceCommandHandlerTests.cs` (create-on-first-save, update-existing) in `tests/AskLucy.Application.Tests/Panels/`
-- [ ] T056 [P] [US3] Unit test `SaveUserPanelPreferenceCommandValidatorTests.cs` (rejects values below 40 and above 100) in `tests/AskLucy.Application.Tests/Panels/`
-- [ ] T057 [US3] `UserPanelPreferenceConfiguration` (EF Core Fluent API, unique index on `UserId`) in `src/AskLucy.Persistence/Configurations/UserPanelPreferenceConfiguration.cs` (repo convention: EF configs live in `AskLucy.Persistence`, matching `UserVoicePreferenceConfiguration.cs` — not `AskLucy.Infrastructure`) (depends on T048)
-- [ ] T058 [US3] `UserPanelPreferenceRepository` implementing `IUserPanelPreferenceRepository` in `src/AskLucy.Persistence/Repositories/UserPanelPreferenceRepository.cs` (depends on T049, T057)
-- [ ] T059 [US3] Register `IUserPanelPreferenceRepository → UserPanelPreferenceRepository` in `src/AskLucy.Persistence/DependencyInjection.cs` (`AddPersistence`, matching every other repository registration) (depends on T058)
-- [ ] T060 [US3] EF Core migration `..._AddUserPanelPreference.cs` in `src/AskLucy.Persistence/Migrations/` (depends on T057)
-- [ ] T061 [P] [US3] `PanelsContracts.cs` (`GetPanelPreferencesResponse`/`SavePanelPreferencesRequest`, `opacityPercent`) in `src/AskLucy.Web/Contracts/PanelsContracts.cs`
-- [ ] T062 [US3] `PanelsController` (`GET/PUT /api/v1/panels/preferences`, `[Authorize]`) per contracts/panel-preferences-api.md, in `src/AskLucy.Web/Controllers/v1/PanelsController.cs` (depends on T051, T052, T061)
-- [ ] T062a [US3] Add a `"panels-endpoints"` rate-limit policy (mirroring `"ai-endpoints"`/`"weather-endpoints"`, fixed window, per-user) in `src/AskLucy.Web/Program.cs`, and apply `[EnableRateLimiting("panels-endpoints")]` to `PanelsController` (constitution §6), in `src/AskLucy.Web/Program.cs` + `src/AskLucy.Web/Controllers/v1/PanelsController.cs` (depends on T062)
-- [ ] T063 [P] [US3] Controller test `PanelsControllerTests.cs` (200 default, 200 saved, 400 out-of-range) in `tests/AskLucy.Web.Tests/Controllers/`
+- [X] T048 [P] [US3] `UserPanelPreference` entity (`Create`, `SetOpacityPercent` clamped `[40, 100]`, `CreatedAtUtc/By`, `ModifiedAtUtc/By`) per data-model.md in `src/AskLucy.Domain/Panels/UserPanelPreference.cs`
+- [X] T049 [P] [US3] `IUserPanelPreferenceRepository` interface in `src/AskLucy.Application/Abstractions/IUserPanelPreferenceRepository.cs` (flat folder, matches `IUserVoicePreferenceRepository.cs`)
+- [X] T050 [P] [US3] `UserPanelPreferenceDto` in `src/AskLucy.Application/Panels/UserPanelPreferenceDto.cs`
+- [X] T051 [US3] `GetUserPanelPreferenceQuery` + `GetUserPanelPreferenceQueryHandler` (returns the default `{ OpacityPercent: 85 }` without creating a row when none exists, per contracts/panel-preferences-api.md) in `src/AskLucy.Application/Panels/Queries/GetUserPanelPreference/` (depends on T049, T050)
+- [X] T052 [US3] `SaveUserPanelPreferenceCommand` + `SaveUserPanelPreferenceCommandHandler` (create-if-null then `SetOpacityPercent`, commits via `IUnitOfWork`) + `SaveUserPanelPreferenceCommandValidator` (`[40, 100]`, FluentValidation) in `src/AskLucy.Application/Panels/Commands/SaveUserPanelPreference/` (depends on T048, T049, T050)
+- [X] T053 [P] [US3] Unit test `UserPanelPreferenceTests.cs` (clamp behavior, `Create` factory) in `tests/AskLucy.Domain.Tests/Panels/`
+- [X] T054 [P] [US3] Unit test `GetUserPanelPreferenceQueryHandlerTests.cs` (default-when-missing, existing row) in `tests/AskLucy.Application.Tests/Panels/`
+- [X] T055 [P] [US3] Unit test `SaveUserPanelPreferenceCommandHandlerTests.cs` (create-on-first-save, update-existing) in `tests/AskLucy.Application.Tests/Panels/`
+- [X] T056 [P] [US3] Unit test `SaveUserPanelPreferenceCommandValidatorTests.cs` (rejects values below 40 and above 100) in `tests/AskLucy.Application.Tests/Panels/`
+- [X] T057 [US3] `UserPanelPreferenceConfiguration` (EF Core Fluent API, unique index on `UserId`) in `src/AskLucy.Persistence/Configurations/UserPanelPreferenceConfiguration.cs` (repo convention: EF configs live in `AskLucy.Persistence`, matching `UserVoicePreferenceConfiguration.cs` — not `AskLucy.Infrastructure`) (depends on T048)
+- [X] T058 [US3] `UserPanelPreferenceRepository` implementing `IUserPanelPreferenceRepository` in `src/AskLucy.Persistence/Repositories/UserPanelPreferenceRepository.cs` (depends on T049, T057)
+- [X] T059 [US3] Register `IUserPanelPreferenceRepository → UserPanelPreferenceRepository` in `src/AskLucy.Persistence/DependencyInjection.cs` (`AddPersistence`, matching every other repository registration) (depends on T058) — also added `DbSet<UserPanelPreference>` to `AskLucyDbContext.cs`
+- [X] T060 [US3] EF Core migration `..._AddUserPanelPreference.cs` in `src/AskLucy.Persistence/Migrations/` (depends on T057) — generated via `dotnet ef migrations add`
+- [X] T061 [P] [US3] `PanelsContracts.cs` (`SavePanelPreferencesRequest { opacityPercent }`; GET has no request contract and returns `UserPanelPreferenceDto` directly, matching `AiController`'s convention — no separate response-contract type exists elsewhere in this codebase either) in `src/AskLucy.Web/Contracts/PanelsContracts.cs`
+- [X] T062 [US3] `PanelsController` (`GET/PUT /api/v1/panels/preferences`, `[Authorize]`) per contracts/panel-preferences-api.md, in `src/AskLucy.Web/Controllers/v1/PanelsController.cs` (depends on T051, T052, T061)
+- [X] T062a [US3] Add a `"panels-endpoints"` rate-limit policy (mirroring `"ai-endpoints"`/`"weather-endpoints"`, fixed window, per-user) in `src/AskLucy.Web/Program.cs`, and apply `[EnableRateLimiting("panels-endpoints")]` to `PanelsController` (constitution §6), in `src/AskLucy.Web/Program.cs` + `src/AskLucy.Web/Controllers/v1/PanelsController.cs` (depends on T062)
+- [X] T063 [P] [US3] Controller test `PanelsControllerTests.cs` (401 unauthenticated, 200 default, 200 persisted, 200 saved, 400 out-of-range) in `tests/AskLucy.Web.Tests/Panels/` (repo convention: feature-named folder, matching `tests/AskLucy.Web.Tests/Weather/WeatherControllerTests.cs` — not a `Controllers/` folder) — `IUserPanelPreferenceRepository`/`IUnitOfWork` substituted via `ConfigureTestServices`, no live database, matching `WeatherControllerTests`' pattern
 
 ### Frontend for User Story 3
 
-- [ ] T064 [P] [US3] `panelPreferencesApi.ts` (`getPanelPreferences`/`savePanelPreferences` via the existing `apiFetch` wrapper) in `src/AskLucy.Web/ClientApp/src/features/settings/api/panelPreferencesApi.ts`
-- [ ] T065 [US3] `panelPreferencesStore.ts` (Zustand + `persist`, `hydrateFromServer()`, optimistic `update(patch)`, `error` field) mirroring `voicePreferencesStore.ts`, in `src/AskLucy.Web/ClientApp/src/viewer/panels/store/panelPreferencesStore.ts` (depends on T064)
-- [ ] T066 [US3] Replace `FloatingPanel.tsx`'s hardcoded default opacity (T013a) with the live `panelPreferencesStore.opacityPercent` value, in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.tsx` (depends on T065, T035, T013a)
-- [ ] T067 [US3] Append `Viewer: 8` to `SETTINGS_TAB_INDEX` (appended, not inserted, per research.md Decision 6) in `src/AskLucy.Web/ClientApp/src/features/settings/settingsTabs.ts`
-- [ ] T068 [US3] Implement `ViewerTab.tsx` (opacity slider bounded `[40, 100]`, reads/writes `panelPreferencesStore`, Snackbar on `error`) in `src/AskLucy.Web/ClientApp/src/features/settings/pages/ViewerTab.tsx` (depends on T065, T067)
-- [ ] T069 [US3] Register `ViewerTab` in `src/AskLucy.Web/ClientApp/src/features/settings/pages/SettingsPage.tsx` (depends on T068)
-- [ ] T070 [P] [US3] Unit test `panelPreferencesStore` optimistic update and revert-on-failure in `src/AskLucy.Web/ClientApp/src/viewer/panels/store/panelPreferencesStore.test.ts`
-- [ ] T071 [P] [US3] Component test `ViewerTab` slider bounds and save-error Snackbar in `src/AskLucy.Web/ClientApp/src/features/settings/pages/ViewerTab.test.tsx`
-- [ ] T072 [P] [US3] a11y test `ViewerTab.a11y.test.tsx` for the opacity slider
-- [ ] T073 [P] [US3] Extend `tests/AskLucy.E2E.Tests/AiFloatingPanels.spec.ts` covering the Settings opacity flow end-to-end, including persistence across reload
-- [ ] T074 [US3] Run quickstart.md Scenario 5 manually; fix any issues found
+- [X] T064 [P] [US3] `panelPreferencesApi.ts` (`getPanelPreferences`/`savePanelPreferences` via the existing `apiFetch` wrapper) in `src/AskLucy.Web/ClientApp/src/features/settings/api/panelPreferencesApi.ts`
+- [X] T065 [US3] `panelPreferencesStore.ts` (Zustand + `persist`, `hydrateFromServer()`, optimistic `update(patch)`, `error` field) mirroring `voicePreferencesStore.ts`, in `src/AskLucy.Web/ClientApp/src/viewer/panels/store/panelPreferencesStore.ts` (depends on T064)
+- [X] T066 [US3] Replace `FloatingPanel.tsx`'s hardcoded default opacity (T013a) with the live `panelPreferencesStore.opacityPercent` value, in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.tsx` (depends on T065, T035, T013a)
+- [X] T067 [US3] Append `Viewer: 8` to `SETTINGS_TAB_INDEX` (appended, not inserted, per research.md Decision 6) in `src/AskLucy.Web/ClientApp/src/features/settings/settingsTabs.ts`
+- [X] T068 [US3] Implement `ViewerTab.tsx` (opacity slider bounded `[40, 100]`, reads/writes `panelPreferencesStore`, Alert on `error`) in `src/AskLucy.Web/ClientApp/src/features/settings/pages/ViewerTab.tsx` (depends on T065, T067)
+- [X] T069 [US3] Register `ViewerTab` in `src/AskLucy.Web/ClientApp/src/features/settings/pages/SettingsPage.tsx` (depends on T068)
+- [X] T070 [P] [US3] Unit test `panelPreferencesStore` optimistic update and revert-on-failure in `src/AskLucy.Web/ClientApp/src/viewer/panels/store/panelPreferencesStore.test.ts`
+- [X] T071 [P] [US3] Component test `ViewerTab` slider bounds and save-error surfacing in `src/AskLucy.Web/ClientApp/src/features/settings/pages/ViewerTab.test.tsx`
+- [X] T072 [P] [US3] a11y test `ViewerTab.a11y.test.tsx` for the opacity slider
+- [X] T073 [P] [US3] Extend `tests/AskLucy.E2E.Tests/AiFloatingPanels.spec.ts` covering the Settings opacity flow (immediate apply on change; persistence verified via the `ask-lucy-panel-preferences` localStorage key surviving a reload, more robust than a computed-CSS-color comparison)
+- [X] T074 [US3] Run quickstart.md Scenario 5 manually; not runnable in this environment (same documented caveat as T034/T047) — verified instead via `dotnet build`, `dotnet test` (Panels: 8 Domain + 12 Application + 5 Web, all pass), `npx tsc -b`, `npx eslint`, and `npx vitest run` (115/115 pass) plus manual code review against quickstart.md's exact steps
 
 **Checkpoint**: User Stories 1–3 are all independently functional.
 

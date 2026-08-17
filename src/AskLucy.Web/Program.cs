@@ -423,6 +423,21 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // specs/028-ai-floating-panels (contracts/panel-preferences-api.md): a simple preference
+    // read/write, not AI-invoking — same generous, non-cost-tiered shape as weather-endpoints
+    // (constitution §6, caught during /speckit-analyze as a gap this plan initially missed).
+    options.AddPolicy("panels-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 30,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---

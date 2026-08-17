@@ -179,7 +179,7 @@ tests/
 │   └── SaveUserPanelPreferenceCommandHandlerTests.cs
 ├── AskLucy.Domain.Tests/Panels/UserPanelPreferenceTests.cs
 ├── AskLucy.Infrastructure.Tests/Panels/PanelNotifierTests.cs
-├── AskLucy.Web.Tests/Controllers/PanelsControllerTests.cs
+├── AskLucy.Web.Tests/Panels/PanelsControllerTests.cs
 ├── AskLucy.E2E.Tests/AiFloatingPanels.spec.ts
 └── (frontend) co-located *.test.tsx / *.a11y.test.tsx next to each new component under
     viewer/panels/ and features/settings/pages/ViewerTab.tsx, matching existing convention

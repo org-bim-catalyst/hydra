@@ -3,12 +3,9 @@ import { Box, IconButton, Typography, alpha } from '@mui/material'
 import { Rnd } from 'react-rnd'
 import { panelTypeRegistry } from '../registry'
 import { useFloatingPanelStore } from '../store/floatingPanelStore'
+import { usePanelPreferencesStore } from '../store/panelPreferencesStore'
 import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, type FloatingPanel as FloatingPanelModel } from '../types/panel'
 
-/** FR-010 — panels render semi-transparent by default, independent of the opacity *preference*
- * feature (Settings "Viewer" tab, spec 028 User Story 3), which doesn't exist until later in the
- * build. Story 3 (T066) swaps this hardcoded value for the live `panelPreferencesStore` value. */
-const DEFAULT_PANEL_OPACITY_PERCENT = 85
 const DRAG_HANDLE_CLASS = 'floating-panel-drag-handle'
 const MINIMIZED_BAR_WIDTH = 220
 const MINIMIZED_BAR_HEIGHT = 40
@@ -65,9 +62,10 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
   const restorePanel = useFloatingPanelStore((s) => s.restorePanel)
   const updatePosition = useFloatingPanelStore((s) => s.updatePosition)
   const updateSize = useFloatingPanelStore((s) => s.updateSize)
+  const opacityPercent = usePanelPreferencesStore((s) => s.opacityPercent)
 
   const backgroundColor = (theme: { palette: { background: { paper: string } } }) =>
-    alpha(theme.palette.background.paper, DEFAULT_PANEL_OPACITY_PERCENT / 100)
+    alpha(theme.palette.background.paper, opacityPercent / 100)
 
   if (panel.minimized) {
     return (
