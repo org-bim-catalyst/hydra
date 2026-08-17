@@ -4,3 +4,4 @@
  * one-line addition here plus its own module — nothing else in the panel framework changes. */
 import './chart/ChartPanel'
 import './table/TablePanel'
+import './parameters/ParametersPanel'

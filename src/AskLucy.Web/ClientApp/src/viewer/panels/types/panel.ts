@@ -5,6 +5,11 @@ import type { ZodType } from 'zod'
  * open panel is evicted automatically to make room for a new one past this cap. */
 export const MAX_CONCURRENT_PANELS = 10
 
+/** FR-005/Edge Cases ("resize below a usable minimum size") — the floor `react-rnd` enforces so a
+ * panel can never be resized down to something unusably small. */
+export const MIN_PANEL_WIDTH = 240
+export const MIN_PANEL_HEIGHT = 160
+
 /** data-model.md "Viewer Context Association" (spec FR-013). */
 export interface ViewerContextAssociation {
   layerId: string | null

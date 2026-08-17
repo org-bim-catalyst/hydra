@@ -124,3 +124,45 @@ describe('floatingPanelStore LRU eviction at MAX_CONCURRENT_PANELS (FR-022)', ()
     )
   })
 })
+
+describe('floatingPanelStore.clampToViewport (FR-018, Edge Cases: viewport resize)', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  it('repositions a panel back within bounds when the viewport shrinks under it', () => {
+    const store = useFloatingPanelStore.getState()
+    store.openPanel({
+      requestId: 'out-of-bounds',
+      typeKey: TEST_TYPE_KEY,
+      title: 'Out of bounds',
+      data: { label: 'x' },
+      position: { x: 900, y: 700 },
+    })
+    useFloatingPanelStore.setState((s) => ({
+      panels: s.panels.map((p) => (p.id === 'out-of-bounds' ? { ...p, size: { width: 320, height: 240 } } : p)),
+    }))
+
+    store.clampToViewport({ width: 800, height: 600 })
+
+    const panel = useFloatingPanelStore.getState().panels.find((p) => p.id === 'out-of-bounds')!
+    expect(panel.position.x).toBeLessThanOrEqual(800 - 320)
+    expect(panel.position.y).toBeLessThanOrEqual(600 - 240)
+  })
+
+  it('leaves an already-in-bounds panel untouched', () => {
+    const store = useFloatingPanelStore.getState()
+    store.openPanel({
+      requestId: 'in-bounds',
+      typeKey: TEST_TYPE_KEY,
+      title: 'In bounds',
+      data: { label: 'x' },
+      position: { x: 40, y: 40 },
+    })
+
+    store.clampToViewport({ width: 1200, height: 900 })
+
+    const panel = useFloatingPanelStore.getState().panels.find((p) => p.id === 'in-bounds')!
+    expect(panel.position).toEqual({ x: 40, y: 40 })
+  })
+})

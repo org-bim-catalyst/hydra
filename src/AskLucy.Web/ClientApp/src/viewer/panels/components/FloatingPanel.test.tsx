@@ -4,12 +4,46 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FloatingPanel as FloatingPanelModel } from '../types/panel'
 import { FloatingPanel } from './FloatingPanel'
 
+const closePanelMock = vi.fn()
+const focusPanelMock = vi.fn()
+const minimizePanelMock = vi.fn()
+const restorePanelMock = vi.fn()
+const updatePositionMock = vi.fn()
+const updateSizeMock = vi.fn()
+
 vi.mock('../store/floatingPanelStore', () => ({
-  useFloatingPanelStore: (selector: (s: { closePanel: (id: string) => void }) => unknown) =>
-    selector({ closePanel: closePanelMock }),
+  useFloatingPanelStore: (
+    selector: (s: {
+      closePanel: typeof closePanelMock
+      focusPanel: typeof focusPanelMock
+      minimizePanel: typeof minimizePanelMock
+      restorePanel: typeof restorePanelMock
+      updatePosition: typeof updatePositionMock
+      updateSize: typeof updateSizeMock
+    }) => unknown,
+  ) =>
+    selector({
+      closePanel: closePanelMock,
+      focusPanel: focusPanelMock,
+      minimizePanel: minimizePanelMock,
+      restorePanel: restorePanelMock,
+      updatePosition: updatePositionMock,
+      updateSize: updateSizeMock,
+    }),
 }))
 
-const closePanelMock = vi.fn()
+let lastRndProps: Record<string, unknown> = {}
+
+vi.mock('react-rnd', () => ({
+  Rnd: (props: Record<string, unknown> & { children: React.ReactNode; onMouseDown?: () => void }) => {
+    lastRndProps = props
+    return (
+      <div data-testid="rnd-mock" onMouseDown={props.onMouseDown}>
+        {props.children}
+      </div>
+    )
+  },
+}))
 
 function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelModel {
   return {
@@ -55,5 +89,68 @@ describe('FloatingPanel fallback rendering', () => {
     render(<FloatingPanel panel={makePanel({ id: 'panel-42' })} />)
     await user.click(screen.getByRole('button', { name: /close panel/i }))
     expect(closePanelMock).toHaveBeenCalledWith('panel-42')
+  })
+})
+
+describe('FloatingPanel drag/resize wiring (US2, FR-004/FR-005/FR-018)', () => {
+  it('passes controlled position/size and parent-relative bounds to Rnd', () => {
+    render(<FloatingPanel panel={makePanel({ position: { x: 10, y: 20 }, size: { width: 500, height: 350 } })} />)
+    expect(lastRndProps.position).toEqual({ x: 10, y: 20 })
+    expect(lastRndProps.size).toEqual({ width: 500, height: 350 })
+    expect(lastRndProps.bounds).toBe('parent')
+  })
+
+  it('enables resizing for a resizable panel and disables it for a fixed-size one', () => {
+    render(<FloatingPanel panel={makePanel({ resizable: true })} />)
+    expect(lastRndProps.enableResizing).toBe(true)
+
+    render(<FloatingPanel panel={makePanel({ id: 'fixed', resizable: false })} />)
+    expect(lastRndProps.enableResizing).toBe(false)
+  })
+
+  it('updates floatingPanelStore position when Rnd reports a drag stop', () => {
+    render(<FloatingPanel panel={makePanel({ id: 'panel-drag' })} />)
+    const onDragStop = lastRndProps.onDragStop as (e: unknown, data: { x: number; y: number }) => void
+    onDragStop(undefined, { x: 123, y: 456 })
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-drag', { x: 123, y: 456 })
+  })
+
+  it('updates floatingPanelStore size and position when Rnd reports a resize stop', () => {
+    render(<FloatingPanel panel={makePanel({ id: 'panel-resize' })} />)
+    const onResizeStop = lastRndProps.onResizeStop as (
+      e: unknown,
+      dir: unknown,
+      ref: { offsetWidth: number; offsetHeight: number },
+      delta: unknown,
+      position: { x: number; y: number },
+    ) => void
+    onResizeStop(undefined, undefined, { offsetWidth: 600, offsetHeight: 400 }, undefined, { x: 5, y: 5 })
+    expect(updateSizeMock).toHaveBeenCalledWith('panel-resize', { width: 600, height: 400 })
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-resize', { x: 5, y: 5 })
+  })
+
+  it('focuses the panel on mousedown', async () => {
+    const user = userEvent.setup()
+    render(<FloatingPanel panel={makePanel({ id: 'panel-focus' })} />)
+    await user.pointer({ keys: '[MouseLeft>]', target: screen.getByTestId('rnd-mock') })
+    expect(focusPanelMock).toHaveBeenCalledWith('panel-focus')
+  })
+})
+
+describe('FloatingPanel minimize/restore (US2, FR-006)', () => {
+  it('calls minimizePanel when the minimize button is clicked', async () => {
+    const user = userEvent.setup()
+    render(<FloatingPanel panel={makePanel({ id: 'panel-min' })} />)
+    await user.click(screen.getByRole('button', { name: /minimize panel/i }))
+    expect(minimizePanelMock).toHaveBeenCalledWith('panel-min')
+  })
+
+  it('renders a compact bar (no Rnd chrome) when minimized, with a working restore button', async () => {
+    const user = userEvent.setup()
+    render(<FloatingPanel panel={makePanel({ id: 'panel-restore', minimized: true })} />)
+    expect(screen.queryByTestId('rnd-mock')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /minimize panel/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /restore panel/i }))
+    expect(restorePanelMock).toHaveBeenCalledWith('panel-restore')
   })
 })

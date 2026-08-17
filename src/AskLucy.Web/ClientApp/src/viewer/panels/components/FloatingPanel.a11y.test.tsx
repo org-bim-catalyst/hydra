@@ -7,11 +7,24 @@ import { FloatingPanel } from './FloatingPanel'
 expect.extend(toHaveNoViolations)
 
 vi.mock('../store/floatingPanelStore', () => ({
-  useFloatingPanelStore: (selector: (s: { closePanel: (id: string) => void }) => unknown) =>
-    selector({ closePanel: vi.fn() }),
+  useFloatingPanelStore: (selector: (s: Record<string, () => void>) => unknown) =>
+    selector({
+      closePanel: vi.fn(),
+      focusPanel: vi.fn(),
+      minimizePanel: vi.fn(),
+      restorePanel: vi.fn(),
+      updatePosition: vi.fn(),
+      updateSize: vi.fn(),
+    }),
 }))
 
-function makePanel(): FloatingPanelModel {
+vi.mock('react-rnd', () => ({
+  Rnd: (props: { children: React.ReactNode; onMouseDown?: () => void }) => (
+    <div onMouseDown={props.onMouseDown}>{props.children}</div>
+  ),
+}))
+
+function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelModel {
   return {
     id: 'p1',
     typeKey: 'unregistered-type',
@@ -29,20 +42,40 @@ function makePanel(): FloatingPanelModel {
     opacityOverride: null,
     contextAssociation: null,
     contextStatus: null,
+    ...overrides,
   }
 }
 
-describe('FloatingPanel accessibility (close button)', () => {
+describe('FloatingPanel accessibility — normal (drag handle, minimize, close)', () => {
   it('has no automatically detectable a11y violations', async () => {
     const { container } = render(<FloatingPanel panel={makePanel()} />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
-  it('exposes the close control as a labeled, keyboard-focusable button', () => {
+  it('exposes minimize and close as labeled, keyboard-focusable buttons', () => {
     render(<FloatingPanel panel={makePanel()} />)
-    const closeButton = screen.getByRole('button', { name: /close panel/i })
-    expect(closeButton).toBeVisible()
-    expect(closeButton.tabIndex).not.toBe(-1)
+    for (const name of [/minimize panel/i, /close panel/i]) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toBeVisible()
+      expect(button.tabIndex).not.toBe(-1)
+    }
+  })
+})
+
+describe('FloatingPanel accessibility — minimized (restore, close)', () => {
+  it('has no automatically detectable a11y violations', async () => {
+    const { container } = render(<FloatingPanel panel={makePanel({ minimized: true })} />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('exposes restore and close as labeled, keyboard-focusable buttons', () => {
+    render(<FloatingPanel panel={makePanel({ minimized: true })} />)
+    for (const name of [/restore panel/i, /close panel/i]) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toBeVisible()
+      expect(button.tabIndex).not.toBe(-1)
+    }
   })
 })

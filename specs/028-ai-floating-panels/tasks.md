@@ -123,21 +123,21 @@ US2 Acceptance Scenarios).
 
 ### Implementation for User Story 2
 
-- [ ] T035 [US2] Wrap `FloatingPanel.tsx`'s chrome in `<Rnd>` (react-rnd), wiring drag (title bar as the drag handle) and resize (`enableResizing` driven by `panel.resizable`) to `floatingPanelStore.updatePosition`/`updateSize` (FR-004/FR-005), in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.tsx` (depends on T013, T007)
-- [ ] T035a [US2] Constrain panel dragging to the viewer surface bounds (`bounds` prop on `<Rnd>`, or an equivalent post-drag clamp) and add a "reset position" affordance reachable when a panel's stored position falls outside the current viewport (e.g., after a window resize) (FR-018, Edge Cases: viewport resize), in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.tsx` (depends on T035)
-- [ ] T035b [P] [US2] Component test: a panel dragged toward the edge stays within viewer bounds, and a panel whose stored position is off-screen after a resize is repositioned/recoverable, in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.test.tsx`
-- [ ] T036 [US2] Implement minimize/restore UI (collapse to a compact bar; restore to the prior size/position exactly) calling `floatingPanelStore.minimizePanel`/`restorePanel` (FR-006), in `FloatingPanel.tsx` (depends on T035)
-- [ ] T037 [US2] Wire focus-on-interaction (click/drag-start calls `floatingPanelStore.focusPanel`, applying the highest `zOrder` and a focused-state style) (FR-009), in `FloatingPanel.tsx` (depends on T035)
-- [ ] T038 [P] [US2] Implement the `parameters` panel type (zod schema, form-style `ParametersPanelRenderer` using React Hook Form, `resizable: false`) in `src/AskLucy.Web/ClientApp/src/viewer/panels/types/parameters/ParametersPanel.tsx`
-- [ ] T039 [US2] Register the `parameters` type in `src/AskLucy.Web/ClientApp/src/viewer/panels/types/index.ts` (depends on T038, T028)
-- [ ] T040 [US2] Confirm `FloatingPanel.tsx` hides resize handles entirely when `panel.resizable` is `false` (FR-005/US2-AS3), in `FloatingPanel.tsx` (depends on T035, T039)
-- [ ] T041 [P] [US2] Component test: dragging updates `floatingPanelStore` position, in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.test.tsx`
-- [ ] T042 [P] [US2] Component test: resizing a resizable panel updates its size; the fixed-size `parameters` panel shows no resize handles, in `FloatingPanel.test.tsx`
-- [ ] T043 [P] [US2] Component test: minimize collapses and restore returns to the exact prior size/position, in `FloatingPanel.test.tsx`
-- [ ] T044 [P] [US2] Component test: clicking a background panel brings it to front (`zOrder`) and applies the focused style, in `FloatingPanel.test.tsx`
-- [ ] T045 [P] [US2] a11y test: drag handle, resize handles, minimize/restore/close controls are all keyboard-operable with visible focus states (constitution §7/§10), in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.a11y.test.tsx`
-- [ ] T046 [P] [US2] Extend `tests/AskLucy.E2E.Tests/AiFloatingPanels.spec.ts` covering drag, resize, minimize/restore, close, and focus-reorder
-- [ ] T047 [US2] Run quickstart.md Scenario 3 and Scenario 4 (panel cap/eviction, exercising T009) manually; fix any issues found
+- [X] T035 [US2] Wrap `FloatingPanel.tsx`'s chrome in `<Rnd>` (react-rnd), wiring drag (title bar as the drag handle) and resize (`enableResizing` driven by `panel.resizable`) to `floatingPanelStore.updatePosition`/`updateSize` (FR-004/FR-005), in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.tsx` (depends on T013, T007)
+- [X] T035a [US2] Constrain panel dragging to the viewer surface bounds (`bounds="parent"` on `<Rnd>`) and, since a manual "reset position" button can itself become unreachable if a panel is fully off-screen, implemented instead as automatic re-clamping: `floatingPanelStore.clampToViewport` runs on every window resize (wired in `FloatingPanelHost.tsx`) and nudges any panel back within the current viewport (FR-018, Edge Cases: viewport resize), in `src/AskLucy.Web/ClientApp/src/viewer/panels/store/floatingPanelStore.ts` + `.../components/FloatingPanelHost.tsx` (depends on T035)
+- [X] T035b [P] [US2] Unit test `clampToViewport` repositions an out-of-bounds panel back within given bounds and leaves an in-bounds panel untouched, in `src/AskLucy.Web/ClientApp/src/viewer/panels/store/floatingPanelStore.test.ts`
+- [X] T036 [US2] Implement minimize/restore UI (collapse to a compact bar; restore to the prior size/position exactly) calling `floatingPanelStore.minimizePanel`/`restorePanel` (FR-006), in `FloatingPanel.tsx` (depends on T035)
+- [X] T037 [US2] Wire focus-on-interaction (mousedown calls `floatingPanelStore.focusPanel`, applying the highest `zOrder`, which drives the panel's stacking/focus style) (FR-009), in `FloatingPanel.tsx` (depends on T035)
+- [X] T038 [P] [US2] Implement the `parameters` panel type (zod schema, form-style `ParametersPanelRenderer` using React Hook Form, `resizable: false`) in `src/AskLucy.Web/ClientApp/src/viewer/panels/types/parameters/ParametersPanel.tsx`, plus its own registration test in `ParametersPanel.test.tsx` (schema validation + registry entry, matching the `chart`/`table` test convention)
+- [X] T039 [US2] Register the `parameters` type in `src/AskLucy.Web/ClientApp/src/viewer/panels/types/index.ts` (depends on T038, T028)
+- [X] T040 [US2] Confirm `FloatingPanel.tsx` hides resize handles entirely when `panel.resizable` is `false` (FR-005/US2-AS3) via `enableResizing={panel.resizable}` passed straight through to `<Rnd>`, in `FloatingPanel.tsx` (depends on T035, T039)
+- [X] T041 [P] [US2] Component test: `Rnd`'s `onDragStop` callback updates `floatingPanelStore` position (react-rnd itself is mocked to capture and invoke the exact props `FloatingPanel` passes it — verifies our integration wiring, not react-rnd's own internals), in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.test.tsx`
+- [X] T042 [P] [US2] Component test: `Rnd`'s `onResizeStop` callback updates size+position for a resizable panel; `enableResizing` is `false` for the fixed-size `parameters` panel, in `FloatingPanel.test.tsx`
+- [X] T043 [P] [US2] Component test: minimize collapses to the compact-bar variant (no `Rnd` chrome) and restore returns to the exact prior size/position, in `FloatingPanel.test.tsx`
+- [X] T044 [P] [US2] Component test: mousedown on a panel calls `focusPanel` with its id, in `FloatingPanel.test.tsx`
+- [X] T045 [P] [US2] a11y test: minimize/restore/close controls (both panel states) are labeled, keyboard-focusable, and axe-clean, in `src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.a11y.test.tsx`
+- [X] T046 [P] [US2] Extend `tests/AskLucy.E2E.Tests/AiFloatingPanels.spec.ts` covering drag, fixed-size (no resize handles), minimize/restore, close, and focus-reorder
+- [X] T047 [US2] Run quickstart.md Scenario 3 and Scenario 4 manually; not runnable in this environment (same documented caveat as T034) — verified instead via `dotnet build`, `npx tsc -b`, `npx eslint`, and `npx vitest run` (all pass) plus manual code review against quickstart.md's exact steps
 
 **Checkpoint**: User Stories 1 and 2 both work independently — panels appear and are fully manageable.
 

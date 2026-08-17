@@ -39,6 +39,7 @@ interface FloatingPanelState {
   restorePanel: (id: string) => void
   updatePosition: (id: string, position: { x: number; y: number }) => void
   updateSize: (id: string, size: { width: number; height: number }) => void
+  clampToViewport: (bounds: { width: number; height: number }) => void
 }
 
 /** data-model.md "FloatingPanel" store — session-scoped only (no `persist` middleware, matches
@@ -159,4 +160,19 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
 
   updateSize: (id, size) =>
     set((s) => ({ panels: s.panels.map((panel) => (panel.id === id ? { ...panel, size } : panel)) })),
+
+  // FR-018/Edge Cases ("viewport resize") — react-rnd's `bounds="parent"` keeps a panel within
+  // bounds while the user is actively dragging/resizing it, but doesn't retroactively move a
+  // panel that's already outside after the window itself shrinks. This does that: every open
+  // panel is nudged back within the current viewer bounds, never left permanently unreachable.
+  clampToViewport: (bounds) =>
+    set((s) => ({
+      panels: s.panels.map((panel) => {
+        const maxX = Math.max(0, bounds.width - panel.size.width)
+        const maxY = Math.max(0, bounds.height - panel.size.height)
+        const x = Math.min(Math.max(panel.position.x, 0), maxX)
+        const y = Math.min(Math.max(panel.position.y, 0), maxY)
+        return x === panel.position.x && y === panel.position.y ? panel : { ...panel, position: { x, y } }
+      }),
+    })),
 }))
