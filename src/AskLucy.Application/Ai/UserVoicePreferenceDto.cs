@@ -12,4 +12,5 @@ public sealed record UserVoicePreferenceDto(
     double? VoiceSpeed,
     double? VoiceStyle,
     string? PreferredMicrophoneDeviceId,
-    string? PreferredSpeakerDeviceId);
+    string? PreferredSpeakerDeviceId,
+    string? DefaultLanguage);

@@ -241,7 +241,8 @@ public sealed partial class AiController(
         Ok(await mediator.Send(
             new SaveUserVoicePreferenceCommand(
                 request.ConversationMode, request.IsMuted, request.SelectedVoiceId, request.VoiceSpeed,
-                request.VoiceStyle, request.PreferredMicrophoneDeviceId, request.PreferredSpeakerDeviceId),
+                request.VoiceStyle, request.PreferredMicrophoneDeviceId, request.PreferredSpeakerDeviceId,
+                request.DefaultLanguage),
             cancellationToken));
 
     /// <summary>Admin-only aggregate view (contracts/voice-provider-health.md) — same
