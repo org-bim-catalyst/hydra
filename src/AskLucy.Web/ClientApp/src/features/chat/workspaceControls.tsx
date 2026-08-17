@@ -46,7 +46,8 @@ import type { ControlDefinition } from '../../components/workspace-shell/types'
 import { useLogout } from '../auth/hooks/useAuth'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useComingSoonStore } from '../../store/comingSoonStore'
-import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
+import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOverlayStore'
+import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
 import { SETTINGS_TAB_INDEX } from '../settings/settingsTabs'
 
 function comingSoon(label: string) {
@@ -163,27 +164,34 @@ export function useAccountControl(): ControlDefinition {
   }
 }
 
-/** FR-010/FR-011: the one tool control this feature makes fully functional — selecting a
- * mode calls `workspaceOverlayStore.setViewMode`, which `WorkspaceSurface` reads to
- * visibly reflect the active mode (research.md #10). */
+/** specs/027-immersive-viewer-platform FR-013 (research.md Decision 4): repurposes what was
+ * originally a cosmetic 2D/3D gradient toggle (SPEC-024) into the real viewer's isometric/plan
+ * camera-perspective control — selecting a mode calls both `workspaceOverlayStore.setViewMode`
+ * (so this control's own highlighted state stays in sync) and `viewerEngine.setViewMode` (the
+ * command that actually moves the camera, per contracts/viewer-engine-api.md). */
 export function useViewModeControl(): ControlDefinition {
   const viewMode = useWorkspaceOverlayStore((s) => s.viewMode)
   const setViewMode = useWorkspaceOverlayStore((s) => s.setViewMode)
 
+  const selectMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    viewerEngine.setViewMode(mode)
+  }
+
   const actions: ExpandableActionGroupAction[] = [
     {
-      id: '2d',
-      label: '2D',
-      icon: <RiMapLine size={20} />,
-      onSelect: () => setViewMode('2D'),
-      highlighted: viewMode === '2D',
+      id: 'isometric',
+      label: 'Isometric',
+      icon: <RiBox3Line size={20} />,
+      onSelect: () => selectMode('isometric'),
+      highlighted: viewMode === 'isometric',
     },
     {
-      id: '3d',
-      label: '3D',
-      icon: <RiBox3Line size={20} />,
-      onSelect: () => setViewMode('3D'),
-      highlighted: viewMode === '3D',
+      id: 'plan',
+      label: 'Plan',
+      icon: <RiMapLine size={20} />,
+      onSelect: () => selectMode('plan'),
+      highlighted: viewMode === 'plan',
     },
   ]
 
