@@ -60,4 +60,27 @@ public sealed class UserVoicePreferenceTests
         preference.PreferredMicrophoneDeviceId.Should().Be("mic-1");
         preference.PreferredSpeakerDeviceId.Should().Be("speaker-1");
     }
+
+    [Fact]
+    public void SetDefaultLanguage_ShouldUpdateLanguageAndAudit()
+    {
+        var preference = UserVoicePreference.Create("user-1", "user-1");
+
+        preference.SetDefaultLanguage("fr", "user-1");
+
+        preference.DefaultLanguage.Should().Be("fr");
+        preference.ModifiedAtUtc.Should().NotBeNull();
+        preference.ModifiedBy.Should().Be("user-1");
+    }
+
+    [Fact]
+    public void SetDefaultLanguage_ShouldAllowClearingBackToNull()
+    {
+        var preference = UserVoicePreference.Create("user-1", "user-1");
+        preference.SetDefaultLanguage("fr", "user-1");
+
+        preference.SetDefaultLanguage(null, "user-1");
+
+        preference.DefaultLanguage.Should().BeNull();
+    }
 }

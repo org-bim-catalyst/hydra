@@ -13,4 +13,5 @@ public sealed record SaveUserVoicePreferenceCommand(
     double? VoiceSpeed,
     double? VoiceStyle,
     string? PreferredMicrophoneDeviceId,
-    string? PreferredSpeakerDeviceId) : IRequest<UserVoicePreferenceDto>;
+    string? PreferredSpeakerDeviceId,
+    string? DefaultLanguage) : IRequest<UserVoicePreferenceDto>;

@@ -30,6 +30,11 @@ public sealed class UserVoicePreference : BaseEntity
 
     public string? PreferredSpeakerDeviceId { get; private set; }
 
+    /// <summary>specs/026-floating-chat-assistant FR-016/FR-017 — the user's default
+    /// response language (e.g. "en"), driving the chat widget's read-only flag indicator.
+    /// <c>null</c> means no explicit preference has been saved yet (data-model.md).</summary>
+    public string? DefaultLanguage { get; private set; }
+
     private UserVoicePreference()
     {
         // Required by EF Core materialization.
@@ -77,6 +82,17 @@ public sealed class UserVoicePreference : BaseEntity
         VoiceStyle = voiceStyle;
         PreferredMicrophoneDeviceId = preferredMicrophoneDeviceId;
         PreferredSpeakerDeviceId = preferredSpeakerDeviceId;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>specs/026-floating-chat-assistant FR-017. Allow-list validation against the
+    /// product's supported language codes is an Application-layer concern
+    /// (data-model.md), not a Domain invariant — mirrors <see cref="SetPreferences"/>'s
+    /// own division of responsibility for VoiceSpeed/VoiceStyle.</summary>
+    public void SetDefaultLanguage(string? defaultLanguage, string actor)
+    {
+        DefaultLanguage = defaultLanguage;
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }
