@@ -12,6 +12,7 @@ using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.KnowledgeBases;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
+using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
@@ -273,6 +274,11 @@ public static class DependencyInjection
         // WorkflowExecutionNotifier live here for the same reason AgentExecutionHub/
         // AgentExecutionNotifier do — Application must never reference SignalR directly (constitution §3).
         services.AddScoped<IWorkflowExecutionNotifier, WorkflowExecutionNotifier>();
+
+        // AI-to-UI Floating Panel Framework (specs/028-ai-floating-panels) — User Story 1.
+        // PanelHub/PanelNotifier live here for the same reason AgentExecutionHub/
+        // AgentExecutionNotifier do — Application must never reference SignalR directly (constitution §3).
+        services.AddScoped<IPanelNotifier, PanelNotifier>();
 
         // MCP Integration (specs/021-mcp-integration) — Foundational. IMcpClientFactory is a
         // singleton (research.md Decision 2, corrected during implementation — see plan.md): its

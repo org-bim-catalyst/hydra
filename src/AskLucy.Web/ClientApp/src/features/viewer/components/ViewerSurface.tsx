@@ -6,10 +6,32 @@ import { PlaceholderRenderTarget } from '../../../viewer/engine/PlaceholderRende
 import { ViewerFallback } from '../../../viewer/engine/ViewerFallback'
 import { MapRenderTarget } from '../../../viewer/engine/MapRenderTarget'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
+import { FloatingPanelHost } from '../../../viewer/panels/components/FloatingPanelHost'
+import { useFloatingPanelHub } from '../../../viewer/panels/hooks/useFloatingPanelHub'
+import { panelTypeRegistry } from '../../../viewer/panels/registry'
+import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
+import '../../../viewer/panels/types'
 import type { GeolocationState } from '../hooks/useGeolocation'
 
 const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
+
+declare global {
+  interface Window {
+    __askLucyFloatingPanelStore?: typeof useFloatingPanelStore
+    __askLucyPanelTypeRegistry?: typeof panelTypeRegistry
+  }
+}
+
+// spec 028 contracts/panel-type-registry.md "Verification" — lets a developer open/inspect panels
+// and register a brand-new type directly from the browser devtools console, proving the
+// registry/store work end-to-end with zero AI-agent code involved (SC-006), mirroring spec 027's
+// `window.__askLucyViewerEngine` exposure. Development builds only — never shipped to production
+// (constitution §8).
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.__askLucyFloatingPanelStore = useFloatingPanelStore
+  window.__askLucyPanelTypeRegistry = panelTypeRegistry
+}
 
 export interface ViewerSurfaceProps {
   geolocation: GeolocationState
@@ -32,6 +54,7 @@ function revertToPlaceholder() {
 export function ViewerSurface({ geolocation }: ViewerSurfaceProps) {
   const supportsWebGL = useWebGLSupport()
   const contentMode = useViewerEngineStore((s) => s.contentMode)
+  useFloatingPanelHub()
 
   useEffect(() => {
     const store = useViewerEngineStore.getState()
@@ -74,6 +97,7 @@ export function ViewerSurface({ geolocation }: ViewerSurfaceProps) {
       ) : (
         <PlaceholderRenderTarget />
       )}
+      <FloatingPanelHost />
     </Box>
   )
 }

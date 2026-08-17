@@ -9,6 +9,7 @@ using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
+using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Workflows;
 using AskLucy.Persistence;
@@ -575,6 +576,7 @@ app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
 app.MapHub<MemoryHub>("/hubs/memory");
 app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
 app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
+app.MapHub<PanelHub>("/hubs/panels");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —
