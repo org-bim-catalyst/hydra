@@ -16,6 +16,7 @@ using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
 using AskLucy.Infrastructure.Retrieval.VectorStores;
+using AskLucy.Infrastructure.Weather;
 using AskLucy.Infrastructure.Workflows;
 using Hangfire;
 using Microsoft.Extensions.Configuration;
@@ -103,6 +104,12 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // specs/027-immersive-viewer-platform: no ApiKey to validate (research.md Decision 6 —
+        // both upstream services are keyless), so no .ValidateDataAnnotations()/.ValidateOnStart()
+        // needed beyond binding the (rarely overridden) base URLs.
+        services.AddOptions<WeatherOptions>()
+            .Bind(configuration.GetSection(WeatherOptions.SectionName));
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -183,9 +190,18 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // specs/027-immersive-viewer-platform: no BaseAddress — WeatherProvider calls two
+        // different hosts (Open-Meteo forecast, Nominatim reverse geocoding) with full URIs,
+        // same reasoning as the "Mcp" client above.
+        services.AddHttpClient("Weather", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
+        services.AddScoped<IWeatherProvider, WeatherProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();
