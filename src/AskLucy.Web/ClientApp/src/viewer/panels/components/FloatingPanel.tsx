@@ -10,6 +10,33 @@ import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, type FloatingPanel as FloatingPanelM
 const DRAG_HANDLE_CLASS = 'floating-panel-drag-handle'
 const MINIMIZED_BAR_WIDTH = 220
 const MINIMIZED_BAR_HEIGHT = 40
+const NUDGE_STEP = 10
+const NUDGE_STEP_LARGE = 40
+
+/** `react-rnd`'s drag is pointer/touch-only (no keyboard equivalent built in — the same posture
+ * as most drag-resize libraries). This gives keyboard users a way to reposition a panel: focus the
+ * title bar, then arrow keys (Shift+arrow for a larger step) nudge it, constrained to never go
+ * negative (matching `bounds="parent"`'s intent for pointer dragging). Resizing has no keyboard
+ * equivalent — react-rnd's resize handles are plain, non-focusable elements; a keyboard user can
+ * still fully read/interact with every panel's content, only fine-grained resizing needs a
+ * pointer, the same limitation `react-rnd` itself has out of the box. */
+function nudgePosition(
+  event: React.KeyboardEvent,
+  panel: FloatingPanelModel,
+  updatePosition: (id: string, position: { x: number; y: number }) => void,
+) {
+  const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP
+  let dx = 0
+  let dy = 0
+  if (event.key === 'ArrowLeft') dx = -step
+  else if (event.key === 'ArrowRight') dx = step
+  else if (event.key === 'ArrowUp') dy = -step
+  else if (event.key === 'ArrowDown') dy = step
+  else return
+
+  event.preventDefault()
+  updatePosition(panel.id, { x: Math.max(0, panel.position.x + dx), y: Math.max(0, panel.position.y + dy) })
+}
 
 export interface FloatingPanelProps {
   panel: FloatingPanelModel
@@ -182,6 +209,10 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
       >
         <Box
           className={DRAG_HANDLE_CLASS}
+          tabIndex={0}
+          role="group"
+          aria-label={`${panel.title} panel controls — use arrow keys to move`}
+          onKeyDown={(event) => nudgePosition(event, panel, updatePosition)}
           sx={{
             display: 'flex',
             alignItems: 'center',

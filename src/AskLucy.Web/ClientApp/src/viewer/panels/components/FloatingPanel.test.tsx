@@ -143,6 +143,32 @@ describe('FloatingPanel drag/resize wiring (US2, FR-004/FR-005/FR-018)', () => {
   })
 })
 
+describe('FloatingPanel keyboard-only repositioning (T088 — react-rnd drag has no built-in keyboard equivalent)', () => {
+  it('nudges the panel position with arrow keys when the title bar is focused', async () => {
+    const user = userEvent.setup()
+    render(<FloatingPanel panel={makePanel({ id: 'panel-kbd', position: { x: 50, y: 50 } })} />)
+    const handle = screen.getByRole('group', { name: /use arrow keys to move/i })
+    handle.focus()
+
+    await user.keyboard('{ArrowRight}')
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-kbd', { x: 60, y: 50 })
+
+    await user.keyboard('{Shift>}{ArrowDown}{/Shift}')
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-kbd', { x: 50, y: 90 })
+  })
+
+  it('never nudges to a negative position', async () => {
+    const user = userEvent.setup()
+    render(<FloatingPanel panel={makePanel({ id: 'panel-kbd-edge', position: { x: 5, y: 5 } })} />)
+    const handle = screen.getByRole('group', { name: /use arrow keys to move/i })
+    handle.focus()
+
+    await user.keyboard('{ArrowLeft}')
+
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-kbd-edge', { x: 0, y: 5 })
+  })
+})
+
 describe('FloatingPanel minimize/restore (US2, FR-006)', () => {
   it('calls minimizePanel when the minimize button is clicked', async () => {
     const user = userEvent.setup()
