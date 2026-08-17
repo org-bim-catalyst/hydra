@@ -13,6 +13,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useActiveConversationStore } from '../activeConversationStore'
 import { AssistantPanel } from '../components/AssistantPanel'
 import { ChatComposer } from '../components/ChatComposer'
 import { InsertPromptPicker } from '../components/InsertPromptPicker'
@@ -22,10 +23,10 @@ import { AiPresenceCard } from '../components/AiPresenceCard'
 import { HomeProjectCard } from '../components/HomeProjectCard'
 import { WorkspaceSurface } from '../components/WorkspaceSurface'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
-import { ProviderModelSelector } from '../components/ProviderModelSelector'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { VoiceControlBar } from '../components/VoiceControlBar'
-import { useChatMessages } from '../hooks/useChats'
+import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
+import { useChatDetail, useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
 import { useSpeechRecognition } from '../voice/useSpeechRecognition'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
@@ -53,7 +54,13 @@ import { ErrorState } from '../../../components/ErrorState'
  * `handleChatCreated`), so an in-flight stream is never interrupted by its own id arriving.
  */
 export function ChatPage() {
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
+  // specs/025-chat-configuration-settings FR-007: seeds from the shared store so a
+  // conversation selected in the Chat History Settings tab (which sets this, then
+  // navigates here) actually opens — a fresh mount otherwise has no other way to know
+  // which conversation was just picked.
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(
+    () => useActiveConversationStore.getState().activeChatId,
+  )
   const [viewKey, setViewKey] = useState(0)
   const [language, setLanguage] = useState('en')
   const queryClient = useQueryClient()
@@ -83,18 +90,20 @@ export function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSelectChat = (id: string) => {
-    setSelectedChatId(id)
-    setViewKey((k) => k + 1)
-  }
+  // specs/025-chat-configuration-settings, research.md Decision 1: mirrored into a
+  // session-scoped store alongside the local `selectedChatId` state, so Chat Configuration
+  // (rendered on a separate page) can know which conversation is "currently open."
+  const setActiveChatId = useActiveConversationStore((s) => s.setActiveChatId)
 
   const handleNewChat = () => {
     setSelectedChatId(null)
+    setActiveChatId(null)
     setViewKey((k) => k + 1)
   }
 
   const handleChatCreated = (id: string) => {
     setSelectedChatId(id)
+    setActiveChatId(id)
     void queryClient.invalidateQueries({ queryKey: ['chats'] })
   }
 
@@ -107,7 +116,7 @@ export function ChatPage() {
     placement: 'bottom-end' as const,
     content: (
       <FloatingPanel controlId="chat" titleId="Ask Lucy assistant" onRequestClose={() => toggleWorkspaceControl('chat')}>
-        <AssistantPanel selectedChatId={selectedChatId} onSelectChat={handleSelectChat} onNewChat={handleNewChat}>
+        <AssistantPanel onNewChat={handleNewChat}>
           <ConversationView
             key={viewKey}
             chatId={selectedChatId}
@@ -200,9 +209,32 @@ export function ConversationView({
     modelId,
     setSelection,
   } = useChatStream(chatId, persistedMessages, onChatCreated)
+
+  // specs/025-chat-configuration-settings, T021 — replaces the auto-select-on-mount behavior
+  // the removed in-toolbar `ProviderModelSelector` used to provide (changing the model is now
+  // done from Chat Configuration in Settings, FR-004): a freshly mounted conversation still
+  // needs *some* model selected before the composer can send. Reopening an existing
+  // conversation seeds from its own last-used model (an improvement over the old blanket
+  // provider[0]/model[0] auto-pick); a brand-new conversation seeds from the user's configured
+  // default (AiProvidersTab).
+  const { data: aiPreference } = useAiPreferences()
+  const { data: chatDetail } = useChatDetail(chatId)
+  useEffect(() => {
+    if (providerId || modelId) return
+    if (chatId) {
+      if (chatDetail?.providerId && chatDetail.modelId) {
+        setSelection(chatDetail.providerId, chatDetail.modelId)
+      } else if (chatDetail && aiPreference) {
+        setSelection(aiPreference.defaultProviderId, aiPreference.defaultModelId)
+      }
+    } else if (aiPreference) {
+      setSelection(aiPreference.defaultProviderId, aiPreference.defaultModelId)
+    }
+  }, [chatId, chatDetail, aiPreference, providerId, modelId, setSelection])
+
   // spec.md FR-002a, User Story 5 — this view remounts (via `key`) on an explicit chat switch, so
   // a plain useState reset is correct; not yet seeded from persisted history (UserChatDto doesn't
-  // carry ProjectId), matching ProviderModelSelector's identical current-scope limitation above.
+  // carry ProjectId).
   const [projectId, setProjectId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const listParentRef = useRef<HTMLDivElement>(null)
@@ -368,7 +400,6 @@ export function ConversationView({
         variant="dense"
         sx={{ justifyContent: 'flex-end', gap: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
       >
-        <ProviderModelSelector providerId={providerId} modelId={modelId} onSelect={setSelection} />
         <ProjectPicker chatId={chatId} projectId={projectId} onAssigned={setProjectId} />
         <LanguageSelector value={language} onChange={onLanguageChange} />
         <IconButton onClick={handleTranslateLast} aria-label="Translate last response">

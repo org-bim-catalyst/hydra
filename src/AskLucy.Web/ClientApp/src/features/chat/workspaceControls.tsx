@@ -13,6 +13,7 @@ import GestureOutlinedIcon from '@mui/icons-material/GestureOutlined'
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import HighlightAltIcon from '@mui/icons-material/HighlightAlt'
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
 import InsightsIcon from '@mui/icons-material/Insights'
 import LayersIcon from '@mui/icons-material/Layers'
 import LocationCityOutlinedIcon from '@mui/icons-material/LocationCityOutlined'
@@ -41,6 +42,7 @@ import { useLogout } from '../auth/hooks/useAuth'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
+import { SETTINGS_TAB_INDEX } from '../settings/settingsTabs'
 
 function comingSoon(label: string) {
   useComingSoonStore.getState().show(label)
@@ -61,6 +63,18 @@ export function useAccountControl(): ControlDefinition {
   const actions: ExpandableActionGroupAction[] = [
     { id: 'profile', label: 'Profile', icon: <PersonIcon fontSize="small" />, onSelect: () => navigate('/profile') },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" />, onSelect: () => navigate('/settings') },
+    {
+      id: 'chat-configuration',
+      label: 'Chat Configuration',
+      icon: <TuneOutlinedIcon fontSize="small" />,
+      onSelect: () => navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatConfiguration } }),
+    },
+    {
+      id: 'chat-history',
+      label: 'Chat History',
+      icon: <HistoryOutlinedIcon fontSize="small" />,
+      onSelect: () => navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatHistory } }),
+    },
     {
       id: 'documents',
       label: 'Documents',
