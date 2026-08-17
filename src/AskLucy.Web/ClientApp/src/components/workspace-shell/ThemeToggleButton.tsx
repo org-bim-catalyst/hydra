@@ -1,4 +1,4 @@
-import Brightness4Icon from '@mui/icons-material/Brightness4'
+import { RiContrast2Line } from '@remixicon/react'
 import { Fab } from '@mui/material'
 import { useThemeStore } from '../../store/themeStore'
 import { CIRCULAR_ACTION_CHROME } from './CircularAction'
@@ -26,7 +26,7 @@ export function ThemeToggleButton() {
         transition: (t) => t.transitions.create(['transform', 'background-color']),
       }}
     >
-      <Brightness4Icon />
+      <RiContrast2Line />
     </Fab>
   )
 }

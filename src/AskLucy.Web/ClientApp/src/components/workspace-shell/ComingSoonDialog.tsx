@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material'
-import CloseIcon from '@mui/icons-material/Close'
+import { RiCloseLine } from '@remixicon/react'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 
 /** One shared dialog for every not-yet-implemented tool action across the workspace
@@ -13,7 +13,7 @@ export function ComingSoonDialog() {
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {featureLabel}
         <IconButton onClick={hide} aria-label="Close" size="small">
-          <CloseIcon fontSize="small" />
+          <RiCloseLine size={20} />
         </IconButton>
       </DialogTitle>
       <DialogContent>
