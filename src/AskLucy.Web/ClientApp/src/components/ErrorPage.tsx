@@ -18,7 +18,7 @@ export function ErrorPage() {
             ? "The page you're looking for doesn't exist or may have moved."
             : 'An unexpected error occurred. Please try again.'}
         </Typography>
-        <Button component={RouterLink} to="/chat" variant="contained">
+        <Button component={RouterLink} to="/studio" variant="contained">
           Back to Ask Lucy
         </Button>
       </Stack>

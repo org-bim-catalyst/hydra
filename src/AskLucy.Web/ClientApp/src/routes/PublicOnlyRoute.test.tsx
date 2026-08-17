@@ -16,7 +16,7 @@ function renderAt(path: string) {
             </PublicOnlyRoute>
           }
         />
-        <Route path="/chat" element={<div>Workspace</div>} />
+        <Route path="/studio" element={<div>Workspace</div>} />
       </Routes>
     </MemoryRouter>,
   )

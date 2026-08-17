@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -9,6 +9,8 @@ import * as voiceApi from '../api/voiceApi'
 import type { PagedResult, PersistedMessage } from '../api/chatsApi'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
+import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
+import { useComingSoonStore } from '../../../store/comingSoonStore'
 import { ChatPage, ConversationView } from './ChatPage'
 
 vi.mock('../api/voiceApi', async () => {
@@ -204,6 +206,254 @@ describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011
       expect(useVoicePreferencesStore.getState().isMuted).toBe(true)
       expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous')
     })
+  })
+})
+
+describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-024)', () => {
+  beforeEach(() => {
+    useWorkspaceOverlayStore.setState({ expandedControlId: null, viewMode: '3D', unreadControlIds: new Set() })
+    useComingSoonStore.setState({ featureLabel: null })
+  })
+
+  function renderChatPage() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <MemoryRouter initialEntries={['/studio']}>
+        <QueryClientProvider client={queryClient}>
+          <ChatPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  it('sets the page title to "Flumeria Studio" (FR-001)', () => {
+    renderChatPage()
+    expect(document.title).toBe('Flumeria Studio')
+  })
+
+  it('exposes no permanent toolbar/navigation landmark, only reachable circular controls (FR-004)', () => {
+    renderChatPage()
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument()
+  })
+
+  it('reaches every account-menu destination and the theme toggle through the account control (FR-024)', () => {
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+
+    for (const label of [
+      'Profile',
+      'Settings',
+      'Documents',
+      'Knowledge Bases',
+      'Memory Center',
+      'Prompts',
+      'Agents',
+      'Workflows',
+      'Privacy Policy',
+      'Toggle theme',
+      'Log out',
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+    }
+  })
+
+  it('shows real icon actions (not placeholder text) for layers/navigation/selection/analysis, opening a "coming soon" dialog on click (FR-012/FR-021)', () => {
+    // fireEvent (not userEvent) throughout this describe block for click interactions:
+    // userEvent's pointer-events computed-style check hits a jsdom CSS-engine bug against
+    // this tree's animated gradient/transition styles; fireEvent dispatches directly.
+    // Dialog assertions use raw DOM queries (not getByRole) for the same reason — MUI
+    // Dialog's Modal/Backdrop/Grow tree triggers the same jsdom computed-style bug when
+    // getByRole's accessibility-tree walk runs against it.
+    const { container } = renderChatPage()
+    // Once the dialog has mounted once, it appears to poison every subsequent
+    // testing-library role query in this render (not just ones targeting the dialog
+    // itself) against the same jsdom bug — so every lookup below, before and after,
+    // uses a plain CSS attribute selector instead of getByRole.
+    const byLabel = (label: string) => container.querySelector<HTMLElement>(`button[aria-label="${label}"]`)!
+
+    for (const [buttonLabel, actionLabel] of [
+      ['Layers', 'Base map'],
+      ['Navigation', 'Explore'],
+      ['Selection', 'Marquee select'],
+      ['Analysis', 'Sunlight'],
+    ] as const) {
+      fireEvent.click(byLabel(buttonLabel))
+      const actionButton = byLabel(actionLabel)
+      expect(actionButton).toBeInTheDocument()
+      fireEvent.click(actionButton)
+      const dialog = container.ownerDocument.querySelector('[role="dialog"]')
+      expect(dialog).toHaveTextContent(`${buttonLabel} is coming soon to the Studio workspace.`)
+      // the (always-mounted, currently-collapsed) chat FloatingPanel has its own "Close"
+      // button elsewhere in the tree — scope this query to the dialog itself.
+      fireEvent.click(dialog!.querySelector('button[aria-label="Close"]')!)
+      // collapse the tool control again before the next iteration so only one is ever expanded
+      fireEvent.click(byLabel(buttonLabel))
+    }
+  })
+
+  it('switching the view mode visibly changes the workspace surface state (FR-011)', () => {
+    const { container } = renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'View mode' }))
+    fireEvent.click(screen.getByRole('button', { name: '2D' }))
+
+    expect(container.querySelector('[data-view-mode="2D"]')).toBeInTheDocument()
+  })
+
+  it('expanding one tool control collapses whatever was previously expanded (FR-015)', () => {
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Layers' }))
+    expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Navigation' }))
+    expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('Tab visits every control, in the same top-cluster → right-stack → bottom-end order they render (FR-009, US4)', async () => {
+    const user = userEvent.setup()
+    renderChatPage()
+
+    for (const label of [
+      'Toggle theme',
+      'Account',
+      'View mode',
+      'Layers',
+      'Navigation',
+      'Selection',
+      'Analysis',
+      'Chat with Lucy',
+    ]) {
+      await user.tab()
+      expect(document.activeElement).toHaveAccessibleName(label)
+    }
+  })
+
+  it('Enter expands a focused control, Tab reaches its revealed content, and Escape collapses it and returns focus (FR-007/FR-009, US4)', async () => {
+    const user = userEvent.setup()
+    renderChatPage()
+
+    const viewModeButton = screen.getByRole('button', { name: 'View mode' })
+    viewModeButton.focus()
+    await user.keyboard('{Enter}')
+    expect(viewModeButton).toHaveAttribute('aria-expanded', 'true')
+
+    await user.tab()
+    expect(document.activeElement).toHaveAccessibleName('2D')
+
+    await user.keyboard('{Escape}')
+    expect(viewModeButton).toHaveAttribute('aria-expanded', 'false')
+    expect(viewModeButton).toHaveFocus()
+  })
+
+  it('Space also expands a focused control (FR-009, US4)', async () => {
+    const user = userEvent.setup()
+    renderChatPage()
+
+    const layersButton = screen.getByRole('button', { name: 'Layers' })
+    layersButton.focus()
+    await user.keyboard(' ')
+    expect(layersButton).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('every control remains reachable under a simulated narrow (mobile) viewport (FR-020, US5)', () => {
+    // jsdom has no real box layout (getBoundingClientRect returns zeros), so pixel-perfect
+    // non-overlap isn't meaningfully assertable here — that's quickstart.md Scenario 5's
+    // job in a real browser. This verifies the structural claim automated tests *can* make:
+    // every control stays present/reachable once FloatingToolbar's mobile breakpoint
+    // (matched via matchMedia) is active, not silently dropped or hidden.
+    const originalMatchMedia = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia
+
+    try {
+      renderChatPage()
+      for (const label of ['View mode', 'Layers', 'Navigation', 'Selection', 'Analysis', 'Chat with Lucy', 'Account']) {
+        expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      }
+    } finally {
+      window.matchMedia = originalMatchMedia
+    }
+  })
+
+  it('sends a message through the chat control and streams a response with zero behavior change (FR-014/SC-006)', async () => {
+    // Mounts the full ChatPage (all seven controls, AssistantPanel, ConversationSwitcher,
+    // virtualizer) rather than the lighter renderConversation() other send/stream tests in
+    // this file use — needs more than the 5s default given the provider-catalog fetch +
+    // typing + SSE stream all happen sequentially on top of that heavier mount.
+    server.use(
+      http.get(`*/api/v1/chats`, () => HttpResponse.json({ items: [], nextCursor: null })),
+      // No chat is selected yet (fresh workspace) — send() auto-creates one first.
+      http.post('*/api/v1/chats', () =>
+        HttpResponse.json({ id: CHAT_A, title: 'Hi Lucy', createdAtUtc: '2026-08-16T00:00:00Z', modifiedAtUtc: null }),
+      ),
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json({ items: [], nextCursor: null })),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream(['Hello from the chat control'])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    await screen.findByText('Start a conversation with Ask Lucy.')
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Hi Lucy')
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+
+    expect(await screen.findByText('Hello from the chat control')).toBeInTheDocument()
+  }, 15000)
+
+  it('collapsing chat leaves the rest of the workspace interactive', () => {
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    expect(screen.getByRole('button', { name: 'Chat with Lucy' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    expect(screen.getByRole('button', { name: 'Chat with Lucy' })).toHaveAttribute('aria-expanded', 'false')
+
+    // The rest of the workspace (a different control) still responds normally afterward.
+    fireEvent.click(screen.getByRole('button', { name: 'Layers' }))
+    expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('successfully signs the user out via the account control (FR-024)', async () => {
+    let logoutRequested = false
+    server.use(
+      http.post('*/auth/logout', () => {
+        logoutRequested = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderChatPage()
+
+    // fireEvent (not userEvent) here: jsdom's CSS engine has a known issue resolving
+    // computed styles for some elements in this larger tree when userEvent's
+    // pointer-events/accessibility-tree checks run; fireEvent dispatches directly.
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    fireEvent.click(screen.getByText('Log out'))
+
+    await waitFor(() => expect(logoutRequested).toBe(true))
   })
 })
 
