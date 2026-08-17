@@ -12,14 +12,15 @@ import {
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AssistantPanel } from '../components/AssistantPanel'
-import { AssistantToggleFab } from '../components/AssistantToggleFab'
 import { ChatComposer } from '../components/ChatComposer'
 import { InsertPromptPicker } from '../components/InsertPromptPicker'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
-import { MinimalTopBar } from '../components/MinimalTopBar'
+import { AiPresenceCard } from '../components/AiPresenceCard'
+import { HomeProjectCard } from '../components/HomeProjectCard'
+import { WorkspaceSurface } from '../components/WorkspaceSurface'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { ProviderModelSelector } from '../components/ProviderModelSelector'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
@@ -29,13 +30,21 @@ import { useChatStream } from '../hooks/useChatStream'
 import { useSpeechRecognition } from '../voice/useSpeechRecognition'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
-import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
+import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
+import { WorkspaceOverlay } from '../../../components/workspace-shell/WorkspaceOverlay'
+import { FloatingPanel } from '../../../components/workspace-shell/FloatingPanel'
+import { ThemeToggleButton } from '../../../components/workspace-shell/ThemeToggleButton'
+import { ComingSoonDialog } from '../../../components/workspace-shell/ComingSoonDialog'
+import {
+  analysisControl,
+  layersControl,
+  navigationControl,
+  selectionControl,
+  useAccountControl,
+  useViewModeControl,
+} from '../workspaceControls'
 import { EmptyState } from '../../../components/EmptyState'
 import { ErrorState } from '../../../components/ErrorState'
-
-const SceneBackground = lazy(() =>
-  import('../scene/SceneBackground').then((m) => ({ default: m.SceneBackground })),
-)
 
 /**
  * Owns which chat is selected (2026-07-28 ChatGPT-style history decision). `ConversationView`
@@ -50,8 +59,19 @@ export function ChatPage() {
   const queryClient = useQueryClient()
   // Lifted above ConversationView so the same isSpeaking/intensity state drives both the
   // actual voice playback (triggered from ConversationView) and the sphere reacting to it
-  // (SceneBackground, a sibling) — a separate hook instance per component wouldn't share state.
+  // (AiPresenceCard, a sibling) — a separate hook instance per component wouldn't share state.
   const tts = useVoiceOutput()
+  // SPEC-024 FR-024: preserves account/session access (and theme toggle) that removing
+  // MinimalTopBar would otherwise have dropped — see workspaceControls.tsx.
+  const accountControl = useAccountControl()
+  // SPEC-024 FR-010/FR-011/FR-012: the five viewer-tool controls — only view-mode is
+  // functional in this feature; layers/navigation/selection/analysis are established,
+  // reachable "coming soon" placeholders (FR-021).
+  const viewModeControl = useViewModeControl()
+  // SPEC-024 FR-013: chat reached through the same circular-control pattern as every
+  // other control — collapses via the same toggle('chat') the CircularAction itself
+  // uses, so FloatingPanel's in-panel Close button and the trigger stay in sync.
+  const toggleWorkspaceControl = useWorkspaceOverlayStore((s) => s.toggle)
 
   // FR-011/SC-004: restores a returning user's mute/input-mode preference without requiring
   // a detour through Settings first (research.md Decision 9 — VoiceTab already hydrates on
@@ -78,31 +98,54 @@ export function ChatPage() {
     void queryClient.invalidateQueries({ queryKey: ['chats'] })
   }
 
+  const chatControl = {
+    id: 'chat',
+    label: 'Chat with Lucy',
+    icon: <ChatBubbleOutlineIcon />,
+    status: 'functional' as const,
+    kind: 'panel' as const,
+    placement: 'bottom-end' as const,
+    content: (
+      <FloatingPanel controlId="chat" titleId="Ask Lucy assistant" onRequestClose={() => toggleWorkspaceControl('chat')}>
+        <AssistantPanel selectedChatId={selectedChatId} onSelectChat={handleSelectChat} onNewChat={handleNewChat}>
+          <ConversationView
+            key={viewKey}
+            chatId={selectedChatId}
+            language={language}
+            onLanguageChange={setLanguage}
+            onChatCreated={handleChatCreated}
+            tts={tts}
+          />
+        </AssistantPanel>
+      </FloatingPanel>
+    ),
+  }
+  const workspaceControls = [
+    viewModeControl,
+    layersControl,
+    navigationControl,
+    selectionControl,
+    analysisControl,
+    chatControl,
+    accountControl,
+  ]
+
   return (
     <Box sx={{ position: 'relative', height: '100dvh', width: '100%', overflow: 'hidden' }}>
-      <Suspense
-        fallback={
-          <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, bgcolor: 'background.default' }} />
-        }
-      >
-        <SceneBackground getReactiveIntensity={tts.getIntensity} />
-      </Suspense>
-      <MinimalTopBar />
-      <AssistantPanel
-        selectedChatId={selectedChatId}
-        onSelectChat={handleSelectChat}
-        onNewChat={handleNewChat}
-      >
-        <ConversationView
-          key={viewKey}
-          chatId={selectedChatId}
-          language={language}
-          onLanguageChange={setLanguage}
-          onChatCreated={handleChatCreated}
-          tts={tts}
-        />
-      </AssistantPanel>
-      <AssistantToggleFab />
+      {/* SPEC-024 FR-001: renamed from "Chat" — React 19 hoists this into <head> wherever
+          it renders, matching LandingPage's existing convention. */}
+      <title>Flumeria Studio</title>
+      {/* SPEC-024 FR-003/FR-022: full-viewport neutral placeholder, replacing the old
+          full-viewport SceneBackground mount — the AI presence now lives in its own
+          AiPresenceCard (FR-023), rendered below via WorkspaceOverlay's children slot. */}
+      <WorkspaceSurface />
+      {/* SPEC-024 FR-005/FR-013/FR-016: every workspace control — including chat — is
+          reached only through this coordinating overlay, never a permanent toolbar. */}
+      <WorkspaceOverlay controls={workspaceControls} topClusterLeading={<ThemeToggleButton />}>
+        <HomeProjectCard />
+        <AiPresenceCard getReactiveIntensity={tts.getIntensity} />
+      </WorkspaceOverlay>
+      <ComingSoonDialog />
     </Box>
   )
 }
@@ -180,8 +223,8 @@ export function ConversationView({
   // on-demand read-aloud, dropping the automatic one entirely. `tts.speak()` itself no-ops
   // while muted (useVoiceOutput.ts, SPEC-013 Decision 3), so this effect needs no isMuted
   // check of its own.
-  const isPanelOpen = useAssistantPanelStore((s) => s.isOpen)
-  const markUnread = useAssistantPanelStore((s) => s.markUnread)
+  const isPanelOpen = useWorkspaceOverlayStore((s) => s.expandedControlId === 'chat')
+  const markUnread = useWorkspaceOverlayStore((s) => s.markUnread)
   const wasStreamingRef = useRef(false)
   useEffect(() => {
     if (wasStreamingRef.current && !isStreaming) {
@@ -189,7 +232,7 @@ export function ConversationView({
       if (last?.role === 'assistant' && last.content) {
         tts.speak(last.content, language)
         // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
-        if (!isPanelOpen) markUnread()
+        if (!isPanelOpen) markUnread('chat')
       }
     }
     wasStreamingRef.current = isStreaming
@@ -320,7 +363,7 @@ export function ConversationView({
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
-          live in MinimalTopBar, outside this panel. */}
+          live behind the Studio workspace's account circular control (SPEC-024 FR-024). */}
       <Toolbar
         variant="dense"
         sx={{ justifyContent: 'flex-end', gap: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}

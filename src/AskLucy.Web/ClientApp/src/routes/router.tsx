@@ -1,6 +1,6 @@
 import { Fade } from '@mui/material'
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, RouterProvider } from 'react-router'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { ErrorPage } from '../components/ErrorPage'
 import { AdminRoute } from './AdminRoute'
 import { ProtectedRoute } from './ProtectedRoute'
@@ -103,7 +103,7 @@ function Lazy({ children }: { children: React.ReactNode }) {
 const router = createBrowserRouter([
   {
     // Public marketing landing page (spec.md FR-001/FR-015): signed-out visitors see it;
-    // an already-authenticated visitor is redirected straight into /chat by PublicOnlyRoute.
+    // an already-authenticated visitor is redirected straight into /studio by PublicOnlyRoute.
     path: '/',
     element: (
       <PublicOnlyRoute>
@@ -170,7 +170,8 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
-    path: '/chat',
+    // SPEC-024 FR-001: the authenticated workspace, renamed from "Chat" to "Studio".
+    path: '/studio',
     element: (
       <ProtectedRoute>
         <Lazy>
@@ -179,6 +180,12 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     errorElement: <ErrorPage />,
+  },
+  {
+    // SPEC-024 FR-002/SC-005: existing /chat bookmarks and shared links keep working —
+    // `replace` so /chat never lingers one back-button-press away in history.
+    path: '/chat',
+    element: <Navigate to="/studio" replace />,
   },
   {
     path: '/documents',

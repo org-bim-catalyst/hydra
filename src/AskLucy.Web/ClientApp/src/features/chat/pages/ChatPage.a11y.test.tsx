@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
+import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { ChatPage, ConversationView } from './ChatPage'
@@ -117,15 +117,15 @@ describe('ConversationView voice controls accessibility (SPEC-013 T020, constitu
   })
 })
 
-describe('ChatPage accessibility — full immersive layout (SPEC-006, constitution §7/§10)', () => {
+describe('ChatPage accessibility — chat panel (SPEC-006/SPEC-024, constitution §7/§10)', () => {
   beforeEach(() => {
-    useAssistantPanelStore.setState({ isOpen: true, hasUnreadWhileCollapsed: false })
+    useWorkspaceOverlayStore.setState({ expandedControlId: null, viewMode: '3D', unreadControlIds: new Set() })
   })
 
   function renderChatPage() {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/studio']}>
         <QueryClientProvider client={queryClient}>
           <ChatPage />
         </QueryClientProvider>
@@ -133,22 +133,62 @@ describe('ChatPage accessibility — full immersive layout (SPEC-006, constituti
     )
   }
 
-  it('has no automatically detectable a11y violations with the assistant panel open (FR-013)', async () => {
-    const { container, findByText } = renderChatPage()
+  it('has no automatically detectable a11y violations with the chat panel open (FR-013)', async () => {
+    const { container, findByRole, findByText } = renderChatPage()
 
+    fireEvent.click(await findByRole('button', { name: 'Chat with Lucy' }))
     await findByText('Start a conversation with Ask Lucy.')
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
-  it('has no automatically detectable a11y violations with the assistant panel collapsed (FR-013/FR-014)', async () => {
-    useAssistantPanelStore.setState({ isOpen: false, hasUnreadWhileCollapsed: false })
+  it('has no automatically detectable a11y violations with the chat panel collapsed (default state) (FR-013/FR-014)', async () => {
     const { container, findByRole } = renderChatPage()
 
-    await findByRole('button', { name: 'Expand Ask Lucy assistant' })
+    await findByRole('button', { name: 'Chat with Lucy' })
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
+})
+
+describe('ChatPage accessibility — Studio workspace shell (SPEC-024, FR-019, constitution §7/§10)', () => {
+  beforeEach(() => {
+    useWorkspaceOverlayStore.setState({ expandedControlId: null, viewMode: '3D', unreadControlIds: new Set() })
+  })
+
+  function renderChatPage() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <MemoryRouter initialEntries={['/studio']}>
+        <QueryClientProvider client={queryClient}>
+          <ChatPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  it('has no automatically detectable a11y violations in the all-collapsed state (FR-019, US4)', async () => {
+    const { container, findByRole } = renderChatPage()
+
+    await findByRole('button', { name: 'Account' })
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it.each(['View mode', 'Layers', 'Navigation', 'Selection', 'Analysis', 'Account'])(
+    'has no automatically detectable a11y violations with %s expanded (FR-019, US4)',
+    async (label) => {
+      const { container, findByRole } = renderChatPage()
+
+      const trigger = await findByRole('button', { name: label })
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute('aria-expanded', 'true')
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    },
+  )
 })

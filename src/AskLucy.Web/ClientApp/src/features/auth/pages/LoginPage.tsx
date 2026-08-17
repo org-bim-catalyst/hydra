@@ -39,7 +39,7 @@ export function LoginPage() {
       // FR-021: fired immediately before navigating, never delaying it (contracts/
       // routing-and-consent-contract.md).
       recordFunnelCompleted('SignIn')
-      navigate('/chat')
+      navigate('/studio')
     }
   })
 
@@ -51,7 +51,7 @@ export function LoginPage() {
       isRecoveryCode: false,
     })
     recordFunnelCompleted('SignIn')
-    navigate('/chat')
+    navigate('/studio')
   })
 
   return (

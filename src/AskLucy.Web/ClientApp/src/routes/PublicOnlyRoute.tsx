@@ -11,5 +11,5 @@ import { useAuthStore } from '../store/authStore'
  */
 export function PublicOnlyRoute({ children }: PropsWithChildren) {
   const accessToken = useAuthStore((s) => s.accessToken)
-  return accessToken ? <Navigate to="/chat" replace /> : children
+  return accessToken ? <Navigate to="/studio" replace /> : children
 }
