@@ -124,7 +124,7 @@ describe('ChatPage accessibility — chat panel (SPEC-006/SPEC-024, constitution
   beforeEach(() => {
     useWorkspaceOverlayStore.setState({
       expandedControlId: null,
-      viewMode: '3D',
+      viewMode: 'isometric',
       unreadControlIds: new Set(),
     })
   })
@@ -164,7 +164,7 @@ describe('ChatPage accessibility — Studio workspace shell (SPEC-024, FR-019, c
   beforeEach(() => {
     useWorkspaceOverlayStore.setState({
       expandedControlId: null,
-      viewMode: '3D',
+      viewMode: 'isometric',
       unreadControlIds: new Set(),
     })
   })

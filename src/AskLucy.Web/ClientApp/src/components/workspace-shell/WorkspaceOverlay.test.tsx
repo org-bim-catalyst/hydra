@@ -7,7 +7,7 @@ import type { ControlDefinition } from './types'
 function resetStore() {
   useWorkspaceOverlayStore.setState({
     expandedControlId: null,
-    viewMode: '3D',
+    viewMode: 'isometric',
     unreadControlIds: new Set(),
   })
 }
