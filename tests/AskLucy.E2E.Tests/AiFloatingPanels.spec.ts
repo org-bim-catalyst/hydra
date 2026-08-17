@@ -23,8 +23,13 @@ interface FloatingPanelDevtools {
         title: string
         data: unknown
         position?: { x: number; y: number } | null
+        contextAssociation?: { layerId?: string; elementId?: string } | null
       }) => void
     }
+  }
+  __askLucyViewerEngine: {
+    addLayer: (layer: { id: string; kind: string }) => unknown
+    removeLayer: (layerId: string) => unknown
   }
 }
 
@@ -306,5 +311,55 @@ test.describe('AI floating panels — User Story 3 (opacity preference)', () => 
     const savedAfterReload = await page.evaluate(() => localStorage.getItem('ask-lucy-panel-preferences'))
     expect(savedAfterReload).toBe(savedBeforeReload)
     expect(JSON.parse(savedAfterReload ?? '{}').state.opacityPercent).toBeLessThan(85)
+  })
+})
+
+test.describe('AI floating panels — User Story 4 (panel reacts to and informs the viewer)', () => {
+  test('the Locate action on a context-associated panel drives the viewer (FR-014, US4-AS1)', async ({ page }) => {
+    await page.goto('/studio')
+    await page.evaluate(() => {
+      const engine = (window as unknown as FloatingPanelDevtools).__askLucyViewerEngine
+      engine.addLayer({ id: 'e2e-ctx-layer', kind: 'model' })
+      const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
+      store.getState().openPanel({
+        requestId: 'e2e-ctx-1',
+        typeKey: 'summary',
+        title: 'Context Panel',
+        data: { heading: 'Site Notes', body: 'Demo' },
+        contextAssociation: { layerId: 'e2e-ctx-layer', elementId: 'e2e-ctx-element' },
+      })
+    })
+
+    // Clicking Locate must not throw even though 'e2e-ctx-element' was never registered as
+    // selectable — viewerEngine.select() fails gracefully (contracts/viewer-engine-api.md), it
+    // doesn't crash the panel or the viewer (constitution §2.VIII no-silent-crash).
+    await page.getByRole('button', { name: /locate in viewer/i }).click()
+    await expect(page.getByRole('region', { name: 'Context Panel' })).toBeVisible()
+  })
+
+  test("removing a panel's associated viewer layer marks its association invalid (US4-AS2, Edge Cases)", async ({
+    page,
+  }) => {
+    await page.goto('/studio')
+    await page.evaluate(() => {
+      const engine = (window as unknown as FloatingPanelDevtools).__askLucyViewerEngine
+      engine.addLayer({ id: 'e2e-ctx-layer-2', kind: 'model' })
+      const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
+      store.getState().openPanel({
+        requestId: 'e2e-ctx-2',
+        typeKey: 'summary',
+        title: 'Stale Panel',
+        data: { heading: 'Site Notes', body: 'Demo' },
+        contextAssociation: { layerId: 'e2e-ctx-layer-2' },
+      })
+    })
+    await expect(page.getByRole('img', { name: /association is (stale|no longer valid)/i })).toHaveCount(0)
+
+    await page.evaluate(() => {
+      const engine = (window as unknown as FloatingPanelDevtools).__askLucyViewerEngine
+      engine.removeLayer('e2e-ctx-layer-2')
+    })
+
+    await expect(page.getByRole('img', { name: /association is no longer valid/i })).toBeVisible()
   })
 })

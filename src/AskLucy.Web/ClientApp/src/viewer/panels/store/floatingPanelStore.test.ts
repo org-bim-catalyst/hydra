@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { viewerEngine } from '../../engine/viewerEngineInstance'
 import { panelTypeRegistry } from '../registry'
 import { MAX_CONCURRENT_PANELS } from '../types/panel'
 import { useFloatingPanelStore } from './floatingPanelStore'
@@ -164,5 +165,56 @@ describe('floatingPanelStore.clampToViewport (FR-018, Edge Cases: viewport resiz
 
     const panel = useFloatingPanelStore.getState().panels.find((p) => p.id === 'in-bounds')!
     expect(panel.position).toEqual({ x: 40, y: 40 })
+  })
+})
+
+describe('floatingPanelStore ViewerEventBus subscription (US4, FR-014, Edge Cases: removed viewer object)', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  it("marks a panel's association invalid when its associated layer is removed", () => {
+    viewerEngine.addLayer({ id: 'ctx-layer-1', kind: 'model' })
+    useFloatingPanelStore.getState().openPanel({
+      requestId: 'ctx-panel-1',
+      typeKey: TEST_TYPE_KEY,
+      title: 'Ctx',
+      data: { label: 'x' },
+      contextAssociation: { layerId: 'ctx-layer-1' },
+    })
+    expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBe('current')
+
+    viewerEngine.removeLayer('ctx-layer-1')
+
+    expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBe('invalid')
+  })
+
+  it("marks a panel's association stale when its associated layer's content reloads", () => {
+    viewerEngine.addLayer({ id: 'ctx-layer-2', kind: 'model' })
+    useFloatingPanelStore.getState().openPanel({
+      requestId: 'ctx-panel-2',
+      typeKey: TEST_TYPE_KEY,
+      title: 'Ctx',
+      data: { label: 'x' },
+      contextAssociation: { layerId: 'ctx-layer-2' },
+    })
+
+    viewerEngine.displayContent('ctx-layer-2', { some: 'update' })
+
+    expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBe('stale')
+  })
+
+  it('leaves panels with no context association untouched by layer events', () => {
+    viewerEngine.addLayer({ id: 'ctx-layer-3', kind: 'model' })
+    useFloatingPanelStore.getState().openPanel({
+      requestId: 'ctx-panel-3',
+      typeKey: TEST_TYPE_KEY,
+      title: 'No Ctx',
+      data: { label: 'x' },
+    })
+
+    viewerEngine.removeLayer('ctx-layer-3')
+
+    expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBeNull()
   })
 })

@@ -5,3 +5,4 @@
 import './chart/ChartPanel'
 import './table/TablePanel'
 import './parameters/ParametersPanel'
+import './summary/SummaryPanel'

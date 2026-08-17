@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import { viewerEngine } from '../../engine/viewerEngineInstance'
 import { panelTypeRegistry } from '../registry'
-import { MAX_CONCURRENT_PANELS, type FloatingPanel, type PanelRequest } from '../types/panel'
+import { MAX_CONCURRENT_PANELS, type FloatingPanel, type PanelContextStatus, type PanelRequest } from '../types/panel'
 
 /** FR-021 — cascade placement for a panel request that doesn't specify a position: each new
  * panel opens offset from the previous one, wrapping back toward the starting corner before
@@ -40,6 +41,7 @@ interface FloatingPanelState {
   updatePosition: (id: string, position: { x: number; y: number }) => void
   updateSize: (id: string, size: { width: number; height: number }) => void
   clampToViewport: (bounds: { width: number; height: number }) => void
+  setContextStatus: (id: string, status: PanelContextStatus) => void
 }
 
 /** data-model.md "FloatingPanel" store — session-scoped only (no `persist` middleware, matches
@@ -175,4 +177,32 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
         return x === panel.position.x && y === panel.position.y ? panel : { ...panel, position: { x, y } }
       }),
     })),
+
+  setContextStatus: (id, status) =>
+    set((s) => ({
+      panels: s.panels.map((panel) => (panel.id === id ? { ...panel, contextStatus: status } : panel)),
+    })),
 }))
+
+// FR-014/US4-AS2, Edge Cases ("a panel's associated viewer object no longer exists") — a panel
+// associated with a layer that's removed is marked invalid; one whose associated layer's content
+// reloads is marked stale, since the panel's already-rendered data may no longer reflect it.
+// Subscribed once at module load: `floatingPanelStore` and `viewerEngine` are both process-wide
+// singletons, so this never double-subscribes.
+viewerEngine.on('layerRemoved', ({ layerId }) => {
+  useFloatingPanelStore.setState((s) => ({
+    panels: s.panels.map((panel) =>
+      panel.contextAssociation?.layerId === layerId ? { ...panel, contextStatus: 'invalid' } : panel,
+    ),
+  }))
+})
+
+viewerEngine.on('contentLoaded', ({ layerId }) => {
+  useFloatingPanelStore.setState((s) => ({
+    panels: s.panels.map((panel) =>
+      panel.contextAssociation?.layerId === layerId && panel.contextStatus === 'current'
+        ? { ...panel, contextStatus: 'stale' }
+        : panel,
+    ),
+  }))
+})

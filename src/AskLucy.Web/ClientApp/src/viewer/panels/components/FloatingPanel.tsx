@@ -1,6 +1,7 @@
-import { RiCloseLine, RiExpandDiagonalLine, RiSubtractLine } from '@remixicon/react'
-import { Box, IconButton, Typography, alpha } from '@mui/material'
+import { RiCloseLine, RiErrorWarningLine, RiExpandDiagonalLine, RiMapPinLine, RiSubtractLine } from '@remixicon/react'
+import { Box, IconButton, Tooltip, Typography, alpha } from '@mui/material'
 import { Rnd } from 'react-rnd'
+import { viewerEngine } from '../../engine/viewerEngineInstance'
 import { panelTypeRegistry } from '../registry'
 import { useFloatingPanelStore } from '../store/floatingPanelStore'
 import { usePanelPreferencesStore } from '../store/panelPreferencesStore'
@@ -45,6 +46,49 @@ function PanelContent({ panel }: { panel: FloatingPanelModel }) {
   }
 
   return Renderer ? <Renderer data={panel.data} /> : null
+}
+
+/** FR-013/FR-014 (User Story 4) — generic to every panel type (the association lives on the
+ * `FloatingPanel` itself, data-model.md, not the type's renderer), so a "Locate" affordance and a
+ * stale/invalid indicator work identically whether the panel is `summary`, `chart`, or any future
+ * type that carries a `contextAssociation`. */
+function ContextAssociationControls({ panel }: { panel: FloatingPanelModel }) {
+  const layerId = panel.contextAssociation?.layerId
+  const elementId = panel.contextAssociation?.elementId
+
+  return (
+    <>
+      {panel.contextStatus === 'stale' && (
+        <Tooltip title="This panel's viewer association may be outdated">
+          <Box
+            component="span"
+            role="img"
+            aria-label="Association is stale"
+            sx={{ display: 'inline-flex', color: 'warning.main' }}
+          >
+            <RiErrorWarningLine size={16} />
+          </Box>
+        </Tooltip>
+      )}
+      {panel.contextStatus === 'invalid' && (
+        <Tooltip title="This panel's viewer association no longer exists">
+          <Box
+            component="span"
+            role="img"
+            aria-label="Association is no longer valid"
+            sx={{ display: 'inline-flex', color: 'error.main' }}
+          >
+            <RiErrorWarningLine size={16} />
+          </Box>
+        </Tooltip>
+      )}
+      {layerId && elementId && (
+        <IconButton onClick={() => viewerEngine.select(layerId, elementId)} aria-label="Locate in viewer" size="small">
+          <RiMapPinLine size={18} />
+        </IconButton>
+      )}
+    </>
+  )
 }
 
 /** The chrome for a single open AI-requested panel (data-model.md "Floating Panel"). Normal
@@ -153,6 +197,7 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
           <Typography variant="subtitle2" noWrap sx={{ flex: 1, minWidth: 0 }}>
             {panel.title}
           </Typography>
+          <ContextAssociationControls panel={panel} />
           <IconButton onClick={() => minimizePanel(panel.id)} aria-label="Minimize panel" size="small">
             <RiSubtractLine size={18} />
           </IconButton>

@@ -89,16 +89,22 @@ for `cap-10`. No error, no blocked request — the 11th `openPanel` call always 
 viewerEngine.addLayer({ id: 'demo-layer', kind: 'model', visible: true, zIndex: 0, metadata: {} })
 floatingPanelStore.getState().openPanel({
   requestId: 'demo-6', typeKey: 'summary', title: 'Site Notes', data: { heading: 'Site Notes', body: 'Demo' },
-  contextAssociation: { layerId: 'demo-layer' },
+  contextAssociation: { layerId: 'demo-layer', elementId: 'demo-element' },
 })
 ```
 
-1. Trigger the panel's context action (implementation-specific UI affordance, e.g. a "locate" button in
-   the panel chrome). **Expect**: `viewerEngine`'s selection state updates to the associated layer
-   (FR-014, US4-AS1).
+1. Click the panel's "Locate in viewer" button (shown whenever `contextAssociation` carries both a
+   `layerId` and `elementId` — generic panel chrome, not specific to the `summary` type).
+   **Expect**: `viewerEngine.select('demo-layer', 'demo-element')` is invoked (fails gracefully if
+   `demo-element` was never registered selectable — that's expected in this manual demo; the point is
+   the panel drives the viewer command, not that the element resolves) (FR-014, US4-AS1).
 2. Call `viewerEngine.removeLayer('demo-layer')`. **Expect**: the panel's `contextStatus` becomes
-   `'invalid'` and the panel visibly indicates the association is stale (US4-AS2; Edge Cases: viewer
-   object removed).
+   `'invalid'` and the panel visibly shows the "association is no longer valid" indicator (US4-AS2;
+   Edge Cases: viewer object removed).
+3. Call `viewerEngine.displayContent('demo-layer', { updated: true })` on a *different* panel still
+   associated with `demo-layer` (before removing it). **Expect**: that panel's `contextStatus` becomes
+   `'stale'` and shows the corresponding indicator — the "relevant state changed" half of FR-014, not
+   just outright removal.
 
 ## Scenario 7 — Panel preferences API, direct HTTP (backend-only check)
 

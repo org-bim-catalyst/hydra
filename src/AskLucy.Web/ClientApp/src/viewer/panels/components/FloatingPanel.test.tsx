@@ -32,6 +32,12 @@ vi.mock('../store/floatingPanelStore', () => ({
     }),
 }))
 
+const selectMock = vi.fn()
+
+vi.mock('../../engine/viewerEngineInstance', () => ({
+  viewerEngine: { select: (layerId: string, elementId: string) => selectMock(layerId, elementId) },
+}))
+
 let lastRndProps: Record<string, unknown> = {}
 
 vi.mock('react-rnd', () => ({
@@ -152,5 +158,44 @@ describe('FloatingPanel minimize/restore (US2, FR-006)', () => {
     expect(screen.queryByRole('button', { name: /minimize panel/i })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /restore panel/i }))
     expect(restorePanelMock).toHaveBeenCalledWith('panel-restore')
+  })
+})
+
+describe('FloatingPanel context association (US4, FR-013/FR-014)', () => {
+  it('shows no Locate button and no stale/invalid indicator when there is no context association', () => {
+    render(<FloatingPanel panel={makePanel({ contextAssociation: null, contextStatus: null })} />)
+    expect(screen.queryByRole('button', { name: /locate in viewer/i })).not.toBeInTheDocument()
+  })
+
+  it('calls viewerEngine.select with the associated layer/element when Locate is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <FloatingPanel
+        panel={makePanel({
+          contextAssociation: { layerId: 'layer-1', elementId: 'element-1' },
+          contextStatus: 'current',
+        })}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /locate in viewer/i }))
+    expect(selectMock).toHaveBeenCalledWith('layer-1', 'element-1')
+  })
+
+  it('shows a visible stale indicator when contextStatus is stale', () => {
+    render(
+      <FloatingPanel
+        panel={makePanel({ contextAssociation: { layerId: 'layer-1', elementId: null }, contextStatus: 'stale' })}
+      />,
+    )
+    expect(screen.getByRole('img', { name: /association is stale/i })).toBeInTheDocument()
+  })
+
+  it('shows a visible invalid indicator when contextStatus is invalid', () => {
+    render(
+      <FloatingPanel
+        panel={makePanel({ contextAssociation: { layerId: 'layer-1', elementId: null }, contextStatus: 'invalid' })}
+      />,
+    )
+    expect(screen.getByRole('img', { name: /association is no longer valid/i })).toBeInTheDocument()
   })
 })
