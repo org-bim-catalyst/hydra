@@ -1,23 +1,25 @@
-import ImageIcon from '@mui/icons-material/Image'
-import TranslateIcon from '@mui/icons-material/Translate'
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
+import { RiChat3Line, RiTranslate2 } from '@remixicon/react'
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
+  Grow,
   IconButton,
   Snackbar,
   Toolbar,
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useActiveConversationStore } from '../activeConversationStore'
-import { AssistantPanel } from '../components/AssistantPanel'
+import { ChatAssistantWidget } from '../components/ChatAssistantWidget'
+import { CollapsedChatControl } from '../components/CollapsedChatControl'
+import { ExpandedChatPanel } from '../components/ExpandedChatPanel'
+import type { VoiceAnalyzerState } from '../components/VoiceAnalyzer'
+import type { VoiceControlsProps } from '../components/CollapsedVoiceControls'
 import { ChatComposer } from '../components/ChatComposer'
 import { InsertPromptPicker } from '../components/InsertPromptPicker'
-import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
 import { AiPresenceCard } from '../components/AiPresenceCard'
 import { HomeProjectCard } from '../components/HomeProjectCard'
@@ -29,11 +31,11 @@ import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
 import { useChatDetail, useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
 import { useSpeechRecognition } from '../voice/useSpeechRecognition'
+import { useVoiceRecorder } from '../voice/useVoiceRecorder'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { WorkspaceOverlay } from '../../../components/workspace-shell/WorkspaceOverlay'
-import { FloatingPanel } from '../../../components/workspace-shell/FloatingPanel'
 import { ThemeToggleButton } from '../../../components/workspace-shell/ThemeToggleButton'
 import { ComingSoonDialog } from '../../../components/workspace-shell/ComingSoonDialog'
 import {
@@ -46,6 +48,8 @@ import {
 } from '../workspaceControls'
 import { EmptyState } from '../../../components/EmptyState'
 import { ErrorState } from '../../../components/ErrorState'
+
+const CHAT_CONTENT_ID = 'ask-lucy-assistant-content'
 
 /**
  * Owns which chat is selected (2026-07-28 ChatGPT-style history decision). `ConversationView`
@@ -75,10 +79,6 @@ export function ChatPage() {
   // functional in this feature; layers/navigation/selection/analysis are established,
   // reachable "coming soon" placeholders (FR-021).
   const viewModeControl = useViewModeControl()
-  // SPEC-024 FR-013: chat reached through the same circular-control pattern as every
-  // other control — collapses via the same toggle('chat') the CircularAction itself
-  // uses, so FloatingPanel's in-panel Close button and the trigger stay in sync.
-  const toggleWorkspaceControl = useWorkspaceOverlayStore((s) => s.toggle)
 
   // FR-011/SC-004: restores a returning user's mute/input-mode preference without requiring
   // a detour through Settings first (research.md Decision 9 — VoiceTab already hydrates on
@@ -90,16 +90,23 @@ export function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // specs/026-floating-chat-assistant FR-016/FR-017, data-model.md "Client-side:
+  // ChatAssistantWidgetState": seeds the response language from the persisted preference
+  // once hydration resolves it, mirroring ConversationView's own aiPreference-seeding
+  // pattern — seeded once (not re-applied on every store change), so a language the user
+  // actively changes mid-session is never silently overwritten by a later hydration.
+  const defaultLanguagePreference = useVoicePreferencesStore((s) => s.defaultLanguage)
+  const hasSeededLanguageRef = useRef(false)
+  useEffect(() => {
+    if (hasSeededLanguageRef.current || defaultLanguagePreference === null) return
+    hasSeededLanguageRef.current = true
+    setLanguage(defaultLanguagePreference)
+  }, [defaultLanguagePreference])
+
   // specs/025-chat-configuration-settings, research.md Decision 1: mirrored into a
   // session-scoped store alongside the local `selectedChatId` state, so Chat Configuration
   // (rendered on a separate page) can know which conversation is "currently open."
   const setActiveChatId = useActiveConversationStore((s) => s.setActiveChatId)
-
-  const handleNewChat = () => {
-    setSelectedChatId(null)
-    setActiveChatId(null)
-    setViewKey((k) => k + 1)
-  }
 
   const handleChatCreated = (id: string) => {
     setSelectedChatId(id)
@@ -107,37 +114,28 @@ export function ChatPage() {
     void queryClient.invalidateQueries({ queryKey: ['chats'] })
   }
 
-  const chatControl = {
-    id: 'chat',
-    label: 'Chat with Lucy',
-    icon: <ChatBubbleOutlineIcon />,
-    status: 'functional' as const,
-    kind: 'panel' as const,
-    placement: 'bottom-end' as const,
-    content: (
-      <FloatingPanel controlId="chat" titleId="Ask Lucy assistant" onRequestClose={() => toggleWorkspaceControl('chat')}>
-        <AssistantPanel onNewChat={handleNewChat}>
-          <ConversationView
-            key={viewKey}
-            chatId={selectedChatId}
-            language={language}
-            onLanguageChange={setLanguage}
-            onChatCreated={handleChatCreated}
-            tts={tts}
-          />
-        </AssistantPanel>
-      </FloatingPanel>
-    ),
+  // specs/026-floating-chat-assistant FR-014: starts a fresh conversation on demand, from
+  // the minimal icon in ExpandedChatPanel's header — the same reset `AssistantPanel`'s old
+  // "+ New chat" button performed (FR-012's removed control), now reached differently.
+  const handleNewChat = () => {
+    setSelectedChatId(null)
+    setActiveChatId(null)
+    setViewKey((k) => k + 1)
   }
+
   const workspaceControls = [
     viewModeControl,
     layersControl,
     navigationControl,
     selectionControl,
     analysisControl,
-    chatControl,
     accountControl,
   ]
+
+  // specs/026-floating-chat-assistant research.md #1: the one piece of workspaceOverlayStore
+  // state ChatPage itself needs directly — which visual state to render — read here (not only
+  // inside ConversationView) so it can be threaded down as an explicit prop.
+  const isChatExpanded = useWorkspaceOverlayStore((s) => s.expandedControlId === 'chat')
 
   return (
     <Box sx={{ position: 'relative', height: '100dvh', width: '100%', overflow: 'hidden' }}>
@@ -148,11 +146,26 @@ export function ChatPage() {
           full-viewport SceneBackground mount — the AI presence now lives in its own
           AiPresenceCard (FR-023), rendered below via WorkspaceOverlay's children slot. */}
       <WorkspaceSurface />
-      {/* SPEC-024 FR-005/FR-013/FR-016: every workspace control — including chat — is
-          reached only through this coordinating overlay, never a permanent toolbar. */}
+      {/* SPEC-024 FR-005/FR-016: every workspace control is reached only through this
+          coordinating overlay, never a permanent toolbar. specs/026-floating-chat-assistant
+          FR-001: the chat entry point is no longer one of `controls` — it's the bespoke
+          `ChatAssistantWidget`, rendered as a `children` sibling alongside `AiPresenceCard`,
+          still reading/writing the same `workspaceOverlayStore` for mutual exclusivity
+          (research.md #1). */}
       <WorkspaceOverlay controls={workspaceControls} topClusterLeading={<ThemeToggleButton />}>
         <HomeProjectCard />
         <AiPresenceCard getReactiveIntensity={tts.getIntensity} />
+        <ChatAssistantWidget>
+          <ConversationView
+            key={viewKey}
+            chatId={selectedChatId}
+            language={language}
+            onChatCreated={handleChatCreated}
+            onNewChat={handleNewChat}
+            tts={tts}
+            expanded={isChatExpanded}
+          />
+        </ChatAssistantWidget>
       </WorkspaceOverlay>
       <ComingSoonDialog />
     </Box>
@@ -161,18 +174,31 @@ export function ChatPage() {
 
 interface ConversationViewProps {
   chatId: string | null
+  /** specs/026-floating-chat-assistant FR-015: no longer changeable via an in-toolbar
+   * control — this is the seeded-from-preference value, fixed for the conversation
+   * (FR-017 changes it only via Chat Configuration, reflected on the next mount/seed). */
   language: string
-  onLanguageChange: (language: string) => void
   onChatCreated: (id: string) => void
+  /** specs/026-floating-chat-assistant FR-014: the existing `handleNewChat` handler, now
+   * triggered from `ExpandedChatPanel`'s minimal icon instead of the removed
+   * `AssistantPanel` button. */
+  onNewChat: () => void
   tts: ReturnType<typeof useVoiceOutput>
+  /** specs/026-floating-chat-assistant: which visual state to render. Defaults to `true`
+   * so every existing standalone `<ConversationView>` test render (many of which predate
+   * this feature and never set `workspaceOverlayStore`) continues to see the full
+   * conversation content unchanged — only `ChatPage`'s real usage passes this explicitly,
+   * driven by `workspaceOverlayStore.expandedControlId === 'chat'`. */
+  expanded?: boolean
 }
 
 export function ConversationView({
   chatId,
   language,
-  onLanguageChange,
   onChatCreated,
+  onNewChat,
   tts,
+  expanded = true,
 }: ConversationViewProps) {
   const {
     data,
@@ -202,7 +228,6 @@ export function ConversationView({
     error,
     clearError,
     send,
-    sendImage,
     sendTranslation,
     retry,
     providerId,
@@ -255,7 +280,7 @@ export function ConversationView({
   // on-demand read-aloud, dropping the automatic one entirely. `tts.speak()` itself no-ops
   // while muted (useVoiceOutput.ts, SPEC-013 Decision 3), so this effect needs no isMuted
   // check of its own.
-  const isPanelOpen = useWorkspaceOverlayStore((s) => s.expandedControlId === 'chat')
+  const toggleWorkspaceControl = useWorkspaceOverlayStore((s) => s.toggle)
   const markUnread = useWorkspaceOverlayStore((s) => s.markUnread)
   const wasStreamingRef = useRef(false)
   useEffect(() => {
@@ -264,11 +289,14 @@ export function ConversationView({
       if (last?.role === 'assistant' && last.content) {
         tts.speak(last.content, language)
         // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
-        if (!isPanelOpen) markUnread('chat')
+        // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
+        // this component's single source of truth for "is the panel open," replacing the
+        // separate `isPanelOpen` store read this effect used to compute independently.
+        if (!expanded) markUnread('chat')
       }
     }
     wasStreamingRef.current = isStreaming
-  }, [isStreaming, messages, language, tts, isPanelOpen, markUnread])
+  }, [isStreaming, messages, language, tts, expanded, markUnread])
 
   // SPEC-013 US1 (FR-001/FR-003): keeps the extended useVoiceOutput's real-time mute gate
   // in sync with the persisted preference — store is the source of truth (VoiceControlBar
@@ -343,6 +371,19 @@ export function ConversationView({
     onFinalTranscript: handleFinalTranscript,
   })
 
+  // specs/026-floating-chat-assistant FR-019–FR-025, research.md #2: Push-to-Talk no
+  // longer uses `recognition` at all (that engine streams audio live the instant start()
+  // is called, which would violate "no audio transmitted before explicit accept") — this
+  // hook's discrete record/review/cancel/accept flow replaces it for this mode only.
+  // Continuous keeps using `recognition` above, completely unchanged (FR-025).
+  const recorder = useVoiceRecorder()
+  const handleRecorderAccept = async () => {
+    const transcript = await recorder.accept()
+    if (transcript.trim()) {
+      setComposerText((prev) => `${prev} ${transcript}`.trim())
+    }
+  }
+
   // FR-006: Continuous mode has no per-utterance activation — selecting it starts listening
   // immediately (and keeps listening across utterances); switching away stops it. Push-to-Talk
   // capture itself is started/stopped by ChatComposer's mic control, not this effect.
@@ -371,7 +412,10 @@ export function ConversationView({
 
   // FR-007/Clarification Q4 (research.md Decision 6): blocks switching away from Push-to-Talk
   // while a capture (hold or toggle) is actively in progress, until it's released/stopped.
-  const isModeSwitchBlocked = conversationMode === 'PushToTalk' && recognition.isListening
+  // specs/026-floating-chat-assistant: now guards on the recorder's phase (recording OR
+  // still awaiting review), not `recognition.isListening`, since Push-to-Talk no longer
+  // uses `recognition` at all.
+  const isModeSwitchBlocked = conversationMode === 'PushToTalk' && recorder.phase !== 'idle'
   const handleToggleMode = () => {
     if (isModeSwitchBlocked) return
     void updateConversationMode({
@@ -386,161 +430,274 @@ export function ConversationView({
     tts.speak(plain, language)
   }
 
-  const handleGenerateImage = async () => {
-    const prompt = window.prompt('Describe the image to generate:')
-    if (!prompt) return
-    await sendImage(prompt)
+  // specs/026-floating-chat-assistant FR-006/research.md #9: the expand handle lives inside
+  // `CollapsedChatControl`; this ref lets the Escape handler below move focus back to it once
+  // the collapse re-render has happened (the handle doesn't exist in the DOM yet at the moment
+  // Escape fires, since we're still on the Expanded branch mid-event).
+  const handleRef = useRef<HTMLButtonElement>(null)
+  const wasExpandedRef = useRef(expanded)
+  useEffect(() => {
+    if (wasExpandedRef.current && !expanded) {
+      handleRef.current?.focus()
+      // FR-024: collapsing mid-recording/review discards it rather than leaving it
+      // running invisibly — safe to call unconditionally, cancel() itself no-ops from idle.
+      recorder.cancel()
+    }
+    wasExpandedRef.current = expanded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded])
+
+  const handleToggleExpanded = () => toggleWorkspaceControl('chat')
+
+  const handleContainerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && expanded) {
+      event.stopPropagation()
+      handleToggleExpanded()
+    }
+  }
+
+  // specs/026-floating-chat-assistant FR-004/research.md #3: Processing reflects the
+  // assistant generating a reply; Speaking reflects TTS playback; Listening reflects live
+  // mic capture — Continuous Listening's `recognition.isListening`, or Push-to-Talk's
+  // recorder actively `recording` (not yet `reviewing`/`transcribing`, which have their
+  // own finish/cancel/send UI instead); anything else is Idle.
+  const isPushToTalkRecording = conversationMode === 'PushToTalk' && recorder.phase === 'recording'
+  const isContinuousListening = conversationMode === 'Continuous' && recognition.isListening
+  const analyzerState: VoiceAnalyzerState = isStreaming
+    ? 'processing'
+    : tts.isSpeaking
+      ? 'speaking'
+      : isPushToTalkRecording || isContinuousListening
+        ? 'listening'
+        : 'idle'
+  const analyzerIntensity = tts.isSpeaking
+    ? tts.getIntensity
+    : isPushToTalkRecording
+      ? recorder.getIntensity
+      : () => 0
+
+  // specs/026-floating-chat-assistant research.md #10: the single data contract shared by
+  // `CollapsedVoiceControls` (Collapsed) and `VoiceControlBar` (Expanded) — only the layout
+  // differs between the two. Push-to-Talk is driven by `recorder`; Continuous keeps using
+  // `recognition`, completely unchanged (FR-025).
+  const voiceControlsProps: VoiceControlsProps =
+    conversationMode === 'PushToTalk'
+      ? {
+          isAvailable: tts.isSupported,
+          isListening: recorder.phase !== 'idle',
+          isSpeaking: tts.isSpeaking,
+          isMuted: tts.isMuted,
+          conversationMode,
+          errorMessage: recorder.error,
+          permissionState: recorder.permissionState,
+          onStart: () => void recorder.start(),
+          onStop: recorder.finish,
+          onCancel: recorder.cancel,
+          onStopSpeaking: tts.stop,
+          onToggleMode: handleToggleMode,
+          onToggleMute: () => updateVoicePreference({ isMuted: !isMutedPreference }),
+          onClearError: recorder.clearError,
+          recording: {
+            phase: recorder.phase,
+            getIntensity: recorder.getIntensity,
+            onFinish: recorder.finish,
+            onCancelRecording: recorder.cancel,
+            onAccept: () => void handleRecorderAccept(),
+          },
+        }
+      : {
+          isAvailable: tts.isSupported,
+          isListening: recognition.isListening,
+          isSpeaking: tts.isSpeaking,
+          isMuted: tts.isMuted,
+          conversationMode,
+          errorMessage: recognition.error,
+          permissionState: recognition.permissionState,
+          onStart: () => void recognition.start(),
+          onStop: recognition.stop,
+          onCancel: recognition.cancel,
+          onStopSpeaking: tts.stop,
+          onToggleMode: handleToggleMode,
+          onToggleMute: () => updateVoicePreference({ isMuted: !isMutedPreference }),
+          onClearError: recognition.clearError,
+        }
+
+  // specs/026-floating-chat-assistant FR-009: `key={expanded}` forces React to treat each
+  // toggle as a fresh element, retriggering Grow's `appear` transition every time — timed by
+  // `theme.transitions` (createMotionTokens), which already collapses to 0 under a reduced-
+  // motion preference (spec 024 research.md #2), so no separate reduced-motion branch is
+  // needed here either.
+  if (!expanded) {
+    return (
+      <Grow in appear key="collapsed">
+        <Box onKeyDown={handleContainerKeyDown}>
+          <CollapsedChatControl
+            onExpand={handleToggleExpanded}
+            analyzerState={analyzerState}
+            getIntensity={analyzerIntensity}
+            voiceControls={voiceControlsProps}
+            triggerRef={handleRef}
+            contentId={CHAT_CONTENT_ID}
+          />
+        </Box>
+      </Grow>
+    )
   }
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-      {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
-          live behind the Studio workspace's account circular control (SPEC-024 FR-024). */}
-      <Toolbar
-        variant="dense"
-        sx={{ justifyContent: 'flex-end', gap: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
-      >
-        <ProjectPicker chatId={chatId} projectId={projectId} onAssigned={setProjectId} />
-        <LanguageSelector value={language} onChange={onLanguageChange} />
-        <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
-          <TranslateIcon />
-        </IconButton>
-        <IconButton onClick={handleGenerateImage} aria-label="Generate image">
-          <ImageIcon />
-        </IconButton>
-      </Toolbar>
-
-      <Box
-        ref={listParentRef}
-        sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}
-      >
-        <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-          {chatId === null ? (
-            // FR-001: this placeholder is reserved for "no conversation selected" only — it
-            // must never be the fallback for a selected conversation that's loading/erroring.
-            <Box sx={{ mt: 6 }}>
-              <EmptyState
-                icon={<ChatBubbleOutlineIcon fontSize="inherit" />}
-                title="Start a conversation with Ask Lucy."
-                description="Ask a question, brainstorm, or attach a file to get started."
-              />
-            </Box>
-          ) : isMessagesPending ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-              <CircularProgress
-                role="status"
-                aria-live="polite"
-                aria-label="Loading conversation…"
-              />
-            </Box>
-          ) : isMessagesError ? (
-            <Box sx={{ mt: 6 }}>
-              <ErrorState
-                title="Failed to load this conversation"
-                description="Please try again."
-                onRetry={() => void refetchMessages()}
-              />
-            </Box>
-          ) : (
-            <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
-              {virtualizer.getVirtualItems().map((virtualItem) => {
-                const message = messages[virtualItem.index]
-                // FR-006/FR-007: the in-flight assistant placeholder (empty content while
-                // streaming) renders as the thinking indicator instead of an empty bubble.
-                const isThinking =
-                  isStreaming && message.role === 'assistant' && message.content === ''
-                return (
-                  <Box
-                    key={virtualItem.key}
-                    data-index={virtualItem.index}
-                    ref={virtualizer.measureElement}
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                  >
-                    {isThinking ? <ThinkingIndicator /> : <MessageBubble message={message} chatId={chatId} />}
-                  </Box>
-                )
-              })}
-            </Box>
-          )}
-          <div ref={scrollRef} />
-        </Box>
-      </Box>
-
-      <VoiceControlBar
-        isAvailable={tts.isSupported}
-        isListening={recognition.isListening}
-        isSpeaking={tts.isSpeaking}
-        isMuted={tts.isMuted}
-        conversationMode={conversationMode}
-        errorMessage={recognition.error}
-        permissionState={recognition.permissionState}
-        onStart={() => void recognition.start()}
-        onStop={recognition.stop}
-        onCancel={recognition.cancel}
-        onStopSpeaking={tts.stop}
-        onToggleMode={handleToggleMode}
-        onToggleMute={() => updateVoicePreference({ isMuted: !isMutedPreference })}
-        onClearError={recognition.clearError}
-      />
-      <ChatComposer
-        value={composerText}
-        onChange={setComposerText}
-        onSend={handleSend}
-        disabled={isStreaming || !providerId || !modelId}
-        conversationMode={conversationMode}
-        isListening={recognition.isListening}
-        permissionState={recognition.permissionState}
-        captureError={recognition.error}
-        onStartCapture={() => void recognition.start()}
-        onStopCapture={recognition.stop}
-        onCancelCapture={recognition.cancel}
-        onClearCaptureError={recognition.clearError}
-        onInsertPromptClick={chatId ? () => setInsertPromptOpen(true) : undefined}
-      />
-      {chatId && (
-        <InsertPromptPicker
-          open={isInsertPromptOpen}
-          onClose={() => setInsertPromptOpen(false)}
-          chatId={chatId}
-          providerId={providerId}
-          modelId={modelId}
-          onInserted={() => void refetchMessages()}
-        />
-      )}
-      <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
-        <Alert
-          severity="error"
-          variant="filled"
-          onClose={clearError}
-          action={
-            <Button color="inherit" size="small" onClick={retry}>
-              Retry
-            </Button>
-          }
+    <Grow in appear key="expanded">
+      <Box onKeyDown={handleContainerKeyDown}>
+        <ExpandedChatPanel
+          open={expanded}
+          onCollapse={handleToggleExpanded}
+          onNewChat={onNewChat}
+          language={language}
+          contentId={CHAT_CONTENT_ID}
         >
-          {error}
-        </Alert>
-      </Snackbar>
-      <Snackbar open={Boolean(tts.error)} autoHideDuration={5000} onClose={tts.clearError}>
-        <Alert severity="error" variant="filled" onClose={tts.clearError}>
-          {tts.error}
-        </Alert>
-      </Snackbar>
-      <Snackbar
-        open={Boolean(voicePreferenceError)}
-        autoHideDuration={5000}
-        onClose={clearVoicePreferenceError}
-      >
-        <Alert severity="error" variant="filled" onClose={clearVoicePreferenceError}>
-          {voicePreferenceError}
-        </Alert>
-      </Snackbar>
-    </Box>
+          {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
+            live behind the Studio workspace's account circular control (SPEC-024 FR-024). */}
+          <Toolbar
+            variant="dense"
+            sx={{
+              justifyContent: 'flex-end',
+              gap: 0.5,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <ProjectPicker chatId={chatId} projectId={projectId} onAssigned={setProjectId} />
+            <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
+              <RiTranslate2 />
+            </IconButton>
+          </Toolbar>
+
+          <Box
+            ref={listParentRef}
+            sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}
+          >
+            <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+              {chatId === null ? (
+                // FR-001: this placeholder is reserved for "no conversation selected" only — it
+                // must never be the fallback for a selected conversation that's loading/erroring.
+                <Box sx={{ mt: 6 }}>
+                  <EmptyState
+                    icon={<RiChat3Line size="1em" />}
+                    title="Start a conversation with Ask Lucy."
+                    description="Ask a question, brainstorm, or attach a file to get started."
+                  />
+                </Box>
+              ) : isMessagesPending ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+                  <CircularProgress
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Loading conversation…"
+                  />
+                </Box>
+              ) : isMessagesError ? (
+                <Box sx={{ mt: 6 }}>
+                  <ErrorState
+                    title="Failed to load this conversation"
+                    description="Please try again."
+                    onRetry={() => void refetchMessages()}
+                  />
+                </Box>
+              ) : (
+                <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
+                  {virtualizer.getVirtualItems().map((virtualItem) => {
+                    const message = messages[virtualItem.index]
+                    // FR-006/FR-007: the in-flight assistant placeholder (empty content while
+                    // streaming) renders as the thinking indicator instead of an empty bubble.
+                    const isThinking =
+                      isStreaming && message.role === 'assistant' && message.content === ''
+                    return (
+                      <Box
+                        key={virtualItem.key}
+                        data-index={virtualItem.index}
+                        ref={virtualizer.measureElement}
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                      >
+                        {isThinking ? (
+                          <ThinkingIndicator />
+                        ) : (
+                          <MessageBubble message={message} chatId={chatId} />
+                        )}
+                      </Box>
+                    )
+                  })}
+                </Box>
+              )}
+              <div ref={scrollRef} />
+            </Box>
+          </Box>
+
+          <VoiceControlBar {...voiceControlsProps} />
+          <ChatComposer
+            value={composerText}
+            onChange={setComposerText}
+            onSend={handleSend}
+            disabled={isStreaming || !providerId || !modelId}
+            conversationMode={conversationMode}
+            // specs/026-floating-chat-assistant FR-019–FR-023: this button only ever renders
+            // for Push-to-Talk (ChatComposer's own `showMicButton` gate), so it always drives
+            // `recorder` now, never `recognition` — pressing it starts the same record/review
+            // flow shown in VoiceControlBar/CollapsedVoiceControls just above/alongside it.
+            // "Stop capture" means `finish()` (move to review), not an instant transcript.
+            isListening={recorder.phase !== 'idle'}
+            permissionState={recorder.permissionState}
+            captureError={recorder.error}
+            onStartCapture={() => void recorder.start()}
+            onStopCapture={recorder.finish}
+            onCancelCapture={recorder.cancel}
+            onClearCaptureError={recorder.clearError}
+            onInsertPromptClick={chatId ? () => setInsertPromptOpen(true) : undefined}
+          />
+          {chatId && (
+            <InsertPromptPicker
+              open={isInsertPromptOpen}
+              onClose={() => setInsertPromptOpen(false)}
+              chatId={chatId}
+              providerId={providerId}
+              modelId={modelId}
+              onInserted={() => void refetchMessages()}
+            />
+          )}
+          <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
+            <Alert
+              severity="error"
+              variant="filled"
+              onClose={clearError}
+              action={
+                <Button color="inherit" size="small" onClick={retry}>
+                  Retry
+                </Button>
+              }
+            >
+              {error}
+            </Alert>
+          </Snackbar>
+          <Snackbar open={Boolean(tts.error)} autoHideDuration={5000} onClose={tts.clearError}>
+            <Alert severity="error" variant="filled" onClose={tts.clearError}>
+              {tts.error}
+            </Alert>
+          </Snackbar>
+          <Snackbar
+            open={Boolean(voicePreferenceError)}
+            autoHideDuration={5000}
+            onClose={clearVoicePreferenceError}
+          >
+            <Alert severity="error" variant="filled" onClose={clearVoicePreferenceError}>
+              {voicePreferenceError}
+            </Alert>
+          </Snackbar>
+        </ExpandedChatPanel>
+      </Box>
+    </Grow>
   )
 }

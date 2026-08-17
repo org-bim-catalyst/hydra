@@ -14,6 +14,7 @@ const SERVER_PREFERENCE: voiceApi.UserVoicePreference = {
   voiceStyle: 0,
   preferredMicrophoneDeviceId: null,
   preferredSpeakerDeviceId: null,
+  defaultLanguage: null,
 }
 
 function resetStore() {

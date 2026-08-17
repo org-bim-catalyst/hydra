@@ -1,4 +1,4 @@
-import CloseIcon from '@mui/icons-material/Close'
+import { RiCloseLine } from '@remixicon/react'
 import { Box, IconButton } from '@mui/material'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
@@ -23,7 +23,12 @@ export interface FloatingPanelProps {
  * moving initial focus inside on open, without trapping it (research.md #5), and
  * providing an explicit in-panel close affordance alongside the Escape/outside-click
  * dismissal `CircularAction` already handles. */
-export function FloatingPanel({ controlId, titleId, onRequestClose, children }: FloatingPanelProps) {
+export function FloatingPanel({
+  controlId,
+  titleId,
+  onRequestClose,
+  children,
+}: FloatingPanelProps) {
   const open = useWorkspaceOverlayStore((s) => s.expandedControlId === controlId)
   // Scoped to `children` only — a container ref covering the whole panel (including our
   // own Close button, rendered first in DOM order) would focus Close instead of the
@@ -69,9 +74,12 @@ export function FloatingPanel({ controlId, titleId, onRequestClose, children }: 
         size="small"
         sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1 }}
       >
-        <CloseIcon fontSize="small" />
+        <RiCloseLine size={20} />
       </IconButton>
-      <Box ref={contentRef} sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <Box
+        ref={contentRef}
+        sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      >
         {children}
       </Box>
     </Box>

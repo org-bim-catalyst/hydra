@@ -1,4 +1,14 @@
-import { Alert, Box, Button, CircularProgress, Divider, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Divider,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -9,6 +19,8 @@ import { updateChatModelSelection } from '../../chat/api/chatsApi'
 import { ProviderModelSelector } from '../../chat/components/ProviderModelSelector'
 import { useAiProviders } from '../../chat/hooks/useAiCatalog'
 import { useChatDetail } from '../../chat/hooks/useChats'
+import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
+import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 
 /**
@@ -29,6 +41,16 @@ export function ChatConfigurationTab() {
     refetch: refetchChatDetail,
   } = useChatDetail(activeChatId)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // specs/026-floating-chat-assistant FR-016/FR-017: the chat widget's header flag is
+  // read-only — this is the only place the default response language can be changed.
+  const defaultLanguage = useVoicePreferencesStore((s) => s.defaultLanguage)
+  const updateVoicePreference = useVoicePreferencesStore((s) => s.update)
+  const voicePreferenceError = useVoicePreferencesStore((s) => s.error)
+  const clearVoicePreferenceError = useVoicePreferencesStore((s) => s.clearError)
+  const handleLanguageChange = (language: string) => {
+    void updateVoicePreference({ defaultLanguage: language })
+  }
 
   const handleSelect = (providerId: string, modelId: string) => {
     if (!activeChatId) return
@@ -95,8 +117,8 @@ export function ChatConfigurationTab() {
           Current conversation model
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Changes the AI model for the conversation you currently have open — applies
-          immediately, and does not change your default for new conversations.
+          Changes the AI model for the conversation you currently have open — applies immediately,
+          and does not change your default for new conversations.
         </Typography>
         {saveError && (
           <Alert severity="error" sx={{ mb: 2, maxWidth: 480 }} onClose={() => setSaveError(null)}>
@@ -104,6 +126,37 @@ export function ChatConfigurationTab() {
           </Alert>
         )}
         {renderCurrentConversationControl()}
+      </Box>
+
+      <Divider />
+
+      <Box>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Default language
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          The language Ask Lucy responds in — shown as a flag in the chat widget's header, changed
+          only here.
+        </Typography>
+        {voicePreferenceError && (
+          <Alert severity="error" sx={{ mb: 2, maxWidth: 320 }} onClose={clearVoicePreferenceError}>
+            {voicePreferenceError}
+          </Alert>
+        )}
+        <TextField
+          select
+          size="small"
+          label="Default language"
+          value={defaultLanguage ?? 'en'}
+          onChange={(e) => handleLanguageChange(e.target.value)}
+          sx={{ minWidth: 200 }}
+        >
+          {SUPPORTED_LANGUAGES.map((lang) => (
+            <MenuItem key={lang.code} value={lang.code}>
+              {lang.label}
+            </MenuItem>
+          ))}
+        </TextField>
       </Box>
 
       <Divider />
@@ -127,8 +180,8 @@ export function ChatConfigurationTab() {
           Voice, speech-to-text &amp; text-to-speech
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Manage voice conversation mode, mute, selected voice, speed, style, and
-          microphone/speaker devices.
+          Manage voice conversation mode, mute, selected voice, speed, style, and microphone/speaker
+          devices.
         </Typography>
         <Button variant="outlined" onClick={() => goToSettingsTab(SETTINGS_TAB_INDEX.Voice)}>
           Go to Voice

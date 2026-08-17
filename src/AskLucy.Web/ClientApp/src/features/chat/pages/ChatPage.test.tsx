@@ -130,7 +130,12 @@ const server = setupServer(
     }),
   ),
   http.get('*/api/v1/chats/:id', ({ params }) =>
-    HttpResponse.json({ id: params.id, title: 'Test chat', providerId: 'provider-1', modelId: 'model-1' }),
+    HttpResponse.json({
+      id: params.id,
+      title: 'Test chat',
+      providerId: 'provider-1',
+      modelId: 'model-1',
+    }),
   ),
 )
 
@@ -176,8 +181,8 @@ function renderConversation(chatId: string | null) {
         <ConversationView
           chatId={chatId}
           language="en"
-          onLanguageChange={() => {}}
           onChatCreated={() => {}}
+          onNewChat={() => {}}
           tts={mockTts}
         />
       </QueryClientProvider>
@@ -219,6 +224,7 @@ describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011
       voiceStyle: null,
       preferredMicrophoneDeviceId: null,
       preferredSpeakerDeviceId: null,
+      defaultLanguage: null,
     })
 
     renderChatPage()
@@ -229,11 +235,40 @@ describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011
       expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous')
     })
   })
+
+  it('seeds the response language from the hydrated defaultLanguage preference, reflected by the header flag (FR-016/FR-017)', async () => {
+    useWorkspaceOverlayStore.setState({
+      expandedControlId: null,
+      viewMode: '3D',
+      unreadControlIds: new Set(),
+    })
+    vi.mocked(voiceApi.getVoicePreferences).mockResolvedValue({
+      conversationMode: 'PushToTalk',
+      isMuted: false,
+      selectedVoiceId: null,
+      voiceSpeed: null,
+      voiceStyle: null,
+      preferredMicrophoneDeviceId: null,
+      preferredSpeakerDeviceId: null,
+      defaultLanguage: 'fr',
+    })
+
+    renderChatPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Expand Ask Lucy assistant' }))
+
+    expect(
+      await screen.findByRole('img', { name: 'Response language: French' }),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-024)', () => {
   beforeEach(() => {
-    useWorkspaceOverlayStore.setState({ expandedControlId: null, viewMode: '3D', unreadControlIds: new Set() })
+    useWorkspaceOverlayStore.setState({
+      expandedControlId: null,
+      viewMode: '3D',
+      unreadControlIds: new Set(),
+    })
     useComingSoonStore.setState({ featureLabel: null })
   })
 
@@ -318,7 +353,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     // testing-library role query in this render (not just ones targeting the dialog
     // itself) against the same jsdom bug — so every lookup below, before and after,
     // uses a plain CSS attribute selector instead of getByRole.
-    const byLabel = (label: string) => container.querySelector<HTMLElement>(`button[aria-label="${label}"]`)!
+    const byLabel = (label: string) =>
+      container.querySelector<HTMLElement>(`button[aria-label="${label}"]`)!
 
     for (const [buttonLabel, actionLabel] of [
       ['Layers', 'Base map'],
@@ -357,14 +393,23 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
     fireEvent.click(screen.getByRole('button', { name: 'Navigation' }))
     expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
     expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('Tab visits every control, in the same top-cluster → right-stack → bottom-end order they render (FR-009, US4)', async () => {
+  it('Tab visits every WorkspaceOverlay control, in the same top-cluster → right-stack order they render (FR-009, US4)', async () => {
+    // specs/026-floating-chat-assistant: chat is no longer one of WorkspaceOverlay's
+    // `controls` (research.md #1) — it's the bespoke ChatAssistantWidget, verified
+    // separately below ("the collapsed chat widget's handle is keyboard-reachable...").
     const user = userEvent.setup()
     const { queryClient } = renderChatPage()
     await waitForModelSeeding(queryClient)
@@ -377,7 +422,6 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Navigation',
       'Selection',
       'Analysis',
-      'Chat with Lucy',
     ]) {
       await user.tab()
       expect(document.activeElement).toHaveAccessibleName(label)
@@ -433,16 +477,26 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
     try {
       renderChatPage()
-      for (const label of ['View mode', 'Layers', 'Navigation', 'Selection', 'Analysis', 'Chat with Lucy', 'Account']) {
+      for (const label of [
+        'View mode',
+        'Layers',
+        'Navigation',
+        'Selection',
+        'Analysis',
+        'Account',
+      ]) {
         expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
       }
+      // specs/026-floating-chat-assistant SC-001: the chat widget's Collapsed handle stays
+      // reachable too, outside the WorkspaceOverlay `controls` cluster checked above.
+      expect(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' })).toBeInTheDocument()
     } finally {
       window.matchMedia = originalMatchMedia
     }
   })
 
   it('sends a message through the chat control and streams a response with zero behavior change (FR-014/SC-006)', async () => {
-    // Mounts the full ChatPage (all seven controls, AssistantPanel, virtualizer) rather than
+    // Mounts the full ChatPage (all seven controls, ChatAssistantWidget, virtualizer) rather than
     // the lighter renderConversation() other send/stream tests in
     // this file use — needs more than the 5s default given the provider-catalog fetch +
     // typing + SSE stream all happen sequentially on top of that heavier mount.
@@ -450,9 +504,16 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       http.get(`*/api/v1/chats`, () => HttpResponse.json({ items: [], nextCursor: null })),
       // No chat is selected yet (fresh workspace) — send() auto-creates one first.
       http.post('*/api/v1/chats', () =>
-        HttpResponse.json({ id: CHAT_A, title: 'Hi Lucy', createdAtUtc: '2026-08-16T00:00:00Z', modifiedAtUtc: null }),
+        HttpResponse.json({
+          id: CHAT_A,
+          title: 'Hi Lucy',
+          createdAtUtc: '2026-08-16T00:00:00Z',
+          modifiedAtUtc: null,
+        }),
       ),
-      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json({ items: [], nextCursor: null })),
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json({ items: [], nextCursor: null }),
+      ),
       http.post('*/api/v1/ai/chat', () => {
         const stream = sseStream(['Hello from the chat control'])
         return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
@@ -461,7 +522,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     const user = userEvent.setup()
     renderChatPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
     await screen.findByText('Start a conversation with Ask Lucy.')
 
     await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
@@ -474,7 +535,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
   it('no longer renders a provider/model switcher or a conversation-history panel in the chat control (specs/025-chat-configuration-settings FR-008)', () => {
     renderChatPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
 
     // Plain text/label queries (not getByRole) — role queries with a `name` filter hit a
     // known jsdom CSS-engine bug against this tree's animated/transition styles when hunting
@@ -484,19 +545,33 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.queryByText('Conversations')).not.toBeInTheDocument()
   })
 
-  it('"New chat" is directly clickable in the chat control and starts a fresh conversation (FR-009)', async () => {
+  it('no longer renders a standalone "Generate image" button (specs/026-floating-chat-assistant FR-018)', () => {
+    renderChatPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
+
+    expect(screen.queryByRole('button', { name: 'Generate image' })).not.toBeInTheDocument()
+  })
+
+  it('the minimal new-chat icon starts a fresh conversation without the old "+ New chat" text button (FR-012/FR-014)', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
-        HttpResponse.json(messagesPage([makeMessage({ id: 'a1', content: 'Existing conversation content' })])),
+        HttpResponse.json(
+          messagesPage([makeMessage({ id: 'a1', content: 'Existing conversation content' })]),
+        ),
       ),
     )
     useActiveConversationStore.setState({ activeChatId: CHAT_A })
     renderChatPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
     expect(await screen.findByText('Existing conversation content')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
+    // FR-012: no prominent, text-labeled "+ New chat" control anywhere.
+    expect(screen.queryByText('New chat')).not.toBeInTheDocument()
+    expect(screen.queryByText('+ New chat')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' }))
 
     expect(await screen.findByText('Start a conversation with Ask Lucy.')).toBeInTheDocument()
     expect(useActiveConversationStore.getState().activeChatId).toBeNull()
@@ -505,15 +580,69 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
   it('collapsing chat leaves the rest of the workspace interactive', () => {
     renderChatPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
-    expect(screen.getByRole('button', { name: 'Chat with Lucy' })).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
+    expect(screen.getByRole('button', { name: 'Collapse' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chat with Lucy' }))
-    expect(screen.getByRole('button', { name: 'Chat with Lucy' })).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse' }))
+    expect(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' })).toBeInTheDocument()
 
     // The rest of the workspace (a different control) still responds normally afterward.
     fireEvent.click(screen.getByRole('button', { name: 'Layers' }))
     expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('the collapsed chat widget is keyboard-operable: reachable via Tab, Enter expands, Tab continues into content, Escape collapses and returns focus (FR-010/SC-007, T055)', async () => {
+    // specs/026-floating-chat-assistant research.md #9/D1: ChatAssistantWidget does not
+    // inherit CircularAction's ARIA-disclosure coverage, so it needs its own behavioral
+    // (non-axe) keyboard test covering the full disclosure contract from T003/T009/T016.
+    const user = userEvent.setup()
+    renderChatPage()
+
+    const handle = await screen.findByRole('button', { name: 'Expand Ask Lucy assistant' })
+    expect(handle).toHaveAttribute('aria-expanded', 'false')
+    expect(handle).not.toHaveAttribute('tabindex', '-1') // reachable via Tab, not skipped
+
+    handle.focus()
+    expect(handle).toHaveFocus()
+    await user.keyboard('{Enter}')
+
+    const collapseButton = await screen.findByRole('button', { name: 'Collapse' })
+    expect(collapseButton).toBeInTheDocument()
+    // CollapsedChatControl and ExpandedChatPanel are a ternary swap (not a dual-mount with
+    // a single persistent trigger), so the expand handle itself unmounts on expand rather
+    // than flipping its own aria-expanded to true; it is gone from the document instead.
+    expect(
+      screen.queryByRole('button', { name: 'Expand Ask Lucy assistant' }),
+    ).not.toBeInTheDocument()
+    // ExpandedChatPanel's own focus-management effect (mirroring FloatingPanel's) already
+    // moved focus off the (now-unmounted) handle and into the revealed panel on open.
+    expect(document.activeElement).not.toBe(document.body)
+    const focusedAfterOpen = document.activeElement
+
+    // Tab continues moving focus forward among the revealed panel's own content.
+    await user.tab()
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).not.toBe(focusedAfterOpen)
+
+    await user.keyboard('{Escape}')
+    const handleAgain = await screen.findByRole('button', { name: 'Expand Ask Lucy assistant' })
+    expect(handleAgain).toHaveAttribute('aria-expanded', 'false')
+    expect(handleAgain).toHaveFocus()
+  })
+
+  it('the collapsed chat widget also expands via Space, matching Enter (FR-010/SC-007, T055)', async () => {
+    const user = userEvent.setup()
+    renderChatPage()
+
+    const handle = await screen.findByRole('button', { name: 'Expand Ask Lucy assistant' })
+    handle.focus()
+    await user.keyboard(' ')
+
+    const collapseButton = await screen.findByRole('button', { name: 'Collapse' })
+    expect(collapseButton).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Expand Ask Lucy assistant' }),
+    ).not.toBeInTheDocument()
   })
 
   it('successfully signs the user out via the account control (FR-024)', async () => {
@@ -571,6 +700,213 @@ describe('ConversationView — mute control (SPEC-013 US1, FR-001/FR-003/FR-012)
 
     await waitFor(() => expect(useVoicePreferencesStore.getState().isMuted).toBe(true))
     expect(screen.queryByText('Could not save.')).not.toBeInTheDocument()
+  })
+})
+
+describe('ConversationView — Push-to-Talk recording review (specs/026-floating-chat-assistant FR-019–FR-025)', () => {
+  class FakeMediaRecorder {
+    ondataavailable: ((event: { data: Blob }) => void) | null = null
+    onstop: (() => void) | null = null
+    mimeType = 'audio/webm'
+    stream: MediaStream
+    constructor(stream: MediaStream) {
+      this.stream = stream
+    }
+    start = vi.fn(() => {
+      this.ondataavailable?.({ data: new Blob(['audio'], { type: 'audio/webm' }) })
+    })
+    stop = vi.fn(() => {
+      this.onstop?.()
+    })
+  }
+
+  class FakeAnalyserNode {
+    fftSize = 0
+    frequencyBinCount = 32
+    connect = vi.fn()
+    disconnect = vi.fn()
+    getByteFrequencyData = vi.fn((data: Uint8Array) => data.fill(64))
+  }
+
+  class FakeAudioContext {
+    createMediaStreamSource = vi.fn(() => ({ connect: vi.fn() }))
+    createAnalyser = vi.fn(() => new FakeAnalyserNode())
+    close = vi.fn().mockResolvedValue(undefined)
+  }
+
+  const stopTrack = vi.fn()
+  const fakeStream = { getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream
+  let transcribeCalls = 0
+
+  // Both VoiceControlBar and ChatComposer render their own "Start voice input" mic button
+  // (pre-existing, both driven by the same recorder) — queries must pick one explicitly.
+  const getMicButton = () => screen.getAllByRole('button', { name: 'Start voice input' })[0]
+  const findMicButton = async () => {
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Start voice input' }).length).toBeGreaterThan(
+        0,
+      ),
+    )
+    return getMicButton()
+  }
+
+  beforeEach(() => {
+    useVoicePreferencesStore.setState({
+      conversationMode: 'PushToTalk',
+      isMuted: false,
+      selectedVoiceId: null,
+      voiceSpeed: null,
+      voiceStyle: null,
+      preferredMicrophoneDeviceId: null,
+      preferredSpeakerDeviceId: null,
+      error: null,
+    })
+    transcribeCalls = 0
+    server.use(
+      http.post('*/api/v1/ai/transcriptions', () => {
+        transcribeCalls += 1
+        return HttpResponse.json({ text: 'transcribed text' })
+      }),
+    )
+    vi.stubGlobal('AudioContext', FakeAudioContext)
+    vi.stubGlobal('MediaRecorder', FakeMediaRecorder)
+    // Adds mediaDevices without replacing the rest of jsdom's real `navigator` (which
+    // userEvent/fireEvent's own internals depend on for realistic DOM interaction).
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn(() => Promise.resolve(fakeStream)) },
+      configurable: true,
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
+  })
+
+  it('start → waveform (no transcript) → finish → reviewing (not yet transcribed) → accept (transcribed exactly once)', async () => {
+    renderConversation(CHAT_A)
+
+    fireEvent.click(await findMicButton())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+    )
+    // No live partial transcript anywhere in the composer while recording (FR-019).
+    expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('')
+    expect(transcribeCalls).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Send recording for transcription' }),
+      ).toBeInTheDocument(),
+    )
+    expect(transcribeCalls).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send recording for transcription' }))
+
+    await waitFor(() => expect(transcribeCalls).toBe(1))
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
+    )
+  })
+
+  it('cancel from the review state discards the recording — transcribeAudio is never called', async () => {
+    renderConversation(CHAT_A)
+
+    fireEvent.click(await findMicButton())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Send recording for transcription' }),
+      ).toBeInTheDocument(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel recording' }))
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Start voice input' }).length).toBeGreaterThan(
+        0,
+      ),
+    )
+    expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('')
+    expect(transcribeCalls).toBe(0)
+  })
+
+  it('collapsing the widget mid-recording discards it (FR-024) — never transcribed', async () => {
+    // The collapse→cancel effect lives in ConversationView itself, keyed off its
+    // `expanded` prop — driving that prop directly (via rerender) exercises the exact
+    // same wiring `ChatAssistantWidget`'s real expand/collapse would, without needing the
+    // full ChatPage tree (AiPresenceCard's Three.js scene doesn't coexist well with the
+    // fake AudioContext/MediaRecorder globals this describe block installs).
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { rerender } = render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <ConversationView
+            chatId={CHAT_A}
+            language="en"
+            onChatCreated={() => {}}
+            onNewChat={() => {}}
+            tts={mockTts}
+            expanded
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await findMicButton())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+    )
+
+    rerender(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <ConversationView
+            chatId={CHAT_A}
+            language="en"
+            onChatCreated={() => {}}
+            onNewChat={() => {}}
+            tts={mockTts}
+            expanded={false}
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' })).toBeInTheDocument(),
+    )
+    expect(transcribeCalls).toBe(0)
+    // The Collapsed handle itself is idle, not stuck showing review controls.
+    expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Send recording for transcription' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('Continuous Listening is completely unaffected — no recording-review UI ever appears (FR-025)', async () => {
+    useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
+    renderConversation(CHAT_A)
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Switch to Push-to-Talk mode' }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Send recording for transcription' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel recording' })).not.toBeInTheDocument()
+    // VoiceControlBar's generic mic toggle still shows in Continuous mode (pre-existing,
+    // unchanged behavior, routed to `recognition` as always) — only ChatComposer's
+    // dedicated Push-to-Talk mic button (gated by conversationMode) is absent, so exactly
+    // one match remains, not the two seen in Push-to-Talk mode.
+    expect(screen.queryAllByRole('button', { name: 'Start voice input' })).toHaveLength(1)
   })
 })
 
@@ -669,8 +1005,8 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
             key={CHAT_A}
             chatId={CHAT_A}
             language="en"
-            onLanguageChange={() => {}}
             onChatCreated={() => {}}
+            onNewChat={() => {}}
             tts={mockTts}
           />
         </QueryClientProvider>
@@ -686,8 +1022,8 @@ describe('ConversationView — conversation loading (User Story 1 & 2)', () => {
             key={CHAT_B}
             chatId={CHAT_B}
             language="en"
-            onLanguageChange={() => {}}
             onChatCreated={() => {}}
+            onNewChat={() => {}}
             tts={mockTts}
           />
         </QueryClientProvider>
@@ -797,8 +1133,8 @@ describe('ConversationView — reopening a newly-created conversation (User Stor
               key={viewKey}
               chatId={CHAT_A}
               language="en"
-              onLanguageChange={() => {}}
               onChatCreated={() => {}}
+              onNewChat={() => {}}
               tts={mockTts}
             />
           </QueryClientProvider>

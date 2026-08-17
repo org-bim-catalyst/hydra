@@ -167,3 +167,55 @@ describe('VoiceControlBar microphone permission (FR-009)', () => {
     expect(screen.getByText(/microphone access denied/i)).toBeInTheDocument()
   })
 })
+
+describe('VoiceControlBar Push-to-Talk recording review (specs/026-floating-chat-assistant FR-020–FR-023)', () => {
+  const recordingProps = (phase: 'recording' | 'reviewing' | 'transcribing') => ({
+    recording: {
+      phase,
+      getIntensity: () => 0.5,
+      onFinish: vi.fn(),
+      onCancelRecording: vi.fn(),
+      onAccept: vi.fn(),
+    },
+  })
+
+  it('shows only "finished speaking" and cancel while recording — no mic toggle, no accept/send yet', () => {
+    renderBar(recordingProps('recording'))
+
+    expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel recording' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Send recording for transcription' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /start voice input/i })).not.toBeInTheDocument()
+  })
+
+  it('shows accept/send and cancel while reviewing — not the "finished speaking" control anymore', () => {
+    renderBar(recordingProps('reviewing'))
+
+    expect(
+      screen.getByRole('button', { name: 'Send recording for transcription' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel recording' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
+  })
+
+  it('calls the recording callbacks, not the plain voice-capture ones, while reviewing', () => {
+    const props = recordingProps('reviewing')
+    renderBar(props)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send recording for transcription' }))
+    expect(props.recording.onAccept).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel recording' }))
+    expect(props.recording.onCancelRecording).toHaveBeenCalledTimes(1)
+  })
+
+  it('has no automatically detectable a11y violations while recording or reviewing', async () => {
+    const recording = renderBar(recordingProps('recording'))
+    expect(await axe(recording.container)).toHaveNoViolations()
+
+    const reviewing = renderBar(recordingProps('reviewing'))
+    expect(await axe(reviewing.container)).toHaveNoViolations()
+  })
+})

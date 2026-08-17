@@ -1,4 +1,4 @@
-import AttachFileIcon from '@mui/icons-material/AttachFile'
+import { RiAttachment2 } from '@remixicon/react'
 import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material'
 import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
@@ -12,7 +12,13 @@ import { codeFontFamily } from '../../../theme/tokens/typography'
 import { radius } from '../../../theme'
 
 /** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. `chatId` is only needed for the memory trace indicator (specs/018-ai-memory-system US1) — omit it and the indicator simply never renders (e.g. in isolated component tests). */
-export function MessageBubble({ message, chatId }: { message: ChatMessage; chatId?: string | null }) {
+export function MessageBubble({
+  message,
+  chatId,
+}: {
+  message: ChatMessage
+  chatId?: string | null
+}) {
   const isUser = message.role === 'user'
   const hasAttachments = (message.attachments?.length ?? 0) > 0
   const hasCitations = (message.citations?.length ?? 0) > 0
@@ -68,7 +74,7 @@ export function MessageBubble({ message, chatId }: { message: ChatMessage; chatI
               <Chip
                 key={a.id}
                 size="small"
-                icon={<AttachFileIcon />}
+                icon={<RiAttachment2 size={18} />}
                 label={a.fileName}
                 component="a"
                 href={a.accessLocation}
@@ -89,12 +95,14 @@ export function MessageBubble({ message, chatId }: { message: ChatMessage; chatI
             itself failed but the response still generated (FR-037a — never blocked, never silent). */}
         {message.retrievalOutcome === 'NoRelevantContent' && (
           <Alert severity="info" variant="outlined" sx={{ mt: 1, py: 0 }}>
-            No relevant content was found in the attached knowledge base(s) — this response isn't grounded in your documents.
+            No relevant content was found in the attached knowledge base(s) — this response isn't
+            grounded in your documents.
           </Alert>
         )}
         {message.retrievalOutcome === 'Unavailable' && (
           <Alert severity="warning" variant="outlined" sx={{ mt: 1, py: 0 }}>
-            {message.retrievalError ?? 'Knowledge base retrieval was temporarily unavailable — this response isn\'t grounded in your documents.'}
+            {message.retrievalError ??
+              "Knowledge base retrieval was temporarily unavailable — this response isn't grounded in your documents."}
           </Alert>
         )}
 
@@ -111,10 +119,19 @@ export function MessageBubble({ message, chatId }: { message: ChatMessage; chatI
         {(hasAttribution || message.isIncomplete) && (
           <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
             {hasAttribution && (
-              <Chip size="small" variant="outlined" label={[message.provider, message.model].filter(Boolean).join(' · ')} />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={[message.provider, message.model].filter(Boolean).join(' · ')}
+              />
             )}
             {message.isIncomplete && (
-              <Chip size="small" color="warning" variant="outlined" label="Incomplete — connection dropped" />
+              <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label="Incomplete — connection dropped"
+              />
             )}
           </Stack>
         )}
