@@ -1,4 +1,4 @@
-import PersonIcon from '@mui/icons-material/Person'
+import { RiUserLine } from '@remixicon/react'
 import { Avatar, Box } from '@mui/material'
 import { useState } from 'react'
 import lucyPortrait from '../../../assets/branding/lucy-portrait.png'
@@ -31,7 +31,7 @@ export function LucyPortrait({ variant, alt }: LucyPortraitProps) {
   if (failed) {
     return (
       <Avatar sx={{ width: size, height: size, bgcolor: 'primary.main' }} aria-label={alt}>
-        <PersonIcon fontSize={variant === 'toggle' ? 'medium' : 'large'} />
+        <RiUserLine size={variant === 'toggle' ? 24 : 35} />
       </Avatar>
     )
   }

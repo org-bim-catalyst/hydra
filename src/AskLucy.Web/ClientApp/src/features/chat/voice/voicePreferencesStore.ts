@@ -23,6 +23,7 @@ const DEFAULTS: UserVoicePreference = {
   voiceStyle: null,
   preferredMicrophoneDeviceId: null,
   preferredSpeakerDeviceId: null,
+  defaultLanguage: null,
 }
 
 /**
@@ -62,6 +63,7 @@ export const useVoicePreferencesStore = create<VoicePreferencesState>()(
             voiceStyle: current.voiceStyle,
             preferredMicrophoneDeviceId: current.preferredMicrophoneDeviceId,
             preferredSpeakerDeviceId: current.preferredSpeakerDeviceId,
+            defaultLanguage: current.defaultLanguage,
             ...patch,
           })
           set(saved)
@@ -87,6 +89,7 @@ export const useVoicePreferencesStore = create<VoicePreferencesState>()(
         voiceStyle: state.voiceStyle,
         preferredMicrophoneDeviceId: state.preferredMicrophoneDeviceId,
         preferredSpeakerDeviceId: state.preferredSpeakerDeviceId,
+        defaultLanguage: state.defaultLanguage,
       }),
     },
   ),

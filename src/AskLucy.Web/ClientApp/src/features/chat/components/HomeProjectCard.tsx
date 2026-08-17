@@ -1,4 +1,4 @@
-import HomeIcon from '@mui/icons-material/Home'
+import { RiHomeLine } from '@remixicon/react'
 import { Box, IconButton, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
 
@@ -49,7 +49,7 @@ export function HomeProjectCard() {
           '&:hover': { bgcolor: 'oklch(0.30 0.02 280 / 0.9)' },
         }}
       >
-        <HomeIcon fontSize="small" />
+        <RiHomeLine size={20} />
       </IconButton>
       <Typography variant="subtitle2" sx={{ color: TEXT_COLOR, fontWeight: 600 }}>
         Flumeria Studio
