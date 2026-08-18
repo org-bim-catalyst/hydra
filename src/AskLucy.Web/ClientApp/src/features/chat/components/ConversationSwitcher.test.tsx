@@ -90,7 +90,7 @@ describe('ConversationSwitcher', () => {
 
     await user.click(screen.getByRole('button', { name: 'Conversations' }))
 
-    expect(await screen.findByText('No conversations found.')).toBeInTheDocument()
+    expect(await screen.findByText('No conversations yet')).toBeInTheDocument()
     expect(screen.getByText('New chat')).toBeInTheDocument()
   })
 

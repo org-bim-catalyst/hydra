@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useResumableUpload } from '../hooks/useResumableUpload'
 import { DOCUMENTS_QUERY_KEY } from '../hooks/useDocuments'
+import { radius } from '../../../theme'
 
 interface UploadItemProps {
   file: File
@@ -131,11 +132,13 @@ export function UploadPanel() {
         sx={{
           border: '2px dashed',
           borderColor: isDragOver ? 'primary.main' : 'divider',
-          borderRadius: 1,
+          borderRadius: `${radius.lg}px`,
           p: 3,
           textAlign: 'center',
           cursor: 'pointer',
           bgcolor: isDragOver ? 'action.hover' : undefined,
+          transition: (theme) => theme.transitions.create(['border-color', 'background-color']),
+          '&:hover': { borderColor: 'primary.main' },
         }}
       >
         <CloudUploadIcon color="action" />

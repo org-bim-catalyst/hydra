@@ -1,38 +1,12 @@
-import { Box, keyframes } from '@mui/material'
-
-const bounce = keyframes`
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
-`
-
-const DOT_ANIMATION_DELAYS = ['0s', '0.15s', '0.3s']
+import { AiActivityIndicator } from '../../../components/AiActivityIndicator'
 
 /**
- * Animated three-dot "thinking" indicator shown in place of the assistant's reply bubble
- * while a send is in flight and no content has streamed in yet (FR-006/FR-007). Always
- * animates — no reduced-motion fallback variant is provided (FR-011, spec clarification).
+ * Three-dot "thinking" indicator shown in place of the assistant's reply bubble while a
+ * send is in flight and no content has streamed in yet (FR-006/FR-007). Renders the
+ * shared `AiActivityIndicator` (SPEC-017 research.md #5) — which, unlike this component's
+ * prior standalone implementation, respects `prefers-reduced-motion` (SPEC-017 FR-010),
+ * superseding the earlier "always animates" decision.
  */
 export function ThinkingIndicator() {
-  return (
-    <Box
-      role="status"
-      aria-live="polite"
-      aria-label="Ask Lucy is thinking"
-      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5 }}
-    >
-      {DOT_ANIMATION_DELAYS.map((delay) => (
-        <Box
-          key={delay}
-          sx={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            bgcolor: 'text.secondary',
-            animation: `${bounce} 1.2s ease-in-out infinite`,
-            animationDelay: delay,
-          }}
-        />
-      ))}
-    </Box>
-  )
+  return <AiActivityIndicator state="thinking" label="Ask Lucy is thinking" />
 }

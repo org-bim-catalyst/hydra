@@ -10,6 +10,14 @@ export const radius = {
   pill: 999,
 } as const
 
+/** Named opacity scale (FR-006) — e.g. disabled-state fills, hover tints, scrim overlays —
+ * so components reference a value's intent instead of repeating a raw alpha per usage. */
+export const opacity = {
+  disabled: 0.38,
+  hover: 0.08,
+  overlay: 0.6,
+} as const
+
 // "Drafting table" neutrals: warm vellum paper / graphite ink, rather than the
 // clinical blue-gray gray-scale most AI-product UIs default to.
 const graphite = {

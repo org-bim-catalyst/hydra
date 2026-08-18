@@ -38,7 +38,11 @@ export function AssistantToggleFab() {
               : 'Expand Ask Lucy assistant'
         }
         aria-expanded={isOpen}
-        sx={isOpen ? undefined : { p: 0, overflow: 'hidden' }}
+        sx={{
+          ...(isOpen ? undefined : { p: 0, overflow: 'hidden' }),
+          transition: (theme) => theme.transitions.create('transform'),
+          '&:hover': { transform: 'scale(1.05)' },
+        }}
       >
         {isOpen ? <CloseIcon /> : <LucyPortrait variant="toggle" alt="Lucy" />}
       </Fab>

@@ -11,6 +11,7 @@ function toTitle(text: string): string {
 
 function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
   return persisted.map((m) => ({
+    id: m.id,
     role: m.role === 'User' ? 'user' : 'assistant',
     content: m.kind === 'Image' ? `![${m.sourceText ?? 'Generated image'}](${m.content})` : m.content,
     provider: m.provider,
@@ -134,6 +135,8 @@ export function useChatStream(
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
       let retrievalError: ChatMessage['retrievalError']
+      let messageId: ChatMessage['id']
+      let memoryOutcome: ChatMessage['memoryOutcome']
       try {
         const activeChatId = await ensureChatId(content)
         for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
@@ -142,17 +145,26 @@ export function useChatStream(
             if (isActiveRef.current) {
               setMessages([...history, { role: 'assistant', content: assistantContent }])
             }
-          } else {
+          } else if (event.type === 'retrieval') {
             // specs/016-rag-semantic-search US1 — carried on the stream's trailing event so
             // citations/the retrieval-unavailable warning render immediately, without waiting
             // for a page reload to re-fetch the persisted message (FR-037a: never silent).
             retrievalOutcome = event.outcome
             retrievalError = event.error
             citations = event.citations.map((c, index) => ({ id: `pending-${index}`, ...c }))
+          } else {
+            // specs/018-ai-memory-system US1 — the assistant message's real persisted id only
+            // exists once AppendMessageCommand has run, so this trailing event is also the
+            // earliest point the "why does Lucy know this" trace becomes fetchable this session.
+            messageId = event.messageId
+            memoryOutcome = event.outcome
           }
         }
         if (isActiveRef.current) {
-          setMessages([...history, { role: 'assistant', content: assistantContent, citations, retrievalOutcome, retrievalError }])
+          setMessages([
+            ...history,
+            { id: messageId, role: 'assistant', content: assistantContent, citations, retrievalOutcome, retrievalError, memoryOutcome },
+          ])
         }
       } catch (err) {
         if (isActiveRef.current) {

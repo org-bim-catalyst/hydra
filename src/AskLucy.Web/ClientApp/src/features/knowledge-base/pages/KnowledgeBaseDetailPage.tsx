@@ -1,6 +1,6 @@
-import { Box, Paper, Typography } from '@mui/material'
+import { Paper, Typography } from '@mui/material'
 import { useParams } from 'react-router'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
 import { useKnowledgeBase } from '../hooks/useKnowledgeBases'
 import { DocumentUploadZone } from '../components/DocumentUploadZone'
 import { KnowledgeBaseFolderTree } from '../components/KnowledgeBaseFolderTree'
@@ -18,14 +18,10 @@ export function KnowledgeBaseDetailPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <PageHeader
-        backTo="/knowledge-bases"
-        backLabel="Back to Knowledge Bases"
-        title={knowledgeBase?.name ?? (isLoading ? 'Loading…' : 'Knowledge Base')}
-        subtitle={knowledgeBase?.description ?? undefined}
-      />
-
+    <AppShell
+      title={knowledgeBase?.name ?? (isLoading ? 'Loading…' : 'Knowledge Base')}
+      subtitle={knowledgeBase?.description ?? undefined}
+    >
       <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Upload a document to the root
@@ -39,6 +35,6 @@ export function KnowledgeBaseDetailPage() {
         </Typography>
         <KnowledgeBaseFolderTree knowledgeBaseId={id} />
       </Paper>
-    </Box>
+    </AppShell>
   )
 }

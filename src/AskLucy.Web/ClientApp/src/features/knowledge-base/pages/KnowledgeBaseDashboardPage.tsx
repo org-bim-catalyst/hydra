@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import FolderOpenIcon from '@mui/icons-material/FolderOpenOutlined'
 import GridViewIcon from '@mui/icons-material/GridView'
 import SearchIcon from '@mui/icons-material/Search'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -18,15 +19,18 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
-  Typography,
 } from '@mui/material'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
+import { EmptyState } from '../../../components/EmptyState'
 import * as knowledgeBasesApi from '../api/knowledgeBasesApi'
 import type { KnowledgeBaseSort, KnowledgeBaseSummary } from '../api/knowledgeBasesApi'
 import { KnowledgeBaseCard } from '../components/KnowledgeBaseCard'
-import { KnowledgeBaseEditDialog, type KnowledgeBaseFormValues } from '../components/KnowledgeBaseEditDialog'
+import {
+  KnowledgeBaseEditDialog,
+  type KnowledgeBaseFormValues,
+} from '../components/KnowledgeBaseEditDialog'
 import { KnowledgeBaseStatCards } from '../components/KnowledgeBaseStatCards'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { useKnowledgeBaseDashboardSummary } from '../hooks/useKnowledgeBases'
@@ -87,13 +91,30 @@ const SORT_OPTIONS: { value: KnowledgeBaseSort; label: string }[] = [
 export function KnowledgeBaseDashboardPage() {
   const navigate = useNavigate()
   const [section, setSection] = useState<DashboardSection>('Active')
-  const { query, categoryId, tag, sort, sortDescending, layout, setQuery, setCategoryId, setTag, setSort, setSortDescending, setLayout } =
-    useKnowledgeBaseDashboardStore()
+  const {
+    query,
+    categoryId,
+    tag,
+    sort,
+    sortDescending,
+    layout,
+    setQuery,
+    setCategoryId,
+    setTag,
+    setSort,
+    setSortDescending,
+    setLayout,
+  } = useKnowledgeBaseDashboardStore()
 
   const isFilteredOrSearched = query.trim() !== '' || Boolean(categoryId) || Boolean(tag?.trim())
 
   const searchParams = {
-    view: section === 'Archived' ? ('Archived' as const) : section === 'Deleted' ? ('Deleted' as const) : ('Active' as const),
+    view:
+      section === 'Archived'
+        ? ('Archived' as const)
+        : section === 'Deleted'
+          ? ('Deleted' as const)
+          : ('Active' as const),
     q: query.trim() || undefined,
     categoryId: categoryId ?? undefined,
     tag: tag?.trim() || undefined,
@@ -103,7 +124,8 @@ export function KnowledgeBaseDashboardPage() {
     sortDescending: section === 'Recent' ? true : sortDescending,
   }
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useSearchKnowledgeBases(searchParams)
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useSearchKnowledgeBases(searchParams)
   const { data: dashboardSummary, isLoading: isSummaryLoading } = useKnowledgeBaseDashboardSummary()
   const { data: categories } = useKnowledgeBaseCategories()
   const createKnowledgeBase = useCreateKnowledgeBase()
@@ -119,12 +141,15 @@ export function KnowledgeBaseDashboardPage() {
   const unpinKnowledgeBase = useUnpinKnowledgeBase()
   const duplicateKnowledgeBase = useDuplicateKnowledgeBase()
 
-  const [dialogState, setDialogState] = useState<'closed' | 'create' | KnowledgeBaseSummary>('closed')
+  const [dialogState, setDialogState] = useState<'closed' | 'create' | KnowledgeBaseSummary>(
+    'closed',
+  )
   const [dialogErrorMessage, setDialogErrorMessage] = useState<string | null>(null)
   const [purgeTarget, setPurgeTarget] = useState<KnowledgeBaseSummary | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const reportError = (err: unknown) => setErrorMessage(err instanceof Error ? err.message : 'Action failed. Please try again.')
+  const reportError = (err: unknown) =>
+    setErrorMessage(err instanceof Error ? err.message : 'Action failed. Please try again.')
 
   const closeDialog = () => {
     setDialogState('closed')
@@ -160,37 +185,53 @@ export function KnowledgeBaseDashboardPage() {
     // success.
     action
       .then(() => closeDialog())
-      .catch((err: unknown) => setDialogErrorMessage(err instanceof Error ? err.message : 'Save failed. Please try again.'))
+      .catch((err: unknown) =>
+        setDialogErrorMessage(
+          err instanceof Error ? err.message : 'Save failed. Please try again.',
+        ),
+      )
   }
 
   const knowledgeBases = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data])
-  const editingKnowledgeBase = dialogState !== 'closed' && dialogState !== 'create' ? dialogState : undefined
+  const editingKnowledgeBase =
+    dialogState !== 'closed' && dialogState !== 'create' ? dialogState : undefined
   const showFavoritePinToggles = section !== 'Deleted'
-  const categoryNamesById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c.name])), [categories])
+  const categoryNamesById = useMemo(
+    () => new Map((categories ?? []).map((c) => [c.id, c.name])),
+    [categories],
+  )
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <PageHeader
-        backTo="/chat"
-        backLabel="Back to chat"
-        title="Knowledge Bases"
-        subtitle="Organize documents into private, purpose-built containers."
-        actions={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState('create')}>
-            New Knowledge Base
-          </Button>
-        }
-      />
-
+    <AppShell
+      title="Knowledge Bases"
+      subtitle="Organize documents into private, purpose-built containers."
+      actions={
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setDialogState('create')}
+        >
+          New Knowledge Base
+        </Button>
+      }
+    >
       <KnowledgeBaseStatCards summary={dashboardSummary} isLoading={isSummaryLoading} />
 
-      <Tabs value={section} onChange={(_e, value: DashboardSection) => setSection(value)} sx={{ mb: 2 }}>
+      <Tabs
+        value={section}
+        onChange={(_e, value: DashboardSection) => setSection(value)}
+        sx={{ mb: 2 }}
+      >
         {SECTION_TABS.map((tab) => (
           <Tab key={tab.value} value={tab.value} label={tab.label} />
         ))}
       </Tabs>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 3, alignItems: { sm: 'center' } }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ mb: 3, alignItems: { sm: 'center' } }}
+      >
         <TextField
           fullWidth
           size="small"
@@ -258,7 +299,11 @@ export function KnowledgeBaseDashboardPage() {
           onClick={() => setSortDescending(!sortDescending)}
           disabled={section === 'Recent'}
         >
-          {sortDescending ? <ArrowDownwardIcon fontSize="small" /> : <ArrowUpwardIcon fontSize="small" />}
+          {sortDescending ? (
+            <ArrowDownwardIcon fontSize="small" />
+          ) : (
+            <ArrowUpwardIcon fontSize="small" />
+          )}
         </IconButton>
 
         <ToggleButtonGroup
@@ -277,19 +322,40 @@ export function KnowledgeBaseDashboardPage() {
       </Stack>
 
       {!isLoading && knowledgeBases.length === 0 && (
-        <Typography color="text.secondary" sx={{ mt: 4 }}>
-          {isFilteredOrSearched
-            ? 'No knowledge bases match your search or filters.'
-            : section === 'Active'
-              ? 'No knowledge bases yet — create one to get started.'
-              : `No ${section.toLowerCase()} knowledge bases.`}
-        </Typography>
+        <EmptyState
+          icon={<FolderOpenIcon fontSize="inherit" />}
+          title={
+            isFilteredOrSearched
+              ? 'No matching knowledge bases'
+              : section === 'Active'
+                ? 'No knowledge bases yet'
+                : `No ${section.toLowerCase()} knowledge bases`
+          }
+          description={
+            isFilteredOrSearched
+              ? 'Try a different search term or filter.'
+              : section === 'Active'
+                ? 'Create one to start grounding chats in your own documents.'
+                : undefined
+          }
+          action={
+            !isFilteredOrSearched && section === 'Active' ? (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState('create')}>
+                New Knowledge Base
+              </Button>
+            ) : undefined
+          }
+        />
       )}
 
       <Box
         sx={
           layout === 'grid'
-            ? { display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }
+            ? {
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
+                gap: 2,
+              }
             : { display: 'flex', flexDirection: 'column', gap: 1 }
         }
       >
@@ -297,18 +363,33 @@ export function KnowledgeBaseDashboardPage() {
           <KnowledgeBaseCard
             key={knowledgeBase.id}
             knowledgeBase={knowledgeBase}
-            categoryName={knowledgeBase.categoryId ? categoryNamesById.get(knowledgeBase.categoryId) : undefined}
-            onOpen={knowledgeBase.isDeleted ? undefined : () => navigate(`/knowledge-bases/${knowledgeBase.id}`)}
+            categoryName={
+              knowledgeBase.categoryId ? categoryNamesById.get(knowledgeBase.categoryId) : undefined
+            }
+            onOpen={
+              knowledgeBase.isDeleted
+                ? undefined
+                : () => navigate(`/knowledge-bases/${knowledgeBase.id}`)
+            }
             onEdit={() => setDialogState(knowledgeBase)}
-            onActivate={() => activateKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })}
-            onArchive={() => archiveKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })}
+            onActivate={() =>
+              activateKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })
+            }
+            onArchive={() =>
+              archiveKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })
+            }
             onDelete={() => deleteKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })}
-            onRestore={() => restoreKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })}
+            onRestore={() =>
+              restoreKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })
+            }
             onPurge={() => setPurgeTarget(knowledgeBase)}
             onToggleFavorite={
               showFavoritePinToggles
                 ? () =>
-                    (knowledgeBase.isFavorite ? unfavoriteKnowledgeBase : favoriteKnowledgeBase).mutate(knowledgeBase.id, {
+                    (knowledgeBase.isFavorite
+                      ? unfavoriteKnowledgeBase
+                      : favoriteKnowledgeBase
+                    ).mutate(knowledgeBase.id, {
                       onError: reportError,
                     })
                 : undefined
@@ -316,13 +397,18 @@ export function KnowledgeBaseDashboardPage() {
             onTogglePin={
               showFavoritePinToggles
                 ? () =>
-                    (knowledgeBase.isPinned ? unpinKnowledgeBase : pinKnowledgeBase).mutate(knowledgeBase.id, {
-                      onError: reportError,
-                    })
+                    (knowledgeBase.isPinned ? unpinKnowledgeBase : pinKnowledgeBase).mutate(
+                      knowledgeBase.id,
+                      {
+                        onError: reportError,
+                      },
+                    )
                 : undefined
             }
             onDuplicate={
-              knowledgeBase.isDeleted ? undefined : () => duplicateKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })
+              knowledgeBase.isDeleted
+                ? undefined
+                : () => duplicateKnowledgeBase.mutate(knowledgeBase.id, { onError: reportError })
             }
             onExport={knowledgeBase.isDeleted ? undefined : () => handleExport(knowledgeBase)}
           />
@@ -361,11 +447,15 @@ export function KnowledgeBaseDashboardPage() {
         }}
       />
 
-      <Snackbar open={Boolean(errorMessage)} autoHideDuration={5000} onClose={() => setErrorMessage(null)}>
+      <Snackbar
+        open={Boolean(errorMessage)}
+        autoHideDuration={5000}
+        onClose={() => setErrorMessage(null)}
+      >
         <Alert severity="error" variant="filled" onClose={() => setErrorMessage(null)}>
           {errorMessage}
         </Alert>
       </Snackbar>
-    </Box>
+    </AppShell>
   )
 }

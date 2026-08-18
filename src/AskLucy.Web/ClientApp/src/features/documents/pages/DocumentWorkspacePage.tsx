@@ -1,6 +1,6 @@
 import { Alert, Box, Container, Snackbar, Tab, Tabs, Typography } from '@mui/material'
 import { useState } from 'react'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
 import { DocumentCard } from '../components/DocumentCard'
 import { DocumentDetailPanel } from '../components/DocumentDetailPanel'
@@ -28,79 +28,99 @@ export function DocumentWorkspacePage() {
   const { latest: latestNotification, dismiss: dismissNotification } = useNotificationHub()
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <PageHeader
-        backTo="/chat"
-        backLabel="Back to chat"
-        title="Documents"
-        subtitle="Upload, process, and manage your documents"
-        actions={<NotificationInbox />}
-      />
-
-      <Box sx={{ mb: 3 }}>
-        <ProcessingDashboard data={dashboard.data} isLoading={dashboard.isLoading} isError={dashboard.isError} />
-      </Box>
-
-      {isAdmin && (
+    <AppShell
+      title="Documents"
+      subtitle="Upload, process, and manage your documents"
+      actions={<NotificationInbox />}
+    >
+      <Container maxWidth="lg" disableGutters>
         <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Organization-wide (administrator view)
-          </Typography>
-          <OrganizationDashboard
-            data={organizationDashboard.data}
-            isLoading={organizationDashboard.isLoading}
-            isError={organizationDashboard.isError}
+          <ProcessingDashboard
+            data={dashboard.data}
+            isLoading={dashboard.isLoading}
+            isError={dashboard.isError}
           />
         </Box>
-      )}
 
-      <Box sx={{ mb: 3 }}>
-        <UploadPanel />
-      </Box>
+        {isAdmin && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Organization-wide (administrator view)
+            </Typography>
+            <OrganizationDashboard
+              data={organizationDashboard.data}
+              isLoading={organizationDashboard.isLoading}
+              isError={organizationDashboard.isError}
+            />
+          </Box>
+        )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px 1fr' }, gap: 3 }}>
-        <Box>
-          <DocumentFolderTree selectedFolderId={selectedFolderId} onSelectFolder={setSelectedFolderId} />
+        <Box sx={{ mb: 3 }}>
+          <UploadPanel />
         </Box>
 
-        <Box>
-          <Tabs value={view} onChange={(_, next: DocumentListView) => setView(next)} sx={{ mb: 2 }}>
-            <Tab label="Active" value="Active" />
-            <Tab label="Archived" value="Archived" />
-            <Tab label="Deleted" value="Deleted" />
-          </Tabs>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px 1fr' }, gap: 3 }}>
+          <Box>
+            <DocumentFolderTree
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={setSelectedFolderId}
+            />
+          </Box>
 
-          <DocumentFilterBar filters={filters} onChange={setFilters} />
+          <Box>
+            <Tabs
+              value={view}
+              onChange={(_, next: DocumentListView) => setView(next)}
+              sx={{ mb: 2 }}
+            >
+              <Tab label="Active" value="Active" />
+              <Tab label="Archived" value="Archived" />
+              <Tab label="Deleted" value="Deleted" />
+            </Tabs>
 
-          {isError && <Alert severity="error">Could not load your documents. Please try again.</Alert>}
+            <DocumentFilterBar filters={filters} onChange={setFilters} />
 
-          {!isLoading && !isError && data?.items.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No documents match your current filters.
-            </Typography>
-          )}
+            {isError && (
+              <Alert severity="error">Could not load your documents. Please try again.</Alert>
+            )}
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-              gap: 2,
-            }}
-          >
-            {data?.items.map((document) => (
-              <DocumentCard key={document.id} document={document} view={view} onOpenDetail={setDetailDocument} />
-            ))}
+            {!isLoading && !isError && data?.items.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                No documents match your current filters.
+              </Typography>
+            )}
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+                gap: 2,
+              }}
+            >
+              {data?.items.map((document) => (
+                <DocumentCard
+                  key={document.id}
+                  document={document}
+                  view={view}
+                  onOpenDetail={setDetailDocument}
+                />
+              ))}
+            </Box>
           </Box>
         </Box>
-      </Box>
 
-      <DocumentDetailPanel document={detailDocument} onClose={() => setDetailDocument(null)} />
+        <DocumentDetailPanel document={detailDocument} onClose={() => setDetailDocument(null)} />
 
-      <Snackbar open={Boolean(latestNotification)} autoHideDuration={6000} onClose={dismissNotification}>
-        <Alert severity="info" variant="filled" onClose={dismissNotification}>
-          {latestNotification?.message}
-        </Alert>
-      </Snackbar>
-    </Container>
+        <Snackbar
+          open={Boolean(latestNotification)}
+          autoHideDuration={6000}
+          onClose={dismissNotification}
+        >
+          <Alert severity="info" variant="filled" onClose={dismissNotification}>
+            {latestNotification?.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </AppShell>
   )
 }

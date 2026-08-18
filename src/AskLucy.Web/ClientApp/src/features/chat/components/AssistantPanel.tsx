@@ -54,7 +54,11 @@ export function AssistantPanel({
         opacity: isOpen ? 1 : 0,
         visibility: isOpen ? 'visible' : 'hidden',
         pointerEvents: isOpen ? 'auto' : 'none',
-        transition: 'transform 220ms ease, opacity 220ms ease, visibility 220ms step-end',
+        // Reads theme.transitions (motion.ts, wired in theme/index.ts) — collapses to
+        // instant when the user prefers reduced motion (FR-010), same as every other
+        // themed transition, rather than a component-local hardcoded duration.
+        transition: (t) =>
+          `${t.transitions.create(['transform', 'opacity'])}, visibility ${t.transitions.duration.standard}ms step-end`,
       }}
     >
       <ConversationSwitcher

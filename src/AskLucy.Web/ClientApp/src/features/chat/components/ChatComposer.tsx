@@ -16,6 +16,8 @@ import { useRef } from 'react'
 import { transcribeAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
 import type { MicrophonePermissionState } from '../voice/useSpeechRecognition'
+import { radius } from '../../../theme'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
 
 export interface ChatComposerProps {
   value: string
@@ -57,6 +59,7 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { extractText } = usePdfTextExtraction()
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   // Distinguishes a genuine *hold* (press, speak, release) from a *quick tap* meant to toggle
   // listening on and leave it on (Clarification Q1: both are supported on the same control).
@@ -155,11 +158,16 @@ export function ChatComposer({
         sx={{
           maxWidth: 800,
           mx: 'auto',
-          borderRadius: '999px',
+          borderRadius: `${radius.pill}px`,
           px: 1,
           minHeight: 56,
           display: 'flex',
           alignItems: 'center',
+          transition: (theme) => theme.transitions.create(['border-color', 'box-shadow']),
+          '&:focus-within': {
+            borderColor: 'primary.main',
+            boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}1f`,
+          },
         }}
       >
         <input
@@ -187,9 +195,9 @@ export function ChatComposer({
               onKeyDown={handleMicKeyDown}
               onKeyUp={handleMicKeyUp}
               aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-              color={isListening ? 'primary' : 'default'}
+              color={isListening ? 'secondary' : 'default'}
               sx={
-                isListening
+                isListening && !prefersReducedMotion
                   ? {
                       animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
                       '@keyframes ask-lucy-mic-pulse': {
@@ -209,7 +217,7 @@ export function ChatComposer({
               <IconButton onClick={onCancelCapture} aria-label="Cancel voice input" size="small">
                 <CloseIcon fontSize="small" />
               </IconButton>
-              <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Listening…</Box>
+              <Box sx={{ color: 'secondary.main', fontSize: '0.875rem', fontWeight: 500 }}>Listening…</Box>
             </>
           )}
 
@@ -232,12 +240,17 @@ export function ChatComposer({
             sx={{ py: 1.25 }}
           />
           <IconButton
-            color="primary"
             onClick={onSend}
             disabled={disabled || !value.trim()}
             aria-label="Send message"
+            sx={{
+              bgcolor: value.trim() && !disabled ? 'primary.main' : 'transparent',
+              color: value.trim() && !disabled ? 'primary.contrastText' : 'text.disabled',
+              '&:hover': { bgcolor: value.trim() && !disabled ? 'primary.dark' : 'action.hover' },
+              transition: (theme) => theme.transitions.create(['background-color', 'color']),
+            }}
           >
-            <SendIcon />
+            <SendIcon fontSize="small" />
           </IconButton>
         </Stack>
       </Paper>

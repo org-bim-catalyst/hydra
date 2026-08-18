@@ -137,7 +137,7 @@ export function VoiceControlBar({
       </Tooltip>
 
       {isListening && (
-        <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Listening…</Box>
+        <Box sx={{ color: 'secondary.main', fontSize: '0.875rem', fontWeight: 500 }}>Listening…</Box>
       )}
       {!isListening && isSpeaking && (
         <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>Lucy is speaking…</Box>

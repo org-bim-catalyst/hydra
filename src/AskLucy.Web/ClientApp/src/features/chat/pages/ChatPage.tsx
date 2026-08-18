@@ -1,5 +1,6 @@
 import ImageIcon from '@mui/icons-material/Image'
 import TranslateIcon from '@mui/icons-material/Translate'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
 import {
   Alert,
   Box,
@@ -8,7 +9,6 @@ import {
   IconButton,
   Snackbar,
   Toolbar,
-  Typography,
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -28,6 +28,8 @@ import { useSpeechRecognition } from '../voice/useSpeechRecognition'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { useAssistantPanelStore } from '../../../store/assistantPanelStore'
+import { EmptyState } from '../../../components/EmptyState'
+import { ErrorState } from '../../../components/ErrorState'
 
 const SceneBackground = lazy(() =>
   import('../scene/SceneBackground').then((m) => ({ default: m.SceneBackground })),
@@ -312,7 +314,10 @@ export function ConversationView({
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
           live in MinimalTopBar, outside this panel. */}
-      <Toolbar variant="dense" sx={{ justifyContent: 'flex-end', gap: 0.5 }}>
+      <Toolbar
+        variant="dense"
+        sx={{ justifyContent: 'flex-end', gap: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
+      >
         <ProviderModelSelector providerId={providerId} modelId={modelId} onSelect={setSelection} />
         <LanguageSelector value={language} onChange={onLanguageChange} />
         <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
@@ -331,9 +336,13 @@ export function ConversationView({
           {chatId === null ? (
             // FR-001: this placeholder is reserved for "no conversation selected" only — it
             // must never be the fallback for a selected conversation that's loading/erroring.
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 8 }}>
-              Start a conversation with Ask Lucy.
-            </Typography>
+            <Box sx={{ mt: 6 }}>
+              <EmptyState
+                icon={<ChatBubbleOutlineIcon fontSize="inherit" />}
+                title="Start a conversation with Ask Lucy."
+                description="Ask a question, brainstorm, or attach a file to get started."
+              />
+            </Box>
           ) : isMessagesPending ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
               <CircularProgress
@@ -343,13 +352,12 @@ export function ConversationView({
               />
             </Box>
           ) : isMessagesError ? (
-            <Box role="alert" sx={{ textAlign: 'center', mt: 8 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Failed to load this conversation. Please try again.
-              </Typography>
-              <Button variant="outlined" onClick={() => void refetchMessages()}>
-                Retry
-              </Button>
+            <Box sx={{ mt: 6 }}>
+              <ErrorState
+                title="Failed to load this conversation"
+                description="Please try again."
+                onRetry={() => void refetchMessages()}
+              />
             </Box>
           ) : (
             <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>

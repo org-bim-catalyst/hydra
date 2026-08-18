@@ -7,6 +7,8 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import type { ChatMessage } from '../api/aiApi'
 import { CitationBadge } from '../../retrieval/components/CitationBadge'
+import { codeFontFamily } from '../../../theme/tokens/typography'
+import { radius } from '../../../theme'
 
 /** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. */
 export function MessageBubble({ message }: { message: ChatMessage }) {
@@ -20,17 +22,37 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       <Paper
         elevation={isUser ? 0 : 1}
         sx={{
-          px: 2,
+          px: 2.25,
           py: 1.25,
           maxWidth: '75%',
-          borderRadius: 3,
-          ...(isUser && { borderBottomRightRadius: 4 }),
-          ...(!isUser && { borderBottomLeftRadius: 4 }),
+          borderRadius: `${radius.lg}px`,
+          // The "tail" corner reads as pointing toward its sender, matching the
+          // premium-AI-chat idiom (ChatGPT/Claude) rather than a uniform pill.
+          ...(isUser && { borderBottomRightRadius: radius.xs }),
+          ...(!isUser && { borderBottomLeftRadius: radius.xs }),
           bgcolor: isUser ? 'primary.main' : 'background.paper',
           color: isUser ? 'primary.contrastText' : 'text.primary',
+          border: isUser ? 'none' : '1px solid',
+          borderColor: 'divider',
           '& p:first-of-type': { mt: 0 },
           '& p:last-of-type': { mb: 0 },
-          '& img': { maxWidth: '100%', borderRadius: 1 },
+          '& img': { maxWidth: '100%', borderRadius: `${radius.sm}px` },
+          '& code': {
+            fontFamily: codeFontFamily,
+            fontSize: '0.875em',
+            bgcolor: isUser ? 'rgba(247, 246, 242, 0.16)' : 'action.hover',
+            borderRadius: `${radius.xs}px`,
+            px: 0.5,
+            py: 0.15,
+          },
+          '& pre': {
+            fontFamily: codeFontFamily,
+            bgcolor: isUser ? 'rgba(247, 246, 242, 0.16)' : 'action.hover',
+            borderRadius: `${radius.sm}px`,
+            p: 1.5,
+            overflowX: 'auto',
+          },
+          '& pre code': { bgcolor: 'transparent', p: 0 },
         }}
       >
         <Typography component="div" variant="body1">
@@ -74,6 +96,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             {message.retrievalError ?? 'Knowledge base retrieval was temporarily unavailable — this response isn\'t grounded in your documents.'}
           </Alert>
         )}
+
 
         {/* specs/005-multi-provider-ai-engine FR-011: attribution is a snapshot of what
             actually produced this message, independent of the conversation's current

@@ -1,6 +1,10 @@
 import CloseIcon from '@mui/icons-material/Close'
-import { Alert, Box, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { useCompareVersions } from '../hooks/useDocuments'
+import { ErrorState } from '../../../components/ErrorState'
+import { SkeletonBlock } from '../../../components/SkeletonBlock'
+import { codeFontFamily } from '../../../theme/tokens/typography'
+import { radius } from '../../../theme'
 
 interface VersionCompareDialogProps {
   documentId: string
@@ -17,7 +21,7 @@ function diffLineColor(line: string): string | undefined {
 
 /** FR-042, US5 AC — diffs extracted text and each version's own intrinsic fields (see CompareVersionsQueryHandler for why "metadata" here means the version row's own fields, not DocumentMetadata). */
 export function VersionCompareDialog({ documentId, fromVersionId, toVersionId, onClose }: VersionCompareDialogProps) {
-  const { data, isLoading, isError } = useCompareVersions(documentId, fromVersionId, toVersionId)
+  const { data, isLoading, isError, refetch } = useCompareVersions(documentId, fromVersionId, toVersionId)
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
@@ -28,8 +32,8 @@ export function VersionCompareDialog({ documentId, fromVersionId, toVersionId, o
         </IconButton>
       </DialogTitle>
       <DialogContent dividers>
-        {isError && <Alert severity="error">Could not load the comparison. Please try again.</Alert>}
-        {isLoading && <CircularProgress size={24} aria-label="Loading version comparison" />}
+        {isError && <ErrorState title="Could not load the comparison" onRetry={() => void refetch()} />}
+        {isLoading && <SkeletonBlock variant="text" count={4} />}
 
         {data && (
           <>
@@ -54,13 +58,13 @@ export function VersionCompareDialog({ documentId, fromVersionId, toVersionId, o
             <Box
               component="pre"
               sx={{
-                fontFamily: 'monospace',
+                fontFamily: codeFontFamily,
                 fontSize: 13,
                 whiteSpace: 'pre-wrap',
                 overflowX: 'auto',
                 bgcolor: 'action.hover',
                 p: 1.5,
-                borderRadius: 1,
+                borderRadius: `${radius.sm}px`,
                 m: 0,
               }}
             >

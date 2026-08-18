@@ -21,7 +21,7 @@ import { visuallyHidden } from '@mui/utils'
 import { useQuery } from '@tanstack/react-query'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AdminAiModel, AdminAiProvider } from '../api/adminAiProvidersApi'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
 import { AiProviderActionsMenu } from '../components/AiProviderActionsMenu'
 import { AiModelStatusMenu } from '../components/AiModelStatusMenu'
 import { ModelSyncDialog } from '../components/ModelSyncDialog'
@@ -61,7 +61,11 @@ function ProviderModelsSection({ provider }: ProviderModelsSectionProps) {
     <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="subtitle1">Models</Typography>
-        <Button size="small" startIcon={<SyncIcon fontSize="small" />} onClick={() => setSyncDialogOpen(true)}>
+        <Button
+          size="small"
+          startIcon={<SyncIcon fontSize="small" />}
+          onClick={() => setSyncDialogOpen(true)}
+        >
           Sync from provider
         </Button>
       </Box>
@@ -88,12 +92,22 @@ function ProviderModelsSection({ provider }: ProviderModelsSectionProps) {
                 {Object.entries(model.capabilities)
                   .filter(([, supported]) => supported)
                   .map(([capability]) => (
-                    <Chip key={capability} size="small" label={capability} sx={{ mr: 0.5, mb: 0.5 }} />
+                    <Chip
+                      key={capability}
+                      size="small"
+                      label={capability}
+                      sx={{ mr: 0.5, mb: 0.5 }}
+                    />
                   ))}
               </TableCell>
               <TableCell>{formatPricing(model.pricing)}</TableCell>
               <TableCell>
-                <Chip size="small" label={model.status} color={MODEL_STATUS_COLOR[model.status]} variant="outlined" />
+                <Chip
+                  size="small"
+                  label={model.status}
+                  color={MODEL_STATUS_COLOR[model.status]}
+                  variant="outlined"
+                />
               </TableCell>
               <TableCell align="right">
                 <AiModelStatusMenu model={model} providerId={provider.id} />
@@ -134,13 +148,10 @@ export function AdminAiProvidersPage() {
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null)
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <PageHeader
-        backTo="/admin/dashboard"
-        backLabel="Back to dashboard"
-        title="AI providers"
-        subtitle="Enable a provider and configure its credential before end users can select it"
-      />
+    <AppShell
+      title="AI providers"
+      subtitle="Enable a provider and configure its credential before end users can select it"
+    >
       <Paper elevation={1}>
         <TableContainer>
           <Table>
@@ -167,10 +178,18 @@ export function AdminAiProvidersPage() {
                       <TableCell>
                         <IconButton
                           size="small"
-                          aria-label={isExpanded ? `Collapse models for ${provider.displayName}` : `Expand models for ${provider.displayName}`}
+                          aria-label={
+                            isExpanded
+                              ? `Collapse models for ${provider.displayName}`
+                              : `Expand models for ${provider.displayName}`
+                          }
                           onClick={() => setExpandedProviderId(isExpanded ? null : provider.id)}
                         >
-                          {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                          {isExpanded ? (
+                            <ExpandLessIcon fontSize="small" />
+                          ) : (
+                            <ExpandMoreIcon fontSize="small" />
+                          )}
                         </IconButton>
                       </TableCell>
                       <TableCell>{provider.displayName}</TableCell>
@@ -191,9 +210,17 @@ export function AdminAiProvidersPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Chip size="small" label={provider.healthStatus} color={HEALTH_COLOR[provider.healthStatus]} variant="outlined" />
+                        <Chip
+                          size="small"
+                          label={provider.healthStatus}
+                          color={HEALTH_COLOR[provider.healthStatus]}
+                          variant="outlined"
+                        />
                         {provider.healthStatusCheckedAtUtc && (
-                          <Box component="span" sx={{ ml: 1, fontSize: '0.75rem', color: 'text.secondary' }}>
+                          <Box
+                            component="span"
+                            sx={{ ml: 1, fontSize: '0.75rem', color: 'text.secondary' }}
+                          >
                             {new Date(provider.healthStatusCheckedAtUtc).toLocaleString()}
                           </Box>
                         )}
@@ -203,7 +230,10 @@ export function AdminAiProvidersPage() {
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell colSpan={6} sx={{ p: 0, borderBottom: isExpanded ? undefined : 'none' }}>
+                      <TableCell
+                        colSpan={6}
+                        sx={{ p: 0, borderBottom: isExpanded ? undefined : 'none' }}
+                      >
                         <Collapse in={isExpanded} unmountOnExit>
                           <ProviderModelsSection provider={provider} />
                         </Collapse>
@@ -216,6 +246,6 @@ export function AdminAiProvidersPage() {
           </Table>
         </TableContainer>
       </Paper>
-    </Box>
+    </AppShell>
   )
 }

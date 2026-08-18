@@ -1,6 +1,6 @@
-import { Box, Button, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material'
+import { Button, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
 import { useAdminDashboard } from '../hooks/useAdminDashboard'
 import { NewUsersTrendChart } from '../charts/NewUsersTrendChart'
 import { RoleDistributionChart } from '../charts/RoleDistributionChart'
@@ -31,24 +31,20 @@ export function AdminDashboardPage() {
   const { data: summary, isLoading } = useAdminDashboard()
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <PageHeader
-        backTo="/chat"
-        backLabel="Back to chat"
-        title="Admin Dashboard"
-        subtitle="Platform health and usage at a glance"
-        actions={
-          <Stack direction="row" spacing={1}>
-            <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
-              Manage users
-            </Button>
-            <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small">
-              Manage AI providers
-            </Button>
-          </Stack>
-        }
-      />
-
+    <AppShell
+      title="Admin Dashboard"
+      subtitle="Platform health and usage at a glance"
+      actions={
+        <Stack direction="row" spacing={1}>
+          <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
+            Manage users
+          </Button>
+          <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small">
+            Manage AI providers
+          </Button>
+        </Stack>
+      }
+    >
       {isLoading || !summary ? (
         <Skeleton variant="rounded" height={400} />
       ) : (
@@ -108,6 +104,6 @@ export function AdminDashboardPage() {
           </Grid>
         </Grid>
       )}
-    </Box>
+    </AppShell>
   )
 }

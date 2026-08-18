@@ -2,6 +2,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import { Alert, Box, Button, LinearProgress, Snackbar, Typography } from '@mui/material'
 import { useRef, useState } from 'react'
 import { useUploadDocument } from '../hooks/useKnowledgeBaseFolders'
+import { radius } from '../../../theme'
 
 interface DocumentUploadZoneProps {
   knowledgeBaseId: string
@@ -53,11 +54,13 @@ export function DocumentUploadZone({ knowledgeBaseId, targetFolderId }: Document
         sx={{
           border: '2px dashed',
           borderColor: isDragOver ? 'primary.main' : 'divider',
-          borderRadius: 1,
+          borderRadius: `${radius.lg}px`,
           p: 3,
           textAlign: 'center',
           cursor: 'pointer',
           bgcolor: isDragOver ? 'action.hover' : undefined,
+          transition: (theme) => theme.transitions.create(['border-color', 'background-color']),
+          '&:hover': { borderColor: 'primary.main' },
         }}
       >
         <CloudUploadIcon color="action" />
