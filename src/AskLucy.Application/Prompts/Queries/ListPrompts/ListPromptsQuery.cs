@@ -1,5 +1,5 @@
-using AskLucy.Application.Common;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Common;
 using AskLucy.Domain.Prompts;
 using MediatR;
 
