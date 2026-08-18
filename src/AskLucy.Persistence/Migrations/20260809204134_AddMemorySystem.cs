@@ -352,6 +352,14 @@ namespace AskLucy.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            // MemoryEmbeddings.Vector — added via raw SQL rather than the generated CreateTable
+            // columns above, same as Retrieval's Embeddings.Vector (AddRetrievalEngine migration;
+            // EmbeddingConfiguration's remarks explain why EF's Fluent API can't reach the native
+            // vector mapping in this package version). NULLable: SqlServerMemoryVectorStore.
+            // UpsertAsync fills it in via a separate raw UPDATE after the EF-managed insert.
+            migrationBuilder.Sql(
+                $"ALTER TABLE [MemoryEmbeddings] ADD [Vector] VECTOR({AskLucy.Domain.Memory.MemoryEmbedding.VectorWidth}) NULL;");
+
             migrationBuilder.CreateTable(
                 name: "MemoryVersions",
                 columns: table => new
