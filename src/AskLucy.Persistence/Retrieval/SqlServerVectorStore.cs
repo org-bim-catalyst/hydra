@@ -24,11 +24,15 @@ namespace AskLucy.Persistence.Retrieval;
 /// raw-SQL companion to <c>EmbeddingConfiguration</c>'s Ignore'd <c>Vector</c> property.</para>
 ///
 /// <para>The vector itself is passed as a JSON array string and cast server-side
-/// (<c>CAST(@json AS VECTOR(n))</c>) rather than bound as a typed ADO.NET parameter — confirmed
-/// against a real local SQL Server 2025 instance during implementation that this exact pattern
-/// works; every value is still fully parameterized (constitution §8 — no string-interpolated
-/// user input reaches SQL text). Knowledge base ids are validated <see cref="Guid"/> values, never
-/// raw user input, before being inlined into the <c>IN (...)</c> clause.</para>
+/// (<c>CAST(@json AS VECTOR(n))</c>) rather than bound as a typed ADO.NET parameter; every value
+/// is still fully parameterized (constitution §8 — no string-interpolated user input reaches SQL
+/// text) except <c>n</c> itself, which SQL Server requires as a literal in the type declaration —
+/// <c>CAST(@p0 AS VECTOR(@p1))</c> fails with "Incorrect syntax near '@p1'" (caught 2026-08-18: no
+/// automated test exercised <see cref="UpsertAsync"/> against a real instance, so this had shipped
+/// broken since specs/016; <c>QueryNearestAsync</c>'s already-correct literal-width string
+/// concatenation below is now mirrored in <see cref="UpsertAsync"/> too). Knowledge base ids are
+/// validated <see cref="Guid"/> values, never raw user input, before being inlined into the
+/// <c>IN (...)</c> clause.</para>
 /// </summary>
 public sealed class SqlServerVectorStore(AskLucyDbContext dbContext) : IVectorStore
 {
@@ -42,9 +46,15 @@ public sealed class SqlServerVectorStore(AskLucyDbContext dbContext) : IVectorSt
         // (ADR-0007).
         var vectorJson = ToJsonArray(vector);
 
-        await dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE [Embeddings] SET [Vector] = CAST({vectorJson} AS VECTOR({Domain.Retrieval.Embedding.VectorWidth})) WHERE [Id] = {embeddingId}",
-            cancellationToken);
+        // VECTOR(n)'s width must be a literal in the type declaration — SQL Server rejects
+        // CAST(@p0 AS VECTOR(@p1)) with "Incorrect syntax near '@p1'". Interpolating it via
+        // ExecuteSqlInterpolatedAsync (as the CAST target's own value) parameterizes it like
+        // everything else in the FormattableString, so it has to be baked into the raw SQL text
+        // instead — same technique QueryNearestAsync below already uses for its own CAST.
+        var sql = "UPDATE [Embeddings] SET [Vector] = CAST({0} AS VECTOR(" +
+            Domain.Retrieval.Embedding.VectorWidth.ToString(CultureInfo.InvariantCulture) + ")) WHERE [Id] = {1}";
+
+        await dbContext.Database.ExecuteSqlRawAsync(sql, [vectorJson, embeddingId], cancellationToken);
     }
 
     public async Task DeleteAsync(Guid documentChunkId, CancellationToken cancellationToken = default)
