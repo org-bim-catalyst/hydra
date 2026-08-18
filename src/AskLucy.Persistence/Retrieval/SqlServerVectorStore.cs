@@ -84,8 +84,15 @@ public sealed class SqlServerVectorStore(AskLucyDbContext dbContext) : IVectorSt
         // Guid values are formatted via the fixed "D" format (no free-form user text ever reaches
         // this string) — the query vector and every other value are passed as real parameters
         // ({0}/{1} below, SqlQueryRaw's positional placeholder syntax).
+        // VECTOR_DISTANCE is computed once, in the inner query's SELECT, rather than once there
+        // and again in an outer WHERE/ORDER BY (T-SQL can't reference a SELECT-list alias from
+        // WHERE) — halves the cosine-distance CPU cost of this deliberately unindexed brute-force
+        // scan (same duplication fixed in SqlServerMemoryVectorStore.QueryNearestAsync, where it
+        // was pushing a real test past its performance budget).
         var castExpression = "CAST({0} AS VECTOR(" + Domain.Retrieval.Embedding.VectorWidth.ToString(CultureInfo.InvariantCulture) + "))";
-        var sql = "SELECT TOP (" + topK.ToString(CultureInfo.InvariantCulture) + ") e.[DocumentChunkId] AS DocumentChunkId, " +
+        var sql = "SELECT TOP (" + topK.ToString(CultureInfo.InvariantCulture) + ") sub.[DocumentChunkId], sub.[Distance] " +
+            "FROM (" +
+            "SELECT e.[DocumentChunkId] AS DocumentChunkId, " +
             "VECTOR_DISTANCE('cosine', e.[Vector], " + castExpression + ") AS Distance " +
             "FROM [Embeddings] e " +
             "INNER JOIN [DocumentChunks] c ON c.[Id] = e.[DocumentChunkId] " +
@@ -94,8 +101,9 @@ public sealed class SqlServerVectorStore(AskLucyDbContext dbContext) : IVectorSt
             "AND e.[Vector] IS NOT NULL " +
             "AND c.[DeletedAtUtc] IS NULL " +
             "AND c.[KnowledgeBaseId] IN (" + knowledgeBaseIdList + ") " +
-            "AND VECTOR_DISTANCE('cosine', e.[Vector], " + castExpression + ") <= {1} " +
-            "ORDER BY Distance ASC";
+            ") sub " +
+            "WHERE sub.[Distance] <= {1} " +
+            "ORDER BY sub.[Distance] ASC";
 
         var results = await dbContext.Database
             .SqlQueryRaw<VectorDistanceRow>(sql, vectorJson, maxDistance)
