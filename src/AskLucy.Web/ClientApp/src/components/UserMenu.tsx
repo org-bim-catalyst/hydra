@@ -4,6 +4,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import PolicyIcon from '@mui/icons-material/Policy'
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { Avatar, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material'
 import { useState } from 'react'
@@ -60,6 +61,12 @@ export function UserMenu() {
             <FolderIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Knowledge Bases</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goTo('/memory')}>
+          <ListItemIcon>
+            <PsychologyOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Memory Center</ListItemText>
         </MenuItem>
         {isAdmin && (
           <MenuItem onClick={() => goTo('/admin/dashboard')}>

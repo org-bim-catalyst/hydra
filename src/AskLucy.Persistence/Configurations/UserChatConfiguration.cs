@@ -1,5 +1,6 @@
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Projects;
 using AskLucy.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -39,6 +40,10 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.Property(c => c.RetrievalSimilarityThreshold).HasPrecision(5, 4);
         builder.Property(c => c.RetrievalMaxContextTokens);
 
+        // AI Memory System (specs/018-ai-memory-system, research.md Decision 1/6).
+        builder.Property(c => c.ProjectId);
+        builder.Property(c => c.LastMemoryAnalyzedAtUtc);
+
         builder.Property(c => c.CreatedBy).IsRequired();
         builder.Property(c => c.RowVersion).IsRowVersion();
 
@@ -51,6 +56,7 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.HasIndex(c => c.IsFavorite);
         builder.HasIndex(c => c.ProviderId);
         builder.HasIndex(c => c.ModelId);
+        builder.HasIndex(c => c.ProjectId);
 
         builder.HasOne<ApplicationUser>()
             .WithMany(u => u.UserChats)
@@ -65,6 +71,15 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
         builder.HasOne<AIModel>()
             .WithMany()
             .HasForeignKey(c => c.ModelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Restrict — Project already cascades from ApplicationUser directly (ProjectConfiguration);
+        // a second cascade path from ApplicationUser through Project to UserChat would trip SQL
+        // Server's multiple-cascade-paths validation, mirroring MemoryConfiguration's identical
+        // reasoning for Memory.ProjectId.
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(c => c.ProjectId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

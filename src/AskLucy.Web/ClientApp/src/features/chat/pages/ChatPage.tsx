@@ -19,6 +19,7 @@ import { ChatComposer } from '../components/ChatComposer'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
 import { MinimalTopBar } from '../components/MinimalTopBar'
+import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { ProviderModelSelector } from '../components/ProviderModelSelector'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { VoiceControlBar } from '../components/VoiceControlBar'
@@ -155,6 +156,10 @@ export function ConversationView({
     modelId,
     setSelection,
   } = useChatStream(chatId, persistedMessages, onChatCreated)
+  // spec.md FR-002a, User Story 5 — this view remounts (via `key`) on an explicit chat switch, so
+  // a plain useState reset is correct; not yet seeded from persisted history (UserChatDto doesn't
+  // carry ProjectId), matching ProviderModelSelector's identical current-scope limitation above.
+  const [projectId, setProjectId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const listParentRef = useRef<HTMLDivElement>(null)
 
@@ -319,6 +324,7 @@ export function ConversationView({
         sx={{ justifyContent: 'flex-end', gap: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
       >
         <ProviderModelSelector providerId={providerId} modelId={modelId} onSelect={setSelection} />
+        <ProjectPicker chatId={chatId} projectId={projectId} onAssigned={setProjectId} />
         <LanguageSelector value={language} onChange={onLanguageChange} />
         <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
           <TranslateIcon />
@@ -380,7 +386,7 @@ export function ConversationView({
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
                   >
-                    {isThinking ? <ThinkingIndicator /> : <MessageBubble message={message} />}
+                    {isThinking ? <ThinkingIndicator /> : <MessageBubble message={message} chatId={chatId} />}
                   </Box>
                 )
               })}

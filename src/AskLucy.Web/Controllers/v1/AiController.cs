@@ -15,6 +15,7 @@ using AskLucy.Application.Ai.Commands.Translate;
 using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
+using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
 using MediatR;
@@ -64,6 +65,7 @@ public sealed partial class AiController(
         var assistantContent = new StringBuilder();
         ChatUsage? finalUsage = null;
         RagRetrievalOutcome? retrievalOutcome = null;
+        MemoryRetrievalOutcome? memoryOutcome = null;
 
         await foreach (var chunk in mediator.CreateStream(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
@@ -84,6 +86,11 @@ public sealed partial class AiController(
             if (chunk.RetrievalOutcome is not null)
             {
                 retrievalOutcome = chunk.RetrievalOutcome;
+            }
+
+            if (chunk.MemoryOutcome is not null)
+            {
+                memoryOutcome = chunk.MemoryOutcome;
             }
         }
 
@@ -115,8 +122,6 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
-        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
-
         var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
         var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
         var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, finalUsage?.InputTokenCount, finalUsage?.OutputTokenCount);
@@ -134,7 +139,11 @@ public sealed partial class AiController(
                 .ToList()
             : null;
 
-        await mediator.Send(
+        // Persisted — and, for memory, its trace recorded (FR-014) — before [DONE] is written, so
+        // the trailing __MEMORY__ event below can carry the now-real message id and the client can
+        // fetch its "why does Lucy know this" trace immediately, in the same session, rather than
+        // only after a reload re-fetches persisted history (quickstart.md Scenario 1).
+        var assistantMessage = await mediator.Send(
             new AppendMessageCommand(
                 request.ChatId, MessageRole.Assistant, MessageKind.Text, assistantContent.ToString(), null,
                 Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
@@ -142,6 +151,20 @@ public sealed partial class AiController(
                 CachedTokenCount: finalUsage?.CachedTokenCount, ReasoningTokenCount: finalUsage?.ReasoningTokenCount,
                 LatencyMs: finalUsage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
             cancellationToken);
+
+        if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found)
+        {
+            await mediator.Send(new RecordMemoryReferencesCommand(assistantMessage.Id, memoryOutcome.UsedMemories), cancellationToken);
+        }
+
+        if (memoryOutcome is not null)
+        {
+            var memoryPayload = new { messageId = assistantMessage.Id, memoryOutcome = memoryOutcome.Type.ToString() };
+            await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
+        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     }
 
     // [Produces("application/json")]: without it, a bare string ActionResult serializes as
