@@ -302,6 +302,24 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // Prompt Library CRUD/organization/versioning/test-case/export-import endpoints
+    // (specs/019-prompt-library-workspace, contracts/prompts-api.md) — none of these invoke an AI
+    // provider directly, so they get the same generous, non-cost-tiered shape as
+    // knowledge-base-endpoints/memory-endpoints. The prompt *execution* endpoint
+    // (POST /api/v1/prompts/{id}/executions) invokes IAIProvider directly and uses the
+    // cost-tiered "ai-endpoints" policy above instead, not this one.
+    options.AddPolicy("prompt-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---

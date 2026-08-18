@@ -17,3 +17,6 @@ public sealed record UpdateConversationKnowledgeBasesRequest(IReadOnlyList<Guid>
 
 /// <summary>contracts/conversation-retrieval-api.md `GET /api/v1/chats/{id}/knowledge-bases` response shape.</summary>
 public sealed record ConversationKnowledgeBasesResponse(IReadOnlyList<Guid> KnowledgeBaseIds);
+
+/// <summary>specs/019-prompt-library-workspace contracts/prompt-conversation-integration-api.md `POST /api/v1/chats/{chatId}/prompt-messages`.</summary>
+public sealed record InsertPromptMessageRequest(Guid PromptId, IReadOnlyDictionary<string, string?>? VariableValues);
