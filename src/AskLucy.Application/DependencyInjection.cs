@@ -1,4 +1,5 @@
 using System.Reflection;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
@@ -9,7 +10,6 @@ using AskLucy.Application.KnowledgeBases;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
-using AskLucy.Application.Abstractions;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
