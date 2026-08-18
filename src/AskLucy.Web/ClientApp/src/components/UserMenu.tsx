@@ -1,4 +1,5 @@
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import DescriptionIcon from '@mui/icons-material/Description'
 import FolderIcon from '@mui/icons-material/Folder'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -67,6 +68,12 @@ export function UserMenu() {
             <PsychologyOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Memory Center</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goTo('/prompts')}>
+          <ListItemIcon>
+            <ArticleOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Prompts</ListItemText>
         </MenuItem>
         {isAdmin && (
           <MenuItem onClick={() => goTo('/admin/dashboard')}>

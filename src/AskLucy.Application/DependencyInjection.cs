@@ -82,6 +82,11 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<PromptFolderOptions>()
+            .Bind(configuration.GetSection(PromptFolderOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddOptions<DocumentStorageQuotaOptions>()
             .Bind(configuration.GetSection(DocumentStorageQuotaOptions.SectionName))
             .ValidateDataAnnotations()

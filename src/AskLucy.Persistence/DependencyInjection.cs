@@ -100,6 +100,14 @@ public static class DependencyInjection
         services.AddScoped<IMemoryExportJobRepository, MemoryExportJobRepository>();
         services.AddScoped<IMemoryVectorStore, AskLucy.Persistence.Memory.SqlServerMemoryVectorStore>();
 
+        // Prompt Library & Prompt Engineering Workspace (specs/019-prompt-library-workspace) — Foundational.
+        services.AddScoped<IPromptRepository, PromptRepository>();
+        services.AddScoped<IPromptFolderRepository, PromptFolderRepository>();
+        services.AddScoped<IPromptCategoryRepository, PromptCategoryRepository>();
+        services.AddScoped<IPromptTestCaseRepository, PromptTestCaseRepository>();
+        services.AddScoped<IPromptExecutionRepository, PromptExecutionRepository>();
+        services.AddScoped<IPromptAuditLogRepository, PromptAuditLogRepository>();
+
         return services;
     }
 }

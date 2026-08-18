@@ -1,0 +1,24 @@
+using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Prompts;
+using Microsoft.EntityFrameworkCore;
+
+namespace AskLucy.Persistence.Repositories;
+
+public sealed class PromptCategoryRepository(AskLucyDbContext dbContext) : IPromptCategoryRepository
+{
+    public Task<PromptCategory?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        dbContext.PromptCategories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<PromptCategory>> ListPredefinedAndCustomForOwnerAsync(string ownerId, CancellationToken cancellationToken = default) =>
+        await dbContext.PromptCategories
+            .Where(c => c.OwnerId == null || c.OwnerId == ownerId)
+            .OrderBy(c => c.OwnerId == null ? 0 : 1)
+            .ThenBy(c => c.Name)
+            .ToListAsync(cancellationToken);
+
+    public Task<PromptCategory?> GetCustomByOwnerAndNameAsync(string ownerId, string name, CancellationToken cancellationToken = default) =>
+        dbContext.PromptCategories.FirstOrDefaultAsync(
+            c => c.OwnerId == ownerId && c.Name.ToLower() == name.ToLower(), cancellationToken);
+
+    public void Add(PromptCategory category) => dbContext.PromptCategories.Add(category);
+}

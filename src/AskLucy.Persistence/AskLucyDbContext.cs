@@ -7,6 +7,7 @@ using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Projects;
+using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Memory;
@@ -138,6 +139,31 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<Project> Projects => Set<Project>();
 
+    // Prompt Library & Prompt Engineering Workspace (specs/019-prompt-library-workspace).
+    public DbSet<Prompt> Prompts => Set<Prompt>();
+
+    public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();
+
+    public DbSet<PromptVariable> PromptVariables => Set<PromptVariable>();
+
+    public DbSet<PromptCategory> PromptCategories => Set<PromptCategory>();
+
+    public DbSet<PromptTag> PromptTags => Set<PromptTag>();
+
+    public DbSet<PromptFolder> PromptFolders => Set<PromptFolder>();
+
+    public DbSet<PromptTestCase> PromptTestCases => Set<PromptTestCase>();
+
+    public DbSet<PromptExecution> PromptExecutions => Set<PromptExecution>();
+
+    public DbSet<PromptExecutionResult> PromptExecutionResults => Set<PromptExecutionResult>();
+
+    public DbSet<PromptRating> PromptRatings => Set<PromptRating>();
+
+    public DbSet<PromptUsageStatistics> PromptUsageStatistics => Set<PromptUsageStatistics>();
+
+    public DbSet<PromptAuditLog> PromptAuditLogs => Set<PromptAuditLog>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -158,6 +184,34 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
         // Existing production users/roles are carried over via the in-place migration
         // (research.md Topic 5), not re-seeded — see spec.md's Assumptions/Risks.
     }
+
+    // EF Core doesn't guarantee an existing, concurrency-checked parent's UPDATE executes
+    // before an unrelated new child's INSERT within one SaveChanges batch (no generated-key
+    // dependency forces that order) — so Prompt.ApplyEdit's PromptVersions insert can race its
+    // own Prompts row update, and a stale-read edit conflict surfaces as a raw unique-index-
+    // violation DbUpdateException instead of DbUpdateConcurrencyException.
+    // IX_PromptVersions_PromptId_VersionNumber can *only* be violated this way (VersionNumber is
+    // always CurrentVersionNumber+1 from an in-memory read), so re-throwing as
+    // DbUpdateConcurrencyException here is a correct translation, not a guess.
+    // Overridden here (not in UnitOfWork, Application's transaction-boundary abstraction) so it
+    // applies to every caller of this context's SaveChangesAsync, not only ones that go through
+    // IUnitOfWork — ProblemDetailsMiddleware already maps DbUpdateConcurrencyException to a 409.
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsPromptVersionNumberConflict(ex))
+        {
+            throw new DbUpdateConcurrencyException(
+                "The prompt was modified by another request before this edit's new version could be saved.", ex);
+        }
+    }
+
+    private static bool IsPromptVersionNumberConflict(DbUpdateException ex) =>
+        ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } sqlException &&
+        sqlException.Message.Contains("IX_PromptVersions_PromptId_VersionNumber", StringComparison.Ordinal);
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

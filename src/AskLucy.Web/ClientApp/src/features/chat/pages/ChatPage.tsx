@@ -16,6 +16,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { AssistantPanel } from '../components/AssistantPanel'
 import { AssistantToggleFab } from '../components/AssistantToggleFab'
 import { ChatComposer } from '../components/ChatComposer'
+import { InsertPromptPicker } from '../components/InsertPromptPicker'
 import { LanguageSelector } from '../components/LanguageSelector'
 import { MessageBubble } from '../components/MessageBubble'
 import { MinimalTopBar } from '../components/MinimalTopBar'
@@ -216,6 +217,7 @@ export function ConversationView({
   // ChatComposer) so a Push-to-Talk transcript can fill it directly (research.md Decision 4),
   // the same way a Continuous-mode transcript calls `send()` directly below.
   const [composerText, setComposerText] = useState('')
+  const [isInsertPromptOpen, setInsertPromptOpen] = useState(false)
   const handleSend = () => {
     if (!composerText.trim()) return
     send(composerText.trim())
@@ -425,7 +427,18 @@ export function ConversationView({
         onStopCapture={recognition.stop}
         onCancelCapture={recognition.cancel}
         onClearCaptureError={recognition.clearError}
+        onInsertPromptClick={chatId ? () => setInsertPromptOpen(true) : undefined}
       />
+      {chatId && (
+        <InsertPromptPicker
+          open={isInsertPromptOpen}
+          onClose={() => setInsertPromptOpen(false)}
+          chatId={chatId}
+          providerId={providerId}
+          modelId={modelId}
+          onInserted={() => void refetchMessages()}
+        />
+      )}
       <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
         <Alert
           severity="error"

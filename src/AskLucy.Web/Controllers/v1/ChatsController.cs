@@ -1,4 +1,6 @@
 using System.Text.Json;
+using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.ArchiveUserChat;
 using AskLucy.Application.Chats.Commands.ClearUserChatMessages;
@@ -19,6 +21,7 @@ using AskLucy.Application.Chats.Queries.SearchUserChats;
 using AskLucy.Application.Common;
 using AskLucy.Application.Memory.Queries.GetMemoryReferences;
 using AskLucy.Application.Projects.Commands.AssignConversationToProject;
+using AskLucy.Application.Prompts.Commands.InsertPromptIntoConversation;
 using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -136,6 +139,37 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     {
         await mediator.Send(new PurgeUserChatCommand(id, request.Confirm), cancellationToken);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Inserts a saved prompt into this conversation as the next user message
+    /// (spec.md FR-080, User Story 5, contracts/prompt-conversation-integration-api.md). Uses the
+    /// cost-tiered `ai-endpoints` policy (overriding the controller-level `chat-endpoints`) since
+    /// this is the one action on this controller that invokes <see cref="IAIProvider"/> — mirrors
+    /// <c>PromptsController.Execute</c>'s identical override. Response shape is a plain-text SSE
+    /// stream identical to <c>AiController.Chat</c>'s, since
+    /// <see cref="InsertPromptIntoConversationCommandHandler"/> delegates to the same
+    /// <see cref="SendChatMessageCommand"/> and owns its own persistence/PromptExecution recording.
+    /// </summary>
+    [HttpPost("{id:guid}/prompt-messages")]
+    [EnableRateLimiting("ai-endpoints")]
+    public async Task InsertPrompt(Guid id, InsertPromptMessageRequest request, CancellationToken cancellationToken)
+    {
+        Response.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
+
+        await foreach (var chunk in mediator.CreateStream(
+            new InsertPromptIntoConversationCommand(id, request.PromptId, request.VariableValues ?? new Dictionary<string, string?>()),
+            cancellationToken))
+        {
+            if (!string.IsNullOrEmpty(chunk.ContentDelta))
+            {
+                await Response.WriteAsync($"data: {chunk.ContentDelta}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+
+        await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     }
 
     /// <summary>Downloads a structured, portable export of the conversation (FR-025).</summary>

@@ -10,7 +10,7 @@
 >
 > **Frontend:** React + TypeScript + Vite
 >
-> **Last Updated:** August 2026 (v2.1: added §28 AI Memory System, specs/018)
+> **Last Updated:** August 2026 (v2.1: added §29 Prompt Library & Prompt Engineering Workspace, specs/019)
 
 ---
 
@@ -1002,7 +1002,67 @@ the rest of the codebase's ownership-guard convention).
 
 ---
 
-# 29. Architecture Principles
+# 29. Prompt Library & Prompt Engineering Workspace
+
+Introduced in specs/019-prompt-library-workspace. Lives in `Domain/Prompts`, `Application/Prompts`,
+`Persistence` (via `AskLucyDbContext`), and `PromptsController`/`PromptFoldersController` under
+`Web/Controllers/v1`, plus one new action on the existing `ChatsController`. Frontend lives in
+`ClientApp/src/features/prompts`, with one integration point in `ClientApp/src/features/chat`
+(`InsertPromptPicker`).
+
+**Aggregate and versioning**: `Prompt` is the aggregate root — owns its `PromptVersion` history and
+`PromptTag` assignments, and carries a denormalized copy of the current version's content so
+full-text search can index the `Prompts` table directly without a join. Every content edit
+(`ApplyEdit`) creates a new, immutable `PromptVersion`; nothing is ever deleted or overwritten —
+`RestoreFrom` creates a brand-new version copying the restored content rather than reverting in
+place, so version history only ever grows. Organizational metadata (name/folder/category/favorite/
+pinned) changes via dedicated mutators that never version the prompt.
+
+**Variables**: `{{name}}` placeholders are auto-detected from content (`PromptContentAnalyzer`, a
+pure static class — no templating library) and validated against declared `PromptVariable`
+definitions before a prompt can be saved or executed (`PromptVariableResolver`). Execution-time
+resolution is strict (missing required variables block before any provider call, FR-013); preview
+resolution is lenient (falls back to default/example values, no AI call).
+
+**Execution and instruction priority**: `ExecutePromptCommandHandler` (Testing Workspace) and
+`InsertPromptIntoConversationCommandHandler` (chat insertion) never call an `IAIProvider`
+implementation directly or duplicate provider selection — the latter delegates to the existing
+`SendChatMessageCommand` unchanged (research.md Decision 4), the same pattern
+`StreamVoiceReplyCommandHandler` already established for cross-command delegation via `ISender`.
+Both RAG (`IRagService`) and Memory (`IMemoryService`) context are opt-in per execution and reuse
+those services verbatim — zero new retrieval/memory logic — passing a fresh per-attempt correlation
+id in the `userChatId` parameter slot rather than a real conversation id (confirmed a logging-only
+correlation id in both implementations, never a foreign key). Assembled messages follow one fixed
+order — system/developer instructions, then memory context (`<user_memory>`-framed), then RAG
+context (`<context>`-framed), then the resolved user instructions — so instruction priority stays
+structurally distinguishable and no combination of variable/RAG/memory content can override the
+prompt's own instructions (FR-083/FR-092). `RetrievalPromptFraming` (`Application/Ai`) holds this
+framing text once, shared verbatim with `SendChatMessageCommandHandler`'s own RAG/Memory injection.
+
+**Organization and search**: nested folders (`PromptFolder`, depth computed and stored at
+create/move time, cycle rejection enforced at the application layer via
+`IPromptFolderRepository.IsSameOrDescendantAsync`), predefined-and-shared or custom-and-private
+categories, and per-prompt tags mirror the equivalent `KnowledgeBases` constructs exactly. Search
+(`ListPromptsQuery`) is cursor-paginated (keyset, not offset) and full-text indexed
+(`FULLTEXT INDEX` on `Prompts`, matching `Conversations`' own full-text search); the `recentlyUsed`
+view is driven entirely by `PromptUsageStatistics.LastSuccessfulUseAtUtc`, which only a successful
+execution ever advances.
+
+**Export/import**: `PromptExportFileBuilder`/`PromptImportValidator` (`Application/Prompts`) are
+plain, dependency-free static classes — not Infrastructure services behind an interface — since
+they have no file-system or network dependency, only pure JSON-shape assembly/validation over
+already-loaded aggregates. One schema (`{ schemaVersion, prompts: [...] }`) covers both single and
+bulk export; import validates every entry before creating any row — a single invalid entry rejects
+the whole file, nothing is partially created (FR-071).
+
+**Security**: every Prompt/PromptFolder endpoint is implicitly scoped to the caller via
+`PromptOwnershipGuard`, returning `404` (never `403`) for another user's prompt — the same
+least-information-disclosure convention `MemoryOwnershipGuard`/`ChatOwnershipGuard` already
+establish. No prompt content is ever passed to structured logging above Debug level.
+
+---
+
+# 30. Architecture Principles
 
 Before implementing any feature, ask:
 
