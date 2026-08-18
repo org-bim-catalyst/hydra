@@ -34,7 +34,12 @@ public sealed record PromptCapabilityRequirements(
     bool RequiresImageOutput,
     bool RequiresAudio)
 {
-    public static readonly PromptCapabilityRequirements None = new(false, false, false, false, false, false, false, false, false);
+    // A property returning a fresh instance per access, not a shared `static readonly` field —
+    // EF Core owned entities (PromptConfiguration's OwnsOne below) can't be tracked under two
+    // different owners at once; two Prompts created with the same shared None *instance* and
+    // saved in the same DbContext corrupt one row's owned columns to NULL (caught via
+    // PromptSearchTests, which creates two Prompts this way in one SaveChangesAsync).
+    public static PromptCapabilityRequirements None => new(false, false, false, false, false, false, false, false, false);
 }
 
 /// <summary>
