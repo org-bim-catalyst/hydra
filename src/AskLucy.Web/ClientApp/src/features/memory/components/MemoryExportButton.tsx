@@ -16,12 +16,18 @@ export function MemoryExportButton() {
   const { data: status } = useMemoryExportStatus(exportJobId)
 
   useEffect(() => {
+    // Deferred via queueMicrotask (react-hooks/set-state-in-effect): these setState calls
+    // react to the export job's polled status, not to a value derived from render, so they
+    // belong in an effect — but the rule wants the update to land in a callback rather than
+    // synchronously in the effect body, to avoid a same-commit cascading render.
     if (status?.status === 'Ready' && status.downloadUrl) {
       window.location.assign(status.downloadUrl)
-      setExportJobId(null)
+      queueMicrotask(() => setExportJobId(null))
     } else if (status?.status === 'Failed') {
-      setErrorMessage('Export failed. Please try again.')
-      setExportJobId(null)
+      queueMicrotask(() => {
+        setErrorMessage('Export failed. Please try again.')
+        setExportJobId(null)
+      })
     }
   }, [status])
 
