@@ -42,6 +42,9 @@ export function AdminDashboardPage() {
           <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small">
             Manage AI providers
           </Button>
+          <Button component={RouterLink} to="/admin/agent-policies" variant="outlined" size="small">
+            Manage agent policies
+          </Button>
         </Stack>
       }
     >

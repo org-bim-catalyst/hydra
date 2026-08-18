@@ -30,13 +30,14 @@ public enum MemoryLifecycleState
     Archived,
 }
 
-/// <summary>Where a memory candidate originated (spec.md FR-006, Key Entity "Memory Source"). <c>ProjectConfiguration</c>/<c>Integration</c> are reserved fields per spec.md's "Memory Creation" section — no handler emits them yet.</summary>
+/// <summary>Where a memory candidate originated (spec.md FR-006, Key Entity "Memory Source"). <c>ProjectConfiguration</c>/<c>Integration</c> are reserved fields per spec.md's "Memory Creation" section — no handler emits them yet. <c>AgentProposed</c> added for specs/020-ai-agent-framework's <c>MemoryWriteTool</c> (research.md Decision 5) — an agent-proposed candidate is distinguishable from passive extraction/explicit statements in the approval queue.</summary>
 public enum MemorySourceType
 {
     ExplicitUserStatement,
     PassiveConversationAnalysis,
     ProjectConfiguration,
     Integration,
+    AgentProposed,
 }
 
 /// <summary>

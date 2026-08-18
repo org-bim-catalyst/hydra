@@ -567,35 +567,47 @@ Favorites
 
 # 11. Agent Context
 
-## Agents
+Shipped in specs/020-ai-agent-framework as 16 tables (`AskLucyDbContext`,
+`Configurations/Agents/*.cs`) across four aggregates.
 
-Stores:
+## Agents / AgentVersions / AgentTools / AgentKnowledgeBases / AgentMemoryPolicies
 
-* Name
-* Description
-* Instructions
-* Preferred Model
-* Preferred Provider
-
----
-
-## AgentTools
-
-Maps agents to available tools.
+`Agents` is the mutable draft (Name, Description, Instructions, ModelProviderId/ModelId,
+ExecutionPolicy, Status, PublishedVersionNumber). `AgentVersions` is an immutable snapshot
+created on publish (`AgentId`+`VersionNumber` unique) — the draft-configuration tables
+(`AgentTools`, `AgentKnowledgeBases`, `AgentMemoryPolicies`) are serialized into it at publish
+time, never referenced live by an execution.
 
 ---
 
-## AgentRuns
+## AgentExecutions / AgentExecutionSteps / AgentToolCalls / AgentApprovals /
+## AgentExecutionErrors / AgentExecutionEvents / AgentExecutionUsage / AgentExecutionCost
 
-Tracks every execution.
+`AgentExecutions` is one run, always referencing the exact `AgentVersionId` it started under
+(never the agent's current draft). `AgentExecutionSteps` (one plan step) owns `AgentToolCalls`
+(one tool invocation) and can carry an `AgentApprovals` row when a High/Critical-risk tool call
+paused for a decision. `AgentExecutionEvents` is the append-only, safe-metadata-only push/replay
+log (`AgentExecutionId`+`OccurredAtUtc` indexed). `AgentExecutionUsage`/`AgentExecutionCost` are
+1:1 accumulator rows (tokens, tool-call/step counts, estimated cost).
 
-Stores:
+---
 
-* Inputs
-* Outputs
-* Tokens
-* Duration
-* Success
+## AgentPolicies / AgentUserExecutionLimits
+
+Administrator-managed: `AgentPolicies` auto-approves a High/Critical-risk tool call matching
+`ToolName`+`ConditionsJson` (composite-indexed together, since they're always filtered
+together). `AgentUserExecutionLimits` (`UserId` unique) overrides the system-wide concurrent-
+execution cap per user.
+
+---
+
+## AgentAuditLogs
+
+Tamper-resistant security record — deliberately **not** a hard FK to `AgentExecutions` (so an
+entry for a later-purged execution survives), mirroring `KnowledgeBaseAuditLogs`/
+`MemoryAuditLog`. Distinct from `AgentExecutionEvents`: this is the security-audit trail
+(`PermissionChecked`/`PermissionDenied`/`ApprovalDecided`/`CrossUserAccessAttempted`/
+`ExecutionCompleted`/`ExecutionFailed`), that's the operational one.
 
 ---
 

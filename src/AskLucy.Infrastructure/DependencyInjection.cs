@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Consent;
@@ -230,6 +231,11 @@ public static class DependencyInjection
         // purpose-scoped protector, not a reuse of IAiCredentialProtector's singleton.
         services.AddSingleton<IMemoryContentProtector, MemoryContentProtector>();
         services.AddScoped<IMemoryNotifier, MemoryNotifier>();
+        // AI Agent Framework & Agent Runtime (specs/020-ai-agent-framework) — User Story 4
+        // ("Real-Time Execution Visibility"). AgentExecutionHub/AgentExecutionNotifier live here
+        // (not Application) for the same reason MemoryHub/MemoryNotifier do — Application must
+        // never reference SignalR directly (constitution §3).
+        services.AddScoped<IAgentExecutionNotifier, AgentExecutionNotifier>();
         // Singleton: caches the loaded WhisperFactory (and the one-time model download)
         // across requests instead of reloading it every call. Registered as its concrete
         // type too (mapped to the same instance) so WhisperWarmupHostedService can trigger

@@ -37,6 +37,15 @@ const PromptLibraryPage = lazy(() =>
 const PromptEditorPage = lazy(() =>
   import('../features/prompts/pages/PromptEditorPage').then((m) => ({ default: m.PromptEditorPage })),
 )
+const AgentLibraryPage = lazy(() =>
+  import('../features/agents/pages/AgentLibraryPage').then((m) => ({ default: m.AgentLibraryPage })),
+)
+const AgentBuilderPage = lazy(() =>
+  import('../features/agents/pages/AgentBuilderPage').then((m) => ({ default: m.AgentBuilderPage })),
+)
+const AgentExecutionPage = lazy(() =>
+  import('../features/agents/pages/AgentExecutionPage').then((m) => ({ default: m.AgentExecutionPage })),
+)
 const PrivacyPage = lazy(() =>
   import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
 )
@@ -54,6 +63,9 @@ const AdminDashboardPage = lazy(() =>
 )
 const AdminAiProvidersPage = lazy(() =>
   import('../features/admin/pages/AdminAiProvidersPage').then((m) => ({ default: m.AdminAiProvidersPage })),
+)
+const AgentPoliciesAdminPage = lazy(() =>
+  import('../features/agents/pages/AgentPoliciesAdminPage').then((m) => ({ default: m.AgentPoliciesAdminPage })),
 )
 
 // Each route mounts a fresh <Lazy> instance, so Fade's default `in`-from-mount behavior
@@ -216,6 +228,50 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
+    path: '/agents',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <AgentLibraryPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/agents/new',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <AgentBuilderPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/agents/:id',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <AgentBuilderPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/agents/:agentId/executions/:executionId',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <AgentExecutionPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
     path: '/profile',
     element: (
       <ProtectedRoute>
@@ -270,6 +326,19 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AdminAiProvidersPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/agent-policies',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <AgentPoliciesAdminPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

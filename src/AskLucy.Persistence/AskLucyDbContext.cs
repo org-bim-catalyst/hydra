@@ -1,5 +1,6 @@
 using System.Reflection;
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Chats;
@@ -163,6 +164,39 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<PromptUsageStatistics> PromptUsageStatistics => Set<PromptUsageStatistics>();
 
     public DbSet<PromptAuditLog> PromptAuditLogs => Set<PromptAuditLog>();
+
+    // AI Agent Framework & Agent Runtime (specs/020-ai-agent-framework).
+    public DbSet<Agent> Agents => Set<Agent>();
+
+    public DbSet<AgentVersion> AgentVersions => Set<AgentVersion>();
+
+    public DbSet<AgentTool> AgentTools => Set<AgentTool>();
+
+    public DbSet<AgentKnowledgeBase> AgentKnowledgeBases => Set<AgentKnowledgeBase>();
+
+    public DbSet<AgentMemoryPolicy> AgentMemoryPolicies => Set<AgentMemoryPolicy>();
+
+    public DbSet<AgentExecution> AgentExecutions => Set<AgentExecution>();
+
+    public DbSet<AgentExecutionStep> AgentExecutionSteps => Set<AgentExecutionStep>();
+
+    public DbSet<AgentExecutionEvent> AgentExecutionEvents => Set<AgentExecutionEvent>();
+
+    public DbSet<AgentToolCall> AgentToolCalls => Set<AgentToolCall>();
+
+    public DbSet<AgentApproval> AgentApprovals => Set<AgentApproval>();
+
+    public DbSet<AgentExecutionError> AgentExecutionErrors => Set<AgentExecutionError>();
+
+    public DbSet<AgentExecutionUsage> AgentExecutionUsages => Set<AgentExecutionUsage>();
+
+    public DbSet<AgentExecutionCost> AgentExecutionCosts => Set<AgentExecutionCost>();
+
+    public DbSet<AgentPolicy> AgentPolicies => Set<AgentPolicy>();
+
+    public DbSet<AgentUserExecutionLimit> AgentUserExecutionLimits => Set<AgentUserExecutionLimit>();
+
+    public DbSet<AgentAuditLog> AgentAuditLogs => Set<AgentAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
