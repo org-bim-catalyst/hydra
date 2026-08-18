@@ -17,11 +17,17 @@ public sealed class MemoryRepository(AskLucyDbContext dbContext) : IMemoryReposi
             return [];
         }
 
-        var openConflictMemoryIds = await dbContext.Set<MemoryConflict>()
+        // EF Core can't translate SelectMany over a per-row array literal (new[] { ... }) into
+        // SQL — the two id columns are projected server-side instead, then flattened/filtered
+        // client-side; open conflicts are few, so this never approaches the ids/Memories scale.
+        var openConflicts = await dbContext.Set<MemoryConflict>()
             .Where(c => c.ResolutionStatus == MemoryConflictResolutionStatus.PendingUserConfirmation)
+            .Select(c => new { c.ExistingMemoryId, c.NewMemoryId })
+            .ToListAsync(cancellationToken);
+        var openConflictMemoryIds = openConflicts
             .SelectMany(c => new[] { c.ExistingMemoryId, c.NewMemoryId ?? Guid.Empty })
             .Where(id => id != Guid.Empty)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         return await dbContext.Memories
             .Where(m => ids.Contains(m.Id) && m.State == MemoryLifecycleState.Active && !openConflictMemoryIds.Contains(m.Id))
