@@ -20,9 +20,15 @@ public sealed class SqlServerMemoryVectorStore(AskLucyDbContext dbContext) : IMe
     {
         var vectorJson = ToJsonArray(vector);
 
-        await dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE [MemoryEmbeddings] SET [Vector] = CAST({vectorJson} AS VECTOR({Domain.Memory.MemoryEmbedding.VectorWidth})) WHERE [Id] = {embeddingId}",
-            cancellationToken);
+        // VECTOR(n)'s width must be a literal in the type declaration — SQL Server rejects
+        // CAST(@p0 AS VECTOR(@p1)) with "Incorrect syntax near '@p1'". Interpolating it via
+        // ExecuteSqlInterpolatedAsync (as the CAST target's own value) parameterizes it like
+        // everything else in the FormattableString, so it has to be baked into the raw SQL text
+        // instead — same technique QueryNearestAsync below already uses for its own CAST.
+        var sql = "UPDATE [MemoryEmbeddings] SET [Vector] = CAST({0} AS VECTOR(" +
+            Domain.Memory.MemoryEmbedding.VectorWidth.ToString(CultureInfo.InvariantCulture) + ")) WHERE [Id] = {1}";
+
+        await dbContext.Database.ExecuteSqlRawAsync(sql, [vectorJson, embeddingId], cancellationToken);
     }
 
     public async Task DeleteAsync(Guid memoryId, CancellationToken cancellationToken = default)
