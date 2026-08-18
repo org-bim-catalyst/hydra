@@ -49,6 +49,19 @@ public sealed class UserChat : BaseEntity
 
     public int? RetrievalMaxContextTokens { get; private set; }
 
+    /// <summary>spec.md FR-002/FR-002a (specs/018-ai-memory-system, research.md Decision 1) — nullable = general (unscoped) memory. A conversation MAY belong to at most one Project at a time, mutated only via <see cref="AssignToProject"/>.</summary>
+    public Guid? ProjectId { get; private set; }
+
+    /// <summary>
+    /// The checkpoint <c>MemoryExtractionSweepJob</c> (specs/018-ai-memory-system, research.md
+    /// Decision 6) reads to find conversations updated since their last analysis pass that the
+    /// per-turn enqueue (<see cref="TouchLastActivity"/>-adjacent, invoked from
+    /// <c>SendChatMessageCommandHandler</c>) hasn't already covered — e.g. a turn whose
+    /// per-turn enqueue itself failed before Hangfire accepted the job. Null means "never
+    /// analyzed."
+    /// </summary>
+    public DateTime? LastMemoryAnalyzedAtUtc { get; private set; }
+
     private UserChat()
     {
         // Required by EF Core materialization.
@@ -208,4 +221,15 @@ public sealed class UserChat : BaseEntity
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }
+
+    /// <summary>spec.md FR-002a — pass null to remove this conversation from its Project (back to general scope).</summary>
+    public void AssignToProject(Guid? projectId, string actor)
+    {
+        ProjectId = projectId;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>Records that memory extraction has just processed this conversation's turns up to now (specs/018-ai-memory-system, research.md Decision 6) — does not touch <see cref="ModifiedAtUtc"/>, since this is a system bookkeeping update, not a user-visible change.</summary>
+    public void MarkMemoryAnalyzed() => LastMemoryAnalyzedAtUtc = DateTime.UtcNow;
 }

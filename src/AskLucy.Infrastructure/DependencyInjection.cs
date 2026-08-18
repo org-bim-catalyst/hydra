@@ -9,6 +9,7 @@ using AskLucy.Infrastructure.Documents.Preview;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.KnowledgeBases;
+using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
@@ -116,6 +117,11 @@ public static class DependencyInjection
         // and this US6 recurring job — Hangfire resolves concrete job classes directly from the
         // container, not just through their interfaces, so this explicit registration is required.
         services.AddScoped<DocumentStatisticsRecomputeJob>();
+        // AI Memory System (specs/018-ai-memory-system) — Foundational. Concrete registrations:
+        // Hangfire's RecurringJob.AddOrUpdate<T> resolves recurring jobs by concrete type, same as
+        // DocumentStatisticsRecomputeJob above.
+        services.AddScoped<MemoryExtractionSweepJob>();
+        services.AddScoped<MemoryCleanupJob>();
 
         services.AddDataProtection();
         // Concrete IMemoryCache registration for KnowledgeBaseDashboardSummaryCache (Application) — see that DI's comment for why the registration itself lives here, not in Application.
@@ -220,6 +226,10 @@ public static class DependencyInjection
         services.AddKeyedScoped<IAIProvider, OpenRouterProvider>("openrouter");
         services.AddScoped<IAIProviderResolver, AiProviderResolver>();
         services.AddSingleton<IAiCredentialProtector, AiCredentialProtector>();
+        // AI Memory System (specs/018-ai-memory-system, research.md Decision 12) — dedicated,
+        // purpose-scoped protector, not a reuse of IAiCredentialProtector's singleton.
+        services.AddSingleton<IMemoryContentProtector, MemoryContentProtector>();
+        services.AddScoped<IMemoryNotifier, MemoryNotifier>();
         // Singleton: caches the loaded WhisperFactory (and the one-time model download)
         // across requests instead of reloading it every call. Registered as its concrete
         // type too (mapped to the same instance) so WhisperWarmupHostedService can trigger

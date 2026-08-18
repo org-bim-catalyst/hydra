@@ -4,6 +4,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Retrieval;
 using FluentAssertions;
+using Hangfire;
 using NSubstitute;
 using Xunit;
 
@@ -23,6 +24,10 @@ public sealed class SendChatMessageRagIntegrationTests
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
     private readonly IConversationKnowledgeBaseRepository _conversationKnowledgeBases = Substitute.For<IConversationKnowledgeBaseRepository>();
     private readonly IRagService _ragService = Substitute.For<IRagService>();
+    private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
+    private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
+    private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
@@ -46,8 +51,16 @@ public sealed class SendChatMessageRagIntegrationTests
             .StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable([new StreamChunk("Answer.")]));
 
+        // NSubstitute's default for an unconfigured `string?` property is "" (not null), so
+        // ICurrentUserAccessor.UserId is never null here — the handler's `userId is not null`
+        // memory-lookup gate always runs. Stub a benign NoneRelevant outcome so this RAG-focused
+        // test isn't affected by the unrelated Memory System.
+        _memoryService.RetrieveRelevantMemoriesAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new MemoryRetrievalOutcome(MemoryRetrievalOutcomeType.NoneRelevant, null, [], null));
+
         _handler = new SendChatMessageCommandHandler(
-            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, new SendChatMessageCommandValidator(_providers, _models));
+            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService, _userChatRepository,
+            _currentUser, _backgroundJobClient, new SendChatMessageCommandValidator(_providers, _models));
     }
 
     [Fact]

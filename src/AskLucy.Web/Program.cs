@@ -6,6 +6,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
+using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Persistence;
 using AskLucy.Web.Auth;
@@ -285,6 +286,22 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // AI Memory System endpoints (specs/018-ai-memory-system, research.md Decision 17) — the
+    // CRUD/browse/preferences API surface never invokes the chat AI provider directly (extraction/
+    // conflict-detection/sensitivity-classification all run in background jobs), so this gets the
+    // same generous, non-cost-tiered shape as knowledge-base-endpoints/retrieval-search-endpoints.
+    options.AddPolicy("memory-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -413,10 +430,19 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 RecurringJob.AddOrUpdate<DocumentStatisticsRecomputeJob>(
     "document-statistics-recompute", job => job.RecomputeAllAsync(CancellationToken.None), Cron.Minutely);
 
+// AI Memory System (specs/018-ai-memory-system, research.md Decision 6/18) — the sweep is the
+// safety net for the per-turn enqueue in SendChatMessageCommandHandler; cleanup purges expired/
+// stale-archived memories daily (FR-031). Both idempotent — safe to call on every startup.
+RecurringJob.AddOrUpdate<MemoryExtractionSweepJob>(
+    "memory-extraction-sweep", job => job.RunAsync(CancellationToken.None), "*/15 * * * *");
+RecurringJob.AddOrUpdate<MemoryCleanupJob>(
+    "memory-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily);
+
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<DocumentProcessingHub>("/hubs/document-processing");
 app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
+app.MapHub<MemoryHub>("/hubs/memory");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —

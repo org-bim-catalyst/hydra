@@ -9,13 +9,15 @@ namespace AskLucy.Application.Tests.Users;
 public sealed class DeleteMyAccountCommandHandlerTests
 {
     private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
+    private readonly IMemoryAuditLogRepository _memoryAuditLogRepository = Substitute.For<IMemoryAuditLogRepository>();
+    private readonly IMemoryNotificationRepository _memoryNotificationRepository = Substitute.For<IMemoryNotificationRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly DeleteMyAccountCommandHandler _handler;
 
     public DeleteMyAccountCommandHandlerTests()
     {
         _currentUser.UserId.Returns("user-1");
-        _handler = new DeleteMyAccountCommandHandler(_identityService, _currentUser);
+        _handler = new DeleteMyAccountCommandHandler(_identityService, _memoryAuditLogRepository, _memoryNotificationRepository, _currentUser);
     }
 
     [Fact]

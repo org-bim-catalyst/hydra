@@ -1,15 +1,19 @@
 using System.Reflection;
+using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
+using AskLucy.Domain.Projects;
 using AskLucy.Domain.Retrieval;
 using AskLucy.Persistence.Identity;
+using AskLucy.Persistence.Memory;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using MemoryEntities = AskLucy.Domain.Memory;
 
 namespace AskLucy.Persistence;
 
@@ -18,7 +22,7 @@ namespace AskLucy.Persistence;
 /// (connection string key <c>DefaultConnection</c>) so existing production data
 /// is migrated in place, per spec.md FR-014/SC-009.
 /// </summary>
-public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
+public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options, IMemoryContentProtector memoryContentProtector)
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<UserChat> UserChats => Set<UserChat>();
@@ -109,11 +113,45 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options)
 
     public DbSet<ConversationKnowledgeBase> ConversationKnowledgeBases => Set<ConversationKnowledgeBase>();
 
+    // AI Memory System (specs/018-ai-memory-system) — Foundational.
+    public DbSet<MemoryEntities.Memory> Memories => Set<MemoryEntities.Memory>();
+
+    public DbSet<MemoryEntities.MemoryVersion> MemoryVersions => Set<MemoryEntities.MemoryVersion>();
+
+    public DbSet<MemoryEntities.MemoryApproval> MemoryApprovals => Set<MemoryEntities.MemoryApproval>();
+
+    public DbSet<MemoryEntities.MemoryConflict> MemoryConflicts => Set<MemoryEntities.MemoryConflict>();
+
+    public DbSet<MemoryEntities.MemoryEmbedding> MemoryEmbeddings => Set<MemoryEntities.MemoryEmbedding>();
+
+    public DbSet<MemoryEntities.MemoryAuditLog> MemoryAuditLogs => Set<MemoryEntities.MemoryAuditLog>();
+
+    public DbSet<MemoryEntities.MemoryNotification> MemoryNotifications => Set<MemoryEntities.MemoryNotification>();
+
+    public DbSet<MemoryEntities.MemoryPreference> MemoryPreferences => Set<MemoryEntities.MemoryPreference>();
+
+    public DbSet<MemoryEntities.MemoryCategoryPreference> MemoryCategoryPreferences => Set<MemoryEntities.MemoryCategoryPreference>();
+
+    public DbSet<MemoryEntities.MemoryReference> MemoryReferences => Set<MemoryEntities.MemoryReference>();
+
+    public DbSet<MemoryEntities.MemoryExportJob> MemoryExportJobs => Set<MemoryEntities.MemoryExportJob>();
+
+    public DbSet<Project> Projects => Set<Project>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // AI Memory System (specs/018-ai-memory-system, research.md Decision 12) — content columns
+        // encrypted at rest via the existing IAiCredentialProtector mechanism. Applied here, not in
+        // each entity's IEntityTypeConfiguration, because the converter needs this DbContext's
+        // DI-injected protector instance.
+        var contentConverter = new EncryptedStringConverter(memoryContentProtector);
+        builder.Entity<MemoryEntities.Memory>().Property(m => m.Content).HasConversion(contentConverter);
+        builder.Entity<MemoryEntities.MemoryVersion>().Property(v => v.PreviousContent).HasConversion(contentConverter);
+        builder.Entity<MemoryEntities.MemoryReference>().Property(r => r.ContentSnapshot).HasConversion(contentConverter);
 
         // Deliberately no HasData() seeding here: unlike the legacy ChatGPT_ClientContext,
         // this migration does not re-author a hardcoded seed-admin credential in new code.

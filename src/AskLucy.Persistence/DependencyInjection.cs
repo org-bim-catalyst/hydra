@@ -86,6 +86,20 @@ public static class DependencyInjection
         services.AddScoped<IVectorStore, SqlServerVectorStore>();
         services.AddScoped<IKeywordSearchService, FullTextKeywordSearch>();
 
+        // AI Memory System (specs/018-ai-memory-system) — Foundational.
+        services.AddScoped<IMemoryRepository, MemoryRepository>();
+        services.AddScoped<IMemoryVersionRepository, MemoryVersionRepository>();
+        services.AddScoped<IMemoryApprovalRepository, MemoryApprovalRepository>();
+        services.AddScoped<IMemoryConflictRepository, MemoryConflictRepository>();
+        services.AddScoped<IMemoryEmbeddingRepository, MemoryEmbeddingRepository>();
+        services.AddScoped<IMemoryAuditLogRepository, MemoryAuditLogRepository>();
+        services.AddScoped<IMemoryNotificationRepository, MemoryNotificationRepository>();
+        services.AddScoped<IMemoryPreferenceRepository, MemoryPreferenceRepository>();
+        services.AddScoped<IMemoryReferenceRepository, MemoryReferenceRepository>();
+        services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IMemoryExportJobRepository, MemoryExportJobRepository>();
+        services.AddScoped<IMemoryVectorStore, AskLucy.Persistence.Memory.SqlServerMemoryVectorStore>();
+
         return services;
     }
 }

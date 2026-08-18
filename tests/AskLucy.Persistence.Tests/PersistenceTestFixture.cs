@@ -1,11 +1,28 @@
 using System;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using AskLucy.Application.Abstractions;
 using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace AskLucy.Persistence.Tests;
+
+/// <summary>
+/// Reversible but non-cryptographic <see cref="IMemoryContentProtector"/> for persistence
+/// integration tests (specs/018-ai-memory-system) — this project references only
+/// <c>AskLucy.Persistence</c>, not <c>AskLucy.Infrastructure</c> (where the real, Data
+/// Protection-backed <c>MemoryContentProtector</c> lives), and these tests exercise SQL Server
+/// round-tripping/query-filter/index behavior, not cryptographic correctness — that is covered
+/// separately by an Infrastructure-level test of the real implementation.
+/// </summary>
+public sealed class Base64MemoryContentProtector : IMemoryContentProtector
+{
+    public string Protect(string plaintext) => Convert.ToBase64String(Encoding.UTF8.GetBytes(plaintext));
+
+    public string Unprotect(string ciphertext) => Encoding.UTF8.GetString(Convert.FromBase64String(ciphertext));
+}
 
 /// <summary>
 /// Connects to a real, dedicated test SQL Server instance (constitution &#167;10: integration
@@ -116,7 +133,7 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
             .UseSqlServer(ResolveConnectionString())
             .Options;
 
-        return new AskLucyDbContext(options);
+        return new AskLucyDbContext(options, new Base64MemoryContentProtector());
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

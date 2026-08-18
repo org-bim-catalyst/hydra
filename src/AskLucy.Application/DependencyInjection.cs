@@ -7,6 +7,7 @@ using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Processing;
 using AskLucy.Application.Documents.Processing.Stages;
 using AskLucy.Application.KnowledgeBases;
+using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
@@ -45,6 +46,15 @@ public static class DependencyInjection
         services.AddScoped<SearchResultEnricher>();
         // User Story 1 ("Chat with your documents and get cited answers").
         services.AddScoped<IRagService, RagService>();
+
+        // AI Memory System (specs/018-ai-memory-system) — Foundational.
+        services.AddScoped<IMemoryService, MemoryService>();
+        services.AddScoped<IMemoryConflictDetectionService, MemoryConflictDetectionService>();
+        // Enqueued via IBackgroundJobClient against the interface (DocumentProcessingPipeline's
+        // idiom) — only the interface mapping is needed, unlike the plain recurring sweep/cleanup
+        // jobs (Infrastructure) that Hangfire's RecurringJob.AddOrUpdate<T> resolves by concrete type.
+        services.AddScoped<IMemoryExtractionJob, MemoryExtractionJob>();
+        services.AddScoped<IMemoryExportGenerationJob, MemoryExportGenerationJob>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's
         // composition root, not here — Application depends only on the IMemoryCache interface

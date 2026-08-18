@@ -7,11 +7,12 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import type { ChatMessage } from '../api/aiApi'
 import { CitationBadge } from '../../retrieval/components/CitationBadge'
+import { MemoryTraceIndicator } from '../../memory/components/MemoryTraceIndicator'
 import { codeFontFamily } from '../../../theme/tokens/typography'
 import { radius } from '../../../theme'
 
-/** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. */
-export function MessageBubble({ message }: { message: ChatMessage }) {
+/** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. `chatId` is only needed for the memory trace indicator (specs/018-ai-memory-system US1) — omit it and the indicator simply never renders (e.g. in isolated component tests). */
+export function MessageBubble({ message, chatId }: { message: ChatMessage; chatId?: string | null }) {
   const isUser = message.role === 'user'
   const hasAttachments = (message.attachments?.length ?? 0) > 0
   const hasCitations = (message.citations?.length ?? 0) > 0
@@ -97,6 +98,12 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           </Alert>
         )}
 
+        {/* specs/018-ai-memory-system US1 (FR-014) — only rendered (and only then does its own
+            query hook mount) when this response actually used a remembered fact/preference; a
+            subtle, non-intrusive affordance the user opens on demand, never shown unprompted. */}
+        {message.memoryOutcome === 'Found' && chatId && message.id && (
+          <MemoryTraceIndicator chatId={chatId} messageId={message.id} />
+        )}
 
         {/* specs/005-multi-provider-ai-engine FR-011: attribution is a snapshot of what
             actually produced this message, independent of the conversation's current

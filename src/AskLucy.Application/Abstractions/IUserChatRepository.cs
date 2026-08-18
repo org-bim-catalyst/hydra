@@ -27,6 +27,9 @@ public interface IUserChatRepository
 
     void Add(UserChat chat);
 
+    /// <summary>specs/018-ai-memory-system, research.md Decision 6 — conversations touched since their own <see cref="UserChat.LastMemoryAnalyzedAtUtc"/> checkpoint (or never analyzed), for <c>MemoryExtractionSweepJob</c> to pick up turns the per-turn enqueue missed.</summary>
+    Task<IReadOnlyList<UserChat>> ListNeedingMemoryAnalysisAsync(int batchSize, CancellationToken cancellationToken = default);
+
     /// <summary>Cursor-paginated search/filter/sort (FR-019–FR-022, research.md Topics 5/6).</summary>
     Task<(IReadOnlyList<UserChat> Items, string? NextCursor)> SearchAsync(
         string userId,
