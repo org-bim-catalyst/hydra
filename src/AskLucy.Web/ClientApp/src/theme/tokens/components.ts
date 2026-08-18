@@ -81,5 +81,23 @@ export function createComponents(): Components<Theme> {
         tooltip: { borderRadius: radius.xs },
       },
     },
+    MuiSkeleton: {
+      styleOverrides: {
+        root: { borderRadius: radius.sm },
+      },
+    },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: { borderRadius: radius.pill, height: 6 },
+      },
+    },
+    MuiCircularProgress: {
+      defaultProps: { thickness: 3.6 },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: { borderRadius: radius.md },
+      },
+    },
   }
 }

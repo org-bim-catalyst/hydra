@@ -20,7 +20,12 @@ export interface Citation {
 
 export type RagRetrievalOutcome = 'Grounded' | 'NoRelevantContent' | 'Unavailable'
 
+/** specs/018-ai-memory-system, research.md Decision 3. */
+export type MemoryRetrievalOutcome = 'Found' | 'NoneRelevant' | 'Unavailable'
+
 export interface ChatMessage {
+  /** The persisted `Message.Id` (specs/002-chat-history-management) — undefined only for the brief window between a live send and the trailing `__MEMORY__`/history-refetch event resolving it. */
+  id?: string
   role: 'system' | 'user' | 'assistant'
   content: string
   /** Display-only metadata (specs/002-chat-history-management FR-016/FR-017) — never sent to the AI provider, only rendered. */
@@ -34,6 +39,8 @@ export interface ChatMessage {
   retrievalOutcome?: RagRetrievalOutcome
   /** Populated only when `retrievalOutcome === 'Unavailable'` (FR-037a) — a non-silent, visible warning; the message content itself is still complete. */
   retrievalError?: string | null
+  /** specs/018-ai-memory-system US1 (FR-014) — undefined when memory is disabled/not yet evaluated for this turn ("not applicable"); `'Found'` means the "why does Lucy know this" trace has at least one entry. */
+  memoryOutcome?: MemoryRetrievalOutcome
 }
 
 /** specs/005-multi-provider-ai-engine contracts/chat.md — mirrors `GenerationParametersDto`. Every field optional; an unset field falls back through the server-side inheritance chain. */
@@ -54,12 +61,19 @@ export interface GenerationParameters {
   developerPrompt?: string
 }
 
-/** One event from {@link streamChat} — either a plain content delta, or (specs/016-rag-semantic-search US1) the RAG retrieval outcome carried on the trailing `__RAG__` event. */
+/**
+ * One event from {@link streamChat} — a plain content delta, (specs/016-rag-semantic-search US1)
+ * the RAG retrieval outcome carried on the trailing `__RAG__` event, or
+ * (specs/018-ai-memory-system US1) the memory outcome + real persisted message id carried on the
+ * trailing `__MEMORY__` event.
+ */
 export type ChatStreamEvent =
   | { type: 'content'; delta: string }
   | { type: 'retrieval'; outcome: RagRetrievalOutcome; citations: Omit<Citation, 'id'>[]; error: string | null }
+  | { type: 'memory'; messageId: string; outcome: MemoryRetrievalOutcome }
 
 const RAG_EVENT_PREFIX = '__RAG__'
+const MEMORY_EVENT_PREFIX = '__MEMORY__'
 
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
@@ -149,6 +163,15 @@ export async function* streamChat(
             excerpt: c.excerpt,
           })),
         }
+        continue
+      }
+
+      if (data.startsWith(MEMORY_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(MEMORY_EVENT_PREFIX.length)) as {
+          messageId: string
+          memoryOutcome: MemoryRetrievalOutcome
+        }
+        yield { type: 'memory', messageId: payload.messageId, outcome: payload.memoryOutcome }
         continue
       }
 

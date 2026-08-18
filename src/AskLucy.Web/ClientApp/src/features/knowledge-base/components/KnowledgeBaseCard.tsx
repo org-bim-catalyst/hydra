@@ -87,7 +87,15 @@ export function KnowledgeBaseCard({
     <Card
       data-testid="knowledge-base-card"
       variant="outlined"
-      sx={{ borderLeft: 4, borderLeftColor: knowledgeBase.color || 'divider', cursor: onOpen ? 'pointer' : undefined }}
+      sx={{
+        borderLeft: 4,
+        borderLeftColor: knowledgeBase.color || 'divider',
+        cursor: onOpen ? 'pointer' : undefined,
+        transition: (theme) => theme.transitions.create(['box-shadow', 'border-color']),
+        ...(onOpen && {
+          '&:hover': { boxShadow: (theme) => theme.shadows[2], borderColor: 'text.disabled' },
+        }),
+      }}
       onClick={onOpen}
     >
       <CardContent>

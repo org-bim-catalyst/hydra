@@ -1,10 +1,13 @@
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows'
+import HistoryIcon from '@mui/icons-material/HistoryOutlined'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
-import { Alert, Box, Button, Chip, LinearProgress, List, ListItem, ListItemText, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, LinearProgress, List, ListItem, ListItemText, MenuItem, Stack, TextField } from '@mui/material'
 import { useRef, useState } from 'react'
 import { useVersionTimeline } from '../hooks/useDocuments'
 import { useRestoreDocumentVersion } from '../hooks/useDocumentMutations'
 import { useReplaceDocument } from '../hooks/useReplaceDocument'
+import { EmptyState } from '../../../components/EmptyState'
+import { ErrorState } from '../../../components/ErrorState'
 import { VersionCompareDialog } from './VersionCompareDialog'
 
 interface VersionTimelineProps {
@@ -13,7 +16,7 @@ interface VersionTimelineProps {
 
 /** FR-038–FR-041, US5 — replace the current file (creating a new version), view the timeline, compare two versions, and restore an earlier one. */
 export function VersionTimeline({ documentId }: VersionTimelineProps) {
-  const { data: versions, isLoading, isError } = useVersionTimeline(documentId)
+  const { data: versions, isLoading, isError, refetch } = useVersionTimeline(documentId)
   const restoreVersion = useRestoreDocumentVersion()
   const replaceDocument = useReplaceDocument(documentId)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -38,7 +41,7 @@ export function VersionTimeline({ documentId }: VersionTimelineProps) {
   }
 
   if (isError) {
-    return <Alert severity="error">Could not load the version history. Please try again.</Alert>
+    return <ErrorState title="Could not load the version history" onRetry={() => void refetch()} />
   }
 
   return (
@@ -84,9 +87,7 @@ export function VersionTimeline({ documentId }: VersionTimelineProps) {
       )}
 
       {!isLoading && (versions?.length ?? 0) === 0 && (
-        <Typography variant="body2" color="text.secondary">
-          No version history yet.
-        </Typography>
+        <EmptyState icon={<HistoryIcon fontSize="inherit" />} title="No version history yet" />
       )}
 
       <List dense>

@@ -27,7 +27,9 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
+import { EmptyState } from '../../../components/EmptyState'
+import { codeFontFamily } from '../../../theme/tokens/typography'
 import {
   useChangePassword,
   useDisableTwoFactor,
@@ -136,7 +138,7 @@ function SecurityTab() {
             </Typography>
             <Stack spacing={0.5}>
               {recoveryCodes.map((code) => (
-                <Typography key={code} variant="body2" sx={{ fontFamily: 'monospace' }}>
+                <Typography key={code} variant="body2" sx={{ fontFamily: codeFontFamily }}>
                   {code}
                 </Typography>
               ))}
@@ -435,9 +437,10 @@ export function AiProvidersTab() {
           </Alert>
         )}
         {!isPreferencePending && providers && providers.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No AI providers are enabled yet — an administrator needs to configure one first.
-          </Typography>
+          <EmptyState
+            title="No AI providers are enabled yet"
+            description="An administrator needs to configure one first."
+          />
         ) : (
           <Stack direction="row" spacing={2} sx={{ maxWidth: 480 }}>
             <TextField
@@ -639,8 +642,7 @@ export function SettingsPage() {
   const [tab, setTab] = useState(0)
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <PageHeader backTo="/chat" backLabel="Back to chat" title="Settings" />
+    <AppShell title="Settings">
       <Paper elevation={1} sx={{ maxWidth: 720 }}>
         <Tabs
           value={tab}
@@ -675,6 +677,6 @@ export function SettingsPage() {
           </TabPanel>
         </Box>
       </Paper>
-    </Box>
+    </AppShell>
   )
 }

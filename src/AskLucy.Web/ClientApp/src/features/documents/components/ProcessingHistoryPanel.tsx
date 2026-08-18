@@ -1,5 +1,7 @@
-import { Alert, List, ListItem, ListItemText, Typography } from '@mui/material'
+import { List, ListItem, ListItemText } from '@mui/material'
 import { useProcessingHistory } from '../hooks/useDocuments'
+import { EmptyState } from '../../../components/EmptyState'
+import { ErrorState } from '../../../components/ErrorState'
 
 function formatEventType(eventType: string): string {
   return eventType.replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -11,18 +13,14 @@ interface ProcessingHistoryPanelProps {
 
 /** FR-013, US2 AC5 — the append-only, newest-first processing history. */
 export function ProcessingHistoryPanel({ documentId }: ProcessingHistoryPanelProps) {
-  const { data, isLoading, isError } = useProcessingHistory(documentId)
+  const { data, isLoading, isError, refetch } = useProcessingHistory(documentId)
 
   if (isError) {
-    return <Alert severity="error">Could not load processing history. Please try again.</Alert>
+    return <ErrorState title="Could not load processing history" onRetry={() => void refetch()} />
   }
 
   if (!isLoading && (data?.length ?? 0) === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        No processing history yet.
-      </Typography>
-    )
+    return <EmptyState title="No processing history yet" />
   }
 
   return (

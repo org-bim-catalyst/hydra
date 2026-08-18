@@ -58,7 +58,13 @@ export function DocumentCard({ document, view, onOpenDetail }: DocumentCardProps
   const handleError = (err: unknown) => setErrorMessage(err instanceof Error ? err.message : 'Action failed. Please try again.')
 
   return (
-    <Card variant="outlined">
+    <Card
+      variant="outlined"
+      sx={{
+        transition: (theme) => theme.transitions.create('box-shadow'),
+        '&:hover': { boxShadow: (theme) => theme.shadows[2] },
+      }}
+    >
       <CardContent>
         <Typography
           component="span"

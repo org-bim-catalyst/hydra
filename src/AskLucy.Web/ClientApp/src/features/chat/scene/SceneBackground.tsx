@@ -94,7 +94,7 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
           inset: 0,
           zIndex: 0,
           opacity: isReady ? 1 : 0,
-          transition: 'opacity 400ms ease',
+          transition: (t) => t.transitions.create('opacity', { duration: t.transitions.duration.complex }),
           '& canvas': { outline: 'none' },
         }}
       >

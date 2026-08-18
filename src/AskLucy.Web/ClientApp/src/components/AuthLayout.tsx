@@ -2,7 +2,6 @@ import { Box, Stack, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
 import { LucyPortrait } from '../features/chat/branding/LucyPortrait'
 import { AppFooter } from './AppFooter'
-import { BrandMark } from './BrandMark'
 
 interface AuthLayoutProps {
   eyebrow: string
@@ -40,10 +39,7 @@ export function AuthLayout({ eyebrow, title, children }: AuthLayoutProps) {
         }}
       >
         <Stack spacing={4} sx={{ maxWidth: 380 }}>
-          <Stack direction="row" spacing={2.5} sx={{ alignItems: 'center' }}>
-            <LucyPortrait variant="auth" alt="Lucy" />
-            <BrandMark size={36} color="#D97650" />
-          </Stack>
+          <LucyPortrait variant="auth" alt="Lucy" />
           <Box>
             <Typography variant="h3" sx={{ color: '#F7F6F2', letterSpacing: '-0.01em' }}>
               Ask Lucy

@@ -2,6 +2,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import { Alert, Box, Button, Chip, LinearProgress, Stack, Typography } from '@mui/material'
 import type { DocumentProcessingStageType, DocumentProcessingStatusDto } from '../api/documentsApi'
 import { useRetryProcessing } from '../hooks/useDocumentMutations'
+import { AiActivityIndicator } from '../../../components/AiActivityIndicator'
 
 const stageLabels: Record<DocumentProcessingStageType, string> = {
   Validation: 'Validating',
@@ -42,9 +43,10 @@ export function ProcessingStatusBadge({ documentId, status, isLive }: Processing
       {status.processingStatus === 'Processing' && (
         <Box sx={{ mb: 1 }}>
           <LinearProgress variant="determinate" value={progressPercent} />
-          <Typography variant="caption" color="text.secondary">
-            {status.currentStage ? stageLabels[status.currentStage] : 'Processing'}…
-          </Typography>
+          <AiActivityIndicator
+            state="tool-executing"
+            label={`${status.currentStage ? stageLabels[status.currentStage] : 'Processing'}…`}
+          />
         </Box>
       )}
 

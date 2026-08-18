@@ -1,3 +1,4 @@
+import { Fade } from '@mui/material'
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { ErrorPage } from '../components/ErrorPage'
@@ -46,8 +47,18 @@ const AdminAiProvidersPage = lazy(() =>
   import('../features/admin/pages/AdminAiProvidersPage').then((m) => ({ default: m.AdminAiProvidersPage })),
 )
 
+// Each route mounts a fresh <Lazy> instance, so Fade's default `in`-from-mount behavior
+// gives every route a consistent, theme-timed fade-in (FR-010/SC-007) — no per-route
+// wiring, no external animation library, and it collapses to instant under
+// prefers-reduced-motion the same way every other themed transition does (theme/index.ts).
 function Lazy({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={null}>{children}</Suspense>
+  return (
+    <Suspense fallback={null}>
+      <Fade in appear>
+        <div>{children}</div>
+      </Fade>
+    </Suspense>
+  )
 }
 
 const router = createBrowserRouter([

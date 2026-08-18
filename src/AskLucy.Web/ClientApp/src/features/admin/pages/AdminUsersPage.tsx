@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  Box,
   Chip,
   Paper,
   Table,
@@ -16,7 +15,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import * as adminApi from '../api/adminApi'
 import type { UserSortBy } from '../api/adminApi'
-import { PageHeader } from '../../../components/PageHeader'
+import { AppShell } from '../../../components/AppShell'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { useMyProfile } from '../../profile/hooks/useProfile'
 import { UserActionMenu } from '../components/UserActionMenu'
@@ -54,13 +53,7 @@ export function AdminUsersPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, bgcolor: 'background.default', minHeight: '100%' }}>
-      <PageHeader
-        backTo="/admin/dashboard"
-        backLabel="Back to dashboard"
-        title="User management"
-        subtitle={`${data?.totalCount ?? 0} registered users`}
-      />
+    <AppShell title="User management" subtitle={`${data?.totalCount ?? 0} registered users`}>
       <TextField
         label="Search by name or email"
         size="small"
@@ -76,7 +69,9 @@ export function AdminUsersPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell sortDirection={sortBy === 'email' ? (sortDescending ? 'desc' : 'asc') : false}>
+                <TableCell
+                  sortDirection={sortBy === 'email' ? (sortDescending ? 'desc' : 'asc') : false}
+                >
                   <TableSortLabel
                     active={sortBy === 'email'}
                     direction={sortBy === 'email' && sortDescending ? 'desc' : 'asc'}
@@ -90,7 +85,11 @@ export function AdminUsersPage() {
                 <TableCell>Role</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>2FA enabled</TableCell>
-                <TableCell sortDirection={sortBy === 'createdAtUtc' ? (sortDescending ? 'desc' : 'asc') : false}>
+                <TableCell
+                  sortDirection={
+                    sortBy === 'createdAtUtc' ? (sortDescending ? 'desc' : 'asc') : false
+                  }
+                >
                   <TableSortLabel
                     active={sortBy === 'createdAtUtc'}
                     direction={sortBy === 'createdAtUtc' && sortDescending ? 'desc' : 'asc'}
@@ -134,7 +133,11 @@ export function AdminUsersPage() {
                   </TableCell>
                   <TableCell>{new Date(user.createdAtUtc).toLocaleDateString()}</TableCell>
                   <TableCell align="right">
-                    <UserActionMenu user={user} isSelf={user.id === profile?.id} isSuperUser={isSuperUser} />
+                    <UserActionMenu
+                      user={user}
+                      isSelf={user.id === profile?.id}
+                      isSuperUser={isSuperUser}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -154,6 +157,6 @@ export function AdminUsersPage() {
           rowsPerPageOptions={[10, 20, 50]}
         />
       </Paper>
-    </Box>
+    </AppShell>
   )
 }

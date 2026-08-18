@@ -3,6 +3,8 @@ import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material'
 import { BrandMark } from '../../../components/BrandMark'
 import { UserMenu } from '../../../components/UserMenu'
 import { useThemeStore } from '../../../store/themeStore'
+import { createGlassTokens } from '../../../theme/tokens/glass'
+import { radius } from '../../../theme'
 
 /** FR-015: the minimal navigation retained outside the floating assistant panel — brand
  * identity, theme, and account access. Everything chat-specific (language, translate,
@@ -12,6 +14,20 @@ import { useThemeStore } from '../../../store/themeStore'
 export function MinimalTopBar() {
   const theme = useTheme()
   const toggleTheme = useThemeStore((s) => s.toggle)
+  const glass = createGlassTokens(theme.palette.mode)
+
+  // A translucent backdrop only behind each control cluster (not the full bar) keeps
+  // brand/theme/account legible over the moving particle-sphere scene without blocking
+  // the empty space in between from remaining draggable (research.md #3).
+  const clusterSx = {
+    alignItems: 'center',
+    px: 1,
+    py: 0.5,
+    borderRadius: `${radius.pill}px`,
+    bgcolor: glass.background,
+    backdropFilter: glass.backdropFilter,
+    border: `1px solid ${glass.border}`,
+  } as const
 
   return (
     <Box
@@ -26,12 +42,14 @@ export function MinimalTopBar() {
         alignItems: 'center',
         justifyContent: 'space-between',
         px: 2,
+        py: 1,
         height: 56,
+        boxSizing: 'border-box',
         pointerEvents: 'none',
         '& > *': { pointerEvents: 'auto' },
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <Stack direction="row" spacing={1} sx={clusterSx}>
         <BrandMark size={24} color={theme.palette.primary.main} />
         {/* FR-010/FR-015: dropped on narrow viewports first — the icon alone still
             identifies the brand, and the extra width matters more on mobile. */}
@@ -42,7 +60,7 @@ export function MinimalTopBar() {
           Ask Lucy
         </Typography>
       </Stack>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <Stack direction="row" spacing={0.5} sx={clusterSx}>
         <IconButton onClick={toggleTheme} aria-label="Toggle theme">
           <BrightnessMediumIcon />
         </IconButton>
