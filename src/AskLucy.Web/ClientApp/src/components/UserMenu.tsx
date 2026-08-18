@@ -2,6 +2,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import DescriptionIcon from '@mui/icons-material/Description'
 import FolderIcon from '@mui/icons-material/Folder'
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import PolicyIcon from '@mui/icons-material/Policy'
@@ -74,6 +75,12 @@ export function UserMenu() {
             <ArticleOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Prompts</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goTo('/agents')}>
+          <ListItemIcon>
+            <SmartToyOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Agents</ListItemText>
         </MenuItem>
         {isAdmin && (
           <MenuItem onClick={() => goTo('/admin/dashboard')}>

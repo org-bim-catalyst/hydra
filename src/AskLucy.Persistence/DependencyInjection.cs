@@ -108,6 +108,12 @@ public static class DependencyInjection
         services.AddScoped<IPromptExecutionRepository, PromptExecutionRepository>();
         services.AddScoped<IPromptAuditLogRepository, PromptAuditLogRepository>();
 
+        // AI Agent Framework & Agent Runtime (specs/020-ai-agent-framework) — Foundational.
+        services.AddScoped<IAgentRepository, AgentRepository>();
+        services.AddScoped<IAgentExecutionRepository, AgentExecutionRepository>();
+        services.AddScoped<IAgentPolicyRepository, AgentPolicyRepository>();
+        services.AddScoped<IAgentAuditLogRepository, AgentAuditLogRepository>();
+
         return services;
     }
 }

@@ -1062,7 +1062,101 @@ establish. No prompt content is ever passed to structured logging above Debug le
 
 ---
 
-# 30. Architecture Principles
+# 30. AI Agent Framework & Agent Runtime
+
+Introduced in specs/020-ai-agent-framework. Lives in `Domain/Agents`, `Application/Agents`
+(`Tools/`, `Runtime/`, `Commands/`, `Queries/`, `Authorization/`), `Infrastructure/Agents`
+(`AgentExecutionHub`/`AgentExecutionNotifier` only — SignalR is never referenced from
+`Application`), `Persistence` (via `AskLucyDbContext`), and `AgentsController`/
+`AgentExecutionsController`/`AgentPoliciesController` under `Web/Controllers/v1`. Frontend lives
+in `ClientApp/src/features/agents`. Supersedes/extends the earlier "Agent Engine"/"MCP Tool
+Engine" sketches in §15/§16 with the shipped design — MCP itself remains out of scope (§16 is
+still the forward-looking placeholder for it).
+
+**Orchestration model**: `AgentExecutionOrchestrator.RunAsync` (Application, not Infrastructure —
+mirrors `IDocumentProcessingPipeline`'s precedent for where a Hangfire-driven, multi-step
+orchestration belongs) drives one `AgentExecution` through its plan step-by-step: plan once
+(`IAgentPlanner`, one structured `IAIProvider` call, never a bespoke planning API), then for each
+step either a reasoning turn or a tool call, accumulating token usage/cost and citations as it
+goes. It is fully **resumable**: a pause (user-initiated, or an approval gate) persists state and
+returns; the next `RunAsync` invocation reuses the already-persisted plan and rebuilds in-memory
+context from whichever steps already completed, so no step ever re-runs and no progress is lost.
+A lightweight `IAgentExecutionRepository.GetStatusAsync` (untracked read) checked at every step
+boundary lets a concurrent `PauseAgentExecutionCommand`/`CancelAgentExecutionCommand` (issued from
+a different HTTP request against its own tracked entity) stop the run within one step boundary
+(SC-009: ≤5s) without the two requests conflicting over the same tracked aggregate.
+
+**Tools**: `IAgentTool` is a compile-time-registered catalog (`AgentToolCatalog` wrapping a DI-
+resolved `IEnumerable<IAgentTool>`) — no dynamic/runtime tool discovery, since MCP (the platform's
+actual dynamic-tool mechanism) is out of scope this release. The eight built-in tools
+(`ConversationTool`, `KnowledgeSearchTool`, `DocumentSearchTool`, `MemorySearchTool`,
+`MemoryWriteTool`, `PromptExecutionTool`, `FileReadTool`, `FileMetadataTool`) each wrap an
+existing platform capability through its existing abstraction (`IRagService`, `IMemoryService`,
+`IDocumentRepository`, etc.) — zero new retrieval/search/provider logic, the same "reuse, never
+duplicate" rule §28/§29 already establish for Memory/Prompts. Every tool call's permission set is
+declared up front (`AgentToolPermission`) and enforced by the tool's own scoped repository/guard
+call, never a separate abstract permission registry — an agent's effective access is always the
+intersection of its configuration and the executing user's own authorization (FR-049), never
+broader (`AgentToolAccessBoundaryTests`).
+
+**Approval gate**: a High/Critical-risk tool call pauses the execution
+(`AgentExecutionStatus.WaitingForApproval`, an `AgentApproval` row created `Pending`) unless an
+administrator-published `AgentPolicy` matches it (`AgentPolicyEvaluator` — a flat JSON
+parameter-equality match against the policy's `ConditionsJson`, empty conditions meaning "always
+match"). `ApproveAgentActionCommand`/`RejectAgentActionCommand` decide it and, on approval,
+re-enqueue the same execution id to resume. Every decision — interactive or policy-based — is
+recorded on the `AgentApproval` row itself (FR-028); no tool ever executes speculatively before a
+decision.
+
+**Real-time visibility**: `AgentExecutionHub` (SignalR, `/hubs/agent-execution`) mirrors
+`MemoryHub`/`DocumentProcessingHub` exactly — one per-user group (never per-execution), joined via
+the server-verified JWT claim. `AgentExecutionNotifier` pushes a live payload at every orchestrator
+transition (execution/plan/step/tool-call/approval/usage), each mirroring an already-persisted
+`AgentExecutionEvent` row (append-only, safe-metadata-only per FR-035 — never chain-of-thought or
+raw provider/tool payloads) so a client that misses a push can always reconcile via
+`GET /agent-executions/{id}/events?since=`. The frontend's `useAgentExecutionHub` hook only
+invalidates the relevant TanStack Query cache entry on a matching event — the existing 2s REST poll
+remains the actual source of truth and reconnect-gap fallback, exactly as `useDocumentProcessingHub`
+already established for Document processing.
+
+**Loop/budget protection** (FR-039/040): `AgentBudgetGuard` checks max steps/duration/tokens/
+cost/tool-calls/retries (system-wide defaults via `AgentRuntimeOptions`, overridable per-user via
+`AgentUserExecutionLimit` for the concurrency cap specifically) before every new step;
+`AgentDuplicateToolCallDetector` halts on a repeated identical successful call. A user already at
+their concurrency cap is rejected with `429 Too Many Requests`
+(`AgentConcurrencyLimitExceededException`), not silently queued (FR-042/043) — checked before any
+side effect (e.g. a `NewConversation`-mode conversation creation) so a rejected request never
+leaves one behind.
+
+**Versioning and testing**: `Agent.Publish` snapshots the current draft into an immutable
+`AgentVersion` (tools/Knowledge Bases/memory policy serialized verbatim); every `AgentExecution`
+references the exact `AgentVersionId` it ran under, so a later draft edit or republish can never
+retroactively change what an already-started (or historical) execution reports. `Duplicate`/
+`Archive`/`Restore`/soft-`Delete` never touch version/execution history (FR-050 audit trail). A
+test execution (`isTestExecution: true`, the Testing Console) never invokes a mutating tool
+(`WriteFile`/`ModifyData`/`SendEmail`/`ExecuteCode`/`HighRiskOperation` permissions) at all — the
+step is recorded `Skipped`, not gated behind an inert approval, guaranteeing zero production-data
+changes (SC-007) more simply than relying on nobody approving the result.
+
+**Audit**: `AgentAuditLog` (deliberately not hard-FK'd to `AgentExecution`, mirroring
+`KnowledgeBaseAuditLogs`/`MemoryAuditLog`, so an entry for a later-purged execution survives) is a
+tamper-resistant record distinct from the operational `AgentExecutionEvent` stream — written at
+execution start (`PermissionChecked`), a verified cross-user access attempt (never a genuine 404,
+and never on the hot polled `GetAgentExecutionQuery` happy path), a tool's own ownership guard
+throwing (`PermissionDenied`), every approval decision (`ApprovalDecided`), and execution
+completion/failure.
+
+**Security**: every Agents/AgentExecutions endpoint is implicitly scoped to the caller via
+`AgentOwnershipGuard`/`AgentExecutionOwnershipGuard`, returning `404` (never `403`) for another
+user's agent or execution — the same least-information-disclosure convention `PromptOwnershipGuard`/
+`MemoryOwnershipGuard`/`ChatOwnershipGuard` already establish. `AgentPoliciesController` (policy
+CRUD and the per-user concurrency override) is Administrator/Super User only. Retrieved/tool
+content is always framed as untrusted data (`RetrievalPromptFraming.BuildToolResultSystemMessage`)
+before it re-enters any subsequent provider call, so it can never be interpreted as an instruction.
+
+---
+
+# 31. Architecture Principles
 
 Before implementing any feature, ask:
 

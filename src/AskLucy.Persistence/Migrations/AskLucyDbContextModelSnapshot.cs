@@ -22,6 +22,1030 @@ namespace AskLucy.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AskLucy.Domain.Agents.Agent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AgentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid?>("ModelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ModelProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OutputFormat")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("PreArchiveStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("PublishedVersionNumber")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentType");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Agents", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentApproval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AgentToolCallId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecidedByUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IntendedActionDescription")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("IntendedParametersJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("MatchedAgentPolicyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<bool>("WasPolicyBased")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionId");
+
+                    b.HasIndex("AgentToolCallId");
+
+                    b.ToTable("AgentApprovals", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DetailsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Action");
+
+                    b.HasIndex("AgentExecutionId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AgentAuditLogs", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ConversationIntegrationMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FinalOutputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FinalOutputText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsTestExecution")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Objective")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PlanJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("RunByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TerminationReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("UserChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId");
+
+                    b.HasIndex("AgentVersionId");
+
+                    b.HasIndex("RunByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserChatId");
+
+                    b.HasIndex("RunByUserId", "Status");
+
+                    b.ToTable("AgentExecutions", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionCost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("EstimatedCost")
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionId")
+                        .IsUnique();
+
+                    b.ToTable("AgentExecutionCosts", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionError", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AgentExecutionStepId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionId");
+
+                    b.ToTable("AgentExecutionErrors", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SafeMetadataJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid?>("StepId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionId", "OccurredAtUtc");
+
+                    b.ToTable("AgentExecutionEvents", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("DependsOnStepId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("ErrorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("InputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OutputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("StepIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StepType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ToolName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionId", "StepIndex")
+                        .IsUnique();
+
+                    b.ToTable("AgentExecutionSteps", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("InputTokenCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OutputTokenCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ReasoningTokenCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("StepCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ToolCallCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionId")
+                        .IsUnique();
+
+                    b.ToTable("AgentExecutionUsages", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentKnowledgeBase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("KnowledgeBaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KnowledgeBaseId");
+
+                    b.HasIndex("AgentId", "KnowledgeBaseId")
+                        .IsUnique();
+
+                    b.ToTable("AgentKnowledgeBases", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentMemoryPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AllowRead")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AllowWriteProposals")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PreApprovedCategoriesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId")
+                        .IsUnique();
+
+                    b.ToTable("AgentMemoryPolicies", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConditionsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ToolName", "IsEnabled");
+
+                    b.ToTable("AgentPolicies", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentTool", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConfigurationJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId", "ToolName")
+                        .IsUnique();
+
+                    b.ToTable("AgentTools", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentToolCall", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentExecutionStepId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RequiredPermissionsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ValidatedInputJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ValidatedOutputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("WasApprovalRequired")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentExecutionStepId");
+
+                    b.HasIndex("ToolName");
+
+                    b.ToTable("AgentToolCalls", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentUserExecutionLimit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxConcurrentExecutions")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SetByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("AgentUserExecutionLimits", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChangeDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("KnowledgeBasesSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MemoryPolicySnapshotJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ModelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ModelProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OutputFormat")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ToolsSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("AgentVersions", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Ai.AIModel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4770,6 +5794,319 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Agents.Agent", b =>
+                {
+                    b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("AskLucy.Domain.Agents.AgentExecutionPolicy", "ExecutionPolicy", b1 =>
+                        {
+                            b1.Property<Guid>("AgentId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal?>("MaxCost")
+                                .HasColumnType("decimal(10,4)")
+                                .HasColumnName("MaxCost");
+
+                            b1.Property<int?>("MaxExecutionDurationSeconds")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxExecutionDurationSeconds");
+
+                            b1.Property<int?>("MaxRetries")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxRetries");
+
+                            b1.Property<int?>("MaxSteps")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxSteps");
+
+                            b1.Property<int?>("MaxTokens")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxTokens");
+
+                            b1.Property<int?>("MaxToolCalls")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxToolCalls");
+
+                            b1.HasKey("AgentId");
+
+                            b1.ToTable("Agents");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AgentId");
+                        });
+
+                    b.OwnsOne("AskLucy.Domain.Agents.AgentInstructions", "Instructions", b1 =>
+                        {
+                            b1.Property<Guid>("AgentId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("BehavioralRules")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("BehavioralRules");
+
+                            b1.Property<string>("Constraints")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("Constraints");
+
+                            b1.Property<string>("Objectives")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("Objectives");
+
+                            b1.Property<string>("OutputRequirements")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("OutputRequirements");
+
+                            b1.Property<string>("SafetyRules")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("SafetyRules");
+
+                            b1.Property<string>("SystemInstructions")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("SystemInstructions");
+
+                            b1.Property<string>("ToolUsageRules")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ToolUsageRules");
+
+                            b1.HasKey("AgentId");
+
+                            b1.ToTable("Agents");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AgentId");
+                        });
+
+                    b.Navigation("ExecutionPolicy")
+                        .IsRequired();
+
+                    b.Navigation("Instructions")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentApproval", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecution", null)
+                        .WithMany("Approvals")
+                        .HasForeignKey("AgentExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Agents.AgentToolCall", null)
+                        .WithMany()
+                        .HasForeignKey("AgentToolCallId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecution", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.Agent", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Agents.AgentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("AgentVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RunByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.Chats.UserChat", null)
+                        .WithMany()
+                        .HasForeignKey("UserChatId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionCost", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecution", null)
+                        .WithOne("Cost")
+                        .HasForeignKey("AskLucy.Domain.Agents.AgentExecutionCost", "AgentExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionError", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecution", null)
+                        .WithMany("Errors")
+                        .HasForeignKey("AgentExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionEvent", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecution", null)
+                        .WithMany("Events")
+                        .HasForeignKey("AgentExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionStep", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecution", null)
+                        .WithMany("Steps")
+                        .HasForeignKey("AgentExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecutionUsage", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecution", null)
+                        .WithOne("Usage")
+                        .HasForeignKey("AskLucy.Domain.Agents.AgentExecutionUsage", "AgentExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentKnowledgeBase", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.Agent", null)
+                        .WithMany("KnowledgeBases")
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AskLucy.Domain.KnowledgeBases.KnowledgeBase", null)
+                        .WithMany()
+                        .HasForeignKey("KnowledgeBaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentMemoryPolicy", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.Agent", null)
+                        .WithOne("MemoryPolicy")
+                        .HasForeignKey("AskLucy.Domain.Agents.AgentMemoryPolicy", "AgentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentTool", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.Agent", null)
+                        .WithMany("Tools")
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentToolCall", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.AgentExecutionStep", null)
+                        .WithMany()
+                        .HasForeignKey("AgentExecutionStepId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentVersion", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Agents.Agent", null)
+                        .WithMany("Versions")
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("AskLucy.Domain.Agents.AgentExecutionPolicy", "ExecutionPolicy", b1 =>
+                        {
+                            b1.Property<Guid>("AgentVersionId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal?>("MaxCost")
+                                .HasColumnType("decimal(10,4)")
+                                .HasColumnName("MaxCost");
+
+                            b1.Property<int?>("MaxExecutionDurationSeconds")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxExecutionDurationSeconds");
+
+                            b1.Property<int?>("MaxRetries")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxRetries");
+
+                            b1.Property<int?>("MaxSteps")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxSteps");
+
+                            b1.Property<int?>("MaxTokens")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxTokens");
+
+                            b1.Property<int?>("MaxToolCalls")
+                                .HasColumnType("int")
+                                .HasColumnName("MaxToolCalls");
+
+                            b1.HasKey("AgentVersionId");
+
+                            b1.ToTable("AgentVersions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AgentVersionId");
+                        });
+
+                    b.OwnsOne("AskLucy.Domain.Agents.AgentInstructions", "Instructions", b1 =>
+                        {
+                            b1.Property<Guid>("AgentVersionId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("BehavioralRules")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("BehavioralRules");
+
+                            b1.Property<string>("Constraints")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("Constraints");
+
+                            b1.Property<string>("Objectives")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("Objectives");
+
+                            b1.Property<string>("OutputRequirements")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("OutputRequirements");
+
+                            b1.Property<string>("SafetyRules")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("SafetyRules");
+
+                            b1.Property<string>("SystemInstructions")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("SystemInstructions");
+
+                            b1.Property<string>("ToolUsageRules")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ToolUsageRules");
+
+                            b1.HasKey("AgentVersionId");
+
+                            b1.ToTable("AgentVersions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AgentVersionId");
+                        });
+
+                    b.Navigation("ExecutionPolicy")
+                        .IsRequired();
+
+                    b.Navigation("Instructions")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Ai.AIModel", b =>
                 {
                     b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
@@ -5538,6 +6875,32 @@ namespace AskLucy.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.Agent", b =>
+                {
+                    b.Navigation("KnowledgeBases");
+
+                    b.Navigation("MemoryPolicy");
+
+                    b.Navigation("Tools");
+
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.Agents.AgentExecution", b =>
+                {
+                    b.Navigation("Approvals");
+
+                    b.Navigation("Cost");
+
+                    b.Navigation("Errors");
+
+                    b.Navigation("Events");
+
+                    b.Navigation("Steps");
+
+                    b.Navigation("Usage");
                 });
 
             modelBuilder.Entity("AskLucy.Domain.Chats.Message", b =>
