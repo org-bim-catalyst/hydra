@@ -52,8 +52,15 @@ public sealed class SqlServerMemoryVectorStore(AskLucyDbContext dbContext) : IMe
             ? "m.[ProjectId] IS NULL "
             : "(m.[ProjectId] IS NULL OR m.[ProjectId] = " + "'" + projectId.Value.ToString("D", CultureInfo.InvariantCulture) + "'" + ") ";
 
+        // VECTOR_DISTANCE is computed once, in the inner query's SELECT, rather than once there
+        // and again in an outer WHERE/ORDER BY (T-SQL can't reference a SELECT-list alias from
+        // WHERE) — halves the cosine-distance CPU cost of this deliberately unindexed brute-force
+        // scan (SC-006's 2s budget was landing at ~2.3s against this shared-hosting instance with
+        // the duplicate computation).
         var castExpression = "CAST({0} AS VECTOR(" + Domain.Memory.MemoryEmbedding.VectorWidth.ToString(CultureInfo.InvariantCulture) + "))";
-        var sql = "SELECT TOP (" + topK.ToString(CultureInfo.InvariantCulture) + ") e.[MemoryId] AS MemoryId, " +
+        var sql = "SELECT TOP (" + topK.ToString(CultureInfo.InvariantCulture) + ") sub.[MemoryId], sub.[Distance] " +
+            "FROM (" +
+            "SELECT e.[MemoryId] AS MemoryId, " +
             "VECTOR_DISTANCE('cosine', e.[Vector], " + castExpression + ") AS Distance " +
             "FROM [MemoryEmbeddings] e " +
             "INNER JOIN [Memories] m ON m.[Id] = e.[MemoryId] " +
@@ -64,8 +71,9 @@ public sealed class SqlServerMemoryVectorStore(AskLucyDbContext dbContext) : IMe
             "AND m.[State] = 'Active' " +
             "AND m.[UserId] = {1} " +
             "AND " + projectPredicate +
-            "AND VECTOR_DISTANCE('cosine', e.[Vector], " + castExpression + ") <= {2} " +
-            "ORDER BY Distance ASC";
+            ") sub " +
+            "WHERE sub.[Distance] <= {2} " +
+            "ORDER BY sub.[Distance] ASC";
 
         var results = await dbContext.Database
             .SqlQueryRaw<VectorDistanceRow>(sql, vectorJson, userId, maxDistance)
