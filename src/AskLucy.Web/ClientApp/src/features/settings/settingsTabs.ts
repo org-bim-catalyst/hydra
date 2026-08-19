@@ -13,4 +13,7 @@ export const SETTINGS_TAB_INDEX = {
   ChatHistory: 5,
   Data: 6,
   Cookies: 7,
+  /** specs/028-ai-floating-panels — appended, not inserted, so existing tab indices never
+   * shift (research.md Decision 6). */
+  Viewer: 8,
 } as const
