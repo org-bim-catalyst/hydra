@@ -19,3 +19,12 @@ function getSnapshot() {
 export function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, () => false)
 }
+
+/** Imperative, non-hook read of the same preference (`getSnapshot` above) — for the rare case
+ * (specs/027-immersive-viewer-platform `viewerEngineStore`) where a value is needed once, outside
+ * a React component, to compute a store's initial state. Prefer the hook everywhere else so
+ * updates are observed reactively. */
+export function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia(QUERY).matches
+}

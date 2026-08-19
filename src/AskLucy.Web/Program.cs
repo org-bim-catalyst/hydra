@@ -407,6 +407,21 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // specs/027-immersive-viewer-platform (contracts/weather-api.md): a simple pass-through
+    // lookup, not AI-invoking — generous enough for the widget's periodic refresh plus manual
+    // reloads/multiple tabs, tight enough to not become a free proxy for the upstream provider.
+    options.AddPolicy("weather-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 30,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---

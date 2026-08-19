@@ -4,7 +4,7 @@ import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
 import { FloatingPanel } from './FloatingPanel'
 
 function resetStore() {
-  useWorkspaceOverlayStore.setState({ expandedControlId: null, viewMode: '3D', unreadControlIds: new Set() })
+  useWorkspaceOverlayStore.setState({ expandedControlId: null, viewMode: 'isometric', unreadControlIds: new Set() })
 }
 
 describe('FloatingPanel', () => {
