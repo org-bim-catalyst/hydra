@@ -32,7 +32,7 @@ export function UserMenu() {
 
   const handleLogout = () => {
     setAnchorEl(null)
-    logout.mutate(undefined, { onSuccess: () => navigate('/login', { replace: true }) })
+    logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) })
   }
 
   return (
