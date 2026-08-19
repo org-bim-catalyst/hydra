@@ -1,5 +1,4 @@
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import SearchIcon from '@mui/icons-material/Search'
+import { RiArrowLeftLine, RiSearchLine } from '@remixicon/react'
 import {
   Alert,
   Button,
@@ -41,7 +40,14 @@ interface InsertPromptPickerProps {
  * (US5 AC1; the server re-validates regardless — this is a fail-fast UX affordance, not the only
  * enforcement).
  */
-export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId, onInserted }: InsertPromptPickerProps) {
+export function InsertPromptPicker({
+  open,
+  onClose,
+  chatId,
+  providerId,
+  modelId,
+  onInserted,
+}: InsertPromptPickerProps) {
   const [query, setQuery] = useState('')
   const [selectedPrompt, setSelectedPrompt] = useState<PromptDetail | null>(null)
   const [variableValues, setVariableValues] = useState<Record<string, string>>({})
@@ -50,16 +56,23 @@ export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId,
 
   const { data: searchResults } = useQuery({
     queryKey: ['prompts', 'list', 'insert-picker', query],
-    queryFn: () => promptsApi.listPrompts({ view: 'All', q: query.trim() || undefined, pageSize: 20 }),
+    queryFn: () =>
+      promptsApi.listPrompts({ view: 'All', q: query.trim() || undefined, pageSize: 20 }),
     enabled: open && selectedPrompt === null,
   })
 
   const { data: models } = useAiModels(providerId)
   const selectedModel = models?.find((m) => m.id === modelId)
-  const capabilityWarnings = selectedPrompt && selectedModel ? unmetCapabilities(selectedPrompt.requiredCapabilities, selectedModel) : []
+  const capabilityWarnings =
+    selectedPrompt && selectedModel
+      ? unmetCapabilities(selectedPrompt.requiredCapabilities, selectedModel)
+      : []
 
   const missingRequired = useMemo(
-    () => (selectedPrompt?.variables ?? []).filter((v) => v.isRequired && !variableValues[v.name]?.trim()),
+    () =>
+      (selectedPrompt?.variables ?? []).filter(
+        (v) => v.isRequired && !variableValues[v.name]?.trim(),
+      ),
     [selectedPrompt, variableValues],
   )
 
@@ -88,7 +101,11 @@ export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId,
     setError(null)
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const _delta of promptConversationApi.insertPromptIntoConversation(chatId, selectedPrompt.id, variableValues)) {
+      for await (const _delta of promptConversationApi.insertPromptIntoConversation(
+        chatId,
+        selectedPrompt.id,
+        variableValues,
+      )) {
         // Content deltas are relayed to persisted chat history server-side; onInserted() below
         // triggers a refetch of that history rather than accumulating deltas locally here.
       }
@@ -96,7 +113,9 @@ export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId,
       reset()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Inserting the prompt failed. Please try again.')
+      setError(
+        err instanceof Error ? err.message : 'Inserting the prompt failed. Please try again.',
+      )
     } finally {
       setIsSending(false)
     }
@@ -119,7 +138,7 @@ export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId,
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
+                      <RiSearchLine size={20} />
                     </InputAdornment>
                   ),
                 },
@@ -147,8 +166,12 @@ export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId,
         <>
           <DialogTitle>
             <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-              <IconButton size="small" aria-label="Back to search" onClick={() => setSelectedPrompt(null)}>
-                <ArrowBackIcon fontSize="small" />
+              <IconButton
+                size="small"
+                aria-label="Back to search"
+                onClick={() => setSelectedPrompt(null)}
+              >
+                <RiArrowLeftLine size={20} />
               </IconButton>
               {selectedPrompt.name}
             </Stack>
@@ -164,19 +187,23 @@ export function InsertPromptPicker({ open, onClose, chatId, providerId, modelId,
                   multiline={variable.type === 'Text'}
                   helperText={variable.description ?? undefined}
                   value={variableValues[variable.name] ?? ''}
-                  onChange={(e) => setVariableValues((prev) => ({ ...prev, [variable.name]: e.target.value }))}
+                  onChange={(e) =>
+                    setVariableValues((prev) => ({ ...prev, [variable.name]: e.target.value }))
+                  }
                 />
               ))}
 
               {capabilityWarnings.length > 0 && (
                 <Alert severity="warning">
-                  This conversation's model does not support required capabilities: {capabilityWarnings.join(', ')}. Change
-                  the conversation's model before inserting this prompt.
+                  This conversation's model does not support required capabilities:{' '}
+                  {capabilityWarnings.join(', ')}. Change the conversation's model before inserting
+                  this prompt.
                 </Alert>
               )}
               {missingRequired.length > 0 && (
                 <Alert severity="error">
-                  {missingRequired.map((v) => v.name).join(', ')} {missingRequired.length === 1 ? 'is' : 'are'} required.
+                  {missingRequired.map((v) => v.name).join(', ')}{' '}
+                  {missingRequired.length === 1 ? 'is' : 'are'} required.
                 </Alert>
               )}
               {error && <Alert severity="error">{error}</Alert>}

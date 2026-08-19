@@ -10,12 +10,16 @@ interface ProviderModelSelectorProps {
 
 /**
  * specs/005-multi-provider-ai-engine FR-008/FR-009 — lets the user pick any enabled
- * provider/model, mirroring LanguageSelector.tsx's `TextField select` convention.
+ * provider/model, mirroring ChatConfigurationTab.tsx's `TextField select` convention.
  * `onSelect` is only ever called with a complete, valid pair — a provider change is held
  * locally (`draftProviderId`) until that provider's own model list loads, so the parent
  * (and the model-selection PATCH it triggers) never sees a provider/model mismatch.
  */
-export function ProviderModelSelector({ providerId, modelId, onSelect }: ProviderModelSelectorProps) {
+export function ProviderModelSelector({
+  providerId,
+  modelId,
+  onSelect,
+}: ProviderModelSelectorProps) {
   const { data: providers } = useAiProviders()
   const [draftProviderId, setDraftProviderId] = useState<string | null>(null)
   // Falls back to the first provider (once loaded) whenever neither an explicit draft nor
@@ -34,7 +38,12 @@ export function ProviderModelSelector({ providerId, modelId, onSelect }: Provide
   }
 
   useEffect(() => {
-    if (effectiveProviderId && models && models.length > 0 && (effectiveProviderId !== providerId || !modelId)) {
+    if (
+      effectiveProviderId &&
+      models &&
+      models.length > 0 &&
+      (effectiveProviderId !== providerId || !modelId)
+    ) {
       onSelect(effectiveProviderId, models[0].id)
     }
   }, [effectiveProviderId, providerId, modelId, models, onSelect])

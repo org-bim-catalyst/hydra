@@ -1,18 +1,12 @@
-import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
-import CloseIcon from '@mui/icons-material/Close'
-import MicIcon from '@mui/icons-material/Mic'
-import MicOffIcon from '@mui/icons-material/MicOff'
-import SendIcon from '@mui/icons-material/Send'
-import AttachFileIcon from '@mui/icons-material/AttachFile'
 import {
-  Alert,
-  Box,
-  IconButton,
-  Paper,
-  Snackbar,
-  Stack,
-  TextField,
-} from '@mui/material'
+  RiArticleLine,
+  RiAttachment2,
+  RiCloseLine,
+  RiMicLine,
+  RiMicOffLine,
+  RiSendPlane2Fill,
+} from '@remixicon/react'
+import { Alert, Box, IconButton, Paper, Snackbar, Stack, TextField } from '@mui/material'
 import { useRef } from 'react'
 import { transcribeAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
@@ -187,12 +181,12 @@ export function ChatComposer({
         />
         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', width: '100%' }}>
           <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
-            <AttachFileIcon />
+            <RiAttachment2 />
           </IconButton>
 
           {onInsertPromptClick && (
             <IconButton onClick={onInsertPromptClick} aria-label="Insert saved prompt">
-              <ArticleOutlinedIcon />
+              <RiArticleLine />
             </IconButton>
           )}
 
@@ -218,16 +212,18 @@ export function ChatComposer({
                   : undefined
               }
             >
-              {isListening ? <MicOffIcon /> : <MicIcon />}
+              {isListening ? <RiMicOffLine /> : <RiMicLine />}
             </IconButton>
           )}
 
           {isListening && (
             <>
               <IconButton onClick={onCancelCapture} aria-label="Cancel voice input" size="small">
-                <CloseIcon fontSize="small" />
+                <RiCloseLine size={20} />
               </IconButton>
-              <Box sx={{ color: 'secondary.main', fontSize: '0.875rem', fontWeight: 500 }}>Listening…</Box>
+              <Box sx={{ color: 'secondary.main', fontSize: '0.875rem', fontWeight: 500 }}>
+                Listening…
+              </Box>
             </>
           )}
 
@@ -260,7 +256,7 @@ export function ChatComposer({
               transition: (theme) => theme.transitions.create(['background-color', 'color']),
             }}
           >
-            <SendIcon fontSize="small" />
+            <RiSendPlane2Fill size={20} />
           </IconButton>
         </Stack>
       </Paper>
@@ -271,11 +267,7 @@ export function ChatComposer({
           </Alert>
         </Box>
       )}
-      <Snackbar
-        open={Boolean(captureError)}
-        autoHideDuration={5000}
-        onClose={onClearCaptureError}
-      >
+      <Snackbar open={Boolean(captureError)} autoHideDuration={5000} onClose={onClearCaptureError}>
         <Alert severity="error" variant="filled" onClose={onClearCaptureError}>
           {captureError}
         </Alert>

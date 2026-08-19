@@ -66,6 +66,14 @@ export interface PersistedMessage {
   citations: PersistedCitation[]
 }
 
+/** specs/025-chat-configuration-settings, contracts/chat-detail-api.md — a single chat's own detail, including its current provider/model selection (null if never set). */
+export interface ChatDetail {
+  id: string
+  title: string
+  providerId: string | null
+  modelId: string | null
+}
+
 export interface SearchChatsParams {
   view?: ConversationView
   pinned?: boolean
@@ -87,6 +95,9 @@ function toQueryString(params: Record<string, unknown>): string {
 
 export const searchChats = (params: SearchChatsParams = {}) =>
   apiFetch<PagedResult<ConversationSummary>>(`/chats${toQueryString(params as Record<string, unknown>)}`)
+
+/** contracts/chat-detail-api.md `GET /chats/{id}` — used by Chat Configuration's current-conversation model control. */
+export const getChatById = (id: string) => apiFetch<ChatDetail>(`/chats/${id}`)
 
 export const createChat = (title: string, sessionId?: string) =>
   apiFetch<UserChat>('/chats', { method: 'POST', body: JSON.stringify({ title, sessionId }) })

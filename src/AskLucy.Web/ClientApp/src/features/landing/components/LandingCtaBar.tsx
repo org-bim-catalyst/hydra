@@ -22,7 +22,7 @@ export function LandingCtaBar() {
 
   const handleStartDesigning = () => {
     recordCtaClick('TryPlatform')
-    navigate(accessToken ? '/chat' : '/register')
+    navigate(accessToken ? '/studio' : '/register')
   }
 
   const handleExplore = () => {

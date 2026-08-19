@@ -88,6 +88,47 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     }
 
     [Fact]
+    public async Task SaveVoicePreferences_ShouldReturn401_WhenAnonymous()
+    {
+        var response = await _client.PutAsync(
+            "/api/v1/ai/voice/preferences",
+            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "fr")));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task SaveVoicePreferences_ShouldPassAuthorization_WhenCallerIsAuthenticated()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+
+        var response = await _client.PutAsync(
+            "/api/v1/ai/voice/preferences",
+            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "fr")));
+
+        // No live database in this environment (see CustomWebApplicationFactory) — proves
+        // authorization let the request through to the handler, never 401/403.
+        response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>specs/026-floating-chat-assistant FR-017 — FluentValidation runs as a
+    /// MediatR pipeline behavior ahead of any repository/database access, so this proves
+    /// the 400 without requiring a live database (constitution §2.VIII: rejected, never
+    /// silently coerced).</summary>
+    [Fact]
+    public async Task SaveVoicePreferences_ShouldReturn400_WhenDefaultLanguageIsUnsupported()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+
+        var response = await _client.PutAsync(
+            "/api/v1/ai/voice/preferences",
+            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "not-a-real-language")));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task GetVoiceProviderHealth_ShouldReturn401_WhenAnonymous()
     {
         var response = await _client.GetAsync("/api/v1/ai/voice/health");
