@@ -93,6 +93,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
                 .ToArray();
         }
 
+        // spec.md FR-016/SC-009 (specs/022-workflow-orchestration-engine): every validation
+        // violation, so the Designer's validation panel can render them all without re-requesting.
+        if (exception is AskLucy.Domain.Workflows.WorkflowValidationFailedException workflowValidationFailedException)
+        {
+            problemDetails.Extensions["violations"] = workflowValidationFailedException.Violations
+                .Select(v => new { nodeKey = v.NodeKey, message = v.Message })
+                .ToArray();
+        }
+
         context.Response.StatusCode = statusCode;
         // WriteAsJsonAsync's no-content-type overload unconditionally overwrites
         // Response.ContentType to "application/json" — passing it explicitly here is what
@@ -162,6 +171,24 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "https://hydra.bimcatalyst.com/problems/agent-concurrency-limit-exceeded",
             "Agent execution concurrency limit exceeded",
             agentConcurrencyEx.Message),
+
+        // spec.md FR-069/FR-070 (specs/022-workflow-orchestration-engine): mirrors the Agent
+        // Framework's identical concurrency-cap precedent — a rate/capacity limit, not an invalid
+        // request.
+        AskLucy.Domain.Workflows.WorkflowConcurrencyLimitExceededException workflowConcurrencyEx => (
+            StatusCodes.Status429TooManyRequests,
+            "https://hydra.bimcatalyst.com/problems/workflow-concurrency-limit-exceeded",
+            "Workflow execution concurrency limit exceeded",
+            workflowConcurrencyEx.Message),
+
+        // spec.md FR-016/SC-009 (specs/022-workflow-orchestration-engine): the request is
+        // well-formed, the workflow graph itself is invalid — 422, with every violation surfaced
+        // so the Designer's validation panel can list them without a follow-up request.
+        AskLucy.Domain.Workflows.WorkflowValidationFailedException workflowValidationEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/workflow-validation-failed",
+            "Workflow validation failed",
+            workflowValidationEx.Message),
 
         // spec.md FR-050 (specs/021-mcp-integration, research.md Decision 8): the request is
         // well-formed, the destination is simply disallowed — 422, not DomainRuleViolationException's

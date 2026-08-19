@@ -16,6 +16,7 @@ using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
 using AskLucy.Infrastructure.Retrieval.VectorStores;
+using AskLucy.Infrastructure.Workflows;
 using Hangfire;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -250,6 +251,12 @@ public static class DependencyInjection
         // (not Application) for the same reason MemoryHub/MemoryNotifier do — Application must
         // never reference SignalR directly (constitution §3).
         services.AddScoped<IAgentExecutionNotifier, AgentExecutionNotifier>();
+
+        // Workflow & Tool Orchestration Engine (specs/022-workflow-orchestration-engine) — User
+        // Story 6 ("Real-Time Monitoring, Pause, Resume, and Cancel"). WorkflowExecutionHub/
+        // WorkflowExecutionNotifier live here for the same reason AgentExecutionHub/
+        // AgentExecutionNotifier do — Application must never reference SignalR directly (constitution §3).
+        services.AddScoped<IWorkflowExecutionNotifier, WorkflowExecutionNotifier>();
 
         // MCP Integration (specs/021-mcp-integration) — Foundational. IMcpClientFactory is a
         // singleton (research.md Decision 2, corrected during implementation — see plan.md): its

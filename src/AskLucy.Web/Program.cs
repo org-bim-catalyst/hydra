@@ -10,6 +10,7 @@ using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Retrieval;
+using AskLucy.Infrastructure.Workflows;
 using AskLucy.Persistence;
 using AskLucy.Web.Auth;
 using AskLucy.Web.DevSeed;
@@ -340,6 +341,22 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    // Workflow & Tool Orchestration Engine (specs/022-workflow-orchestration-engine) — same
+    // generous, non-cost-tiered shape as agent-endpoints: starting an execution only enqueues a
+    // Hangfire job (cheap); FR-069's per-user concurrency cap, not HTTP rate limiting, is what
+    // bounds actual execution/AI cost exposure.
+    options.AddPolicy("workflow-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
     // MCP server administration (specs/021-mcp-integration) — Administrator/Super User only, same
     // admin-CRUD cost tier as admin-endpoints; a dedicated policy (not a reuse of admin-endpoints)
     // because test-connection/refresh-capabilities make outbound calls to external MCP servers,
@@ -524,6 +541,7 @@ app.MapHub<DocumentProcessingHub>("/hubs/document-processing");
 app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
 app.MapHub<MemoryHub>("/hubs/memory");
 app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
+app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —
