@@ -660,7 +660,11 @@ export function SettingsPage() {
   useEffect(() => {
     const requestedTab = (location.state as { tab?: number } | null)?.tab
     if (requestedTab !== undefined) {
-      setTab(requestedTab)
+      // Deferred via queueMicrotask (react-hooks/set-state-in-effect): this reacts to
+      // location.key — an external navigation event, not a value derived from render — but
+      // the rule wants the update in a callback rather than synchronously in the effect body,
+      // to avoid a same-commit cascading render.
+      queueMicrotask(() => setTab(requestedTab))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key])
