@@ -80,9 +80,12 @@ public sealed class AgentResourceConflictTests
             return 1;
         });
 
+        var mcpToolRegistry = Substitute.For<IMcpToolRegistry>();
+        mcpToolRegistry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)[]);
+
         var orchestrator = new AgentExecutionOrchestrator(
             _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
-            new AgentToolCatalog([]), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
+            new AgentToolCatalog([], mcpToolRegistry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _unitOfWork);
 

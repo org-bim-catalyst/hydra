@@ -86,9 +86,16 @@ public sealed class AgentApprovalWorkflowTests
         return (execution, version);
     }
 
+    private static IMcpToolRegistry EmptyMcpToolRegistry()
+    {
+        var registry = Substitute.For<IMcpToolRegistry>();
+        registry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)[]);
+        return registry;
+    }
+
     private AgentExecutionOrchestrator CreateOrchestrator() => new(
         _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
-        new AgentToolCatalog([_highRiskTool]), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
+        new AgentToolCatalog([_highRiskTool], EmptyMcpToolRegistry()), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
         new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(_policyRepository), Substitute.For<IAgentExecutionNotifier>(),
         Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _unitOfWork);
 

@@ -63,9 +63,12 @@ public sealed class TestExecutionSkipsMutatingToolsTests
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new AgentPlan(execution.Objective, [new AgentPlanStep(0, "Remember the fact.", AgentExecutionStepType.ToolCall, "MemoryWriteTool")]));
 
+        var mcpToolRegistry = Substitute.For<IMcpToolRegistry>();
+        mcpToolRegistry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)[]);
+
         var orchestrator = new AgentExecutionOrchestrator(
             executionRepository, agentRepository, providerRepository, modelRepository, providerResolver, planner,
-            new AgentToolCatalog([mutatingTool]), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
+            new AgentToolCatalog([mutatingTool], mcpToolRegistry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), chatRepository, messageRepository, unitOfWork);
 

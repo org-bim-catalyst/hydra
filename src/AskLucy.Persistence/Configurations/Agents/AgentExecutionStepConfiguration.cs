@@ -19,7 +19,10 @@ public sealed class AgentExecutionStepConfiguration : IEntityTypeConfiguration<A
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(s => s.InputJson);
         builder.Property(s => s.OutputJson);
-        builder.Property(s => s.ToolName).HasMaxLength(100);
+        // Widened from 100 (spec 021-mcp-integration, research.md Decision 3) — an MCP tool's
+        // namespaced identifier ("mcp:{serverId}:{toolName}") can exceed the original bound sized
+        // only for short native tool class names; 400 matches McpTool.NamespacedName's own bound.
+        builder.Property(s => s.ToolName).HasMaxLength(400);
 
         builder.Property(s => s.RowVersion).IsRowVersion();
 

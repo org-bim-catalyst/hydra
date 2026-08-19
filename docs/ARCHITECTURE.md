@@ -618,6 +618,12 @@ Agents communicate through the AI Provider Engine.
 
 # 16. MCP Tool Engine
 
+**Superseded by §31 ("Model Context Protocol (MCP) Integration"), which describes the shipped
+design (specs/021-mcp-integration).** This section is the pre-implementation sketch, retained for
+history; the sketch below never became the actual architecture — MCP shipped as one more source
+feeding the existing Agent Tool abstraction (§30), not a standalone engine with its own execution
+path.
+
 Tool execution is separated from AI.
 
 Architecture:
@@ -1156,7 +1162,76 @@ before it re-enters any subsequent provider call, so it can never be interpreted
 
 ---
 
-# 31. Architecture Principles
+# 31. Model Context Protocol (MCP) Integration
+
+Introduced in specs/021-mcp-integration. Supersedes §16 ("MCP Tool Engine")'s aspirational sketch
+with the shipped design — MCP is implemented as one more `IAgentTool` source feeding into spec
+020's existing Agent Runtime, never a second, parallel tool-execution framework.
+
+```text
+AgentExecutionOrchestrator (unchanged, MCP-agnostic)
+        │
+        ▼
+   AgentToolCatalog
+   (merges native IAgentTool + IMcpToolRegistry.ActiveTools)
+        │
+        ▼
+  ┌─────────────┬──────────────────┐
+  │ Native tools │  McpToolAdapter  │  ← one per discovered, Active McpTool
+  └─────────────┴──────────────────┘
+                        │
+                        ▼
+                 IMcpClientFactory
+                        │
+                        ▼
+                    IMcpClient  (Infrastructure wraps the official MCP C# SDK)
+                        │
+                        ▼
+                External MCP Server
+```
+
+Lives in `Domain/Mcp`, `Application/Mcp` (`Tools/`, `Commands/`, `Queries/`, `Resilience/`,
+`Validation/`), `Infrastructure/Mcp` (`McpClient`/`McpClientFactory`/`McpEndpointValidator`/
+`McpCredentialProtector`/`McpRateLimiter`/the two recurring jobs), `Persistence` (via
+`AskLucyDbContext`), and `McpServersController` (admin)/`McpCatalogController` (any authenticated
+user) under `Web/Controllers/v1`. Frontend lives in `ClientApp/src/features/mcp`.
+
+**Zero orchestrator coupling**: `AgentExecutionOrchestrator` has no MCP-specific branch anywhere —
+`AgentToolCatalog`'s constructor changed from `(IEnumerable<IAgentTool>)` to
+`(IEnumerable<IAgentTool> nativeTools, IMcpToolRegistry mcpToolRegistry)`, and that one signature
+change is the entire integration surface. An MCP tool's namespaced identity (`mcp:{serverId}:{toolName}`)
+flows through every existing native-tool mechanism unmodified: `AgentPolicy.ToolName` matching,
+approval-gate risk checks, duplicate-call detection, `AgentToolCall.ToolName` persistence.
+
+**`McpToolAdapter`** wraps rate limiting (`IMcpRateLimiter`), connection acquisition
+(`IMcpClientFactory`, singleton, connection-pooled per server), a circuit breaker + retry policy
+for idempotent operations only (`McpConnectionResiliencePolicy` — a tool call itself is never
+retried, since its success/failure is ambiguous after a dropped connection), and a defense-in-depth
+output re-check (`IJsonSchemaValidator`) on top of the Agent Runtime's own existing input/output
+validation. A failed call always resolves to the ordinary `AgentExecutionErrorCategory.ToolFailure`
+at the execution-history level (FR-032); the granular cause (`McpFailureCategory`) is embedded as a
+`[CategoryName]` prefix in `AgentToolResult.FailureReason` — never written to `McpAuditLog`, which
+is scoped to administrative/security events and deliberately never duplicates per-execution
+tool-call activity already captured by `AgentToolCall`.
+
+**Security boundary**: every remote endpoint is SSRF-validated (`IMcpEndpointValidator` — rejects
+private/loopback/link-local/cloud-metadata addresses) both at registration/update time and again on
+every new connection (closing the DNS-rebinding gap where a hostname was safe at registration but
+resolves elsewhere later); credentials are Data-Protection-encrypted at rest and never appear in any
+DTO, log, or audit record; a `McpTool` always starts (or reverts to, on any detected schema/
+description change) `PendingReview` — an administrator must explicitly activate it regardless of
+what risk level the server itself declares, which is advisory-only input.
+
+**MCP-agnostic runtime, MCP-aware discovery**: capability discovery (`RefreshMcpCapabilitiesCommand`,
+also driven by a Hangfire recurring job per server's own configured interval) and health checks
+(`McpServerHealthCheckJob`, another recurring job reusing the same on-demand
+`TestMcpServerConnectionCommand` handler) are the only places MCP-specific protocol concepts exist;
+`IMcpToolRegistry.InvalidateAsync()` is called after every state change that could affect which
+tools are callable (activation, deactivation, server enable/disable, health transition), so
+`ActiveTools` — the live, in-memory snapshot the orchestrator reads — never drifts from the
+database for longer than one invalidation cycle.
+
+# 32. Architecture Principles
 
 Before implementing any feature, ask:
 

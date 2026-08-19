@@ -9,6 +9,9 @@ using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Processing;
 using AskLucy.Application.Documents.Processing.Stages;
 using AskLucy.Application.KnowledgeBases;
+using AskLucy.Application.Mcp.Resilience;
+using AskLucy.Application.Mcp.Tools;
+using AskLucy.Application.Mcp.Validation;
 using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
@@ -121,6 +124,12 @@ public static class DependencyInjection
         services.AddScoped<IAgentTool, PromptExecutionTool>();
         services.AddScoped<IAgentTool, FileReadTool>();
         services.AddScoped<IAgentTool, FileMetadataTool>();
+
+        // spec 021-mcp-integration User Story 5 (FR-037-FR-040) — one singular built-in tool for
+        // every MCP resource (unlike McpToolAdapter, which is one instance per discovered tool);
+        // registered here alongside the other native tools since, unlike McpToolAdapter, it is not
+        // constructed per-server-per-tool by IMcpToolRegistry.
+        services.AddScoped<IAgentTool, McpResourceReadTool>();
         services.AddScoped<AgentBudgetGuard>();
         services.AddScoped<AgentDuplicateToolCallDetector>();
 
@@ -138,6 +147,20 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(AgentRuntimeOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.AddOptions<McpRuntimeOptions>()
+            .Bind(configuration.GetSection(McpRuntimeOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // MCP Integration (specs/021-mcp-integration) — Foundational.
+        // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
+        // McpToolAdapter instances must never hold a Scoped dependency (constitution §3), and the
+        // resilience policy's circuit-breaker state must persist across executions, not reset per
+        // scope (research.md Decisions 1/11, corrected during implementation — see plan.md).
+        services.AddSingleton<IMcpToolRegistry, McpToolRegistry>();
+        services.AddSingleton<McpConnectionResiliencePolicy>();
+        services.AddSingleton<IJsonSchemaValidator, JsonSchemaValidator>();
 
         return services;
     }

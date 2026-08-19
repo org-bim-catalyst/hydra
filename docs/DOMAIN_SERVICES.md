@@ -679,20 +679,36 @@ Never let LLM providers directly invoke external systems.
 
 # 23. MCP Service
 
-Coordinates Model Context Protocol.
-
-Responsibilities
-
-* Discover tools
-* Authenticate
-* Execute
-* Return structured results
-
-Interface
+Shipped in specs/021-mcp-integration as a set of MediatR command/query handlers
+(`Application/Mcp`) plus a small cluster of focused interfaces — no single `IMcpService` facade;
+MCP is one more `IAgentTool` source feeding the existing Agent Service (§21), not a parallel
+execution path.
 
 ```csharp
-IMcpService
+IMcpClient                 // Application/Abstractions — one connected server; Infrastructure wraps the official MCP C# SDK
+IMcpClientFactory          // resolves/creates+pools an IMcpClient per server (singleton, connection reuse)
+IMcpToolRegistry           // Application/Mcp/Tools — singleton, in-memory cache of every Active tool, adapted to IAgentTool
+IMcpEndpointValidator      // SSRF checks, re-run on every new connection, not just registration
+IMcpCredentialProtector    // Data Protection-backed encrypt/decrypt, mirrors IAiCredentialProtector
+IMcpRateLimiter            // per-(server,tool,user,agent) rate limit + per-server concurrency limit
+IJsonSchemaValidator       // validates an untrusted, externally-supplied JSON Schema document
 ```
+
+Functions
+
+* Register/Update/Enable/Disable/Delete an MCP server (admin)
+* Test connection / Refresh capabilities (on-demand, and via two Hangfire recurring jobs)
+* Activate/Deactivate a discovered tool (admin review gate — always starts `PendingReview`)
+* Rotate a server's credential in place
+* Browse the tool/resource/prompt catalog (any authenticated user) / duplicate an MCP prompt into
+  an independent native `Prompt`
+
+`McpToolAdapter` (one instance per discovered, `Active` tool, built by `IMcpToolRegistry`) is the
+only class that actually implements `IAgentTool` for MCP — it adds rate limiting, connection
+acquisition, and a defense-in-depth output re-check on top of the Agent Runtime's own existing
+validation/permission/approval pipeline, unchanged. `McpResourceReadTool` is the single built-in
+`IAgentTool` (registered once, like a native tool) that handles every MCP resource fetch by
+`resourceUri` input, rather than one adapter instance per resource.
 
 ---
 

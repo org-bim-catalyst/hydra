@@ -14,7 +14,9 @@ public sealed class AgentToolCallConfiguration : IEntityTypeConfiguration<AgentT
         builder.HasKey(t => t.Id);
         builder.Property(t => t.Id).ValueGeneratedNever();
 
-        builder.Property(t => t.ToolName).IsRequired().HasMaxLength(100);
+        // Widened from 100 (spec 021-mcp-integration, research.md Decision 3) — see
+        // AgentExecutionStepConfiguration for the full rationale.
+        builder.Property(t => t.ToolName).IsRequired().HasMaxLength(400);
         builder.Property(t => t.RiskLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(t => t.RequiredPermissionsJson).IsRequired();
         builder.Property(t => t.ValidatedInputJson).IsRequired();

@@ -7,6 +7,7 @@ using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
+using AskLucy.Domain.Mcp;
 using AskLucy.Domain.Projects;
 using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
@@ -197,6 +198,22 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<AgentUserExecutionLimit> AgentUserExecutionLimits => Set<AgentUserExecutionLimit>();
 
     public DbSet<AgentAuditLog> AgentAuditLogs => Set<AgentAuditLog>();
+
+    public DbSet<McpServer> McpServers => Set<McpServer>();
+
+    public DbSet<McpServerCredential> McpServerCredentials => Set<McpServerCredential>();
+
+    public DbSet<McpServerHealth> McpServerHealths => Set<McpServerHealth>();
+
+    public DbSet<McpCapabilitySnapshot> McpCapabilitySnapshots => Set<McpCapabilitySnapshot>();
+
+    public DbSet<McpTool> McpTools => Set<McpTool>();
+
+    public DbSet<McpResource> McpResources => Set<McpResource>();
+
+    public DbSet<McpPrompt> McpPrompts => Set<McpPrompt>();
+
+    public DbSet<McpAuditLog> McpAuditLogs => Set<McpAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

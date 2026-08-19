@@ -67,6 +67,10 @@ const AdminAiProvidersPage = lazy(() =>
 const AgentPoliciesAdminPage = lazy(() =>
   import('../features/agents/pages/AgentPoliciesAdminPage').then((m) => ({ default: m.AgentPoliciesAdminPage })),
 )
+const McpAdministrationPage = lazy(() =>
+  import('../features/mcp/pages/McpAdministrationPage').then((m) => ({ default: m.McpAdministrationPage })),
+)
+const McpCatalogPage = lazy(() => import('../features/mcp/pages/McpCatalogPage').then((m) => ({ default: m.McpCatalogPage })))
 
 // Each route mounts a fresh <Lazy> instance, so Fade's default `in`-from-mount behavior
 // gives every route a consistent, theme-timed fade-in (FR-010/SC-007) — no per-route
@@ -341,6 +345,30 @@ const router = createBrowserRouter([
             <AgentPoliciesAdminPage />
           </Lazy>
         </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/mcp-servers',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <McpAdministrationPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/mcp/catalog',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <McpCatalogPage />
+        </Lazy>
       </ProtectedRoute>
     ),
     errorElement: <ErrorPage />,
