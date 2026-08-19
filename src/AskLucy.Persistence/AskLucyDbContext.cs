@@ -8,6 +8,7 @@ using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Mcp;
+using AskLucy.Domain.Panels;
 using AskLucy.Domain.Projects;
 using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
@@ -46,6 +47,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<UserAiPreference> UserAiPreferences => Set<UserAiPreference>();
 
     public DbSet<UserVoicePreference> UserVoicePreferences => Set<UserVoicePreference>();
+
+    public DbSet<UserPanelPreference> UserPanelPreferences => Set<UserPanelPreference>();
 
     public DbSet<VoiceProviderFailoverEvent> VoiceProviderFailoverEvents => Set<VoiceProviderFailoverEvent>();
 

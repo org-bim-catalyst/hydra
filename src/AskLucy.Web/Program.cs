@@ -9,6 +9,7 @@ using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
+using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Workflows;
 using AskLucy.Persistence;
@@ -422,6 +423,21 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // specs/028-ai-floating-panels (contracts/panel-preferences-api.md): a simple preference
+    // read/write, not AI-invoking — same generous, non-cost-tiered shape as weather-endpoints
+    // (constitution §6, caught during /speckit-analyze as a gap this plan initially missed).
+    options.AddPolicy("panels-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 30,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
@@ -575,6 +591,7 @@ app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
 app.MapHub<MemoryHub>("/hubs/memory");
 app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
 app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
+app.MapHub<PanelHub>("/hubs/panels");
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —

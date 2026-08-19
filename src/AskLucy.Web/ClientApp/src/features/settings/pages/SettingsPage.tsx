@@ -49,6 +49,7 @@ import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
 import { ChatHistoryTab } from './ChatHistoryTab'
+import { ViewerTab } from './ViewerTab'
 
 function TabPanel({
   value,
@@ -685,6 +686,7 @@ export function SettingsPage() {
           <Tab label="Chat History" />
           <Tab label="Data" />
           <Tab label="Cookies" />
+          <Tab label="Viewer" />
         </Tabs>
         <Box sx={{ p: 3 }}>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
@@ -710,6 +712,9 @@ export function SettingsPage() {
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
             <CookiePreferencesPanel />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Viewer}>
+            <ViewerTab />
           </TabPanel>
         </Box>
       </Paper>
