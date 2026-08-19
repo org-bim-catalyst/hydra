@@ -1,10 +1,12 @@
 import { Fade } from '@mui/material'
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
+import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ErrorPage } from '../components/ErrorPage'
 import { AdminRoute } from './AdminRoute'
 import { ProtectedRoute } from './ProtectedRoute'
+import { PublicOnlyRoute } from './PublicOnlyRoute'
 
+const LandingPage = lazy(() => import('../features/landing/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() =>
   import('../features/auth/pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
@@ -99,7 +101,19 @@ function Lazy({ children }: { children: React.ReactNode }) {
 }
 
 const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/chat" replace />, errorElement: <ErrorPage /> },
+  {
+    // Public marketing landing page (spec.md FR-001/FR-015): signed-out visitors see it;
+    // an already-authenticated visitor is redirected straight into /chat by PublicOnlyRoute.
+    path: '/',
+    element: (
+      <PublicOnlyRoute>
+        <Lazy>
+          <LandingPage />
+        </Lazy>
+      </PublicOnlyRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
   {
     path: '/login',
     element: (

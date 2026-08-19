@@ -389,6 +389,24 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // Funnel/CTA analytics event recording (specs/023-flumeria-landing-experience,
+    // contracts/analytics-funnel-events-api.md) — always anonymous (fired from the public
+    // landing/auth pages before any session exists), so the partition key is effectively
+    // always the caller's IP. Tighter than the generous 120/min authenticated-CRUD policies
+    // above: this endpoint has no legitimate reason to be called more than a few times per
+    // minute by one visitor (one event per CTA click / funnel completion).
+    options.AddPolicy("analytics-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 30,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---

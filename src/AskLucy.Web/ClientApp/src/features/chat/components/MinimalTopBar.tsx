@@ -55,9 +55,9 @@ export function MinimalTopBar() {
             identifies the brand, and the extra width matters more on mobile. */}
         <Typography
           variant="subtitle1"
-          sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}
+          sx={{ display: { xs: 'none', sm: 'block' }, fontWeight: 600, lineHeight: 1.2 }}
         >
-          Ask Lucy
+          Flumeria
         </Typography>
       </Stack>
       <Stack direction="row" spacing={0.5} sx={clusterSx}>
