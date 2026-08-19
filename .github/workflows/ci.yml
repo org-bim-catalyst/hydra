@@ -147,6 +147,18 @@ jobs:
         working-directory: src/AskLucy.Web/ClientApp
         run: npm ci
 
+      # Vite inlines VITE_* variables into the compiled JS at build time by reading
+      # .env.production from this directory — it never reads it again at runtime. That file is
+      # gitignored (kept out of source control since it's regenerated per environment), so it
+      # doesn't exist in this checkout; without this step the ClientApp build below silently
+      # bakes in `undefined` for these values (see MapRenderTarget.tsx's startup guard).
+      - name: Write ClientApp production env
+        working-directory: src/AskLucy.Web/ClientApp
+        shell: pwsh
+        run: |
+          Set-Content -Path .env.production -Encoding utf8 -Value "VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}"
+          Add-Content -Path .env.production -Encoding utf8 -Value "VITE_GOOGLE_MAPS_MAP_ID=${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}"
+
       - name: Publish
         run: dotnet publish src/AskLucy.Web --configuration Release --output publish/backend
 

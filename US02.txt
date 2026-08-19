@@ -1,0 +1,70 @@
+Now we will rename ask lucy chat to be Flumeria "Studio", redesign the authenticated Flumeria application shell around a minimal, immersive, AI-native workspace.
+
+The 2D/3D viewer must become the visual center of gravity.
+
+Avoid conventional permanent:
+
+- Toolbars
+- Menus
+- Sidebars
+- Navigation panels
+- Settings panels
+
+Instead, introduce compact circular controls that expand contextually.
+
+Interaction pattern:
+
+1. A control starts as a small circular icon.
+2. Clicking the control expands it into a fully rounded pill/rectangle.
+3. Related controls appear inside the expanded container.
+4. Clicking on the controls again collapses it back into the circular state.
+5. Expansion and collapse should use smooth micro-interactions.
+6. The controls should not permanently consume significant screen space.
+
+Use the supplied UI references and floating-button examples as interaction inspiration.
+
+https://freefrontend.com/css-toggle-menus/
+https://codefronts.com/components/css-floating-buttons/whatsapp-floating-message-button-css/
+https://codefronts.com/components/css-floating-buttons/#google_vignette
+
+The controls should support:
+
+- Viewer tools
+- switching between 2D/3D view modes.
+- Layers
+- Navigation
+- Selection
+- Analysis tools
+- Other contextual actions
+
+Do not implement every viewer capability in this feature. Establish the reusable control system and application-shell architecture that later features can use.
+
+Create reusable components for:
+
+- CircularAction
+- ExpandableActionGroup
+- FloatingToolbar
+- ContextualToolbar
+- FloatingPanel
+- WorkspaceOverlay
+
+The components should be compatible with the existing MUI-based application.
+
+Acceptance criteria:
+
+1. Viewer occupies the majority of the viewport full width full height.
+2. No large permanent desktop-style toolbar exists.
+3. Controls can transition between circular and expanded states.
+4. Controls work with keyboard and mouse.
+5. Animations are smooth and unobtrusive.
+6. Components are reusable by the viewer and chat features.
+7. Mobile/tablet behavior is considered.
+
+Very important: You can copy from the design and UI/UX from ready.ai from here:
+
+https://readdy.cc/preview/946d82b9-2677-4452-9c3f-0babd02c4411/13059452/studio
+
+change the page route and title from "chat" to "studio"
+
+Find also sample UI images attached
+Remix Icon
