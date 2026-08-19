@@ -1,0 +1,73 @@
+Remove the "+ new chat button" as every new session should start new chat by default.
+Remove the drop down menu of the language, as the user should set the default language from the chat configuratiom, only show a flag of the current active language in circle and to be updated when the user change it from the settings.
+Remove the "Generate image" button as this will be done by agent later from the conversation directly.
+When the user press the record button the UI should have the same Chatgpt look and feel, a button to show the user has finished speaking, a button to cancel the recording and go back to typing mode and a button to send the recording for transcription after the user accept, previously you had implanted this and you were showing the waveform during the recoring of the user speech.
+
+Redesign the chat interface as a floating AI assistant integrated into the Flumeria urban design workspace, typically copy the design found in this ready.ai link:
+https://readdy.cc/preview/800b95f3-04b7-441a-bb7c-2d638e7b67a2/13073521/
+
+I am providing you with sample screenshots for the different UI components.
+
+When you scan: https://readdy.cc/preview/800b95f3-04b7-441a-bb7c-2d638e7b67a2/13073521/, do it programmatically not only by screenshot, because you need to copy the llok and feel and design and override whaterver we are incorporating now in the current design.
+
+The chat must have two primary states:
+
+1. Collapsed
+2. Expanded
+
+## COLLAPSED STATE
+
+The default state should be collapsed so that the viewer remains unobstructed.
+
+Display only a narrow floating vertical control containing:
+
+- collaps/expand handle.
+- Real-time vertical voice analyzer/waveform (make it modern not like chatgpt ugly one).
+- Push-to-Talk button.
+- Continuous Listening toggle.
+- Mute Agent control.
+- Minimal connection/status indicator.
+
+The vertical analyzer should visually communicate the user's state:
+
+- Idle
+- Processing
+- Speaking
+
+The collapsed control should remain visually lightweight and should not obscure the studio design viewer.
+
+The control should be collapsale or expandable from its handle.
+
+## EXPANDED STATE
+
+When expanded:
+
+- The vertical analyzer disappears.
+- The full conversation becomes visible.
+- User and assistant messages are displayed.
+- Chat input becomes available.
+- Voice controls remain accessible.
+- Attachments/actions can remain available where appropriate.
+- The window retains the same premium floating aesthetic.
+
+The expanded chat should behave conceptually like a floating MUI drawer/panel rather than a traditional permanent sidebar.
+
+The chat should support smooth transitions between collapsed and expanded states.
+
+The design should be based on the supplied collapsed/expanded reference image.
+
+Important:
+
+Do not redesign the underlying AI/LLM functionality. Preserve the existing chat/agent behavior and focus this feature on the UI/UX and interaction model.
+
+Acceptance criteria:
+
+1. Chat starts collapsed by default.
+2. User can expand and collapse it.
+3. Collapsed state contains vertical analyzer + voice controls.
+4. Expanded state contains conversation and input.
+5. Vertical analyzer disappears when expanded.
+6. Chat remains above the viewer without changing viewer layout.
+7. Existing Ask Lucy functionality remains operational.
+8. State transitions are animated.
+9. The design works with mouse, keyboard and touch.

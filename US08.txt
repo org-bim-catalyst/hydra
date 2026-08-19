@@ -1,0 +1,65 @@
+Integrate Ask Lucy as the intelligent interaction layer of the Flumeria AI Urban Design workspace.
+
+The objective is to create an AI-native workflow where Lucy can communicate with the user and simultaneously control/interpret the visual workspace.
+
+The experience should feel like:
+
+"An AI urban designer operating inside an interactive digital environment."
+
+Example workflow:
+
+User:
+"Analyze this site and identify opportunities for a public park."
+
+Lucy should be able to:
+
+1. Understand the user's request.
+2. Identify the relevant site/context.
+3. Request or use available GIS/site information.
+4. Process the relevant spatial information.
+5. Generate analysis.
+6. Display relevant results in the Three.js viewer.
+7. Create an appropriate floating analysis panel.
+8. Highlight relevant areas on the map/model.
+9. Continue the conversation with the user.
+
+Establish the integration between:
+
+- Ask Lucy.
+- Chat UI.
+- Three.js viewer.
+- GIS layers.
+- Viewer API.
+- Floating panel framework.
+- Voice interaction.
+- AI-generated analysis.
+
+The AI should be able to issue viewer-oriented actions through a controlled application API rather than directly manipulating UI components.
+
+Example conceptual commands:
+
+- Focus on site.
+- Zoom to location.
+- Highlight geometry.
+- Add GIS layer.
+- Remove GIS layer.
+- Create analysis overlay.
+- Display analysis panel.
+- Open data panel.
+- Display generated design.
+- Select object.
+- Compare alternatives.
+
+Do not hardcode the example public-park workflow. Build a reusable architecture for future urban-design agents and capabilities.
+
+The UI should be driven by AI actions and visual responses rather than conventional application navigation.
+
+Acceptance criteria:
+
+1. Ask Lucy can communicate with the viewer.
+2. AI responses can trigger viewer actions.
+3. AI responses can create floating panels.
+4. AI can highlight relevant spatial information.
+5. Chat and viewer remain synchronized.
+6. Voice interaction works through the same agent.
+7. The architecture supports additional AI urban-design capabilities.

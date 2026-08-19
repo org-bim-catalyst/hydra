@@ -1,0 +1,39 @@
+We already move the existing Ask Lucy voice analyzer Ring Sphere from the main viewer into a reusable floating panel.
+
+The voice analyzer should no longer occupy the central visual workspace permanently.
+
+The floating Voice Analyzer panel:
+
+- Can be opened from the AI/chat interface.
+- Can be closed.
+- Can be minimized.
+- Can be moved.
+- Can be resized where appropriate.
+- Appears above the Three.js viewer.
+- Communicates with the existing voice/audio engine.
+- Preserves the current analyzer visualization and audio states.
+- Its background is semi-transparent
+
+The analyzer must reflect:
+
+- Idle.
+- Listening.
+- Processing.
+- Speaking.
+- Muted where applicable.
+
+The analyzer should use the same floating-panel infrastructure introduced by the AI-to-UI panel system.
+
+Do not create a second audio engine or duplicate the existing voice functionality.
+
+Reuse the existing analyzer/audio implementation wherever possible.
+
+Acceptance criteria:
+
+1. Voice sphere is no longer permanently centered in the viewer.
+2. Voice analyzer opens as a floating panel.
+3. Existing voice/audio functionality remains operational.
+4. Panel can be moved and closed.
+5. Analyzer uses the common floating-panel infrastructure.
+
+with the current implementation(see the attached images) it seems like there is something wrong, as first lucy picture is displayed inside the Voice Analyzer panel then the ring sphere then dot sphere, only the ring sphere is what shold be displayed.

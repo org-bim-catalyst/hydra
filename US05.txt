@@ -1,0 +1,78 @@
+I want to display a widget with the current location name and temperature and icon for weather condition same like the sample image attached.
+
+You can get this from current user location.
+
+Once the location is known, you can use this link: https://developers.google.com/maps/documentation/javascript/webgl/webgl-overlay-view to render in the viewer the current location.
+
+In the tools bar there should be a button that toggle the isometric view and the plan view and another one to keep the rotation or stop it.
+
+Transform the main Flumeria workspace into an immersive Three.js-based 2D/3D visualization environment for AI-assisted urban design.
+
+The viewer is the primary visual workspace and must occupy the majority of the application viewport.
+
+The viewer should be architected conceptually similar to Autodesk Platform Services Viewer while remaining a Three.js-based implementation.
+
+The viewer must provide an extensible foundation for:
+
+## 2D/3D DESIGN CONTENT
+
+- BIM models.
+- Generic 3D models.
+- 2D drawings.
+- Urban design proposals.
+- AI-generated design outputs.
+- Analysis visualizations.
+- Generated diagrams.
+- Google maps
+- ESRI maps
+- OSM maps
+
+## GIS / MAP CONTENT
+
+- GIS datasets.
+- 2D maps.
+- Satellite imagery where legally/API permitted.
+- 3D geographic environments.
+- Site boundaries.
+- Urban context.
+- Spatial analysis layers.
+
+Design the viewer as an extensible rendering platform rather than a single-purpose map component.
+
+Create clear separation between:
+
+- Viewer engine.
+- Camera/navigation.
+- Render layers.
+- GIS layers.
+- Model layers.
+- Selection.
+- Highlighting.
+- Overlays.
+- AI-generated visualizations.
+- Viewer events/API.
+
+The viewer must expose an internal API that can later be called by Ask Lucy/AI agents.
+
+For example:
+
+AI Agent
+→ viewer command
+→ add layer
+→ highlight site
+→ zoom to location
+→ display model
+→ create analysis overlay
+
+Do not implement the complete AI-agent integration in this feature. Establish the viewer architecture and API contracts required by later features.
+
+Acceptance criteria:
+
+1. Three.js viewer occupies the primary workspace.
+2. Viewer supports an extensible layer architecture.
+3. GIS and 3D model concepts are separated but composable.
+4. Viewer exposes programmatic commands/events.
+5. Viewer supports selection and highlighting.
+6. Viewer supports camera/navigation commands.
+7. Viewer can receive future AI-generated visualizations.
+8. Existing viewer functionality should be preserved where applicable.

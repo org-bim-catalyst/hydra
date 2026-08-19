@@ -1,0 +1,72 @@
+Implement an extensible AI-to-UI floating panel framework for the Flumeria Three.js viewer.
+
+The objective is to allow Ask Lucy and other AI agents to dynamically present visual responses as interactive floating panels over the viewer.
+
+Architecture:
+
+AI Agent
+→ AI Response
+→ UI/Visualization Request
+→ Floating Panel
+→ Viewer Overlay
+
+The framework must support panels for:
+
+- Analysis dashboards.
+- Charts.
+- Tables.
+- Design recommendations.
+- Site analysis.
+- GIS information.
+- Environmental analysis.
+- Urban design metrics.
+- Generated diagrams.
+- Parameters and controls.
+- Alternative design proposals.
+- Other future AI-generated UI.
+
+Panels must support:
+
+- Floating positioning.
+- Dragging.
+- Resizing where appropriate.
+- Minimizing.
+- Closing.
+- Z-index/layer management.
+- Transparency.
+- Opacity control.
+- Context association.
+- Communication with the viewer/model.
+
+Panels should be semi-transparent.
+
+Users must be able to control panel opacity from Settings.
+
+The architecture should allow the AI agent to request a panel without hardcoding every possible panel into the main application.
+
+For example, the architecture should support a future request conceptually similar to:
+
+createPanel({
+    type: "site-analysis",
+    title: "...",
+    data: ...,
+    position: ...,
+    opacity: ...
+})
+
+Do not assume this exact API; design the appropriate architecture for the existing codebase.
+
+The panel system must be reusable by future AI tools and agents.
+
+Acceptance criteria:
+
+1. Floating panels can appear above the viewer.
+2. Panels can be moved.
+3. Panels can be resized where supported.
+4. Panels can be minimized and closed.
+5. Multiple panels can coexist.
+6. Panels support z-index/focus management.
+7. Panel opacity can be configured.
+8. Panels can communicate with the viewer.
+9. The architecture is extensible for new AI response types.
+10. Viewer remains usable while panels are open.

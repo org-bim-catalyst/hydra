@@ -1,0 +1,51 @@
+Implement the new public-facing experience for the AI Urban Design Platform (flumeria), integrating the existing Ask Lucy product identity into the new platform.
+
+The product architecture should treat Flumeria as the primary product and Ask Lucy as its underlying agentic AI engine/interface. The final experience should feel like one coherent product rather than two unrelated applications.
+
+Create the complete unauthenticated user journey:
+
+Landing Page → Sign In / Sign Up → Authenticated Flumeria Workspace
+
+The landing page should communicate:
+
+- What Flumeria is.
+- What problems it solves.
+- How AI-assisted urban design works.
+- How Lucy interacts with the urban design environment.
+- How GIS, maps, 2D/3D models and spatial analysis are integrated.
+- How AI-generated analysis is visualized.
+- Why the platform is different from conventional urban design software.
+
+Primary CTAs:
+
+- Sign In
+- Create Account / Sign Up
+- Try the Platform
+https://readdy.cc/preview/dda773a0-c1ff-4ec2-988a-03bcc60f32ef/12880981/
+https://readdy.cc/preview/dda773a0-c1ff-4ec2-988a-03bcc60f32ef/12880981/sign-up
+https://readdy.cc/preview/dda773a0-c1ff-4ec2-988a-03bcc60f32ef/12880981/sign-in
+
+Use the supplied Readdy.ai design as the initial visual direction. Refine it using UI/UX Pro Max principles and adapt it to the actual application architecture.
+
+The resulting visual language should be:
+
+- Premium
+- Minimal
+- AI-native
+- Spatial
+- Modern
+- Professional
+- Suitable for architects, urban designers, planners, engineers and GIS users.
+
+Authentication should seamlessly transition into the main Flumeria workspace (same ask lucy main page).
+
+Do not redesign the authenticated viewer/chat workspace in this feature except where necessary to establish the transition between the public and authenticated experiences.
+
+Acceptance criteria:
+
+1. Landing page is fully responsive.
+2. Sign In and Sign Up flows are visually consistent with the landing page.
+3. Authenticated users are redirected to the Flumeria workspace (previously ask lucy main page).
+4. Ask Lucy is presented as an integrated AI capability rather than a separate unrelated application.
+5. Existing authentication functionality should be preserved where possible.
+6. Do not introduce unnecessary dashboard-style navigation.

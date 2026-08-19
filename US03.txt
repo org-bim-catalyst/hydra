@@ -1,0 +1,35 @@
+Move advanced Ask Lucy configuration options out of the primary chat interface and into User Settings.
+
+Create a new settings section:
+
+Chat Configuration
+
+The Chat Configuration section should contain:
+
+- Current LLM engine/model.
+- Chat/agent configuration.
+- Chat history.
+- Voice configuration.
+- Speech-to-text settings.
+- Text-to-speech settings.
+- Other AI-agent preferences.
+
+The primary workspace and chat interface should no longer expose advanced configuration unnecessarily.
+
+The goal is to keep the Flumeria workspace visually clean while preserving access to advanced configuration.
+
+Integrate Chat Configuration into the existing user settings/dropdown architecture.
+
+Do not duplicate configuration controls unnecessarily between the chat window and settings.
+
+Preserve all existing configuration functionality.
+
+Acceptance criteria:
+
+1. Chat Configuration exists under User Settings.
+2. Existing LLM selection remains functional.
+3. Chat history configuration remains functional.
+4. STT/TTS settings remain functional.
+5. Voice settings remain functional.
+6. Advanced configuration is removed from the main chat UI where appropriate.
+7. Existing settings are not lost or duplicated.
