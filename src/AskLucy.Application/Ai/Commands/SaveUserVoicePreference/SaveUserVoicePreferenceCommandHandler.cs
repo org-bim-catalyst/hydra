@@ -30,11 +30,13 @@ public sealed class SaveUserVoicePreferenceCommandHandler(
             request.PreferredMicrophoneDeviceId,
             request.PreferredSpeakerDeviceId,
             userId);
+        preference.SetDefaultLanguage(request.DefaultLanguage, userId);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new UserVoicePreferenceDto(
             preference.ConversationMode.ToString(), preference.IsMuted, preference.SelectedVoiceId,
-            preference.VoiceSpeed, preference.VoiceStyle, preference.PreferredMicrophoneDeviceId, preference.PreferredSpeakerDeviceId);
+            preference.VoiceSpeed, preference.VoiceStyle, preference.PreferredMicrophoneDeviceId, preference.PreferredSpeakerDeviceId,
+            preference.DefaultLanguage);
     }
 }

@@ -18,11 +18,12 @@ public sealed class GetUserVoicePreferenceQueryHandler(
         // matching contracts/voice-preferences.md's documented GET behavior.
         if (preference is null)
         {
-            return new UserVoicePreferenceDto(VoiceConversationMode.PushToTalk.ToString(), IsMuted: false, null, null, null, null, null);
+            return new UserVoicePreferenceDto(VoiceConversationMode.PushToTalk.ToString(), IsMuted: false, null, null, null, null, null, null);
         }
 
         return new UserVoicePreferenceDto(
             preference.ConversationMode.ToString(), preference.IsMuted, preference.SelectedVoiceId,
-            preference.VoiceSpeed, preference.VoiceStyle, preference.PreferredMicrophoneDeviceId, preference.PreferredSpeakerDeviceId);
+            preference.VoiceSpeed, preference.VoiceStyle, preference.PreferredMicrophoneDeviceId, preference.PreferredSpeakerDeviceId,
+            preference.DefaultLanguage);
     }
 }

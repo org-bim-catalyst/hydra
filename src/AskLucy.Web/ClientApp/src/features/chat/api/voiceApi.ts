@@ -25,6 +25,9 @@ export interface UserVoicePreference {
   voiceStyle: number | null
   preferredMicrophoneDeviceId: string | null
   preferredSpeakerDeviceId: string | null
+  /** specs/026-floating-chat-assistant FR-016/FR-017, contracts/voice-preference-api.md —
+   * `null` until the user has explicitly saved one. */
+  defaultLanguage: string | null
 }
 
 export const getVoicePreferences = () => apiFetch<UserVoicePreference>('/ai/voice/preferences')

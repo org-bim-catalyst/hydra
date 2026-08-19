@@ -39,7 +39,7 @@ export function ExternalLoginCompletePage() {
       .then(() => {
         // FR-021: a social-login round-trip is a sign-in funnel completion too.
         recordFunnelCompleted('SignIn')
-        navigate('/chat', { replace: true })
+        navigate('/studio', { replace: true })
       })
       .catch(() => {
         // completeExternalLogin.isError drives the error alert below; nothing further to do.

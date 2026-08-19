@@ -32,7 +32,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const toggleTheme = useThemeStore((s) => s.toggle)
   const isAuthenticated = useAuthStore((s) => Boolean(s.accessToken))
   const { pathname } = useLocation()
-  const isHome = pathname === '/chat'
+  const isHome = pathname === '/studio'
 
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
@@ -54,7 +54,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       >
         <Stack
           component={RouterLink}
-          to="/chat"
+          to="/studio"
           aria-current={isHome ? 'page' : undefined}
           aria-label="Ask Lucy home"
           direction="row"

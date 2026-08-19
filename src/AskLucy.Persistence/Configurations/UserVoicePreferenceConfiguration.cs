@@ -20,6 +20,7 @@ public sealed class UserVoicePreferenceConfiguration : IEntityTypeConfiguration<
         builder.Property(p => p.SelectedVoiceId).HasMaxLength(100);
         builder.Property(p => p.PreferredMicrophoneDeviceId).HasMaxLength(200);
         builder.Property(p => p.PreferredSpeakerDeviceId).HasMaxLength(200);
+        builder.Property(p => p.DefaultLanguage).HasMaxLength(10);
 
         builder.Property(p => p.CreatedBy).IsRequired();
         builder.Property(p => p.RowVersion).IsRowVersion();

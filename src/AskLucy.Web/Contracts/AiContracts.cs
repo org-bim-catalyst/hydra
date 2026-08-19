@@ -39,7 +39,8 @@ public sealed record SaveVoicePreferenceRequest(
     double? VoiceSpeed,
     double? VoiceStyle,
     string? PreferredMicrophoneDeviceId,
-    string? PreferredSpeakerDeviceId);
+    string? PreferredSpeakerDeviceId,
+    string? DefaultLanguage);
 
 public sealed record VoiceReplyRequest(
     Guid ChatId,

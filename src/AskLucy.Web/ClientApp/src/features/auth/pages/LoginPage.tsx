@@ -40,7 +40,7 @@ export function LoginPage() {
         // FR-021: fired immediately before navigating, never delaying it (contracts/
         // routing-and-consent-contract.md).
         recordFunnelCompleted('SignIn')
-        navigate('/chat')
+        navigate('/studio')
       }
     } catch {
       // login.isError drives the error alert above; nothing further to do.
@@ -56,7 +56,7 @@ export function LoginPage() {
         isRecoveryCode: false,
       })
       recordFunnelCompleted('SignIn')
-      navigate('/chat')
+      navigate('/studio')
     } catch {
       // loginTwoFactor.isError drives the error alert above; nothing further to do.
     }

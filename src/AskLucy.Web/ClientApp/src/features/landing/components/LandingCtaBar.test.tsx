@@ -30,7 +30,7 @@ function renderCtaBar() {
         <Routes>
           <Route path="/" element={<LandingCtaBar />} />
           <Route path="/register" element={<div>Sign-up page</div>} />
-          <Route path="/chat" element={<div>Workspace</div>} />
+          <Route path="/studio" element={<div>Workspace</div>} />
         </Routes>
       </QueryClientProvider>
     </MemoryRouter>,

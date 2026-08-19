@@ -16,6 +16,7 @@ using AskLucy.Application.Chats.Commands.UnfavoriteUserChat;
 using AskLucy.Application.Chats.Commands.UnpinUserChat;
 using AskLucy.Application.Chats.Commands.UpdateChatModelSelection;
 using AskLucy.Application.Chats.Queries.ExportUserChat;
+using AskLucy.Application.Chats.Queries.GetChatById;
 using AskLucy.Application.Chats.Queries.GetChatMessages;
 using AskLucy.Application.Chats.Queries.SearchUserChats;
 using AskLucy.Application.Common;
@@ -49,6 +50,11 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default) =>
         Ok(await mediator.Send(new SearchUserChatsQuery(view, pinned, favorite, q, sort, cursor, pageSize), cancellationToken));
+
+    /// <summary>specs/025-chat-configuration-settings, contracts/chat-detail-api.md — a single chat's own detail, including its current provider/model selection.</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ChatDetailDto>> GetById(Guid id, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetChatByIdQuery(id), cancellationToken));
 
     [HttpPost]
     public async Task<ActionResult<UserChatDto>> Create(CreateChatRequest request, CancellationToken cancellationToken)

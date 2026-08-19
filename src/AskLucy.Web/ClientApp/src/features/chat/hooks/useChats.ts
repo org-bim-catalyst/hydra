@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as chatsApi from '../api/chatsApi'
 import type { SearchChatsParams } from '../api/chatsApi'
 
@@ -35,6 +35,15 @@ export function useDeleteChat() {
   return useMutation({
     mutationFn: (id: string) => chatsApi.deleteChat(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CHATS_QUERY_KEY }),
+  })
+}
+
+/** specs/025-chat-configuration-settings — a single chat's own detail (current provider/model), used by Chat Configuration's current-conversation control. */
+export function useChatDetail(chatId: string | null) {
+  return useQuery({
+    queryKey: [...CHATS_QUERY_KEY, chatId, 'detail'],
+    queryFn: () => chatsApi.getChatById(chatId!),
+    enabled: chatId !== null,
   })
 }
 

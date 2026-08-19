@@ -7,8 +7,8 @@ import { createGlassTokens } from '../../../theme/tokens/glass'
 import { radius } from '../../../theme'
 
 /** FR-015: the minimal navigation retained outside the floating assistant panel — brand
- * identity, theme, and account access. Everything chat-specific (language, translate,
- * generate image, message list, composer) lives inside AssistantPanel instead (T015).
+ * identity, theme, and account access. Everything chat-specific (language flag, translate,
+ * message list, composer) lives inside ChatAssistantWidget's ExpandedChatPanel instead.
  * Transparent/pointer-events-none outside its controls so the 3D scene stays draggable
  * through the empty space of the bar. */
 export function MinimalTopBar() {

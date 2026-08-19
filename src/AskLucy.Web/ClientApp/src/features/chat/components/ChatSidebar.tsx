@@ -135,9 +135,11 @@ function downloadBlob(blob: Blob, fileName: string) {
  *
  * Extracted from the old fixed-width `ChatSidebar` shell (research.md §7, spec.md FR-008)
  * so the same list/search/filter/sort/action logic can be reused inside a bounded-height
- * container — a `ConversationSwitcher` Popover — not just a full-height column. This
- * component itself makes no assumption about its container's width/height beyond filling
- * it (`height: '100%'`); the caller supplies both the size and any chrome around it.
+ * container, not just a full-height column. This component itself makes no assumption
+ * about its container's width/height beyond filling it (`height: '100%'`); the caller
+ * supplies both the size and any chrome around it — specs/025-chat-configuration-settings
+ * relocated it from an in-workspace `ConversationSwitcher` Popover (now deleted) into the
+ * standalone Chat History Settings tab (`ChatHistoryTab.tsx`).
  */
 export function ConversationList({
   selectedChatId,
@@ -552,9 +554,10 @@ interface ChatSidebarProps {
   onNewChat: () => void
 }
 
-/** The original fixed 300px permanent column shell around `ConversationList`. No longer
- * used by ChatPage (FR-008 replaced it with `ConversationSwitcher`'s popover), kept as
- * the standalone, directly-testable entry point it always was. */
+/** The original fixed 300px permanent column shell around `ConversationList`. No longer used
+ * anywhere in the app (superseded first by the in-workspace `ConversationSwitcher` popover,
+ * then by the standalone Chat History Settings tab — specs/025-chat-configuration-settings),
+ * kept as the standalone, directly-testable entry point it always was. */
 export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSidebarProps) {
   return (
     <Box

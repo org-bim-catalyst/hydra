@@ -17,5 +17,5 @@ export function AdminRoute({ children }: PropsWithChildren) {
     return <Navigate to="/login" replace />
   }
 
-  return isAdmin ? <>{children}</> : <Navigate to="/chat" replace />
+  return isAdmin ? <>{children}</> : <Navigate to="/studio" replace />
 }
