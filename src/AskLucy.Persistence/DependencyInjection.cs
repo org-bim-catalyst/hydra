@@ -121,6 +121,12 @@ public static class DependencyInjection
         services.AddScoped<IMcpPromptRepository, McpPromptRepository>();
         services.AddScoped<IMcpAuditLogRepository, McpAuditLogRepository>();
 
+        // Workflow & Tool Orchestration Engine (specs/022-workflow-orchestration-engine) — Foundational.
+        services.AddScoped<IWorkflowRepository, WorkflowRepository>();
+        services.AddScoped<IWorkflowExecutionRepository, WorkflowExecutionRepository>();
+        services.AddScoped<IWorkflowPolicyRepository, WorkflowPolicyRepository>();
+        services.AddScoped<IWorkflowAuditLogRepository, WorkflowAuditLogRepository>();
+
         return services;
     }
 }

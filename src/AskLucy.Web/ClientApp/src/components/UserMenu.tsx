@@ -8,6 +8,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import PolicyIcon from '@mui/icons-material/Policy'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import { Avatar, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -81,6 +82,12 @@ export function UserMenu() {
             <SmartToyOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Agents</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => goTo('/workflows')}>
+          <ListItemIcon>
+            <AccountTreeOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Workflows</ListItemText>
         </MenuItem>
         {isAdmin && (
           <MenuItem onClick={() => goTo('/admin/dashboard')}>

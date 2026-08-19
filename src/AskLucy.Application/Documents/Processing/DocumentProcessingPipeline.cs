@@ -1,6 +1,8 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Workflows.EventTriggers;
 using AskLucy.Domain.Documents;
 using Hangfire;
+using MediatR;
 
 namespace AskLucy.Application.Documents.Processing;
 
@@ -22,6 +24,7 @@ public sealed class DocumentProcessingPipeline(
     IDocumentProcessingJobRepository jobRepository,
     IEnumerable<IProcessingStageHandler> stageHandlers,
     IProcessingNotifier notifier,
+    IPublisher publisher,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
     IBackgroundJobClient backgroundJobClient) : IDocumentProcessingPipeline
@@ -143,6 +146,10 @@ public sealed class DocumentProcessingPipeline(
 
         await notifier.NotifyProcessingCompletedAsync(document.OwnerId, document.Id, cancellationToken);
         await notifier.NotifyAsync(document.OwnerId, DocumentNotificationEventType.ProcessingCompleted, document.Id, $"\"{document.FileName}\" finished processing.", cancellationToken);
+
+        // research.md Decision 12 — the event-trigger dispatch point for FR-063's "document
+        // processed" trigger; published only after every commit above has succeeded.
+        await publisher.Publish(new DocumentProcessedNotification(document.Id, document.OwnerId, document.FileName), cancellationToken);
     }
 
     private async Task NotifyStageAsync(Domain.Documents.Document document, Guid jobId, DocumentProcessingStageType stageType, DocumentProcessingStageStatus status, CancellationToken cancellationToken)

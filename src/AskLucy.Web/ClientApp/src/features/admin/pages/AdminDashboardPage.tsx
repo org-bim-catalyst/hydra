@@ -45,6 +45,9 @@ export function AdminDashboardPage() {
           <Button component={RouterLink} to="/admin/agent-policies" variant="outlined" size="small">
             Manage agent policies
           </Button>
+          <Button component={RouterLink} to="/admin/workflow-policies" variant="outlined" size="small">
+            Manage workflow policies
+          </Button>
           <Button component={RouterLink} to="/admin/mcp-servers" variant="outlined" size="small">
             Manage MCP servers
           </Button>

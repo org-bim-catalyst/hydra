@@ -5,6 +5,7 @@ using FluentAssertions;
 using Hangfire;
 using Hangfire.Common;
 using Hangfire.States;
+using MediatR;
 using NSubstitute;
 
 namespace AskLucy.Application.Tests.Documents.Processing;
@@ -34,6 +35,7 @@ public sealed class DocumentProcessingPipelineTests
     private readonly IDocumentRepository _documentRepository = Substitute.For<IDocumentRepository>();
     private readonly IDocumentProcessingJobRepository _jobRepository = Substitute.For<IDocumentProcessingJobRepository>();
     private readonly IProcessingNotifier _notifier = Substitute.For<IProcessingNotifier>();
+    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
@@ -63,7 +65,7 @@ public sealed class DocumentProcessingPipelineTests
     }
 
     private DocumentProcessingPipeline CreateSut() =>
-        new(_documentRepository, _jobRepository, _handlers.Values, _notifier, _unitOfWork, _currentUser, _backgroundJobClient);
+        new(_documentRepository, _jobRepository, _handlers.Values, _notifier, _publisher, _unitOfWork, _currentUser, _backgroundJobClient);
 
     [Fact]
     public async Task RunJobAsync_ShouldCompleteTheJobAndDocument_WhenEveryStageSucceeds()

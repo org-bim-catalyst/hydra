@@ -1064,7 +1064,243 @@ failure already uses.
 
 ---
 
-# 12. File Aggregate
+# 12. Workflow Aggregate
+
+Shipped in specs/022-workflow-orchestration-engine as four aggregates: `Workflow`
+(definition/versioning/event-trigger configuration), `WorkflowExecution` (one run and everything
+it produced), `WorkflowPolicy` (administrator auto-approval rules, alongside a sibling
+`WorkflowUserExecutionLimit`), `WorkflowAuditLog` (security audit, standalone) — a structural
+mirror of §10 Agent Aggregate's own four-aggregate shape. See
+`specs/022-workflow-orchestration-engine/data-model.md` for the authoritative field list; this
+section lists structure and business rules only.
+
+## Aggregate Root
+
+Workflow
+
+Properties
+
+```text
+OwnerId
+
+Name, Description
+
+WorkflowType (Manual | EventDriven | AgentAssisted | Scheduled — Scheduled reserved for a
+future release, never selectable today)
+
+Status (Draft | Published | Archived | Disabled | Deprecated)
+
+PreArchiveStatus (nullable — where Restore returns to)
+
+DraftDefinitionJson (the Designer's canvas document — nodes/connections/variables/policies;
+only this field changes while editing, published versions never read it)
+
+PublishedVersionNumber (nullable)
+
+EventTriggerConfigurationJson (nullable — populated only when WorkflowType is EventDriven)
+```
+
+Navigation
+
+```text
+Versions (WorkflowVersion)
+```
+
+Business Rules
+
+Publishing snapshots the current draft into an immutable `WorkflowVersion`; a published
+version's fields never change afterward. `Disable` (Published → Disabled) stops event-trigger
+dispatch only — a manual start still succeeds. `Deprecate` (Published → Deprecated) is one-way
+and blocks both manual and event-triggered starts; already-running executions are unaffected.
+Duplicate/Archive/Restore/Delete never touch version or execution history.
+
+---
+
+## Entity
+
+WorkflowVersion / WorkflowNode / WorkflowConnection / WorkflowVariable
+
+`WorkflowVersion` (`VersionNumber` unique per workflow, `InputsSchemaJson`/`OutputsSchemaJson`,
+`ErrorPolicyJson`/`ExecutionPolicyJson`/`SecurityPolicyJson`, `ChangeDescription`) is immutable
+once created — every `WorkflowExecution` references the exact `WorkflowVersionId` it ran under,
+so a later draft edit or republish never retroactively changes what a past execution reports.
+`WorkflowNode` (`NodeKey` unique per version, `NodeType`, `ConfigurationJson`,
+`RequiredPermissionsJson`, `TimeoutSeconds`, `RetryPolicyJson`, `ApprovalPolicy`,
+`IdempotencyKeyExpression`, `CompensatingNodeId` — reused for both Fallback's "run instead of
+me" and Compensate's "run to undo me," the two strategies being mutually exclusive per
+execution) is one step in the graph. `WorkflowConnection` (`SourceNodeId`, `TargetNodeId`,
+`BranchLabel`, `TypeContract`) is one directed edge. `WorkflowVariable` (`Kind`: WorkflowVariable
+| NodeOutputReference | UserInput | EnvironmentConfiguration | SystemContext) is one typed,
+named value resolvable via `{{...}}` expressions.
+
+---
+
+## Aggregate Root
+
+WorkflowExecution
+
+Properties
+
+```text
+WorkflowId, WorkflowVersionId, RunByUserId
+
+Status (Queued | Running | Paused | WaitingForApproval | Completed | Failed | Cancelled |
+TimedOut)
+
+TriggerType (Manual | EventDriven | Test)
+
+TriggeringEventReferenceJson (nullable — populated only for an event-triggered execution)
+
+InputsJson, VariablesJson, FinalOutputJson, TerminationReason
+
+StartedAtUtc, CompletedAtUtc
+```
+
+Navigation
+
+```text
+Nodes (WorkflowExecutionNode)
+
+Events (WorkflowExecutionEvent, append-only)
+
+Approvals (WorkflowApproval)
+
+Errors (WorkflowError)
+
+Usage (WorkflowExecutionUsage, 0..1), Cost (WorkflowExecutionCost, 0..1)
+```
+
+Business Rules
+
+Never hard-deleted. Resumable: a Human Approval pause, a user-initiated pause, or a manually
+retried failed node all persist state needed to continue from exactly where execution stopped,
+never re-running an already-`Completed` node. A mutating node retried after a pause/resume cycle
+reuses a prior `Completed` row's output when its resolved `IdempotencyKeyExpression` matches,
+rather than re-invoking the underlying tool.
+
+---
+
+## Entity
+
+WorkflowExecutionNode / WorkflowExecutionEvent
+
+`WorkflowExecutionNode` (`WorkflowNodeId`, `Status`: Pending | Running | Completed | Failed |
+Skipped | Cancelled | WaitingForApproval, `OutputJson`, `RetryCount`, `SkippedReason`,
+`ResolvedIdempotencyKey`) is one node dispatch — a bounded loop revisiting the same node
+produces multiple rows, not one row mutated in place. `WorkflowExecutionEvent` (`EventType`
+mirroring `WorkflowExecutionStatus`/node-status literals, `WorkflowNodeId` nullable,
+`SafeMetadataJson` — never raw node input/output content) is the append-only reconciliation
+stream a client that missed a live push replays from.
+
+---
+
+## Entity
+
+WorkflowApproval / WorkflowError
+
+`WorkflowApproval` (`WorkflowExecutionNodeId`, `IntendedActionDescription`, `ParametersJson`,
+`Decision`: Pending | Approve | Reject | RequestChanges | Cancel, `DecidedByUserId`,
+`WasPolicyBased`) mirrors `AgentApproval` (§10) field-for-field. `WorkflowError`
+(`WorkflowExecutionNodeId` nullable, `Category`, `Message`, `RetryCount`, `OccurredAtUtc`) is one
+recorded failure, kept even after a successful retry.
+
+---
+
+## Entity
+
+WorkflowExecutionUsage / WorkflowExecutionCost
+
+```text
+WorkflowExecutionId
+
+InputTokenCount, OutputTokenCount, ReasoningTokenCount (all nullable, accumulated across
+every AI Prompt/AI Agent node invocation)
+
+ToolCallCount
+
+EstimatedCost, CurrencyCode (WorkflowExecutionCost only, default "USD")
+```
+
+Business Rules
+
+0..1 each per execution — absent until the first AI/tool node invocation accumulates something.
+Aggregated (never loaded per-execution) by the Workflow Monitoring dashboard's statistics query.
+
+---
+
+## Aggregate Root
+
+WorkflowPolicy
+
+Properties
+
+```text
+OrganizationId (reserved, always null this release)
+
+Name, Description, WorkflowNodeType (nullable), UnderlyingToolName (nullable),
+ConditionsJson (flat parameter-equality match; empty = always), IsEnabled
+
+CreatedByUserId (must hold Administrator/Super User role)
+```
+
+Business Rules
+
+Administrator/Super User only. Matched against an intended Human Approval node or any
+High/Critical-risk capability node before it pauses for interactive approval — mirrors
+`AgentPolicy` (§10) exactly. A workflow author's own stricter node-level `ApprovalPolicy` can
+never be bypassed by a matching `WorkflowPolicy`; only the platform's own baseline is ever
+policy-matchable.
+
+---
+
+## Entity
+
+WorkflowUserExecutionLimit
+
+Properties
+
+```text
+UserId (unique), MaxConcurrentExecutions, SetByUserId
+```
+
+Business Rules
+
+Per-user override of `WorkflowRuntimeOptions.DefaultMaxConcurrentExecutions` (FR-069/FR-070) —
+field-for-field mirror of `AgentUserExecutionLimit` (§10), tracked independently of a user's
+agent-execution cap. Enforced identically at both the manual-start path
+(`StartWorkflowExecutionCommand`) and the event-trigger dispatch path
+(`WorkflowEventTriggerHandler`).
+
+---
+
+## Aggregate Root
+
+WorkflowAuditLog
+
+Properties
+
+```text
+WorkflowId (nullable), WorkflowExecutionId (nullable) — not a hard FK to either, survives a
+later-purged workflow/execution
+
+ActorUserId
+
+Action (WorkflowCreated | WorkflowModified | WorkflowPublished | ExecutionStarted |
+ExecutionCompleted | ExecutionFailed | ExecutionCancelled | ApprovalDecided |
+PermissionDenied | CrossUserAccessAttempted)
+
+DetailsJson, OccurredAtUtc
+```
+
+Business Rules
+
+Append-only, tamper-resistant — distinct from the operational `WorkflowExecutionEvent` stream,
+mirroring `AgentAuditLog` (§10). Written by the calling command handlers/orchestrator, never
+inside an ownership guard itself (guards stay pure, never carry a side effect).
+
+---
+
+# 13. File Aggregate
 
 ## Aggregate Root
 
@@ -1116,7 +1352,7 @@ DownloadedAtUtc
 
 ---
 
-# 13. Billing Aggregate
+# 14. Billing Aggregate
 
 ## Aggregate Root
 
@@ -1188,7 +1424,7 @@ ProcessedAt
 
 ---
 
-# 14. Audit Aggregate
+# 15. Audit Aggregate
 
 ## Aggregate Root
 
@@ -1236,7 +1472,7 @@ OccurredAt
 
 ---
 
-# 15. Enumerations
+# 16. Enumerations
 
 ## ConversationRole
 
@@ -1336,6 +1572,44 @@ Cancelled
 
 ---
 
+## WorkflowStatus
+
+```text
+Draft
+
+Published
+
+Archived
+
+Disabled
+
+Deprecated
+```
+
+---
+
+## WorkflowExecutionStatus
+
+```text
+Queued
+
+Running
+
+Paused
+
+WaitingForApproval
+
+Completed
+
+Failed
+
+Cancelled
+
+TimedOut
+```
+
+---
+
 ## PaymentStatus
 
 ```text
@@ -1352,7 +1626,7 @@ Cancelled
 
 ---
 
-# 16. Value Objects
+# 17. Value Objects
 
 The following should be implemented as Value Objects where appropriate:
 
@@ -1382,7 +1656,7 @@ Value Objects are immutable.
 
 ---
 
-# 17. Delete Behavior
+# 18. Delete Behavior
 
 | Parent        | Child         | Behavior            |
 | ------------- | ------------- | ------------------- |
@@ -1397,7 +1671,7 @@ Value Objects are immutable.
 
 ---
 
-# 18. Aggregate Ownership
+# 19. Aggregate Ownership
 
 ```text
 User
@@ -1426,7 +1700,7 @@ User
 
 ---
 
-# 19. Domain Events
+# 20. Domain Events
 
 Representative domain events include:
 
@@ -1482,7 +1756,7 @@ Events should be raised inside aggregates and handled in the Application layer.
 
 ---
 
-# 20. EF Core Configuration Guidelines
+# 21. EF Core Configuration Guidelines
 
 * Use Fluent API for all mappings.
 * Keep configuration classes separate from entities.
@@ -1497,7 +1771,7 @@ Events should be raised inside aggregates and handled in the Application layer.
 
 ---
 
-# 21. Aggregate Invariants
+# 22. Aggregate Invariants
 
 Every aggregate must enforce its own business rules.
 
@@ -1508,6 +1782,7 @@ Examples:
 * A Chunk cannot exist without a Document.
 * An Embedding cannot exist without a Chunk.
 * An AgentExecution always references the exact AgentVersion it ran under, never the Agent's current draft.
+* A WorkflowExecution always references the exact WorkflowVersion it ran under, never the Workflow's current draft.
 * A PaymentTransaction cannot exist without a Subscription.
 * A SignedDownload cannot be used after expiration.
 * A User cannot have multiple active default AI settings.
@@ -1516,7 +1791,7 @@ No aggregate may rely on another aggregate to maintain its internal consistency.
 
 ---
 
-# 22. Future Evolution
+# 23. Future Evolution
 
 The domain model is intentionally designed to accommodate future capabilities without breaking existing aggregates, including:
 
@@ -1524,13 +1799,15 @@ The domain model is intentionally designed to accommodate future capabilities wi
 * Organizations and departments
 * Shared conversations
 * Shared knowledge bases
-* AI workflow automation
 * Plugin marketplace
 * Agent-to-agent collaboration
 * Multi-region deployments
 * BIM Catalyst integrations
 * Autodesk Platform Services
 * Revit, Civil 3D, and Navisworks automation
-* Model Context Protocol (MCP) ecosystem
+
+"AI workflow automation" and the "Model Context Protocol (MCP) ecosystem" bullets formerly listed
+here have shipped — see §12 Workflow Aggregate (specs/022-workflow-orchestration-engine) and §11
+MCP Aggregate (specs/021-mcp-integration).
 
 Future functionality should extend the domain model by introducing new aggregates or entities while preserving existing aggregate boundaries and invariants.

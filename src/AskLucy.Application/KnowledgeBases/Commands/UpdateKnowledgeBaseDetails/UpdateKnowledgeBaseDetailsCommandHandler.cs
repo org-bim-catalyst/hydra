@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.KnowledgeBases.Authorization;
+using AskLucy.Application.Workflows.EventTriggers;
 using AskLucy.Domain.KnowledgeBases;
 using MediatR;
 
@@ -9,6 +10,7 @@ namespace AskLucy.Application.KnowledgeBases.Commands.UpdateKnowledgeBaseDetails
 public sealed class UpdateKnowledgeBaseDetailsCommandHandler(
     IKnowledgeBaseRepository repository,
     IKnowledgeBaseAuditLogRepository auditLogRepository,
+    IPublisher publisher,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser) : IRequestHandler<UpdateKnowledgeBaseDetailsCommand, KnowledgeBaseSummaryDto>
 {
@@ -28,6 +30,10 @@ public sealed class UpdateKnowledgeBaseDetailsCommandHandler(
             knowledgeBase.Id, userId, KnowledgeBaseAuditAction.Edited, $"Edited knowledge base '{knowledgeBase.Name}'", userId));
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // research.md Decision 12 — the event-trigger dispatch point for FR-063's "knowledge base
+        // updated" trigger; published only after the commit above has succeeded.
+        await publisher.Publish(new KnowledgeBaseUpdatedNotification(knowledgeBase.Id, userId), cancellationToken);
 
         return KnowledgeBaseSummaryDto.FromEntity(knowledgeBase);
     }

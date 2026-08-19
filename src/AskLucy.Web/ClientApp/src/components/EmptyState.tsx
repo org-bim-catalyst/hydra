@@ -27,7 +27,10 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
           {icon}
         </Box>
       )}
-      <Typography variant="h6" color="text.primary">
+      {/* An empty-state placeholder message, not a document-outline heading — used inside many
+          different heading contexts across the app, so it must not assert a fixed heading level
+          (found via WorkflowDesignerPage.a11y.test.tsx: heading-order violation). */}
+      <Typography variant="h6" component="div" color="text.primary">
         {title}
       </Typography>
       {description && <Typography variant="body2">{description}</Typography>}
