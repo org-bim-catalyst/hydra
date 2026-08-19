@@ -23,7 +23,10 @@ import { InsertPromptPicker } from '../components/InsertPromptPicker'
 import { MessageBubble } from '../components/MessageBubble'
 import { AiPresenceCard } from '../components/AiPresenceCard'
 import { HomeProjectCard } from '../components/HomeProjectCard'
-import { WorkspaceSurface } from '../components/WorkspaceSurface'
+import { ViewerSurface } from '../../viewer/components/ViewerSurface'
+import { RotationToggleButton } from '../../viewer/components/RotationToggleButton'
+import { LocationWeatherWidget } from '../../viewer/components/LocationWeatherWidget'
+import { useGeolocation } from '../../viewer/hooks/useGeolocation'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { VoiceControlBar } from '../components/VoiceControlBar'
@@ -79,6 +82,10 @@ export function ChatPage() {
   // functional in this feature; layers/navigation/selection/analysis are established,
   // reachable "coming soon" placeholders (FR-021).
   const viewModeControl = useViewModeControl()
+  // specs/027-immersive-viewer-platform FR-006: a single geolocation subscription, shared by
+  // ViewerSurface (the map/GIS content mode) and LocationWeatherWidget, rather than each
+  // opening its own redundant navigator.geolocation.watchPosition.
+  const geolocation = useGeolocation()
 
   // FR-011/SC-004: restores a returning user's mute/input-mode preference without requiring
   // a detour through Settings first (research.md Decision 9 — VoiceTab already hydrates on
@@ -142,17 +149,29 @@ export function ChatPage() {
       {/* SPEC-024 FR-001: renamed from "Chat" — React 19 hoists this into <head> wherever
           it renders, matching LandingPage's existing convention. */}
       <title>Flumeria Studio</title>
-      {/* SPEC-024 FR-003/FR-022: full-viewport neutral placeholder, replacing the old
-          full-viewport SceneBackground mount — the AI presence now lives in its own
-          AiPresenceCard (FR-023), rendered below via WorkspaceOverlay's children slot. */}
-      <WorkspaceSurface />
+      {/* specs/027-immersive-viewer-platform FR-001: the extensible viewer platform, occupying
+          the majority of the viewport as the primary workspace surface — replaces the old
+          `WorkspaceSurface` gradient placeholder (research.md Decision 1). `AiPresenceCard`
+          (rendered below via `WorkspaceOverlay`'s children slot) is unaffected by this change
+          (FR-004). */}
+      <ViewerSurface geolocation={geolocation} />
+      {/* FR-009: appears once location resolves; renders nothing otherwise (FR-008). */}
+      <LocationWeatherWidget latitude={geolocation.latitude} longitude={geolocation.longitude} />
       {/* SPEC-024 FR-005/FR-016: every workspace control is reached only through this
           coordinating overlay, never a permanent toolbar. specs/026-floating-chat-assistant
           FR-001: the chat entry point is no longer one of `controls` — it's the bespoke
           `ChatAssistantWidget`, rendered as a `children` sibling alongside `AiPresenceCard`,
           still reading/writing the same `workspaceOverlayStore` for mutual exclusivity
           (research.md #1). */}
-      <WorkspaceOverlay controls={workspaceControls} topClusterLeading={<ThemeToggleButton />}>
+      <WorkspaceOverlay
+        controls={workspaceControls}
+        topClusterLeading={
+          <>
+            <ThemeToggleButton />
+            <RotationToggleButton />
+          </>
+        }
+      >
         <HomeProjectCard />
         <AiPresenceCard getReactiveIntensity={tts.getIntensity} />
         <ChatAssistantWidget>

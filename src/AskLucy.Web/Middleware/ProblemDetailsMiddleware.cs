@@ -229,6 +229,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "AI provider rate limited",
             "The AI provider is rate-limiting requests right now. Please try again shortly."),
 
+        // specs/027-immersive-viewer-platform contracts/weather-api.md: mirrors the
+        // AiProviderUnavailableException → 502 pattern above — the upstream weather/reverse-
+        // geocoding service errored, timed out, or returned something unparseable.
+        AskLucy.Application.Abstractions.WeatherProviderUnavailableException => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/weather-provider-unavailable",
+            "Weather provider unavailable",
+            "The weather service could not process this request. Please try again."),
+
         UnauthorizedAccessException => (
             StatusCodes.Status403Forbidden,
             "https://hydra.bimcatalyst.com/problems/forbidden",

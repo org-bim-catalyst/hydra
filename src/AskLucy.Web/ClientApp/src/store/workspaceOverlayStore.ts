@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 
-export type ViewMode = '2D' | '3D'
+/** specs/027-immersive-viewer-platform research.md Decision 4: renamed from the original
+ * '2D'|'3D' placeholder values — this control now drives the real viewer's isometric/plan
+ * camera toggle (FR-013) instead of a cosmetic gradient-angle change. */
+export type ViewMode = 'isometric' | 'plan'
 
 interface WorkspaceOverlayState {
   expandedControlId: string | null
@@ -20,7 +23,7 @@ interface WorkspaceOverlayState {
  * uses `controlId: 'chat'` here instead of its own dedicated store. */
 export const useWorkspaceOverlayStore = create<WorkspaceOverlayState>()((set, get) => ({
   expandedControlId: null,
-  viewMode: '3D',
+  viewMode: 'isometric',
   unreadControlIds: new Set(),
   expand: (id) =>
     set((s) => {

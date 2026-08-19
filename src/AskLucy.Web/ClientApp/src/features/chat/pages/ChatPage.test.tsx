@@ -239,7 +239,7 @@ describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011
   it('seeds the response language from the hydrated defaultLanguage preference, reflected by the header flag (FR-016/FR-017)', async () => {
     useWorkspaceOverlayStore.setState({
       expandedControlId: null,
-      viewMode: '3D',
+      viewMode: 'isometric',
       unreadControlIds: new Set(),
     })
     vi.mocked(voiceApi.getVoicePreferences).mockResolvedValue({
@@ -266,7 +266,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
   beforeEach(() => {
     useWorkspaceOverlayStore.setState({
       expandedControlId: null,
-      viewMode: '3D',
+      viewMode: 'isometric',
       unreadControlIds: new Set(),
     })
     useComingSoonStore.setState({ featureLabel: null })
@@ -296,6 +296,22 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
   it('sets the page title to "Flumeria Studio" (FR-001)', () => {
     renderChatPage()
     expect(document.title).toBe('Flumeria Studio')
+  })
+
+  it('renders the new viewer surface alongside an unaffected AiPresenceCard (specs/027-immersive-viewer-platform FR-004/SC-007)', async () => {
+    renderChatPage()
+
+    // The new full-viewport viewer replaces the old WorkspaceSurface gradient mount. jsdom
+    // doesn't implement WebGL2 (`getContext('webgl2')` returns null), so this renders the
+    // non-interactive fallback (FR-005) here — a real browser with WebGL support renders the
+    // placeholder instead (features/viewer/components/ViewerSurface.test.tsx covers both).
+    expect(screen.getByTestId(/^viewer-(placeholder|fallback)$/)).toBeInTheDocument()
+
+    // AiPresenceCard (the pre-existing, bottom-left decorative-sphere presence card) is a
+    // separate component this feature does not touch — it still renders and progresses
+    // through its normal lazy-load lifecycle exactly as before (its own dedicated
+    // AiPresenceCard.test.tsx covers the rest of its behavior in isolation).
+    expect(await screen.findByAltText('Lucy')).toBeInTheDocument()
   })
 
   it('exposes no permanent toolbar/navigation landmark, only reachable circular controls (FR-004)', () => {
@@ -376,14 +392,12 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     }
   })
 
-  it('switching the view mode visibly changes the workspace surface state (FR-011)', () => {
-    const { container } = renderChatPage()
-
-    fireEvent.click(screen.getByRole('button', { name: 'View mode' }))
-    fireEvent.click(screen.getByRole('button', { name: '2D' }))
-
-    expect(container.querySelector('[data-view-mode="2D"]')).toBeInTheDocument()
-  })
+  // The old "switching the view mode visibly changes the workspace surface state (FR-011)"
+  // test asserted `WorkspaceSurface`'s `data-view-mode` gradient attribute — retired by
+  // specs/027-immersive-viewer-platform, which replaces `WorkspaceSurface` with `ViewerSurface`
+  // (T015) and repurposes this same control into the real isometric/plan camera toggle (T047),
+  // wired to `viewerEngine.setViewMode` instead. Its replacement test lives in
+  // workspaceControls.test.tsx once that wiring exists.
 
   it('expanding one tool control collapses whatever was previously expanded (FR-015)', () => {
     renderChatPage()
@@ -416,6 +430,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
     for (const label of [
       'Toggle theme',
+      'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
       'Account',
       'View mode',
       'Layers',
@@ -439,7 +454,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(viewModeButton).toHaveAttribute('aria-expanded', 'true')
 
     await user.tab()
-    expect(document.activeElement).toHaveAccessibleName('2D')
+    expect(document.activeElement).toHaveAccessibleName('Isometric')
 
     await user.keyboard('{Escape}')
     expect(viewModeButton).toHaveAttribute('aria-expanded', 'false')

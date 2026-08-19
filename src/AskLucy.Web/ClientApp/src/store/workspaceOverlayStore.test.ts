@@ -4,7 +4,7 @@ import { useWorkspaceOverlayStore } from './workspaceOverlayStore'
 function resetStore() {
   useWorkspaceOverlayStore.setState({
     expandedControlId: null,
-    viewMode: '3D',
+    viewMode: 'isometric',
     unreadControlIds: new Set(),
   })
 }
@@ -14,9 +14,9 @@ describe('workspaceOverlayStore', () => {
     resetStore()
   })
 
-  it('defaults to nothing expanded and 3D view mode', () => {
+  it('defaults to nothing expanded and isometric view mode', () => {
     expect(useWorkspaceOverlayStore.getState().expandedControlId).toBeNull()
-    expect(useWorkspaceOverlayStore.getState().viewMode).toBe('3D')
+    expect(useWorkspaceOverlayStore.getState().viewMode).toBe('isometric')
   })
 
   it('expand(id) sets the expanded control and clears its unread flag', () => {
@@ -52,8 +52,8 @@ describe('workspaceOverlayStore', () => {
   })
 
   it('setViewMode(mode) updates the current view mode', () => {
-    useWorkspaceOverlayStore.getState().setViewMode('2D')
-    expect(useWorkspaceOverlayStore.getState().viewMode).toBe('2D')
+    useWorkspaceOverlayStore.getState().setViewMode('plan')
+    expect(useWorkspaceOverlayStore.getState().viewMode).toBe('plan')
   })
 
   it('markUnread(id) flags a control as having unseen activity while collapsed', () => {

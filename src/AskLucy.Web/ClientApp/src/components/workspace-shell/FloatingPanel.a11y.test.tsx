@@ -7,7 +7,7 @@ import { FloatingPanel } from './FloatingPanel'
 expect.extend(toHaveNoViolations)
 
 function resetStore() {
-  useWorkspaceOverlayStore.setState({ expandedControlId: 'chat', viewMode: '3D', unreadControlIds: new Set() })
+  useWorkspaceOverlayStore.setState({ expandedControlId: 'chat', viewMode: 'isometric', unreadControlIds: new Set() })
 }
 
 describe('FloatingPanel accessibility', () => {
