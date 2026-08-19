@@ -32,26 +32,34 @@ export function LoginPage() {
   const twoFactorForm = useForm<TwoFactorFormValues>()
 
   const onSubmitLogin = loginForm.handleSubmit(async (values) => {
-    const result = await login.mutateAsync(values)
-    if (result.requiresTwoFactor && result.userId) {
-      setPendingUserId(result.userId)
-    } else {
-      // FR-021: fired immediately before navigating, never delaying it (contracts/
-      // routing-and-consent-contract.md).
-      recordFunnelCompleted('SignIn')
-      navigate('/chat')
+    try {
+      const result = await login.mutateAsync(values)
+      if (result.requiresTwoFactor && result.userId) {
+        setPendingUserId(result.userId)
+      } else {
+        // FR-021: fired immediately before navigating, never delaying it (contracts/
+        // routing-and-consent-contract.md).
+        recordFunnelCompleted('SignIn')
+        navigate('/chat')
+      }
+    } catch {
+      // login.isError drives the error alert above; nothing further to do.
     }
   })
 
   const onSubmitTwoFactor = twoFactorForm.handleSubmit(async (values) => {
     if (!pendingUserId) return
-    await loginTwoFactor.mutateAsync({
-      userId: pendingUserId,
-      code: values.code,
-      isRecoveryCode: false,
-    })
-    recordFunnelCompleted('SignIn')
-    navigate('/chat')
+    try {
+      await loginTwoFactor.mutateAsync({
+        userId: pendingUserId,
+        code: values.code,
+        isRecoveryCode: false,
+      })
+      recordFunnelCompleted('SignIn')
+      navigate('/chat')
+    } catch {
+      // loginTwoFactor.isError drives the error alert above; nothing further to do.
+    }
   })
 
   return (
