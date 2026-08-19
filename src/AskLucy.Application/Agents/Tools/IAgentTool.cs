@@ -14,6 +14,16 @@ public enum AgentToolPermission
     ExecuteCode,
     ModifyData,
     HighRiskOperation,
+
+    // spec 021-mcp-integration (FR-021, research.md Decision 5) — additive; existing native-tool
+    // values above are untouched. Covers requirements a native tool never had: acting on an
+    // external, third-party system a tool call reaches through an MCP server.
+    ReadExternalData,
+    WriteExternalData,
+    SendCommunication,
+    ModifyExternalSystem,
+    DeleteExternalData,
+    ExecuteOperation,
 }
 
 /// <summary>Per-call context passed to every <see cref="IAgentTool"/> (contracts/agent-tool-contract.md). <see cref="UserChatId"/> is the execution's linked conversation, if any (FR-051/FR-052) — surfaced here so <see cref="ConversationTool"/> doesn't need its own repository round-trip just to resolve it.</summary>

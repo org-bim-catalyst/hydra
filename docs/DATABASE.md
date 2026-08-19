@@ -613,40 +613,49 @@ entry for a later-purged execution survives), mirroring `KnowledgeBaseAuditLogs`
 
 # 12. MCP Context
 
-## MCPServers
+Shipped in specs/021-mcp-integration as 8 tables (`AskLucyDbContext`, `Configurations/Mcp/*.cs`).
+No `MCPExecutions` table was built — an MCP tool call reuses spec 020's existing `AgentToolCalls`/
+`AgentExecutionSteps` unmodified; a 4-column `ToolName` width increase (`nvarchar(100)` →
+`nvarchar(400)`) across `AgentTools`/`AgentToolCalls`/`AgentPolicies`/`AgentExecutionSteps` is the
+only touch to any spec 020 table, needed for MCP's longer `mcp:{serverId}:{toolName}` identifiers.
 
-Stores:
+## McpServers
 
-* Name
-* Endpoint
-* Authentication
-* Status
-
----
-
-## MCPTools
-
-Stores every discovered tool.
-
-Examples:
-
-Search
-
-SQL
-
-GitHub
-
-Revit
-
-APS
-
-SharePoint
+`(Endpoint, Transport)` unique platform-wide. Stores `Name`, `Description`, `Endpoint`,
+`Transport`, `AuthenticationType`, `IsEnabled`, `OwnerUserId`, `ConfigurationVersion`,
+`CapabilityRefreshIntervalMinutes`, `LastHealthCheckAtUtc`, `LastCapabilityDiscoveryAtUtc`, plus
+the SSRF-override/insecure-transport justification fields. `Endpoint` capped at `nvarchar(400)` to
+keep the unique composite index under SQL Server's 900-byte nonclustered key limit.
 
 ---
 
-## MCPExecutions
+## McpServerCredentials / McpServerHealths / McpCapabilitySnapshots
 
-Audit every tool execution.
+`McpServerCredentials.McpServerId` unique (1:1, cascade-deletes with its server) — stores only
+`CiphertextBlob` (Data Protection-encrypted), never plaintext. `McpServerHealths.McpServerId`
+unique — one current row per server, overwritten on every check, not an unbounded history table.
+`McpCapabilitySnapshots` is append-only, `(McpServerId, SnapshotVersion)` unique, restricted
+(not cascade) delete against its server.
+
+---
+
+## McpTools / McpResources / McpPrompts
+
+Every discovered tool/resource/prompt, each `NamespacedName`-unique (`nvarchar(400)`, capped for
+the same 900-byte index-key reason as `McpServers.Endpoint`). `McpTools` additionally indexes
+`(McpServerId, ActivationStatus, IsAvailable)` — the exact filter `IMcpToolRegistry.ActiveTools`
+queries on every rebuild. `McpPrompts` rows are mutated in place on refresh (never a new row per
+snapshot, unlike `McpTools`/`McpResources`) — the read-only-mirror design a duplicated native
+`Prompt` diffs against.
+
+---
+
+## McpAuditLogs
+
+Administrative/security events only (server lifecycle, credential rotation, health transitions,
+capability-discovery runs, tool activation) — not a hard FK to `McpServers` (mirrors
+`AgentAuditLogs`' pattern), and deliberately never duplicates `AgentToolCalls`' per-execution
+tool-call activity.
 
 ---
 

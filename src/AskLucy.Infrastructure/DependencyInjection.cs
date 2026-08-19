@@ -10,6 +10,7 @@ using AskLucy.Infrastructure.Documents.Preview;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.KnowledgeBases;
+using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
@@ -123,6 +124,10 @@ public static class DependencyInjection
         // DocumentStatisticsRecomputeJob above.
         services.AddScoped<MemoryExtractionSweepJob>();
         services.AddScoped<MemoryCleanupJob>();
+        // spec 021-mcp-integration User Story 6 — same "Hangfire resolves concrete job classes
+        // directly" reasoning as the jobs above.
+        services.AddScoped<McpServerHealthCheckJob>();
+        services.AddScoped<McpCapabilityRefreshJob>();
 
         services.AddDataProtection();
         // Concrete IMemoryCache registration for KnowledgeBaseDashboardSummaryCache (Application) — see that DI's comment for why the registration itself lives here, not in Application.
@@ -146,6 +151,15 @@ public static class DependencyInjection
         services.AddHttpClient("OpenRouter", client =>
         {
             client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
+        // spec 021-mcp-integration (research.md Decision 11): no BaseAddress — this client serves
+        // many different, admin-registered MCP server endpoints. HttpClient.Timeout here is only an
+        // outer safety net; the precise per-call bound (FR-051, McpRuntimeOptions.MaxCallDurationSeconds)
+        // is enforced via a linked CancellationToken at the call site (McpClient/McpClientFactory).
+        services.AddHttpClient("Mcp", client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(5);
         });
 
         // spec 012-elevenlabs-voice-engine: BaseAddress must be set here, not per-call — both
@@ -236,6 +250,18 @@ public static class DependencyInjection
         // (not Application) for the same reason MemoryHub/MemoryNotifier do — Application must
         // never reference SignalR directly (constitution §3).
         services.AddScoped<IAgentExecutionNotifier, AgentExecutionNotifier>();
+
+        // MCP Integration (specs/021-mcp-integration) — Foundational. IMcpClientFactory is a
+        // singleton (research.md Decision 2, corrected during implementation — see plan.md): its
+        // connection cache spans every execution, not one DI scope, and it resolves the Scoped
+        // IMcpServerRepository from a short-lived internal scope only when connecting, never
+        // holding it (constitution §3). IMcpEndpointValidator/IMcpCredentialProtector/
+        // IMcpRateLimiter have no Scoped dependencies of their own, so they are singleton-safe too.
+        services.AddSingleton<IMcpClientFactory, McpClientFactory>();
+        services.AddSingleton<IMcpEndpointValidator, McpEndpointValidator>();
+        services.AddSingleton<IMcpCredentialProtector, McpCredentialProtector>();
+        services.AddSingleton<IMcpRateLimiter, McpRateLimiter>();
+
         // Singleton: caches the loaded WhisperFactory (and the one-time model download)
         // across requests instead of reloading it every call. Registered as its concrete
         // type too (mapped to the same instance) so WhisperWarmupHostedService can trigger
