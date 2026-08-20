@@ -1,8 +1,9 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../../../store/authStore'
-import { useFloatingPanelStore } from '../store/floatingPanelStore'
-import { useFloatingPanelHub } from './useFloatingPanelHub'
+import { useMemoryNotificationsHub } from './useMemoryNotificationsHub'
 
 const handlers: Record<string, (payload: unknown) => void> = {}
 let startResult: Promise<void> = Promise.resolve()
@@ -43,7 +44,12 @@ vi.mock('@microsoft/signalr', () => {
   return { HubConnectionBuilder: MockHubConnectionBuilder, LogLevel: { Warning: 2 } }
 })
 
-describe('useFloatingPanelHub', () => {
+function wrapper({ children }: { children: ReactNode }) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+}
+
+describe('useMemoryNotificationsHub', () => {
   beforeEach(() => {
     useAuthStore.setState({ accessToken: 'test-token', refreshToken: null, userId: 'u1' })
     startResult = Promise.resolve()
@@ -52,35 +58,12 @@ describe('useFloatingPanelHub', () => {
     onclose = undefined
   })
 
-  it('dispatches a received PanelRequested payload into floatingPanelStore.openPanel', async () => {
-    const openPanelSpy = vi.spyOn(useFloatingPanelStore.getState(), 'openPanel')
-
-    renderHook(() => useFloatingPanelHub())
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    const payload = { requestId: 'r1', typeKey: 'table', title: 'T', data: {} }
-    handlers['PanelRequested']?.(payload)
-
-    expect(openPanelSpy).toHaveBeenCalledWith(payload)
-  })
-
-  it('does not connect when there is no access token', () => {
-    useAuthStore.setState({ accessToken: null, refreshToken: null, userId: null })
-    delete handlers['PanelRequested']
-
-    renderHook(() => useFloatingPanelHub())
-
-    expect(handlers['PanelRequested']).toBeUndefined()
-  })
-
   // specs/029-fix-chat-widget-bugs T004d/FR-010/analysis finding C1 — this hook previously
   // called `connection.start().catch(() => undefined)`, silently discarding a failed
-  // connection with no trace. These two cases assert the fix: the failure is now exposed via
-  // `isLive`, matching the already-compliant sibling hooks' pattern.
+  // connection with no trace. These assert the fix: the failure is now exposed via `isLive`,
+  // matching the already-compliant sibling hooks' pattern.
   it('exposes isLive: true once the connection starts successfully', async () => {
-    const { result } = renderHook(() => useFloatingPanelHub())
+    const { result } = renderHook(() => useMemoryNotificationsHub(), { wrapper })
 
     await act(async () => {
       await Promise.resolve()
@@ -92,7 +75,7 @@ describe('useFloatingPanelHub', () => {
   it('exposes isLive: false, not a silently discarded failure, when the connection fails to start', async () => {
     startResult = Promise.reject(new Error('connection refused'))
 
-    const { result } = renderHook(() => useFloatingPanelHub())
+    const { result } = renderHook(() => useMemoryNotificationsHub(), { wrapper })
 
     await act(async () => {
       await startResult.catch(() => undefined)
@@ -102,7 +85,7 @@ describe('useFloatingPanelHub', () => {
   })
 
   it('tracks reconnecting/reconnected/closed transitions via isLive', async () => {
-    const { result } = renderHook(() => useFloatingPanelHub())
+    const { result } = renderHook(() => useMemoryNotificationsHub(), { wrapper })
     await act(async () => {
       await Promise.resolve()
     })
@@ -116,5 +99,20 @@ describe('useFloatingPanelHub', () => {
 
     act(() => onclose?.())
     expect(result.current.isLive).toBe(false)
+  })
+
+  it('still surfaces latest/dismiss for a received memoryNotificationCreated event', async () => {
+    const { result } = renderHook(() => useMemoryNotificationsHub(), { wrapper })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const payload = { id: 'n1', message: 'A memory was created', createdAtUtc: new Date().toISOString() }
+    act(() => handlers['memoryNotificationCreated']?.(payload))
+
+    expect(result.current.latest).toEqual(payload)
+
+    act(() => result.current.dismiss())
+    expect(result.current.latest).toBeNull()
   })
 })

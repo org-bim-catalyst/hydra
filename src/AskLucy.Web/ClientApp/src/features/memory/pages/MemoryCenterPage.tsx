@@ -1,5 +1,5 @@
 import SearchIcon from '@mui/icons-material/Search'
-import { Alert, InputAdornment, MenuItem, Snackbar, Stack, Tab, Tabs, TextField } from '@mui/material'
+import { Alert, Chip, InputAdornment, MenuItem, Snackbar, Stack, Tab, Tabs, TextField } from '@mui/material'
 import { useMemo, useState } from 'react'
 import { AppShell } from '../../../components/AppShell'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
@@ -44,7 +44,7 @@ export function MemoryCenterPage() {
   // Established once per page visit (mirrors DocumentWorkspacePage's useNotificationHub usage) —
   // the poll fallback (useMemoryNotifications inside MemoryNotificationList) covers anything
   // missed while this connection was down or the tab wasn't mounted at all.
-  useMemoryNotificationsHub()
+  const { isLive: isMemoryHubLive } = useMemoryNotificationsHub()
 
   const isFiltered = query.trim() !== '' || Boolean(category) || Boolean(state)
 
@@ -81,7 +81,21 @@ export function MemoryCenterPage() {
   }
 
   return (
-    <AppShell title="Memory Center" subtitle="Everything Lucy remembers about you — review, edit, or delete any of it.">
+    <AppShell
+      title="Memory Center"
+      subtitle="Everything Lucy remembers about you — review, edit, or delete any of it."
+      actions={
+        // specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
+        // ExecutionMonitor already uses for useWorkflowExecutionHub's isLive.
+        <Chip
+          label={isMemoryHubLive ? 'Live' : 'Reconnecting…'}
+          size="small"
+          variant="outlined"
+          color={isMemoryHubLive ? 'success' : 'default'}
+          data-testid="memory-hub-connection-status"
+        />
+      }
+    >
       <Tabs value={tab} onChange={(_e, value: MemoryCenterTab) => setTab(value)} sx={{ mb: 3 }}>
         <Tab value="all" label="All memories" />
         <Tab value="approvals" label="Approval queue" />

@@ -98,13 +98,14 @@ describe('ConversationView accessibility (constitution §7, §10)', () => {
 })
 
 describe('ConversationView voice controls accessibility (SPEC-013 T020, constitution §7/§10)', () => {
-  // Note: VoiceControlBar.test.tsx and ChatComposer.test.tsx already a11y-test the muted,
-  // listening, and permission-denied states directly against those components with
-  // deterministic props — this integration-level check instead covers a state that's only
-  // reachable by the real, page-level `voicePreferencesStore` (unlike `isMuted`, which the
-  // mocked `tts` here doesn't reactively reflect): Continuous mode's real structural
-  // difference (no mic button rendered in `ChatComposer`).
-  it('has no automatically detectable a11y violations in Continuous mode (no mic button, listening status only)', async () => {
+  // Note: ChatComposer.test.tsx already a11y-tests the muted, listening, and
+  // permission-denied states directly against that component with deterministic props —
+  // this integration-level check instead covers a state that's only reachable by the real,
+  // page-level `voicePreferencesStore` (unlike `isMuted`, which the mocked `tts` here
+  // doesn't reactively reflect): Continuous mode's real structural difference (the mic
+  // button becomes a plain listening toggle rather than a Push-to-Talk hold trigger,
+  // specs/029-fix-chat-widget-bugs research.md Decision 5 — VoiceControlBar retired).
+  it('has no automatically detectable a11y violations in Continuous mode (listening status only)', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_ID}/messages`, () =>
         HttpResponse.json({ items: [], nextCursor: null }),
@@ -113,7 +114,7 @@ describe('ConversationView voice controls accessibility (SPEC-013 T020, constitu
     useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
     const { container, findByLabelText } = renderConversation()
 
-    await findByLabelText('Switch to Push-to-Talk mode')
+    await findByLabelText('Voice input mode settings')
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

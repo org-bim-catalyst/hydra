@@ -13,6 +13,7 @@ using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Workflows;
 using AskLucy.Persistence;
+using AskLucy.Persistence.HealthChecks;
 using AskLucy.Web.Auth;
 using AskLucy.Web.DevSeed;
 using AskLucy.Web.Middleware;
@@ -21,6 +22,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -465,7 +467,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    // specs/029-fix-chat-widget-bugs FR-012, research.md Decision 2 — a readiness signal
+    // (tagged "ready", surfaced at /health/ready below, kept separate from the plain
+    // liveness /health mapping) that catches an unapplied EF Core migration before it
+    // manifests as a live-request 500, the root cause of this feature's Bug 1.
+    .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["ready"]);
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -478,18 +485,19 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// Serves the React frontend's built assets (wwwroot is populated from ClientApp/dist on
-// every build — see AskLucy.Web.csproj) and falls back to index.html for SPA client-side
-// routes. A hand-written middleware rather than UseStaticFiles/MapFallbackToFile: the
-// built-in StaticFileMiddleware never served files added to wwwroot by our PreBuildEvent
-// copy target, even with an explicit PhysicalFileProvider pointed straight at the folder
-// and the file independently verified present and readable — reproducible in this exact
-// setup both locally and on the deployed host, root cause not pinned down (suspected
-// interaction with the SDK's build-time Static Web Assets manifest/endpoint machinery,
-// which MapFallbackToFile's single-fixed-file serving mode isn't subject to the same way
-// path-matched StaticFileMiddleware is). This reads wwwroot directly off disk on every
-// request via the same IFileInfo/CreateReadStream primitives, independently verified
-// working here.
+// Serves the React frontend's built static assets (wwwroot is populated from ClientApp/dist
+// on every build — see AskLucy.Web.csproj). A hand-written middleware rather than
+// UseStaticFiles: the built-in StaticFileMiddleware never served files added to wwwroot by
+// our PreBuildEvent copy target, even with an explicit PhysicalFileProvider pointed straight
+// at the folder and the file independently verified present and readable — reproducible in
+// this exact setup both locally and on the deployed host, root cause not pinned down
+// (suspected interaction with the SDK's build-time Static Web Assets manifest/endpoint
+// machinery). This reads wwwroot directly off disk on every request via the same
+// IFileInfo/CreateReadStream primitives, independently verified working here. The SPA
+// index.html fallback is a separate concern, registered as app.MapFallback further below
+// (specs/029-fix-chat-widget-bugs research.md Decision 7) — deliberately not merged back
+// into this middleware, so this static-asset-serving path (already fixed once) stays
+// untouched by that fix.
 var wwwrootProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
 var staticContentTypeProvider = new FileExtensionContentTypeProvider();
 
@@ -511,29 +519,6 @@ app.Use(async (context, next) =>
             context.Response.ContentType = contentType;
             context.Response.ContentLength = fileInfo.Length;
             await using var stream = fileInfo.CreateReadStream();
-            await stream.CopyToAsync(context.Response.Body);
-            return;
-        }
-    }
-
-    // SPA fallback: any GET that isn't a real static file and isn't one of this app's own
-    // non-file endpoints serves index.html so React Router can handle it. Excludes "/api",
-    // "/health", and "/openapi" so a typo'd/missing API route, the health check, or the
-    // generated OpenAPI document (constitution §6 — every endpoint MUST be discoverable via
-    // it; found silently swallowed as the SPA shell here while verifying
-    // specs/002-chat-history-management tasks.md T075) still reach routing below instead of
-    // silently returning the SPA shell.
-    if (HttpMethods.IsGet(context.Request.Method)
-        && !requestPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
-        && !requestPath.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase)
-        && !requestPath.Equals("/health", StringComparison.OrdinalIgnoreCase))
-    {
-        var indexFile = wwwrootProvider.GetFileInfo("index.html");
-        if (indexFile.Exists)
-        {
-            context.Response.ContentType = "text/html";
-            context.Response.ContentLength = indexFile.Length;
-            await using var stream = indexFile.CreateReadStream();
             await stream.CopyToAsync(context.Response.Body);
             return;
         }
@@ -585,13 +570,60 @@ RecurringJob.AddOrUpdate<McpCapabilityRefreshJob>(
     "mcp-capability-refresh", job => job.RunAsync(CancellationToken.None), "*/5 * * * *");
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+// specs/029-fix-chat-widget-bugs contracts/health-readiness-endpoint.md — /health (liveness)
+// MUST stay unaffected by the new "ready"-tagged check below (data-model.md: "keeping
+// liveness and readiness semantics distinct"). MapHealthChecks runs every registered check
+// when no Predicate is given, so without this exclusion /health would also start failing
+// whenever a migration is merely pending — found via T007's own integration test actually
+// running, not by inspection.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = check => !check.Tags.Contains("ready"),
+});
+// Additive — does not replace /health above. Deployment/orchestration tooling opts into
+// this signal separately.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
 app.MapHub<DocumentProcessingHub>("/hubs/document-processing");
 app.MapHub<RetrievalIndexingHub>("/hubs/retrieval-indexing");
 app.MapHub<MemoryHub>("/hubs/memory");
 app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
 app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
 app.MapHub<PanelHub>("/hubs/panels");
+
+// SPA fallback: any GET that didn't match a static file (the app.Use above) or any endpoint
+// mapped above (controllers, hubs, health checks, OpenAPI) serves index.html so React Router
+// can handle the client-side route. Registered as app.MapFallback — an endpoint-routing
+// endpoint with the lowest possible match priority — rather than the previous hand-rolled
+// prefix-exclusion list (specs/029-fix-chat-widget-bugs research.md Decision 7). That list
+// only knew about "/api", "/openapi", and "/health" and was never updated for "/hubs", so
+// every SignalR hub handshake GET (all 6 hubs, not just /hubs/panels) was silently served
+// index.html instead of reaching MapHub — the production root cause of
+// "EventSource... MIME type (\"text/html\")" / WebSocket handshake failures. MapFallback
+// can't repeat that mistake: any endpoint explicitly mapped above always wins automatically,
+// by routing precedence, with no list left to fall out of sync.
+app.MapFallback(async context =>
+{
+    if (!HttpMethods.IsGet(context.Request.Method))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var indexFile = wwwrootProvider.GetFileInfo("index.html");
+    if (indexFile.Exists)
+    {
+        context.Response.ContentType = "text/html";
+        context.Response.ContentLength = indexFile.Length;
+        await using var stream = indexFile.CreateReadStream();
+        await stream.CopyToAsync(context.Response.Body);
+        return;
+    }
+
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+});
 
 // Dev-only convenience seed (see DevAdminSeeder's doc comment / ADR-0001). Wrapped so a
 // missing/unreachable database at startup degrades to a logged warning, not a crashed host —
@@ -604,7 +636,11 @@ if (app.Environment.IsDevelopment())
     }
     catch (Exception ex)
     {
+        // Single dev-only startup call, not a hot path — a LoggerMessage delegate adds
+        // ceremony without a measurable benefit here.
+#pragma warning disable CA1848
         app.Logger.LogWarning(ex, "Dev admin seed skipped — could not reach the database.");
+#pragma warning restore CA1848
     }
 }
 

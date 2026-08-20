@@ -1,16 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import {
-  getVoicePreferences,
-  saveVoicePreferences,
-  type UserVoicePreference,
-} from '../api/voiceApi'
+import { saveVoicePreferences, type UserVoicePreference } from '../api/voiceApi'
 
 interface VoicePreferencesState extends UserVoicePreference {
   /** Surfaced by the chat page as a Snackbar (same pattern as `useTextToSpeech`'s `error`
-   * field, ChatPage.tsx) — a failed preference save is never silent (constitution §2.VIII). */
+   * field, ChatPage.tsx) — a failed preference *save* is never silent (constitution §2.VIII).
+   * specs/029-fix-chat-widget-bugs research.md Decision 3/4: this field is scoped to `update`
+   * failures only now — the initial-fetch failure this store previously also surfaced here
+   * (via the now-removed `hydrateFromServer`) moved to `useVoicePreferencesQuery`'s own
+   * TanStack Query error state, which drives a smaller, non-blocking indicator instead of
+   * this store-wide Snackbar firing on every chat load. */
   error: string | null
-  hydrateFromServer: () => Promise<void>
   update: (patch: Partial<UserVoicePreference>) => Promise<void>
   clearError: () => void
 }
@@ -37,17 +37,6 @@ export const useVoicePreferencesStore = create<VoicePreferencesState>()(
     (set, get) => ({
       ...DEFAULTS,
       error: null,
-
-      hydrateFromServer: async () => {
-        try {
-          const preference = await getVoicePreferences()
-          set(preference)
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to load voice preferences.',
-          })
-        }
-      },
 
       update: async (patch) => {
         const previous = get()

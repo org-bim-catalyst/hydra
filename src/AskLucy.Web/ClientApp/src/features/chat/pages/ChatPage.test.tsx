@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -215,7 +215,7 @@ describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011
     })
   })
 
-  it('calls hydrateFromServer on mount and reflects the server-provided preferences', async () => {
+  it('fetches voice preferences on mount (useVoicePreferencesQuery) and reflects the server-provided values', async () => {
     vi.mocked(voiceApi.getVoicePreferences).mockResolvedValue({
       conversationMode: 'Continuous',
       isMuted: true,
@@ -234,6 +234,29 @@ describe('ChatPage — voice preference hydration (SPEC-013 Foundational, FR-011
       expect(useVoicePreferencesStore.getState().isMuted).toBe(true)
       expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous')
     })
+  })
+
+  // specs/029-fix-chat-widget-bugs T014, FR-001/FR-002, research.md Decision 3 — Bug 1's
+  // regression test: a failed voice-preferences fetch must never show the old blocking,
+  // full-width "An unexpected error occurred" Snackbar (which previously fired on every
+  // chat load regardless of whether this ever happened), and chat/voice must stay fully
+  // usable on defaults throughout.
+  it('does not show a blocking error banner when the voice-preferences fetch fails, and stays usable on defaults', async () => {
+    vi.mocked(voiceApi.getVoicePreferences).mockRejectedValue(new Error('Network error'))
+
+    // renderConversation (not this block's renderChatPage) — it defaults to the Expanded
+    // panel, so ChatComposer (which hosts the small indicator this failure should surface)
+    // is actually in the DOM to assert against.
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(voiceApi.getVoicePreferences).toHaveBeenCalled())
+    // Give the query's error state time to settle before asserting its absence.
+    await waitFor(() => expect(screen.queryByText(/an unexpected error occurred/i)).not.toBeInTheDocument())
+    expect(screen.queryByText('Network error')).not.toBeInTheDocument()
+    // Voice/chat functionality remains available — defaults are still in effect, nothing
+    // is blocked by the failed fetch (FR-002).
+    expect(useVoicePreferencesStore.getState().conversationMode).toBe('PushToTalk')
+    expect(screen.getByRole('button', { name: /^mute lucy$/i })).toBeEnabled()
   })
 
   it('seeds the response language from the hydrated defaultLanguage preference, reflected by the header flag (FR-016/FR-017)', async () => {
@@ -699,7 +722,7 @@ describe('ConversationView — mute control (SPEC-013 US1, FR-001/FR-003/FR-012)
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
-    await user.click(await screen.findByRole('button', { name: /^mute$/i }))
+    await user.click(await screen.findByRole('button', { name: /^mute lucy$/i }))
 
     expect(await screen.findByText('Could not save.')).toBeInTheDocument()
   })
@@ -711,10 +734,31 @@ describe('ConversationView — mute control (SPEC-013 US1, FR-001/FR-003/FR-012)
     const user = userEvent.setup()
     renderConversation(CHAT_A)
 
-    await user.click(await screen.findByRole('button', { name: /^mute$/i }))
+    await user.click(await screen.findByRole('button', { name: /^mute lucy$/i }))
 
     await waitFor(() => expect(useVoicePreferencesStore.getState().isMuted).toBe(true))
     expect(screen.queryByText('Could not save.')).not.toBeInTheDocument()
+  })
+})
+
+// specs/029-fix-chat-widget-bugs T025, FR-007/FR-008, research.md Decision 6.
+describe('ConversationView — relocated translate control (US4)', () => {
+  it('renders exactly one translate control, inside the composer row — not a separate row above the message list', async () => {
+    renderConversation(CHAT_A)
+
+    // Exactly one match proves it isn't duplicated between an old top-toolbar spot and the
+    // new composer-row spot — a real regression the length assertion alone would catch.
+    const translateButtons = await screen.findAllByRole('button', { name: /translate last response/i })
+    expect(translateButtons).toHaveLength(1)
+
+    // The composer row is the pill-shaped container around the message textbox — the
+    // translate control must live there, not in a separate row above the message list.
+    const textbox = screen.getByPlaceholderText('Message Ask Lucy...')
+    const composerContainer = textbox.closest('.MuiPaper-root')
+    expect(composerContainer).not.toBeNull()
+    expect(
+      within(composerContainer as HTMLElement).getByRole('button', { name: /translate last response/i }),
+    ).toBeInTheDocument()
   })
 })
 
@@ -907,9 +951,13 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
     renderConversation(CHAT_A)
 
+    // specs/029-fix-chat-widget-bugs research.md Decision 5: the old directly-clickable
+    // "Switch to Push-to-Talk mode" button (VoiceControlBar, retired) is replaced by a
+    // fixed-label settings trigger ("Voice input mode settings") that opens a menu — the
+    // mode-dependent label now lives on the menu item, not the trigger button itself.
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Switch to Push-to-Talk mode' }),
+        screen.getByRole('button', { name: 'Voice input mode settings' }),
       ).toBeInTheDocument(),
     )
     expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
@@ -917,10 +965,9 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
       screen.queryByRole('button', { name: 'Send recording for transcription' }),
     ).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel recording' })).not.toBeInTheDocument()
-    // VoiceControlBar's generic mic toggle still shows in Continuous mode (pre-existing,
-    // unchanged behavior, routed to `recognition` as always) — only ChatComposer's
-    // dedicated Push-to-Talk mic button (gated by conversationMode) is absent, so exactly
-    // one match remains, not the two seen in Push-to-Talk mode.
+    // specs/029-fix-chat-widget-bugs research.md Decision 5: ChatComposer is now the single
+    // consolidated voice control (VoiceControlBar retired) — its one mic button always
+    // renders regardless of conversationMode (FR-006), so exactly one match, in both modes.
     expect(screen.queryAllByRole('button', { name: 'Start voice input' })).toHaveLength(1)
   })
 })
