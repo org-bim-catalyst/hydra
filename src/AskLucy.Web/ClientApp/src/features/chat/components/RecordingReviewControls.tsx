@@ -7,8 +7,10 @@ export interface RecordingReviewControlsProps {
   onFinish: () => void
   onCancelRecording: () => void
   onAccept: () => void
-  /** `'row'` for `VoiceControlBar`'s horizontal layout; the Collapsed vertical stack
-   * supplies its own `Stack` wrapper and doesn't need this component to add spacing. */
+  /** `'row'` for the Expanded panel's `ChatComposer` (specs/029-fix-chat-widget-bugs
+   * research.md Decision 5 — previously `VoiceControlBar`'s horizontal layout, now
+   * retired); the Collapsed vertical stack supplies its own `Stack` wrapper and doesn't
+   * need this component to add spacing. */
   placement?: 'left' | 'right'
 }
 

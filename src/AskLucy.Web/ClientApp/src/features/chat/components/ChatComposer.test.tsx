@@ -7,8 +7,8 @@ expect.extend(toHaveNoViolations)
 
 const MIC_BUTTON_NAME = /^(start|stop) voice input$/i
 
-function renderComposer(overrides: Partial<ChatComposerProps> = {}) {
-  const props: ChatComposerProps = {
+function baseProps(): ChatComposerProps {
+  return {
     value: '',
     onChange: vi.fn(),
     onSend: vi.fn(),
@@ -19,10 +19,16 @@ function renderComposer(overrides: Partial<ChatComposerProps> = {}) {
     captureError: null,
     onStartCapture: vi.fn(),
     onStopCapture: vi.fn(),
-    onCancelCapture: vi.fn(),
     onClearCaptureError: vi.fn(),
-    ...overrides,
+    onToggleMode: vi.fn(),
+    isMuted: false,
+    onToggleMute: vi.fn(),
+    onTranslateLastClick: vi.fn(),
   }
+}
+
+function renderComposer(overrides: Partial<ChatComposerProps> = {}) {
+  const props: ChatComposerProps = { ...baseProps(), ...overrides }
   return { ...render(<ChatComposer {...props} />), props }
 }
 
@@ -81,16 +87,10 @@ describe('ChatComposer mic control — Push-to-Talk toggle (US2, Clarification Q
 
     rerender(
       <ChatComposer
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        conversationMode="PushToTalk"
+        {...baseProps()}
         isListening={true}
-        permissionState="unknown"
-        captureError={null}
         onStartCapture={props.onStartCapture}
         onStopCapture={props.onStopCapture}
-        onCancelCapture={props.onCancelCapture}
         onClearCaptureError={props.onClearCaptureError}
       />,
     )
@@ -111,16 +111,10 @@ describe('ChatComposer mic control — Push-to-Talk toggle (US2, Clarification Q
 
     rerender(
       <ChatComposer
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        conversationMode="PushToTalk"
+        {...baseProps()}
         isListening={true}
-        permissionState="unknown"
-        captureError={null}
         onStartCapture={props.onStartCapture}
         onStopCapture={props.onStopCapture}
-        onCancelCapture={props.onCancelCapture}
         onClearCaptureError={props.onClearCaptureError}
       />,
     )
@@ -186,28 +180,117 @@ describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () =
   })
 })
 
-describe('ChatComposer — Cancel while listening (US2)', () => {
-  it('shows a cancel control while listening that discards without sending', () => {
-    const { props } = renderComposer({ isListening: true })
-    fireEvent.click(screen.getByRole('button', { name: /cancel voice input/i }))
-    expect(props.onCancelCapture).toHaveBeenCalledTimes(1)
-  })
+// specs/029-fix-chat-widget-bugs research.md Decision 5: the plain inline "Cancel" button this
+// suite previously tested (rendered off `isListening` alone) was replaced by the shared
+// `RecordingReviewControls` component, driven by `recording.phase` — the same control
+// `VoiceControlBar` (now retired) and `CollapsedVoiceControls` already used, so there's one
+// recording-review implementation instead of two.
+describe('ChatComposer — recording review (US3, specs/029-fix-chat-widget-bugs FR-005)', () => {
+  it('shows RecordingReviewControls while a Push-to-Talk recording is in progress, and cancel discards without sending', () => {
+    const onCancelRecording = vi.fn()
+    renderComposer({
+      isListening: true,
+      recording: {
+        phase: 'recording',
+        getIntensity: () => 0,
+        onFinish: vi.fn(),
+        onCancelRecording,
+        onAccept: vi.fn(),
+      },
+    })
 
-  it('does not show the cancel control while idle', () => {
-    renderComposer({ isListening: false })
-    expect(screen.queryByRole('button', { name: /cancel voice input/i })).not.toBeInTheDocument()
-  })
-})
-
-describe('ChatComposer — Continuous mode (US2, FR-006)', () => {
-  it('does not render an interactive mic button in Continuous mode (capture is already always-on)', () => {
-    renderComposer({ conversationMode: 'Continuous' })
+    fireEvent.click(screen.getByRole('button', { name: /cancel recording/i }))
+    expect(onCancelRecording).toHaveBeenCalledTimes(1)
+    // The plain mic button is replaced, not merely covered, while reviewing.
     expect(screen.queryByRole('button', { name: MIC_BUTTON_NAME })).not.toBeInTheDocument()
   })
 
-  it('shows a listening indicator in Continuous mode while capture is active', () => {
+  it('does not show recording review controls while idle', () => {
+    renderComposer({ isListening: false })
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('ChatComposer — Continuous mode (specs/029-fix-chat-widget-bugs FR-004/FR-006/FR-014)', () => {
+  it('renders the same single mic button in Continuous mode as in Push-to-Talk — no separate control, no gate hiding it', () => {
+    renderComposer({ conversationMode: 'Continuous' })
+    expect(screen.getByRole('button', { name: MIC_BUTTON_NAME })).toBeInTheDocument()
+  })
+
+  it('toggles listening via a plain click in Continuous mode (no hold gesture)', () => {
+    const { props } = renderComposer({ conversationMode: 'Continuous', isListening: false })
+    fireEvent.click(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
+    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show a "Listening…" text label while capturing, in either mode (FR-014)', () => {
     renderComposer({ conversationMode: 'Continuous', isListening: true })
-    expect(screen.getByText(/listening/i)).toBeInTheDocument()
+    expect(screen.queryByText(/listening…/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('ChatComposer — exactly one mic control (US3, FR-004)', () => {
+  it('renders exactly one mic button, not two, in Push-to-Talk', () => {
+    renderComposer({ conversationMode: 'PushToTalk' })
+    expect(screen.getAllByRole('button', { name: MIC_BUTTON_NAME })).toHaveLength(1)
+  })
+
+  it('renders exactly one mic button, not two, in Continuous mode', () => {
+    renderComposer({ conversationMode: 'Continuous' })
+    expect(screen.getAllByRole('button', { name: MIC_BUTTON_NAME })).toHaveLength(1)
+  })
+})
+
+describe('ChatComposer — mode-switch menu (US3, FR-006, Clarification Q3)', () => {
+  it('opens a menu offering the other mode, and switching calls onToggleMode', async () => {
+    const { props } = renderComposer({ conversationMode: 'Continuous' })
+    fireEvent.click(screen.getByRole('button', { name: /voice input mode settings/i }))
+    // getByText rather than getByRole('menuitem', ...) — MUI's Menu Popper/Grow transition
+    // combined with jsdom's getComputedStyle throws on this environment's role-based
+    // accessibility-tree walk (unrelated to this component's own correctness; the same
+    // pattern is unprecedented elsewhere in this codebase's tests). Text content is a
+    // faithful enough target for what this test actually verifies: clicking the menu's
+    // offered action fires onToggleMode.
+    const menuItem = await screen.findByText(/switch to push-to-talk/i)
+    fireEvent.click(menuItem)
+    expect(props.onToggleMode).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the mode-switch control while a Push-to-Talk capture is in progress', () => {
+    renderComposer({ conversationMode: 'PushToTalk', isListening: true })
+    expect(screen.getByRole('button', { name: /voice input mode settings/i })).toBeDisabled()
+  })
+})
+
+describe('ChatComposer — merged speaker-mute/stop control (US3, FR-006a/FR-006b)', () => {
+  it('renders exactly one speaker-mute control, no separate stop button', () => {
+    renderComposer()
+    expect(screen.getByRole('button', { name: /mute lucy/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /stop/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onToggleMute when the mute control is pressed, reflecting current isMuted state', () => {
+    const { props } = renderComposer({ isMuted: false })
+    fireEvent.click(screen.getByRole('button', { name: /mute lucy/i }))
+    expect(props.onToggleMute).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows "Unmute" affordance once muted', () => {
+    renderComposer({ isMuted: true })
+    expect(screen.getByRole('button', { name: /unmute lucy/i })).toBeInTheDocument()
+  })
+
+  it('does not show a "Lucy is speaking…" text label anywhere (FR-013)', () => {
+    renderComposer()
+    expect(screen.queryByText(/lucy is speaking/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('ChatComposer — relocated translate control (US4, FR-007)', () => {
+  it('renders a translate control that calls onTranslateLastClick', () => {
+    const { props } = renderComposer()
+    fireEvent.click(screen.getByRole('button', { name: /translate last response/i }))
+    expect(props.onTranslateLastClick).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -245,6 +328,19 @@ describe('ChatComposer accessibility (SPEC-013 T020, constitution §7/§10)', ()
     const { container } = renderComposer({ permissionState: 'denied' })
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  it('has no automatically detectable a11y violations while reviewing a Push-to-Talk recording', async () => {
+    const { container } = renderComposer({
+      isListening: true,
+      recording: { phase: 'reviewing', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn(), onAccept: vi.fn() },
+    })
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('has no automatically detectable a11y violations with the voice-preferences-unavailable indicator shown', async () => {
+    const { container } = renderComposer({ voicePreferencesUnavailable: true })
+    expect(await axe(container)).toHaveNoViolations()
+  })
 })
 
 describe('ChatComposer — microphone permission (US2, FR-009)', () => {
@@ -262,21 +358,7 @@ describe('ChatComposer — microphone permission (US2, FR-009)', () => {
     const { rerender } = renderComposer({ permissionState: 'unknown' })
     expect(screen.queryByText(/microphone access was denied/i)).not.toBeInTheDocument()
 
-    rerender(
-      <ChatComposer
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        conversationMode="PushToTalk"
-        isListening={false}
-        permissionState="granted"
-        captureError={null}
-        onStartCapture={vi.fn()}
-        onStopCapture={vi.fn()}
-        onCancelCapture={vi.fn()}
-        onClearCaptureError={vi.fn()}
-      />,
-    )
+    rerender(<ChatComposer {...baseProps()} permissionState="granted" />)
     expect(screen.queryByText(/microphone access was denied/i)).not.toBeInTheDocument()
   })
 })
