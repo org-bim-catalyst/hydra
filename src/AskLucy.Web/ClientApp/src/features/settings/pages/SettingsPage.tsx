@@ -45,6 +45,7 @@ import { useDeleteAccount, useMyProfile } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
 import { useAiPreferences, useSaveAiPreferences } from '../hooks/useAiPreferences'
+import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
@@ -500,10 +501,11 @@ export function VoiceTab() {
   const preferences = useVoicePreferencesStore()
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
 
-  useEffect(() => {
-    void preferences.hydrateFromServer()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // specs/029-fix-chat-widget-bugs research.md Decision 4 — replaces the removed
+  // `preferences.hydrateFromServer()`; this hook syncs the fetched preference into the store
+  // itself on success (unchanged effect for every field this tab reads/writes below), and its
+  // own TanStack Query error state (unused here) is what ChatPage's small indicator reads.
+  useVoicePreferencesQuery()
 
   useEffect(() => {
     navigator.mediaDevices

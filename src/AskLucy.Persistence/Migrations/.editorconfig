@@ -1,0 +1,5 @@
+# EF Core migrations are generated code; CA1861 (avoid constant arrays as arguments)
+# fires repeatedly on the generated Up()/Down() column-default array literals.
+# Suppressed here rather than hand-editing generated migration semantics.
+[*.cs]
+dotnet_diagnostic.CA1861.severity = none

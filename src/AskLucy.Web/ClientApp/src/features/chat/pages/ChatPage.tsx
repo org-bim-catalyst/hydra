@@ -1,11 +1,10 @@
-import { RiChat3Line, RiTranslate2 } from '@remixicon/react'
+import { RiChat3Line } from '@remixicon/react'
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
   Grow,
-  IconButton,
   Snackbar,
   Toolbar,
 } from '@mui/material'
@@ -29,11 +28,11 @@ import { LocationWeatherWidget } from '../../viewer/components/LocationWeatherWi
 import { useGeolocation } from '../../viewer/hooks/useGeolocation'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
-import { VoiceControlBar } from '../components/VoiceControlBar'
 import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
 import { useChatDetail, useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
 import { useSpeechRecognition } from '../voice/useSpeechRecognition'
+import { useVoicePreferencesQuery } from '../voice/useVoicePreferencesQuery'
 import { useVoiceRecorder } from '../voice/useVoiceRecorder'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
@@ -89,13 +88,12 @@ export function ChatPage() {
 
   // FR-011/SC-004: restores a returning user's mute/input-mode preference without requiring
   // a detour through Settings first (research.md Decision 9 — VoiceTab already hydrates on
-  // its own mount, but a user who never opens Settings needs this too). Mounted once here,
-  // not in ConversationView, since ConversationView remounts on every chat switch.
-  const hydrateVoicePreferences = useVoicePreferencesStore((s) => s.hydrateFromServer)
-  useEffect(() => {
-    void hydrateVoicePreferences()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // its own mount, but a user who never opens Settings needs this too). specs/029-fix-chat-
+  // widget-bugs research.md Decision 4: previously a manual useEffect mounted once here (not
+  // in ConversationView, since ConversationView remounts on every chat switch) — now
+  // `useVoicePreferencesQuery` (TanStack Query, called inside ConversationView near the other
+  // voice-preference reads) handles this instead; its cache makes a separate single-mount
+  // point unnecessary, and its own error state is what drives ChatComposer's small indicator.
 
   // specs/026-floating-chat-assistant FR-016/FR-017, data-model.md "Client-side:
   // ChatAssistantWidgetState": seeds the response language from the persisted preference
@@ -318,10 +316,16 @@ export function ConversationView({
   }, [isStreaming, messages, language, tts, expanded, markUnread])
 
   // SPEC-013 US1 (FR-001/FR-003): keeps the extended useVoiceOutput's real-time mute gate
-  // in sync with the persisted preference — store is the source of truth (VoiceControlBar
-  // and Settings' VoiceTab both write through it), tts.isMuted is only its live effect.
+  // in sync with the persisted preference — store is the source of truth (ChatComposer's
+  // consolidated mute control and Settings' VoiceTab both write through it), tts.isMuted is
+  // only its live effect.
   const isMutedPreference = useVoicePreferencesStore((s) => s.isMuted)
   const updateVoicePreference = useVoicePreferencesStore((s) => s.update)
+  // specs/029-fix-chat-widget-bugs research.md Decision 4 — replaces the old manual
+  // hydrate-on-mount effect; syncs fetched preferences into the store on success, and its own
+  // (not the store's) isError drives ChatComposer's small, non-blocking indicator below,
+  // completely separate from the store's `error` field (which stays scoped to save failures).
+  const voicePreferencesQuery = useVoicePreferencesQuery()
   // FR-012/constitution §2.VIII: a rejected `update({ isMuted })` (e.g. offline, 500) rolls
   // back to the last-known-good state inside the store itself (voicePreferencesStore.ts) —
   // this just makes that failure visible instead of leaving it store-internal only.
@@ -380,9 +384,11 @@ export function ConversationView({
 
   // SPEC-013 US2 (research.md Decision 1/4): a single `useSpeechRecognition` instance, owned
   // here (mirroring `tts`'s existing lifted-hook convention), shared by `ChatComposer` (mic
-  // control + transcript target) and `VoiceControlBar` (status display) below — not
-  // `useConversationAudio`, which would coincidentally also speak the reply and regress the
-  // "every reply is spoken, typed or voice" behavior the mute effect above preserves.
+  // control, status display, and transcript target — specs/029-fix-chat-widget-bugs
+  // research.md Decision 5 consolidated what used to be split with the retired
+  // `VoiceControlBar`) — not `useConversationAudio`, which would coincidentally also speak
+  // the reply and regress the "every reply is spoken, typed or voice" behavior the mute
+  // effect above preserves.
   const recognition = useSpeechRecognition({
     language,
     mode: conversationMode === 'Continuous' ? 'continuous' : 'push-to-talk',
@@ -495,10 +501,22 @@ export function ConversationView({
       ? recorder.getIntensity
       : () => 0
 
+  // specs/029-fix-chat-widget-bugs research.md Decision 5a — merges the former separate
+  // "mute Lucy's speaker output" and "stop the reply she's currently speaking" actions into
+  // one toggle (FR-006a/FR-006b): muting while she's actively speaking also stops that
+  // playback immediately; muting at any other time (or unmuting) is just the preference
+  // toggle. Shared by both the Collapsed widget's mute control and the Expanded panel's
+  // ChatComposer, since both read/write the same `voiceControlsProps`-shaped contract.
+  const handleToggleMute = () => {
+    if (tts.isSpeaking) tts.stop()
+    void updateVoicePreference({ isMuted: !isMutedPreference })
+  }
+
   // specs/026-floating-chat-assistant research.md #10: the single data contract shared by
-  // `CollapsedVoiceControls` (Collapsed) and `VoiceControlBar` (Expanded) — only the layout
-  // differs between the two. Push-to-Talk is driven by `recorder`; Continuous keeps using
-  // `recognition`, completely unchanged (FR-025).
+  // `CollapsedVoiceControls` (Collapsed) and the Expanded panel's `ChatComposer`
+  // (specs/029-fix-chat-widget-bugs research.md Decision 5 — no longer `VoiceControlBar`,
+  // retired) — only the layout differs between the two. Push-to-Talk is driven by
+  // `recorder`; Continuous keeps using `recognition`, completely unchanged (FR-025).
   const voiceControlsProps: VoiceControlsProps =
     conversationMode === 'PushToTalk'
       ? {
@@ -514,7 +532,7 @@ export function ConversationView({
           onCancel: recorder.cancel,
           onStopSpeaking: tts.stop,
           onToggleMode: handleToggleMode,
-          onToggleMute: () => updateVoicePreference({ isMuted: !isMutedPreference }),
+          onToggleMute: handleToggleMute,
           onClearError: recorder.clearError,
           recording: {
             phase: recorder.phase,
@@ -537,7 +555,7 @@ export function ConversationView({
           onCancel: recognition.cancel,
           onStopSpeaking: tts.stop,
           onToggleMode: handleToggleMode,
-          onToggleMute: () => updateVoicePreference({ isMuted: !isMutedPreference }),
+          onToggleMute: handleToggleMute,
           onClearError: recognition.clearError,
         }
 
@@ -574,7 +592,14 @@ export function ConversationView({
           contentId={CHAT_CONTENT_ID}
         >
           {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
-            live behind the Studio workspace's account circular control (SPEC-024 FR-024). */}
+            live behind the Studio workspace's account circular control (SPEC-024 FR-024).
+            specs/029-fix-chat-widget-bugs research.md Decision 6: the translate control
+            moved into ChatComposer's row below (FR-007) — ProjectPicker stays here
+            (spec 026's contracts/chat-widget-components.md:108 deliberately anchored it in
+            this toolbar, not ExpandedChatPanel's identity header, a boundary this feature
+            doesn't revisit). This toolbar's height is now explicit rather than the MUI
+            `dense` variant default, so removing one icon actually shrinks the row instead of
+            leaving a fixed-height row with one fewer icon in it (FR-008/SC-004). */}
           <Toolbar
             variant="dense"
             sx={{
@@ -582,12 +607,11 @@ export function ConversationView({
               gap: 0.5,
               borderBottom: '1px solid',
               borderColor: 'divider',
+              minHeight: 40,
+              '&.MuiToolbar-root': { minHeight: 40 },
             }}
           >
             <ProjectPicker chatId={chatId} projectId={projectId} onAssigned={setProjectId} />
-            <IconButton onClick={handleTranslateLast} aria-label="Translate last response">
-              <RiTranslate2 />
-            </IconButton>
           </Toolbar>
 
           <Box
@@ -656,26 +680,32 @@ export function ConversationView({
             </Box>
           </Box>
 
-          <VoiceControlBar {...voiceControlsProps} />
+          {/* specs/029-fix-chat-widget-bugs research.md Decision 5 — `VoiceControlBar` no
+              longer renders here; ChatComposer below is the single consolidated voice
+              control for the Expanded panel. Every field it needs for whichever mode is
+              active is already correctly branched in `voiceControlsProps` above (the same
+              contract `CollapsedVoiceControls` consumes) — reused here rather than
+              re-deriving a second, potentially-divergent copy of the same PushToTalk/
+              Continuous branching (the exact kind of drift that caused the original bug). */}
           <ChatComposer
             value={composerText}
             onChange={setComposerText}
             onSend={handleSend}
             disabled={isStreaming || !providerId || !modelId}
             conversationMode={conversationMode}
-            // specs/026-floating-chat-assistant FR-019–FR-023: this button only ever renders
-            // for Push-to-Talk (ChatComposer's own `showMicButton` gate), so it always drives
-            // `recorder` now, never `recognition` — pressing it starts the same record/review
-            // flow shown in VoiceControlBar/CollapsedVoiceControls just above/alongside it.
-            // "Stop capture" means `finish()` (move to review), not an instant transcript.
-            isListening={recorder.phase !== 'idle'}
-            permissionState={recorder.permissionState}
-            captureError={recorder.error}
-            onStartCapture={() => void recorder.start()}
-            onStopCapture={recorder.finish}
-            onCancelCapture={recorder.cancel}
-            onClearCaptureError={recorder.clearError}
+            isListening={voiceControlsProps.isListening}
+            permissionState={voiceControlsProps.permissionState}
+            captureError={voiceControlsProps.errorMessage}
+            onStartCapture={voiceControlsProps.onStart}
+            onStopCapture={voiceControlsProps.onStop}
+            onClearCaptureError={voiceControlsProps.onClearError}
             onInsertPromptClick={chatId ? () => setInsertPromptOpen(true) : undefined}
+            onToggleMode={voiceControlsProps.onToggleMode}
+            recording={voiceControlsProps.recording}
+            isMuted={voiceControlsProps.isMuted}
+            onToggleMute={voiceControlsProps.onToggleMute}
+            onTranslateLastClick={handleTranslateLast}
+            voicePreferencesUnavailable={voicePreferencesQuery.isError}
           />
           {chatId && (
             <InsertPromptPicker

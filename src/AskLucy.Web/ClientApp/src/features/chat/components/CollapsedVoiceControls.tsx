@@ -13,9 +13,11 @@ import type { RecordingPhase } from '../voice/useVoiceRecorder'
 import { RecordingReviewControls } from './RecordingReviewControls'
 
 /** specs/026-floating-chat-assistant contracts/chat-widget-components.md — the same data
- * contract `VoiceControlBar` already takes, shared between the Collapsed vertical layout
- * (this component) and the Expanded horizontal layout (`VoiceControlBar` itself), so a
- * behavior change only ever needs to be made once (research.md #10). */
+ * contract the Expanded panel's `ChatComposer` consumes (specs/029-fix-chat-widget-bugs
+ * research.md Decision 5 retired the separate `VoiceControlBar` this used to describe;
+ * `ChatComposer` reads this shape directly now), shared between the Collapsed vertical
+ * layout (this component) and the Expanded layout, so a behavior change only ever needs to
+ * be made once (research.md #10). */
 export interface VoiceControlsProps {
   isAvailable: boolean
   isListening: boolean

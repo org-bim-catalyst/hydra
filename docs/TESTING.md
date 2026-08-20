@@ -229,6 +229,18 @@ Linux-only `mcr.microsoft.com/mssql/server` image.
 
 Avoid the EF Core InMemory provider for relational behavior.
 
+**Migration drift caused a production incident (specs/029-fix-chat-widget-bugs).** The
+`20260817110019_AddUserVoicePreferenceDefaultLanguage` migration was committed but never
+applied to production, and the app has no `Database.MigrateAsync()` call at startup (by
+design — see `PersistenceTestFixture`'s own doc comment on why this database can't run
+migrations itself). Every query against the affected table 500'd until someone noticed.
+Since then, `GET /health/ready` (tagged separately from the plain liveness `GET /health`)
+reports `503` whenever `Database.GetPendingMigrationsAsync()` finds anything pending,
+listing the migration names — check it after every deploy, and whenever
+`PERSISTENCE_TESTS_CONNECTION_STRING`'s target database changes, remember to run
+`dotnet ef database update --project src/AskLucy.Persistence --startup-project src/AskLucy.Web`
+against it manually; nothing else will.
+
 ---
 
 # 14. API Tests

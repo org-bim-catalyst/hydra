@@ -1,4 +1,4 @@
-import { Alert, Box, Container, Snackbar, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Chip, Container, Snackbar, Stack, Tab, Tabs, Typography } from '@mui/material'
 import { useState } from 'react'
 import { AppShell } from '../../../components/AppShell'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
@@ -25,13 +25,26 @@ export function DocumentWorkspacePage() {
   const isAdmin = useIsAdmin()
   const dashboard = useDashboard()
   const organizationDashboard = useOrganizationDashboard(isAdmin)
-  const { latest: latestNotification, dismiss: dismissNotification } = useNotificationHub()
+  const { latest: latestNotification, dismiss: dismissNotification, isLive: isNotificationHubLive } = useNotificationHub()
 
   return (
     <AppShell
       title="Documents"
       subtitle="Upload, process, and manage your documents"
-      actions={<NotificationInbox />}
+      actions={
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          {/* specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
+              ExecutionMonitor already uses for useWorkflowExecutionHub's isLive. */}
+          <Chip
+            label={isNotificationHubLive ? 'Live' : 'Reconnecting…'}
+            size="small"
+            variant="outlined"
+            color={isNotificationHubLive ? 'success' : 'default'}
+            data-testid="notification-hub-connection-status"
+          />
+          <NotificationInbox />
+        </Stack>
+      }
     >
       <Container maxWidth="lg" disableGutters>
         <Box sx={{ mb: 3 }}>

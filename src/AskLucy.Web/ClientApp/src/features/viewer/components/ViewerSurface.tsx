@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import { Box, Chip } from '@mui/material'
 import { useEffect } from 'react'
 import { useWebGLSupport } from '../../../hooks/useWebGLSupport'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
@@ -54,7 +54,7 @@ function revertToPlaceholder() {
 export function ViewerSurface({ geolocation }: ViewerSurfaceProps) {
   const supportsWebGL = useWebGLSupport()
   const contentMode = useViewerEngineStore((s) => s.contentMode)
-  useFloatingPanelHub()
+  const { isLive: isPanelHubLive } = useFloatingPanelHub()
 
   useEffect(() => {
     const store = useViewerEngineStore.getState()
@@ -98,6 +98,21 @@ export function ViewerSurface({ geolocation }: ViewerSurfaceProps) {
         <PlaceholderRenderTarget />
       )}
       <FloatingPanelHost />
+      {/* specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
+          ExecutionMonitor already uses for useWorkflowExecutionHub's isLive, adapted to only
+          mount while reconnecting: this is an ambient full-viewport surface, not a monitoring
+          dashboard, so a permanent "Live" badge for a niche feature (AI-requested panels)
+          would be visual noise most users never need to see. */}
+      {!isPanelHubLive && (
+        <Chip
+          label="Reconnecting…"
+          size="small"
+          variant="outlined"
+          color="default"
+          data-testid="panel-hub-connection-status"
+          sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'background.paper' }}
+        />
+      )}
     </Box>
   )
 }

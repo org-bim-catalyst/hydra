@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as voiceApi from '../../chat/api/voiceApi'
@@ -5,6 +6,18 @@ import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore
 import { VoiceTab } from './SettingsPage'
 
 vi.mock('../../chat/api/voiceApi')
+
+// specs/029-fix-chat-widget-bugs research.md Decision 4 — VoiceTab now hydrates via
+// useVoicePreferencesQuery (TanStack Query) instead of the removed
+// voicePreferencesStore.hydrateFromServer, so it needs a QueryClientProvider ancestor.
+function renderVoiceTab() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <VoiceTab />
+    </QueryClientProvider>,
+  )
+}
 
 const SERVER_PREFERENCE: voiceApi.UserVoicePreference = {
   conversationMode: 'PushToTalk',
@@ -35,13 +48,13 @@ describe('VoiceTab', () => {
   })
 
   it('hydrates preferences from the server on mount', async () => {
-    render(<VoiceTab />)
+    renderVoiceTab()
 
     await waitFor(() => expect(voiceApi.getVoicePreferences).toHaveBeenCalled())
   })
 
   it('saves an advanced voice id when edited', async () => {
-    render(<VoiceTab />)
+    renderVoiceTab()
     await screen.findByLabelText(/voice id/i)
 
     fireEvent.change(screen.getByLabelText(/voice id/i), { target: { value: 'custom-voice' } })
@@ -55,7 +68,7 @@ describe('VoiceTab', () => {
 
   it('surfaces a save failure instead of failing silently', async () => {
     vi.mocked(voiceApi.saveVoicePreferences).mockRejectedValue(new Error('Save failed.'))
-    render(<VoiceTab />)
+    renderVoiceTab()
     await screen.findByLabelText(/voice id/i)
 
     fireEvent.change(screen.getByLabelText(/voice id/i), { target: { value: 'x' } })
