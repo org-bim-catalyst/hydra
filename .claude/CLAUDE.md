@@ -2,13 +2,13 @@
 
 > **Project:** Ask Lucy AI Workspace
 >
-> **Version:** 2.1
+> **Version:** 2.2
 >
 > **Status:** Production Architecture
 >
 > **Author:** Mustafa Salaheldin
 >
-> **Last Updated:** July 2026 (v2.1: added Error Handling — no silent failures; voice output persona requirement)
+> **Last Updated:** August 2026 (v2.2: Billing and Notification Engines postponed; Pinecone is now the primary RAG vector store, with SQL Server reserved as the per-knowledge-base alternative and the default again once the platform runs on Azure SQL Database or Microsoft Fabric)
 
 ---
 
@@ -108,7 +108,7 @@ Entity Framework Core
 
 Code-First Migrations
 
-Use SQL Server as the initial vector store for Retrieval-Augmented Generation (RAG). The design must abstract vector storage to allow future migration to dedicated vector databases without changing business logic.
+Pinecone is the primary vector store for Retrieval-Augmented Generation (RAG), selected per knowledge base behind a vector-store abstraction. SQL Server remains available as a per-knowledge-base alternative (e.g. for data-residency requirements) and becomes the default again once the platform runs on Azure SQL Database or Microsoft Fabric, where the DML-compatible native vector index is supported. The design must keep vector storage abstracted so switching backends is a configuration change, not a business-logic change.
 
 ---
 
@@ -153,8 +153,8 @@ The platform is composed of independent engines:
 * Agent Engine
 * MCP Tool Engine
 * File Management Engine
-* Billing Engine
-* Notification Engine
+* Billing Engine (postponed — not yet started)
+* Notification Engine (postponed — not yet started)
 * Administration Engine
 * Analytics Engine
 
@@ -223,7 +223,7 @@ The RAG pipeline consists of:
 2. Text extraction
 3. Chunking
 4. Embedding generation
-5. SQL Server vector storage
+5. Vector storage (Pinecone by default; SQL Server for data-residency requirements or once the platform runs on Azure SQL Database/Microsoft Fabric)
 6. Semantic search
 7. Context assembly
 8. Prompt augmentation
@@ -346,6 +346,8 @@ All sensitive operations must require authenticated users.
 ---
 
 # Payments
+
+> Postponed: the Billing Engine is not yet started. The section below describes the target design to implement when billing work resumes.
 
 Initial payment gateway:
 
