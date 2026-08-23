@@ -201,9 +201,15 @@ resolved clarification).
   and `ChatPage.tsx` (non-test) are clean. `useVoiceRecorder.ts` shows modified, but that diff is
   SPEC-032's own still-uncommitted filename-extension fix from last round (predates this
   feature's work) — SPEC-033 itself never opened this file.
-- [ ] T015 Run this feature's full `/speckit-cicd` pass to completion — commit, push, PR, CI,
+- [X] T015 Run this feature's full `/speckit-cicd` pass to completion — commit, push, PR, CI,
   merge, and **explicitly verify the deployed production build reflects this commit** (FR-004/
-  SC-003) — this task is itself a functional requirement of the feature, not optional follow-up
+  SC-003) — this task is itself a functional requirement of the feature, not optional follow-up.
+  Bundled together with SPEC-032 (still uncommitted from last round) per user confirmation:
+  branch `032-033-transcription-and-voice-fixes` → commit `07f8a93` (34 files, exactly the
+  intended set) → PR #311 → CI green (frontend + backend build/lint/test) → squash-merged as
+  `18ecb8b` → post-merge deploy to production succeeded → verified `https://hydra.bimcatalyst.com
+  /health` and `/health/ready` both return 200 → branches deleted (local + remote) → `main`
+  clean and fast-forwarded, 0 ahead/behind origin.
 
 ---
 
