@@ -1,4 +1,4 @@
-import { RiCheckLine, RiCloseLine, RiSendPlane2Fill } from '@remixicon/react'
+import { RiCheckLine, RiCloseLine } from '@remixicon/react'
 import { IconButton, Tooltip } from '@mui/material'
 import type { RecordingPhase } from '../voice/useVoiceRecorder'
 
@@ -6,7 +6,6 @@ export interface RecordingReviewControlsProps {
   phase: RecordingPhase
   onFinish: () => void
   onCancelRecording: () => void
-  onAccept: () => void
   /** `'row'` for the Expanded panel's `ChatComposer` (specs/029-fix-chat-widget-bugs
    * research.md Decision 5 — previously `VoiceControlBar`'s horizontal layout, now
    * retired); the Collapsed vertical stack supplies its own `Stack` wrapper and doesn't
@@ -15,15 +14,18 @@ export interface RecordingReviewControlsProps {
 }
 
 /**
- * FR-020–FR-023: the finish/cancel/send controls shown while a Push-to-Talk recording is
- * in progress or awaiting review — identical markup and semantics regardless of which
- * layout (`CollapsedVoiceControls` or `VoiceControlBar`) renders it, per research.md #10.
+ * specs/026-floating-chat-assistant FR-020/FR-021, specs/031-voice-controls-redesign
+ * research.md Decision 1 — the finish/cancel controls shown while a Push-to-Talk
+ * recording is actively in progress, identical markup and semantics regardless of which
+ * layout (`CollapsedVoiceControls` or the Expanded panel's `ChatComposer`) renders it, per
+ * research.md #10 (specs/026). Finish now stops and transcribes in one step — there is no
+ * longer a separate manual "send for transcription" control between recording and the
+ * transcript landing in the message field.
  */
 export function RecordingReviewControls({
   phase,
   onFinish,
   onCancelRecording,
-  onAccept,
   placement = 'right',
 }: RecordingReviewControlsProps) {
   if (phase === 'idle') return null
@@ -32,19 +34,6 @@ export function RecordingReviewControls({
     <Tooltip title="Finished speaking" placement={placement}>
       <IconButton onClick={onFinish} aria-label="Finished speaking" size="small">
         <RiCheckLine fontSize="small" />
-      </IconButton>
-    </Tooltip>
-  )
-
-  const accept = phase === 'reviewing' && (
-    <Tooltip title="Send for transcription" placement={placement}>
-      <IconButton
-        onClick={onAccept}
-        aria-label="Send recording for transcription"
-        size="small"
-        color="primary"
-      >
-        <RiSendPlane2Fill fontSize="small" />
       </IconButton>
     </Tooltip>
   )
@@ -60,7 +49,6 @@ export function RecordingReviewControls({
   return (
     <>
       {finish}
-      {accept}
       {cancel}
     </>
   )

@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useActiveConversationStore } from '../activeConversationStore'
+import { useChatPanelSizeStore } from '../chatPanelSizeStore'
 import { ChatAssistantWidget } from '../components/ChatAssistantWidget'
 import { CollapsedChatControl } from '../components/CollapsedChatControl'
 import { ExpandedChatPanel } from '../components/ExpandedChatPanel'
@@ -245,7 +246,6 @@ export function ConversationView({
     error,
     clearError,
     send,
-    sendTranslation,
     retry,
     providerId,
     modelId,
@@ -331,6 +331,10 @@ export function ConversationView({
   // this just makes that failure visible instead of leaving it store-internal only.
   const voicePreferenceError = useVoicePreferencesStore((s) => s.error)
   const clearVoicePreferenceError = useVoicePreferencesStore((s) => s.clearError)
+  // specs/030-composer-panel-refinements FR-008a — the panel's last-chosen half/full height
+  // state, persisted to localStorage so it survives a reload (chatPanelSizeStore.ts).
+  const isPanelFullHeight = useChatPanelSizeStore((s) => s.isFullHeight)
+  const togglePanelHeight = useChatPanelSizeStore((s) => s.toggle)
   useEffect(() => {
     tts.setMuted(isMutedPreference)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -402,8 +406,11 @@ export function ConversationView({
   // hook's discrete record/review/cancel/accept flow replaces it for this mode only.
   // Continuous keeps using `recognition` above, completely unchanged (FR-025).
   const recorder = useVoiceRecorder()
-  const handleRecorderAccept = async () => {
-    const transcript = await recorder.accept()
+  // specs/031-voice-controls-redesign FR-001/FR-002, research.md Decision 1 — finish() now
+  // stops and transcribes in one step; this just appends the result into the draft text
+  // field, replacing the old two-step finish-then-manually-accept flow.
+  const handleFinishAndTranscribe = async () => {
+    const transcript = await recorder.finish()
     if (transcript.trim()) {
       setComposerText((prev) => `${prev} ${transcript}`.trim())
     }
@@ -446,13 +453,6 @@ export function ConversationView({
     void updateConversationMode({
       conversationMode: conversationMode === 'PushToTalk' ? 'Continuous' : 'PushToTalk',
     })
-  }
-
-  const handleTranslateLast = async () => {
-    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistant) return
-    const plain = await sendTranslation(lastAssistant.content, language)
-    tts.speak(plain, language)
   }
 
   // specs/026-floating-chat-assistant FR-006/research.md #9: the expand handle lives inside
@@ -528,7 +528,7 @@ export function ConversationView({
           errorMessage: recorder.error,
           permissionState: recorder.permissionState,
           onStart: () => void recorder.start(),
-          onStop: recorder.finish,
+          onStop: () => void handleFinishAndTranscribe(),
           onCancel: recorder.cancel,
           onStopSpeaking: tts.stop,
           onToggleMode: handleToggleMode,
@@ -537,9 +537,8 @@ export function ConversationView({
           recording: {
             phase: recorder.phase,
             getIntensity: recorder.getIntensity,
-            onFinish: recorder.finish,
+            onFinish: () => void handleFinishAndTranscribe(),
             onCancelRecording: recorder.cancel,
-            onAccept: () => void handleRecorderAccept(),
           },
         }
       : {
@@ -590,6 +589,10 @@ export function ConversationView({
           onNewChat={onNewChat}
           language={language}
           contentId={CHAT_CONTENT_ID}
+          isFullHeight={isPanelFullHeight}
+          onToggleHeight={togglePanelHeight}
+          isMuted={voiceControlsProps.isMuted}
+          onToggleMute={voiceControlsProps.onToggleMute}
         >
           {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
             live behind the Studio workspace's account circular control (SPEC-024 FR-024).
@@ -702,9 +705,6 @@ export function ConversationView({
             onInsertPromptClick={chatId ? () => setInsertPromptOpen(true) : undefined}
             onToggleMode={voiceControlsProps.onToggleMode}
             recording={voiceControlsProps.recording}
-            isMuted={voiceControlsProps.isMuted}
-            onToggleMute={voiceControlsProps.onToggleMute}
-            onTranslateLastClick={handleTranslateLast}
             voicePreferencesUnavailable={voicePreferencesQuery.isError}
           />
           {chatId && (

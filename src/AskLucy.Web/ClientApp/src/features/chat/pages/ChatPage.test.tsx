@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as voiceApi from '../api/voiceApi'
 import type { PagedResult, PersistedMessage } from '../api/chatsApi'
 import { useActiveConversationStore } from '../activeConversationStore'
+import { useChatPanelSizeStore } from '../chatPanelSizeStore'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
@@ -171,6 +172,11 @@ beforeEach(() => {
     preferredSpeakerDeviceId: null,
     error: null,
   })
+  // specs/030-composer-panel-refinements: resets the persisted panel-height preference for
+  // every test in this file, so a test that toggles full-height doesn't leak that choice
+  // into a later, unrelated test's `renderChatPage()`.
+  localStorage.removeItem('ask-lucy-chat-panel-size')
+  useChatPanelSizeStore.setState({ isFullHeight: false })
 })
 
 function renderConversation(chatId: string | null) {
@@ -629,6 +635,23 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('toggling the resize control flips the persisted panel-height preference end-to-end (specs/030-composer-panel-refinements FR-008/FR-008a)', () => {
+    renderChatPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
+
+    expect(useChatPanelSizeStore.getState().isFullHeight).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Expand to full height' }))
+
+    expect(useChatPanelSizeStore.getState().isFullHeight).toBe(true)
+    expect(screen.getByRole('button', { name: 'Collapse to half height' })).toBeInTheDocument()
+    const stored = localStorage.getItem('ask-lucy-chat-panel-size')
+    expect(stored).not.toBeNull()
+    expect(JSON.parse(stored!).state.isFullHeight).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse to half height' }))
+    expect(useChatPanelSizeStore.getState().isFullHeight).toBe(false)
+  })
+
   it('the collapsed chat widget is keyboard-operable: reachable via Tab, Enter expands, Tab continues into content, Escape collapses and returns focus (FR-010/SC-007, T055)', async () => {
     // specs/026-floating-chat-assistant research.md #9/D1: ChatAssistantWidget does not
     // inherit CircularAction's ARIA-disclosure coverage, so it needs its own behavioral
@@ -717,6 +740,23 @@ describe('ConversationView — mute control (SPEC-013 US1, FR-001/FR-003/FR-012)
     })
   })
 
+  // specs/031-voice-controls-redesign FR-011, US6 — the mute control moved from the
+  // composer footer into ExpandedChatPanel's header, next to Lucy's portrait, so it must
+  // share an ancestor with the portrait image, not with the message text field.
+  it('is reachable via the panel header (next to Lucy\'s portrait), not the composer footer', async () => {
+    renderConversation(CHAT_A)
+
+    const muteButton = await screen.findByRole('button', { name: /^mute lucy$/i })
+    const portrait = screen.getByAltText('Ask Lucy')
+    const textbox = screen.getByPlaceholderText('Message Ask Lucy...')
+
+    const header = muteButton.closest('.MuiStack-root')
+    expect(header).not.toBeNull()
+    expect(within(header as HTMLElement).getByAltText('Ask Lucy')).toBe(portrait)
+    expect(within(header as HTMLElement).queryByPlaceholderText('Message Ask Lucy...')).toBeNull()
+    expect(textbox.closest('.MuiPaper-root')).not.toBe(header)
+  })
+
   it('surfaces a visible error instead of failing silently when saving the mute preference fails', async () => {
     vi.mocked(voiceApi.saveVoicePreferences).mockRejectedValue(new Error('Could not save.'))
     const user = userEvent.setup()
@@ -741,24 +781,13 @@ describe('ConversationView — mute control (SPEC-013 US1, FR-001/FR-003/FR-012)
   })
 })
 
-// specs/029-fix-chat-widget-bugs T025, FR-007/FR-008, research.md Decision 6.
-describe('ConversationView — relocated translate control (US4)', () => {
-  it('renders exactly one translate control, inside the composer row — not a separate row above the message list', async () => {
+// specs/031-voice-controls-redesign FR-010, US5 — the translate control is removed
+// entirely, superseding specs/029-fix-chat-widget-bugs's "relocated translate control".
+describe('ConversationView — translate control removed (specs/031-voice-controls-redesign FR-010)', () => {
+  it('renders no translate control anywhere on the page', async () => {
     renderConversation(CHAT_A)
-
-    // Exactly one match proves it isn't duplicated between an old top-toolbar spot and the
-    // new composer-row spot — a real regression the length assertion alone would catch.
-    const translateButtons = await screen.findAllByRole('button', { name: /translate last response/i })
-    expect(translateButtons).toHaveLength(1)
-
-    // The composer row is the pill-shaped container around the message textbox — the
-    // translate control must live there, not in a separate row above the message list.
-    const textbox = screen.getByPlaceholderText('Message Ask Lucy...')
-    const composerContainer = textbox.closest('.MuiPaper-root')
-    expect(composerContainer).not.toBeNull()
-    expect(
-      within(composerContainer as HTMLElement).getByRole('button', { name: /translate last response/i }),
-    ).toBeInTheDocument()
+    await screen.findByPlaceholderText('Message Ask Lucy...')
+    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument()
   })
 })
 
@@ -842,7 +871,10 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
   })
 
-  it('start → waveform (no transcript) → finish → reviewing (not yet transcribed) → accept (transcribed exactly once)', async () => {
+  // specs/031-voice-controls-redesign FR-001/FR-003, research.md Decision 1 — Finish now
+  // transcribes directly; there is no longer a separate "send for transcription" step
+  // between tapping Finish and the transcript landing in the message field (US1).
+  it('start → waveform (no transcript) → Finish transcribes directly and populates the field', async () => {
     renderConversation(CHAT_A)
 
     fireEvent.click(await findMicButton())
@@ -854,33 +886,23 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     expect(transcribeCalls).toBe(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Send recording for transcription' }),
-      ).toBeInTheDocument(),
-    )
-    expect(transcribeCalls).toBe(0)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send recording for transcription' }))
-
+    // No intermediate "send for transcription" control ever appears (FR-001/FR-003).
+    expect(
+      screen.queryByRole('button', { name: 'Send recording for transcription' }),
+    ).not.toBeInTheDocument()
     await waitFor(() => expect(transcribeCalls).toBe(1))
     await waitFor(() =>
       expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
     )
   })
 
-  it('cancel from the review state discards the recording — transcribeAudio is never called', async () => {
+  it('cancel while recording discards it — transcribeAudio is never called', async () => {
     renderConversation(CHAT_A)
 
     fireEvent.click(await findMicButton())
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Send recording for transcription' }),
-      ).toBeInTheDocument(),
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel recording' }))
@@ -892,6 +914,37 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     )
     expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('')
     expect(transcribeCalls).toBe(0)
+  })
+
+  // specs/031-voice-controls-redesign FR-002/US2 — a hold that clears the tap/hold
+  // threshold sustains capture (phase stays 'recording', not reset to idle by a second
+  // tap) and finishing it lands the transcript in the field via the exact same
+  // `handleFinishAndTranscribe` path User Story 1's tap-then-Finish test above exercises
+  // (research.md Decision 1 unifies both gestures onto one completion mechanism — once a
+  // recording is underway, `ChatComposer`'s plain mic button is already replaced by the
+  // Finished-speaking control, so a hold's eventual release reaches transcription through
+  // that same shared control rather than a distinct code path).
+  it('a sustained hold keeps recording (not an instant toggle) and finishing it transcribes via the same path as a tap (US2)', async () => {
+    renderConversation(CHAT_A)
+
+    fireEvent.pointerDown(await findMicButton())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+    )
+    // Recording is genuinely sustained (not already finished/idle) while the button
+    // would still be physically held in a real hold gesture.
+    expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument()
+    expect(transcribeCalls).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+
+    expect(
+      screen.queryByRole('button', { name: 'Send recording for transcription' }),
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(transcribeCalls).toBe(1))
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
+    )
   })
 
   it('collapsing the widget mid-recording discards it (FR-024) — never transcribed', async () => {
@@ -969,6 +1022,27 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     // consolidated voice control (VoiceControlBar retired) — its one mic button always
     // renders regardless of conversationMode (FR-006), so exactly one match, in both modes.
     expect(screen.queryAllByRole('button', { name: 'Start voice input' })).toHaveLength(1)
+  })
+
+  // specs/031-voice-controls-redesign FR-009 — switching conversation mode must not
+  // discard in-progress typed text or require a page reload.
+  it('preserves typed draft text across a conversation-mode switch (FR-009)', async () => {
+    renderConversation(CHAT_A)
+
+    const textbox = await screen.findByPlaceholderText('Message Ask Lucy...')
+    fireEvent.change(textbox, { target: { value: 'Draft before switching modes' } })
+    expect(textbox).toHaveValue('Draft before switching modes')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voice input mode settings' }))
+    const menuItem = await screen.findByText(/switch to continuous conversation/i)
+    fireEvent.click(menuItem)
+
+    await waitFor(() =>
+      expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous'),
+    )
+    expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue(
+      'Draft before switching modes',
+    )
   })
 })
 

@@ -21,7 +21,14 @@ export function ChatAssistantWidget({ children }: ChatAssistantWidgetProps) {
         position: 'absolute',
         bottom: { xs: 16, sm: 24 },
         right: { xs: 16, sm: 24 },
-        zIndex: 3,
+        // specs/030-composer-panel-refinements: the Expanded panel's full-height state
+        // (research.md Decision 3) reaches the same top-right corner as WorkspaceOverlay's
+        // top-cluster controls (ThemeToggleButton/RotationToggleButton/CircularAction), all
+        // MUI `Fab`s — which bake in `zIndex: theme.zIndex.fab` (1050) from MUI's own base
+        // styles, far above this widget's old `zIndex: 3`. Anchored well above `fab` so the
+        // panel always wins that overlap, while staying below Drawer/Modal/Snackbar/Tooltip
+        // so those still layer above the chat widget as expected.
+        zIndex: (theme) => theme.zIndex.fab + 50,
         pointerEvents: 'auto',
       }}
     >

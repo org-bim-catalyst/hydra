@@ -1,7 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { transcribeAudio } from '../api/aiApi'
+import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
 import { ChatComposer, type ChatComposerProps } from './ChatComposer'
+
+vi.mock('../api/aiApi', () => ({ transcribeAudio: vi.fn() }))
+vi.mock('../pdf/usePdfTextExtraction', () => ({ usePdfTextExtraction: vi.fn() }))
+
+// Sensible default so every other test in this file (which doesn't care about attach-file
+// dispatch) can render the composer without configuring this mock itself.
+vi.mocked(usePdfTextExtraction).mockReturnValue({ extractText: vi.fn().mockResolvedValue('') })
 
 expect.extend(toHaveNoViolations)
 
@@ -21,9 +31,6 @@ function baseProps(): ChatComposerProps {
     onStopCapture: vi.fn(),
     onClearCaptureError: vi.fn(),
     onToggleMode: vi.fn(),
-    isMuted: false,
-    onToggleMute: vi.fn(),
-    onTranslateLastClick: vi.fn(),
   }
 }
 
@@ -195,7 +202,6 @@ describe('ChatComposer — recording review (US3, specs/029-fix-chat-widget-bugs
         getIntensity: () => 0,
         onFinish: vi.fn(),
         onCancelRecording,
-        onAccept: vi.fn(),
       },
     })
 
@@ -208,6 +214,39 @@ describe('ChatComposer — recording review (US3, specs/029-fix-chat-widget-bugs
   it('does not show recording review controls while idle', () => {
     renderComposer({ isListening: false })
     expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
+  })
+
+  // specs/031-voice-controls-redesign FR-001/FR-003, research.md Decision 1 — Finish now
+  // transcribes directly; there is no longer a separate "send for transcription"/Accept
+  // control between tapping Finish and the transcript landing in the message field.
+  it('calls onFinish directly when Finish is tapped, with no intermediate accept control ever rendered', () => {
+    const onFinish = vi.fn()
+    renderComposer({
+      isListening: true,
+      recording: {
+        phase: 'recording',
+        getIntensity: () => 0,
+        onFinish,
+        onCancelRecording: vi.fn(),
+      },
+    })
+
+    expect(screen.queryByRole('button', { name: /send recording for transcription/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /finished speaking/i }))
+    expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+
+  it('never shows a "send for transcription" control while transcribing', () => {
+    renderComposer({
+      isListening: true,
+      recording: {
+        phase: 'transcribing',
+        getIntensity: () => 0,
+        onFinish: vi.fn(),
+        onCancelRecording: vi.fn(),
+      },
+    })
+    expect(screen.queryByRole('button', { name: /send recording for transcription/i })).not.toBeInTheDocument()
   })
 })
 
@@ -226,6 +265,24 @@ describe('ChatComposer — Continuous mode (specs/029-fix-chat-widget-bugs FR-00
   it('does not show a "Listening…" text label while capturing, in either mode (FR-014)', () => {
     renderComposer({ conversationMode: 'Continuous', isListening: true })
     expect(screen.queryByText(/listening…/i)).not.toBeInTheDocument()
+  })
+
+  // specs/031-voice-controls-redesign FR-004/US4 — Continuous mode never has a `recording`
+  // sub-state, so it's structurally impossible for `RecordingReviewControls` (waveform,
+  // Finish, Cancel) to appear there, unaffected by US1-US3's changes to the PTT recording
+  // flow.
+  it('never shows RecordingReviewControls, even while listening (Continuous has no recording sub-state)', () => {
+    renderComposer({ conversationMode: 'Continuous', isListening: true })
+    expect(screen.queryByRole('button', { name: /finished speaking/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
+  })
+
+  // specs/031-voice-controls-redesign FR-006 — each mode's idle view shows no control
+  // exclusive to the other mode.
+  it('idle view shows no Push-to-Talk-only affordance (no recording/mode-switch-blocked hint)', () => {
+    renderComposer({ conversationMode: 'Continuous', isListening: false })
+    expect(screen.queryByRole('button', { name: /finished speaking/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /voice input mode settings/i })).not.toBeDisabled()
   })
 })
 
@@ -262,22 +319,15 @@ describe('ChatComposer — mode-switch menu (US3, FR-006, Clarification Q3)', ()
   })
 })
 
-describe('ChatComposer — merged speaker-mute/stop control (US3, FR-006a/FR-006b)', () => {
-  it('renders exactly one speaker-mute control, no separate stop button', () => {
+// specs/031-voice-controls-redesign FR-011, US6 — the merged speaker-mute/stop control
+// (specs/029-fix-chat-widget-bugs FR-006a/FR-006b) has moved to ExpandedChatPanel's
+// header; see ExpandedChatPanel.test.tsx for its coverage now.
+describe('ChatComposer — no speaker-mute control in the footer (specs/031-voice-controls-redesign FR-011)', () => {
+  it('renders no mute/unmute control in the composer, and no separate stop button either', () => {
     renderComposer()
-    expect(screen.getByRole('button', { name: /mute lucy/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /mute lucy/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /unmute lucy/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /stop/i })).not.toBeInTheDocument()
-  })
-
-  it('calls onToggleMute when the mute control is pressed, reflecting current isMuted state', () => {
-    const { props } = renderComposer({ isMuted: false })
-    fireEvent.click(screen.getByRole('button', { name: /mute lucy/i }))
-    expect(props.onToggleMute).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows "Unmute" affordance once muted', () => {
-    renderComposer({ isMuted: true })
-    expect(screen.getByRole('button', { name: /unmute lucy/i })).toBeInTheDocument()
   })
 
   it('does not show a "Lucy is speaking…" text label anywhere (FR-013)', () => {
@@ -286,11 +336,15 @@ describe('ChatComposer — merged speaker-mute/stop control (US3, FR-006a/FR-006
   })
 })
 
-describe('ChatComposer — relocated translate control (US4, FR-007)', () => {
-  it('renders a translate control that calls onTranslateLastClick', () => {
-    const { props } = renderComposer()
-    fireEvent.click(screen.getByRole('button', { name: /translate last response/i }))
-    expect(props.onTranslateLastClick).toHaveBeenCalledTimes(1)
+// specs/031-voice-controls-redesign FR-010, US5 — the translate control from
+// specs/029-fix-chat-widget-bugs is removed entirely, not merely hidden or relocated.
+describe('ChatComposer — translate control removed (specs/031-voice-controls-redesign FR-010)', () => {
+  it('renders no translate control in any composer state', () => {
+    const { rerender } = renderComposer()
+    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument()
+
+    rerender(<ChatComposer {...baseProps()} isListening captureError="Something failed" />)
+    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument()
   })
 })
 
@@ -329,10 +383,10 @@ describe('ChatComposer accessibility (SPEC-013 T020, constitution §7/§10)', ()
     expect(await axe(container)).toHaveNoViolations()
   })
 
-  it('has no automatically detectable a11y violations while reviewing a Push-to-Talk recording', async () => {
+  it('has no automatically detectable a11y violations while transcribing a Push-to-Talk recording', async () => {
     const { container } = renderComposer({
       isListening: true,
-      recording: { phase: 'reviewing', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn(), onAccept: vi.fn() },
+      recording: { phase: 'transcribing', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn() },
     })
     expect(await axe(container)).toHaveNoViolations()
   })
@@ -340,6 +394,140 @@ describe('ChatComposer accessibility (SPEC-013 T020, constitution §7/§10)', ()
   it('has no automatically detectable a11y violations with the voice-preferences-unavailable indicator shown', async () => {
     const { container } = renderComposer({ voicePreferencesUnavailable: true })
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('ChatComposer — capped growth (specs/030-composer-panel-refinements FR-003/FR-004/FR-006)', () => {
+  it('renders a multiline textarea with a non-empty, fixed line-height driving the 6-row cap', () => {
+    renderComposer()
+    const textField = screen.getByPlaceholderText('Message Ask Lucy...')
+    expect(textField.tagName.toLowerCase()).toBe('textarea')
+    // A concrete px value (not '', 'normal', or 'inherit') confirms the explicit lineHeight
+    // sx rule (research.md Decision 2) is actually being applied, not left to an ambient
+    ///inherited value that could vary by container.
+    expect(getComputedStyle(textField).lineHeight).toMatch(/^\d+(\.\d+)?px$/)
+  })
+
+  it('reflects shorter content after a longer value is replaced, with the same fixed line-height cap (FR-006)', () => {
+    const longValue = Array.from({ length: 10 }, (_, i) => `line ${i}`).join('\n')
+    const { rerender } = renderComposer({ value: longValue })
+    const grownField = screen.getByPlaceholderText('Message Ask Lucy...')
+    expect(grownField).toHaveValue(longValue)
+    const grownLineHeight = getComputedStyle(grownField).lineHeight
+
+    const shortValue = 'line 0\nline 1'
+    rerender(<ChatComposer {...baseProps()} value={shortValue} />)
+    const shrunkField = screen.getByPlaceholderText('Message Ask Lucy...')
+    expect(shrunkField).toHaveValue(shortValue)
+    // The same fixed line-height cap governs the field regardless of content length — it
+    // isn't a value that grew with the longer content and got left behind after shrinking.
+    expect(getComputedStyle(shrunkField).lineHeight).toBe(grownLineHeight)
+  })
+})
+
+describe('ChatComposer — two-row layout (specs/030-composer-panel-refinements FR-001/FR-002/FR-005)', () => {
+  it('groups every footer control under one row, separate from the text field', () => {
+    renderComposer()
+    const textField = screen.getByPlaceholderText('Message Ask Lucy...')
+    const textFieldRoot = textField.closest('.MuiFormControl-root')
+    const sendButton = screen.getByRole('button', { name: /send message/i })
+    const attachButton = screen.getByRole('button', { name: /attach file/i })
+
+    expect(textFieldRoot).not.toBeNull()
+    // The send button is wrapped in a <span> (Tooltip's disabled-element workaround), so
+    // compare against the nearest shared Stack ancestor rather than the immediate parent.
+    const footerRow = sendButton.closest('.MuiStack-root')
+    expect(footerRow).not.toBeNull()
+    // The footer row is no longer the text field's immediate sibling container.
+    expect(textFieldRoot?.parentElement).not.toBe(footerRow)
+    // Every footer control shares one common ancestor row (the fixed footer row).
+    expect(attachButton.closest('.MuiStack-root')).toBe(footerRow)
+  })
+})
+
+describe('ChatComposer — icon-button tooltips (specs/030-composer-panel-refinements FR-010/FR-012)', () => {
+  it('shows a tooltip for Attach file on hover', async () => {
+    const user = userEvent.setup()
+    renderComposer()
+    await user.hover(screen.getByRole('button', { name: /attach file/i }))
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Attach file'))
+  })
+
+  it('shows a tooltip for Insert saved prompt on hover', async () => {
+    const user = userEvent.setup()
+    renderComposer({ onInsertPromptClick: vi.fn() })
+    await user.hover(screen.getByRole('button', { name: /insert saved prompt/i }))
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Insert saved prompt'))
+  })
+
+  it('shows a contextual tooltip for the mic button that matches its current aria-label', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderComposer({ isListening: false })
+    await user.hover(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Start voice input'))
+    await user.unhover(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
+
+    rerender(<ChatComposer {...baseProps()} isListening={true} />)
+    await user.hover(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Stop voice input'))
+  })
+
+  it('shows a tooltip for Send message, even while the button is disabled', async () => {
+    const user = userEvent.setup()
+    renderComposer({ value: '' })
+    const sendButton = screen.getByRole('button', { name: /send message/i })
+    expect(sendButton).toBeDisabled()
+    // The disabled button itself has pointer-events: none, so hover the Tooltip's <span>
+    // wrapper instead — the same element real pointer events would land on.
+    await user.hover(sendButton.parentElement as HTMLElement)
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Send message'))
+  })
+})
+
+describe('ChatComposer — recording-state declutter (specs/031-voice-controls-redesign FR-006/FR-008)', () => {
+  it('hides attach, insert-prompt, and the mode-switch control while a recording is active', () => {
+    renderComposer({
+      isListening: true,
+      onInsertPromptClick: vi.fn(),
+      recording: { phase: 'recording', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn() },
+    })
+
+    expect(screen.queryByRole('button', { name: /attach file/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /insert saved prompt/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /voice input mode settings/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the voice-preferences-unavailable indicator while a recording is active', () => {
+    renderComposer({
+      isListening: true,
+      voicePreferencesUnavailable: true,
+      recording: { phase: 'recording', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn() },
+    })
+    expect(
+      screen.queryByLabelText(/voice preferences unavailable, using defaults/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('restores attach, insert-prompt, and mode-switch once back to idle', () => {
+    const { rerender } = renderComposer({
+      isListening: true,
+      onInsertPromptClick: vi.fn(),
+      recording: { phase: 'recording', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn() },
+    })
+    expect(screen.queryByRole('button', { name: /attach file/i })).not.toBeInTheDocument()
+
+    rerender(<ChatComposer {...baseProps()} onInsertPromptClick={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: /attach file/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /insert saved prompt/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /voice input mode settings/i })).toBeInTheDocument()
+  })
+
+  it('keeps attach/insert-prompt/mode-switch visible in Continuous mode (recording is never active there)', () => {
+    renderComposer({ conversationMode: 'Continuous', onInsertPromptClick: vi.fn() })
+    expect(screen.getByRole('button', { name: /attach file/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /insert saved prompt/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /voice input mode settings/i })).toBeInTheDocument()
   })
 })
 
@@ -360,5 +548,54 @@ describe('ChatComposer — microphone permission (US2, FR-009)', () => {
 
     rerender(<ChatComposer {...baseProps()} permissionState="granted" />)
     expect(screen.queryByText(/microphone access was denied/i)).not.toBeInTheDocument()
+  })
+})
+
+// specs/031-voice-controls-redesign FR-013, T032 (added via /speckit-analyze finding E1) —
+// `ChatComposer.tsx` is edited three separate times in this feature (US3/US5/US6); this
+// regression test confirms the attach-file dispatch it was never meant to touch still
+// works for all three supported formats afterward.
+describe('ChatComposer — attach-file format dispatch (specs/031-voice-controls-redesign FR-013)', () => {
+  function getFileInput(container: HTMLElement) {
+    return container.querySelector('input[type="file"]') as HTMLInputElement
+  }
+
+  it('dispatches a PDF through usePdfTextExtraction and appends the extracted text', async () => {
+    const extractText = vi.fn().mockResolvedValue('extracted pdf text')
+    vi.mocked(usePdfTextExtraction).mockReturnValueOnce({ extractText })
+    const { props, container } = renderComposer({ value: 'existing ' })
+
+    const file = new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' })
+    fireEvent.change(getFileInput(container), { target: { files: [file] } })
+
+    await waitFor(() => expect(extractText).toHaveBeenCalledWith(file))
+    await waitFor(() => expect(props.onChange).toHaveBeenCalledWith('existing extracted pdf text'))
+  })
+
+  it('dispatches an audio file through transcribeAudio and appends the transcript', async () => {
+    vi.mocked(transcribeAudio).mockResolvedValueOnce('transcribed audio text')
+    const { props, container } = renderComposer({ value: 'existing ' })
+
+    const file = new File(['fake-audio'], 'clip.webm', { type: 'audio/webm' })
+    fireEvent.change(getFileInput(container), { target: { files: [file] } })
+
+    await waitFor(() => expect(transcribeAudio).toHaveBeenCalledWith(file))
+    await waitFor(() =>
+      expect(props.onChange).toHaveBeenCalledWith('existing transcribed audio text'),
+    )
+  })
+
+  it('dispatches a CSV file by appending its raw text', async () => {
+    const { props, container } = renderComposer({ value: 'existing ' })
+
+    const file = new File(['a,b,c\n1,2,3'], 'data.csv', { type: 'text/csv' })
+    fireEvent.change(getFileInput(container), { target: { files: [file] } })
+
+    await waitFor(() => expect(props.onChange).toHaveBeenCalledWith('existing a,b,c\n1,2,3'))
+  })
+
+  it('accepts .pdf, .csv, and audio/* via the file input\'s accept attribute', () => {
+    const { container } = renderComposer()
+    expect(getFileInput(container)).toHaveAttribute('accept', '.pdf,.csv,audio/*')
   })
 })
