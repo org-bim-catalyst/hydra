@@ -127,11 +127,15 @@ describe('useGeolocation (FR-001/FR-013)', () => {
     const { result } = renderHook(() => useGeolocation())
     expect(result.current.status).toBe('resolving')
 
+    // advanceTimersByTimeAsync is required here: the sync variant (advanceTimersByTime) fires
+    // the timer callback but doesn't flush the async microtasks that React needs to apply the
+    // resulting setState call. waitFor cannot be used with fake timers because it polls via
+    // real setTimeout — which never fires when timers are faked — and the test would time out.
     await act(async () => {
-      vi.advanceTimersByTime(15_000)
+      await vi.advanceTimersByTimeAsync(15_000)
     })
 
-    await waitFor(() => expect(result.current.status).toBe('unavailable'))
+    expect(result.current.status).toBe('unavailable')
   })
 
   it('clears the watch on unmount', () => {

@@ -156,7 +156,11 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
 
     // Widget shows stale badge; store locationName is unchanged (the useEffect only runs on
     // successful data, not on error, so the coordinate guard never had a chance to clear it).
-    expect(screen.getByRole('status')).toHaveTextContent('Last known reading')
+    // waitFor needed because TanStack Query's error state is applied asynchronously after the
+    // refetch completes — the stale indicator may not be in the DOM until the next render cycle.
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Last known reading')
+    })
     expect(useActiveLocationStore.getState().locationName).toBe('London, United Kingdom')
   })
 })
