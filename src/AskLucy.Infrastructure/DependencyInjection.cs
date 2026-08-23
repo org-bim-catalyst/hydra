@@ -111,6 +111,11 @@ public static class DependencyInjection
         services.AddOptions<WeatherOptions>()
             .Bind(configuration.GetSection(WeatherOptions.SectionName));
 
+        services.AddOptions<TheDigitalCore.TheDigitalCoreIntegrationOptions>()
+            .Bind(configuration.GetSection(TheDigitalCore.TheDigitalCoreIntegrationOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -199,10 +204,25 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(15);
         });
 
+        // ADR-0009: RelayCategoryScoreResultCommandHandler/VerifyAndLinkDigitalCoreProjectCommandHandler
+        // issue relative-URI requests against this named client, authenticated with the single Ask
+        // Lucy service-account credential (Clarifications Q2) — never a per-user credential. No
+        // static Authorization header here (unlike "Pinecone"): TheDigitalCore's service-account JWT
+        // is short-lived, so TheDigitalCoreClient asks ITheDigitalCoreAuthService for a
+        // cached-until-near-expiry token on every call instead.
+        services.AddHttpClient("TheDigitalCore", (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<TheDigitalCore.TheDigitalCoreIntegrationOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddScoped<IWeatherProvider, WeatherProvider>();
+        services.AddSingleton<TheDigitalCore.ITheDigitalCoreAuthService, TheDigitalCore.TheDigitalCoreAuthService>();
+        services.AddScoped<ITheDigitalCoreClient, TheDigitalCore.TheDigitalCoreClient>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();

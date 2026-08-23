@@ -85,6 +85,9 @@ const WorkflowExecutionPage = lazy(() =>
 const WorkflowPoliciesAdminPage = lazy(() =>
   import('../features/workflows/pages/WorkflowPoliciesAdminPage').then((m) => ({ default: m.WorkflowPoliciesAdminPage })),
 )
+const DeepLinkEntry = lazy(() =>
+  import('../features/site-analysis/DeepLinkEntry').then((m) => ({ default: m.DeepLinkEntry })),
+)
 
 // Each route mounts a fresh <Lazy> instance, so Fade's default `in`-from-mount behavior
 // gives every route a consistent, theme-timed fade-in (FR-010/SC-007) — no per-route
@@ -186,6 +189,20 @@ const router = createBrowserRouter([
     // `replace` so /chat never lingers one back-button-press away in history.
     path: '/chat',
     element: <Navigate to="/studio" replace />,
+  },
+  {
+    // specs/050-park-site-analysis-agent FR-024a — a Project-linked deep link from
+    // TheDigitalCore. Protected like every other authenticated surface; an unauthenticated
+    // visitor is bounced to /login by ProtectedRoute and can retry the same link after signing in.
+    path: '/site-analysis/enter',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <DeepLinkEntry />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
   },
   {
     path: '/documents',

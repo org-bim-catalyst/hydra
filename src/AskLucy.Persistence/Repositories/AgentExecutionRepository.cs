@@ -97,4 +97,13 @@ public sealed class AgentExecutionRepository(AskLucyDbContext dbContext) : IAgen
         await dbContext.AgentToolCalls.Where(t => stepIds.Contains(t.AgentExecutionStepId)).ToListAsync(cancellationToken);
 
     public void AddToolCall(AgentToolCall toolCall) => dbContext.AgentToolCalls.Add(toolCall);
+
+    public async Task<IReadOnlyList<AgentExecutionStep>> ListCompletedStepsByUserChatIdAsync(Guid userChatId, CancellationToken cancellationToken = default) =>
+        await dbContext.AgentExecutionSteps
+            .Where(s => s.Status == AgentExecutionStepStatus.Completed && dbContext.AgentExecutions
+                .Where(e => e.UserChatId == userChatId)
+                .Select(e => e.Id)
+                .Contains(s.AgentExecutionId))
+            .OrderByDescending(s => s.CompletedAtUtc)
+            .ToListAsync(cancellationToken);
 }

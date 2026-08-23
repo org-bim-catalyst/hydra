@@ -128,6 +128,9 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowPolicyRepository, WorkflowPolicyRepository>();
         services.AddScoped<IWorkflowAuditLogRepository, WorkflowAuditLogRepository>();
 
+        // Park Site Analysis Agent (specs/050-park-site-analysis-agent) — Foundational.
+        services.AddScoped<ISiteAnalysisProjectLinkRepository, SiteAnalysisProjectLinkRepository>();
+
         return services;
     }
 }

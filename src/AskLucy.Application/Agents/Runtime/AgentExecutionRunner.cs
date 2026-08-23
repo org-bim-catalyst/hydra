@@ -13,14 +13,14 @@ namespace AskLucy.Application.Agents.Runtime;
 public sealed class AgentExecutionRunner(
     AgentExecutionOrchestrator orchestrator, IBackgroundJobClient backgroundJobClient) : IAgentExecutionRunner
 {
-    public Task EnqueueAsync(Guid executionId, CancellationToken cancellationToken = default)
+    public Task<string> EnqueueAsync(Guid executionId, CancellationToken cancellationToken = default)
     {
         // Hangfire's serializer captures the expression's arguments at schedule time, not by
         // reference — CancellationToken.None here is intentional: Hangfire supplies its own
         // shutdown-aware token to the running job, this parameter only exists to satisfy the
         // interface signature the expression tree captures (mirrors DocumentProcessingPipeline).
-        backgroundJobClient.Enqueue<IAgentExecutionRunner>(r => r.RunJobAsync(executionId, CancellationToken.None));
-        return Task.CompletedTask;
+        var jobId = backgroundJobClient.Enqueue<IAgentExecutionRunner>(r => r.RunJobAsync(executionId, CancellationToken.None));
+        return Task.FromResult(jobId);
     }
 
     public Task RunJobAsync(Guid executionId, CancellationToken cancellationToken = default) =>

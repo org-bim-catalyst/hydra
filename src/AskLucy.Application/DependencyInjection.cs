@@ -16,6 +16,8 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.SiteAnalysis.AgentExecutionCompletion;
+using AskLucy.Application.SiteAnalysis.Routing;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
 using AskLucy.Application.Workflows.Validation;
@@ -201,6 +203,19 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowNodeExecutor, ValidationNodeExecutor>();
         services.AddScoped<IWorkflowNodeExecutor, ConditionNodeExecutor>();
         services.AddScoped<IWorkflowNodeExecutor, MergeNodeExecutor>();
+
+        // Park Site Analysis Agent (specs/050-park-site-analysis-agent) — Foundational. Wired as
+        // a pipeline behavior scoped to AppendMessageCommand only (SiteAnalysisChatTurnBehavior's
+        // own doc comment) rather than a change to AppendMessageCommandHandler itself.
+        services.AddScoped<SiteAnalysisConversationStateAssembler>();
+        services.AddScoped<SiteAnalysisChatTurnRouter>();
+        services.AddScoped<ISiteAnalysisCompletionReactionJob, SiteAnalysisCompletionReactionJob>();
+        services.AddTransient<
+            MediatR.IPipelineBehavior<Chats.Commands.AppendMessage.AppendMessageCommand, Chats.MessageDto>,
+            SiteAnalysisChatTurnBehavior>();
+
+        services.AddOptions<SiteAnalysisOptions>()
+            .Bind(configuration.GetSection(SiteAnalysisOptions.SectionName));
 
         return services;
     }

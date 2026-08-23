@@ -72,9 +72,9 @@ public sealed class StartAgentExecutionCommandHandler(
         auditLogRepository.Add(AgentAuditLog.Create(execution.Id, userId, AgentAuditAction.PermissionChecked, "{}"));
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await runner.EnqueueAsync(execution.Id, cancellationToken);
+        var hangfireJobId = await runner.EnqueueAsync(execution.Id, cancellationToken);
 
-        return AgentExecutionSummaryDto.Create(execution);
+        return AgentExecutionSummaryDto.Create(execution) with { HangfireJobId = hangfireJobId };
     }
 
     private static Guid ResolveExistingConversationId(UserChat chat) => chat.Id;

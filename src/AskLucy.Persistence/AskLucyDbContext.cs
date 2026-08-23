@@ -12,6 +12,7 @@ using AskLucy.Domain.Panels;
 using AskLucy.Domain.Projects;
 using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
+using AskLucy.Domain.SiteAnalysis;
 using AskLucy.Domain.Workflows;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Memory;
@@ -248,6 +249,9 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<WorkflowUserExecutionLimit> WorkflowUserExecutionLimits => Set<WorkflowUserExecutionLimit>();
 
     public DbSet<WorkflowAuditLog> WorkflowAuditLogs => Set<WorkflowAuditLog>();
+
+    // specs/050-park-site-analysis-agent — the one new entity this feature introduces.
+    public DbSet<SiteAnalysisProjectLink> SiteAnalysisProjectLinks => Set<SiteAnalysisProjectLink>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

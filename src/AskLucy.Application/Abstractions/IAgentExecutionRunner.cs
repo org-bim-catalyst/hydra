@@ -11,7 +11,11 @@ namespace AskLucy.Application.Abstractions;
 /// </summary>
 public interface IAgentExecutionRunner
 {
-    Task EnqueueAsync(Guid executionId, CancellationToken cancellationToken = default);
+    /// <summary>Returns the scheduled Hangfire job id — specs/050-park-site-analysis-agent's
+    /// <c>SiteAnalysisChatTurnRouter</c> uses it to schedule a completion-reaction continuation
+    /// via <c>IBackgroundJobClient.ContinueJobWith</c> (no other extensibility point exists on
+    /// this runner for observing completion).</summary>
+    Task<string> EnqueueAsync(Guid executionId, CancellationToken cancellationToken = default);
 
     Task RunJobAsync(Guid executionId, CancellationToken cancellationToken = default);
 }

@@ -91,6 +91,11 @@ public sealed record AgentExecutionDetailDto(
 
 public sealed record AgentExecutionSummaryDto(Guid Id, Guid AgentId, string Status, bool IsTestExecution, DateTime CreatedAtUtc)
 {
+    /// <summary>Only ever set by <c>StartAgentExecutionCommandHandler</c>, which observes the Hangfire job id
+    /// <see cref="Abstractions.IAgentExecutionRunner.EnqueueAsync"/> returns — non-positional so this
+    /// factory's existing callers are unaffected.</summary>
+    public string? HangfireJobId { get; init; }
+
     public static AgentExecutionSummaryDto Create(AgentExecution execution) => new(
         execution.Id, execution.AgentId, execution.Status.ToString(), execution.IsTestExecution, execution.CreatedAtUtc);
 }

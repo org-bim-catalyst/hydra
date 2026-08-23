@@ -29,4 +29,7 @@ public interface IAgentExecutionRepository
     Task<IReadOnlyList<AgentToolCall>> ListToolCallsByStepIdsAsync(IReadOnlyCollection<Guid> stepIds, CancellationToken cancellationToken = default);
 
     void AddToolCall(AgentToolCall toolCall);
+
+    /// <summary>Every completed step across every execution run against this conversation, most-recent-first — specs/050-park-site-analysis-agent's <c>SiteAnalysisConversationStateAssembler</c> uses this to find a previously-resolved <c>resolve_site_boundary</c> step without a dedicated site-analysis-owned table.</summary>
+    Task<IReadOnlyList<AgentExecutionStep>> ListCompletedStepsByUserChatIdAsync(Guid userChatId, CancellationToken cancellationToken = default);
 }
