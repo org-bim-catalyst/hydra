@@ -28,6 +28,7 @@ import { ViewerSurface } from '../../viewer/components/ViewerSurface'
 import { RotationToggleButton } from '../../viewer/components/RotationToggleButton'
 import { LocationWeatherWidget } from '../../viewer/components/LocationWeatherWidget'
 import { useGeolocation } from '../../viewer/hooks/useGeolocation'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
@@ -112,6 +113,20 @@ export function ChatPage() {
   // opening its own redundant navigator.geolocation.watchPosition.
   const geolocation = useGeolocation()
 
+  // specs/036-startup-geolocation FR-001/FR-004/FR-012: write geolocation state into the shared
+  // activeLocationStore so ViewerSurface and LocationWeatherWidget both read from a single source
+  // of truth, and so agent-confirmed locations can override startup detection via the store's own
+  // priority rule (setFromGeolocation is a no-op when source === 'agent').
+  const setFromGeolocation = useActiveLocationStore((s) => s.setFromGeolocation)
+  const clearLocation = useActiveLocationStore((s) => s.clear)
+  useEffect(() => {
+    if (geolocation.status === 'granted' && geolocation.latitude !== null && geolocation.longitude !== null) {
+      setFromGeolocation(geolocation.latitude, geolocation.longitude)
+    } else if (geolocation.status === 'unavailable') {
+      clearLocation()
+    }
+  }, [geolocation.status, geolocation.latitude, geolocation.longitude, setFromGeolocation, clearLocation])
+
   // FR-011/SC-004: restores a returning user's mute/input-mode preference without requiring
   // a detour through Settings first (research.md Decision 9 — VoiceTab already hydrates on
   // its own mount, but a user who never opens Settings needs this too). specs/029-fix-chat-
@@ -178,9 +193,10 @@ export function ChatPage() {
           `WorkspaceSurface` gradient placeholder (research.md Decision 1). `AiPresenceCard`
           (rendered below via `WorkspaceOverlay`'s children slot) is unaffected by this change
           (FR-004). */}
-      <ViewerSurface geolocation={geolocation} />
-      {/* FR-009: appears once location resolves; renders nothing otherwise (FR-008). */}
-      <LocationWeatherWidget latitude={geolocation.latitude} longitude={geolocation.longitude} />
+      {/* specs/036-startup-geolocation: ViewerSurface and LocationWeatherWidget now read location
+          from activeLocationStore directly — no prop threading required. */}
+      <ViewerSurface />
+      <LocationWeatherWidget />
       {/* SPEC-024 FR-005/FR-016: every workspace control is reached only through this
           coordinating overlay, never a permanent toolbar. specs/026-floating-chat-assistant
           FR-001: the chat entry point is no longer one of `controls` — it's the bespoke

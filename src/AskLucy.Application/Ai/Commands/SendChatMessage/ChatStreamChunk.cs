@@ -3,6 +3,18 @@ using AskLucy.Application.Abstractions;
 namespace AskLucy.Application.Ai.Commands.SendChatMessage;
 
 /// <summary>
+/// specs/036-startup-geolocation US3: agent-confirmed location data carried on the final
+/// <see cref="ChatStreamChunk"/> so the controller can emit the distinguishable
+/// <c>__LOCATION__</c> SSE trailing event without any other chunk needing to know about it.
+/// </summary>
+public sealed record ConfirmedLocationData(
+    double Latitude,
+    double Longitude,
+    string LocationName,
+    double Confidence,
+    string Source = "agent");
+
+/// <summary>
 /// <see cref="SendChatMessageCommand"/>'s own stream element — wraps the shared
 /// <see cref="StreamChunk"/> (content delta + optional usage, same as every other
 /// <see cref="IAIProvider"/> consumer) plus an optional <see cref="RagRetrievalOutcome"/>
@@ -10,7 +22,13 @@ namespace AskLucy.Application.Ai.Commands.SendChatMessage;
 /// final chunk(s) rather than every one. Kept separate from <see cref="StreamChunk"/> itself
 /// (rather than adding these fields there) so RAG stays a concern of this one command, not of
 /// every <see cref="IAIProvider"/> implementation (OpenAI/Anthropic/Gemini/OpenRouter never
-/// need to know about retrieval). <see cref="MemoryOutcome"/> (specs/018-ai-memory-system) rides
-/// the final chunk the same way, for the same reason.
+/// need to know about retrieval). <see cref="MemoryOutcome"/> (specs/018-ai-memory-system) and
+/// <see cref="ConfirmedLocation"/> (specs/036-startup-geolocation) ride the final chunk the
+/// same way, for the same reason.
 /// </summary>
-public sealed record ChatStreamChunk(string? ContentDelta, ChatUsage? Usage, RagRetrievalOutcome? RetrievalOutcome = null, MemoryRetrievalOutcome? MemoryOutcome = null);
+public sealed record ChatStreamChunk(
+    string? ContentDelta,
+    ChatUsage? Usage,
+    RagRetrievalOutcome? RetrievalOutcome = null,
+    MemoryRetrievalOutcome? MemoryOutcome = null,
+    ConfirmedLocationData? ConfirmedLocation = null);
