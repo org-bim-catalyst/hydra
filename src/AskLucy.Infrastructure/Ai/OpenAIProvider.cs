@@ -17,6 +17,12 @@ internal static partial class OpenAIProviderLog
 {
     [LoggerMessage(Level = LogLevel.Warning, Message = "Transient OpenAI failure, retrying once after {DelayMs}ms")]
     public static partial void RetryingAfterTransientFailure(ILogger logger, Exception exception, double delayMs);
+
+    // The middleware only logs unhandled exceptions at >= 500 (ProblemDetailsMiddleware),
+    // so a 4xx rejection needs its own server-side record here — the client-facing Problem
+    // Details response deliberately omits the raw provider body (specs/032).
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OpenAI rejected the request with {StatusCode}: {Body}")]
+    public static partial void RequestRejectedByProvider(ILogger logger, int statusCode, string body);
 }
 
 /// <summary>
@@ -60,7 +66,7 @@ public sealed class OpenAIProvider(
             var payload = BuildChatPayload(messages, model, parameters, stream: false);
 
             using var response = await client.PostAsJsonAsync("chat/completions", payload, ct);
-            await EnsureSuccessAsync(response, ct);
+            await EnsureSuccessAsync(response, logger, ct);
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -97,7 +103,7 @@ public sealed class OpenAIProvider(
         try
         {
             response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            await EnsureSuccessAsync(response, cancellationToken);
+            await EnsureSuccessAsync(response, logger, cancellationToken);
         }
         catch (AiProviderAuthenticationException)
         {
@@ -167,7 +173,7 @@ public sealed class OpenAIProvider(
             var payload = new { model, prompt, n = 1, size = "1024x1024" };
 
             using var response = await client.PostAsJsonAsync("images/generations", payload, ct);
-            await EnsureSuccessAsync(response, ct);
+            await EnsureSuccessAsync(response, logger, ct);
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -191,12 +197,25 @@ public sealed class OpenAIProvider(
             form.Add(new StringContent(_options.TranscriptionModel), "model");
 
             using var response = await client.PostAsync("audio/transcriptions", form, ct);
-            await EnsureSuccessAsync(response, ct);
+            await EnsureSuccessAsync(response, logger, ct);
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-            return document.RootElement.GetProperty("text").GetString() ?? string.Empty;
+            // specs/033-hold-to-talk-and-echo-fix: a 2xx response with a malformed, empty, or
+            // unexpected-shape body is a provider-side problem, not a client-request problem —
+            // classify it the same way EnsureSuccessAsync classifies a bad status code, instead
+            // of letting JsonException/InvalidOperationException fall through unclassified to a
+            // generic 500.
+            try
+            {
+                using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                return document.RootElement.GetProperty("text").GetString() ?? string.Empty;
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException)
+            {
+                throw new AiProviderUnavailableException(
+                    "The AI service could not process your request. Please try again.", ex);
+            }
         }, cancellationToken);
 
     public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
@@ -217,7 +236,7 @@ public sealed class OpenAIProvider(
     {
         using var client = CreateClient();
         using var response = await client.GetAsync("models", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response, logger, cancellationToken);
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
@@ -253,7 +272,7 @@ public sealed class OpenAIProvider(
         return client;
     }
 
-    private static object BuildChatPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
+    private static Dictionary<string, object?> BuildChatPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
     {
         // SystemPrompt/DeveloperPrompt (if set) are expected to already be present in
         // `messages` as a ChatRole.System entry — the caller (Application layer) owns
@@ -331,7 +350,7 @@ public sealed class OpenAIProvider(
         content = message.Content,
     };
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, ILogger logger, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)
         {
@@ -349,6 +368,18 @@ public sealed class OpenAIProvider(
         {
             var retryAfter = response.Headers.RetryAfter?.Delta;
             throw new AiProviderRateLimitedException("OpenAI rate-limited this request.", retryAfter);
+        }
+
+        if ((int)response.StatusCode is >= 400 and < 500)
+        {
+            // Any other 4xx (most plausibly a 400 rejecting a specific transcription upload)
+            // is a request-level problem, not an unavailable/authentication/rate-limit
+            // condition — classify it distinctly so it surfaces as an actionable message
+            // instead of falling through to a generic 500 (specs/032). The raw body is
+            // logged here (not in the exception message reaching the client) since
+            // ProblemDetailsMiddleware only logs unhandled exceptions at >= 500.
+            OpenAIProviderLog.RequestRejectedByProvider(logger, (int)response.StatusCode, body);
+            throw new AiProviderRequestInvalidException($"OpenAI rejected the request with {(int)response.StatusCode}: {body}");
         }
 
         throw new HttpRequestException(

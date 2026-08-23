@@ -276,29 +276,29 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
   })
 
+  // specs/033-hold-to-talk-and-echo-fix — pure hold-to-talk: no "Finished speaking" button or
+  // separate reviewing/accept state exists anymore; pressing starts, releasing transcribes.
   it('has no automatically detectable a11y violations while recording (waveform, no live transcript)', async () => {
     const { container } = renderConversation(CHAT_A)
 
-    fireEvent.click(getMicButton())
+    fireEvent.pointerDown(getMicButton())
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
-  // specs/031-voice-controls-redesign FR-001, research.md Decision 1 — Finish now
-  // transcribes directly; there is no longer a separate reviewing/accept state to check
-  // for a11y violations in.
-  it('has no automatically detectable a11y violations once Finish transcribes the recording', async () => {
+  it('has no automatically detectable a11y violations once releasing transcribes the recording', async () => {
     const { container } = renderConversation(CHAT_A)
+    const micButton = getMicButton()
 
-    fireEvent.click(getMicButton())
+    fireEvent.pointerDown(micButton)
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+    fireEvent.pointerUp(micButton)
     await waitFor(() =>
       expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
     )

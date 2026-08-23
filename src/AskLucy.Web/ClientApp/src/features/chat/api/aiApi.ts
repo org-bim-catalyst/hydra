@@ -1,4 +1,4 @@
-import { apiFetch } from '../../../api/httpClient'
+import { apiFetch, ApiError } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
@@ -203,7 +203,15 @@ export async function transcribeAudio(file: File): Promise<string> {
   })
 
   if (!response.ok) {
-    throw new Error(`Transcription failed with ${response.status}`)
+    const problem = await response.json().catch(() => undefined)
+    // Prefer `detail` over `title` for the message — useVoiceRecorder surfaces `err.message`
+    // directly to the user, and `detail` (e.g. "The AI provider could not process this
+    // request. Please try again.") is more actionable than the generic `title`.
+    throw new ApiError(
+      response.status,
+      problem?.detail ?? problem?.title ?? 'Transcription failed',
+      problem?.detail,
+    )
   }
 
   const result = (await response.json()) as { text: string }

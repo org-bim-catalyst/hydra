@@ -122,6 +122,55 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     expect(result.current.error).toBe('Transcription failed with 500')
   })
 
+  // specs/032 T006 (U1): before this fix the uploaded filename was hardcoded to
+  // 'recording.webm' regardless of the browser's actual MediaRecorder mimeType — a
+  // concrete, code-identified trigger for OpenAI rejecting the upload with a 400.
+  it.each([
+    ['audio/webm', 'recording.webm'],
+    ['audio/webm;codecs=opus', 'recording.webm'],
+    ['audio/mp4', 'recording.mp4'],
+    ['audio/mp4;codecs=mp4a.40.2', 'recording.mp4'],
+    ['audio/ogg;codecs=opus', 'recording.ogg'],
+    ['audio/wav', 'recording.wav'],
+    ['audio/mpeg', 'recording.mp3'],
+    ['audio/x-made-up-format', 'recording.webm'],
+  ])('finish() names the uploaded file to match the recorded mimeType %s -> %s', async (mimeType, expectedFileName) => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(transcribeAudio).mockResolvedValue('hello world')
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    await act(async () => {
+      await result.current.start()
+    })
+    FakeMediaRecorder.instances[0].mimeType = mimeType
+
+    await act(async () => {
+      await result.current.finish()
+    })
+
+    const uploadedFile = vi.mocked(transcribeAudio).mock.calls[0][0]
+    expect(uploadedFile.name).toBe(expectedFileName)
+    expect(uploadedFile.type).toBe(mimeType)
+  })
+
+  it('a rejected transcription surfaces the ApiError message (the Problem Details detail), not a generic string', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(transcribeAudio).mockRejectedValue(
+      new Error('The AI provider could not process this request. Please try again.'),
+    )
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    await act(async () => {
+      await result.current.start()
+    })
+
+    await act(async () => {
+      await result.current.finish()
+    })
+
+    expect(result.current.error).toBe('The AI provider could not process this request. Please try again.')
+  })
+
   it('cancel() from the recording phase discards everything and never transmits (FR-021)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     const { result } = renderHook(() => useVoiceRecorder())

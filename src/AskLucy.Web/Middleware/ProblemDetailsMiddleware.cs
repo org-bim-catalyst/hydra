@@ -229,6 +229,18 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "AI provider rate limited",
             "The AI provider is rate-limiting requests right now. Please try again shortly."),
 
+        // specs/032: a 4xx OpenAI rejects that isn't auth/rate-limit (most plausibly a
+        // rejected transcription upload) — distinct from AiProviderUnavailableException so
+        // the user sees "this request was rejected," not "the service is down." The raw
+        // upstream body (in the exception's own Message) is deliberately NOT surfaced here —
+        // this middleware never exposes a raw exception message to the client; it's logged
+        // server-side instead (OpenAIProviderLog.RequestRejectedByProvider).
+        AiProviderRequestInvalidException => (
+            StatusCodes.Status400BadRequest,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-request-invalid",
+            "AI provider rejected the request",
+            "The AI provider could not process this request. Please try again."),
+
         // specs/027-immersive-viewer-platform contracts/weather-api.md: mirrors the
         // AiProviderUnavailableException → 502 pattern above — the upstream weather/reverse-
         // geocoding service errored, timed out, or returned something unparseable.

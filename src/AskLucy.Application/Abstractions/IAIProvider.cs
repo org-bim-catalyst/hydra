@@ -51,6 +51,16 @@ public sealed class AiProviderRateLimitedException(string message, TimeSpan? ret
 }
 
 /// <summary>
+/// The provider rejected this specific request as invalid or unusable (e.g. a 400 response
+/// to a transcription upload) — distinct from <see cref="AiProviderUnavailableException"/>
+/// (the provider itself is down) and <see cref="AiProviderAuthenticationException"/> (our
+/// credential is bad). Mapped to a 400 Problem Details response so the end user, not an
+/// administrator, is pointed at retrying with a different request (specs/032).
+/// </summary>
+public sealed class AiProviderRequestInvalidException(string message, Exception? innerException = null)
+    : Exception(message, innerException);
+
+/// <summary>
 /// The AI-provider abstraction (docs/ARCHITECTURE.md &#167;9). One implementation per vendor
 /// (OpenAI/Anthropic/GoogleGemini/OpenRouter — specs/005-multi-provider-ai-engine), selected
 /// at runtime by <see cref="IAIProviderResolver"/> via a provider key, never resolved

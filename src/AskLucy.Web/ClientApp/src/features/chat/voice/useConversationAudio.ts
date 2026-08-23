@@ -28,14 +28,15 @@ interface UseConversationAudioOptions {
 /**
  * Conversation Coordinator for one voice session (spec.md Key Entity "Voice Session"):
  * mic → `useSpeechRecognition` → finalized transcript → `useSpeechSynthesis` → playback
- * complete → mic returns to idle (US1), auto-resumes in Continuous mode (US2), and reacts to
- * a local speech pre-trigger during `AiSpeaking` for natural interruption (US3,
- * research.md Decision 10).
+ * complete → mic returns to idle (US1), auto-resumes in Continuous mode (US2).
  *
- * Recognition is kept connected through the `AiSpeaking` phase (not just during `Listening`)
- * so the same live audio feed that streams to ElevenLabs also drives the local
- * amplitude-threshold interruption pre-trigger — a second, separate "passive listener" would
- * duplicate the mic-capture graph for no benefit.
+ * specs/033-hold-to-talk-and-echo-fix FR-009 (resolved clarification): the microphone's input
+ * is fully muted for the duration of `AiSpeaking` (via `recognition.setInputMuted`) so Lucy's
+ * own voice output can never be picked up as user speech, regardless of acoustic echo
+ * cancellation quality. This deliberately supersedes the prior "natural interruption" design
+ * (specs/031 research.md Decision 10, US3) — mid-response barge-in is no longer possible, and
+ * the local-speech-pre-trigger/ducking machinery that existed only to support it has been
+ * removed as dead code, not merely disabled.
  */
 export function useConversationAudio({
   chatId,
@@ -55,24 +56,15 @@ export function useConversationAudio({
   const synthesis = useSpeechSynthesis()
   const { provider, degradedNoticeVisible } = useVoiceProviderStatus()
 
-  /** research.md Decision 10: set the instant a local pre-trigger fires during `AiSpeaking`;
-   * cleared once either a real interruption is confirmed or the duck window times out. */
-  const duckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isDuckedRef = useRef(false)
   const fallbackAlsoFailedRef = useRef(false)
 
-  /** Holds `recognition.start` (assigned via effect once `recognition` exists further below)
-   * so `runAssistantTurn` — defined before `recognition` for readability (turn logic first,
-   * the hook that drives it second) — can trigger Continuous mode's auto-relisten (FR-014)
+  /** Holds `recognition.start`/`recognition.setInputMuted` (assigned via effects once
+   * `recognition` exists further below) so `runAssistantTurn` — defined before `recognition`
+   * for readability (turn logic first, the hook that drives it second) — can trigger
+   * Continuous mode's auto-relisten (FR-014) and mute the mic during `AiSpeaking` (FR-009)
    * without a circular lexical dependency on `recognition` itself. */
   const recognitionStartRef = useRef<() => Promise<void>>(async () => {})
-
-  const clearDuckTimeout = () => {
-    if (duckTimeoutRef.current) {
-      clearTimeout(duckTimeoutRef.current)
-      duckTimeoutRef.current = null
-    }
-  }
+  const recognitionSetInputMutedRef = useRef<(muted: boolean) => void>(() => {})
 
   /** FR-032/FR-036: both the primary path (recognition/synthesis failure → fallback) and the
    * fallback path itself failing (e.g., mic permission denied) surface a visible, actionable
@@ -96,7 +88,10 @@ export function useConversationAudio({
       await synthesis.speak(chatId, messages, providerId, modelId, generationParameters, language, {
         onTranscriptDelta: onAssistantTextDelta,
         onAudioChunk: (audio) => {
-          if (voiceState.state !== 'AiSpeaking') voiceState.setState('AiSpeaking')
+          if (voiceState.state !== 'AiSpeaking') {
+            voiceState.setState('AiSpeaking')
+            recognitionSetInputMutedRef.current(true)
+          }
           analyzer.playAudioChunk(audio)
         },
         onAudioFailed: () => {
@@ -110,6 +105,7 @@ export function useConversationAudio({
 
       onAssistantTurnComplete()
       analyzer.reset()
+      recognitionSetInputMutedRef.current(false) // Lucy's done speaking — resume normal listening.
 
       if (mode === 'continuous') {
         voiceState.setState('Listening')
@@ -136,40 +132,12 @@ export function useConversationAudio({
     ],
   )
 
-  const handleLocalSpeechLikely = useCallback(() => {
-    if (voiceState.state !== 'AiSpeaking' || isDuckedRef.current) return
-
-    // Fast, reversible, purely local reaction (research.md Decision 10) — ducks immediately,
-    // well ahead of the round trip needed to confirm real speech.
-    isDuckedRef.current = true
-    analyzer.setMuted(true)
-    voiceState.setState('Interrupted')
-
-    clearDuckTimeout()
-    duckTimeoutRef.current = setTimeout(() => {
-      // No confirming transcript arrived — false positive (e.g. a cough); resume.
-      if (isDuckedRef.current) {
-        isDuckedRef.current = false
-        analyzer.setMuted(false)
-        voiceState.setState('AiSpeaking')
-      }
-    }, 1500)
-  }, [voiceState, analyzer])
-
   const handleFinalTranscript = useCallback(
     async (text: string) => {
-      const wasInterruption = isDuckedRef.current
-      if (wasInterruption) {
-        clearDuckTimeout()
-        isDuckedRef.current = false
-        synthesis.abort()
-        analyzer.reset()
-      }
-
       voiceState.setState('UserSpeaking')
       await runAssistantTurn(text)
     },
-    [synthesis, analyzer, voiceState, runAssistantTurn],
+    [voiceState, runAssistantTurn],
   )
 
   const recognition = useSpeechRecognition({
@@ -179,13 +147,13 @@ export function useConversationAudio({
       if (voiceState.state === 'Listening') voiceState.setState('UserSpeaking')
     },
     onFinalTranscript: handleFinalTranscript,
-    onLocalSpeechLikely: handleLocalSpeechLikely,
     preferredMicrophoneDeviceId,
   })
 
   useEffect(() => {
     recognitionStartRef.current = recognition.start
-  }, [recognition.start])
+    recognitionSetInputMutedRef.current = recognition.setInputMuted
+  }, [recognition.start, recognition.setInputMuted])
 
   const startTurn = useCallback(async () => {
     fallbackAlsoFailedRef.current = false
@@ -202,12 +170,12 @@ export function useConversationAudio({
 
   /** FR-023: stop cancels playback+generation, clears the queue, resets the sphere, and
    * resumes listening automatically if Continuous mode is active — the same abort path as
-   * interruption (US3), triggered by the user instead of a detected utterance. */
+   * a user-triggered stop mid-response. Also unmutes the mic (specs/033 FR-009), in case stop()
+   * is called while `AiSpeaking` had it muted. */
   const stop = useCallback(async () => {
-    clearDuckTimeout()
-    isDuckedRef.current = false
     synthesis.abort()
     analyzer.reset()
+    recognition.setInputMuted(false)
 
     if (mode === 'continuous') {
       voiceState.setState('Listening')

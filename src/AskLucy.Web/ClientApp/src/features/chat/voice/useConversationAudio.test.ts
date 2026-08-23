@@ -11,20 +11,17 @@ const recognitionMock = {
   start: vi.fn().mockResolvedValue(undefined),
   stop: vi.fn(),
   cancel: vi.fn(),
+  setInputMuted: vi.fn(),
   clearError: vi.fn(),
 }
 
 let capturedOnFinalTranscript: ((text: string) => void) | undefined
-let capturedOnLocalSpeechLikely: (() => void) | undefined
 
 vi.mock('./useSpeechRecognition', () => ({
-  useSpeechRecognition: vi.fn(
-    (options: { onFinalTranscript: (text: string) => void; onLocalSpeechLikely?: () => void }) => {
-      capturedOnFinalTranscript = options.onFinalTranscript
-      capturedOnLocalSpeechLikely = options.onLocalSpeechLikely
-      return recognitionMock
-    },
-  ),
+  useSpeechRecognition: vi.fn((options: { onFinalTranscript: (text: string) => void }) => {
+    capturedOnFinalTranscript = options.onFinalTranscript
+    return recognitionMock
+  }),
 }))
 
 const speakMock = vi.fn()
@@ -66,12 +63,12 @@ describe('useConversationAudio', () => {
     useVoiceState.setState({ state: 'Idle', errorMessage: null })
     recognitionMock.permissionState = 'unknown'
     recognitionMock.start.mockClear()
+    recognitionMock.setInputMuted.mockClear()
     speakMock.mockReset()
     abortMock.mockReset()
     setMutedMock.mockReset()
     analyzerResetMock.mockReset()
     capturedOnFinalTranscript = undefined
-    capturedOnLocalSpeechLikely = undefined
   })
 
   afterEach(() => {
@@ -175,69 +172,72 @@ describe('useConversationAudio', () => {
     expect(result.current.voiceState).toBe('Idle')
   })
 
-  it('ducks playback immediately on a local speech pre-trigger during AiSpeaking, then fully interrupts once confirmed (US3, research.md Decision 10)', async () => {
+  // specs/033-hold-to-talk-and-echo-fix FR-009 (resolved clarification): replaces the removed
+  // local-speech-pre-trigger/ducking tests above (research.md Decision 10, now superseded) —
+  // the mic is fully muted for the duration of AiSpeaking instead, and mid-response
+  // interruption is no longer supported.
+  it('mutes the microphone input the instant AiSpeaking starts, and unmutes once the turn completes', async () => {
     recognitionMock.permissionState = 'granted'
-    let resolveSpeak: () => void = () => {}
     speakMock.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveSpeak = resolve
-        }),
+      async (_chatId, _messages, _providerId, _modelId, _params, _language, callbacks) => {
+        callbacks.onAudioChunk(new Uint8Array([1, 2, 3]))
+        callbacks.onDone()
+      },
     )
 
-    const { result } = renderConversationAudio('push-to-talk')
+    renderConversationAudio('push-to-talk')
 
-    // Start a turn and let it reach AiSpeaking.
     await act(async () => {
       capturedOnFinalTranscript?.('First message')
     })
-    act(() => useVoiceState.setState({ state: 'AiSpeaking', errorMessage: null }))
 
-    // Local pre-trigger fires — must duck immediately, before any confirmation.
-    act(() => {
-      capturedOnLocalSpeechLikely?.()
-    })
-    expect(setMutedMock).toHaveBeenCalledWith(true)
-    expect(result.current.voiceState).toBe('Interrupted')
-    expect(abortMock).not.toHaveBeenCalled()
-
-    // Confirmation arrives (a new final transcript) — now it fully interrupts.
-    await act(async () => {
-      capturedOnFinalTranscript?.('Actually, wait')
-      resolveSpeak()
-    })
-    expect(abortMock).toHaveBeenCalledTimes(1)
-    expect(analyzerResetMock).toHaveBeenCalled()
+    expect(recognitionMock.setInputMuted).toHaveBeenCalledWith(true)
+    // Unmuted again once the turn completes (Push-to-Talk returns to Idle, no auto-relisten).
+    expect(recognitionMock.setInputMuted).toHaveBeenLastCalledWith(false)
   })
 
-  it('resumes playback un-muted if the local pre-trigger is a false positive (no confirming transcript)', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
+  it('stays muted (never toggles back on mid-turn) across multiple audio chunks within the same AiSpeaking turn', async () => {
+    recognitionMock.permissionState = 'granted'
+    speakMock.mockImplementation(
+      async (_chatId, _messages, _providerId, _modelId, _params, _language, callbacks) => {
+        callbacks.onAudioChunk(new Uint8Array([1]))
+        callbacks.onAudioChunk(new Uint8Array([2]))
+        callbacks.onAudioChunk(new Uint8Array([3]))
+        callbacks.onDone()
+      },
+    )
+
+    renderConversationAudio('push-to-talk')
+
+    await act(async () => {
+      capturedOnFinalTranscript?.('First message')
+    })
+
+    // setInputMuted(true) may fire once per chunk (idempotent, harmless) rather than exactly
+    // once — what matters is every call before the turn completes was `true`, and the final
+    // call (post-turn) was `false`.
+    const calls = recognitionMock.setInputMuted.mock.calls.map(([muted]) => muted)
+    expect(calls.slice(0, -1).every((muted) => muted === true)).toBe(true)
+    expect(calls.at(-1)).toBe(false)
+  })
+
+  it('stop() unmutes the microphone input even if called mid-AiSpeaking', async () => {
     recognitionMock.permissionState = 'granted'
     speakMock.mockImplementation(() => new Promise<void>(() => {}))
 
     const { result } = renderConversationAudio('push-to-talk')
 
     await act(async () => {
-      capturedOnFinalTranscript?.('First message')
+      capturedOnFinalTranscript?.('Tell me a long story')
     })
     act(() => useVoiceState.setState({ state: 'AiSpeaking', errorMessage: null }))
+    recognitionMock.setInputMuted.mockClear()
 
-    act(() => {
-      capturedOnLocalSpeechLikely?.()
-    })
-    expect(setMutedMock).toHaveBeenCalledWith(true)
-    expect(result.current.voiceState).toBe('Interrupted')
-
-    setMutedMock.mockClear()
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1600)
+      await result.current.stop()
     })
 
-    expect(setMutedMock).toHaveBeenCalledWith(false)
-    expect(result.current.voiceState).toBe('AiSpeaking')
-    expect(abortMock).not.toHaveBeenCalled()
-
-    vi.useRealTimers()
+    expect(recognitionMock.setInputMuted).toHaveBeenCalledWith(false)
   })
 
   it('stop() cancels playback and generation, clears the audio queue, and resumes listening in Continuous mode (FR-023)', async () => {
