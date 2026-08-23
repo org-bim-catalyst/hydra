@@ -68,24 +68,7 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     vi.unstubAllGlobals()
   })
 
-  it('buffers locally and never transmits anything through start()+finish() alone (FR-019/FR-020)', async () => {
-    installAudioEnvironment(() => Promise.resolve(fakeStream))
-    const { result } = renderHook(() => useVoiceRecorder())
-
-    await act(async () => {
-      await result.current.start()
-    })
-    expect(result.current.phase).toBe('recording')
-
-    act(() => {
-      result.current.finish()
-    })
-
-    expect(result.current.phase).toBe('reviewing')
-    expect(transcribeAudio).not.toHaveBeenCalled()
-  })
-
-  it('accept() is the only path that ever calls transcribeAudio, and only after reviewing (FR-022)', async () => {
+  it('finish() stops capture, transcribes, and resolves to idle in one step (specs/031-voice-controls-redesign FR-001/FR-002)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(transcribeAudio).mockResolvedValue('hello world')
     const { result } = renderHook(() => useVoiceRecorder())
@@ -93,19 +76,99 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     await act(async () => {
       await result.current.start()
     })
-    act(() => {
-      result.current.finish()
-    })
+    expect(result.current.phase).toBe('recording')
     expect(transcribeAudio).not.toHaveBeenCalled()
 
     let transcript = ''
     await act(async () => {
-      transcript = await result.current.accept()
+      transcript = await result.current.finish()
     })
 
     expect(transcribeAudio).toHaveBeenCalledTimes(1)
     expect(transcript).toBe('hello world')
     expect(result.current.phase).toBe('idle')
+  })
+
+  it('finish() called outside the recording phase is a no-op and never transcribes', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    let transcript = 'unset'
+    await act(async () => {
+      transcript = await result.current.finish()
+    })
+
+    expect(transcript).toBe('')
+    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(result.current.phase).toBe('idle')
+  })
+
+  it('a transcribeAudio failure surfaces via error and still resolves the phase to idle (FR-015)', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(transcribeAudio).mockRejectedValue(new Error('Transcription failed with 500'))
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    await act(async () => {
+      await result.current.start()
+    })
+
+    let transcript = 'unset'
+    await act(async () => {
+      transcript = await result.current.finish()
+    })
+
+    expect(transcript).toBe('')
+    expect(result.current.phase).toBe('idle')
+    expect(result.current.error).toBe('Transcription failed with 500')
+  })
+
+  // specs/032 T006 (U1): before this fix the uploaded filename was hardcoded to
+  // 'recording.webm' regardless of the browser's actual MediaRecorder mimeType — a
+  // concrete, code-identified trigger for OpenAI rejecting the upload with a 400.
+  it.each([
+    ['audio/webm', 'recording.webm'],
+    ['audio/webm;codecs=opus', 'recording.webm'],
+    ['audio/mp4', 'recording.mp4'],
+    ['audio/mp4;codecs=mp4a.40.2', 'recording.mp4'],
+    ['audio/ogg;codecs=opus', 'recording.ogg'],
+    ['audio/wav', 'recording.wav'],
+    ['audio/mpeg', 'recording.mp3'],
+    ['audio/x-made-up-format', 'recording.webm'],
+  ])('finish() names the uploaded file to match the recorded mimeType %s -> %s', async (mimeType, expectedFileName) => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(transcribeAudio).mockResolvedValue('hello world')
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    await act(async () => {
+      await result.current.start()
+    })
+    FakeMediaRecorder.instances[0].mimeType = mimeType
+
+    await act(async () => {
+      await result.current.finish()
+    })
+
+    const uploadedFile = vi.mocked(transcribeAudio).mock.calls[0][0]
+    expect(uploadedFile.name).toBe(expectedFileName)
+    expect(uploadedFile.type).toBe(mimeType)
+  })
+
+  it('a rejected transcription surfaces the ApiError message (the Problem Details detail), not a generic string', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(transcribeAudio).mockRejectedValue(
+      new Error('The AI provider could not process this request. Please try again.'),
+    )
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    await act(async () => {
+      await result.current.start()
+    })
+
+    await act(async () => {
+      await result.current.finish()
+    })
+
+    expect(result.current.error).toBe('The AI provider could not process this request. Please try again.')
   })
 
   it('cancel() from the recording phase discards everything and never transmits (FR-021)', async () => {
@@ -122,34 +185,6 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     })
 
     expect(result.current.phase).toBe('idle')
-    expect(transcribeAudio).not.toHaveBeenCalled()
-  })
-
-  it('cancel() from the reviewing phase discards the buffered recording and never transmits (FR-021)', async () => {
-    installAudioEnvironment(() => Promise.resolve(fakeStream))
-    const { result } = renderHook(() => useVoiceRecorder())
-
-    await act(async () => {
-      await result.current.start()
-    })
-    act(() => {
-      result.current.finish()
-    })
-    expect(result.current.phase).toBe('reviewing')
-
-    act(() => {
-      result.current.cancel()
-    })
-
-    expect(result.current.phase).toBe('idle')
-    expect(transcribeAudio).not.toHaveBeenCalled()
-
-    // accept() after a cancel is a no-op — nothing left to send.
-    let transcript = 'unset'
-    await act(async () => {
-      transcript = await result.current.accept()
-    })
-    expect(transcript).toBe('')
     expect(transcribeAudio).not.toHaveBeenCalled()
   })
 

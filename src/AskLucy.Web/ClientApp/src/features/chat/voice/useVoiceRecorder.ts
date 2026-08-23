@@ -2,19 +2,41 @@ import { useCallback, useRef, useState } from 'react'
 import { transcribeAudio } from '../api/aiApi'
 import type { MicrophonePermissionState } from './useSpeechRecognition'
 
-export type RecordingPhase = 'idle' | 'recording' | 'reviewing' | 'transcribing'
+export type RecordingPhase = 'idle' | 'recording' | 'transcribing'
 
 const FFT_SIZE = 256
 
+const RECORDING_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
+  'audio/webm': 'webm',
+  'audio/mp4': 'mp4',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/mpeg': 'mp3',
+}
+
 /**
- * specs/026-floating-chat-assistant FR-019–FR-023, research.md #2 — Push-to-Talk's
- * discrete record → review → cancel/accept-to-transcribe flow. Deliberately independent
- * of `useSpeechRecognition` (which streams audio to ElevenLabs live the moment `start()`
- * is called — a direct conflict with FR-019/FR-021's "no audio is transmitted before
- * explicit accept"): this hook buffers captured audio locally via `MediaRecorder` and
- * only ever calls the existing `/ai/transcriptions` endpoint (`transcribeAudio`, already
- * used by `ChatComposer`'s file-attach path) from {@link accept}, never from
- * {@link start}/{@link finish}/{@link cancel}.
+ * specs/032 — the transcription filename must reflect the recorded blob's actual
+ * container so OpenAI's endpoint (which decodes by filename extension) doesn't reject a
+ * mismatched upload. `blob.type`/`MediaRecorder.mimeType` commonly carries a codec
+ * parameter (e.g. `audio/webm;codecs=opus`), so the base type is matched, not the whole
+ * string (speckit-analyze finding U1).
+ */
+function extensionForRecordingMimeType(mimeType: string): string {
+  const baseType = mimeType.split(';')[0]?.trim().toLowerCase()
+  return RECORDING_EXTENSION_BY_MIME_TYPE[baseType ?? ''] ?? 'webm'
+}
+
+/**
+ * specs/026-floating-chat-assistant FR-019–FR-023, specs/031-voice-controls-redesign
+ * research.md #1/#2 — Push-to-Talk's record → stop-and-transcribe → cancel flow.
+ * Deliberately independent of `useSpeechRecognition` (which streams audio to ElevenLabs
+ * live the moment `start()` is called — a direct conflict with "no audio is transmitted
+ * before the recording actually finishes"): this hook buffers captured audio locally via
+ * `MediaRecorder` and only ever calls the existing `/ai/transcriptions` endpoint
+ * (`transcribeAudio`, already used by `ChatComposer`'s file-attach path) from
+ * {@link finish}, never from {@link start}/{@link cancel}.
  *
  * The live waveform is driven by a `Web Audio AnalyserNode` on the same raw
  * `getUserMedia` stream, mirroring `useVoiceAnalyzer.ts`'s established
@@ -32,7 +54,6 @@ export function useVoiceRecorder() {
   const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
-  const blobRef = useRef<Blob | null>(null)
   const phaseRef = useRef<RecordingPhase>('idle')
 
   const isSupported =
@@ -88,7 +109,6 @@ export function useVoiceRecorder() {
     frequencyDataRef.current = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount))
 
     chunksRef.current = []
-    blobRef.current = null
     const recorder = new MediaRecorder(stream)
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunksRef.current.push(event.data)
@@ -99,26 +119,47 @@ export function useVoiceRecorder() {
     setPhaseBoth('recording')
   }, [isSupported])
 
-  /** FR-020: stops capture and moves into the review state — still without transmitting
-   * the audio anywhere (only {@link accept} does that). */
-  const finish = useCallback(() => {
-    if (phaseRef.current !== 'recording') return
+  /** specs/031-voice-controls-redesign FR-001/FR-002, research.md Decision 1 — stops
+   * capture and immediately transcribes in one step (previously stopped into a separate
+   * `'reviewing'` phase requiring a second, manual "send for transcription" action — the
+   * confusing extra button removed by this feature). Awaits the recorder's `onstop` event
+   * for the final blob, then submits it to the existing transcription endpoint and
+   * resolves with the transcript, exactly as legacy voice-to-text input did. Resolves with
+   * an empty string (and surfaces `error`, constitution §2.VIII) on failure. No-ops
+   * (resolves `''`) if called outside `'recording'`. */
+  const finish = useCallback(async (): Promise<string> => {
+    if (phaseRef.current !== 'recording') return ''
     const recorder = mediaRecorderRef.current
-    if (!recorder) return
+    if (!recorder) return ''
 
-    recorder.onstop = () => {
-      blobRef.current = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
-      setPhaseBoth('reviewing')
-    }
-    recorder.stop()
+    const blob = await new Promise<Blob>((resolve) => {
+      recorder.onstop = () => {
+        resolve(new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' }))
+      }
+      recorder.stop()
+    })
     // Capture is done the moment the user says "finished speaking" — release the mic
-    // immediately rather than holding it open through the review step.
+    // immediately rather than holding it open through transcription.
     cleanupAudioGraph()
+    mediaRecorderRef.current = null
+    chunksRef.current = []
+    setPhaseBoth('transcribing')
+
+    try {
+      const mimeType = blob.type || 'audio/webm'
+      const file = new File([blob], `recording.${extensionForRecordingMimeType(mimeType)}`, { type: mimeType })
+      const transcript = await transcribeAudio(file)
+      setPhaseBoth('idle')
+      return transcript
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to transcribe the recording.')
+      setPhaseBoth('idle')
+      return ''
+    }
   }, [cleanupAudioGraph])
 
-  /** FR-021/FR-024: discards the captured audio — from `recording` (an in-progress hold)
-   * or `reviewing` (after finish) — and never transmits it. Also the path a collapse
-   * mid-recording/review routes through. */
+  /** FR-004/FR-024: discards the captured audio from an in-progress `recording` and
+   * never transmits it. Also the path a collapse mid-recording routes through. */
   const cancel = useCallback(() => {
     if (phaseRef.current === 'idle') return
     if (phaseRef.current === 'recording') {
@@ -127,32 +168,8 @@ export function useVoiceRecorder() {
     mediaRecorderRef.current = null
     cleanupAudioGraph()
     chunksRef.current = []
-    blobRef.current = null
     setPhaseBoth('idle')
   }, [cleanupAudioGraph])
-
-  /** FR-022: the *only* action that transmits the recording — submits it to the existing
-   * transcription endpoint and resolves with the transcript, exactly as existing
-   * voice-to-text input is used today. Resolves with an empty string (and surfaces
-   * `error`, constitution §2.VIII) if called outside `reviewing` or on failure. */
-  const accept = useCallback(async (): Promise<string> => {
-    if (phaseRef.current !== 'reviewing' || !blobRef.current) return ''
-    setPhaseBoth('transcribing')
-    try {
-      const file = new File([blobRef.current], 'recording.webm', {
-        type: blobRef.current.type || 'audio/webm',
-      })
-      const transcript = await transcribeAudio(file)
-      blobRef.current = null
-      setPhaseBoth('idle')
-      return transcript
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to transcribe the recording.')
-      blobRef.current = null
-      setPhaseBoth('idle')
-      return ''
-    }
-  }, [])
 
   /** Ref-based — read every animation frame by `VoiceAnalyzer`, never via React state
    * (research.md #3). Zero once nothing is actively being captured. */
@@ -177,7 +194,6 @@ export function useVoiceRecorder() {
     start,
     finish,
     cancel,
-    accept,
     clearError,
   }
 }

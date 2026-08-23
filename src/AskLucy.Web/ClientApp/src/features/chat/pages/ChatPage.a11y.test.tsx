@@ -276,30 +276,31 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
   })
 
+  // specs/033-hold-to-talk-and-echo-fix — pure hold-to-talk: no "Finished speaking" button or
+  // separate reviewing/accept state exists anymore; pressing starts, releasing transcribes.
   it('has no automatically detectable a11y violations while recording (waveform, no live transcript)', async () => {
     const { container } = renderConversation(CHAT_A)
 
-    fireEvent.click(getMicButton())
+    fireEvent.pointerDown(getMicButton())
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
-  it('has no automatically detectable a11y violations while reviewing before accept', async () => {
+  it('has no automatically detectable a11y violations once releasing transcribes the recording', async () => {
     const { container } = renderConversation(CHAT_A)
+    const micButton = getMicButton()
 
-    fireEvent.click(getMicButton())
+    fireEvent.pointerDown(micButton)
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+    fireEvent.pointerUp(micButton)
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Send recording for transcription' }),
-      ).toBeInTheDocument(),
+      expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
     )
 
     const results = await axe(container)
