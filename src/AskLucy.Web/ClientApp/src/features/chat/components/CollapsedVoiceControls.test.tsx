@@ -43,14 +43,17 @@ describe('CollapsedVoiceControls (FR-003)', () => {
   })
 })
 
+// specs/031-voice-controls-redesign FR-001/FR-003, research.md Decision 1/7 — Finish now
+// transcribes directly (no separate reviewing/accept phase); this shared component and
+// `useVoiceRecorder`/`RecordingReviewControls`'s fix apply here automatically since
+// `CollapsedVoiceControls` consumes the same contract as `ChatComposer`.
 describe('CollapsedVoiceControls Push-to-Talk recording review (specs/026-floating-chat-assistant FR-020–FR-023)', () => {
-  const recordingProps = (phase: 'recording' | 'reviewing' | 'transcribing') => ({
+  const recordingProps = (phase: 'recording' | 'transcribing') => ({
     recording: {
       phase,
       getIntensity: () => 0.5,
       onFinish: vi.fn(),
       onCancelRecording: vi.fn(),
-      onAccept: vi.fn(),
     },
   })
 
@@ -63,30 +66,33 @@ describe('CollapsedVoiceControls Push-to-Talk recording review (specs/026-floati
     expect(screen.queryByRole('button', { name: 'Mute' })).not.toBeInTheDocument()
   })
 
-  it('shows accept/send while reviewing', () => {
-    renderControls(recordingProps('reviewing'))
-
+  it('never shows a separate "send for transcription" control while recording or transcribing', () => {
+    renderControls(recordingProps('recording'))
     expect(
-      screen.getByRole('button', { name: 'Send recording for transcription' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
+      screen.queryByRole('button', { name: 'Send recording for transcription' }),
+    ).not.toBeInTheDocument()
+
+    renderControls(recordingProps('transcribing'))
+    expect(
+      screen.queryAllByRole('button', { name: 'Send recording for transcription' }),
+    ).toHaveLength(0)
   })
 
   it('calls the recording callbacks — same accessible names FR-023 requires VoiceControlBar to share', () => {
-    const { props } = renderControls(recordingProps('reviewing'))
+    const { props } = renderControls(recordingProps('recording'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send recording for transcription' }))
-    expect(props.recording?.onAccept).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+    expect(props.recording?.onFinish).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel recording' }))
     expect(props.recording?.onCancelRecording).toHaveBeenCalledTimes(1)
   })
 
-  it('has no automatically detectable a11y violations while recording or reviewing', async () => {
+  it('has no automatically detectable a11y violations while recording or transcribing', async () => {
     const recording = renderControls(recordingProps('recording'))
     expect(await axe(recording.container)).toHaveNoViolations()
 
-    const reviewing = renderControls(recordingProps('reviewing'))
-    expect(await axe(reviewing.container)).toHaveNoViolations()
+    const transcribing = renderControls(recordingProps('transcribing'))
+    expect(await axe(transcribing.container)).toHaveNoViolations()
   })
 })

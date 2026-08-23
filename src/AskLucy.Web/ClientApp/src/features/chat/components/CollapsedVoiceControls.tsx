@@ -33,14 +33,15 @@ export interface VoiceControlsProps {
   onToggleMode: () => void
   onToggleMute: () => void
   onClearError: () => void
-  /** Push-to-Talk's record → review → cancel/accept flow (FR-019–FR-023). `undefined`
-   * (or `phase: 'idle'`) renders nothing extra. */
+  /** Push-to-Talk's record → stop-and-transcribe → cancel flow (FR-019–FR-023,
+   * specs/031-voice-controls-redesign research.md Decision 1 — `onFinish` now transcribes
+   * directly, no separate accept step). `undefined` (or `phase: 'idle'`) renders nothing
+   * extra. */
   recording?: {
     phase: RecordingPhase
     getIntensity: () => number
     onFinish: () => void
     onCancelRecording: () => void
-    onAccept: () => void
   }
 }
 
@@ -75,7 +76,6 @@ export function CollapsedVoiceControls({
           phase={recording.phase}
           onFinish={recording.onFinish}
           onCancelRecording={recording.onCancelRecording}
-          onAccept={recording.onAccept}
           placement="left"
         />
       </Stack>

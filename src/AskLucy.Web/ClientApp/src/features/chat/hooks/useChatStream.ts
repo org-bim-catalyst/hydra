@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
-import { generateImage, streamChat, translate, type ChatMessage, type GenerationParameters } from '../api/aiApi'
+import { generateImage, streamChat, type ChatMessage, type GenerationParameters } from '../api/aiApi'
 
 const TITLE_MAX_LENGTH = 60
 
@@ -44,7 +44,7 @@ export function useChatStream(
   // in-progress reply and can resolve empty; that empty result is still "defined", so gating
   // on definedness alone would permanently block a later, corrected refetch from ever being
   // applied (the "new chat blank on return" bug — see research.md Topic 6). This flag flips
-  // exactly once, inside send/sendImage/sendTranslation, and never reverses within this mount.
+  // exactly once, inside send/sendImage, and never reverses within this mount.
   const hasSentRef = useRef(false)
   // Last user-message content actually attempted via send() — lets retry() (FR-008) resend
   // exactly what failed without the caller needing to remember/re-supply it.
@@ -195,22 +195,6 @@ export function useChatStream(
     [ensureChatId],
   )
 
-  const sendTranslation = useCallback(
-    async (text: string, targetLanguage: string) => {
-      hasSentRef.current = true
-      const activeChatId = await ensureChatId(text)
-      const html = await translate(activeChatId, text, targetLanguage)
-      const container = document.createElement('div')
-      container.innerHTML = html
-      const plain = container.textContent ?? ''
-      if (isActiveRef.current) {
-        setMessages((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: plain }])
-      }
-      return plain
-    },
-    [ensureChatId],
-  )
-
   const stop = useCallback(() => abortRef.current?.abort(), [])
   const clearError = useCallback(() => setError(null), [])
 
@@ -221,5 +205,5 @@ export function useChatStream(
     }
   }, [send])
 
-  return { messages, isStreaming, error, clearError, send, sendImage, sendTranslation, stop, retry, providerId, modelId, setSelection }
+  return { messages, isStreaming, error, clearError, send, sendImage, stop, retry, providerId, modelId, setSelection }
 }
