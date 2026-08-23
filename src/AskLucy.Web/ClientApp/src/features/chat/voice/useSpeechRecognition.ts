@@ -6,7 +6,6 @@ import { useVoiceProviderStatus } from './voiceProviderStatus'
 const MAX_RECONNECT_ATTEMPTS = 2 // research.md Decision 8
 const RECONNECT_DELAY_MS = 1000
 const SILENCE_COMMIT_DELAY_MS = 800 // FR-002: pause before auto-processing
-const LOCAL_SPEECH_RMS_THRESHOLD = 0.02 // research.md Decision 10's fast local pre-trigger
 const SAMPLE_RATE_HZ = 16000 // matches downsampleTo16kHz below and the `pcm_16000` audio_format
 
 export type ConversationMode = 'push-to-talk' | 'continuous'
@@ -17,10 +16,6 @@ interface UseSpeechRecognitionOptions {
   mode: ConversationMode
   onPartialTranscript: (text: string) => void
   onFinalTranscript: (text: string) => void
-  /** research.md Decision 10 — fires the instant local audio crosses the amplitude
-   * threshold, well before the authoritative transcript confirms real speech. The caller
-   * (`useConversationAudio.ts`) uses this to duck AI playback immediately (US3). */
-  onLocalSpeechLikely?: () => void
   /** FR-031: a previously saved microphone device id, if any. Checked against
    * `navigator.mediaDevices.enumerateDevices()` at session start — falls back to the
    * platform default (and surfaces {@link deviceNotice}) rather than failing outright when
@@ -57,7 +52,6 @@ export function useSpeechRecognition({
   mode,
   onPartialTranscript,
   onFinalTranscript,
-  onLocalSpeechLikely,
   preferredMicrophoneDeviceId,
 }: UseSpeechRecognitionOptions) {
   const [isListening, setIsListening] = useState(false)
@@ -218,7 +212,11 @@ export function useSpeechRecognition({
     setError(null)
     setDeviceNotice(null)
 
-    let audioConstraint: boolean | MediaTrackConstraints = true
+    // specs/033-hold-to-talk-and-echo-fix: explicit echoCancellation, not just a browser
+    // default, as defense-in-depth alongside the primary fix (muting the input track outright
+    // during AiSpeaking, via setInputMuted below) for the brief windows the mic is live near
+    // Lucy's own audio.
+    let audioConstraint: boolean | MediaTrackConstraints = { echoCancellation: true }
     if (preferredMicrophoneDeviceId) {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices()
@@ -227,7 +225,7 @@ export function useSpeechRecognition({
             device.kind === 'audioinput' && device.deviceId === preferredMicrophoneDeviceId,
         )
         if (stillPresent) {
-          audioConstraint = { deviceId: { exact: preferredMicrophoneDeviceId } }
+          audioConstraint = { echoCancellation: true, deviceId: { exact: preferredMicrophoneDeviceId } }
         } else {
           setDeviceNotice(
             'Your saved microphone is no longer available — using the default microphone instead.',
@@ -273,15 +271,6 @@ export function useSpeechRecognition({
     workletNode.port.onmessage = (event: MessageEvent<Float32Array>) => {
       const chunk = event.data
 
-      let peak = 0
-      for (const sample of chunk) {
-        const abs = Math.abs(sample)
-        if (abs > peak) peak = abs
-      }
-      if (peak > LOCAL_SPEECH_RMS_THRESHOLD) {
-        onLocalSpeechLikely?.()
-      }
-
       const downsampled = downsampleTo16kHz(chunk, audioContext.sampleRate)
       const pcm = float32ToInt16Pcm(downsampled)
       const currentSocket = socketRef.current
@@ -299,13 +288,7 @@ export function useSpeechRecognition({
 
     source.connect(workletNode)
     setIsListening(true)
-  }, [
-    isSupported,
-    connectWithRetry,
-    attachSocketHandlers,
-    onLocalSpeechLikely,
-    preferredMicrophoneDeviceId,
-  ])
+  }, [isSupported, connectWithRetry, attachSocketHandlers, preferredMicrophoneDeviceId])
 
   /** Manual end of capture (FR-006) — discards without waiting for a commit round trip. */
   const cancel = useCallback(() => {
@@ -321,6 +304,16 @@ export function useSpeechRecognition({
     setIsListening(false)
   }, [commit, cleanupAudioGraph, closeSocket])
 
+  /** specs/033-hold-to-talk-and-echo-fix FR-009 — disables (not tears down) the active
+   * stream's audio input while Lucy is speaking, so her own voice can never be picked up as
+   * user speech; re-enabling resumes normal listening with no reconnect/graph-rebuild cost.
+   * Safe no-op if no stream is currently active. */
+  const setInputMuted = useCallback((muted: boolean) => {
+    streamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !muted
+    })
+  }, [])
+
   const clearError = useCallback(() => setError(null), [])
   const clearDeviceNotice = useCallback(() => setDeviceNotice(null), [])
 
@@ -333,6 +326,7 @@ export function useSpeechRecognition({
     start,
     stop,
     cancel,
+    setInputMuted,
     clearError,
     clearDeviceNotice,
   }

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { streamChat } from './aiApi'
+import { ApiError } from '../../../api/httpClient'
+import { streamChat, transcribeAudio } from './aiApi'
 
 function sseResponse(lines: string[]): Response {
   const body = new ReadableStream<Uint8Array>({
@@ -44,5 +45,57 @@ describe('streamChat', () => {
     }
 
     expect(chunks.join('')).toBe('Yes, I can hear you.')
+  })
+})
+
+describe('transcribeAudio', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // specs/032 T005: before this fix, a rejected recording surfaced only
+  // "Transcription failed with 400" — the Problem Details body's `detail` was discarded
+  // entirely. This proves the real detail now reaches the caller.
+  it('throws an ApiError carrying the Problem Details detail, not a bare status code', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            type: 'https://hydra.bimcatalyst.com/problems/ai-provider-request-invalid',
+            title: 'AI provider rejected the request',
+            status: 400,
+            detail: 'The AI provider could not process this request. Please try again.',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+
+    const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
+
+    await expect(transcribeAudio(file)).rejects.toMatchObject({
+      message: 'The AI provider could not process this request. Please try again.',
+      status: 400,
+    })
+  })
+
+  it('throws an ApiError instance', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'Bad Request', status: 400 }), { status: 400 })),
+    )
+
+    const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
+
+    await expect(transcribeAudio(file)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('falls back to a generic message when the response body is not valid JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not json', { status: 500 })))
+
+    const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
+
+    await expect(transcribeAudio(file)).rejects.toMatchObject({ message: 'Transcription failed', status: 500 })
   })
 })

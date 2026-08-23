@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { transcribeAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
 import { ChatComposer, type ChatComposerProps } from './ChatComposer'
@@ -39,107 +39,81 @@ function renderComposer(overrides: Partial<ChatComposerProps> = {}) {
   return { ...render(<ChatComposer {...props} />), props }
 }
 
-describe('ChatComposer mic control — Push-to-Talk hold (US2, FR-005)', () => {
-  afterEach(() => vi.useRealTimers())
-
-  it('starts capture on pointer down and stops it on pointer up after a genuine hold', () => {
-    vi.useFakeTimers()
+// specs/033-hold-to-talk-and-echo-fix FR-005/FR-006/FR-007 — pure hold-to-talk, WhatsApp
+// voice-message style. The prior dual tap-toggle/hold-threshold design (Clarification Q1) is
+// removed entirely: release always stops-and-transcribes, regardless of how long the button was
+// held, and there is exactly one gesture, not two competing ones.
+describe('ChatComposer mic control — pure hold-to-talk (US2, FR-005/FR-006/FR-007)', () => {
+  it('starts capture on pointer down and stops it on pointer up, for a genuine hold', () => {
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
 
     fireEvent.pointerDown(micButton)
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
 
-    vi.advanceTimersByTime(500) // held well past the hold-vs-tap threshold
     fireEvent.pointerUp(micButton)
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 
-  it('does not double-fire via the synthetic click that follows a pointer hold', () => {
-    vi.useFakeTimers()
+  it('a brief tap (pointerdown immediately followed by pointerup) also stops-and-transcribes, not left running', () => {
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
 
     fireEvent.pointerDown(micButton)
-    vi.advanceTimersByTime(500)
     fireEvent.pointerUp(micButton)
-    // Browsers fire a synthetic click after pointerup on the same element.
-    fireEvent.click(micButton)
 
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 
-  it('a quick tap (pointerdown/pointerup under the hold threshold) leaves capture running, not stopped', () => {
+  it('calls setPointerCapture on pointerdown with the event pointerId (the actual fix for the release-lost-to-a-DOM-swap bug)', () => {
+    const setPointerCapture = vi.fn()
+    // jsdom does not implement Pointer Capture; stub it on the prototype so the component's
+    // optional-chained call has something to invoke and assert against.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(HTMLElement.prototype as any).setPointerCapture = setPointerCapture
+    renderComposer()
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micButton, { pointerId: 7 })
+
+    expect(setPointerCapture).toHaveBeenCalledWith(7)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (HTMLElement.prototype as any).setPointerCapture
+  })
+
+  it('pointerleave during an active recording also stops-and-transcribes', () => {
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
 
-    // No time advanced between down and up — a real quick click, not a hold.
     fireEvent.pointerDown(micButton)
-    fireEvent.pointerUp(micButton)
-    fireEvent.click(micButton) // the synthetic click a browser fires after pointerup
+    fireEvent.pointerLeave(micButton)
 
-    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+  })
+
+  it('pointercancel during an active recording also stops-and-transcribes', () => {
+    const { props } = renderComposer()
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micButton)
+    fireEvent.pointerCancel(micButton)
+
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+  })
+
+  it('a pointerup with no preceding capture on this control (isListening false) does not call onStopCapture', () => {
+    const { props } = renderComposer({ isListening: false })
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerUp(micButton)
+
     expect(props.onStopCapture).not.toHaveBeenCalled()
-  })
-})
-
-describe('ChatComposer mic control — Push-to-Talk toggle (US2, Clarification Q1)', () => {
-  it('starts capture on the first click and stops it on the second, with no preceding pointer events', () => {
-    const { props, rerender } = renderComposer({ isListening: false })
-    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
-
-    fireEvent.click(micButton)
-    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
-
-    rerender(
-      <ChatComposer
-        {...baseProps()}
-        isListening={true}
-        onStartCapture={props.onStartCapture}
-        onStopCapture={props.onStopCapture}
-        onClearCaptureError={props.onClearCaptureError}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
-    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
-  })
-
-  it('two quick taps (each a pointerdown/up/click sequence) toggle capture on then off', () => {
-    const { props, rerender } = renderComposer({ isListening: false })
-    let micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
-
-    fireEvent.pointerDown(micButton)
-    fireEvent.pointerUp(micButton)
-    fireEvent.click(micButton)
-    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
-    expect(props.onStopCapture).not.toHaveBeenCalled()
-
-    rerender(
-      <ChatComposer
-        {...baseProps()}
-        isListening={true}
-        onStartCapture={props.onStartCapture}
-        onStopCapture={props.onStopCapture}
-        onClearCaptureError={props.onClearCaptureError}
-      />,
-    )
-    micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
-
-    fireEvent.pointerDown(micButton) // already listening — this "down" no-ops, doesn't restart capture
-    fireEvent.pointerUp(micButton)
-    fireEvent.click(micButton)
-    expect(props.onStartCapture).toHaveBeenCalledTimes(1) // still just the first tap
-    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () => {
-  afterEach(() => vi.useRealTimers())
-
-  it('starts capture on Space keydown and stops it on Space keyup after a genuine hold, without hijacking the text field', () => {
-    vi.useFakeTimers()
+  it('starts capture on Space keydown and stops it on Space keyup, for a genuine hold, without hijacking the text field', () => {
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
     micButton.focus()
@@ -147,12 +121,11 @@ describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () =
     fireEvent.keyDown(micButton, { key: ' ', code: 'Space' })
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
 
-    vi.advanceTimersByTime(500)
     fireEvent.keyUp(micButton, { key: ' ', code: 'Space' })
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 
-  it('a quick Space press leaves capture running, not stopped', () => {
+  it('a brief Space press also stops-and-transcribes, not left running (specs/033-hold-to-talk-and-echo-fix)', () => {
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
     micButton.focus()
@@ -161,7 +134,7 @@ describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () =
     fireEvent.keyUp(micButton, { key: ' ', code: 'Space' })
 
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
-    expect(props.onStopCapture).not.toHaveBeenCalled()
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 
   it('does not repeat-fire onStartCapture while a key is held down (key-repeat keydown events)', () => {
@@ -187,56 +160,35 @@ describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () =
   })
 })
 
-// specs/029-fix-chat-widget-bugs research.md Decision 5: the plain inline "Cancel" button this
-// suite previously tested (rendered off `isListening` alone) was replaced by the shared
-// `RecordingReviewControls` component, driven by `recording.phase` — the same control
-// `VoiceControlBar` (now retired) and `CollapsedVoiceControls` already used, so there's one
-// recording-review implementation instead of two.
-describe('ChatComposer — recording review (US3, specs/029-fix-chat-widget-bugs FR-005)', () => {
-  it('shows RecordingReviewControls while a Push-to-Talk recording is in progress, and cancel discards without sending', () => {
-    const onCancelRecording = vi.fn()
+// specs/033-hold-to-talk-and-echo-fix — with pure hold-to-talk, releasing the mic button is the
+// only way a recording finishes, so the previous Finish/Cancel `RecordingReviewControls` swap is
+// removed from this component entirely. The mic button stays mounted (and is the fix for the
+// pointer-capture bug); only its visual state (disabled, color) changes during 'transcribing'.
+describe('ChatComposer — active recording (US2, specs/033-hold-to-talk-and-echo-fix FR-007/FR-008)', () => {
+  it('keeps the mic button mounted (not replaced) and shows no Finish/Cancel controls while a Push-to-Talk recording is in progress', () => {
     renderComposer({
       isListening: true,
       recording: {
         phase: 'recording',
         getIntensity: () => 0,
         onFinish: vi.fn(),
-        onCancelRecording,
-      },
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /cancel recording/i }))
-    expect(onCancelRecording).toHaveBeenCalledTimes(1)
-    // The plain mic button is replaced, not merely covered, while reviewing.
-    expect(screen.queryByRole('button', { name: MIC_BUTTON_NAME })).not.toBeInTheDocument()
-  })
-
-  it('does not show recording review controls while idle', () => {
-    renderComposer({ isListening: false })
-    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
-  })
-
-  // specs/031-voice-controls-redesign FR-001/FR-003, research.md Decision 1 — Finish now
-  // transcribes directly; there is no longer a separate "send for transcription"/Accept
-  // control between tapping Finish and the transcript landing in the message field.
-  it('calls onFinish directly when Finish is tapped, with no intermediate accept control ever rendered', () => {
-    const onFinish = vi.fn()
-    renderComposer({
-      isListening: true,
-      recording: {
-        phase: 'recording',
-        getIntensity: () => 0,
-        onFinish,
         onCancelRecording: vi.fn(),
       },
     })
 
+    expect(screen.getByRole('button', { name: MIC_BUTTON_NAME })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /finished speaking/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /send recording for transcription/i })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /finished speaking/i }))
-    expect(onFinish).toHaveBeenCalledTimes(1)
   })
 
-  it('never shows a "send for transcription" control while transcribing', () => {
+  it('does not show any recording-review affordance while idle', () => {
+    renderComposer({ isListening: false })
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /finished speaking/i })).not.toBeInTheDocument()
+  })
+
+  it('disables the mic button while transcribing, and shows no Finish/Cancel/Accept controls', () => {
     renderComposer({
       isListening: true,
       recording: {
@@ -246,7 +198,25 @@ describe('ChatComposer — recording review (US3, specs/029-fix-chat-widget-bugs
         onCancelRecording: vi.fn(),
       },
     })
+
+    expect(screen.getByRole('button', { name: MIC_BUTTON_NAME })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /send recording for transcription/i })).not.toBeInTheDocument()
+  })
+
+  it('releasing the mic button while an active recording is the only trigger — onStopCapture fires, not a separate Finish click', () => {
+    const { props } = renderComposer({
+      isListening: true,
+      recording: {
+        phase: 'recording',
+        getIntensity: () => 0,
+        onFinish: vi.fn(),
+        onCancelRecording: vi.fn(),
+      },
+    })
+
+    fireEvent.pointerUp(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -298,24 +268,43 @@ describe('ChatComposer — exactly one mic control (US3, FR-004)', () => {
   })
 })
 
-describe('ChatComposer — mode-switch menu (US3, FR-006, Clarification Q3)', () => {
-  it('opens a menu offering the other mode, and switching calls onToggleMode', async () => {
+// specs/032-transcription-and-mode-switch-fixes US2/FR-006 — the prior two-click dropdown
+// (open a menu, then click its one option) is removed; a single click on the mode-switch
+// icon now toggles the mode directly.
+describe('ChatComposer — mode-switch toggle (US2, FR-006/FR-007/FR-008)', () => {
+  it('a single click on the mode-switch icon calls onToggleMode directly, with no menu', () => {
     const { props } = renderComposer({ conversationMode: 'Continuous' })
     fireEvent.click(screen.getByRole('button', { name: /voice input mode settings/i }))
-    // getByText rather than getByRole('menuitem', ...) — MUI's Menu Popper/Grow transition
-    // combined with jsdom's getComputedStyle throws on this environment's role-based
-    // accessibility-tree walk (unrelated to this component's own correctness; the same
-    // pattern is unprecedented elsewhere in this codebase's tests). Text content is a
-    // faithful enough target for what this test actually verifies: clicking the menu's
-    // offered action fires onToggleMode.
-    const menuItem = await screen.findByText(/switch to push-to-talk/i)
-    fireEvent.click(menuItem)
+
     expect(props.onToggleMode).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('disables the mode-switch control while a Push-to-Talk capture is in progress', () => {
-    renderComposer({ conversationMode: 'PushToTalk', isListening: true })
-    expect(screen.getByRole('button', { name: /voice input mode settings/i })).toBeDisabled()
+  it('a single click from Push-to-Talk also calls onToggleMode directly, with no menu', () => {
+    const { props } = renderComposer({ conversationMode: 'PushToTalk' })
+    fireEvent.click(screen.getByRole('button', { name: /voice input mode settings/i }))
+
+    expect(props.onToggleMode).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('disables the mode-switch control while a Push-to-Talk capture is in progress (FR-007, unchanged)', () => {
+    const { props } = renderComposer({ conversationMode: 'PushToTalk', isListening: true })
+    const button = screen.getByRole('button', { name: /voice input mode settings/i })
+
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(props.onToggleMode).not.toHaveBeenCalled()
+  })
+
+  it('the tooltip describes the target mode directly, in both directions (FR-008)', async () => {
+    const { rerender } = renderComposer({ conversationMode: 'Continuous' })
+    await userEvent.hover(screen.getByRole('button', { name: /voice input mode settings/i }))
+    expect(await screen.findByText(/switch to push-to-talk/i)).toBeInTheDocument()
+
+    rerender(<ChatComposer {...baseProps()} conversationMode="PushToTalk" />)
+    await userEvent.hover(screen.getByRole('button', { name: /voice input mode settings/i }))
+    expect(await screen.findByText(/switch to continuous conversation/i)).toBeInTheDocument()
   })
 })
 
