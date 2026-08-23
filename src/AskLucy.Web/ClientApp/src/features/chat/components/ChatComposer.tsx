@@ -7,9 +7,6 @@ import {
   RiMicLine,
   RiMicOffLine,
   RiSendPlane2Fill,
-  RiTranslate2,
-  RiVolumeMuteLine,
-  RiVolumeUpLine,
 } from '@remixicon/react'
 import { Box, IconButton, Menu, MenuItem, Alert, Paper, Snackbar, Stack, TextField, Tooltip } from '@mui/material'
 import { useRef, useState } from 'react'
@@ -50,23 +47,16 @@ export interface ChatComposerProps {
    * the mic rather than a separate persistent icon (FR-006, Clarification Q3). Disabled
    * while a Push-to-Talk capture is in progress (same guard `VoiceControlBar.tsx` used). */
   onToggleMode: () => void
-  /** Push-to-Talk's record → review → cancel/accept flow, absorbed from the retired
+  /** Push-to-Talk's record → stop-and-transcribe → cancel flow, absorbed from the retired
    * `VoiceControlBar` (research.md Decision 5). `undefined` (or `phase: 'idle'`) renders
-   * the plain mic button instead. */
+   * the plain mic button instead. `onFinish` transcribes directly — no separate accept
+   * step (specs/031-voice-controls-redesign research.md Decision 1). */
   recording?: {
     phase: RecordingPhase
     getIntensity: () => number
     onFinish: () => void
     onCancelRecording: () => void
-    onAccept: () => void
   }
-  /** Speaker-output mute, merged with "stop the current reply" into one toggle
-   * (FR-006a/FR-006b, research.md Decision 5a) — unrelated to the microphone. The caller
-   * is responsible for also stopping in-progress speech when toggling to muted. */
-  isMuted: boolean
-  onToggleMute: () => void
-  /** Relocated from the panel's top toolbar into this row (FR-007, research.md Decision 6). */
-  onTranslateLastClick: () => void
   /** specs/029-fix-chat-widget-bugs FR-001/FR-002, research.md Decision 3 — true when the
    * user's saved voice preferences failed to load (voice features are still fully usable on
    * defaults). Drives a small, dismissible-by-nature (icon + tooltip, no persistent banner)
@@ -98,9 +88,6 @@ export function ChatComposer({
   onInsertPromptClick,
   onToggleMode,
   recording,
-  isMuted,
-  onToggleMute,
-  onTranslateLastClick,
   voicePreferencesUnavailable,
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -222,11 +209,11 @@ export function ChatComposer({
         sx={{
           maxWidth: 800,
           mx: 'auto',
-          borderRadius: `${radius.pill}px`,
-          px: 1,
-          minHeight: 56,
+          borderRadius: `${radius.lg}px`,
+          px: 1.5,
+          py: 1,
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
           transition: (theme) => theme.transitions.create(['border-color', 'box-shadow']),
           '&:focus-within': {
             borderColor: 'primary.main',
@@ -245,122 +232,10 @@ export function ChatComposer({
             e.target.value = ''
           }}
         />
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', width: '100%' }}>
-          <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
-            <RiAttachment2 />
-          </IconButton>
 
-          {onInsertPromptClick && (
-            <IconButton onClick={onInsertPromptClick} aria-label="Insert saved prompt">
-              <RiArticleLine />
-            </IconButton>
-          )}
-
-          {isRecordingReview && recording ? (
-            <>
-              {/* FR-005/FR-019: live waveform while actively recording — nothing left to
-                  visualize once capture has stopped and review has begun. */}
-              {recording.phase === 'recording' && (
-                <Box sx={{ width: 64 }}>
-                  <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
-                </Box>
-              )}
-              <RecordingReviewControls
-                phase={recording.phase}
-                onFinish={recording.onFinish}
-                onCancelRecording={recording.onCancelRecording}
-                onAccept={recording.onAccept}
-                placement="right"
-              />
-            </>
-          ) : (
-            <IconButton
-              onPointerDown={conversationMode === 'PushToTalk' ? handleMicPointerDown : undefined}
-              onPointerUp={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
-              onPointerLeave={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
-              onClick={conversationMode === 'PushToTalk' ? handleMicClick : handleContinuousMicClick}
-              onKeyDown={conversationMode === 'PushToTalk' ? handleMicKeyDown : undefined}
-              onKeyUp={conversationMode === 'PushToTalk' ? handleMicKeyUp : undefined}
-              aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-              color={isListening ? 'secondary' : 'default'}
-              sx={
-                isListening && !prefersReducedMotion
-                  ? {
-                      animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
-                      '@keyframes ask-lucy-mic-pulse': {
-                        '0%, 100%': { opacity: 1 },
-                        '50%': { opacity: 0.4 },
-                      },
-                    }
-                  : undefined
-              }
-            >
-              {isListening ? <RiMicOffLine /> : <RiMicLine />}
-            </IconButton>
-          )}
-
-          {/* Mode-switch menu, anchored to the mic — no separate always-visible mode icon
-              (FR-006). Shows the *current* mode's icon; opens a menu offering the other. */}
-          <Tooltip
-            title={
-              isModeSwitchBlocked
-                ? 'Release the microphone to switch modes'
-                : conversationMode === 'Continuous'
-                  ? 'Continuous Conversation Mode — click for options'
-                  : 'Push-to-Talk Mode — click for options'
-            }
-          >
-            <span>
-              <IconButton
-                onClick={(e) => setModeMenuAnchor(e.currentTarget)}
-                disabled={isModeSwitchBlocked}
-                aria-label="Voice input mode settings"
-                size="small"
-              >
-                {conversationMode === 'Continuous' ? (
-                  <RiInfinityLine fontSize="small" />
-                ) : (
-                  <RiFingerprintLine fontSize="small" />
-                )}
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Menu anchorEl={modeMenuAnchor} open={Boolean(modeMenuAnchor)} onClose={() => setModeMenuAnchor(null)}>
-            <MenuItem onClick={handleToggleModeClick}>
-              {conversationMode === 'Continuous' ? 'Switch to Push-to-Talk' : 'Switch to Continuous Conversation'}
-            </MenuItem>
-          </Menu>
-
-          {/* FR-001/FR-002, research.md Decision 3 — a small, non-blocking indicator that
-              saved voice preferences couldn't load (defaults are in effect; nothing here is
-              broken), replacing the previous full-width Snackbar that fired on every chat
-              load. Deliberately just an icon + tooltip, not a dismiss-and-forget banner. */}
-          {voicePreferencesUnavailable && (
-            <Tooltip title="Using default voice settings — couldn't load your saved preferences">
-              <RiErrorWarningLine
-                aria-label="Voice preferences unavailable, using defaults"
-                role="img"
-                size={16}
-                style={{ opacity: 0.6, flexShrink: 0 }}
-              />
-            </Tooltip>
-          )}
-
-          {/* Speaker-output mute, merged with "stop the current reply" (FR-006a/FR-006b) —
-              a single always-visible toggle, unrelated to and visually distinct from the
-              mic. Not folded into the mode menu above. */}
-          <Tooltip title={isMuted ? 'Unmute Lucy' : 'Mute Lucy'}>
-            <IconButton onClick={onToggleMute} aria-label={isMuted ? 'Unmute Lucy' : 'Mute Lucy'}>
-              {isMuted ? <RiVolumeMuteLine /> : <RiVolumeUpLine />}
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="Translate last response">
-            <IconButton onClick={onTranslateLastClick} aria-label="Translate last response">
-              <RiTranslate2 />
-            </IconButton>
-          </Tooltip>
-
+        {/* specs/030-composer-panel-refinements FR-001/FR-002 — text-entry region on top of
+            a fixed footer row of controls, replacing the previous single-row pill layout. */}
+        <Box>
           <TextField
             fullWidth
             multiline
@@ -377,21 +252,165 @@ export function ChatComposer({
             }}
             disabled={disabled}
             slotProps={{ input: { disableUnderline: true } }}
-            sx={{ py: 1.25 }}
-          />
-          <IconButton
-            onClick={onSend}
-            disabled={disabled || !value.trim()}
-            aria-label="Send message"
             sx={{
-              bgcolor: value.trim() && !disabled ? 'primary.main' : 'transparent',
-              color: value.trim() && !disabled ? 'primary.contrastText' : 'text.disabled',
-              '&:hover': { bgcolor: value.trim() && !disabled ? 'primary.dark' : 'action.hover' },
-              transition: (theme) => theme.transitions.create(['background-color', 'color']),
+              py: 1.25,
+              // specs/030-composer-panel-refinements FR-004, research.md Decision 2 — a fixed
+              // lineHeight (matching the body1 token's 1.55) makes the maxRows={6} cap
+              // deterministic instead of depending on an inherited/ambient value; past this
+              // point the input scrolls internally rather than growing the composer further.
+              '& .MuiInputBase-input': {
+                lineHeight: 1.55,
+                overflowY: 'auto',
+              },
             }}
-          >
-            <RiSendPlane2Fill size={20} />
-          </IconButton>
+          />
+        </Box>
+
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{ alignItems: 'center', width: '100%', flexShrink: 0 }}
+        >
+          {/* specs/031-voice-controls-redesign FR-006/FR-008, research.md Decision 3 —
+              hidden for the duration of an active Push-to-Talk recording so the footer
+              shows only recording-relevant controls, not every control at once. */}
+          {!isRecordingReview && (
+            <>
+              <Tooltip title="Attach file">
+                <IconButton onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
+                  <RiAttachment2 />
+                </IconButton>
+              </Tooltip>
+
+              {onInsertPromptClick && (
+                <Tooltip title="Insert saved prompt">
+                  <IconButton onClick={onInsertPromptClick} aria-label="Insert saved prompt">
+                    <RiArticleLine />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </>
+          )}
+
+          {isRecordingReview && recording ? (
+            <>
+              {/* FR-005/FR-019: live waveform while actively recording — nothing left to
+                  visualize once capture has stopped and transcription has begun. */}
+              {recording.phase === 'recording' && (
+                <Box sx={{ width: 64 }}>
+                  <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
+                </Box>
+              )}
+              <RecordingReviewControls
+                phase={recording.phase}
+                onFinish={recording.onFinish}
+                onCancelRecording={recording.onCancelRecording}
+                placement="right"
+              />
+            </>
+          ) : (
+            <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'}>
+              <IconButton
+                onPointerDown={conversationMode === 'PushToTalk' ? handleMicPointerDown : undefined}
+                onPointerUp={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
+                onPointerLeave={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
+                onClick={conversationMode === 'PushToTalk' ? handleMicClick : handleContinuousMicClick}
+                onKeyDown={conversationMode === 'PushToTalk' ? handleMicKeyDown : undefined}
+                onKeyUp={conversationMode === 'PushToTalk' ? handleMicKeyUp : undefined}
+                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                color={isListening ? 'secondary' : 'default'}
+                sx={
+                  isListening && !prefersReducedMotion
+                    ? {
+                        animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
+                        '@keyframes ask-lucy-mic-pulse': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.4 },
+                        },
+                      }
+                    : undefined
+                }
+              >
+                {isListening ? <RiMicOffLine /> : <RiMicLine />}
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Mode-switch menu, anchored to the mic — no separate always-visible mode icon
+              (FR-006). Shows the *current* mode's icon; opens a menu offering the other.
+              Hidden while recording (specs/031-voice-controls-redesign FR-006/FR-008,
+              research.md Decision 3) alongside attach/insert-prompt above. */}
+          {!isRecordingReview && (
+            <>
+              <Tooltip
+                title={
+                  isModeSwitchBlocked
+                    ? 'Release the microphone to switch modes'
+                    : conversationMode === 'Continuous'
+                      ? 'Continuous Conversation Mode — click for options'
+                      : 'Push-to-Talk Mode — click for options'
+                }
+              >
+                <span>
+                  <IconButton
+                    onClick={(e) => setModeMenuAnchor(e.currentTarget)}
+                    disabled={isModeSwitchBlocked}
+                    aria-label="Voice input mode settings"
+                    size="small"
+                  >
+                    {conversationMode === 'Continuous' ? (
+                      <RiInfinityLine fontSize="small" />
+                    ) : (
+                      <RiFingerprintLine fontSize="small" />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Menu anchorEl={modeMenuAnchor} open={Boolean(modeMenuAnchor)} onClose={() => setModeMenuAnchor(null)}>
+                <MenuItem onClick={handleToggleModeClick}>
+                  {conversationMode === 'Continuous' ? 'Switch to Push-to-Talk' : 'Switch to Continuous Conversation'}
+                </MenuItem>
+              </Menu>
+
+              {/* FR-001/FR-002, research.md Decision 3 — a small, non-blocking indicator
+                  that saved voice preferences couldn't load (defaults are in effect;
+                  nothing here is broken), replacing the previous full-width Snackbar that
+                  fired on every chat load. Deliberately just an icon + tooltip, not a
+                  dismiss-and-forget banner. */}
+              {voicePreferencesUnavailable && (
+                <Tooltip title="Using default voice settings — couldn't load your saved preferences">
+                  <RiErrorWarningLine
+                    aria-label="Voice preferences unavailable, using defaults"
+                    role="img"
+                    size={16}
+                    style={{ opacity: 0.6, flexShrink: 0 }}
+                  />
+                </Tooltip>
+              )}
+            </>
+          )}
+
+          <Box sx={{ flex: 1 }} />
+
+          <Tooltip title="Send message">
+            {/* MUI Tooltip cannot attach directly to a disabled element — same
+                <span> wrapper pattern already used above for the mode-switch button. */}
+            <span>
+              <IconButton
+                onClick={onSend}
+                disabled={disabled || !value.trim()}
+                aria-label="Send message"
+                sx={{
+                  bgcolor: value.trim() && !disabled ? 'primary.main' : 'transparent',
+                  color: value.trim() && !disabled ? 'primary.contrastText' : 'text.disabled',
+                  '&:hover': { bgcolor: value.trim() && !disabled ? 'primary.dark' : 'action.hover' },
+                  transition: (theme) => theme.transitions.create(['background-color', 'color']),
+                }}
+              >
+                <RiSendPlane2Fill size={20} />
+              </IconButton>
+            </span>
+          </Tooltip>
         </Stack>
       </Paper>
       {permissionState === 'denied' && (

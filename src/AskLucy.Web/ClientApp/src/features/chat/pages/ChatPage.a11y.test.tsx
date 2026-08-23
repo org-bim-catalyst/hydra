@@ -288,7 +288,10 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
     expect(results).toHaveNoViolations()
   })
 
-  it('has no automatically detectable a11y violations while reviewing before accept', async () => {
+  // specs/031-voice-controls-redesign FR-001, research.md Decision 1 — Finish now
+  // transcribes directly; there is no longer a separate reviewing/accept state to check
+  // for a11y violations in.
+  it('has no automatically detectable a11y violations once Finish transcribes the recording', async () => {
     const { container } = renderConversation(CHAT_A)
 
     fireEvent.click(getMicButton())
@@ -297,9 +300,7 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
     )
     fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Send recording for transcription' }),
-      ).toBeInTheDocument(),
+      expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
     )
 
     const results = await axe(container)
