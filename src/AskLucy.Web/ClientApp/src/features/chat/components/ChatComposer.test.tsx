@@ -39,34 +39,31 @@ function renderComposer(overrides: Partial<ChatComposerProps> = {}) {
   return { ...render(<ChatComposer {...props} />), props }
 }
 
-// specs/033-hold-to-talk-and-echo-fix FR-005/FR-006/FR-007 — pure hold-to-talk, WhatsApp
-// voice-message style. The prior dual tap-toggle/hold-threshold design (Clarification Q1) is
-// removed entirely: release always stops-and-transcribes, regardless of how long the button was
-// held, and there is exactly one gesture, not two competing ones.
-describe('ChatComposer mic control — pure hold-to-talk (US2, FR-005/FR-006/FR-007)', () => {
-  it('starts capture on pointer down and stops it on pointer up, for a genuine hold', () => {
+// specs/034-transcription-crash-gesture-and-continuous-view FR-004/FR-005/FR-006/FR-007 —
+// restores the dual gesture specs/033 had removed: a tap starts recording and shows explicit
+// confirm/discard controls (waiting for the user); a hold shows only the waveform and finishes
+// automatically on release. A tap and a hold are physically identical at press time — they only
+// resolve into one or the other at release, based on elapsed hold duration.
+describe('ChatComposer mic control — hold-to-talk (US2, FR-006)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('starts capture on pointer down and, once held past the threshold, stops it on release with no review controls ever shown', () => {
+    vi.useFakeTimers()
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
 
     fireEvent.pointerDown(micButton)
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
 
-    fireEvent.pointerUp(micButton)
-    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
-  })
-
-  it('a brief tap (pointerdown immediately followed by pointerup) also stops-and-transcribes, not left running', () => {
-    const { props } = renderComposer()
-    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
-
-    fireEvent.pointerDown(micButton)
+    vi.advanceTimersByTime(500) // held well past the hold threshold
     fireEvent.pointerUp(micButton)
 
-    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: /finished speaking/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
   })
 
-  it('calls setPointerCapture on pointerdown with the event pointerId (the actual fix for the release-lost-to-a-DOM-swap bug)', () => {
+  it('calls setPointerCapture on pointerdown with the event pointerId (the specs/033 release-lost-to-a-DOM-swap bug fix, unaffected by this gesture restoration)', () => {
     const setPointerCapture = vi.fn()
     // jsdom does not implement Pointer Capture; stub it on the prototype so the component's
     // optional-chained call has something to invoke and assert against.
@@ -82,21 +79,25 @@ describe('ChatComposer mic control — pure hold-to-talk (US2, FR-005/FR-006/FR-
     delete (HTMLElement.prototype as any).setPointerCapture
   })
 
-  it('pointerleave during an active recording also stops-and-transcribes', () => {
+  it('pointerleave after the hold threshold also stops-and-transcribes directly', () => {
+    vi.useFakeTimers()
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
 
     fireEvent.pointerDown(micButton)
+    vi.advanceTimersByTime(500)
     fireEvent.pointerLeave(micButton)
 
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 
-  it('pointercancel during an active recording also stops-and-transcribes', () => {
+  it('pointercancel after the hold threshold also stops-and-transcribes directly', () => {
+    vi.useFakeTimers()
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
 
     fireEvent.pointerDown(micButton)
+    vi.advanceTimersByTime(500)
     fireEvent.pointerCancel(micButton)
 
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
@@ -112,8 +113,74 @@ describe('ChatComposer mic control — pure hold-to-talk (US2, FR-005/FR-006/FR-
   })
 })
 
-describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () => {
-  it('starts capture on Space keydown and stops it on Space keyup, for a genuine hold, without hijacking the text field', () => {
+// In real usage `recording.phase` only becomes 'recording' once the parent's recorder state
+// catches up asynchronously *after* `onStartCapture()` fires — there's always a real gap between
+// pointerdown and that prop update landing. These tests model that with `rerender`, the same
+// pattern this file already uses elsewhere for async recording-state transitions: passing
+// `recording.phase: 'recording'` from the very first render would make the defensive
+// `isCapturing()` fallback (research.md Decision 3's remount guard) treat pointerdown as
+// already-in-progress and no-op it entirely, which doesn't happen in real usage.
+describe('ChatComposer mic control — tap-to-record with review (US2, FR-004/FR-005)', () => {
+  function startThenResolveAsRecording(
+    onFinish = vi.fn(),
+    onCancelRecording = vi.fn(),
+  ) {
+    const { props, rerender } = renderComposer({ isListening: false })
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micButton)
+    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <ChatComposer
+        {...baseProps()}
+        isListening
+        onStartCapture={props.onStartCapture}
+        onStopCapture={props.onStopCapture}
+        onClearCaptureError={props.onClearCaptureError}
+        recording={{ phase: 'recording', getIntensity: () => 0, onFinish, onCancelRecording }}
+      />,
+    )
+
+    return { props, micButton: screen.getByRole('button', { name: MIC_BUTTON_NAME }) }
+  }
+
+  it('a quick tap (pointerdown immediately followed by pointerup) leaves recording active and shows confirm/discard controls plus the waveform, without calling onStopCapture', () => {
+    const { props, micButton } = startThenResolveAsRecording()
+
+    fireEvent.pointerUp(micButton)
+
+    expect(props.onStopCapture).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /finished speaking/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /cancel recording/i })).toBeInTheDocument()
+  })
+
+  it('tapping Finish on a tap-resolved recording calls onStopCapture and hides the review controls', () => {
+    const { props, micButton } = startThenResolveAsRecording()
+    fireEvent.pointerUp(micButton)
+
+    fireEvent.click(screen.getByRole('button', { name: /finished speaking/i }))
+
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+  })
+
+  it('tapping Cancel on a tap-resolved recording calls recording.onCancelRecording and does not call onStopCapture', () => {
+    const onCancelRecording = vi.fn()
+    const { props, micButton } = startThenResolveAsRecording(vi.fn(), onCancelRecording)
+    fireEvent.pointerUp(micButton)
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel recording/i }))
+
+    expect(onCancelRecording).toHaveBeenCalledTimes(1)
+    expect(props.onStopCapture).not.toHaveBeenCalled()
+  })
+})
+
+describe('ChatComposer mic control — keyboard hold and tap (US2, FR-010, Space)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('starts capture on Space keydown and, once held past the threshold, stops it on Space keyup with no review controls shown, without hijacking the text field', () => {
+    vi.useFakeTimers()
     const { props } = renderComposer()
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
     micButton.focus()
@@ -121,20 +188,34 @@ describe('ChatComposer mic control — keyboard hold (US2, FR-010, Space)', () =
     fireEvent.keyDown(micButton, { key: ' ', code: 'Space' })
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
 
+    vi.advanceTimersByTime(500)
     fireEvent.keyUp(micButton, { key: ' ', code: 'Space' })
     expect(props.onStopCapture).toHaveBeenCalledTimes(1)
   })
 
-  it('a brief Space press also stops-and-transcribes, not left running (specs/033-hold-to-talk-and-echo-fix)', () => {
-    const { props } = renderComposer()
+  it('a brief Space press resolves as a tap — shows review controls, does not call onStopCapture', () => {
+    const { props, rerender } = renderComposer({ isListening: false })
     const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
     micButton.focus()
 
     fireEvent.keyDown(micButton, { key: ' ', code: 'Space' })
-    fireEvent.keyUp(micButton, { key: ' ', code: 'Space' })
-
     expect(props.onStartCapture).toHaveBeenCalledTimes(1)
-    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+
+    // Same async-catch-up modeling as the pointer tap tests above.
+    rerender(
+      <ChatComposer
+        {...baseProps()}
+        isListening
+        onStartCapture={props.onStartCapture}
+        onStopCapture={props.onStopCapture}
+        onClearCaptureError={props.onClearCaptureError}
+        recording={{ phase: 'recording', getIntensity: () => 0, onFinish: vi.fn(), onCancelRecording: vi.fn() }}
+      />,
+    )
+    fireEvent.keyUp(screen.getByRole('button', { name: MIC_BUTTON_NAME }), { key: ' ', code: 'Space' })
+
+    expect(props.onStopCapture).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /finished speaking/i })).toBeInTheDocument()
   })
 
   it('does not repeat-fire onStartCapture while a key is held down (key-repeat keydown events)', () => {

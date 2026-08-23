@@ -205,6 +205,16 @@ public sealed partial class AiController(
     [HttpPost("transcriptions")]
     public async Task<ActionResult<TranscriptionResponse>> Transcribe(IFormFile file, CancellationToken cancellationToken)
     {
+        // specs/034: a missing multipart file part binds IFormFile to null rather than failing
+        // model validation, and a present-but-empty file previously sailed through to a real
+        // provider call — both are request-input problems, not provider failures, and must be
+        // rejected here rather than surfacing as an unclassified/misclassified downstream error
+        // (constitution §2.VIII).
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "No audio file was provided", Status = StatusCodes.Status400BadRequest });
+        }
+
         await using var stream = file.OpenReadStream();
         var text = await mediator.Send(
             new TranscribeAudioCommand(stream, file.FileName, file.ContentType), cancellationToken);
@@ -218,6 +228,11 @@ public sealed partial class AiController(
     [HttpPost("transcriptions/microphone")]
     public async Task<ActionResult<TranscriptionResponse>> TranscribeMicrophone(IFormFile file, CancellationToken cancellationToken)
     {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "No audio file was provided", Status = StatusCodes.Status400BadRequest });
+        }
+
         await using var stream = file.OpenReadStream();
         var text = await mediator.Send(new TranscribeMicrophoneAudioCommand(stream), cancellationToken);
 
