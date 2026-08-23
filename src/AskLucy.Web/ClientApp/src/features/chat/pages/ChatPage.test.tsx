@@ -871,23 +871,31 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
   })
 
-  // specs/031-voice-controls-redesign FR-001/FR-003, research.md Decision 1 — Finish now
-  // transcribes directly; there is no longer a separate "send for transcription" step
-  // between tapping Finish and the transcript landing in the message field (US1).
-  it('start → waveform (no transcript) → Finish transcribes directly and populates the field', async () => {
+  // specs/033-hold-to-talk-and-echo-fix FR-005/FR-006/FR-007 — pure hold-to-talk: pressing
+  // starts capture, releasing always stops-and-transcribes directly. There is no longer a
+  // separate "Finished speaking" button, tap-to-toggle mode, or "send for transcription" step
+  // between the recording ending and the transcript landing in the message field.
+  it('press → hold (no transcript) → release transcribes directly and populates the field', async () => {
     renderConversation(CHAT_A)
+    const micButton = await findMicButton()
 
-    fireEvent.click(await findMicButton())
+    fireEvent.pointerDown(micButton)
+    // The recorder's own start() is async (getUserMedia, AudioContext setup) — wait for it to
+    // actually reach 'recording' before releasing, the same way a real hold has some non-zero
+    // duration; without this, pointerUp can race ahead of phase becoming 'recording' and
+    // finish() no-ops. `micButton` stays the same element throughout (specs/033) — its
+    // aria-label flips once `isListening` becomes true.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
-    // No live partial transcript anywhere in the composer while recording (FR-019).
+    // No live partial transcript anywhere in the composer while recording (FR-019), and no
+    // "Finished speaking"/accept control of any kind (specs/033).
     expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('')
+    expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
     expect(transcribeCalls).toBe(0)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
+    fireEvent.pointerUp(micButton)
 
-    // No intermediate "send for transcription" control ever appears (FR-001/FR-003).
     expect(
       screen.queryByRole('button', { name: 'Send recording for transcription' }),
     ).not.toBeInTheDocument()
@@ -897,51 +905,24 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     )
   })
 
-  it('cancel while recording discards it — transcribeAudio is never called', async () => {
+  // specs/033-hold-to-talk-and-echo-fix's resolved clarification: the dedicated mid-recording
+  // Cancel affordance is removed from this gesture (unreachable once release always finishes —
+  // see research.md Decision 3). Discarding an unwanted recording now happens after the fact,
+  // by editing/not-sending the resulting draft text — there is no pre-send cancel button here.
+  it('no Cancel button appears during a Push-to-Talk recording — discarding happens after transcription, not before', async () => {
     renderConversation(CHAT_A)
+    const micButton = await findMicButton()
 
-    fireEvent.click(await findMicButton())
+    fireEvent.pointerDown(micButton)
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
+    expect(screen.queryByRole('button', { name: 'Cancel recording' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel recording' }))
-
-    await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: 'Start voice input' }).length).toBeGreaterThan(
-        0,
-      ),
-    )
-    expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('')
-    expect(transcribeCalls).toBe(0)
-  })
-
-  // specs/031-voice-controls-redesign FR-002/US2 — a hold that clears the tap/hold
-  // threshold sustains capture (phase stays 'recording', not reset to idle by a second
-  // tap) and finishing it lands the transcript in the field via the exact same
-  // `handleFinishAndTranscribe` path User Story 1's tap-then-Finish test above exercises
-  // (research.md Decision 1 unifies both gestures onto one completion mechanism — once a
-  // recording is underway, `ChatComposer`'s plain mic button is already replaced by the
-  // Finished-speaking control, so a hold's eventual release reaches transcription through
-  // that same shared control rather than a distinct code path).
-  it('a sustained hold keeps recording (not an instant toggle) and finishing it transcribes via the same path as a tap (US2)', async () => {
-    renderConversation(CHAT_A)
-
-    fireEvent.pointerDown(await findMicButton())
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
-    )
-    // Recording is genuinely sustained (not already finished/idle) while the button
-    // would still be physically held in a real hold gesture.
-    expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument()
-    expect(transcribeCalls).toBe(0)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Finished speaking' }))
-
-    expect(
-      screen.queryByRole('button', { name: 'Send recording for transcription' }),
-    ).not.toBeInTheDocument()
+    fireEvent.pointerUp(micButton)
     await waitFor(() => expect(transcribeCalls).toBe(1))
+    // The transcript lands as editable draft text — deleting it (not a dedicated button) is
+    // how an unwanted recording is discarded now.
     await waitFor(() =>
       expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),
     )
@@ -969,9 +950,9 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
       </MemoryRouter>,
     )
 
-    fireEvent.click(await findMicButton())
+    fireEvent.pointerDown(await findMicButton())
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Finished speaking' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
 
     rerender(
@@ -1033,9 +1014,9 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     fireEvent.change(textbox, { target: { value: 'Draft before switching modes' } })
     expect(textbox).toHaveValue('Draft before switching modes')
 
+    // specs/032-transcription-and-mode-switch-fixes US2/FR-006 — a single click now toggles
+    // the mode directly; the prior two-click dropdown menu is removed.
     fireEvent.click(screen.getByRole('button', { name: 'Voice input mode settings' }))
-    const menuItem = await screen.findByText(/switch to continuous conversation/i)
-    fireEvent.click(menuItem)
 
     await waitFor(() =>
       expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous'),

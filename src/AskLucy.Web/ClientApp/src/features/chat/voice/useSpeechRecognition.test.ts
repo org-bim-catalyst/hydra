@@ -416,21 +416,28 @@ describe('useSpeechRecognition', () => {
     ).toBe(true)
   })
 
-  it('fires the local speech pre-trigger on a loud audio chunk, but not on a quiet one (research.md Decision 10)', async () => {
-    installAudioEnvironment(() => Promise.resolve(fakeStream))
+  // specs/033-hold-to-talk-and-echo-fix FR-009: replaces the removed local-speech-pre-trigger/
+  // ducking mechanism (research.md Decision 10) with a direct mute of the input track — the
+  // now-superseded interruption feature that mechanism existed for is gone entirely, not just
+  // disabled.
+  it('setInputMuted(true) disables the active stream\'s audio tracks, and setInputMuted(false) re-enables them', async () => {
+    const track = { enabled: true, stop: vi.fn() }
+    const streamWithAudioTrack = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream
+    installAudioEnvironment(() => Promise.resolve(streamWithAudioTrack))
     vi.mocked(createSttSession).mockResolvedValue({
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
 
-    const onLocalSpeechLikely = vi.fn()
     const { result } = renderHook(() =>
       useSpeechRecognition({
         language: 'en',
         mode: 'push-to-talk',
         onPartialTranscript: vi.fn(),
         onFinalTranscript: vi.fn(),
-        onLocalSpeechLikely,
       }),
     )
 
@@ -441,16 +448,23 @@ describe('useSpeechRecognition', () => {
       await promise
     })
 
-    const worklet = FakeAudioWorkletNode.instances[0]
+    act(() => result.current.setInputMuted(true))
+    expect(track.enabled).toBe(false)
 
-    act(() => {
-      worklet.port.onmessage?.({ data: new Float32Array([0.001, -0.002, 0.001]) })
-    })
-    expect(onLocalSpeechLikely).not.toHaveBeenCalled()
+    act(() => result.current.setInputMuted(false))
+    expect(track.enabled).toBe(true)
+  })
 
-    act(() => {
-      worklet.port.onmessage?.({ data: new Float32Array([0.01, 0.5, -0.1]) })
-    })
-    expect(onLocalSpeechLikely).toHaveBeenCalledTimes(1)
+  it('setInputMuted is a safe no-op when no stream is active', () => {
+    const { result } = renderHook(() =>
+      useSpeechRecognition({
+        language: 'en',
+        mode: 'push-to-talk',
+        onPartialTranscript: vi.fn(),
+        onFinalTranscript: vi.fn(),
+      }),
+    )
+
+    expect(() => result.current.setInputMuted(true)).not.toThrow()
   })
 })

@@ -6,6 +6,28 @@ export type RecordingPhase = 'idle' | 'recording' | 'transcribing'
 
 const FFT_SIZE = 256
 
+const RECORDING_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
+  'audio/webm': 'webm',
+  'audio/mp4': 'mp4',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/mpeg': 'mp3',
+}
+
+/**
+ * specs/032 — the transcription filename must reflect the recorded blob's actual
+ * container so OpenAI's endpoint (which decodes by filename extension) doesn't reject a
+ * mismatched upload. `blob.type`/`MediaRecorder.mimeType` commonly carries a codec
+ * parameter (e.g. `audio/webm;codecs=opus`), so the base type is matched, not the whole
+ * string (speckit-analyze finding U1).
+ */
+function extensionForRecordingMimeType(mimeType: string): string {
+  const baseType = mimeType.split(';')[0]?.trim().toLowerCase()
+  return RECORDING_EXTENSION_BY_MIME_TYPE[baseType ?? ''] ?? 'webm'
+}
+
 /**
  * specs/026-floating-chat-assistant FR-019–FR-023, specs/031-voice-controls-redesign
  * research.md #1/#2 — Push-to-Talk's record → stop-and-transcribe → cancel flow.
@@ -124,7 +146,8 @@ export function useVoiceRecorder() {
     setPhaseBoth('transcribing')
 
     try {
-      const file = new File([blob], 'recording.webm', { type: blob.type || 'audio/webm' })
+      const mimeType = blob.type || 'audio/webm'
+      const file = new File([blob], `recording.${extensionForRecordingMimeType(mimeType)}`, { type: mimeType })
       const transcript = await transcribeAudio(file)
       setPhaseBoth('idle')
       return transcript
