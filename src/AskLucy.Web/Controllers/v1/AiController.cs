@@ -66,6 +66,7 @@ public sealed partial class AiController(
         ChatUsage? finalUsage = null;
         RagRetrievalOutcome? retrievalOutcome = null;
         MemoryRetrievalOutcome? memoryOutcome = null;
+        ConfirmedLocationData? confirmedLocation = null;
 
         await foreach (var chunk in mediator.CreateStream(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
@@ -91,6 +92,11 @@ public sealed partial class AiController(
             if (chunk.MemoryOutcome is not null)
             {
                 memoryOutcome = chunk.MemoryOutcome;
+            }
+
+            if (chunk.ConfirmedLocation is not null)
+            {
+                confirmedLocation = chunk.ConfirmedLocation;
             }
         }
 
@@ -161,6 +167,24 @@ public sealed partial class AiController(
         {
             var memoryPayload = new { messageId = assistantMessage.Id, memoryOutcome = memoryOutcome.Type.ToString() };
             await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
+        // specs/036-startup-geolocation US3: agent-confirmed location trailing event — same
+        // distinguishable-prefix pattern as __RAG__ and __MEMORY__. The payload matches the
+        // wire format aiApi.ts's streamChat parser expects exactly. Emitted only when an agent
+        // tool or response analysis produced a ConfirmedLocationData on the final chunk.
+        if (confirmedLocation is not null)
+        {
+            var locationPayload = new
+            {
+                latitude = confirmedLocation.Latitude,
+                longitude = confirmedLocation.Longitude,
+                locationName = confirmedLocation.LocationName,
+                confidence = confirmedLocation.Confidence,
+                source = confirmedLocation.Source,
+            };
+            await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 

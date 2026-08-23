@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { ViewerSurface } from './ViewerSurface'
-import type { GeolocationState } from '../hooks/useGeolocation'
 
 const { useWebGLSupportMock } = vi.hoisted(() => ({ useWebGLSupportMock: vi.fn() }))
 vi.mock('../../../hooks/useWebGLSupport', () => ({ useWebGLSupport: useWebGLSupportMock }))
@@ -21,39 +21,32 @@ vi.mock('../../../viewer/engine/MapRenderTarget', () => ({
   ),
 }))
 
-const initialState = useViewerEngineStore.getState()
-
-function unavailable(): GeolocationState {
-  return { status: 'unavailable', latitude: null, longitude: null }
-}
-
-function resolving(): GeolocationState {
-  return { status: 'resolving', latitude: null, longitude: null }
-}
-
-function granted(latitude: number, longitude: number): GeolocationState {
-  return { status: 'granted', latitude, longitude }
-}
+const initialViewerState = useViewerEngineStore.getState()
 
 describe('ViewerSurface', () => {
   beforeEach(() => {
-    useViewerEngineStore.setState(initialState, true)
+    // specs/036-startup-geolocation T009/T016: ViewerSurface now reads from activeLocationStore
+    // instead of props. Reset both stores between tests for isolation.
+    useViewerEngineStore.setState(initialViewerState, true)
+    useActiveLocationStore.getState().clear()
     useWebGLSupportMock.mockReset().mockReturnValue(true)
   })
 
   it('renders the non-interactive fallback when WebGL is unavailable (FR-005)', () => {
     useWebGLSupportMock.mockReturnValue(false)
-    render(<ViewerSurface geolocation={resolving()} />)
+    render(<ViewerSurface />)
     expect(screen.getByTestId('viewer-fallback')).toBeInTheDocument()
   })
 
   it('renders the placeholder while location is still resolving (FR-001/FR-004)', () => {
-    render(<ViewerSurface geolocation={resolving()} />)
+    // Store is empty — no location yet; mirrors the 'resolving' geolocation state.
+    render(<ViewerSurface />)
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
   })
 
   it('transitions to the map content mode once geolocation resolves (FR-007, US2-AC1)', () => {
-    render(<ViewerSurface geolocation={granted(51.5074, -0.1278)} />)
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    render(<ViewerSurface />)
 
     expect(screen.getByTestId('viewer-map-stub')).toBeInTheDocument()
     expect(screen.queryByTestId('viewer-placeholder')).not.toBeInTheDocument()
@@ -70,7 +63,8 @@ describe('ViewerSurface', () => {
   })
 
   it('stays on the placeholder and never adds a layer when geolocation is denied/unavailable (FR-008, US2-AC3)', () => {
-    render(<ViewerSurface geolocation={unavailable()} />)
+    // Store stays empty after clear() — source === null, same as unavailable.
+    render(<ViewerSurface />)
 
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
     expect(useViewerEngineStore.getState().contentMode).toBe('placeholder')
@@ -78,10 +72,14 @@ describe('ViewerSurface', () => {
   })
 
   it('reverts to the placeholder if location becomes unavailable after the map was active (FR-012)', () => {
-    const { rerender } = render(<ViewerSurface geolocation={granted(51.5074, -0.1278)} />)
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    render(<ViewerSurface />)
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
 
-    rerender(<ViewerSurface geolocation={unavailable()} />)
+    // Mirrors ChatPage's useEffect calling clear() when geolocation transitions to 'unavailable'.
+    act(() => {
+      useActiveLocationStore.getState().clear()
+    })
 
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
     expect(useViewerEngineStore.getState().contentMode).toBe('placeholder')
@@ -89,7 +87,8 @@ describe('ViewerSurface', () => {
   })
 
   it('falls back to the placeholder (never a blank screen) when the map fails to load (spec.md Edge Cases)', () => {
-    render(<ViewerSurface geolocation={granted(51.5074, -0.1278)} />)
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    render(<ViewerSurface />)
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
 
     fireEvent.click(screen.getByRole('button', { name: 'simulate map load failure' }))
@@ -97,5 +96,24 @@ describe('ViewerSurface', () => {
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
     expect(useViewerEngineStore.getState().contentMode).toBe('placeholder')
     expect(useViewerEngineStore.getState().layers).toEqual([])
+  })
+
+  // T016: agent-confirmation integration — US3 AC1/AC2 (spec 036 §US3)
+  it('re-centres the map to an agent-confirmed location, overriding the startup geolocation (US3 AC1/AC2)', () => {
+    // Startup geolocation: map already active at device coords.
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    render(<ViewerSurface />)
+    expect(useViewerEngineStore.getState().contentMode).toBe('map')
+
+    // Agent confirms a different, user-named location (from __LOCATION__ SSE event via useChatStream).
+    act(() => {
+      useActiveLocationStore.getState().setFromAgent(25.2048, 55.2708, 'Al Safa 2 Park', 0.97)
+    })
+
+    // Viewer must still be in map mode — it doesn't revert to the placeholder.
+    expect(screen.getByTestId('viewer-map-stub')).toBeInTheDocument()
+    expect(useViewerEngineStore.getState().contentMode).toBe('map')
+    // The GIS layer must still have one entry (re-centred, not re-added).
+    expect(useViewerEngineStore.getState().layers).toHaveLength(1)
   })
 })

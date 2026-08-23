@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../api/httpClient'
+import type { ChatStreamEvent } from './aiApi'
 import { streamChat, transcribeAudio } from './aiApi'
 
 function sseResponse(lines: string[]): Response {
@@ -18,6 +19,36 @@ function sseResponse(lines: string[]): Response {
 describe('streamChat', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  // T014 — specs/036-startup-geolocation US3: __LOCATION__ trailing SSE event
+  it('parses a __LOCATION__ trailing event and yields a location event (US3, FR-013)', async () => {
+    const locationPayload = {
+      latitude: 25.2048,
+      longitude: 55.2708,
+      locationName: 'Al Safa 2 Park',
+      confidence: 0.97,
+      source: 'agent',
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Hello!\n\n',
+          `data: __LOCATION__${JSON.stringify(locationPayload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toHaveLength(2)
+    expect(events[0]).toEqual({ type: 'content', delta: 'Hello!' })
+    expect(events[1]).toEqual({ type: 'location', ...locationPayload })
   })
 
   it('preserves the single meaningful space each streamed chunk carries', async () => {

@@ -11,7 +11,7 @@ import { useFloatingPanelHub } from '../../../viewer/panels/hooks/useFloatingPan
 import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
 import '../../../viewer/panels/types'
-import type { GeolocationState } from '../hooks/useGeolocation'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 
 const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
@@ -33,17 +33,10 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.__askLucyPanelTypeRegistry = panelTypeRegistry
 }
 
-export interface ViewerSurfaceProps {
-  geolocation: GeolocationState
-}
-
-/** FR-001: the viewer's full-viewport mount point and primary workspace surface, replacing the
- * old `WorkspaceSurface` gradient (features/chat/components/WorkspaceSurface.tsx, research.md
- * Decision 1). Uses the shared `viewerEngine` singleton and switches between the non-interactive
- * WebGL fallback (FR-005), the placeholder (FR-004), and the map/GIS content mode (FR-007) based
- * on `viewerEngineStore.contentMode`. Takes `geolocation` (FR-006) as a prop, lifted to
- * `ChatPage` and shared with `LocationWeatherWidget`, rather than each calling `useGeolocation`
- * independently and opening two redundant `navigator.geolocation.watchPosition` subscriptions. */
+/** FR-001: the viewer's full-viewport mount point and primary workspace surface. Reads the
+ * active location from `activeLocationStore` (specs/036-startup-geolocation) — no longer a
+ * prop — so both startup geolocation and agent-confirmed locations (specs/035, spec 036 US3)
+ * drive the viewer through the same shared store. */
 /** spec.md Edge Cases: shared by "location became unavailable" (FR-012) and "the map/GIS
  * provider is unreachable" — both revert to the placeholder the same way. */
 function revertToPlaceholder() {
@@ -51,19 +44,25 @@ function revertToPlaceholder() {
   useViewerEngineStore.getState().setContentMode('placeholder')
 }
 
-export function ViewerSurface({ geolocation }: ViewerSurfaceProps) {
+export function ViewerSurface() {
   const supportsWebGL = useWebGLSupport()
   const contentMode = useViewerEngineStore((s) => s.contentMode)
   const { isLive: isPanelHubLive } = useFloatingPanelHub()
 
+  // specs/036-startup-geolocation: read from shared active location store.
+  // source !== null means a location is set (either from device or agent); null means no location.
+  const source = useActiveLocationStore((s) => s.source)
+  const latitude = useActiveLocationStore((s) => s.latitude)
+  const longitude = useActiveLocationStore((s) => s.longitude)
+
   useEffect(() => {
     const store = useViewerEngineStore.getState()
 
-    if (geolocation.status === 'granted' && geolocation.latitude !== null && geolocation.longitude !== null) {
-      const center = { latitude: geolocation.latitude, longitude: geolocation.longitude }
-      // FR-007: replaces the placeholder as the active view once resolved. Only added once —
-      // a later coordinate update (the user physically moving) just re-centers via
-      // zoomToLocation below, it doesn't re-add the layer.
+    if (source !== null && latitude !== null && longitude !== null) {
+      const center = { latitude, longitude }
+      // FR-007: replaces the placeholder as the active view once a location is set. Only added
+      // once — a coordinate update (user physically moved, or agent confirmed a new location)
+      // just re-centers via zoomToLocation below, it doesn't re-add the layer.
       if (store.contentMode !== 'map') {
         viewerEngine.addLayer({
           id: GIS_CURRENT_LOCATION_LAYER_ID,
@@ -73,24 +72,23 @@ export function ViewerSurface({ geolocation }: ViewerSurfaceProps) {
         useViewerEngineStore.getState().setContentMode('map')
       }
       viewerEngine.zoomToLocation(center.latitude, center.longitude, DEFAULT_MAP_ZOOM)
-    } else if (geolocation.status === 'unavailable' && store.contentMode === 'map') {
+    } else if (source === null && store.contentMode === 'map') {
       // FR-012: location became unavailable after the map was already active (e.g. permission
-      // revoked mid-session) — revert to the placeholder. When geolocation was never granted in
-      // the first place (FR-008/FR-034), contentMode is already 'placeholder' and this is a
-      // no-op: no map/layer command is ever issued, matching the graceful-hidden-fallback path.
+      // revoked mid-session) — revert to the placeholder. When no location was ever set,
+      // contentMode is already 'placeholder' and this branch is never reached.
       revertToPlaceholder()
     }
-  }, [geolocation.status, geolocation.latitude, geolocation.longitude])
+  }, [source, latitude, longitude])
 
   return (
     <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
       {!supportsWebGL ? (
         <ViewerFallback />
-      ) : contentMode === 'map' && geolocation.latitude !== null && geolocation.longitude !== null ? (
+      ) : contentMode === 'map' && latitude !== null && longitude !== null ? (
         <MapRenderTarget
           viewerEngine={viewerEngine}
           layerId={GIS_CURRENT_LOCATION_LAYER_ID}
-          center={{ latitude: geolocation.latitude, longitude: geolocation.longitude }}
+          center={{ latitude, longitude }}
           zoom={DEFAULT_MAP_ZOOM}
           onError={revertToPlaceholder}
         />

@@ -12,9 +12,11 @@ import {
   RiWindyLine,
 } from '@remixicon/react'
 import type { ReactNode } from 'react'
+import { useEffect } from 'react'
 import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
 import { useCurrentWeather } from '../hooks/useCurrentWeather'
 import type { WeatherCondition } from '../api/weatherApi'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 
 function conditionIcon(condition: WeatherCondition, isDaytime: boolean): ReactNode {
   switch (condition) {
@@ -37,19 +39,29 @@ function conditionIcon(condition: WeatherCondition, isDaytime: boolean): ReactNo
   }
 }
 
-export interface LocationWeatherWidgetProps {
-  latitude: number | null
-  longitude: number | null
-}
-
 /** FR-009/FR-010/FR-011: a compact, glanceable readout of the resolved location's name,
  * temperature, and condition icon, styled to match `CircularAction`'s dark-glass chrome so it
  * reads as part of the same workspace-shell control family. Renders nothing while location
  * hasn't resolved (FR-008), and nothing on a first-attempt failure with no prior reading —
  * `useCurrentWeather`'s `isStale` flag covers "shows a clearly indicated stale reading instead
  * of going blank" for a *later* failure once one has already loaded. */
-export function LocationWeatherWidget({ latitude, longitude }: LocationWeatherWidgetProps) {
+export function LocationWeatherWidget() {
+  // specs/036-startup-geolocation: reads coordinates from the shared store rather than props,
+  // so both startup geolocation and agent-confirmed locations drive the same widget.
+  const latitude = useActiveLocationStore((s) => s.latitude)
+  const longitude = useActiveLocationStore((s) => s.longitude)
+  const setLocationName = useActiveLocationStore((s) => s.setLocationName)
   const { data, isStale } = useCurrentWeather(latitude, longitude)
+
+  // FR-008/SC-005: when weather data arrives, push the resolved locationName back into the
+  // shared store so that any other consumer (e.g., the agent context block) sees the same name.
+  // Falls back to "${lat}, ${lon}" when the API returns no name (SC-005).
+  useEffect(() => {
+    if (data && latitude !== null && longitude !== null) {
+      const name = data.locationName || `${latitude}, ${longitude}`
+      setLocationName(latitude, longitude, name)
+    }
+  }, [data, latitude, longitude, setLocationName])
 
   // FR-008/FR-012: no current location means no widget, full stop — regardless of whatever a
   // prior location's cached reading (`placeholderData`, see useCurrentWeather.ts) might still

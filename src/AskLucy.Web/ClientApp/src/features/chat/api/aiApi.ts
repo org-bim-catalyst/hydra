@@ -63,17 +63,20 @@ export interface GenerationParameters {
 
 /**
  * One event from {@link streamChat} — a plain content delta, (specs/016-rag-semantic-search US1)
- * the RAG retrieval outcome carried on the trailing `__RAG__` event, or
+ * the RAG retrieval outcome carried on the trailing `__RAG__` event,
  * (specs/018-ai-memory-system US1) the memory outcome + real persisted message id carried on the
- * trailing `__MEMORY__` event.
+ * trailing `__MEMORY__` event, or (specs/036-startup-geolocation US3) the agent-confirmed
+ * location carried on the trailing `__LOCATION__` event.
  */
 export type ChatStreamEvent =
   | { type: 'content'; delta: string }
   | { type: 'retrieval'; outcome: RagRetrievalOutcome; citations: Omit<Citation, 'id'>[]; error: string | null }
   | { type: 'memory'; messageId: string; outcome: MemoryRetrievalOutcome }
+  | { type: 'location'; latitude: number; longitude: number; locationName: string; confidence: number; source: string }
 
 const RAG_EVENT_PREFIX = '__RAG__'
 const MEMORY_EVENT_PREFIX = '__MEMORY__'
+const LOCATION_EVENT_PREFIX = '__LOCATION__'
 
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
@@ -172,6 +175,27 @@ export async function* streamChat(
           memoryOutcome: MemoryRetrievalOutcome
         }
         yield { type: 'memory', messageId: payload.messageId, outcome: payload.memoryOutcome }
+        continue
+      }
+
+      // specs/036-startup-geolocation US3: agent-confirmed location — wire format:
+      // `data: __LOCATION__{"latitude":…,"longitude":…,"locationName":…,"confidence":…,"source":…}`
+      if (data.startsWith(LOCATION_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(LOCATION_EVENT_PREFIX.length)) as {
+          latitude: number
+          longitude: number
+          locationName: string
+          confidence: number
+          source: string
+        }
+        yield {
+          type: 'location',
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+          locationName: payload.locationName,
+          confidence: payload.confidence,
+          source: payload.source,
+        }
         continue
       }
 
