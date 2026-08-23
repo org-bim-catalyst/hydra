@@ -290,7 +290,7 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
     expect(results).toHaveNoViolations()
   })
 
-  it('has no automatically detectable a11y violations once releasing transcribes the recording', async () => {
+  it('has no automatically detectable a11y violations once releasing (a genuine hold) transcribes the recording', async () => {
     const { container } = renderConversation(CHAT_A)
     const micButton = getMicButton()
 
@@ -298,6 +298,8 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
+    // specs/034: elapsed time since press determines tap vs. hold at release.
+    await new Promise((resolve) => setTimeout(resolve, 400))
     fireEvent.pointerUp(micButton)
     await waitFor(() =>
       expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('transcribed text'),

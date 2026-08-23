@@ -10,7 +10,7 @@ import {
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useActiveConversationStore } from '../activeConversationStore'
 import { useChatPanelSizeStore } from '../chatPanelSizeStore'
 import { ChatAssistantWidget } from '../components/ChatAssistantWidget'
@@ -19,6 +19,7 @@ import { ExpandedChatPanel } from '../components/ExpandedChatPanel'
 import type { VoiceAnalyzerState } from '../components/VoiceAnalyzer'
 import type { VoiceControlsProps } from '../components/CollapsedVoiceControls'
 import { ChatComposer } from '../components/ChatComposer'
+import { ContinuousVoiceView } from '../components/ContinuousVoiceView'
 import { InsertPromptPicker } from '../components/InsertPromptPicker'
 import { MessageBubble } from '../components/MessageBubble'
 import { AiPresenceCard } from '../components/AiPresenceCard'
@@ -32,7 +33,8 @@ import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
 import { useChatDetail, useChatMessages } from '../hooks/useChats'
 import { useChatStream } from '../hooks/useChatStream'
-import { useSpeechRecognition } from '../voice/useSpeechRecognition'
+import { useConversationAudio } from '../voice/useConversationAudio'
+import type { VoiceStateName } from '../voice/useVoiceState'
 import { useVoicePreferencesQuery } from '../voice/useVoicePreferencesQuery'
 import { useVoiceRecorder } from '../voice/useVoiceRecorder'
 import { useVoiceOutput } from '../voice/useVoiceOutput'
@@ -53,6 +55,29 @@ import { EmptyState } from '../../../components/EmptyState'
 import { ErrorState } from '../../../components/ErrorState'
 
 const CHAT_CONTENT_ID = 'ask-lucy-assistant-content'
+
+/** specs/034-transcription-crash-gesture-and-continuous-view — `ContinuousVoiceView` stays a
+ * simple presentational shell (a plain status string), so `VoiceStateName` interpretation lives
+ * here, the one caller that needs it. */
+function voiceStateLabel(voiceState: VoiceStateName): string {
+  switch (voiceState) {
+    case 'Idle':
+      return 'Ready'
+    case 'Listening':
+    case 'UserSpeaking':
+    case 'Interrupted':
+      return 'Listening…'
+    case 'Processing':
+    case 'AiThinking':
+      return 'Thinking…'
+    case 'AiSpeaking':
+      return 'Speaking…'
+    case 'Muted':
+      return 'Muted'
+    case 'Error':
+      return 'Something went wrong'
+  }
+}
 
 /**
  * Owns which chat is selected (2026-07-28 ChatGPT-style history decision). `ConversationView`
@@ -218,6 +243,7 @@ export function ConversationView({
   tts,
   expanded = true,
 }: ConversationViewProps) {
+  const queryClient = useQueryClient()
   const {
     data,
     fetchNextPage,
@@ -354,57 +380,26 @@ export function ConversationView({
     setComposerText('')
   }
 
-  // `useSpeechRecognition` attaches its WebSocket 'message' listener exactly once per
-  // connection (inside `start()`), closing over whatever `onFinalTranscript` instance was
-  // current in *that* render — a plain inline arrow function here would freeze `providerId`/
-  // `modelId`/`isStreaming`/`conversationMode` at their values from the render Continuous
-  // mode happened to auto-start listening in (often before the provider/model catalog has
-  // finished loading), and never see later updates for the rest of that connection's
-  // lifetime. Routing through a ref that's refreshed every render (and calling through a
-  // stable wrapper) keeps the handler reading current values on every call instead.
-  const handleFinalTranscriptRef = useRef<(transcript: string) => void>(() => {})
-  useEffect(() => {
-    handleFinalTranscriptRef.current = (transcript: string) => {
-      if (!transcript.trim()) return
-      // Continuous mode can start listening (e.g. on mount, if the mode was already
-      // Continuous from a prior session) before the provider/model catalog has finished
-      // loading/auto-selecting — auto-sending in that window would hit the same
-      // "Choose an AI provider and model" guard useChatStream's send() already enforces for
-      // the manual Send button, but silently discard the user's spoken words instead of just
-      // rejecting a typed one. Fall back to filling the composer instead of sending, so a
-      // transcript is never lost — the user can send manually once ready, same as
-      // Push-to-Talk's normal behavior.
-      if (conversationMode === 'Continuous' && providerId && modelId && !isStreaming) {
-        send(transcript.trim())
-      } else {
-        setComposerText((prev) => `${prev} ${transcript}`.trim())
-      }
-    }
-  })
-  const handleFinalTranscript = useCallback(
-    (transcript: string) => handleFinalTranscriptRef.current(transcript),
-    [],
-  )
-
-  // SPEC-013 US2 (research.md Decision 1/4): a single `useSpeechRecognition` instance, owned
-  // here (mirroring `tts`'s existing lifted-hook convention), shared by `ChatComposer` (mic
-  // control, status display, and transcript target — specs/029-fix-chat-widget-bugs
-  // research.md Decision 5 consolidated what used to be split with the retired
-  // `VoiceControlBar`) — not `useConversationAudio`, which would coincidentally also speak
-  // the reply and regress the "every reply is spoken, typed or voice" behavior the mute
-  // effect above preserves.
-  const recognition = useSpeechRecognition({
+  // specs/034-transcription-crash-gesture-and-continuous-view FR-008/FR-009 (research.md
+  // Decision 4) — Continuous mode's actual listen/mute/respond loop now lives entirely in
+  // `ContinuousVoiceView`'s dedicated screen, powered by this `useConversationAudio` instance.
+  // This replaces the previous separate, inline `useSpeechRecognition`-based implementation
+  // that lived here (which never actually got specs/033's mic-mute-during-AiSpeaking fix,
+  // since that fix was built into this hook, not the old inline one) — there is deliberately
+  // only one Continuous-mode orchestration now, not two.
+  const conversationAudio = useConversationAudio({
+    chatId: chatId ?? '',
     language,
-    mode: conversationMode === 'Continuous' ? 'continuous' : 'push-to-talk',
-    onPartialTranscript: () => {},
-    onFinalTranscript: handleFinalTranscript,
+    mode: 'continuous',
+    providerId: providerId ?? '',
+    modelId: modelId ?? '',
+    buildMessages: (userTranscript) => [...messages, { role: 'user' as const, content: userTranscript }],
+    onUserTranscript: () => {},
+    onAssistantTextDelta: () => {},
+    onAssistantTurnComplete: () => {},
   })
+  const [isVoiceViewActive, setIsVoiceViewActive] = useState(false)
 
-  // specs/026-floating-chat-assistant FR-019–FR-025, research.md #2: Push-to-Talk no
-  // longer uses `recognition` at all (that engine streams audio live the instant start()
-  // is called, which would violate "no audio transmitted before explicit accept") — this
-  // hook's discrete record/review/cancel/accept flow replaces it for this mode only.
-  // Continuous keeps using `recognition` above, completely unchanged (FR-025).
   const recorder = useVoiceRecorder()
   // specs/031-voice-controls-redesign FR-001/FR-002, research.md Decision 1 — finish() now
   // stops and transcribes in one step; this just appends the result into the draft text
@@ -416,31 +411,24 @@ export function ConversationView({
     }
   }
 
-  // FR-006: Continuous mode has no per-utterance activation — selecting it starts listening
-  // immediately (and keeps listening across utterances); switching away stops it. Push-to-Talk
-  // capture itself is started/stopped by ChatComposer's mic control, not this effect.
-  //
-  // Also pauses Continuous listening while Lucy is speaking (`tts.isSpeaking`) and resumes it
-  // once she finishes — without this, the always-on mic hears her own TTS audio through the
-  // speakers and transcribes it as if the user said it, producing replies to nothing anyone
-  // actually said. `cancel()` (discard), not `stop()` (commit), since by the time a reply is
-  // audible the user's real utterance was already finalized well before generation/TTS synthesis
-  // finished (the silence-commit window is 800ms; a full reply takes far longer) — anything
-  // still accumulating when playback starts is not a genuine new utterance to process. This
-  // only applies to Continuous mode: a Push-to-Talk hold is an explicit user gesture (e.g. a
-  // deliberate barge-in) and is never force-stopped just because Lucy is talking.
-  useEffect(() => {
-    if (conversationMode === 'Continuous') {
-      if (tts.isSpeaking) {
-        if (recognition.isListening) recognition.cancel()
-      } else if (!recognition.isListening) {
-        void recognition.start()
-      }
-    } else if (recognition.isListening) {
-      recognition.stop()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationMode, tts.isSpeaking])
+  // FR-008 (resolved clarification): opens only on this explicit action — never automatically
+  // on chat load, even when Continuous is the saved preference. Force-expands the panel since
+  // the dedicated view is a full takeover of the (Expanded-only) chat panel area.
+  const handleEnterContinuousVoiceView = () => {
+    setIsVoiceViewActive(true)
+    if (!expanded) toggleWorkspaceControl('chat')
+    if (chatId && providerId && modelId) void conversationAudio.startTurn()
+  }
+
+  // FR-011: stops the live session and returns to the normal view. Invalidates the persisted
+  // message list (VoiceReply persists via AppendMessageCommand, same as typed/Push-to-Talk
+  // messages, but through useChatMessages' own query — not useChatStream's local state — so a
+  // refetch here is what makes the exchange visible once the normal view is showing again).
+  const handleExitContinuousVoiceView = () => {
+    conversationAudio.cancelListening()
+    setIsVoiceViewActive(false)
+    void queryClient.invalidateQueries({ queryKey: ['chats', chatId, 'messages'] })
+  }
 
   // FR-007/Clarification Q4 (research.md Decision 6): blocks switching away from Push-to-Talk
   // while a capture (hold or toggle) is actively in progress, until it's released/stopped.
@@ -450,9 +438,19 @@ export function ConversationView({
   const isModeSwitchBlocked = conversationMode === 'PushToTalk' && recorder.phase !== 'idle'
   const handleToggleMode = () => {
     if (isModeSwitchBlocked) return
+    const enteringContinuous = conversationMode === 'PushToTalk'
     void updateConversationMode({
-      conversationMode: conversationMode === 'PushToTalk' ? 'Continuous' : 'PushToTalk',
+      conversationMode: enteringContinuous ? 'Continuous' : 'PushToTalk',
     })
+    // specs/034-transcription-crash-gesture-and-continuous-view FR-008 — switching into
+    // Continuous mode opens the dedicated voice view immediately (shared by both the
+    // Collapsed widget's and the Expanded panel's mode-switch buttons, since both call this
+    // same handler); switching away closes it if it happened to be open.
+    if (enteringContinuous) {
+      handleEnterContinuousVoiceView()
+    } else if (isVoiceViewActive) {
+      handleExitContinuousVoiceView()
+    }
   }
 
   // specs/026-floating-chat-assistant FR-006/research.md #9: the expand handle lives inside
@@ -483,16 +481,17 @@ export function ConversationView({
 
   // specs/026-floating-chat-assistant FR-004/research.md #3: Processing reflects the
   // assistant generating a reply; Speaking reflects TTS playback; Listening reflects live
-  // mic capture — Continuous Listening's `recognition.isListening`, or Push-to-Talk's
-  // recorder actively `recording` (not yet `reviewing`/`transcribing`, which have their
-  // own finish/cancel/send UI instead); anything else is Idle.
+  // mic capture — Push-to-Talk's recorder actively `recording` (not yet `reviewing`/
+  // `transcribing`, which have their own finish/cancel/send UI instead); anything else is
+  // Idle. Continuous mode's own listening state no longer factors in here (specs/034) — its
+  // analyzer lives inside `ContinuousVoiceView` itself now, driven by `conversationAudio`
+  // directly, not this composer-adjacent indicator.
   const isPushToTalkRecording = conversationMode === 'PushToTalk' && recorder.phase === 'recording'
-  const isContinuousListening = conversationMode === 'Continuous' && recognition.isListening
   const analyzerState: VoiceAnalyzerState = isStreaming
     ? 'processing'
     : tts.isSpeaking
       ? 'speaking'
-      : isPushToTalkRecording || isContinuousListening
+      : isPushToTalkRecording
         ? 'listening'
         : 'idle'
   const analyzerIntensity = tts.isSpeaking
@@ -513,10 +512,13 @@ export function ConversationView({
   }
 
   // specs/026-floating-chat-assistant research.md #10: the single data contract shared by
-  // `CollapsedVoiceControls` (Collapsed) and the Expanded panel's `ChatComposer`
-  // (specs/029-fix-chat-widget-bugs research.md Decision 5 — no longer `VoiceControlBar`,
-  // retired) — only the layout differs between the two. Push-to-Talk is driven by
-  // `recorder`; Continuous keeps using `recognition`, completely unchanged (FR-025).
+  // `CollapsedVoiceControls` (Collapsed) and the Expanded panel's `ChatComposer` (specs/029-
+  // fix-chat-widget-bugs research.md Decision 5). Push-to-Talk is driven by `recorder`;
+  // Continuous's `onStart`/`onStop`/`onCancel` are wired to open/close the dedicated voice
+  // view rather than to a live `recognition` instance directly (specs/034) — neither the
+  // Collapsed widget nor `ChatComposer` render a mic button in Continuous mode (that
+  // interaction moved entirely into `ContinuousVoiceView`), so these are only reachable via
+  // the shared `onToggleMode` path in practice; wired correctly regardless.
   const voiceControlsProps: VoiceControlsProps =
     conversationMode === 'PushToTalk'
       ? {
@@ -543,19 +545,19 @@ export function ConversationView({
         }
       : {
           isAvailable: tts.isSupported,
-          isListening: recognition.isListening,
+          isListening: isVoiceViewActive,
           isSpeaking: tts.isSpeaking,
           isMuted: tts.isMuted,
           conversationMode,
-          errorMessage: recognition.error,
-          permissionState: recognition.permissionState,
-          onStart: () => void recognition.start(),
-          onStop: recognition.stop,
-          onCancel: recognition.cancel,
+          errorMessage: conversationAudio.errorMessage,
+          permissionState: 'unknown',
+          onStart: handleEnterContinuousVoiceView,
+          onStop: handleExitContinuousVoiceView,
+          onCancel: handleExitContinuousVoiceView,
           onStopSpeaking: tts.stop,
           onToggleMode: handleToggleMode,
           onToggleMute: handleToggleMute,
-          onClearError: recognition.clearError,
+          onClearError: conversationAudio.clearError,
         }
 
   // specs/026-floating-chat-assistant FR-009: `key={expanded}` forces React to treat each
@@ -594,6 +596,21 @@ export function ConversationView({
           isMuted={voiceControlsProps.isMuted}
           onToggleMute={voiceControlsProps.onToggleMute}
         >
+          {/* specs/034-transcription-crash-gesture-and-continuous-view FR-008/FR-009/FR-010 —
+            a true full takeover: the dedicated voice view replaces the toolbar/message-list/
+            composer entirely rather than overlaying them, so nothing from the normal view
+            stays in the DOM/tab order while it's showing. */}
+          {isVoiceViewActive ? (
+            <ContinuousVoiceView
+              getReactiveIntensity={conversationAudio.getReactiveIntensity}
+              statusLabel={voiceStateLabel(conversationAudio.voiceState)}
+              errorMessage={conversationAudio.errorMessage}
+              isMuted={tts.isMuted}
+              onToggleMute={handleToggleMute}
+              onExit={handleExitContinuousVoiceView}
+            />
+          ) : (
+            <>
           {/* FR-007/FR-015: chat-specific controls only — brand, theme, and account access
             live behind the Studio workspace's account circular control (SPEC-024 FR-024).
             specs/029-fix-chat-widget-bugs research.md Decision 6: the translate control
@@ -716,6 +733,8 @@ export function ConversationView({
               modelId={modelId}
               onInserted={() => void refetchMessages()}
             />
+          )}
+            </>
           )}
           <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
             <Alert

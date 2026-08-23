@@ -17,8 +17,43 @@ import { ChatPage, ConversationView } from './ChatPage'
 
 vi.mock('../api/voiceApi', async () => {
   const actual = await vi.importActual<typeof voiceApi>('../api/voiceApi')
-  return { ...actual, getVoicePreferences: vi.fn(), saveVoicePreferences: vi.fn() }
+  return {
+    ...actual,
+    getVoicePreferences: vi.fn(),
+    // specs/034-transcription-crash-gesture-and-continuous-view: voicePreferencesStore's
+    // update() does `set(saved)` with whatever this resolves to — a bare `vi.fn()` (no
+    // implementation) resolves to `undefined`, and zustand's `set(undefined)` replaces the
+    // entire store state with `undefined` (a pre-existing store-vs-test-mock gap this file's
+    // own mode-switch tests can trip over once anything awaits the save to actually settle).
+    // Echoing the patch back is a reasonable "the save succeeded" simulation.
+    saveVoicePreferences: vi.fn().mockImplementation(async (patch) => patch),
+  }
 })
+
+// specs/034-transcription-crash-gesture-and-continuous-view: entering Continuous mode now
+// triggers a real useConversationAudio().startTurn() call, which — unmocked — reaches down
+// into useSpeechRecognition's getUserMedia/AudioWorkletNode/WebSocket chain this file's
+// existing fakes (installed per-describe-block for Push-to-Talk's simpler recorder needs)
+// don't cover. Mocked here the same way useConversationAudio.test.ts mocks its own
+// dependencies one level down — no test in this file needs the hook's real internal behavior,
+// only that ChatPage wires isVoiceViewActive/ContinuousVoiceView to it correctly.
+const conversationAudioMock = {
+  voiceState: 'Idle' as const,
+  errorMessage: null as string | null,
+  provider: 'primary' as const,
+  degradedNoticeVisible: false,
+  deviceNotice: null as string | null,
+  clearDeviceNotice: vi.fn(),
+  getReactiveIntensity: () => 0,
+  setMuted: vi.fn(),
+  startTurn: vi.fn().mockResolvedValue(undefined),
+  stop: vi.fn().mockResolvedValue(undefined),
+  cancelListening: vi.fn(),
+  clearError: vi.fn(),
+}
+vi.mock('../voice/useConversationAudio', () => ({
+  useConversationAudio: () => conversationAudioMock,
+}))
 
 const CHAT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const CHAT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
@@ -871,10 +906,9 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
   })
 
-  // specs/033-hold-to-talk-and-echo-fix FR-005/FR-006/FR-007 — pure hold-to-talk: pressing
-  // starts capture, releasing always stops-and-transcribes directly. There is no longer a
-  // separate "Finished speaking" button, tap-to-toggle mode, or "send for transcription" step
-  // between the recording ending and the transcript landing in the message field.
+  // specs/034-transcription-crash-gesture-and-continuous-view FR-004/FR-006 — a genuine hold
+  // (past the threshold) shows only the waveform throughout and releasing transcribes directly,
+  // with no "Finished speaking" button or review step of any kind.
   it('press → hold (no transcript) → release transcribes directly and populates the field', async () => {
     renderConversation(CHAT_A)
     const micButton = await findMicButton()
@@ -889,11 +923,15 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
       expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
     )
     // No live partial transcript anywhere in the composer while recording (FR-019), and no
-    // "Finished speaking"/accept control of any kind (specs/033).
+    // "Finished speaking"/accept control of any kind while still held.
     expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue('')
     expect(screen.queryByRole('button', { name: 'Finished speaking' })).not.toBeInTheDocument()
     expect(transcribeCalls).toBe(0)
 
+    // specs/034: a tap and a hold resolve differently at release, based on elapsed hold
+    // duration — a real (small but non-zero) delay here is what makes this a genuine hold
+    // rather than a tap that would show review controls instead of auto-transcribing.
+    await new Promise((resolve) => setTimeout(resolve, 400))
     fireEvent.pointerUp(micButton)
 
     expect(
@@ -905,11 +943,12 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     )
   })
 
-  // specs/033-hold-to-talk-and-echo-fix's resolved clarification: the dedicated mid-recording
-  // Cancel affordance is removed from this gesture (unreachable once release always finishes —
-  // see research.md Decision 3). Discarding an unwanted recording now happens after the fact,
-  // by editing/not-sending the resulting draft text — there is no pre-send cancel button here.
-  it('no Cancel button appears during a Push-to-Talk recording — discarding happens after transcription, not before', async () => {
+  // specs/034-transcription-crash-gesture-and-continuous-view's resolved clarification (carried
+  // from specs/033): the dedicated mid-recording Cancel affordance is unreachable once a hold's
+  // release always finishes directly (research.md Decision 3). Discarding an unwanted recording
+  // now happens after the fact, by editing/not-sending the resulting draft text — there is no
+  // pre-send cancel button for a genuine hold.
+  it('no Cancel button appears during a held Push-to-Talk recording — discarding happens after transcription, not before', async () => {
     renderConversation(CHAT_A)
     const micButton = await findMicButton()
 
@@ -919,6 +958,7 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     )
     expect(screen.queryByRole('button', { name: 'Cancel recording' })).not.toBeInTheDocument()
 
+    await new Promise((resolve) => setTimeout(resolve, 400))
     fireEvent.pointerUp(micButton)
     await waitFor(() => expect(transcribeCalls).toBe(1))
     // The transcript lands as editable draft text — deleting it (not a dedicated button) is
@@ -1005,9 +1045,28 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     expect(screen.queryAllByRole('button', { name: 'Start voice input' })).toHaveLength(1)
   })
 
-  // specs/031-voice-controls-redesign FR-009 — switching conversation mode must not
-  // discard in-progress typed text or require a page reload.
-  it('preserves typed draft text across a conversation-mode switch (FR-009)', async () => {
+  // specs/034-transcription-crash-gesture-and-continuous-view FR-008 (resolved clarification)
+  // — loading a chat with Continuous already saved as the mode preference must never
+  // auto-open the dedicated voice view or start a live session; only an explicit action does.
+  it('does not auto-open the dedicated voice view or start a session when Continuous is already the saved preference on load', async () => {
+    // This mock is shared module-wide with no global mock-clearing convention in this file —
+    // clear its own call history here so an unrelated earlier test's call doesn't false-fail
+    // this assertion.
+    conversationAudioMock.startTurn.mockClear()
+    useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
+    renderConversation(CHAT_A)
+
+    await screen.findByPlaceholderText('Message Ask Lucy...')
+    expect(screen.queryByRole('button', { name: 'Exit voice conversation' })).not.toBeInTheDocument()
+    expect(conversationAudioMock.startTurn).not.toHaveBeenCalled()
+  })
+
+  // specs/031-voice-controls-redesign FR-009, specs/034-transcription-crash-gesture-and-
+  // continuous-view (research.md Assumptions) — switching into Continuous mode now opens a
+  // full-takeover dedicated voice view (the composer isn't visible at all while it's open, so
+  // the original "still visible after switching" assertion no longer applies); draft text
+  // must still survive the round trip once the user exits back to the normal view.
+  it('preserves typed draft text across a conversation-mode switch, once back in the normal view (FR-009)', async () => {
     renderConversation(CHAT_A)
 
     const textbox = await screen.findByPlaceholderText('Message Ask Lucy...')
@@ -1021,7 +1080,13 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     await waitFor(() =>
       expect(useVoicePreferencesStore.getState().conversationMode).toBe('Continuous'),
     )
-    expect(screen.getByPlaceholderText('Message Ask Lucy...')).toHaveValue(
+    // The dedicated voice view has taken over — no composer, only Exit/Mute.
+    expect(screen.queryByPlaceholderText('Message Ask Lucy...')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Exit voice conversation' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exit voice conversation' }))
+
+    expect(await screen.findByPlaceholderText('Message Ask Lucy...')).toHaveValue(
       'Draft before switching modes',
     )
   })
