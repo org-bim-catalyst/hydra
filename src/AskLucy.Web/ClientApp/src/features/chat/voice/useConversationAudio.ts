@@ -157,13 +157,25 @@ export function useConversationAudio({
 
   const startTurn = useCallback(async () => {
     fallbackAlsoFailedRef.current = false
-    await probeRecoveryIfDegraded(language)
-    voiceState.setState('Listening')
-    await recognition.start()
+    // specs/034-transcription-crash-gesture-and-continuous-view: `recognition.start()`'s own
+    // getUserMedia-denial path already resolves normally (setting permissionState instead of
+    // throwing), handled below — but anything else it can throw (e.g. a missing browser API)
+    // was previously uncaught here, becoming an unhandled rejection for any caller that doesn't
+    // itself await+catch startTurn() (constitution §2.VIII). Caught here instead, once, so every
+    // caller gets a visible error through the existing errorMessage/voiceState mechanism.
+    try {
+      await probeRecoveryIfDegraded(language)
+      voiceState.setState('Listening')
+      await recognition.start()
 
-    if (recognition.permissionState === 'denied' && provider === 'fallback') {
+      if (recognition.permissionState === 'denied' && provider === 'fallback') {
+        handleUnrecoverableFailure(
+          'Voice input is unavailable: the microphone was denied and the backup voice engine also could not start.',
+        )
+      }
+    } catch (err) {
       handleUnrecoverableFailure(
-        'Voice input is unavailable: the microphone was denied and the backup voice engine also could not start.',
+        err instanceof Error ? err.message : 'Voice input could not start. Please try again.',
       )
     }
   }, [language, voiceState, recognition, provider, handleUnrecoverableFailure])
