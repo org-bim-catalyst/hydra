@@ -16,6 +16,7 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.Locations;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
 using AskLucy.Application.Workflows.Validation;
@@ -55,6 +56,12 @@ public static class DependencyInjection
         services.AddScoped<SearchResultEnricher>();
         // User Story 1 ("Chat with your documents and get cited answers").
         services.AddScoped<IRagService, RagService>();
+
+        // Location Query Resolution (specs/037-location-query-resolution).
+        services.AddScoped<ILocationResolutionService, LocationResolutionService>();
+        services.AddOptions<LocationResolutionOptions>()
+            .BindConfiguration(LocationResolutionOptions.SectionName)
+            .ValidateOnStart();
 
         // AI Memory System (specs/018-ai-memory-system) — Foundational.
         services.AddScoped<IMemoryService, MemoryService>();

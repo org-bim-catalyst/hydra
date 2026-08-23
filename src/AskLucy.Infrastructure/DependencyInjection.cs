@@ -17,6 +17,8 @@ using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
 using AskLucy.Infrastructure.Retrieval.VectorStores;
+using AskLucy.Application.Locations;
+using AskLucy.Infrastructure.Geocoding;
 using AskLucy.Infrastructure.Weather;
 using AskLucy.Infrastructure.Workflows;
 using Hangfire;
@@ -111,6 +113,13 @@ public static class DependencyInjection
         services.AddOptions<WeatherOptions>()
             .Bind(configuration.GetSection(WeatherOptions.SectionName));
 
+        // specs/037-location-query-resolution — Nominatim forward geocoding; no ApiKey to
+        // validate (same reasoning as WeatherOptions above). ValidateOnStart ensures the
+        // SearchBaseUrl is always configured before first request.
+        services.AddOptions<GeocodingOptions>()
+            .BindConfiguration(GeocodingOptions.SectionName)
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -203,6 +212,7 @@ public static class DependencyInjection
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddScoped<IWeatherProvider, WeatherProvider>();
+        services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();

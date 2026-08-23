@@ -1,10 +1,12 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Application.Locations;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Retrieval;
 using FluentAssertions;
 using Hangfire;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
 
@@ -24,6 +26,7 @@ public sealed class SendChatMessageNoRelevantContentTests
     private readonly IConversationKnowledgeBaseRepository _conversationKnowledgeBases = Substitute.For<IConversationKnowledgeBaseRepository>();
     private readonly IRagService _ragService = Substitute.For<IRagService>();
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
+    private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
@@ -61,9 +64,14 @@ public sealed class SendChatMessageNoRelevantContentTests
         _memoryService.RetrieveRelevantMemoriesAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new MemoryRetrievalOutcome(MemoryRetrievalOutcomeType.NoneRelevant, null, [], null));
 
+        _locationResolutionService.ResolveAsync(Arg.Any<string?>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<AskLucy.Domain.Chats.ActiveSiteLocation?>(), Arg.Any<CancellationToken>())
+            .Returns(new LocationResolutionOutcome(LocationResolutionOutcomeType.NoIntent, null, null));
+
         _handler = new SendChatMessageCommandHandler(
-            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService, _userChatRepository,
-            _currentUser, _backgroundJobClient, new SendChatMessageCommandValidator(_providers, _models));
+            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
+            _locationResolutionService, _userChatRepository, _currentUser, _backgroundJobClient,
+            Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            new SendChatMessageCommandValidator(_providers, _models));
     }
 
     [Fact]
@@ -79,7 +87,7 @@ public sealed class SendChatMessageNoRelevantContentTests
 
         // Unaugmented — no system message inserted (Decision 8: sends the user's message ungrounded).
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m.Count == 1 && m[0].Role == ChatRole.User),
+            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
 
         chunks.Select(c => c.ContentDelta).Should().Contain("I don't have information about that.");
