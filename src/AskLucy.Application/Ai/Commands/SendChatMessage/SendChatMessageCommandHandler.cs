@@ -1,7 +1,9 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Locations;
 using FluentValidation;
 using Hangfire;
 using MediatR;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Application.Ai.Commands.SendChatMessage;
 
@@ -37,9 +39,11 @@ public sealed class SendChatMessageCommandHandler(
     IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository,
     IRagService ragService,
     IMemoryService memoryService,
+    ILocationResolutionService locationResolutionService,
     IUserChatRepository userChatRepository,
     ICurrentUserAccessor currentUser,
     IBackgroundJobClient backgroundJobClient,
+    IOptions<LocationResolutionOptions> locationResolutionOptions,
     IValidator<SendChatMessageCommand> validator) : IStreamRequestHandler<SendChatMessageCommand, ChatStreamChunk>
 {
     public async IAsyncEnumerable<ChatStreamChunk> Handle(
@@ -80,9 +84,9 @@ public sealed class SendChatMessageCommandHandler(
 
         MemoryRetrievalOutcome? memoryOutcome = null;
         var userId = currentUser.UserId;
+        var chat = await userChatRepository.GetByIdAsync(request.ChatId, cancellationToken);
         if (userId is not null && request.Messages.Count > 0)
         {
-            var chat = await userChatRepository.GetByIdAsync(request.ChatId, cancellationToken);
             memoryOutcome = await memoryService.RetrieveRelevantMemoriesAsync(
                 userId, request.ChatId, chat?.ProjectId, request.Messages[^1].Content, cancellationToken);
 
@@ -92,14 +96,65 @@ public sealed class SendChatMessageCommandHandler(
             }
         }
 
+        // specs/037-location-query-resolution FR-008: launch location resolution concurrently
+        // with the model's text stream — never blocking first byte.
+        var turnStartUtc = DateTime.UtcNow;
+        var activeLocation = chat?.ActiveLocation;
+        var latestUserMessage = request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty;
+        var locationTask = locationResolutionService.ResolveAsync(
+            userId, request.ChatId, latestUserMessage, activeLocation, cancellationToken);
+
         await foreach (var chunk in aiProvider.StreamChatAsync(messages, model.ModelKey, request.GenerationParameters, cancellationToken))
         {
             yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
         }
 
-        if (retrievalOutcome is not null || memoryOutcome is not null)
+        // Await the location task with the remaining budget from ResolutionCeilingSeconds (FR-013).
+        var ceiling = locationResolutionOptions.Value.ResolutionCeilingSeconds;
+        var elapsed = DateTime.UtcNow - turnStartUtc;
+        var remaining = TimeSpan.FromSeconds(ceiling) - elapsed;
+        LocationResolutionOutcome locationOutcome;
+        if (remaining <= TimeSpan.Zero && !locationTask.IsCompletedSuccessfully)
         {
-            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome);
+            // Budget already elapsed and task hasn't finished — treat as Unavailable immediately.
+            locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
+                LocationConfirmationTemplates.Unavailable);
+        }
+        else
+        {
+            try
+            {
+                locationOutcome = remaining > TimeSpan.Zero
+                    ? await locationTask.WaitAsync(remaining, CancellationToken.None)
+                    : await locationTask; // Task already completed successfully — retrieve result.
+            }
+            catch (TimeoutException)
+            {
+                locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
+                    LocationConfirmationTemplates.Unavailable);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Client disconnected — re-throw so the iterator terminates cleanly (I2).
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                // Internal task cancellation (not client disconnect) → Unavailable.
+                locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
+                    LocationConfirmationTemplates.Unavailable);
+            }
+        }
+
+        // Append the deterministic confirmation/explanation sentence if the intent was non-NoIntent.
+        if (locationOutcome.Type != LocationResolutionOutcomeType.NoIntent && locationOutcome.ConfirmationText is not null)
+        {
+            yield return new ChatStreamChunk(locationOutcome.ConfirmationText, null);
+        }
+
+        if (retrievalOutcome is not null || memoryOutcome is not null || locationOutcome.ConfirmedLocation is not null)
+        {
+            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, locationOutcome.ConfirmedLocation);
         }
 
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this

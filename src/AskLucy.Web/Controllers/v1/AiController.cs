@@ -15,6 +15,7 @@ using AskLucy.Application.Ai.Commands.Translate;
 using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
+using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
@@ -176,6 +177,10 @@ public sealed partial class AiController(
         // tool or response analysis produced a ConfirmedLocationData on the final chunk.
         if (confirmedLocation is not null)
         {
+            // specs/037-location-query-resolution — persist the confirmed location onto UserChat
+            // so back-references in subsequent turns resolve without a new geocoding call (FR-014).
+            await mediator.Send(new RecordActiveLocationCommand(request.ChatId, confirmedLocation), cancellationToken);
+
             var locationPayload = new
             {
                 latitude = confirmedLocation.Latitude,

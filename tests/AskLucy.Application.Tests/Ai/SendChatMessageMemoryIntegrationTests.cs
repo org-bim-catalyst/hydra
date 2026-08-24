@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Application.Locations;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Retrieval;
@@ -8,6 +9,7 @@ using FluentAssertions;
 using Hangfire;
 using Hangfire.Common;
 using Hangfire.States;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
 
@@ -25,6 +27,7 @@ public sealed class SendChatMessageMemoryIntegrationTests
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
@@ -54,9 +57,14 @@ public sealed class SendChatMessageMemoryIntegrationTests
         _userChatRepository.GetByIdAsync(_chatId, Arg.Any<CancellationToken>())
             .Returns(UserChat.Create("Test chat", "user-1", null, "user-1"));
 
+        _locationResolutionService.ResolveAsync(Arg.Any<string?>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<AskLucy.Domain.Chats.ActiveSiteLocation?>(), Arg.Any<CancellationToken>())
+            .Returns(new LocationResolutionOutcome(LocationResolutionOutcomeType.NoIntent, null, null));
+
         _handler = new SendChatMessageCommandHandler(
-            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService, _userChatRepository,
-            _currentUser, _backgroundJobClient, new SendChatMessageCommandValidator(_providers, _models));
+            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
+            _locationResolutionService, _userChatRepository, _currentUser, _backgroundJobClient,
+            Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            new SendChatMessageCommandValidator(_providers, _models));
     }
 
     [Fact]
@@ -84,7 +92,8 @@ public sealed class SendChatMessageMemoryIntegrationTests
 
         _resolvedProvider.Received(1).StreamChatAsync(
             Arg.Is<IReadOnlyList<ChatMessage>>(m =>
-                m.Count == 3
+                m != null
+                && m.Count == 3
                 && m[0].Role == ChatRole.System && m[0].Content.Contains("The user prefers React.")
                 && m[1].Role == ChatRole.System && m[1].Content.Contains("RAG excerpt.")),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
@@ -103,7 +112,7 @@ public sealed class SendChatMessageMemoryIntegrationTests
         }
 
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m.Count == 1 && m[0].Role == ChatRole.User),
+            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
     }
 
@@ -120,7 +129,7 @@ public sealed class SendChatMessageMemoryIntegrationTests
         }
 
         _backgroundJobClient.Received(1).Create(
-            Arg.Is<Job>(j => j.Type == typeof(IMemoryExtractionJob)), Arg.Any<IState>());
+            Arg.Is<Job>(j => j != null && j.Type == typeof(IMemoryExtractionJob)), Arg.Any<IState>());
     }
 
     private static async IAsyncEnumerable<StreamChunk> ToAsyncEnumerable(IEnumerable<StreamChunk> items)

@@ -232,4 +232,18 @@ public sealed class UserChat : BaseEntity
 
     /// <summary>Records that memory extraction has just processed this conversation's turns up to now (specs/018-ai-memory-system, research.md Decision 6) — does not touch <see cref="ModifiedAtUtc"/>, since this is a system bookkeeping update, not a user-visible change.</summary>
     public void MarkMemoryAnalyzed() => LastMemoryAnalyzedAtUtc = DateTime.UtcNow;
+
+    /// <summary>
+    /// specs/037-location-query-resolution FR-004/FR-014 — persists the agent-confirmed
+    /// location so back-references in a later turn can re-emit it without a new geocoding call.
+    /// </summary>
+    public void SetActiveLocation(double latitude, double longitude, string locationName, double confidence, string actor)
+    {
+        ActiveLocation = new ActiveSiteLocation(latitude, longitude, locationName, confidence);
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>specs/037-location-query-resolution — the currently confirmed viewer location; null until the first successful location resolution for this chat.</summary>
+    public ActiveSiteLocation? ActiveLocation { get; private set; }
 }
