@@ -14,6 +14,9 @@ internal static partial class ProviderHealthCheckLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Provider health check cycle failed (e.g. the database was unreachable) — will retry next interval")]
     public static partial void CheckCycleFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Provider health check cycle was canceled for a reason other than host shutdown (stoppingToken was not canceled) — investigate the source of this cancellation")]
+    public static partial void UnexpectedCancellation(ILogger logger, Exception exception);
 }
 
 /// <summary>
@@ -37,6 +40,15 @@ public sealed class ProviderHealthCheckHostedService(
             try
             {
                 await RunOnceAsync(stoppingToken);
+            }
+            catch (OperationCanceledException ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                // A TaskCanceledException/OperationCanceledException that was NOT triggered by
+                // this service's own stoppingToken (e.g. host shutdown) is unexpected — it may
+                // indicate an unrelated timeout (command/connection) being misreported as a
+                // cancellation. Log it so it isn't silently swallowed, then let it propagate
+                // like any other unexpected cancellation would.
+                ProviderHealthCheckLog.UnexpectedCancellation(logger, ex);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

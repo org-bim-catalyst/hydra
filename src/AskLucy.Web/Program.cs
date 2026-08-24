@@ -647,6 +647,7 @@ if (app.Environment.IsDevelopment())
     try
     {
         await DevAdminSeeder.SeedAsync(app.Services, app.Logger);
+        await DevAiProviderSeeder.SeedAsync(app.Services, app.Logger);
     }
     catch (Exception ex)
     {
