@@ -21,7 +21,6 @@
     <None Include="appsettings.Production.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Include="C:\Users\musta\Downloads\env.production" Link="ClientApp\env.production" />
   </ItemGroup>
 
   <ItemGroup>
