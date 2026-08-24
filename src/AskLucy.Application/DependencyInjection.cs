@@ -59,6 +59,8 @@ public static class DependencyInjection
 
         // Location Query Resolution (specs/037-location-query-resolution).
         services.AddScoped<ILocationResolutionService, LocationResolutionService>();
+        // specs/038-viewer-poi-zoom US2: pure keyword matcher — no infrastructure deps → Application.
+        services.AddTransient<IViewerZoomDetector, ViewerZoomDetector>();
         services.AddOptions<LocationResolutionOptions>()
             .BindConfiguration(LocationResolutionOptions.SectionName)
             .ValidateOnStart();

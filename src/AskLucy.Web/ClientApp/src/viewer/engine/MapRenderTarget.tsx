@@ -4,6 +4,7 @@ import type { GoogleMapsGisLayerHandle } from '../layers/gis/GoogleMapsGisLayer'
 import { applyCameraViewMode } from '../camera/cameraViewMode'
 import { RotationDriver } from '../camera/rotationDriver'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
+import { useGoogleMapsStore } from '../store/googleMapsStore'
 import type { ViewerEngine } from './ViewerEngine'
 
 export interface MapRenderTargetProps {
@@ -80,6 +81,9 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         return
       }
 
+      // specs/038-viewer-poi-zoom: expose the live map to POIMarkerOverlay via the shared store.
+      useGoogleMapsStore.getState().setMap(handle.map)
+
       rotationDriver = new RotationDriver({ setHeading: handle.setHeading })
 
       // US5 (FR-018): the marker becomes selectable only once it actually exists on the map.
@@ -102,6 +106,9 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
 
       unregister = viewerEngine.registerRenderTarget({
         panTo: handle.panTo,
+        fitBounds: handle.fitBounds,
+        zoomToAltitude: handle.zoomToAltitude,
+        zoomBy: handle.zoomBy,
         applyViewMode: (mode) => applyCameraViewMode(handle!, mode),
         applyRotationEnabled: (enabled) => rotationDriver?.setEnabled(enabled && !reducedQuality),
       })
@@ -121,6 +128,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       unregister?.()
       rotationDriver?.dispose()
       handle?.dispose()
+      useGoogleMapsStore.getState().setMap(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layerId])

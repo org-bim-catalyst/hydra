@@ -24,6 +24,12 @@ export interface GoogleMapsGisLayerHandle {
   map: google.maps.Map
   scene: THREE.Scene
   panTo(latitude: number, longitude: number, zoom?: number): void
+  /** specs/038-viewer-poi-zoom: fit the camera to show the given bounding box. */
+  fitBounds(ne: { lat: number; lng: number }, sw: { lat: number; lng: number }): void
+  /** specs/038-viewer-poi-zoom: zoom to a target altitude using a zoom-level approximation. */
+  zoomToAltitude(altitudeMetres: number): void
+  /** specs/038-viewer-poi-zoom: zoom in or out by one stop (×0.5 / ×2.0 altitude factor). */
+  zoomBy(direction: 'in' | 'out'): void
   setHeading(heading: number): void
   setTilt(tilt: number): void
   /** US5 (FR-018): the current-location marker's `elementId`, for `viewerEngine.registerSelectableElement`. */
@@ -132,6 +138,17 @@ export async function createGoogleMapsGisLayer(
   overlay.setMap(map)
   options.onLoaded?.()
 
+  // specs/038-viewer-poi-zoom: zoom = log2(C / altitude) approximation for Google Maps zoom levels.
+  // C ≈ 591 657 550 m is the ground-level circumference represented at zoom 0.
+  const ALTITUDE_ZOOM_CONSTANT = 591_657_550
+  const ZOOM_MIN = 0
+  const ZOOM_MAX = 21
+
+  function altitudeToZoom(altitudeMetres: number): number {
+    const clamped = Math.max(50, Math.min(500_000, altitudeMetres))
+    return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.log2(ALTITUDE_ZOOM_CONSTANT / clamped)))
+  }
+
   return {
     map,
     scene,
@@ -140,6 +157,20 @@ export async function createGoogleMapsGisLayer(
     // own vector-map/WebGLOverlayView samples use; only the specified fields change.
     panTo: (latitude, longitude, zoom) =>
       map.moveCamera({ center: { lat: latitude, lng: longitude }, ...(zoom !== undefined ? { zoom } : {}) }),
+    fitBounds: (ne, sw) => {
+      const bounds = new google.maps.LatLngBounds({ lat: sw.lat, lng: sw.lng }, { lat: ne.lat, lng: ne.lng })
+      map.fitBounds(bounds)
+    },
+    zoomToAltitude: (altitudeMetres) => {
+      map.moveCamera({ zoom: altitudeToZoom(altitudeMetres) })
+    },
+    zoomBy: (direction) => {
+      const currentZoom = map.getZoom() ?? 15
+      const newZoom = direction === 'in'
+        ? Math.min(ZOOM_MAX, currentZoom + 1)
+        : Math.max(ZOOM_MIN, currentZoom - 1)
+      map.moveCamera({ zoom: newZoom })
+    },
     setHeading: (heading) => map.moveCamera({ heading }),
     setTilt: (tilt) => map.moveCamera({ tilt }),
     setMarkerHighlighted: (highlighted) => {

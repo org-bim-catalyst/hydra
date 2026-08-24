@@ -87,9 +87,9 @@ public sealed class LocationResolutionServiceTests
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation.Should().NotBeNull();
-        outcome.ConfirmedLocation!.LocationName.Should().Be("Dubai, UAE");
+        outcome.ConfirmedLocation!.LocationName.Should().Be("Dubai");
         outcome.ConfirmedLocation.Latitude.Should().Be(25.2048);
-        outcome.ConfirmationText.Should().Contain("Dubai, UAE");
+        outcome.ConfirmationText.Should().Contain("Dubai");
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public sealed class LocationResolutionServiceTests
         var outcome = await _service.ResolveAsync("user-1", ChatId, "Where is London?", null);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
-        outcome.ConfirmedLocation!.LocationName.Should().Be("London, UK");
+        outcome.ConfirmedLocation!.LocationName.Should().Be("London");
     }
 
     [Fact]

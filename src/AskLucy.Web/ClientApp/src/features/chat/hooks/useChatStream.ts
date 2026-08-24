@@ -3,6 +3,7 @@ import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
 import { generateImage, streamChat, type ChatMessage, type GenerationParameters } from '../api/aiApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
 
 const TITLE_MAX_LENGTH = 60
 
@@ -162,12 +163,21 @@ export function useChatStream(
           } else if (event.type === 'location') {
             // specs/036-startup-geolocation US3: agent-confirmed location overrides the startup
             // geolocation in the shared store. FR-012 priority rule enforced inside setFromAgent.
+            // specs/038-viewer-poi-zoom: pass viewport and locationType for altitude-accurate zoom.
             useActiveLocationStore.getState().setFromAgent(
               event.latitude,
               event.longitude,
               event.locationName,
               event.confidence,
+              event.locationType,
+              event.viewport,
             )
+          } else if (event.type === 'zoom') {
+            // specs/038-viewer-poi-zoom US2: explicit zoom command — only execute when an active
+            // location exists (C1 fix: no zoom without a confirmed location on screen).
+            if (useActiveLocationStore.getState().latitude !== null) {
+              viewerEngine.zoomBy(event.direction)
+            }
           }
         }
         if (isActiveRef.current) {

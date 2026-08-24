@@ -204,9 +204,10 @@ public sealed class LocationResolutionService(
                 LocationConfirmationTemplates.NotFound);
         }
 
-        var data = new ConfirmedLocationData(winner.Latitude, winner.Longitude, winner.LocationName, winner.Importance);
+        var data = new ConfirmedLocationData(winner.Latitude, winner.Longitude, query, winner.Importance,
+            LocationType: winner.LocationType, Viewport: winner.Viewport);
         LocationResolutionServiceLog.Confirmed(logger, userChatId,
-            winner.LocationName, winner.Latitude, winner.Longitude, winner.Importance);
+            query, winner.Latitude, winner.Longitude, winner.Importance);
         return new LocationResolutionOutcome(LocationResolutionOutcomeType.Confirmed, data,
             LocationConfirmationTemplates.Confirmed(winner.LocationName));
     }

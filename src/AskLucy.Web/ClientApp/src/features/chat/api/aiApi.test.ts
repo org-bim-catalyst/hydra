@@ -29,6 +29,8 @@ describe('streamChat', () => {
       locationName: 'Al Safa 2 Park',
       confidence: 0.97,
       source: 'agent',
+      locationType: null,
+      viewport: null,
     }
     vi.stubGlobal(
       'fetch',

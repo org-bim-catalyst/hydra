@@ -40,6 +40,7 @@ public sealed class SendChatMessageCommandHandler(
     IRagService ragService,
     IMemoryService memoryService,
     ILocationResolutionService locationResolutionService,
+    IViewerZoomDetector viewerZoomDetector,
     IUserChatRepository userChatRepository,
     ICurrentUserAccessor currentUser,
     IBackgroundJobClient backgroundJobClient,
@@ -104,6 +105,18 @@ public sealed class SendChatMessageCommandHandler(
         var locationTask = locationResolutionService.ResolveAsync(
             userId, request.ChatId, latestUserMessage, activeLocation, cancellationToken);
 
+        // specs/038-viewer-poi-zoom US2 T028: detect zoom intent before the AI call so we can
+        // inject a guidance system message — the keyword check is synchronous/pure, zero latency.
+        var zoomCommand = viewerZoomDetector.Detect(latestUserMessage);
+        if (zoomCommand is not null && activeLocation is not null)
+        {
+            messages.Insert(0, new ChatMessage(ChatRole.System,
+                "You are controlling a 3D geospatial viewer. When the user asks you to zoom in " +
+                "or out, confirm confidently that you are doing so — never say you are unable to " +
+                "zoom or that you cannot control the viewer. The viewer zoom is performed " +
+                "automatically; your role is only to provide a natural, brief confirmation."));
+        }
+
         await foreach (var chunk in aiProvider.StreamChatAsync(messages, model.ModelKey, request.GenerationParameters, cancellationToken))
         {
             yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
@@ -152,9 +165,17 @@ public sealed class SendChatMessageCommandHandler(
             yield return new ChatStreamChunk(locationOutcome.ConfirmationText, null);
         }
 
-        if (retrievalOutcome is not null || memoryOutcome is not null || locationOutcome.ConfirmedLocation is not null)
+        // specs/038-viewer-poi-zoom US2: reuse the zoom command detected before streaming (T028).
+        // C1 fix: only emit ViewerZoom when there is an active location (either confirmed this turn
+        // or previously stored on this chat) — prevents zoom-without-location split-brain when the
+        // user says "zoom in" with no map context at all.
+        var confirmedLocation = locationOutcome.ConfirmedLocation;
+        var hasAnyActiveLocation = confirmedLocation is not null || activeLocation is not null;
+        var viewerZoom = hasAnyActiveLocation ? zoomCommand : null;
+
+        if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocation is not null || viewerZoom is not null)
         {
-            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, locationOutcome.ConfirmedLocation);
+            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom);
         }
 
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this

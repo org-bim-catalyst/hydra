@@ -29,6 +29,12 @@ function generateId(prefix: string): string {
  * FR-004/FR-013/FR-017 resolution in spec.md. */
 export interface ViewerRenderTargetHandle {
   panTo?(latitude: number, longitude: number, zoom?: number): void
+  /** specs/038-viewer-poi-zoom: fit the camera to show the given NE/SW bounding box. */
+  fitBounds?(ne: { lat: number; lng: number }, sw: { lat: number; lng: number }): void
+  /** specs/038-viewer-poi-zoom: animate camera to the given altitude (metres). */
+  zoomToAltitude?(altitudeMetres: number): void
+  /** specs/038-viewer-poi-zoom: zoom in or out by one stop (×0.5 / ×2.0 altitude). */
+  zoomBy?(direction: 'in' | 'out'): void
   applyViewMode?(mode: CameraViewMode): void
   applyRotationEnabled?(enabled: boolean): void
 }
@@ -44,6 +50,8 @@ export class ViewerEngine implements IViewerEngine {
   private readonly events = new ViewerEventBus()
   private activeTarget: ViewerRenderTargetHandle | null = null
   private readonly selectableElements = new Map<string, Set<string>>()
+  // specs/038-viewer-poi-zoom T044: prevents visual glitches from rapid successive zoom commands.
+  private _isAnimating = false
 
   on<E extends ViewerEventType>(type: E, handler: ViewerEventHandler<E>): () => void {
     return this.events.on(type, handler)
@@ -140,6 +148,49 @@ export class ViewerEngine implements IViewerEngine {
     // camera position is only meaningful once real content exists, per FR-013/FR-017.
     this.activeTarget?.panTo?.(latitude, longitude, zoom)
     return ok()
+  }
+
+  /** specs/038-viewer-poi-zoom: fit the camera to show the bounding box defined by NE and SW corners.
+   * Falls back to zoomToAltitude(200) when the box is degenerate (NE === SW). Logs a warning
+   * and returns when the map is not yet initialized (no active render target). */
+  fitBounds(ne: { lat: number; lng: number }, sw: { lat: number; lng: number }): void {
+    if (!this.activeTarget?.fitBounds) {
+      console.warn('[ViewerEngine] fitBounds: no active render target — map not yet initialized.')
+      return
+    }
+    if (ne.lat === sw.lat && ne.lng === sw.lng) {
+      this.zoomToAltitude(200)
+      return
+    }
+    this.activeTarget.fitBounds(ne, sw)
+  }
+
+  /** specs/038-viewer-poi-zoom: animate camera to the given altitude in metres.
+   * The altitude is clamped to [50, 500_000] m inside the render target. */
+  zoomToAltitude(altitudeMetres: number): void {
+    if (!this.activeTarget?.zoomToAltitude) {
+      console.warn('[ViewerEngine] zoomToAltitude: no active render target — map not yet initialized.')
+      return
+    }
+    this.activeTarget.zoomToAltitude(altitudeMetres)
+  }
+
+  /** specs/038-viewer-poi-zoom: zoom in or out by one stop (×0.5 / ×2.0 altitude factor).
+   * Cancels any in-flight animation before starting a new one (T044). Logs a warning and
+   * returns when the map is not yet initialized. */
+  zoomBy(direction: 'in' | 'out'): void {
+    if (!this.activeTarget?.zoomBy) {
+      console.warn('[ViewerEngine] zoomBy: no active render target — map not yet initialized.')
+      return
+    }
+    // T044: debounce rapid zoom commands — skip while an animation is in progress.
+    // The 600ms window matches the Google Maps SDK moveCamera animation duration.
+    if (this._isAnimating) return
+    this._isAnimating = true
+    this.activeTarget.zoomBy(direction)
+    window.setTimeout(() => {
+      this._isAnimating = false
+    }, 600)
   }
 
   setViewMode(mode: CameraViewMode): ViewerCommandResult {

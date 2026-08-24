@@ -16,6 +16,7 @@ using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Chats.Commands.RecordActiveLocation;
+using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
@@ -68,6 +69,7 @@ public sealed partial class AiController(
         RagRetrievalOutcome? retrievalOutcome = null;
         MemoryRetrievalOutcome? memoryOutcome = null;
         ConfirmedLocationData? confirmedLocation = null;
+        ViewerZoomCommand? viewerZoom = null;
 
         await foreach (var chunk in mediator.CreateStream(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
@@ -98,6 +100,11 @@ public sealed partial class AiController(
             if (chunk.ConfirmedLocation is not null)
             {
                 confirmedLocation = chunk.ConfirmedLocation;
+            }
+
+            if (chunk.ViewerZoom is not null)
+            {
+                viewerZoom = chunk.ViewerZoom;
             }
         }
 
@@ -188,8 +195,24 @@ public sealed partial class AiController(
                 locationName = confirmedLocation.LocationName,
                 confidence = confirmedLocation.Confidence,
                 source = confirmedLocation.Source,
+                locationType = confirmedLocation.LocationType,
+                viewport = confirmedLocation.Viewport is null ? null : new
+                {
+                    northeastLat = confirmedLocation.Viewport.NortheastLat,
+                    northeastLng = confirmedLocation.Viewport.NortheastLng,
+                    southwestLat = confirmedLocation.Viewport.SouthwestLat,
+                    southwestLng = confirmedLocation.Viewport.SouthwestLng,
+                },
             };
             await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
+        // specs/038-viewer-poi-zoom US2: explicit zoom command trailing event — emitted when the
+        // final chunk carries a ViewerZoomCommand (keyword detected in the user's message).
+        if (viewerZoom is not null)
+        {
+            await Response.WriteAsync($"data: __ZOOM__{viewerZoom.Direction}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 

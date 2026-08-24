@@ -80,7 +80,9 @@ internal sealed class GoogleMapsGeocodingProvider(
         new(result.FormattedAddress,
             result.Geometry.Location.Lat,
             result.Geometry.Location.Lng,
-            ImportanceFromLocationType(result.Geometry.LocationType));
+            ImportanceFromLocationType(result.Geometry.LocationType),
+            result.Geometry.LocationType,
+            MapViewport(result.Geometry.Viewport));
 
     private static double ImportanceFromLocationType(string locationType) =>
         locationType switch
@@ -92,6 +94,16 @@ internal sealed class GoogleMapsGeocodingProvider(
             _ => 0.50,
         };
 
+    private static ViewportBounds? MapViewport(GeoViewport? viewport)
+    {
+        if (viewport is null) return null;
+        return new ViewportBounds(
+            viewport.Northeast.Lat,
+            viewport.Northeast.Lng,
+            viewport.Southwest.Lat,
+            viewport.Southwest.Lng);
+    }
+
     private sealed record GeoResponse(
         [property: JsonPropertyName("status")] string Status,
         [property: JsonPropertyName("results")] GeoResult[] Results);
@@ -102,9 +114,14 @@ internal sealed class GoogleMapsGeocodingProvider(
 
     private sealed record GeoGeometry(
         [property: JsonPropertyName("location")] GeoLocation Location,
-        [property: JsonPropertyName("location_type")] string LocationType);
+        [property: JsonPropertyName("location_type")] string LocationType,
+        [property: JsonPropertyName("viewport")] GeoViewport? Viewport);
 
     private sealed record GeoLocation(
         [property: JsonPropertyName("lat")] double Lat,
         [property: JsonPropertyName("lng")] double Lng);
+
+    private sealed record GeoViewport(
+        [property: JsonPropertyName("northeast")] GeoLocation Northeast,
+        [property: JsonPropertyName("southwest")] GeoLocation Southwest);
 }
