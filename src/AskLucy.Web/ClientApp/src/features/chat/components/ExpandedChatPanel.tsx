@@ -1,8 +1,8 @@
 import {
   RiAddLine,
   RiArrowLeftLine,
-  RiCollapseVerticalLine,
-  RiExpandVerticalLine,
+  RiCollapseDiagonalLine,
+  RiExpandDiagonalLine,
   RiVolumeMuteLine,
   RiVolumeUpLine,
 } from '@remixicon/react'
@@ -157,7 +157,11 @@ export function ExpandedChatPanel({
             size="small"
             sx={{ color: CIRCULAR_ACTION_CHROME.icon }}
           >
-            {isFullHeight ? <RiCollapseVerticalLine fontSize="small" /> : <RiExpandVerticalLine fontSize="small" />}
+            {isFullHeight ? (
+              <RiCollapseDiagonalLine fontSize="small" />
+            ) : (
+              <RiExpandDiagonalLine fontSize="small" />
+            )}
           </IconButton>
         </Tooltip>
         {headerTrailing}
