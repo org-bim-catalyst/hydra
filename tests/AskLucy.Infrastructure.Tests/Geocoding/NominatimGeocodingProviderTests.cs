@@ -32,7 +32,7 @@ public sealed class NominatimGeocodingProviderTests
         handler = new StubHttpMessageHandler(responder);
         var httpClient = new HttpClient(handler) { BaseAddress = null };
         var factory = Substitute.For<IHttpClientFactory>();
-        factory.CreateClient("Weather").Returns(httpClient);
+        factory.CreateClient("Geocoding").Returns(httpClient);
         var options = Options.Create(new GeocodingOptions());
         return new NominatimGeocodingProvider(factory, options, NullLogger<NominatimGeocodingProvider>.Instance);
     }

@@ -33,7 +33,7 @@ internal sealed class NominatimGeocodingProvider(
     {
         try
         {
-            using var httpClient = httpClientFactory.CreateClient("Weather");
+            using var httpClient = httpClientFactory.CreateClient("Geocoding");
 
             var url = $"{_options.SearchBaseUrl}search?q={Uri.EscapeDataString(query)}&format=json&addressdetails=1&limit=5";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
