@@ -9,12 +9,17 @@ function ensurePoiStyles() {
   const style = document.createElement('style')
   style.id = 'poi-marker-styles'
   style.textContent = `
-    .poi-marker { position: relative; display: flex; flex-direction: column; align-items: center; }
+    /* Zero-size anchor: AdvancedMarkerElement's default bottom-center anchor becomes the
+       geographic coordinate (0,0). All children use position:absolute so the ring center
+       aligns with that anchor regardless of map rotation or zoom. */
+    .poi-marker { position: relative; width: 0; height: 0; }
 
-    /* pulsing-ring */
+    /* pulsing-ring: ring centered on the geographic anchor */
     .poi-marker--pulsing-ring .poi-marker__ring {
+      position: absolute;
       width: 24px; height: 24px; border-radius: 50%;
       border: 3px solid #4285F4;
+      top: -12px; left: -12px;
       animation: poi-pulse 1.6s ease-out infinite;
     }
     @keyframes poi-pulse {
@@ -23,28 +28,40 @@ function ensurePoiStyles() {
       100% { transform: scale(2.2); opacity: 0; }
     }
 
-    /* classic-pin */
+    /* classic-pin: sharp corner (tip) of the rotated teardrop points at the anchor.
+       After rotate(-45deg) the tip lands at (0, ~14px) relative to element center,
+       so top:-24px; left:-10px places the tip exactly at (0,0). */
     .poi-marker--classic-pin .poi-marker__ring {
+      position: absolute;
       width: 20px; height: 20px; border-radius: 50% 50% 50% 0;
-      background: #EA4335; transform: rotate(-45deg);
+      background: #EA4335;
+      top: -24px; left: -10px;
+      transform: rotate(-45deg);
     }
 
-    /* 3d-highlight */
+    /* 3d-highlight: square highlight centered on the anchor */
     .poi-marker--3d-highlight .poi-marker__ring {
+      position: absolute;
       width: 28px; height: 28px; border-radius: 4px;
       background: rgba(66, 133, 244, 0.25);
       border: 2px solid #4285F4;
       box-shadow: 0 0 12px 4px rgba(66,133,244,0.45);
+      top: -14px; left: -14px;
     }
 
-    /* simple-dot */
+    /* simple-dot: dot centered on the anchor */
     .poi-marker--simple-dot .poi-marker__ring {
+      position: absolute;
       width: 12px; height: 12px; border-radius: 50%;
       background: #4285F4;
+      top: -6px; left: -6px;
     }
 
+    /* Label: below the ring center (12px below anchor), horizontally centered */
     .poi-marker__label {
-      margin-top: 4px;
+      position: absolute;
+      top: 16px; left: 0;
+      transform: translateX(-50%);
       background: rgba(0,0,0,0.65);
       color: #fff;
       font-size: 11px;
