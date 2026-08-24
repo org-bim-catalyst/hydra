@@ -9,13 +9,14 @@ import {
   RiSendPlane2Fill,
 } from '@remixicon/react'
 import { Box, IconButton, Alert, Paper, Snackbar, Stack, TextField, Tooltip } from '@mui/material'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { transcribeAudio } from '../api/aiApi'
 import { usePdfTextExtraction } from '../pdf/usePdfTextExtraction'
 import type { MicrophonePermissionState } from '../voice/useSpeechRecognition'
 import type { RecordingPhase } from '../voice/useVoiceRecorder'
 import { radius } from '../../../theme'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
+import { RecordingReviewControls } from './RecordingReviewControls'
 import { VoiceAnalyzer } from './VoiceAnalyzer'
 
 export interface ChatComposerProps {
@@ -29,11 +30,11 @@ export interface ChatComposerProps {
   isListening: boolean
   permissionState: MicrophonePermissionState
   captureError: string | null
-  /** In Push-to-Talk, this is the *only* trigger for finishing a recording — release always
-   * stops-and-transcribes (specs/033-hold-to-talk-and-echo-fix FR-005/FR-007); there is no
-   * separate Finish button. No `onCancelCapture` either: pre-send cancellation is not offered
-   * in this control — an unwanted recording is discarded after the fact (delete/don't-send the
-   * resulting draft text), per specs/033's resolved clarification. */
+  /** Push-to-Talk supports two gestures on the same control (specs/034-transcription-crash-
+   * gesture-and-continuous-view FR-004): a tap starts recording and shows explicit confirm/
+   * discard controls (`recording.onFinish`/`onCancelRecording`), waiting for the user; a hold
+   * shows only the waveform and `onStopCapture` is the sole, automatic trigger for finishing
+   * once released — no button press needed for that path. */
   onStartCapture: () => void
   onStopCapture: () => void
   onClearCaptureError: () => void
@@ -45,13 +46,12 @@ export interface ChatComposerProps {
    * while a Push-to-Talk capture is in progress (same guard `VoiceControlBar.tsx` used). */
   onToggleMode: () => void
   /** Push-to-Talk's recording state — `phase`/`getIntensity` drive this component's own
-   * visuals (waveform, disabled-while-transcribing). `onFinish`/`onCancelRecording` are part
-   * of the shared `VoiceControlsProps` contract `CollapsedVoiceControls` also consumes (its
-   * own click-to-toggle Finish/Cancel flow, unaffected by this feature — research.md Decision
-   * 3) but are not called from this component: here, releasing the mic (`onStopCapture` above)
-   * is the only way a recording finishes, and there is no cancel affordance
-   * (specs/033-hold-to-talk-and-echo-fix). `undefined` (or `phase: 'idle'`) means no recording
-   * is in progress. */
+   * visuals (waveform, disabled-while-transcribing). `onFinish`/`onCancelRecording` are the
+   * same shared `VoiceControlsProps` contract `CollapsedVoiceControls` consumes for its own
+   * click-to-record flow — here they're used specifically for a *tap*-started recording's
+   * confirm/discard controls (specs/034); a *hold*-started recording never shows them and
+   * finishes solely via `onStopCapture` on release. `undefined` (or `phase: 'idle'`) means no
+   * recording is in progress. */
   recording?: {
     phase: RecordingPhase
     getIntensity: () => number
@@ -106,31 +106,35 @@ export function ChatComposer({
     }
   }
 
-  // specs/033-hold-to-talk-and-echo-fix FR-005/FR-006/FR-007 — pure hold-to-talk, WhatsApp
-  // voice-message style: press always starts, release always stops-and-transcribes, regardless
-  // of how long the button was held. No tap-to-toggle-and-leave-running mode. `setPointerCapture`
-  // is the actual fix for a real bug (not just a behavior simplification): without it, once
-  // `recording.phase` flips to `'recording'` and the mic button's visual state changes, a
-  // subsequent native `pointerup` can route to whatever element is now under the pointer rather
-  // than this one, silently dropping the release. Capturing the pointer on this element
-  // guarantees every event for this gesture — move/up/cancel — keeps targeting it regardless of
-  // what else re-renders during the hold.
+  // specs/034-transcription-crash-gesture-and-continuous-view FR-004/FR-005/FR-006/FR-007 —
+  // two gestures on one control. A tap and a hold are physically identical at the moment of
+  // press — only distinguishable by what happens next — so both start recording identically
+  // and only resolve into "tap" (show confirm/discard, wait) or "hold" (auto-finish on release)
+  // once release happens, based on elapsed hold duration (research.md Decision 3).
+  //
+  // `setPointerCapture` is the specs/033 bug fix, unchanged: without it, once the mic button's
+  // visual state changes mid-press, a subsequent native `pointerup` can route to whatever
+  // element is now under the pointer rather than this one, silently dropping the release.
   //
   // `isCapturingRef`, not the `isListening` prop, primarily gates the up-handlers: `isListening`
   // only updates once the parent re-renders after `onStartCapture()`'s async effects propagate
   // back down, which is not guaranteed to have happened yet by the time a fast real release
-  // fires — exactly the async-timing gap that caused the pre-specs/033 bug in the first place.
-  // The ref is set synchronously on down and is authoritative for "did *this* control start the
-  // in-flight gesture," independent of parent re-render timing. `recording?.phase === 'recording'`
-  // is checked too, defensively, so a hypothetical remount while a recording is already active
-  // (this component's own ref reset, but the parent's recorder state wasn't) still lets release
-  // work correctly rather than silently stranding an active recording.
+  // fires. The ref is set synchronously on down and is authoritative for "did *this* control
+  // start the in-flight gesture," independent of parent re-render timing.
+  // `recording?.phase === 'recording'` is checked too, defensively, so a hypothetical remount
+  // while a recording is already active still lets release work correctly.
+  const HOLD_THRESHOLD_MS = 350
   const isCapturingRef = useRef(false)
+  const pressStartedAtRef = useRef(0)
   const isCapturing = () => isCapturingRef.current || recording?.phase === 'recording'
+
+  const [isAwaitingTapReview, setIsAwaitingTapReview] = useState(false)
 
   const handleMicPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (isCapturing()) return
     isCapturingRef.current = true
+    pressStartedAtRef.current = Date.now()
+    setIsAwaitingTapReview(false)
     // Optional chaining: not implemented in jsdom (this codebase's test environment) and,
     // defensively, not guaranteed in every real environment either — Pointer Events Level 2 is
     // broadly supported, but the gesture still degrades acceptably without capture (the
@@ -139,26 +143,45 @@ export function ChatComposer({
     onStartCapture()
   }
 
-  const handleMicPointerUp = () => {
+  const resolveGestureOnRelease = () => {
     if (!isCapturing()) return
     isCapturingRef.current = false
-    onStopCapture()
+    const heldMs = Date.now() - pressStartedAtRef.current
+    if (heldMs < HOLD_THRESHOLD_MS) {
+      // Tap: recording continues; wait for an explicit Finish/Cancel instead of auto-completing.
+      setIsAwaitingTapReview(true)
+    } else {
+      // Hold: release itself is the only trigger — finish immediately, no controls ever shown.
+      onStopCapture()
+    }
   }
+
+  const handleMicPointerUp = () => resolveGestureOnRelease()
 
   const handleMicKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (event) => {
     if ((event.key !== ' ' && event.key !== 'Spacebar') || event.repeat) return
     event.preventDefault() // suppresses the native click-on-keyup a <button> fires for Space
     if (isCapturing()) return
     isCapturingRef.current = true
+    pressStartedAtRef.current = Date.now()
+    setIsAwaitingTapReview(false)
     onStartCapture()
   }
 
   const handleMicKeyUp: React.KeyboardEventHandler<HTMLButtonElement> = (event) => {
     if (event.key !== ' ' && event.key !== 'Spacebar') return
     event.preventDefault()
-    if (!isCapturing()) return
-    isCapturingRef.current = false
+    resolveGestureOnRelease()
+  }
+
+  const handleTapReviewFinish = () => {
+    setIsAwaitingTapReview(false)
     onStopCapture()
+  }
+
+  const handleTapReviewCancel = () => {
+    setIsAwaitingTapReview(false)
+    recording?.onCancelRecording()
   }
 
   // Continuous mode's mic is a plain listening on/off toggle — no hold-vs-tap gesture is
@@ -171,10 +194,10 @@ export function ChatComposer({
     }
   }
 
-  // specs/033-hold-to-talk-and-echo-fix — still drives hiding the attach/insert-prompt/
-  // mode-switch controls during an active Push-to-Talk recording (decluttering, unchanged from
-  // specs/031), but no longer drives swapping the mic button out for a different component —
-  // see the mic IconButton below, which stays mounted throughout.
+  // Drives hiding the attach/insert-prompt/mode-switch controls during an active Push-to-Talk
+  // recording (decluttering, unchanged from specs/031). Whether the mic button itself stays
+  // mounted or gets swapped for RecordingReviewControls depends separately on
+  // `isAwaitingTapReview` below (specs/034) — a hold never swaps it, a tap does once resolved.
   const isRecordingActive = Boolean(recording) && recording?.phase !== 'idle'
   const isModeSwitchBlocked = conversationMode === 'PushToTalk' && isListening
 
@@ -279,33 +302,47 @@ export function ChatComposer({
             </Box>
           )}
 
-          <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'}>
-            <IconButton
-              onPointerDown={conversationMode === 'PushToTalk' ? handleMicPointerDown : undefined}
-              onPointerUp={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
-              onPointerLeave={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
-              onPointerCancel={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
-              onClick={conversationMode === 'PushToTalk' ? undefined : handleContinuousMicClick}
-              onKeyDown={conversationMode === 'PushToTalk' ? handleMicKeyDown : undefined}
-              onKeyUp={conversationMode === 'PushToTalk' ? handleMicKeyUp : undefined}
-              disabled={recording?.phase === 'transcribing'}
-              aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-              color={isListening ? 'secondary' : 'default'}
-              sx={
-                isListening && !prefersReducedMotion
-                  ? {
-                      animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
-                      '@keyframes ask-lucy-mic-pulse': {
-                        '0%, 100%': { opacity: 1 },
-                        '50%': { opacity: 0.4 },
-                      },
-                    }
-                  : undefined
-              }
-            >
-              {isListening ? <RiMicOffLine /> : <RiMicLine />}
-            </IconButton>
-          </Tooltip>
+          {/* specs/034-transcription-crash-gesture-and-continuous-view — a tap-resolved
+              recording swaps the mic button for explicit confirm/discard controls (reusing
+              CollapsedVoiceControls' already-correct pattern). A hold-resolved recording never
+              reaches this branch — it finishes directly on release via onStopCapture, and the
+              mic button (setPointerCapture-protected) stays the same element throughout. */}
+          {isAwaitingTapReview && recording ? (
+            <RecordingReviewControls
+              phase={recording.phase}
+              onFinish={handleTapReviewFinish}
+              onCancelRecording={handleTapReviewCancel}
+              placement="right"
+            />
+          ) : (
+            <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'}>
+              <IconButton
+                onPointerDown={conversationMode === 'PushToTalk' ? handleMicPointerDown : undefined}
+                onPointerUp={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
+                onPointerLeave={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
+                onPointerCancel={conversationMode === 'PushToTalk' ? handleMicPointerUp : undefined}
+                onClick={conversationMode === 'PushToTalk' ? undefined : handleContinuousMicClick}
+                onKeyDown={conversationMode === 'PushToTalk' ? handleMicKeyDown : undefined}
+                onKeyUp={conversationMode === 'PushToTalk' ? handleMicKeyUp : undefined}
+                disabled={recording?.phase === 'transcribing'}
+                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                color={isListening ? 'secondary' : 'default'}
+                sx={
+                  isListening && !prefersReducedMotion
+                    ? {
+                        animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
+                        '@keyframes ask-lucy-mic-pulse': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.4 },
+                        },
+                      }
+                    : undefined
+                }
+              >
+                {isListening ? <RiMicOffLine /> : <RiMicLine />}
+              </IconButton>
+            </Tooltip>
+          )}
 
           {/* Mode-switch toggle, anchored to the mic — no separate always-visible mode icon
               (FR-006). Shows the *current* mode's icon; a single click switches directly to

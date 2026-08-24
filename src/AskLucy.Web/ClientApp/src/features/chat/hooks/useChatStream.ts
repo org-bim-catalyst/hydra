@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
 import { generateImage, streamChat, type ChatMessage, type GenerationParameters } from '../api/aiApi'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 
 const TITLE_MAX_LENGTH = 60
 
@@ -152,12 +153,21 @@ export function useChatStream(
             retrievalOutcome = event.outcome
             retrievalError = event.error
             citations = event.citations.map((c, index) => ({ id: `pending-${index}`, ...c }))
-          } else {
+          } else if (event.type === 'memory') {
             // specs/018-ai-memory-system US1 — the assistant message's real persisted id only
             // exists once AppendMessageCommand has run, so this trailing event is also the
             // earliest point the "why does Lucy know this" trace becomes fetchable this session.
             messageId = event.messageId
             memoryOutcome = event.outcome
+          } else if (event.type === 'location') {
+            // specs/036-startup-geolocation US3: agent-confirmed location overrides the startup
+            // geolocation in the shared store. FR-012 priority rule enforced inside setFromAgent.
+            useActiveLocationStore.getState().setFromAgent(
+              event.latitude,
+              event.longitude,
+              event.locationName,
+              event.confidence,
+            )
           }
         }
         if (isActiveRef.current) {

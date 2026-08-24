@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Locations;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
@@ -9,6 +10,7 @@ using AskLucy.Infrastructure.Documents.Ocr;
 using AskLucy.Infrastructure.Documents.Preview;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
+using AskLucy.Infrastructure.Geocoding;
 using AskLucy.Infrastructure.KnowledgeBases;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
@@ -116,6 +118,19 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // specs/037-location-query-resolution — Nominatim forward geocoding; no ApiKey to
+        // validate (same reasoning as WeatherOptions above). ValidateOnStart ensures the
+        // SearchBaseUrl is always configured before first request.
+        services.AddOptions<GeocodingOptions>()
+            .BindConfiguration(GeocodingOptions.SectionName)
+            .ValidateOnStart();
+
+        // Google Maps Geocoding API — used when Geocoding:GoogleMapsApiKey is set; falls back
+        // to NominatimGeocodingProvider otherwise (local dev / environments without a key).
+        services.AddOptions<GoogleMapsGeocodingOptions>()
+            .BindConfiguration(GoogleMapsGeocodingOptions.SectionName)
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -217,12 +232,26 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
 
+        // specs/037-location-query-resolution: dedicated client for Google Maps Geocoding API
+        // (and Nominatim, if falling back). Kept separate from "Weather" so geocoding and
+        // weather timeouts/policies can diverge without coupling.
+        services.AddHttpClient("Geocoding", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddScoped<IWeatherProvider, WeatherProvider>();
         services.AddSingleton<TheDigitalCore.ITheDigitalCoreAuthService, TheDigitalCore.TheDigitalCoreAuthService>();
         services.AddScoped<ITheDigitalCoreClient, TheDigitalCore.TheDigitalCoreClient>();
+        // Use Google Maps when a server-side API key is configured; fall back to Nominatim
+        // for local dev and environments without a key.
+        if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))
+            services.AddScoped<IGeocodingProvider, GoogleMapsGeocodingProvider>();
+        else
+            services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();

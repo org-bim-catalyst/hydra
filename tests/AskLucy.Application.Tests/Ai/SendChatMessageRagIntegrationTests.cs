@@ -1,10 +1,12 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Application.Locations;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Retrieval;
 using FluentAssertions;
 using Hangfire;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
 
@@ -27,6 +29,7 @@ public sealed class SendChatMessageRagIntegrationTests
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
@@ -58,9 +61,14 @@ public sealed class SendChatMessageRagIntegrationTests
         _memoryService.RetrieveRelevantMemoriesAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new MemoryRetrievalOutcome(MemoryRetrievalOutcomeType.NoneRelevant, null, [], null));
 
+        _locationResolutionService.ResolveAsync(Arg.Any<string?>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<AskLucy.Domain.Chats.ActiveSiteLocation?>(), Arg.Any<CancellationToken>())
+            .Returns(new LocationResolutionOutcome(LocationResolutionOutcomeType.NoIntent, null, null));
+
         _handler = new SendChatMessageCommandHandler(
-            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService, _userChatRepository,
-            _currentUser, _backgroundJobClient, new SendChatMessageCommandValidator(_providers, _models));
+            _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
+            _locationResolutionService, _userChatRepository, _currentUser, _backgroundJobClient,
+            Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            new SendChatMessageCommandValidator(_providers, _models));
     }
 
     [Fact]
@@ -72,7 +80,7 @@ public sealed class SendChatMessageRagIntegrationTests
         var citation = new RagCitationContext(
             Guid.NewGuid(), _knowledgeBaseId, Guid.NewGuid(), Guid.NewGuid(), "Doc.pdf", "KB", 3, "Intro", "Relevant excerpt.");
         var outcome = new RagRetrievalOutcome(RagRetrievalOutcomeType.Grounded, "Relevant excerpt.", [citation], null);
-        _ragService.RetrieveContextAsync(_chatId, "What's in the docs?", Arg.Is<IReadOnlyList<Guid>>(ids => ids.Contains(_knowledgeBaseId)), Arg.Any<CancellationToken>())
+        _ragService.RetrieveContextAsync(_chatId, "What's in the docs?", Arg.Is<IReadOnlyList<Guid>>(ids => ids != null && ids.Contains(_knowledgeBaseId)), Arg.Any<CancellationToken>())
             .Returns(outcome);
 
         var command = new SendChatMessageCommand(_chatId, [new ChatMessageDto("user", "What's in the docs?")], _openAiProvider.Id, _gpt41.Id, null);
@@ -80,7 +88,7 @@ public sealed class SendChatMessageRagIntegrationTests
         var chunks = await CollectAsync(command);
 
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m.Any(msg => msg.Role == ChatRole.System && msg.Content.Contains("Relevant excerpt."))),
+            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Any(msg => msg.Role == ChatRole.System && msg.Content.Contains("Relevant excerpt."))),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
 
         var finalChunk = chunks.Should().ContainSingle(c => c.RetrievalOutcome != null).Subject;
@@ -101,7 +109,7 @@ public sealed class SendChatMessageRagIntegrationTests
         await _ragService.DidNotReceive().RetrieveContextAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>());
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m.Count == 1 && m[0].Role == ChatRole.User),
+            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
         chunks.Should().NotContain(c => c.RetrievalOutcome != null);
     }

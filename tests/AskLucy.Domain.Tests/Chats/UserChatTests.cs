@@ -162,4 +162,40 @@ public sealed class UserChatTests
         chat.ModifiedBy.Should().Be("owner-1");
         chat.ModifiedAtUtc.Should().NotBeNull();
     }
+
+    [Fact]
+    public void SetActiveLocation_ShouldPersistAllFields_AndUpdateAudit()
+    {
+        var chat = UserChat.Create("Chat", "owner-1", null, "owner-1");
+
+        chat.SetActiveLocation(25.2048, 55.2708, "Dubai", 0.95, "system:location-resolution");
+
+        chat.ActiveLocation.Should().NotBeNull();
+        chat.ActiveLocation!.Latitude.Should().Be(25.2048);
+        chat.ActiveLocation.Longitude.Should().Be(55.2708);
+        chat.ActiveLocation.LocationName.Should().Be("Dubai");
+        chat.ActiveLocation.Confidence.Should().Be(0.95);
+        chat.ModifiedBy.Should().Be("system:location-resolution");
+        chat.ModifiedAtUtc.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SetActiveLocation_ShouldReplaceExistingLocation_WhenCalledAgain()
+    {
+        var chat = UserChat.Create("Chat", "owner-1", null, "owner-1");
+        chat.SetActiveLocation(25.2048, 55.2708, "Dubai", 0.95, "system:location-resolution");
+
+        chat.SetActiveLocation(51.5074, -0.1278, "London", 0.87, "system:location-resolution");
+
+        chat.ActiveLocation!.LocationName.Should().Be("London");
+        chat.ActiveLocation.Latitude.Should().Be(51.5074);
+    }
+
+    [Fact]
+    public void ActiveLocation_ShouldBeNull_OnFreshChat()
+    {
+        var chat = UserChat.Create("Chat", "owner-1", null, "owner-1");
+
+        chat.ActiveLocation.Should().BeNull();
+    }
 }

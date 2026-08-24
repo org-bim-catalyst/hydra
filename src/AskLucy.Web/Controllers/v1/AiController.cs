@@ -15,6 +15,7 @@ using AskLucy.Application.Ai.Commands.Translate;
 using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
+using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
@@ -66,6 +67,7 @@ public sealed partial class AiController(
         ChatUsage? finalUsage = null;
         RagRetrievalOutcome? retrievalOutcome = null;
         MemoryRetrievalOutcome? memoryOutcome = null;
+        ConfirmedLocationData? confirmedLocation = null;
 
         await foreach (var chunk in mediator.CreateStream(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
@@ -91,6 +93,11 @@ public sealed partial class AiController(
             if (chunk.MemoryOutcome is not null)
             {
                 memoryOutcome = chunk.MemoryOutcome;
+            }
+
+            if (chunk.ConfirmedLocation is not null)
+            {
+                confirmedLocation = chunk.ConfirmedLocation;
             }
         }
 
@@ -164,6 +171,28 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
+        // specs/036-startup-geolocation US3: agent-confirmed location trailing event — same
+        // distinguishable-prefix pattern as __RAG__ and __MEMORY__. The payload matches the
+        // wire format aiApi.ts's streamChat parser expects exactly. Emitted only when an agent
+        // tool or response analysis produced a ConfirmedLocationData on the final chunk.
+        if (confirmedLocation is not null)
+        {
+            // specs/037-location-query-resolution — persist the confirmed location onto UserChat
+            // so back-references in subsequent turns resolve without a new geocoding call (FR-014).
+            await mediator.Send(new RecordActiveLocationCommand(request.ChatId, confirmedLocation), cancellationToken);
+
+            var locationPayload = new
+            {
+                latitude = confirmedLocation.Latitude,
+                longitude = confirmedLocation.Longitude,
+                locationName = confirmedLocation.LocationName,
+                confidence = confirmedLocation.Confidence,
+                source = confirmedLocation.Source,
+            };
+            await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     }
 
@@ -205,6 +234,16 @@ public sealed partial class AiController(
     [HttpPost("transcriptions")]
     public async Task<ActionResult<TranscriptionResponse>> Transcribe(IFormFile file, CancellationToken cancellationToken)
     {
+        // specs/034: a missing multipart file part binds IFormFile to null rather than failing
+        // model validation, and a present-but-empty file previously sailed through to a real
+        // provider call — both are request-input problems, not provider failures, and must be
+        // rejected here rather than surfacing as an unclassified/misclassified downstream error
+        // (constitution §2.VIII).
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "No audio file was provided", Status = StatusCodes.Status400BadRequest });
+        }
+
         await using var stream = file.OpenReadStream();
         var text = await mediator.Send(
             new TranscribeAudioCommand(stream, file.FileName, file.ContentType), cancellationToken);
@@ -218,6 +257,11 @@ public sealed partial class AiController(
     [HttpPost("transcriptions/microphone")]
     public async Task<ActionResult<TranscriptionResponse>> TranscribeMicrophone(IFormFile file, CancellationToken cancellationToken)
     {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "No audio file was provided", Status = StatusCodes.Status400BadRequest });
+        }
+
         await using var stream = file.OpenReadStream();
         var text = await mediator.Send(new TranscribeMicrophoneAudioCommand(stream), cancellationToken);
 

@@ -7972,6 +7972,39 @@ namespace AskLucy.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsOne("AskLucy.Domain.Chats.ActiveSiteLocation", "ActiveLocation", b1 =>
+                        {
+                            b1.Property<Guid>("UserChatId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<double>("Confidence")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveLocationConfidence");
+
+                            b1.Property<double>("Latitude")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveLocationLatitude");
+
+                            b1.Property<string>("LocationName")
+                                .IsRequired()
+                                .HasMaxLength(500)
+                                .HasColumnType("nvarchar(500)")
+                                .HasColumnName("ActiveLocationName");
+
+                            b1.Property<double>("Longitude")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveLocationLongitude");
+
+                            b1.HasKey("UserChatId");
+
+                            b1.ToTable("UserChats");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserChatId");
+                        });
+
+                    b.Navigation("ActiveLocation");
                 });
 
             modelBuilder.Entity("AskLucy.Domain.Consent.CookieConsentRecord", b =>
