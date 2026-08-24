@@ -33,7 +33,26 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   const hasStartedPlaybackRef = useRef(false)
 
   const ensureGraph = useCallback(() => {
-    if (audioContextRef.current) return
+    if (audioContextRef.current) {
+      // If the MediaSource has ended or closed (normal end-of-turn after endStream()) the
+      // existing graph cannot receive more data. Tear it down so the block below rebuilds
+      // a fresh graph for the next turn. Audio has already drained at this point because
+      // endStream() signals no more data — the element plays its buffer then stops.
+      const ms = mediaSourceRef.current
+      if (ms && ms.readyState === 'open') return
+      pendingChunksRef.current = []
+      hasStartedPlaybackRef.current = false
+      audioElementRef.current?.pause()
+      if (audioElementRef.current) audioElementRef.current.removeAttribute('src')
+      void audioContextRef.current.close()
+      audioContextRef.current = null
+      audioElementRef.current = null
+      mediaSourceRef.current = null
+      sourceBufferRef.current = null
+      analyserRef.current = null
+      gainRef.current = null
+      frequencyDataRef.current = null
+    }
 
     const audioContext = new AudioContext()
     const audioElement = new Audio()
@@ -66,7 +85,20 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     }
 
     mediaSource.addEventListener('sourceopen', () => {
-      const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg')
+      // Guard: in some browsers 'sourceopen' re-fires when readyState transitions from
+      // 'ended' back to 'open' (e.g. after a seek on a looping element). Calling
+      // addSourceBuffer a second time on the same MediaSource throws QuotaExceededError
+      // (the limit is 2 per MediaSource but we only ever need 1). Catch this re-fire
+      // so the crash — and the resulting silent voice failure — cannot occur.
+      if (mediaSource.sourceBuffers.length > 0) return
+      let sourceBuffer: SourceBuffer
+      try {
+        sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        onPlaybackError?.(`Failed to initialise audio source buffer: ${message}`)
+        return
+      }
       sourceBuffer.addEventListener('updateend', () => {
         startPlaybackOnce()
         const next = pendingChunksRef.current.shift()
