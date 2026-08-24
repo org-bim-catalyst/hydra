@@ -30,6 +30,7 @@ public sealed class SendChatMessageRagIntegrationTests
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
+    private readonly IViewerZoomDetector _viewerZoomDetector = Substitute.For<IViewerZoomDetector>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
@@ -66,7 +67,7 @@ public sealed class SendChatMessageRagIntegrationTests
 
         _handler = new SendChatMessageCommandHandler(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
-            _locationResolutionService, _userChatRepository, _currentUser, _backgroundJobClient,
+            _locationResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
             new SendChatMessageCommandValidator(_providers, _models));
     }

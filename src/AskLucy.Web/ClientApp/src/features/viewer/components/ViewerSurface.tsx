@@ -12,6 +12,7 @@ import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
 import '../../../viewer/panels/types'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { POIMarkerOverlay } from './POIMarkerOverlay'
 
 const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
@@ -54,6 +55,18 @@ export function ViewerSurface() {
   const source = useActiveLocationStore((s) => s.source)
   const latitude = useActiveLocationStore((s) => s.latitude)
   const longitude = useActiveLocationStore((s) => s.longitude)
+  // specs/038-viewer-poi-zoom: viewport and locationType drive altitude-accurate zoom.
+  const viewport = useActiveLocationStore((s) => s.viewport)
+  const locationType = useActiveLocationStore((s) => s.locationType)
+
+  // specs/038-viewer-poi-zoom: fallback altitude table when viewport is absent.
+  const LOCATION_TYPE_ALTITUDE: Record<string, number> = {
+    ROOFTOP: 200,
+    RANGE_INTERPOLATED: 200,
+    GEOMETRIC_CENTER: 800,
+    APPROXIMATE: 8000,
+  }
+  const DEFAULT_ALTITUDE = 2000
 
   useEffect(() => {
     const store = useViewerEngineStore.getState()
@@ -71,14 +84,24 @@ export function ViewerSurface() {
         })
         useViewerEngineStore.getState().setContentMode('map')
       }
-      viewerEngine.zoomToLocation(center.latitude, center.longitude, DEFAULT_MAP_ZOOM)
+      // specs/038-viewer-poi-zoom: priority — fitBounds > zoomToAltitude > legacy zoomToLocation.
+      if (viewport !== null) {
+        viewerEngine.fitBounds(
+          { lat: viewport.northeastLat, lng: viewport.northeastLng },
+          { lat: viewport.southwestLat, lng: viewport.southwestLng },
+        )
+      } else if (locationType !== null) {
+        viewerEngine.zoomToAltitude(LOCATION_TYPE_ALTITUDE[locationType] ?? DEFAULT_ALTITUDE)
+      } else {
+        viewerEngine.zoomToLocation(center.latitude, center.longitude, DEFAULT_MAP_ZOOM)
+      }
     } else if (source === null && store.contentMode === 'map') {
       // FR-012: location became unavailable after the map was already active (e.g. permission
       // revoked mid-session) — revert to the placeholder. When no location was ever set,
       // contentMode is already 'placeholder' and this branch is never reached.
       revertToPlaceholder()
     }
-  }, [source, latitude, longitude])
+  }, [source, latitude, longitude, viewport, locationType])
 
   return (
     <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
@@ -95,6 +118,8 @@ export function ViewerSurface() {
       ) : (
         <PlaceholderRenderTarget />
       )}
+      {/* specs/038-viewer-poi-zoom T016/T017: POI marker for agent-confirmed locations. */}
+      <POIMarkerOverlay />
       <FloatingPanelHost />
       {/* specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
           ExecutionMonitor already uses for useWorkflowExecutionHub's isLive, adapted to only

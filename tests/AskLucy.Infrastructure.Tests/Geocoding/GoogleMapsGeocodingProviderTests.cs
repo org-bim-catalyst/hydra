@@ -174,4 +174,75 @@ public sealed class GoogleMapsGeocodingProviderTests
 
         handler.LastRequest!.RequestUri!.AbsoluteUri.Should().Contain("key=test-key");
     }
+
+    // specs/038-viewer-poi-zoom — viewport and locationType tests.
+
+    [Fact]
+    public async Task SearchAsync_ShouldPopulateViewport_WhenGoogleReturnsViewportField()
+    {
+        const string json = """
+            {
+              "status": "OK",
+              "results": [
+                {
+                  "formatted_address": "Dubai Mall, Dubai, UAE",
+                  "geometry": {
+                    "location": { "lat": 25.1972, "lng": 55.2796 },
+                    "location_type": "ROOFTOP",
+                    "viewport": {
+                      "northeast": { "lat": 25.1985, "lng": 55.2812 },
+                      "southwest": { "lat": 25.1958, "lng": 55.2779 }
+                    }
+                  }
+                }
+              ]
+            }
+            """;
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync("Dubai Mall", CancellationToken.None);
+
+        results.Should().HaveCount(1);
+        results[0].Viewport.Should().NotBeNull();
+        results[0].Viewport!.NortheastLat.Should().Be(25.1985);
+        results[0].Viewport!.NortheastLng.Should().Be(55.2812);
+        results[0].Viewport!.SouthwestLat.Should().Be(25.1958);
+        results[0].Viewport!.SouthwestLng.Should().Be(55.2779);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldSetViewportToNull_WhenViewportAbsentFromResponse()
+    {
+        const string json = """
+            {
+              "status": "OK",
+              "results": [
+                {
+                  "formatted_address": "Dubai, UAE",
+                  "geometry": {
+                    "location": { "lat": 25.2048, "lng": 55.2708 },
+                    "location_type": "APPROXIMATE"
+                  }
+                }
+              ]
+            }
+            """;
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync("Dubai", CancellationToken.None);
+
+        results.Should().HaveCount(1);
+        results[0].Viewport.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldMapLocationTypeFieldOnCandidate()
+    {
+        var provider = CreateProvider(_ => JsonResponse(OkJson), out _);
+
+        var results = await provider.SearchAsync("Al Safa Park", CancellationToken.None);
+
+        results[0].LocationType.Should().Be("GEOMETRIC_CENTER");
+        results[1].LocationType.Should().Be("APPROXIMATE");
+    }
 }
