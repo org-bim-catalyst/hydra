@@ -85,11 +85,11 @@ internal sealed class GoogleMapsGeocodingProvider(
     private static double ImportanceFromLocationType(string locationType) =>
         locationType switch
         {
-            "ROOFTOP"            => 0.90,
+            "ROOFTOP" => 0.90,
             "RANGE_INTERPOLATED" => 0.70,
-            "GEOMETRIC_CENTER"   => 0.60,
-            "APPROXIMATE"        => 0.40,
-            _                    => 0.50,
+            "GEOMETRIC_CENTER" => 0.60,
+            "APPROXIMATE" => 0.40,
+            _ => 0.50,
         };
 
     private sealed record GeoResponse(
