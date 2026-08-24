@@ -1,5 +1,5 @@
-import { RiAttachment2 } from '@remixicon/react'
-import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material'
+import { RiAttachment2, RiPlayFill, RiStopFill } from '@remixicon/react'
+import { Alert, Box, Chip, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
@@ -11,26 +11,53 @@ import { MemoryTraceIndicator } from '../../memory/components/MemoryTraceIndicat
 import { codeFontFamily } from '../../../theme/tokens/typography'
 import { radius } from '../../../theme'
 
-/** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. `chatId` is only needed for the memory trace indicator (specs/018-ai-memory-system US1) — omit it and the indicator simply never renders (e.g. in isolated component tests). */
+/** Renders Markdown + KaTeX math (FR-007), preserved from the legacy chat UI. `chatId` is only needed for the memory trace indicator (specs/018-ai-memory-system US1) — omit it and the indicator simply never renders (e.g. in isolated component tests).
+ *
+ * specs/039-composer-interaction-states-redesign FR-020–FR-025 (User Story 5) — the
+ * replay/stop control in the lower-right corner. `showStopIcon`/`isReplayDisabled` are
+ * computed by the caller (`ChatPage.tsx`, contracts/reply-playback-control.md), not derived
+ * here, since only the caller knows which single message (if any) is currently the target of
+ * the shared `useVoiceOutput` playback channel. */
 export function MessageBubble({
   message,
   chatId,
+  showStopIcon,
+  isReplayDisabled,
+  onReplay,
+  onStopReplay,
 }: {
   message: ChatMessage
   chatId?: string | null
+  /** True only when this message is the one playing AND that playback was user-initiated
+   * (drives the interactive Stop control, FR-022/FR-024). False for a message currently
+   * auto-speaking for the first time, even though it "is playing" (F1). Omit entirely (no
+   * replay control renders) when the caller doesn't wire replay at all — e.g. isolated
+   * tests that only care about message content. */
+  showStopIcon?: boolean
+  isReplayDisabled?: boolean
+  onReplay?: (message: ChatMessage) => void
+  onStopReplay?: () => void
 }) {
   const isUser = message.role === 'user'
   const hasAttachments = (message.attachments?.length ?? 0) > 0
   const hasCitations = (message.citations?.length ?? 0) > 0
   const hasAttribution = !isUser && Boolean(message.provider || message.model)
+  // research.md Decision 7 — only a completed assistant reply (a stable id, not the
+  // still-streaming placeholder) gets a replay control; also requires the caller to have
+  // actually wired the replay handlers (onReplay undefined means "not offered here").
+  const showReplayControl = !isUser && Boolean(message.id) && Boolean(onReplay)
 
   return (
     <Box sx={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', mb: 2 }}>
       <Paper
         elevation={isUser ? 0 : 1}
         sx={{
+          position: 'relative',
           px: 2.25,
           py: 1.25,
+          // FR-020 (Figure 8) — the replay control sits in the lower-right corner, clear of
+          // the message text.
+          ...(showReplayControl && { pb: 4 }),
           maxWidth: '75%',
           borderRadius: `${radius.lg}px`,
           // The "tail" corner reads as pointing toward its sender, matching the
@@ -134,6 +161,24 @@ export function MessageBubble({
               />
             )}
           </Stack>
+        )}
+
+        {/* FR-020–FR-025 (Figure 8) — RiPlayFill (disabled per isReplayDisabled) when this
+            reply isn't the one currently user-replaying; RiStopFill (always enabled per
+            FR-024) when it is. Never both handlers on the same click. */}
+        {showReplayControl && (
+          <Tooltip title={showStopIcon ? 'Stop' : 'Replay'}>
+            <span style={{ position: 'absolute', right: 8, bottom: 8 }}>
+              <IconButton
+                size="small"
+                disabled={!showStopIcon && isReplayDisabled}
+                onClick={() => (showStopIcon ? onStopReplay?.() : onReplay?.(message))}
+                aria-label={showStopIcon ? 'Stop' : 'Replay'}
+              >
+                {showStopIcon ? <RiStopFill fontSize="small" /> : <RiPlayFill fontSize="small" />}
+              </IconButton>
+            </span>
+          </Tooltip>
         )}
       </Paper>
     </Box>

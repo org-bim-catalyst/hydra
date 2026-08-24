@@ -102,9 +102,9 @@ describe('ConversationView voice controls accessibility (SPEC-013 T020, constitu
   // permission-denied states directly against that component with deterministic props —
   // this integration-level check instead covers a state that's only reachable by the real,
   // page-level `voicePreferencesStore` (unlike `isMuted`, which the mocked `tts` here
-  // doesn't reactively reflect): Continuous mode's real structural difference (the mic
-  // button becomes a plain listening toggle rather than a Push-to-Talk hold trigger,
-  // specs/029-fix-chat-widget-bugs research.md Decision 5 — VoiceControlBar retired).
+  // doesn't reactively reflect): Continuous mode's real structural difference
+  // (specs/039-composer-interaction-states-redesign — the composer shows mute + exit
+  // actions, not the Push-to-Talk mic, per FR-012/FR-013/FR-014).
   it('has no automatically detectable a11y violations in Continuous mode (listening status only)', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_ID}/messages`, () =>
@@ -114,7 +114,7 @@ describe('ConversationView voice controls accessibility (SPEC-013 T020, constitu
     useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
     const { container, findByLabelText } = renderConversation()
 
-    await findByLabelText('Voice input mode settings')
+    await findByLabelText(/(mute|unmute) microphone/i)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

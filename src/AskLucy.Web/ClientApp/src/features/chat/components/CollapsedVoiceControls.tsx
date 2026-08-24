@@ -1,8 +1,8 @@
 import {
-  RiFingerprintLine,
   RiInfinityLine,
   RiMicLine,
   RiMicOffLine,
+  RiVoiceprintLine,
   RiVolumeMuteLine,
   RiVolumeUpLine,
 } from '@remixicon/react'
@@ -120,7 +120,7 @@ export function CollapsedVoiceControls({
           {conversationMode === 'Continuous' ? (
             <RiInfinityLine fontSize="small" />
           ) : (
-            <RiFingerprintLine fontSize="small" />
+            <RiVoiceprintLine fontSize="small" />
           )}
         </IconButton>
       </Tooltip>
