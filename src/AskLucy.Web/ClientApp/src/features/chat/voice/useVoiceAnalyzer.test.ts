@@ -38,7 +38,12 @@ class FakeSourceBuffer extends EventTarget {
 class FakeMediaSource extends EventTarget {
   static instances: FakeMediaSource[] = []
   readyState = 'open'
-  addSourceBuffer = vi.fn(() => new FakeSourceBuffer())
+  sourceBuffers: FakeSourceBuffer[] = []
+  addSourceBuffer = vi.fn(() => {
+    const sb = new FakeSourceBuffer()
+    this.sourceBuffers.push(sb)
+    return sb
+  })
   endOfStream = vi.fn()
 
   constructor() {
@@ -212,5 +217,47 @@ describe('useVoiceAnalyzer', () => {
     })
 
     expect(onPlaybackError).toHaveBeenCalledWith(expect.stringContaining('code 3'))
+  })
+
+  it('does not call addSourceBuffer a second time when sourceopen re-fires on the same MediaSource (prevents QuotaExceededError)', () => {
+    installVoiceAnalyzerEnvironment()
+    const { result } = renderHook(() => useVoiceAnalyzer())
+
+    act(() => {
+      result.current.playAudioChunk('YWJj')
+    })
+
+    const ms = FakeMediaSource.instances[0]
+
+    // First fire — initialises the SourceBuffer
+    act(() => {
+      ms.dispatchEvent(new Event('sourceopen'))
+    })
+    expect(ms.addSourceBuffer).toHaveBeenCalledTimes(1)
+
+    // Re-fire — must be ignored (sourceBuffers.length > 0 guard)
+    act(() => {
+      ms.dispatchEvent(new Event('sourceopen'))
+    })
+    expect(ms.addSourceBuffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('rebuilds the audio graph when the MediaSource has ended, so subsequent turns get a fresh MediaSource', () => {
+    installVoiceAnalyzerEnvironment()
+    const { result } = renderHook(() => useVoiceAnalyzer())
+
+    act(() => {
+      result.current.playAudioChunk('YWJj')
+    })
+    expect(FakeMediaSource.instances).toHaveLength(1)
+
+    // Simulate endStream() having been called: MediaSource enters 'ended' state
+    FakeMediaSource.instances[0].readyState = 'ended'
+
+    // Next turn's first chunk — ensureGraph must detect the stale MediaSource and rebuild
+    act(() => {
+      result.current.playAudioChunk('ZGVm')
+    })
+    expect(FakeMediaSource.instances).toHaveLength(2)
   })
 })
