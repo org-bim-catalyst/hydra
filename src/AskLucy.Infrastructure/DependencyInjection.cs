@@ -120,6 +120,12 @@ public static class DependencyInjection
             .BindConfiguration(GeocodingOptions.SectionName)
             .ValidateOnStart();
 
+        // Google Maps Geocoding API — used when Geocoding:GoogleMapsApiKey is set; falls back
+        // to NominatimGeocodingProvider otherwise (local dev / environments without a key).
+        services.AddOptions<GoogleMapsGeocodingOptions>()
+            .BindConfiguration(GoogleMapsGeocodingOptions.SectionName)
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -208,11 +214,24 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(15);
         });
 
+        // specs/037-location-query-resolution: dedicated client for Google Maps Geocoding API
+        // (and Nominatim, if falling back). Kept separate from "Weather" so geocoding and
+        // weather timeouts/policies can diverge without coupling.
+        services.AddHttpClient("Geocoding", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
         services.AddScoped<IWeatherProvider, WeatherProvider>();
-        services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
+        // Use Google Maps when a server-side API key is configured; fall back to Nominatim
+        // for local dev and environments without a key.
+        if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))
+            services.AddScoped<IGeocodingProvider, GoogleMapsGeocodingProvider>();
+        else
+            services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();
