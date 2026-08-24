@@ -26,6 +26,7 @@ import { AiPresenceCard } from '../components/AiPresenceCard'
 import { HomeProjectCard } from '../components/HomeProjectCard'
 import { ViewerSurface } from '../../viewer/components/ViewerSurface'
 import { RotationToggleButton } from '../../viewer/components/RotationToggleButton'
+import { MarkerStyleSelector } from '../../viewer/components/MarkerStyleSelector'
 import { LocationWeatherWidget } from '../../viewer/components/LocationWeatherWidget'
 import { useGeolocation } from '../../viewer/hooks/useGeolocation'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
@@ -119,6 +120,7 @@ export function ChatPage() {
   // priority rule (setFromGeolocation is a no-op when source === 'agent').
   const setFromGeolocation = useActiveLocationStore((s) => s.setFromGeolocation)
   const clearLocation = useActiveLocationStore((s) => s.clear)
+  const locationSource = useActiveLocationStore((s) => s.source)
   useEffect(() => {
     if (geolocation.status === 'granted' && geolocation.latitude !== null && geolocation.longitude !== null) {
       setFromGeolocation(geolocation.latitude, geolocation.longitude)
@@ -209,6 +211,8 @@ export function ChatPage() {
           <>
             <ThemeToggleButton />
             <RotationToggleButton />
+            {/* specs/038-viewer-poi-zoom T034: show marker style picker only when an agent POI is active. */}
+            {locationSource === 'agent' && <MarkerStyleSelector />}
           </>
         }
       >

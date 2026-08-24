@@ -10,7 +10,9 @@ public sealed record GeocodingCandidate(
     string LocationName,
     double Latitude,
     double Longitude,
-    double Importance);
+    double Importance,
+    string? LocationType = null,
+    ViewportBounds? Viewport = null);
 
 /// <summary>
 /// specs/037-location-query-resolution — abstracts forward geocoding so spec 035's future

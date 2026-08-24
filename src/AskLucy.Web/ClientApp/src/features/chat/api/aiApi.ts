@@ -65,18 +65,30 @@ export interface GenerationParameters {
  * One event from {@link streamChat} — a plain content delta, (specs/016-rag-semantic-search US1)
  * the RAG retrieval outcome carried on the trailing `__RAG__` event,
  * (specs/018-ai-memory-system US1) the memory outcome + real persisted message id carried on the
- * trailing `__MEMORY__` event, or (specs/036-startup-geolocation US3) the agent-confirmed
- * location carried on the trailing `__LOCATION__` event.
+ * trailing `__MEMORY__` event, (specs/036-startup-geolocation US3) the agent-confirmed location
+ * carried on the trailing `__LOCATION__` event, or (specs/038-viewer-poi-zoom US2) an explicit
+ * zoom command carried on the trailing `__ZOOM__` event.
  */
 export type ChatStreamEvent =
   | { type: 'content'; delta: string }
   | { type: 'retrieval'; outcome: RagRetrievalOutcome; citations: Omit<Citation, 'id'>[]; error: string | null }
   | { type: 'memory'; messageId: string; outcome: MemoryRetrievalOutcome }
-  | { type: 'location'; latitude: number; longitude: number; locationName: string; confidence: number; source: string }
+  | {
+      type: 'location'
+      latitude: number
+      longitude: number
+      locationName: string
+      confidence: number
+      source: string
+      locationType: string | null
+      viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
+    }
+  | { type: 'zoom'; direction: 'in' | 'out' }
 
 const RAG_EVENT_PREFIX = '__RAG__'
 const MEMORY_EVENT_PREFIX = '__MEMORY__'
 const LOCATION_EVENT_PREFIX = '__LOCATION__'
+const ZOOM_EVENT_PREFIX = '__ZOOM__'
 
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
@@ -178,8 +190,8 @@ export async function* streamChat(
         continue
       }
 
-      // specs/036-startup-geolocation US3: agent-confirmed location — wire format:
-      // `data: __LOCATION__{"latitude":…,"longitude":…,"locationName":…,"confidence":…,"source":…}`
+      // specs/036-startup-geolocation US3 / specs/038-viewer-poi-zoom: agent-confirmed location —
+      // extended with locationType and viewport fields for altitude-accurate zoom.
       if (data.startsWith(LOCATION_EVENT_PREFIX)) {
         const payload = JSON.parse(data.slice(LOCATION_EVENT_PREFIX.length)) as {
           latitude: number
@@ -187,6 +199,8 @@ export async function* streamChat(
           locationName: string
           confidence: number
           source: string
+          locationType: string | null
+          viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
         }
         yield {
           type: 'location',
@@ -195,6 +209,17 @@ export async function* streamChat(
           locationName: payload.locationName,
           confidence: payload.confidence,
           source: payload.source,
+          locationType: payload.locationType ?? null,
+          viewport: payload.viewport ?? null,
+        }
+        continue
+      }
+
+      // specs/038-viewer-poi-zoom US2: explicit zoom command — `data: __ZOOM__in` / `__ZOOM__out`
+      if (data.startsWith(ZOOM_EVENT_PREFIX)) {
+        const direction = data.slice(ZOOM_EVENT_PREFIX.length)
+        if (direction === 'in' || direction === 'out') {
+          yield { type: 'zoom', direction }
         }
         continue
       }
