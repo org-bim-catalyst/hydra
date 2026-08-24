@@ -81,5 +81,15 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
             .WithMany()
             .HasForeignKey(c => c.ProjectId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // specs/037-location-query-resolution — four nullable columns on the existing UserChats
+        // table; null = no location confirmed yet for this chat (no data backfill on migration).
+        builder.OwnsOne(c => c.ActiveLocation, owned =>
+        {
+            owned.Property(a => a.Latitude).HasColumnName("ActiveLocationLatitude");
+            owned.Property(a => a.Longitude).HasColumnName("ActiveLocationLongitude");
+            owned.Property(a => a.LocationName).HasColumnName("ActiveLocationName").HasMaxLength(500);
+            owned.Property(a => a.Confidence).HasColumnName("ActiveLocationConfidence");
+        });
     }
 }
