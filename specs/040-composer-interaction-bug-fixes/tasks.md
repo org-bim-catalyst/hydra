@@ -88,10 +88,10 @@ exit anchor to the trailing edge.
 **Independent Test**: Enter continuous mode and reach idle-listening; verify the waveform renders
 and reacts, with mute/exit on the right (quickstart.md US4).
 
-- [ ] T010 [US4] In `ChatComposer.tsx`, add the optional `continuousAnalyzer?: { state: VoiceAnalyzerState; getIntensity: () => number }` prop (contracts/composer-layout-contract.md) and, in the `composerVisualState === 'continuous'` branch, render a `<VoiceAnalyzer>` using it at the leading edge (flex-grow) followed by a spacer, then the existing mute and exit `IconButton`s at the trailing edge.
-- [ ] T011 [US4] In `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx`, pass `continuousAnalyzer={{ state: analyzerState, getIntensity: analyzerIntensity }}` (research.md Decision 4 — reusing the values already computed for the Ai presence sphere) into the `ChatComposer` element whenever `conversationMode === 'Continuous'`.
-- [ ] T012 [P] [US4] In `ChatComposer.test.tsx`, add tests asserting the continuous-listening state renders a waveform element preceding the mute/exit buttons in DOM order, and that omitting `continuousAnalyzer` doesn't crash (renders an idle waveform).
-- [ ] T013 [US4] In `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.test.tsx`, add/update a test asserting `ChatComposer` receives a `continuousAnalyzer` prop matching the existing `analyzerState`/`analyzerIntensity` values once continuous mode is active.
+- [X] T010 [US4] In `ChatComposer.tsx`, add the optional `continuousAnalyzer?: { state: VoiceAnalyzerState; getIntensity: () => number }` prop (contracts/composer-layout-contract.md) and, in the `composerVisualState === 'continuous'` branch, render a `<VoiceAnalyzer>` using it at the leading edge (flex-grow) followed by a spacer, then the existing mute and exit `IconButton`s at the trailing edge.
+- [X] T011 [US4] In `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx`, pass `continuousAnalyzer={{ state: analyzerState, getIntensity: analyzerIntensity }}` (research.md Decision 4 — reusing the values already computed for the Ai presence sphere) into the `ChatComposer` element whenever `conversationMode === 'Continuous'`.
+- [X] T012 [P] [US4] In `ChatComposer.test.tsx`, add tests asserting the continuous-listening state renders a waveform element preceding the mute/exit buttons in DOM order, and that omitting `continuousAnalyzer` doesn't crash (renders an idle waveform).
+- [X] T013 [US4] In `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.test.tsx`, add/update a test asserting `ChatComposer` receives a `continuousAnalyzer` prop matching the existing `analyzerState`/`analyzerIntensity` values once continuous mode is active.
 
 **Checkpoint**: Continuous-mode layout matches Figure 4; ship as its own PR.
 

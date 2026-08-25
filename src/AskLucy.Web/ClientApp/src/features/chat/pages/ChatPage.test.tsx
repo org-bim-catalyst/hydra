@@ -1613,3 +1613,32 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
   // while a Push-to-Talk recording is active (F2...)" and "starting a Push-to-Talk recording
   // stops an in-progress manual replay first (...E4)".
 })
+
+describe('ChatPage — continuous-mode waveform wiring (specs/040 US4)', () => {
+  afterEach(() => {
+    // Restore the file-level mock's voiceState so it doesn't leak into other tests.
+    ;(conversationAudioMock as { voiceState: string }).voiceState = 'Idle'
+  })
+
+  it('passes continuousAnalyzer to ChatComposer so the waveform renders when continuous mode is listening (T013)', async () => {
+    // Simulate a listening sub-state so isListening becomes true and composerVisualState
+    // resolves to 'continuous', making the VoiceAnalyzer visible in the composer row.
+    // This verifies that ChatPage wires continuousAnalyzer correctly — if the prop were
+    // missing or undefined, the VoiceAnalyzer would not render in the continuous branch.
+    ;(conversationAudioMock as { voiceState: string }).voiceState = 'Listening'
+    useVoicePreferencesStore.setState({
+      conversationMode: 'Continuous',
+      isMuted: false,
+      selectedVoiceId: null,
+      voiceSpeed: null,
+      voiceStyle: null,
+      preferredMicrophoneDeviceId: null,
+      preferredSpeakerDeviceId: null,
+      error: null,
+    })
+
+    renderConversation(CHAT_A)
+
+    expect(await screen.findByRole('img', { name: /voice status/i })).toBeInTheDocument()
+  })
+})

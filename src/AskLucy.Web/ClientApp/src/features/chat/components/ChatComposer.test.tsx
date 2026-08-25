@@ -438,6 +438,23 @@ describe('ChatComposer — Continuous mode idle-listening (US4, FR-012/FR-013/FR
     expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
   })
 
+  it('renders a waveform before the mute button in DOM order when continuousAnalyzer is provided (specs/040 US4)', () => {
+    renderComposer({
+      conversationMode: 'Continuous',
+      isListening: true,
+      continuousAnalyzer: { state: 'listening', getIntensity: () => 0.5 },
+    })
+    const waveform = screen.getByRole('img', { name: /voice status/i })
+    const mute = screen.getByRole('button', { name: /mute microphone/i })
+    expect(waveform.compareDocumentPosition(mute) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('falls back to an idle waveform when continuousAnalyzer is omitted — no crash (specs/040 US4)', () => {
+    renderComposer({ conversationMode: 'Continuous', isListening: true })
+    expect(screen.getByRole('img', { name: /voice status: idle/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /mute microphone/i })).toBeInTheDocument()
+  })
+
   it('typing while Continuous mode: shows attach + send only — mic is NOT shown (FR-002b, specs/040 US2)', () => {
     renderComposer({ conversationMode: 'Continuous', isListening: true, value: 'hello' })
     expect(screen.getByRole('button', { name: /attach file/i })).toBeInTheDocument()
