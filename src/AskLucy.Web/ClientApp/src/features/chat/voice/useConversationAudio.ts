@@ -211,6 +211,7 @@ export function useConversationAudio({
     deviceNotice: recognition.deviceNotice,
     clearDeviceNotice: recognition.clearDeviceNotice,
     getReactiveIntensity: analyzer.getReactiveIntensity,
+    getMicIntensity: recognition.getMicIntensity,
     // Mute *state* is owned by voicePreferencesStore (persisted, FR-029); this is only the
     // audio-graph effect of that state — callers apply it via an effect, not a local toggle.
     setMuted: analyzer.setMuted,

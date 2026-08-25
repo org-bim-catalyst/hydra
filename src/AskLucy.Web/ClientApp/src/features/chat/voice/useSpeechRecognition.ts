@@ -65,6 +65,8 @@ export function useSpeechRecognition({
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const micAnalyserRef = useRef<AnalyserNode | null>(null)
+  const micFrequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
   const modeRef = useRef(mode)
   useEffect(() => {
     modeRef.current = mode
@@ -97,6 +99,8 @@ export function useSpeechRecognition({
     streamRef.current = null
     void audioContextRef.current?.close()
     audioContextRef.current = null
+    micAnalyserRef.current = null
+    micFrequencyDataRef.current = null
   }, [])
 
   const closeSocket = useCallback(() => {
@@ -187,6 +191,14 @@ export function useSpeechRecognition({
             }
           } else if (data.message_type === 'committed_transcript' && data.text) {
             clearSilenceTimer()
+            // Tear down the audio graph and socket immediately — the transcript is
+            // complete. Without this, the old AudioWorklet keeps reading socketRef.current
+            // (which start() will update to the next session's socket) and feeds the
+            // new session's WebSocket with the old stream's audio, causing ElevenLabs to
+            // receive double audio and produce garbled/cut-off transcripts.
+            cleanupAudioGraph()
+            closeSocket()
+            setIsListening(false)
             onFinalTranscript(data.text)
           }
         } catch {
@@ -200,14 +212,30 @@ export function useSpeechRecognition({
         }
       })
     },
-    [onPartialTranscript, onFinalTranscript, scheduleAutoCommit],
+    [onPartialTranscript, onFinalTranscript, scheduleAutoCommit, cleanupAudioGraph, closeSocket],
   )
+
+  const getMicIntensity = useCallback((): number => {
+    const analyser = micAnalyserRef.current
+    const data = micFrequencyDataRef.current
+    if (!analyser || !data) return 0
+    analyser.getByteFrequencyData(data)
+    let sum = 0
+    for (let i = 0; i < data.length; i++) sum += data[i]
+    return Math.min(1, sum / data.length / 255)
+  }, [])
 
   const start = useCallback(async () => {
     if (!isSupported) {
       setError('Voice input is not supported in this browser.')
       return
     }
+
+    // Defensive cleanup — committed_transcript normally tears down the previous session
+    // immediately, but start() may also be called while a session is unexpectedly still
+    // active (e.g. network delay). Ensures no orphaned audio graph or socket persists.
+    cleanupAudioGraph()
+    closeSocket()
 
     setError(null)
     setDeviceNotice(null)
@@ -265,6 +293,14 @@ export function useSpeechRecognition({
     const source = audioContext.createMediaStreamSource(stream)
     sourceRef.current = source
 
+    // Mic analyser — tapped before the worklet so the waveform reacts to the user's
+    // voice during listening, not just during AI playback.
+    const micAnalyser = audioContext.createAnalyser()
+    micAnalyser.fftSize = 256
+    source.connect(micAnalyser)
+    micAnalyserRef.current = micAnalyser
+    micFrequencyDataRef.current = new Uint8Array(new ArrayBuffer(micAnalyser.frequencyBinCount))
+
     const workletNode = new AudioWorkletNode(audioContext, 'recorder-worklet')
     workletNodeRef.current = workletNode
 
@@ -288,7 +324,7 @@ export function useSpeechRecognition({
 
     source.connect(workletNode)
     setIsListening(true)
-  }, [isSupported, connectWithRetry, attachSocketHandlers, preferredMicrophoneDeviceId])
+  }, [isSupported, connectWithRetry, attachSocketHandlers, preferredMicrophoneDeviceId, cleanupAudioGraph, closeSocket])
 
   /** Manual end of capture (FR-006) — discards without waiting for a commit round trip. */
   const cancel = useCallback(() => {
@@ -327,6 +363,7 @@ export function useSpeechRecognition({
     stop,
     cancel,
     setInputMuted,
+    getMicIntensity,
     clearError,
     clearDeviceNotice,
   }

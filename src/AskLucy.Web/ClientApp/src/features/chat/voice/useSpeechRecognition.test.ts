@@ -77,6 +77,12 @@ class FakeAudioContext {
   sampleRate = 48000
   audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) }
   createMediaStreamSource = vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() }))
+  createAnalyser = vi.fn(() => ({
+    fftSize: 256,
+    frequencyBinCount: 128,
+    getByteFrequencyData: vi.fn(),
+    connect: vi.fn(),
+  }))
   close = vi.fn().mockResolvedValue(undefined)
 }
 
