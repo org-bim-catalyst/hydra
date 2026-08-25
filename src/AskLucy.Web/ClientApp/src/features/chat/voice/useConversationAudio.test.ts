@@ -44,6 +44,7 @@ vi.mock('./useVoiceAnalyzer', () => ({
   useVoiceAnalyzer: vi.fn(() => ({
     playAudioChunk: vi.fn(),
     endStream: vi.fn(),
+    waitForPlaybackComplete: vi.fn().mockResolvedValue(undefined),
     getReactiveIntensity: vi.fn(() => 0),
     setMuted: setMutedMock,
     reset: analyzerResetMock,
