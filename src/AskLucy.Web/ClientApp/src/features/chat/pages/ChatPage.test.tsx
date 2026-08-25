@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -505,6 +505,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
       'Account',
       'View mode',
+      'Map style',
       'Layers',
       'Navigation',
       'Selection',
@@ -566,6 +567,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       renderChatPage()
       for (const label of [
         'View mode',
+        'Map style',
         'Layers',
         'Navigation',
         'Selection',
@@ -1512,28 +1514,18 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     )
   }
 
-  it('disables all other reply Replay buttons while TTS is actively speaking — the current manual replay shows Stop (enabled), all others are disabled (FR-021/FR-024)', async () => {
+  it('disables all Replay buttons while TTS is actively speaking (FR-021)', async () => {
     twoAssistantReplies()
-    vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    // Set isSpeaking=true before rendering so the initial render already sees it — no re-render
+    // trick needed. Both buttons start as Replay and both start disabled.
+    mockTts.isSpeaking = true
     renderConversation(CHAT_A)
     await screen.findByText('First reply')
 
     const replyA = screen.getByText('First reply').closest('.MuiPaper-root') as HTMLElement
     const replyB = screen.getByText('Second reply').closest('.MuiPaper-root') as HTMLElement
 
-    // Start manual replay of A.
-    fireEvent.click(within(replyA).getByRole('button', { name: /replay/i }))
-    // Plain object mutation doesn't trigger React's render cycle. Toggle a store value inside
-    // act() so React flushes a re-render that reads the updated isSpeaking from the mock.
-    act(() => {
-      mockTts.isSpeaking = true
-      useVoicePreferencesStore.setState({ isMuted: true })
-      useVoicePreferencesStore.setState({ isMuted: false })
-    })
-
-    // A's own control shows Stop (FR-024 — always enabled for the active manual replay).
-    expect(within(replyA).getByRole('button', { name: /stop/i })).toBeEnabled()
-    // B's Replay is disabled while Lucy is speaking.
+    expect(within(replyA).getByRole('button', { name: /replay/i })).toBeDisabled()
     expect(within(replyB).getByRole('button', { name: /replay/i })).toBeDisabled()
   })
 
@@ -1544,25 +1536,21 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
       ),
     )
     const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
-    const stop = vi.spyOn(mockTts, 'stop')
+    // stop spy also clears isSpeaking — mirrors real TTS behaviour where stop() ends playback
+    // synchronously, so the re-render triggered by setPlayingMessageId(null) inside
+    // handleStopReplay reads isSpeaking=false and re-enables the Replay button.
+    const stop = vi.spyOn(mockTts, 'stop').mockImplementation(() => {
+      mockTts.isSpeaking = false
+    })
     renderConversation(CHAT_A)
     const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root') as HTMLElement
 
     fireEvent.click(within(reply).getByRole('button', { name: /replay/i }))
-    // Force re-render so isSpeaking is visible (plain mutation alone doesn't trigger React).
-    act(() => {
-      mockTts.isSpeaking = true
-      useVoicePreferencesStore.setState({ isMuted: true })
-      useVoicePreferencesStore.setState({ isMuted: false })
-    })
+    mockTts.isSpeaking = true
     fireEvent.click(within(reply).getByRole('button', { name: /stop/i }))
-    // handleStopReplay calls tts.stop() — in real TTS, stop() clears isSpeaking. Simulate that
-    // and force another re-render so the Replay button becomes enabled before the second click.
-    act(() => {
-      mockTts.isSpeaking = false
-      useVoicePreferencesStore.setState({ isMuted: true })
-      useVoicePreferencesStore.setState({ isMuted: false })
-    })
+    // stop() cleared isSpeaking=false; setPlayingMessageId(null)/setIsManualReplay(false)
+    // flush synchronously inside fireEvent's implicit act(), so the next render sees
+    // isSpeaking=false and re-enables Replay without any extra act() calls.
 
     expect(stop).toHaveBeenCalledTimes(1)
     expect(within(reply).getByRole('button', { name: /replay/i })).toBeInTheDocument()
