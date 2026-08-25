@@ -266,6 +266,9 @@ public sealed class OpenAIProvider(
 
     private HttpClient CreateClient()
     {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            throw new AiProviderAuthenticationException("The OpenAI provider is not configured with an API key.");
+
         var client = httpClientFactory.CreateClient("OpenAI");
         client.BaseAddress = new Uri(_options.BaseUrl);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);

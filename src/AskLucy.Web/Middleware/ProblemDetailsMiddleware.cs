@@ -241,6 +241,16 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "AI provider rejected the request",
             "The AI provider could not process this request. Please try again."),
 
+        // specs/040-composer-interaction-bug-fixes US6: any HttpRequestException that escapes
+        // the AI providers without being caught and re-thrown as a typed AiProvider*Exception
+        // (e.g. a network failure during a transcription upload) still surfaces a classified,
+        // actionable 502 rather than the generic 500, without exposing the raw exception message.
+        HttpRequestException => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
+            "AI provider unavailable",
+            "The AI service could not process your request. Please try again."),
+
         // specs/027-immersive-viewer-platform contracts/weather-api.md: mirrors the
         // AiProviderUnavailableException → 502 pattern above — the upstream weather/reverse-
         // geocoding service errored, timed out, or returned something unparseable.
