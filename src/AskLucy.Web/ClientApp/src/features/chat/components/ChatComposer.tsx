@@ -17,7 +17,7 @@ import type { RecordingPhase } from '../voice/useVoiceRecorder'
 import { radius } from '../../../theme'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
 import { RecordingReviewControls } from './RecordingReviewControls'
-import { VoiceAnalyzer, VoiceAnalyzerState } from './VoiceAnalyzer'
+import { VoiceAnalyzer, type VoiceAnalyzerState } from './VoiceAnalyzer'
 
 export interface ChatComposerProps {
   value: string
