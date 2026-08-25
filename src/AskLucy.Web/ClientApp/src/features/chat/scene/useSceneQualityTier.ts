@@ -58,15 +58,19 @@ export function useSceneQualityTier() {
     return () => mobileQuery.removeEventListener('change', onMobileChange)
   }, [])
 
-  // Timestamp (via performance.now()) at which this hook was first created. Declines
-  // within the first 10 seconds are ignored: the one-time GPU spike from Google Maps
-  // WebGL Overlay initialization is indistinguishable from a real device-level regression
-  // by frame-time alone, and 10 s comfortably outlasts map-tile loading on slow connections
-  // without masking genuine sustained regressions that occur later.
-  const mountedAt = useRef(performance.now())
+  // Timestamp captured once the hook is mounted. Null until the first effect fires;
+  // declines that arrive before it (or within the first 10 seconds) are silently
+  // dropped — the one-time GPU spike from Google Maps WebGL Overlay initialization
+  // is indistinguishable from a real device-level regression by frame-time alone, and
+  // 10 s comfortably outlasts map-tile loading on slow connections without masking
+  // genuine sustained regressions that occur later.
+  const mountedAt = useRef<number | null>(null)
+  useEffect(() => {
+    mountedAt.current = performance.now()
+  }, [])
 
   const reportPerformanceRegression = useCallback(() => {
-    if (performance.now() - mountedAt.current < 10_000) return
+    if (mountedAt.current === null || performance.now() - mountedAt.current < 10_000) return
     setTier((current) => (current === 'full' ? 'reduced' : current))
   }, [])
 
