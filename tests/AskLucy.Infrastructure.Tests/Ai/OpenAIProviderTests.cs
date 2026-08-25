@@ -172,6 +172,23 @@ public sealed class OpenAIProviderTests
         result.Should().Be("hello world");
     }
 
+    // specs/040-composer-interaction-bug-fixes US6 follow-up — browsers send codec-parameterised
+    // MIME types such as "audio/webm;codecs=opus". MediaTypeHeaderValue rejects the parameterised
+    // form; the provider must strip the codec suffix before constructing the header value.
+    [Fact]
+    public async Task TranscribeAudioAsync_ShouldReturnText_WhenContentTypeHasCodecParameter()
+    {
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"text": "hello from whisper"}""", Encoding.UTF8, "application/json"),
+        }, out _);
+
+        var result = await provider.TranscribeAudioAsync(
+            new MemoryStream([1, 2, 3]), "recording.webm", "audio/webm;codecs=opus", CancellationToken.None);
+
+        result.Should().Be("hello from whisper");
+    }
+
     // specs/040-composer-interaction-bug-fixes US6 follow-up — any non-transient, unclassified
     // exception that escapes the operation (e.g. a configuration fault or unexpected IO error)
     // must be wrapped as AiProviderUnavailableException, never allowed to reach the generic 500.
