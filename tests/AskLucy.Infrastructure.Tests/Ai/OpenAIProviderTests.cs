@@ -172,6 +172,23 @@ public sealed class OpenAIProviderTests
         result.Should().Be("hello world");
     }
 
+    // specs/040-composer-interaction-bug-fixes US6 follow-up — any non-transient, unclassified
+    // exception that escapes the operation (e.g. a configuration fault or unexpected IO error)
+    // must be wrapped as AiProviderUnavailableException, never allowed to reach the generic 500.
+    [Fact]
+    public async Task TranscribeAudioAsync_ShouldThrowAiProviderUnavailableException_WhenNonTransientUnclassifiedExceptionOccurs()
+    {
+        var stubHandler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("unexpected"));
+        var factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient("OpenAI").Returns(_ => new HttpClient(stubHandler, disposeHandler: false));
+        var options = Options.Create(new OpenAIOptions { ApiKey = "test-key", BaseUrl = "https://api.openai.com/v1/" });
+        var provider = new OpenAIProvider(factory, options, Substitute.For<ILogger<OpenAIProvider>>());
+
+        var act = () => TranscribeAsync(provider);
+
+        await act.Should().ThrowAsync<AiProviderUnavailableException>();
+    }
+
     // specs/040-composer-interaction-bug-fixes US6 T018 — a missing API key must surface as
     // AiProviderAuthenticationException (→ 502 via ProblemDetailsMiddleware), not as an
     // ArgumentNullException or NullReferenceException that would reach the generic 500 handler.
