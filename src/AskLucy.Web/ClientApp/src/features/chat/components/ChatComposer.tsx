@@ -353,7 +353,7 @@ export function ChatComposer({
                   RecordingReviewControls' `middle` slot so it straddles cancel and finish
                   (specs/040 US3 — Figure 3). */}
               {recording?.phase === 'recording' && !isAwaitingTapReview && (
-                <Box sx={{ width: 64 }}>
+                <Box sx={{ flex: 1 }}>
                   <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
                 </Box>
               )}
@@ -366,7 +366,7 @@ export function ChatComposer({
                   placement="right"
                   middle={
                     recording.phase === 'recording' ? (
-                      <Box sx={{ width: 64 }}>
+                      <Box sx={{ flex: 1 }}>
                         <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
                       </Box>
                     ) : undefined

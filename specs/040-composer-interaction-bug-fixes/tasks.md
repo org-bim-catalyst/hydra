@@ -74,8 +74,9 @@ and that both controls still work (quickstart.md US3).
 - [X] T008 [P] [US3] In `src/AskLucy.Web/ClientApp/src/features/chat/components/RecordingReviewControls.test.tsx` (confirmed not to exist yet — this is the component's first test file), add tests asserting: cancel renders before `middle` before finish when `middle` is provided; cancel renders immediately before finish (adjacent, swapped order from today) when `middle` is omitted (the `CollapsedVoiceControls` usage).
 - [X] T008a [P] [US3] In the same new `RecordingReviewControls.test.tsx`, add a `jest-axe` accessibility check (matching this codebase's established `.a11y.test.tsx` pattern, e.g. `MessageBubble.a11y.test.tsx`) covering both the `middle`-provided and `middle`-omitted render variants — required by constitution §7/§10's automated-a11y-check merge gate, and this is the component's first-ever test coverage of any kind, so there's no pre-existing a11y suite to rely on instead.
 - [X] T009 [US3] In `ChatComposer.test.tsx`, add/update a test asserting the tap-review row's DOM order is cancel → waveform → finish, and that both controls still call `onCancelRecording`/`onFinish` correctly (existing behavioral tests must continue passing, only order assertions are new).
+- [X] T009a [US3] In `ChatComposer.tsx`, change the tap-review `middle` waveform's `<Box>` from `sx={{ width: 64 }}` to `sx={{ flex: 1 }}` so it fills the available space between cancel and finish in the expanded composer (Figure 3 — waveform spans the gap). Also fix the hold-to-talk waveform to `flex: 1` (Figure 9).
 
-**Checkpoint**: Tap-review order matches Figure 3; ship as its own PR.
+**Checkpoint**: Tap-review order matches Figure 3 with full-width waveform; ship as its own PR.
 
 ---
 
