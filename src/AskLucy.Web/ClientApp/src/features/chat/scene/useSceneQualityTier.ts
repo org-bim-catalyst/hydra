@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
 
 export type SceneQualityTier = 'full' | 'reduced' | 'static-fallback'
@@ -58,7 +58,15 @@ export function useSceneQualityTier() {
     return () => mobileQuery.removeEventListener('change', onMobileChange)
   }, [])
 
+  // Timestamp (via performance.now()) at which this hook was first created. Declines
+  // within the first 10 seconds are ignored: the one-time GPU spike from Google Maps
+  // WebGL Overlay initialization is indistinguishable from a real device-level regression
+  // by frame-time alone, and 10 s comfortably outlasts map-tile loading on slow connections
+  // without masking genuine sustained regressions that occur later.
+  const mountedAt = useRef(performance.now())
+
   const reportPerformanceRegression = useCallback(() => {
+    if (performance.now() - mountedAt.current < 10_000) return
     setTier((current) => (current === 'full' ? 'reduced' : current))
   }, [])
 

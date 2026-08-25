@@ -1,6 +1,5 @@
 import { Box } from '@mui/material'
 import { lazy, Suspense } from 'react'
-import { LucyPortrait } from '../branding/LucyPortrait'
 
 /** Sampled directly from the readdy.ai reference's own presence-preview card
  * (`getComputedStyle`, not eyeballed): `w-[25vh] h-[25vh] rounded-lg
@@ -54,18 +53,8 @@ export function AiPresenceCard({ getReactiveIntensity }: AiPresenceCardProps) {
     >
       <Suspense
         fallback={
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: CARD_BG,
-            }}
-          >
-            <LucyPortrait variant="auth" alt="Lucy" />
-          </Box>
+          // Dark background while the scene chunk loads — no portrait flash (issue doc §Bug A).
+          <Box sx={{ position: 'absolute', inset: 0, bgcolor: CARD_BG }} />
         }
       >
         <SceneBackground getReactiveIntensity={getReactiveIntensity} />
