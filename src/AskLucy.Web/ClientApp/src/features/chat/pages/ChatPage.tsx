@@ -617,18 +617,12 @@ export function ConversationView({
 
   // specs/029-fix-chat-widget-bugs research.md Decision 5a — merges the former separate
   // "mute Lucy's speaker output" and "stop the reply she's currently speaking" actions into
-  // one toggle (FR-006a/FR-006b): muting while she's actively speaking also stops that
-  // playback immediately; muting at any other time (or unmuting) is just the preference
-  // toggle. Shared by both the Collapsed widget's mute control and the Expanded panel's
-  // ChatComposer, since both read/write the same `voiceControlsProps`-shaped contract.
+  // one toggle (FR-006a/FR-006b): muting sets the audio gain to 0 so playback continues
+  // silently — if Lucy is mid-sentence when the user mutes, unmuting brings her voice back.
+  // Shared by both the Collapsed widget's mute control and the Expanded panel's ChatComposer,
+  // since both read/write the same `voiceControlsProps`-shaped contract. The gain sync for
+  // both TTS paths (tts.setMuted + conversationAudio.setMuted) happens in the effect above.
   const handleToggleMute = () => {
-    if (tts.isSpeaking) tts.stop()
-    // research.md Decision 5a (muting while she's actively speaking stops playback immediately)
-    // applied to Continuous mode: if Lucy is speaking, stop the ongoing turn so the listener
-    // can resume. The runAssistantTurn coroutine resolves via waitForPlaybackComplete's pause
-    // listener when stop() resets the analyzer, then both paths attempt recognition.start()
-    // concurrently — start() has defensive cleanup at its head so the second call is harmless.
-    if (conversationAudio.voiceState === 'AiSpeaking') void conversationAudio.stop()
     void updateVoicePreference({ isMuted: !isMutedPreference })
   }
 
@@ -839,7 +833,6 @@ export function ConversationView({
                             // instead, unconditionally enabled per FR-024).
                             showStopIcon={message.id === playingMessageId && isManualReplay}
                             isReplayDisabled={
-                              isMutedPreference ||
                               !message.id ||
                               voiceControlsProps.isListening ||
                               (message.id === playingMessageId && !isManualReplay)
