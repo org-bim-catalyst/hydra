@@ -8,25 +8,25 @@ spec.md, not assumptions.
 ## Decision 1 (US1/US2): Leading-group / spacer / trailing-group layout pattern
 
 **Decision**: Restructure `ChatComposer`'s control `Stack` so each state's controls are split into
-a leading group and a trailing group with a single `flex: 1` spacer between them, rather than the
-current single spacer placed *after* every conditional block.
+a leading group and a trailing group with a single `flex: 1` spacer between them. The spacer is
+shared between `empty` and both `typing` sub-variants and sits between the attachment button and
+the trailing group (mic+send in PushToTalk typing; send-only in Continuous typing).
 
-**Rationale**: Reading the JSX confirms the root cause of both US1 and US2: the `<Box sx={{flex:1}}/>`
-spacer currently sits after the empty/recording/continuous conditional blocks and before the
-typing-only Send button — so in every state *except* typing, whatever renders lands entirely on
-the left with the spacer pushing nothing. Figure 1 (empty) and Figure 4 (continuous) both show a
-genuine leading-group/trailing-group split; the spacer needs to move inside each state's branch,
-between its own leading and trailing elements, not stay fixed at one place in the JSX regardless
-of state.
+Per-state trailing groups (Figure references):
+- `empty` (Figure 1): mic + continuous-entry
+- `typing` / PushToTalk (Figure 2): mic + Send — mic in the **trailing** group, right of the spacer
+- `typing` / Continuous (Figure 5): Send only — mic is NOT rendered (already active in background)
+- `recording` / hold-to-talk (Figure 9): waveform (flex:1) + mic-fill
+- `recording` / tap-review (Figure 3): cancel + waveform (flex:1) + finish
+- `continuous` (Figure 4): waveform (flex:1) + mute + exit
+
+**Waveform sizing**: every waveform in the expanded composer uses `sx={{ flex: 1 }}`, not a fixed
+pixel width, so it fills the available row space (the collapsed widget is the exception).
 
 **Alternatives considered**:
-- Absolute-positioning the trailing group — rejected, fights the existing `Stack`/flex layout and
-  reintroduces the kind of manual positioning MUI's layout primitives already handle correctly.
-- A single shared `justify-content: space-between` on the outer `Stack` instead of an explicit
-  spacer `Box` — rejected because US3's three-part layout (cancel / waveform / finish, not two
-  groups) doesn't fit a simple two-group `space-between`; keeping an explicit spacer element
-  that's positioned per-state is more consistent across all four states than mixing two different
-  flex strategies.
+- Absolute-positioning the trailing group — rejected, fights the existing `Stack`/flex layout.
+- A single shared `justify-content: space-between` — rejected because US3's three-part layout
+  (cancel / waveform / finish) doesn't fit a simple two-group `space-between`.
 
 ## Decision 2 (US2): Extend the single-persistent-mic-element invariant to include 'typing'
 

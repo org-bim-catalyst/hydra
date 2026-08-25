@@ -438,10 +438,10 @@ describe('ChatComposer — Continuous mode idle-listening (US4, FR-012/FR-013/FR
     expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
   })
 
-  it('typing while Continuous idle-listening shows attach + mic + send, not mute/exit (matches ordinary typing — specs/040 US2)', () => {
+  it('typing while Continuous mode: shows attach + send only — mic is NOT shown (FR-002b, specs/040 US2)', () => {
     renderComposer({ conversationMode: 'Continuous', isListening: true, value: 'hello' })
     expect(screen.getByRole('button', { name: /attach file/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: MIC_BUTTON_NAME })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: MIC_BUTTON_NAME })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /mute microphone/i })).not.toBeInTheDocument()
     expect(
@@ -899,6 +899,31 @@ describe('ChatComposer — typing-state keeps attach + mic (specs/040 US2)', () 
     // the specs/033 contract).
     const micAfter = screen.getByRole('button', { name: MIC_BUTTON_NAME })
     expect(micAfter).toBe(micBefore)
+  })
+})
+
+describe('ChatComposer — typing-state DOM order (specs/040 US2)', () => {
+  it('PushToTalk typing: mic precedes send in the DOM (trailing group — FR-002a)', () => {
+    renderComposer({ conversationMode: 'PushToTalk', value: 'hello' })
+    const mic = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+    const send = screen.getByRole('button', { name: /send message/i })
+    // Node.DOCUMENT_POSITION_FOLLOWING (4) — mic appears before send in source order
+    expect(mic.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('PushToTalk typing: attach precedes mic in the DOM (leading group first — FR-002a)', () => {
+    renderComposer({ conversationMode: 'PushToTalk', value: 'hello' })
+    const attach = screen.getByRole('button', { name: /attach file/i })
+    const mic = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+    expect(attach.compareDocumentPosition(mic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('Continuous typing: attach precedes send in the DOM — no mic between them (FR-002b)', () => {
+    renderComposer({ conversationMode: 'Continuous', value: 'hello' })
+    const attach = screen.getByRole('button', { name: /attach file/i })
+    const send = screen.getByRole('button', { name: /send message/i })
+    expect(attach.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('button', { name: MIC_BUTTON_NAME })).not.toBeInTheDocument()
   })
 })
 
