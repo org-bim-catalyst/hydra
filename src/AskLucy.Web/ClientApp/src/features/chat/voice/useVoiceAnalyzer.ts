@@ -31,6 +31,7 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
   const isMutedRef = useRef(false)
   const hasStartedPlaybackRef = useRef(false)
+  const pendingEndOfStreamRef = useRef(false)
 
   const ensureGraph = useCallback(() => {
     if (audioContextRef.current) {
@@ -41,6 +42,7 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
       const ms = mediaSourceRef.current
       if (ms && ms.readyState === 'open') return
       pendingChunksRef.current = []
+      pendingEndOfStreamRef.current = false
       hasStartedPlaybackRef.current = false
       audioElementRef.current?.pause()
       if (audioElementRef.current) audioElementRef.current.removeAttribute('src')
@@ -102,8 +104,20 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
       sourceBuffer.addEventListener('updateend', () => {
         startPlaybackOnce()
         const next = pendingChunksRef.current.shift()
-        if (next && !sourceBuffer.updating) {
+        if (next) {
           sourceBuffer.appendBuffer(next)
+          return
+        }
+        // Queue drained — if endStream() was called while we were still appending, seal now.
+        if (pendingEndOfStreamRef.current) {
+          pendingEndOfStreamRef.current = false
+          if (mediaSource.readyState === 'open') {
+            try {
+              mediaSource.endOfStream()
+            } catch {
+              // Already ended/closed.
+            }
+          }
         }
       })
       sourceBufferRef.current = sourceBuffer
@@ -154,16 +168,38 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   )
 
   /** Ends the MediaSource stream once the reply's `done`/`audio-failed` event arrives — no
-   * more chunks will be appended. */
+   * more chunks will be appended. If the SourceBuffer is still appending, deferred to the
+   * next `updateend` so the in-flight append completes before the stream is sealed. */
   const endStream = useCallback(() => {
     const mediaSource = mediaSourceRef.current
-    if (mediaSource && mediaSource.readyState === 'open' && !sourceBufferRef.current?.updating) {
-      try {
-        mediaSource.endOfStream()
-      } catch {
-        // Already ended/closed — nothing to do.
-      }
+    if (!mediaSource || mediaSource.readyState !== 'open') return
+    if (sourceBufferRef.current?.updating || pendingChunksRef.current.length > 0) {
+      // Chunks still in flight — the updateend handler will call endOfStream once they drain.
+      pendingEndOfStreamRef.current = true
+      return
     }
+    try {
+      mediaSource.endOfStream()
+    } catch {
+      // Already ended/closed — nothing to do.
+    }
+  }, [])
+
+  /** Resolves once the audio element has played through all buffered data for this turn.
+   * Must be awaited before `reset()` so Lucy's speech is never clipped mid-word. */
+  const waitForPlaybackComplete = useCallback((): Promise<void> => {
+    const el = audioElementRef.current
+    if (!el || el.ended || el.paused || el.readyState === 0) return Promise.resolve()
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        el.removeEventListener('ended', cleanup)
+        el.removeEventListener('pause', cleanup)
+        resolve()
+      }
+      el.addEventListener('ended', cleanup, { once: true })
+      // Also resolve on pause so an abort/reset call unblocks any awaiting caller.
+      el.addEventListener('pause', cleanup, { once: true })
+    })
   }, [])
 
   /** Ref-based getter (not React state) — read every animation frame by `ReactiveSphere.tsx`
@@ -191,6 +227,7 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   /** FR-023: stop clears the queue and tears down the graph so the next turn starts fresh. */
   const reset = useCallback(() => {
     pendingChunksRef.current = []
+    pendingEndOfStreamRef.current = false
     hasStartedPlaybackRef.current = false
     audioElementRef.current?.pause()
     if (audioElementRef.current) {
@@ -206,5 +243,5 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     frequencyDataRef.current = null
   }, [])
 
-  return { playAudioChunk, endStream, getReactiveIntensity, setMuted, reset }
+  return { playAudioChunk, endStream, waitForPlaybackComplete, getReactiveIntensity, setMuted, reset }
 }
