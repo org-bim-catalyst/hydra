@@ -20,15 +20,24 @@ continuousAnalyzer?: {
 Behavioral contract per `composerVisualState` (supersedes the current row layout only —
 `composerVisualState`'s own derivation is unchanged):
 
-- `empty`: attachment control renders first (leading edge); mic + continuous-entry render last
-  (trailing edge), with the spacer between the two groups, not after both.
-- `typing`: attachment + mic render at the leading edge (mic is the *same* DOM element used in
-  `empty`/`recording` — see Decision 2); Send renders at the trailing edge.
-- `recording` (awaiting tap review): cancel renders at the leading edge, waveform in the middle,
-  finish at the trailing edge.
-- `recording` (actively holding): unchanged from today (waveform, then the mic-fill indicator).
-- `continuous`: waveform renders at the leading edge (flex-grow, filling available space); mute +
-  exit render at the trailing edge.
+- `empty` (PushToTalk): attachment control renders first (leading edge); spacer fills the gap;
+  mic + continuous-entry render last (trailing edge).
+- `typing` (PushToTalk — Figure 2): attachment renders at the leading edge; spacer fills the gap;
+  mic + Send render together at the trailing edge. Mic is the *same* DOM element used in
+  `empty`/`recording` (see Decision 2).
+- `typing` (Continuous — Figure 5): attachment renders at the leading edge; spacer fills the gap;
+  Send renders at the trailing edge. The mic control is **not shown** — it is already active in
+  the background and showing it would be redundant.
+- `recording` (awaiting tap review — Figure 3): cancel renders at the leading edge; waveform
+  (`flex: 1`, filling available space) renders in the middle; finish at the trailing edge.
+- `recording` (actively holding — Figure 9): waveform (`flex: 1`, filling available space)
+  renders at the leading edge; mic-fill indicator at the trailing edge.
+- `continuous` (Figure 4): waveform (`flex: 1`, filling available space) renders at the leading
+  edge; mute + exit render at the trailing edge.
+
+**Waveform sizing rule**: every waveform that appears in the expanded composer uses
+`sx={{ flex: 1 }}` so it fills the available row space. The collapsed widget
+(`CollapsedVoiceControls`) is the only context where a fixed narrow width is appropriate.
 
 ## `RecordingReviewControls` (props changes)
 

@@ -231,12 +231,12 @@ export function ChatComposer({
   // specs/039-composer-interaction-states-redesign FR-001/FR-002/FR-012 — the composer's
   // visible action set is derived from this single state, not several independent booleans
   // (data-model.md "Composer State"). Recording takes priority over everything; typed text
-  // takes priority over Continuous mode's idle-listening view (Continuous *typing* shows
-  // attach + mic + send, the same as ordinary typing — the two only differ in what they return
-  // to once `value` empties, driven by `conversationMode`/`isListening` props). specs/040 US2
-  // extends the typing footer from send-only to attach + mic + send, so attach and mic now
-  // render in both 'empty' and 'typing', while continuous-conversation entry stays 'empty'
-  // only. Gating the Continuous branch on `conversationMode === 'Continuous'` alone (not
+  // takes priority over Continuous mode's idle-listening view. Within 'typing' the mic is
+  // shown only in PushToTalk mode (Figure 2: attach → spacer → mic → send); in Continuous
+  // mode the mic is already active in the background, so Continuous typing renders attach →
+  // spacer → send only (Figure 5) — the two sub-variants share the same composerVisualState
+  // value and are distinguished at render time by `conversationMode`. specs/040 US2.
+  // Gating the Continuous branch on `conversationMode === 'Continuous'` alone (not
   // additionally on `isListening`) is deliberate: muting must only change the mute button's
   // own icon (FR-013), not make the whole footer revert to the empty view and lose the exit.
   const composerVisualState: 'recording' | 'typing' | 'continuous' | 'empty' = isRecordingActive
@@ -340,12 +340,14 @@ export function ChatComposer({
                 </Tooltip>
               )}
 
-              {/* specs/040-composer-interaction-bug-fixes US1 — pins the attachment button to
-                  the leading edge and the mic/continuous-entry group to the trailing edge
-                  (Figure 1), instead of both clustering at the left with the row's other
-                  spacer (below) having nothing left to push against. Only present for 'empty':
-                  'recording' has no attachment button to separate from anything. */}
-              {composerVisualState === 'empty' && <Box sx={{ flex: 1 }} />}
+              {/* specs/040-composer-interaction-bug-fixes US1/US2 — shared spacer that pins the
+                  attachment button to the leading edge and the trailing group to the right for
+                  both 'empty' (mic + continuous-entry, Figure 1) and 'typing' (PushToTalk:
+                  mic + Send, Figure 2; Continuous: Send only, Figure 5). 'recording' has no
+                  attachment button to separate from anything, so the spacer is skipped. */}
+              {(composerVisualState === 'empty' || composerVisualState === 'typing') && (
+                <Box sx={{ flex: 1 }} />
+              )}
 
               {/* FR-005/FR-019: live waveform alongside the mic while actively recording —
                   nothing left to visualize once capture has stopped and transcription has
@@ -358,61 +360,68 @@ export function ChatComposer({
                 </Box>
               )}
 
-              {isAwaitingTapReview && recording ? (
-                <RecordingReviewControls
-                  phase={recording.phase}
-                  onFinish={handleTapReviewFinish}
-                  onCancelRecording={handleTapReviewCancel}
-                  placement="right"
-                  middle={
-                    recording.phase === 'recording' ? (
-                      <Box sx={{ flex: 1 }}>
-                        <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
-                      </Box>
-                    ) : undefined
-                  }
-                />
-              ) : (
-                // Only ever reached in Push-to-Talk mode — Continuous mode's idle-listening
-                // state renders the 'continuous' branch below instead. Icon reflects whether a
-                // recording is currently active (RiMicFill, FR-009/Figure 9) or idle
-                // (RiMicLine/RiMicOffLine) — the aria-label/tooltip convention itself
-                // (isListening-based) is unchanged from before this feature.
-                <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'}>
-                  <span>
-                    <IconButton
-                      onPointerDown={handleMicPointerDown}
-                      onPointerUp={handleMicPointerUp}
-                      onPointerLeave={handleMicPointerUp}
-                      onPointerCancel={handleMicPointerUp}
-                      onKeyDown={handleMicKeyDown}
-                      onKeyUp={handleMicKeyUp}
-                      disabled={recording?.phase === 'transcribing'}
-                      aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-                      color={isListening ? 'secondary' : 'default'}
-                      sx={
-                        isListening && !prefersReducedMotion
-                          ? {
-                              animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
-                              '@keyframes ask-lucy-mic-pulse': {
-                                '0%, 100%': { opacity: 1 },
-                                '50%': { opacity: 0.4 },
-                              },
-                            }
-                          : undefined
-                      }
-                    >
-                      {isRecordingActive ? (
-                        <RiMicFill />
-                      ) : isListening ? (
-                        <RiMicOffLine />
-                      ) : (
-                        <RiMicLine />
-                      )}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              )}
+              {/* specs/040-composer-interaction-bug-fixes US2 FR-002b — in Continuous typing
+                  the mic is already active in the background; showing it here would be redundant
+                  and contradict the Continuous typing layout (Figure 5: attach → spacer → Send).
+                  The persistent-element invariant (specs/033) is preserved for PushToTalk:
+                  conversationMode never changes mid-gesture, so the mic element's mount point
+                  stays constant across empty/typing/recording in PushToTalk mode. */}
+              {!(composerVisualState === 'typing' && conversationMode === 'Continuous') &&
+                (isAwaitingTapReview && recording ? (
+                  <RecordingReviewControls
+                    phase={recording.phase}
+                    onFinish={handleTapReviewFinish}
+                    onCancelRecording={handleTapReviewCancel}
+                    placement="right"
+                    middle={
+                      recording.phase === 'recording' ? (
+                        <Box sx={{ flex: 1 }}>
+                          <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
+                        </Box>
+                      ) : undefined
+                    }
+                  />
+                ) : (
+                  // Only ever reached in Push-to-Talk mode — Continuous mode's idle-listening
+                  // state renders the 'continuous' branch below instead. Icon reflects whether a
+                  // recording is currently active (RiMicFill, FR-009/Figure 9) or idle
+                  // (RiMicLine/RiMicOffLine) — the aria-label/tooltip convention itself
+                  // (isListening-based) is unchanged from before this feature.
+                  <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'}>
+                    <span>
+                      <IconButton
+                        onPointerDown={handleMicPointerDown}
+                        onPointerUp={handleMicPointerUp}
+                        onPointerLeave={handleMicPointerUp}
+                        onPointerCancel={handleMicPointerUp}
+                        onKeyDown={handleMicKeyDown}
+                        onKeyUp={handleMicKeyUp}
+                        disabled={recording?.phase === 'transcribing'}
+                        aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                        color={isListening ? 'secondary' : 'default'}
+                        sx={
+                          isListening && !prefersReducedMotion
+                            ? {
+                                animation: 'ask-lucy-mic-pulse 1.4s ease-in-out infinite',
+                                '@keyframes ask-lucy-mic-pulse': {
+                                  '0%, 100%': { opacity: 1 },
+                                  '50%': { opacity: 0.4 },
+                                },
+                              }
+                            : undefined
+                        }
+                      >
+                        {isRecordingActive ? (
+                          <RiMicFill />
+                        ) : isListening ? (
+                          <RiMicOffLine />
+                        ) : (
+                          <RiMicLine />
+                        )}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                ))}
 
               {composerVisualState === 'empty' && (
                 <>
@@ -492,13 +501,6 @@ export function ChatComposer({
                 />
               </Tooltip>
             )}
-
-          {/* specs/040-composer-interaction-bug-fixes US1 — narrowed from unconditional: this
-              spacer's only remaining job is pushing Send to the trailing edge while typing.
-              'empty' now has its own dedicated spacer (above); 'recording'/'continuous' render
-              nothing after this point today, so an unconditional trailing spacer here had no
-              visible effect for them anyway. */}
-          {composerVisualState === 'typing' && <Box sx={{ flex: 1 }} />}
 
           {composerVisualState === 'typing' && (
             <Tooltip title="Send message">

@@ -131,8 +131,9 @@ When a user hovers over or focuses any button in the composer or its voice contr
 ### Functional Requirements
 
 - **FR-001**: In the empty composer state, the system MUST anchor the attachment control to the leading edge of the control row and the microphone and continuous-conversation-entry controls to the trailing edge.
-- **FR-002**: In the typing composer state, the system MUST display the attachment control and the microphone control alongside the Send control, replacing only the continuous-conversation-entry control.
-- **FR-003**: In the typing composer state, the microphone control MUST remain fully functional (click-to-talk and hold-to-talk), with a transcribed result appended after the existing typed text.
+- **FR-002a**: In the typing composer state while in Push-to-Talk mode (Figure 2), the system MUST display the attachment control at the leading edge, the microphone and Send controls at the trailing edge, with the spacer between the two groups — the continuous-conversation-entry control is hidden.
+- **FR-002b**: In the typing composer state while in Continuous conversation mode (Figure 5), the system MUST display only the attachment control at the leading edge and the Send control at the trailing edge — the microphone control is NOT shown (it is already active in the background).
+- **FR-003**: In the Push-to-Talk typing state, the microphone control MUST remain fully functional (click-to-talk and hold-to-talk), with a transcribed result appended after the existing typed text.
 - **FR-004**: In the recording-review (tap-release-awaiting-confirmation) composer state, the system MUST render the cancel control before the live waveform and the finish control after the live waveform, in that left-to-right order.
 - **FR-005**: In the continuous-conversation idle-listening composer state, the system MUST render a live waveform occupying the leading portion of the control row.
 - **FR-006**: In the continuous-conversation idle-listening composer state, the system MUST anchor the mute and exit controls to the trailing edge of the control row.
