@@ -104,8 +104,14 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
           onCreated={() => setIsReady(true)}
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
-              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI). */}
-          <PerformanceMonitor onDecline={reportPerformanceRegression} />
+              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI).
+              Disabled while BLOOM_TEMPORARILY_DISABLED is true: the only visible
+              difference between tiers is additive vs normal blending, which only
+              matters when bloom is active. Monitoring without bloom causes the sphere
+              to permanently downgrade its blending for no user benefit. */}
+          {!BLOOM_TEMPORARILY_DISABLED && (
+            <PerformanceMonitor onDecline={reportPerformanceRegression} />
+          )}
           <ambientLight intensity={0.6} />
           <ReactiveSphere
             getReactiveIntensity={getReactiveIntensity}
