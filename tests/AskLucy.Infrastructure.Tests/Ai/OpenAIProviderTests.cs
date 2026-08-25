@@ -171,4 +171,25 @@ public sealed class OpenAIProviderTests
 
         result.Should().Be("hello world");
     }
+
+    // specs/040-composer-interaction-bug-fixes US6 T018 — a missing API key must surface as
+    // AiProviderAuthenticationException (→ 502 via ProblemDetailsMiddleware), not as an
+    // ArgumentNullException or NullReferenceException that would reach the generic 500 handler.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task TranscribeAudioAsync_ShouldThrowAiProviderAuthenticationException_WhenApiKeyIsNullOrWhitespace(string? apiKey)
+    {
+        var stubHandler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient("OpenAI").Returns(_ => new HttpClient(stubHandler, disposeHandler: false));
+        var options = Options.Create(new OpenAIOptions { ApiKey = apiKey!, BaseUrl = "https://api.openai.com/v1/" });
+        var provider = new OpenAIProvider(factory, options, Substitute.For<ILogger<OpenAIProvider>>());
+
+        var act = () => TranscribeAsync(provider);
+
+        await act.Should().ThrowAsync<AiProviderAuthenticationException>()
+            .WithMessage("*not configured with an API key*");
+    }
 }

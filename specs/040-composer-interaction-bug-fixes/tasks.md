@@ -121,10 +121,10 @@ existing classified, actionable Problem Details response instead of the generic 
 **Independent Test**: Backend tests confirming both new mappings; optional live check with a
 blanked API key in a lower environment (quickstart.md US6).
 
-- [ ] T016 [US6] In `src/AskLucy.Infrastructure/Ai/OpenAIProvider.cs`, update `CreateClient()` to throw `AiProviderAuthenticationException("The OpenAI provider is not configured with an API key.")` when `_options.ApiKey` is null/whitespace, before constructing the `AuthenticationHeaderValue` (contracts/transcription-error-contract.md).
-- [ ] T017 [US6] In `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`, add a `HttpRequestException` case mapping to the same 502 `ai-provider-unavailable` Problem Details shape as the existing `AiProviderUnavailableException` case, placed before the generic `_ => 500` fallback.
-- [ ] T018 [P] [US6] In `tests/AskLucy.Infrastructure.Tests/Ai/OpenAIProviderTests.cs` (extend, or create if this exact provider isn't yet under test there), add a test asserting a call that reaches `CreateClient()` (e.g. via `TranscribeAudioAsync`) throws `AiProviderAuthenticationException` when `OpenAIOptions.ApiKey` is null/empty.
-- [ ] T019 [P] [US6] In `tests/AskLucy.Web.Tests/Middleware/ProblemDetailsMiddlewareTests.cs`, add a test asserting a bare `HttpRequestException` thrown from an endpoint maps to a 502 response with the `ai-provider-unavailable` problem type.
+- [X] T016 [US6] In `src/AskLucy.Infrastructure/Ai/OpenAIProvider.cs`, update `CreateClient()` to throw `AiProviderAuthenticationException("The OpenAI provider is not configured with an API key.")` when `_options.ApiKey` is null/whitespace, before constructing the `AuthenticationHeaderValue` (contracts/transcription-error-contract.md).
+- [X] T017 [US6] In `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`, add a `HttpRequestException` case mapping to the same 502 `ai-provider-unavailable` Problem Details shape as the existing `AiProviderUnavailableException` case, placed before the generic `_ => 500` fallback.
+- [X] T018 [P] [US6] In `tests/AskLucy.Infrastructure.Tests/Ai/OpenAIProviderTests.cs` (extend, or create if this exact provider isn't yet under test there), add a test asserting a call that reaches `CreateClient()` (e.g. via `TranscribeAudioAsync`) throws `AiProviderAuthenticationException` when `OpenAIOptions.ApiKey` is null/empty.
+- [X] T019 [P] [US6] In `tests/AskLucy.Web.Tests/Middleware/ProblemDetailsMiddlewareTests.cs`, add a test asserting a bare `HttpRequestException` thrown from an endpoint maps to a 502 response with the `ai-provider-unavailable` problem type.
 
 **Checkpoint**: Transcription (and every other OpenAI-backed call) fails loudly and actionably, never silently; ship as its own PR.
 
