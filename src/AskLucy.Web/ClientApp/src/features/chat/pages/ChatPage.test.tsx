@@ -1512,28 +1512,23 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     )
   }
 
-  it('replaying a different reply stops the one currently playing before starting the new one (FR-023)', async () => {
+  it('disables all other reply Replay buttons while TTS is actively speaking — the current manual replay shows Stop (enabled), all others are disabled (FR-021/FR-024)', async () => {
     twoAssistantReplies()
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
-    const stop = vi.spyOn(mockTts, 'stop')
+    vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
     renderConversation(CHAT_A)
     await screen.findByText('First reply')
 
     const replyA = screen.getByText('First reply').closest('.MuiPaper-root') as HTMLElement
     const replyB = screen.getByText('Second reply').closest('.MuiPaper-root') as HTMLElement
 
+    // Start manual replay of A.
     fireEvent.click(within(replyA).getByRole('button', { name: /replay/i }))
-    expect(speak).toHaveBeenCalledWith('First reply', 'en')
-    expect(within(replyA).getByRole('button', { name: /stop/i })).toBeInTheDocument()
-
     mockTts.isSpeaking = true // simulate playback having actually started
-    fireEvent.click(within(replyB).getByRole('button', { name: /replay/i }))
 
-    expect(stop).toHaveBeenCalled()
-    expect(speak).toHaveBeenCalledWith('Second reply', 'en')
-    expect(within(replyB).getByRole('button', { name: /stop/i })).toBeInTheDocument()
-    // A's own control reverted to Replay once B took over.
-    expect(within(replyA).getByRole('button', { name: /replay/i })).toBeInTheDocument()
+    // A's own control shows Stop (FR-024 — always enabled for the active manual replay).
+    expect(within(replyA).getByRole('button', { name: /stop/i })).toBeEnabled()
+    // B's Replay is disabled while Lucy is speaking.
+    expect(within(replyB).getByRole('button', { name: /replay/i })).toBeDisabled()
   })
 
   it('stopping mid-playback reverts the control to Replay, and replaying again restarts from the beginning (FR-025)', async () => {

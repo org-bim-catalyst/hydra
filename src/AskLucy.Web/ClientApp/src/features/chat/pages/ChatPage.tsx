@@ -377,7 +377,7 @@ export function ConversationView({
   // T030 (analysis remediation F1) — a user-initiated replay of a specific reply. Always
   // restarts from the beginning (FR-025) since useVoiceOutput has no resume/seek capability.
   const handleReplay = (message: ChatMessage) => {
-    if (tts.isSpeaking) tts.stop() // FR-023: stop whatever is currently playing first
+    if (tts.isSpeaking) tts.stop() // defensive: buttons are disabled while speaking, but stop any TTS that leaked through
     tts.speak(message.content, language)
     setPlayingMessageId(message.id ?? null)
     setIsManualReplay(true) // F1 — this click is what earns the interactive Stop control
@@ -821,20 +821,17 @@ export function ConversationView({
                           <MessageBubble
                             message={message}
                             chatId={chatId}
-                            // Post-implementation correctness fix — FR-023 requires that
-                            // clicking a DIFFERENT reply's Replay while one is already
-                            // playing be possible (it explicitly says doing so "MUST stop
-                            // any other reply currently playing," which is unreachable if
-                            // every non-playing reply's button were disabled the moment
-                            // anything starts). Only THIS message's own auto-speak
-                            // (FR-021 — playing but not user-initiated) disables its own
-                            // button; a message that is itself the current manual replay
-                            // never reaches this prop at all (showStopIcon renders Stop
-                            // instead, unconditionally enabled per FR-024).
+                            // All replay buttons are disabled while Lucy is actively
+                            // speaking — whether TTS (isSpeaking) or continuous mode
+                            // (isListening covers every non-Idle state including AiSpeaking).
+                            // The current manual-replay message shows a Stop button via
+                            // showStopIcon (always enabled, FR-024) and is therefore never
+                            // reached by isReplayDisabled at all.
                             showStopIcon={message.id === playingMessageId && isManualReplay}
                             isReplayDisabled={
                               !message.id ||
                               voiceControlsProps.isListening ||
+                              voiceControlsProps.isSpeaking ||
                               (message.id === playingMessageId && !isManualReplay)
                             }
                             onReplay={handleReplay}
