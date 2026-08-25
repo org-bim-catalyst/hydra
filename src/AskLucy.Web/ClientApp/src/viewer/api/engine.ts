@@ -1,5 +1,5 @@
 import type { OverlayInput, RenderLayerInput } from './layers'
-import type { CameraViewMode, ViewerCommandResult } from './commands'
+import type { CameraViewMode, MapStyleId, ViewerCommandResult } from './commands'
 import type { ViewerEventHandler, ViewerEventType } from './events'
 
 /** contracts/viewer-engine-api.md — the viewer's public command/event facade. Implemented by
@@ -13,6 +13,7 @@ export interface IViewerEngine {
   setLayerVisibility(layerId: string, visible: boolean): ViewerCommandResult
   zoomToLocation(latitude: number, longitude: number, zoom?: number): ViewerCommandResult
   setViewMode(mode: CameraViewMode): ViewerCommandResult
+  setMapStyle(mapStyle: MapStyleId): ViewerCommandResult
   setRotationEnabled(enabled: boolean): ViewerCommandResult
   select(layerId: string, elementId: string): ViewerCommandResult
   clearSelection(): ViewerCommandResult

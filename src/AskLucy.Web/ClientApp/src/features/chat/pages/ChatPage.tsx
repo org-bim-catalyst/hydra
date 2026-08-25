@@ -43,6 +43,7 @@ import {
   navigationControl,
   selectionControl,
   useAccountControl,
+  useMapStyleControl,
   useViewModeControl,
 } from '../workspaceControls'
 import { EmptyState } from '../../../components/EmptyState'
@@ -101,6 +102,9 @@ export function ChatPage() {
   // functional in this feature; layers/navigation/selection/analysis are established,
   // reachable "coming soon" placeholders (FR-021).
   const viewModeControl = useViewModeControl()
+  // Map/GIS content mode's ROADMAP/SATELLITE/HYBRID switcher — functional, unlike the other
+  // right-stack "coming soon" placeholders below (layers/navigation/selection/analysis).
+  const mapStyleControl = useMapStyleControl()
   // specs/027-immersive-viewer-platform FR-006: a single geolocation subscription, shared by
   // ViewerSurface (the map/GIS content mode) and LocationWeatherWidget, rather than each
   // opening its own redundant navigator.geolocation.watchPosition.
@@ -175,6 +179,7 @@ export function ChatPage() {
 
   const workspaceControls = [
     viewModeControl,
+    mapStyleControl,
     layersControl,
     navigationControl,
     selectionControl,

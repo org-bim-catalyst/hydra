@@ -505,6 +505,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
       'Account',
       'View mode',
+      'Map style',
       'Layers',
       'Navigation',
       'Selection',
@@ -566,6 +567,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       renderChatPage()
       for (const label of [
         'View mode',
+        'Map style',
         'Layers',
         'Navigation',
         'Selection',
