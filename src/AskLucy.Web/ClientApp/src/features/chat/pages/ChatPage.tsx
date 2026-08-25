@@ -603,11 +603,13 @@ export function ConversationView({
         : 'idle'
   const analyzerIntensity = tts.isSpeaking
     ? tts.getIntensity
-    : isContinuousEngaged
+    : isContinuousSpeaking
       ? conversationAudio.getReactiveIntensity
-      : isPushToTalkRecording
-        ? recorder.getIntensity
-        : () => 0
+      : isContinuousEngaged
+        ? conversationAudio.getMicIntensity
+        : isPushToTalkRecording
+          ? recorder.getIntensity
+          : () => 0
 
   // specs/029-fix-chat-widget-bugs research.md Decision 5a — merges the former separate
   // "mute Lucy's speaker output" and "stop the reply she's currently speaking" actions into
@@ -733,7 +735,7 @@ export function ConversationView({
               message list and composer stay visible and usable around it (FR-015/FR-016) —
               unlike the removed full-screen ContinuousVoiceView takeover this replaces. */}
           {isContinuousActive && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+            <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 2 }}>
               <Box sx={{ width: 96, height: 96, borderRadius: '50%', overflow: 'hidden' }}>
                 <LucyPortrait variant="auth" alt="Lucy" />
               </Box>
@@ -758,7 +760,7 @@ export function ConversationView({
 
           <Box
             ref={listParentRef}
-            sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default' }}
+            sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default', display: isContinuousActive ? 'none' : undefined }}
           >
             <Box sx={{ maxWidth: 800, mx: 'auto' }}>
               {chatId === null ? (
