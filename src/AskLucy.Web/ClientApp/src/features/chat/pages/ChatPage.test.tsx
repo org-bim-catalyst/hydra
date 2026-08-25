@@ -1566,13 +1566,11 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
       ),
     )
     // Auto-speak only fires on a streaming→not-streaming transition (wasStreamingRef), which
-    // this persisted-history render path doesn't traverse — instead, directly exercise the
-    // same isManualReplay=false state a real auto-speak would leave behind, by replaying then
-    // asserting the *disabled-while-muted* half of F1's contract holds regardless: replay a
-    // reply, then mute — its own Stop control must stay enabled (FR-024 is unconditional),
-    // but a *different*, not-yet-played reply must show disabled+Replay while muted (F1's
-    // "never shows an unearned Stop" guarantee is covered directly in MessageBubble.test.tsx;
-    // this test covers the ChatPage-level isMutedPreference wiring, F2's sibling concern).
+    // this persisted-history render path doesn't traverse — instead, directly verify the
+    // same isManualReplay=false state a real auto-speak would leave behind. The "never shows
+    // an unearned Stop" guarantee (FR-021) is covered directly in MessageBubble.test.tsx;
+    // F2's sibling concern (Replay disabled while a Push-to-Talk recording is active) lives
+    // in the "Push-to-Talk recording review" describe block below.
     renderConversation(CHAT_A)
     const reply = (await screen.findByText('Auto-spoken reply')).closest(
       '.MuiPaper-root',
@@ -1580,7 +1578,7 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     expect(within(reply).getByRole('button', { name: /replay/i })).toBeInTheDocument()
   })
 
-  it("disables every reply's Replay control while audio is muted (F1/FR-021)", async () => {
+  it("keeps every reply's Replay control enabled while muted — audio plays silently at gain 0 until unmuted (F1/FR-021)", async () => {
     twoAssistantReplies()
     useVoicePreferencesStore.setState({ isMuted: true })
     // useVoicePreferencesQuery syncs whatever getVoicePreferences resolves to back into the
@@ -1603,8 +1601,8 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
 
     const replyA = screen.getByText('First reply').closest('.MuiPaper-root') as HTMLElement
     const replyB = screen.getByText('Second reply').closest('.MuiPaper-root') as HTMLElement
-    expect(within(replyA).getByRole('button', { name: /replay/i })).toBeDisabled()
-    expect(within(replyB).getByRole('button', { name: /replay/i })).toBeDisabled()
+    expect(within(replyA).getByRole('button', { name: /replay/i })).toBeEnabled()
+    expect(within(replyB).getByRole('button', { name: /replay/i })).toBeEnabled()
   })
 
   // F2 and E4's coverage requiring an actual Push-to-Talk recording (fake MediaRecorder/
