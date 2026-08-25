@@ -970,3 +970,62 @@ describe('ChatComposer — attach-file format dispatch (specs/031-voice-controls
     expect(getFileInput(container)).toHaveAttribute('accept', '.pdf,.csv,audio/*')
   })
 })
+
+// specs/040-composer-interaction-bug-fixes US3 — tap-review row DOM order must be cancel →
+// waveform → finish (Figure 3). Previously both buttons trailed the waveform. Both controls
+// must remain behaviorally correct after the reorder.
+describe('ChatComposer — tap-review button order (specs/040 US3 — T009)', () => {
+  // Mirrors the startThenResolveAsRecording helper in the tap-to-record describe block above:
+  // simulates the parent responding to onStartCapture by updating isListening + recording props,
+  // then pointerUp resolves as a tap (<350ms held) and sets isAwaitingTapReview=true.
+  function enterTapReview(onFinish = vi.fn(), onCancelRecording = vi.fn()) {
+    const { props, rerender } = renderComposer({ isListening: false })
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micButton)
+    rerender(
+      <ChatComposer
+        {...baseProps()}
+        isListening
+        onStartCapture={props.onStartCapture}
+        onStopCapture={props.onStopCapture}
+        onClearCaptureError={props.onClearCaptureError}
+        recording={{ phase: 'recording', getIntensity: () => 0, onFinish, onCancelRecording }}
+      />,
+    )
+    // No timer advancement — heldMs < HOLD_THRESHOLD_MS → resolves as tap review.
+    fireEvent.pointerUp(screen.getByRole('button', { name: MIC_BUTTON_NAME }))
+    return { props }
+  }
+
+  it('tap-review row DOM order is cancel → waveform → finish (Figure 3)', () => {
+    enterTapReview()
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel recording/i })
+    const finishBtn = screen.getByRole('button', { name: /finished speaking/i })
+    const waveform = screen.getByRole('img', { name: /voice status/i })
+
+    // DOCUMENT_POSITION_FOLLOWING (4): the argument node comes after the reference node.
+    const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING
+    expect(cancelBtn.compareDocumentPosition(waveform) & FOLLOWING).toBe(FOLLOWING)
+    expect(waveform.compareDocumentPosition(finishBtn) & FOLLOWING).toBe(FOLLOWING)
+  })
+
+  it('tap-review Finish click calls onStopCapture (US3 behavioral regression)', () => {
+    const { props } = enterTapReview()
+
+    fireEvent.click(screen.getByRole('button', { name: /finished speaking/i }))
+
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+  })
+
+  it('tap-review Cancel click calls recording.onCancelRecording and not onStopCapture (US3 behavioral regression)', () => {
+    const onCancelRecording = vi.fn()
+    const { props } = enterTapReview(vi.fn(), onCancelRecording)
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel recording/i }))
+
+    expect(onCancelRecording).toHaveBeenCalledTimes(1)
+    expect(props.onStopCapture).not.toHaveBeenCalled()
+  })
+})
