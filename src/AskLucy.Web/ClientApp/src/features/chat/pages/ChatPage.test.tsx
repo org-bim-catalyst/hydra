@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -1523,7 +1523,13 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
 
     // Start manual replay of A.
     fireEvent.click(within(replyA).getByRole('button', { name: /replay/i }))
-    mockTts.isSpeaking = true // simulate playback having actually started
+    // Plain object mutation doesn't trigger React's render cycle. Toggle a store value inside
+    // act() so React flushes a re-render that reads the updated isSpeaking from the mock.
+    act(() => {
+      mockTts.isSpeaking = true
+      useVoicePreferencesStore.setState({ isMuted: true })
+      useVoicePreferencesStore.setState({ isMuted: false })
+    })
 
     // A's own control shows Stop (FR-024 — always enabled for the active manual replay).
     expect(within(replyA).getByRole('button', { name: /stop/i })).toBeEnabled()
@@ -1543,8 +1549,20 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root') as HTMLElement
 
     fireEvent.click(within(reply).getByRole('button', { name: /replay/i }))
-    mockTts.isSpeaking = true
+    // Force re-render so isSpeaking is visible (plain mutation alone doesn't trigger React).
+    act(() => {
+      mockTts.isSpeaking = true
+      useVoicePreferencesStore.setState({ isMuted: true })
+      useVoicePreferencesStore.setState({ isMuted: false })
+    })
     fireEvent.click(within(reply).getByRole('button', { name: /stop/i }))
+    // handleStopReplay calls tts.stop() — in real TTS, stop() clears isSpeaking. Simulate that
+    // and force another re-render so the Replay button becomes enabled before the second click.
+    act(() => {
+      mockTts.isSpeaking = false
+      useVoicePreferencesStore.setState({ isMuted: true })
+      useVoicePreferencesStore.setState({ isMuted: false })
+    })
 
     expect(stop).toHaveBeenCalledTimes(1)
     expect(within(reply).getByRole('button', { name: /replay/i })).toBeInTheDocument()
