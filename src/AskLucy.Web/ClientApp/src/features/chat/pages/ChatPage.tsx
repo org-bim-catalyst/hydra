@@ -834,6 +834,11 @@ export function ConversationView({
             onToggleMode={voiceControlsProps.onToggleMode}
             recording={voiceControlsProps.recording}
             voicePreferencesUnavailable={voicePreferencesQuery.isError}
+            continuousAnalyzer={
+              conversationMode === 'Continuous'
+                ? { state: analyzerState, getIntensity: analyzerIntensity }
+                : undefined
+            }
           />
           <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
             <Alert
