@@ -335,7 +335,7 @@ export function ChatComposer({
             composerVisualState === 'typing') && (
             <>
               {(composerVisualState === 'empty' || composerVisualState === 'typing') && (
-                <Tooltip title="Attach file">
+                <Tooltip title="Attach file" placement="bottom">
                   <IconButton
                     onClick={() => fileInputRef.current?.click()}
                     aria-label="Attach file"
@@ -377,7 +377,7 @@ export function ChatComposer({
                     phase={recording.phase}
                     onFinish={handleTapReviewFinish}
                     onCancelRecording={handleTapReviewCancel}
-                    placement="right"
+                    placement="bottom"
                     middle={
                       recording.phase === 'recording' ? (
                         <Box sx={{ flex: 1 }}>
@@ -392,7 +392,7 @@ export function ChatComposer({
                   // recording is currently active (RiMicFill, FR-009/Figure 9) or idle
                   // (RiMicLine/RiMicOffLine) — the aria-label/tooltip convention itself
                   // (isListening-based) is unchanged from before this feature.
-                  <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'}>
+                  <Tooltip title={isListening ? 'Stop voice input' : 'Start voice input'} placement="bottom">
                     <span>
                       <IconButton
                         onPointerDown={handleMicPointerDown}
@@ -434,7 +434,7 @@ export function ChatComposer({
                       (one-click hybrid) — reuses the same onToggleMode the exit action (below,
                       Continuous branch) calls; the caller pairs it with onStartCapture and the
                       persisted-preference save. */}
-                  <Tooltip title="Start continuous conversation">
+                  <Tooltip title="Start continuous conversation" placement="bottom">
                     <IconButton
                       onClick={onToggleMode}
                       aria-label="Start continuous conversation"
@@ -450,7 +450,7 @@ export function ChatComposer({
                       fired on every chat load. Deliberately just an icon + tooltip, not a
                       dismiss-and-forget banner. */}
                   {voicePreferencesUnavailable && (
-                    <Tooltip title="Using default voice settings — couldn't load your saved preferences">
+                    <Tooltip title="Using default voice settings — couldn't load your saved preferences" placement="bottom">
                       <RiErrorWarningLine
                         aria-label="Voice preferences unavailable, using defaults"
                         role="img"
@@ -473,7 +473,7 @@ export function ChatComposer({
                   getIntensity={continuousAnalyzer?.getIntensity ?? (() => 0)}
                 />
               </Box>
-              <Tooltip title={isListening ? 'Mute microphone' : 'Unmute microphone'}>
+              <Tooltip title={isListening ? 'Mute microphone' : 'Unmute microphone'} placement="bottom">
                 <IconButton
                   onClick={handleToggleContinuousMute}
                   aria-label={isListening ? 'Mute microphone' : 'Unmute microphone'}
@@ -493,7 +493,7 @@ export function ChatComposer({
                   {isListening ? <RiMicOffLine /> : <RiMicLine />}
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Exit continuous conversation">
+              <Tooltip title="Exit continuous conversation" placement="bottom">
                 <IconButton onClick={onToggleMode} aria-label="Exit continuous conversation">
                   <RiStopLine />
                 </IconButton>
@@ -504,7 +504,7 @@ export function ChatComposer({
           {composerVisualState !== 'recording' &&
             voicePreferencesUnavailable &&
             composerVisualState !== 'empty' && (
-              <Tooltip title="Using default voice settings — couldn't load your saved preferences">
+              <Tooltip title="Using default voice settings — couldn't load your saved preferences" placement="bottom">
                 <RiErrorWarningLine
                   aria-label="Voice preferences unavailable, using defaults"
                   role="img"
@@ -515,7 +515,7 @@ export function ChatComposer({
             )}
 
           {composerVisualState === 'typing' && (
-            <Tooltip title="Send message">
+            <Tooltip title="Send message" placement="bottom">
               {/* MUI Tooltip cannot attach directly to a disabled element — same
                   <span> wrapper pattern already used above for the recording indicator. */}
               <span>

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { describe, expect, it, vi } from 'vitest'
 import { RecordingReviewControls } from './RecordingReviewControls'
@@ -85,6 +86,31 @@ describe('RecordingReviewControls — render order (specs/040 US3 — T008)', ()
     )
     fireEvent.click(screen.getByRole('button', { name: /finished speaking/i }))
     expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+})
+
+// specs/040-composer-interaction-bug-fixes US7 T023 — every button tooltip must appear
+// below its button (placement="bottom"). The default changed from "right" to "bottom" in
+// this story. MUI renders tooltip content into a portal with role="tooltip" on hover;
+// jsdom's Popper.js cannot compute layout so data-popper-placement is unavailable, but
+// the tooltip content's presence confirms placement="bottom" did not break tooltip display.
+describe('RecordingReviewControls — bottom tooltip placement (specs/040 US7 — T023)', () => {
+  it('cancel tooltip appears on hover and contains the expected label (T023)', async () => {
+    const user = userEvent.setup()
+    render(
+      <RecordingReviewControls phase="recording" onFinish={vi.fn()} onCancelRecording={vi.fn()} />,
+    )
+    await user.hover(screen.getByRole('button', { name: /cancel recording/i }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Cancel recording')
+  })
+
+  it('finish tooltip appears on hover and contains the expected label (T023)', async () => {
+    const user = userEvent.setup()
+    render(
+      <RecordingReviewControls phase="recording" onFinish={vi.fn()} onCancelRecording={vi.fn()} />,
+    )
+    await user.hover(screen.getByRole('button', { name: /finished speaking/i }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Finished speaking')
   })
 })
 

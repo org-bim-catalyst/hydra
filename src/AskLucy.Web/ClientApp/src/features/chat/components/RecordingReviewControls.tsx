@@ -9,8 +9,7 @@ export interface RecordingReviewControlsProps {
   /** Optional content to render between cancel and finish (e.g. the live waveform in the
    * `ChatComposer` tap-review row — specs/040 US3). `CollapsedVoiceControls` omits this. */
   middle?: React.ReactNode
-  /** `'right'` for `CollapsedVoiceControls`; `'left'` for older callers; `'bottom'` for the
-   * `ChatComposer` tap-review row (specs/040 US7 will normalise everything to `'bottom'`). */
+  /** Tooltip placement — defaults to `'bottom'` (specs/040 US7 normalises all composer/voice-control tooltips). */
   placement?: 'left' | 'right' | 'bottom'
 }
 
@@ -31,7 +30,7 @@ export function RecordingReviewControls({
   onFinish,
   onCancelRecording,
   middle,
-  placement = 'right',
+  placement = 'bottom',
 }: RecordingReviewControlsProps) {
   if (phase === 'idle') return null
 
