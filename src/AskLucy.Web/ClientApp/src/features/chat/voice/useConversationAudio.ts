@@ -103,6 +103,12 @@ export function useConversationAudio({
         },
       })
 
+      // Wait for all buffered audio to drain before tearing down the graph. Without this,
+      // reset() would pause the audio element mid-sentence because the SSE stream closes
+      // before real-time playback finishes — every audio chunk was delivered but not yet
+      // played. The pause listener inside waitForPlaybackComplete also unblocks if reset()
+      // is called by stop() first (abort path), so this never hangs on a cancelled turn.
+      await analyzer.waitForPlaybackComplete()
       onAssistantTurnComplete()
       analyzer.reset()
       recognitionSetInputMutedRef.current(false) // Lucy's done speaking — resume normal listening.

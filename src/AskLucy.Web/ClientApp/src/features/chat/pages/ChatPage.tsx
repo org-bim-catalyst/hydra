@@ -478,11 +478,11 @@ export function ConversationView({
   // while recording/listening."
   // specs/040 US5 — tracks a deferred Continuous-mode start: set when handleStartCapture is
   // called in Continuous mode but the IDs aren't ready yet; cleared when the turn actually
-  // starts (useEffect below) or when the user exits Continuous mode. This is intentionally
-  // NOT set on app load with Continuous already saved — only an explicit user action
-  // (handleToggleMode → handleStartCapture) arms it, preserving FR-008's no-auto-start-on-load
-  // invariant and the C1 save-failure guard.
-  const pendingContinuousStartRef = useRef(false)
+  // starts (useEffect below) or when the user exits Continuous mode.
+  // Also arms on page load when Continuous is already persisted: the preference is already
+  // saved at that point, so the C1 save-failure rollback guard that originally prevented
+  // auto-start on load does not apply — the preference cannot roll back mid-load.
+  const pendingContinuousStartRef = useRef(conversationMode === 'Continuous')
 
   const handleStartCapture = () => {
     if (playingMessageId !== null && isManualReplay) handleStopReplay()
