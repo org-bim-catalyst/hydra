@@ -801,6 +801,41 @@ describe('ChatComposer — state-dependent action visibility (US1, FR-001/FR-002
   })
 })
 
+// specs/040-composer-interaction-bug-fixes US1, FR-001 — the attachment button must anchor the
+// leading edge and mic/continuous-conversation-entry must anchor the trailing edge (Figure 1),
+// not all three cluster together at the left with empty space after them.
+describe('ChatComposer — empty-state button anchoring (specs/040 US1, FR-001)', () => {
+  it('renders attach before mic before continuous-conversation entry, in that DOM order', () => {
+    renderComposer()
+    const buttons = screen.getAllByRole('button')
+    const attachIndex = buttons.findIndex((b) =>
+      /attach file/i.test(b.getAttribute('aria-label') ?? ''),
+    )
+    const micIndex = buttons.findIndex((b) =>
+      MIC_BUTTON_NAME.test(b.getAttribute('aria-label') ?? ''),
+    )
+    const continuousIndex = buttons.findIndex((b) =>
+      /start continuous conversation/i.test(b.getAttribute('aria-label') ?? ''),
+    )
+    expect(attachIndex).toBeGreaterThanOrEqual(0)
+    expect(micIndex).toBeGreaterThan(attachIndex)
+    expect(continuousIndex).toBeGreaterThan(micIndex)
+  })
+
+  it('places a flex spacer between the attach button and the mic/continuous-entry group', () => {
+    const { container } = renderComposer()
+    const attachButton = screen.getByRole('button', { name: /attach file/i })
+    // The dedicated spacer is the attach button's next sibling in the control row — anything
+    // else there (e.g. the mic button directly) would mean the spacer regressed to sitting
+    // elsewhere (or being removed), reintroducing the left-clustering bug.
+    const row = attachButton.closest('.MuiStack-root') ?? container
+    const spacer = attachButton.nextElementSibling
+    expect(row.contains(spacer)).toBe(true)
+    expect(spacer).not.toBeNull()
+    expect(spacer?.matches('button')).toBe(false)
+  })
+})
+
 describe('ChatComposer — microphone permission (US2, FR-009)', () => {
   it('surfaces a visible, specific error when capture fails, instead of failing silently', () => {
     renderComposer({ captureError: 'Microphone access was denied.' })
