@@ -104,12 +104,22 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
 
         foreach (var tableName in tableNames)
         {
+            // tableName is a SQL identifier (schema-qualified table name) sourced solely from EF
+            // Core's own compiled model metadata above, never from external/user input, and SQL
+            // Server has no way to parameterize an identifier (ExecuteSqlAsync/
+            // ExecuteSqlInterpolatedAsync parameterize data values, not identifiers, so switching
+            // to them here would either throw or produce broken SQL) — safe to suppress.
+#pragma warning disable EF1002
             await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE {tableName} NOCHECK CONSTRAINT ALL");
+#pragma warning restore EF1002
         }
 
         foreach (var tableName in tableNames)
         {
+            // Same as above: tableName is an EF-model-derived SQL identifier, not a data value.
+#pragma warning disable EF1002
             await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM {tableName}");
+#pragma warning restore EF1002
         }
 
         // Deliberately "CHECK CONSTRAINT" (re-arm future enforcement), not "WITH CHECK CHECK
@@ -123,10 +133,37 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
         // every table ends this method empty either way.
         foreach (var tableName in tableNames)
         {
+            // Same as above: tableName is an EF-model-derived SQL identifier, not a data value.
+#pragma warning disable EF1002
             await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE {tableName} CHECK CONSTRAINT ALL");
+#pragma warning restore EF1002
+        }
+
+        // Rebuild every full-text catalog after the data wipe. Because all tables are now empty
+        // the rebuild is near-instant (nothing to re-index). Without this, the FTS change-tracking
+        // log can accumulate a large pending-changes backlog across repeated INSERT→DELETE cycles
+        // from successive test runs, which causes the async background population to fall behind
+        // the 10-second SC-003 poll window and flake. The same catalogs were found broken on
+        // 2026-08-18 and 2026-08-25 — both times fixed by a manual REBUILD against the shared
+        // test DB; doing it here prevents the next occurrence without manual intervention.
+        foreach (var catalog in new[] { "PromptSearchCatalog", "ConversationSearchCatalog", "RetrievalFullTextCatalog" })
+        {
+#pragma warning disable EF1002
+            await dbContext.Database.ExecuteSqlRawAsync($"ALTER FULLTEXT CATALOG {catalog} REBUILD");
+#pragma warning restore EF1002
         }
     }
 
+    // CA1822 suggests making this static, since it only calls the (already-static)
+    // ResolveConnectionString() helper and doesn't touch instance state. Deliberately left as an
+    // instance method: every test in this project calls it as `fixture.CreateDbContext()` off the
+    // xUnit collection-fixture instance injected into each test class's constructor (108 call
+    // sites across every file in this project) — switching to static would force every one of
+    // those call sites to `PersistenceTestFixture.CreateDbContext()` (CS0176 is a hard compiler
+    // error, not a warning, for an instance-style call to a static member) purely to satisfy an
+    // analyzer, with no behavioral benefit and a large, purely-mechanical diff across the whole
+    // suite.
+#pragma warning disable CA1822
     public AskLucyDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AskLucyDbContext>()
@@ -135,6 +172,7 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
 
         return new AskLucyDbContext(options, new Base64MemoryContentProtector());
     }
+#pragma warning restore CA1822
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
