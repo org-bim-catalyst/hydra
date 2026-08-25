@@ -763,9 +763,10 @@ export function ConversationView({
             sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default', display: isContinuousActive ? 'none' : undefined }}
           >
             <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-              {chatId === null ? (
+              {chatId === null && !isContinuousActive ? (
                 // FR-001: this placeholder is reserved for "no conversation selected" only — it
-                // must never be the fallback for a selected conversation that's loading/erroring.
+                // must never be the fallback for a selected conversation that's loading/erroring,
+                // and must not appear during continuous conversation mode.
                 <Box sx={{ mt: 6 }}>
                   <EmptyState
                     icon={<RiChat3Line size="1em" />}
