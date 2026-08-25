@@ -6,11 +6,12 @@ export interface RecordingReviewControlsProps {
   phase: RecordingPhase
   onFinish: () => void
   onCancelRecording: () => void
-  /** `'row'` for the Expanded panel's `ChatComposer` (specs/029-fix-chat-widget-bugs
-   * research.md Decision 5 — previously `VoiceControlBar`'s horizontal layout, now
-   * retired); the Collapsed vertical stack supplies its own `Stack` wrapper and doesn't
-   * need this component to add spacing. */
-  placement?: 'left' | 'right'
+  /** Optional content to render between cancel and finish (e.g. the live waveform in the
+   * `ChatComposer` tap-review row — specs/040 US3). `CollapsedVoiceControls` omits this. */
+  middle?: React.ReactNode
+  /** `'right'` for `CollapsedVoiceControls`; `'left'` for older callers; `'bottom'` for the
+   * `ChatComposer` tap-review row (specs/040 US7 will normalise everything to `'bottom'`). */
+  placement?: 'left' | 'right' | 'bottom'
 }
 
 /**
@@ -21,11 +22,15 @@ export interface RecordingReviewControlsProps {
  * research.md #10 (specs/026). Finish now stops and transcribes in one step — there is no
  * longer a separate manual "send for transcription" control between recording and the
  * transcript landing in the message field.
+ *
+ * specs/040 US3: render order is cancel → middle → finish (Figure 3), so the waveform
+ * straddles the two controls rather than both buttons trailing the waveform.
  */
 export function RecordingReviewControls({
   phase,
   onFinish,
   onCancelRecording,
+  middle,
   placement = 'right',
 }: RecordingReviewControlsProps) {
   if (phase === 'idle') return null
@@ -48,8 +53,9 @@ export function RecordingReviewControls({
 
   return (
     <>
-      {finish}
       {cancel}
+      {middle}
+      {finish}
     </>
   )
 }
