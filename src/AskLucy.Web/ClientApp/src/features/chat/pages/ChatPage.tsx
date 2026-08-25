@@ -476,6 +476,14 @@ export function ConversationView({
   // separate raw call) — covers all three entry points click-to-talk/hold-to-talk/continuous-
   // conversation. Stops an in-progress manual replay first, symmetric to F2's "replay disabled
   // while recording/listening."
+  // specs/040 US5 — tracks a deferred Continuous-mode start: set when handleStartCapture is
+  // called in Continuous mode but the IDs aren't ready yet; cleared when the turn actually
+  // starts (useEffect below) or when the user exits Continuous mode. This is intentionally
+  // NOT set on app load with Continuous already saved — only an explicit user action
+  // (handleToggleMode → handleStartCapture) arms it, preserving FR-008's no-auto-start-on-load
+  // invariant and the C1 save-failure guard.
+  const pendingContinuousStartRef = useRef(false)
+
   const handleStartCapture = () => {
     if (playingMessageId !== null && isManualReplay) handleStopReplay()
     // Reads the live store value rather than the closed-over `conversationMode` — this is
@@ -486,6 +494,9 @@ export function ConversationView({
       void recorder.start()
     } else if (chatId && providerId && modelId) {
       void conversationAudio.startTurn()
+    } else {
+      // IDs not ready — arm the retry effect so it fires once they all become available.
+      pendingContinuousStartRef.current = true
     }
   }
 
@@ -512,11 +523,32 @@ export function ConversationView({
       if (!expanded) toggleWorkspaceControl('chat')
       handleStartCapture()
     } else {
+      pendingContinuousStartRef.current = false
       conversationAudio.cancelListening()
       void queryClient.invalidateQueries({ queryKey: ['chats', chatId, 'messages'] })
       void updateConversationMode({ conversationMode: 'PushToTalk' })
     }
   }
+
+  // specs/040-composer-interaction-bug-fixes US5 — deferred Continuous-mode start.
+  // Only fires startTurn() when handleStartCapture previously armed the ref (i.e. the user
+  // explicitly entered Continuous mode but IDs weren't ready yet). Intentionally does NOT
+  // fire when the page loads with Continuous already persisted (ref stays false), preserving
+  // FR-008's no-auto-start-on-load invariant and the C1 save-failure rollback guard.
+  useEffect(() => {
+    if (
+      pendingContinuousStartRef.current &&
+      conversationMode === 'Continuous' &&
+      chatId &&
+      providerId &&
+      modelId &&
+      conversationAudio.voiceState === 'Idle'
+    ) {
+      pendingContinuousStartRef.current = false
+      void conversationAudio.startTurn()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationMode, chatId, providerId, modelId, conversationAudio.voiceState])
 
   // specs/026-floating-chat-assistant FR-006/research.md #9: the expand handle lives inside
   // `CollapsedChatControl`; this ref lets the Escape handler below move focus back to it once

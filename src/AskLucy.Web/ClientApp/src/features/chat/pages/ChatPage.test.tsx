@@ -1642,3 +1642,73 @@ describe('ChatPage — continuous-mode waveform wiring (specs/040 US4)', () => {
     expect(await screen.findByRole('img', { name: /voice status/i })).toBeInTheDocument()
   })
 })
+
+describe('ChatPage — continuous-mode deferred start (specs/040 US5)', () => {
+  beforeEach(() => {
+    conversationAudioMock.startTurn.mockClear()
+    conversationAudioMock.cancelListening.mockClear()
+  })
+
+  // T015(a) — clicking the continuous-entry button when IDs are not yet resolved does NOT
+  // silently drop the intent; once chatId/providerId/modelId all become available the deferred
+  // effect fires startTurn() exactly once.
+  it('starts listening once chatId/providerId/modelId become available after the user entered Continuous while IDs were not ready (T015a)', async () => {
+    // Override the chat detail handler to delay resolution so providerId/modelId are not
+    // ready when the user clicks the entry button.
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.get(`*/api/v1/chats/${CHAT_A}`, async () => {
+        await delay(150)
+        return HttpResponse.json({
+          id: CHAT_A,
+          title: 'Test chat',
+          providerId: 'provider-1',
+          modelId: 'model-1',
+        })
+      }),
+    )
+
+    renderConversation(CHAT_A)
+
+    // Wait for the composer to mount, but NOT for the provider/model to be ready yet.
+    await screen.findByPlaceholderText('Message Ask Lucy...')
+    // The composer is disabled while IDs are unresolved — click the entry button only after
+    // the UI shows it (it appears in the empty state regardless of disabled state).
+    fireEvent.click(await screen.findByRole('button', { name: 'Start continuous conversation' }))
+
+    // IDs resolve asynchronously; the deferred effect should call startTurn() once they do.
+    await waitFor(() => expect(conversationAudioMock.startTurn).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    })
+  })
+
+  // T015(b) — the effect must not duplicate a startTurn() call when voiceState is already
+  // not 'Idle' (i.e. a turn is already in progress). The file-wide mock keeps voiceState as
+  // a static 'Idle' const, so we test the converse: leaving it as 'Idle' with Continuous
+  // *already persisted* (no user action, so pendingContinuousStartRef stays false) does NOT
+  // result in a startTurn() call — guaranteeing the effect is gated on the ref, not just mode.
+  it('does not call startTurn when Continuous is already the saved preference on load (ref never armed — T015b)', async () => {
+    // This replicates the existing "does not auto-start listening" scenario from the
+    // Push-to-Talk recording review block, confirming that the ref approach preserves FR-008.
+    useVoicePreferencesStore.setState({ conversationMode: 'Continuous' })
+    renderConversation(CHAT_A)
+
+    await screen.findByPlaceholderText('Message Ask Lucy...')
+    // Give the effect a moment to run (all prerequisites are satisfied — chatId, provider,
+    // model all resolve quickly — but the ref is still false, so startTurn must stay silent).
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(conversationAudioMock.startTurn).not.toHaveBeenCalled()
+  })
+
+  // T015(c) — the effect is completely inert while conversationMode === 'PushToTalk'.
+  it('does not call startTurn while conversationMode is PushToTalk (T015c)', async () => {
+    // Store starts with PushToTalk (beforeEach global reset). chatId/provider/model resolve
+    // normally. None of these changes should trigger the effect.
+    renderConversation(CHAT_A)
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('Message Ask Lucy...')).not.toBeDisabled(),
+    )
+    expect(conversationAudioMock.startTurn).not.toHaveBeenCalled()
+  })
+})

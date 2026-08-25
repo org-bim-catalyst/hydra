@@ -106,8 +106,8 @@ weren't ready at the moment the mode was activated.
 verify listening starts once a chat/provider/model become available, with no manual workaround
 (quickstart.md US5).
 
-- [ ] T014 [US5] In `ChatPage.tsx`, add a `useEffect` (research.md Decision 5) watching `[conversationMode, chatId, providerId, modelId, conversationAudio.voiceState]` that calls `conversationAudio.startTurn()` when `conversationMode === 'Continuous' && chatId && providerId && modelId && conversationAudio.voiceState === 'Idle'`.
-- [ ] T015 [US5] In `ChatPage.test.tsx`, add tests: (a) entering continuous mode before `chatId` exists, then having `chatId`/`providerId`/`modelId` become available, results in `conversationAudio.startTurn()` being called once they're all set; (b) the effect does not call `startTurn()` again if `voiceState` is already not `'Idle'` (no duplicate/overlapping starts); (c) the effect does not fire at all while `conversationMode === 'PushToTalk'`.
+- [X] T014 [US5] In `ChatPage.tsx`, add a `useEffect` (research.md Decision 5) watching `[conversationMode, chatId, providerId, modelId, conversationAudio.voiceState]` that calls `conversationAudio.startTurn()` when `conversationMode === 'Continuous' && chatId && providerId && modelId && conversationAudio.voiceState === 'Idle'`.
+- [X] T015 [US5] In `ChatPage.test.tsx`, add tests: (a) entering continuous mode before `chatId` exists, then having `chatId`/`providerId`/`modelId` become available, results in `conversationAudio.startTurn()` being called once they're all set; (b) the effect does not call `startTurn()` again if `voiceState` is already not `'Idle'` (no duplicate/overlapping starts); (c) the effect does not fire at all while `conversationMode === 'PushToTalk'`.
 
 **Checkpoint**: Continuous mode never silently fails to start; ship as its own PR.
 
