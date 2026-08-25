@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
-import { useViewModeControl } from './workspaceControls'
+import { useViewerEngineStore } from '../../viewer/store/viewerEngineStore'
+import { useMapStyleControl, useViewModeControl } from './workspaceControls'
 
 function wrapper({ children }: { children: ReactNode }) {
   return <MemoryRouter>{children}</MemoryRouter>
@@ -46,5 +47,40 @@ describe('useViewModeControl (specs/027-immersive-viewer-platform FR-013, resear
     expect(setViewModeSpy).toHaveBeenCalledWith('plan')
 
     setViewModeSpy.mockRestore()
+  })
+})
+
+describe('useMapStyleControl', () => {
+  const initialViewerEngineState = useViewerEngineStore.getState()
+
+  beforeEach(() => {
+    useViewerEngineStore.setState(initialViewerEngineState, true)
+  })
+
+  it('exposes roadmap/satellite/hybrid actions, highlighting the current style', () => {
+    const { result } = renderHook(() => useMapStyleControl(), { wrapper })
+    const content = result.current.content as React.ReactElement<{
+      actions: { id: string; label: string; highlighted?: boolean }[]
+    }>
+    const actions = content.props.actions
+    expect(actions.map((a) => a.label)).toEqual(['Road map', 'Satellite', 'Hybrid'])
+    expect(actions.find((a) => a.id === 'roadmap')?.highlighted).toBe(true)
+    expect(actions.find((a) => a.id === 'satellite')?.highlighted).toBe(false)
+    expect(actions.find((a) => a.id === 'hybrid')?.highlighted).toBe(false)
+  })
+
+  it('selecting a style calls viewerEngine.setMapStyle, which updates viewerEngineStore', () => {
+    const setMapStyleSpy = vi.spyOn(viewerEngine, 'setMapStyle')
+    const { result } = renderHook(() => useMapStyleControl(), { wrapper })
+    const content = result.current.content as React.ReactElement<{
+      actions: { id: string; onSelect?: () => void }[]
+    }>
+
+    content.props.actions.find((a) => a.id === 'satellite')?.onSelect?.()
+
+    expect(setMapStyleSpy).toHaveBeenCalledWith('satellite')
+    expect(useViewerEngineStore.getState().mapStyle).toBe('satellite')
+
+    setMapStyleSpy.mockRestore()
   })
 })

@@ -1,5 +1,6 @@
 import { Loader } from '@googlemaps/js-api-loader'
 import * as THREE from 'three'
+import type { MapStyleId } from '../../api/commands'
 
 export interface GoogleMapsGisLayerOptions {
   apiKey: string
@@ -32,6 +33,8 @@ export interface GoogleMapsGisLayerHandle {
   zoomBy(direction: 'in' | 'out'): void
   setHeading(heading: number): void
   setTilt(tilt: number): void
+  /** Switches the map's base rendering style — `map.setMapTypeId(google.maps.MapTypeId.*)`. */
+  setMapTypeId(mapStyle: MapStyleId): void
   /** US5 (FR-018): the current-location marker's `elementId`, for `viewerEngine.registerSelectableElement`. */
   currentLocationMarkerId: string
   /** US5 (FR-018): visually distinguishes the marker as selected/unselected. */
@@ -163,6 +166,14 @@ export async function createGoogleMapsGisLayer(
     return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.log2(ALTITUDE_ZOOM_CONSTANT / clamped)))
   }
 
+  // Built here (not module scope) — `google.maps.MapTypeId` only exists once the Maps script
+  // has loaded, which `loader.importLibrary` above has already awaited by this point.
+  const MAP_STYLE_TO_GOOGLE_TYPE_ID: Record<MapStyleId, google.maps.MapTypeId> = {
+    roadmap: google.maps.MapTypeId.ROADMAP,
+    satellite: google.maps.MapTypeId.SATELLITE,
+    hybrid: google.maps.MapTypeId.HYBRID,
+  }
+
   return {
     map,
     scene,
@@ -187,6 +198,7 @@ export async function createGoogleMapsGisLayer(
     },
     setHeading: (heading) => { desiredHeading = heading },
     setTilt: (tilt) => map.moveCamera({ tilt }),
+    setMapTypeId: (mapStyle) => map.setMapTypeId(MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle]),
     setMarkerHighlighted: (highlighted) => {
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1

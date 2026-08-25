@@ -25,12 +25,15 @@ import {
   RiLogoutBoxLine,
   RiMapLine,
   RiNavigationLine,
+  RiPlanetLine,
+  RiRoadMapLine,
   RiRobotLine,
   RiRouteLine,
   RiSettings3Line,
   RiShieldCheckLine,
   RiShoppingCartLine,
   RiStackLine,
+  RiStackedView,
   RiSunLine,
   RiEqualizerLine,
   RiUserLine,
@@ -48,6 +51,8 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
+import { useViewerEngineStore } from '../../viewer/store/viewerEngineStore'
+import type { MapStyleId } from '../../viewer/api/commands'
 import { SETTINGS_TAB_INDEX } from '../settings/settingsTabs'
 
 function comingSoon(label: string) {
@@ -199,6 +204,56 @@ export function useViewModeControl(): ControlDefinition {
     id: 'view-mode',
     label: 'View mode',
     icon: <RiBox3Line />,
+    status: 'functional',
+    kind: 'action-group',
+    placement: 'right-stack',
+    content: <ExpandableActionGroup actions={actions} />,
+  }
+}
+
+/** Map/GIS content mode's base rendering style — ROADMAP/SATELLITE/HYBRID, one ribbon of
+ * icon actions matching the readdy.ai reference's Layers/Analysis row pattern. Reads
+ * `viewerEngineStore.mapStyle` directly (rather than mirroring it into `workspaceOverlayStore`
+ * the way `useViewModeControl` mirrors camera.mode into `viewMode`) — that's the one piece of
+ * state a control actually needs to highlight its active action, so there is no reason to
+ * duplicate it into a second store. `viewerEngine.setMapStyle` is the single source of truth
+ * that both updates the store and forwards the change to the live Google Map (`MapRenderTarget`
+ * → `GoogleMapsGisLayer.setMapTypeId` → `map.setMapTypeId(google.maps.MapTypeId.*)`). */
+export function useMapStyleControl(): ControlDefinition {
+  const mapStyle = useViewerEngineStore((s) => s.mapStyle)
+
+  const selectStyle = (style: MapStyleId) => {
+    viewerEngine.setMapStyle(style)
+  }
+
+  const actions: ExpandableActionGroupAction[] = [
+    {
+      id: 'roadmap',
+      label: 'Road map',
+      icon: <RiRoadMapLine size={20} />,
+      onSelect: () => selectStyle('roadmap'),
+      highlighted: mapStyle === 'roadmap',
+    },
+    {
+      id: 'satellite',
+      label: 'Satellite',
+      icon: <RiPlanetLine size={20} />,
+      onSelect: () => selectStyle('satellite'),
+      highlighted: mapStyle === 'satellite',
+    },
+    {
+      id: 'hybrid',
+      label: 'Hybrid',
+      icon: <RiStackedView size={20} />,
+      onSelect: () => selectStyle('hybrid'),
+      highlighted: mapStyle === 'hybrid',
+    },
+  ]
+
+  return {
+    id: 'map-style',
+    label: 'Map style',
+    icon: <RiRoadMapLine />,
     status: 'functional',
     kind: 'action-group',
     placement: 'right-stack',

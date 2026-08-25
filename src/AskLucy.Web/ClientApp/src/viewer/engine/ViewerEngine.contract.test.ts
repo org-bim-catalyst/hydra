@@ -31,9 +31,10 @@ describe('ViewerEngine — full contract (US6, SC-006)', () => {
     expect(engine.zoomToLocation(51.5074, -0.1278, 12)).toEqual({ ok: true, data: undefined })
     expect(engine.zoomToLocation(999, 0).ok).toBe(false) // out-of-range latitude
 
-    // setViewMode / setRotationEnabled
+    // setViewMode / setRotationEnabled / setMapStyle
     expect(engine.setViewMode('plan')).toEqual({ ok: true, data: undefined })
     expect(engine.setRotationEnabled(false)).toEqual({ ok: true, data: undefined })
+    expect(engine.setMapStyle('satellite')).toEqual({ ok: true, data: undefined })
 
     // select / clearSelection
     engine.registerSelectableElement('gis-1', 'marker')
@@ -63,6 +64,7 @@ describe('ViewerEngine — full contract (US6, SC-006)', () => {
       'selectionChanged',
       'viewModeChanged',
       'rotationChanged',
+      'mapStyleChanged',
     ] as const) {
       engine.on(type, () => events.push(type))
     }
@@ -74,6 +76,7 @@ describe('ViewerEngine — full contract (US6, SC-006)', () => {
     engine.clearSelection() // selectionChanged
     engine.setViewMode('plan') // viewModeChanged
     engine.setRotationEnabled(false) // rotationChanged
+    engine.setMapStyle('satellite') // mapStyleChanged
     engine.removeLayer('gis-1') // layerRemoved
 
     expect(events).toEqual([
@@ -83,6 +86,7 @@ describe('ViewerEngine — full contract (US6, SC-006)', () => {
       'selectionChanged',
       'viewModeChanged',
       'rotationChanged',
+      'mapStyleChanged',
       'layerRemoved',
     ])
   })

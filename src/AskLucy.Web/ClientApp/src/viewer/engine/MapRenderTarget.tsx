@@ -91,7 +91,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
 
       const applyStoreState = () => {
         if (!handle || !rotationDriver) return
-        const { camera, selection } = useViewerEngineStore.getState()
+        const { camera, selection, mapStyle } = useViewerEngineStore.getState()
         applyCameraViewMode(handle, camera.mode)
         // T032a: a device already flagged for reduced quality never auto-rotates, regardless
         // of the stored preference — one consistent signal driving both concerns.
@@ -99,6 +99,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         handle.setMarkerHighlighted(
           selection.selectedLayerId === layerId && selection.selectedElementId === handle.currentLocationMarkerId,
         )
+        handle.setMapTypeId(mapStyle)
       }
 
       applyStoreState()
@@ -111,6 +112,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         zoomBy: handle.zoomBy,
         applyViewMode: (mode) => applyCameraViewMode(handle!, mode),
         applyRotationEnabled: (enabled) => rotationDriver?.setEnabled(enabled && !reducedQuality),
+        applyMapStyle: (mapStyle) => handle?.setMapTypeId(mapStyle),
       })
 
       // Combine the two teardown functions into the single `unregister` slot the outer cleanup

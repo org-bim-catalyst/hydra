@@ -1,6 +1,6 @@
 import type { IViewerEngine } from '../api/engine'
 import type { OverlayInput, RenderLayer, RenderLayerInput } from '../api/layers'
-import type { CameraViewMode, ViewerCommandResult } from '../api/commands'
+import type { CameraViewMode, MapStyleId, ViewerCommandResult } from '../api/commands'
 import type { ViewerEventHandler, ViewerEventType } from '../api/events'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import { ViewerEventBus } from './viewerEventBus'
@@ -37,6 +37,7 @@ export interface ViewerRenderTargetHandle {
   zoomBy?(direction: 'in' | 'out'): void
   applyViewMode?(mode: CameraViewMode): void
   applyRotationEnabled?(enabled: boolean): void
+  applyMapStyle?(mapStyle: MapStyleId): void
 }
 
 /** The viewer's public command/event facade (FR-021–FR-024, contracts/viewer-engine-api.md,
@@ -199,6 +200,16 @@ export class ViewerEngine implements IViewerEngine {
     // placeholder is showing, it just has no visible effect (FR-013 as revised).
     this.activeTarget?.applyViewMode?.(mode)
     this.emit({ type: 'viewModeChanged', mode })
+    return ok()
+  }
+
+  /** Switches the map/GIS content mode's base rendering style (Google Maps' ROADMAP/SATELLITE/
+   * HYBRID). Succeeds even with no active render target — the control stays operable while the
+   * placeholder is showing, matching setViewMode/setRotationEnabled's convention. */
+  setMapStyle(mapStyle: MapStyleId): ViewerCommandResult {
+    useViewerEngineStore.getState().setMapStyle(mapStyle)
+    this.activeTarget?.applyMapStyle?.(mapStyle)
+    this.emit({ type: 'mapStyleChanged', mapStyle })
     return ok()
   }
 

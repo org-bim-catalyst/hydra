@@ -151,6 +151,28 @@ describe('ViewerEngine', () => {
     })
   })
 
+  describe('setMapStyle', () => {
+    it('updates mapStyle and emits mapStyleChanged even with no active render target (placeholder)', () => {
+      const handler = vi.fn()
+      engine.on('mapStyleChanged', handler)
+
+      const result = engine.setMapStyle('satellite')
+
+      expect(result).toEqual({ ok: true, data: undefined })
+      expect(useViewerEngineStore.getState().mapStyle).toBe('satellite')
+      expect(handler).toHaveBeenCalledWith({ type: 'mapStyleChanged', mapStyle: 'satellite' })
+    })
+
+    it('forwards to the active render target when one is registered', () => {
+      const applyMapStyle = vi.fn()
+      engine.registerRenderTarget({ applyMapStyle })
+
+      engine.setMapStyle('hybrid')
+
+      expect(applyMapStyle).toHaveBeenCalledWith('hybrid')
+    })
+  })
+
   describe('select / clearSelection (US5, FR-018/FR-019/FR-021–FR-023)', () => {
     it('fails for an unregistered element, without changing selection state', () => {
       const result = engine.select('gis-1', 'marker')

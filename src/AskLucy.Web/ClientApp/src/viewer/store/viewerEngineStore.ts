@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { prefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
 import type { RenderLayer } from '../api/layers'
-import type { CameraViewMode } from '../api/commands'
+import type { CameraViewMode, MapStyleId } from '../api/commands'
 
 export type ViewerContentMode = 'placeholder' | 'map'
 
@@ -23,10 +23,15 @@ interface ViewerEngineState {
   camera: CameraViewState
   selection: SelectionState
   layers: RenderLayer[]
+  /** The map/GIS content mode's base rendering style (ROADMAP/SATELLITE/HYBRID). Single source
+   * of truth for the map-style control's active-highlight state — read directly rather than
+   * mirrored into a second store. */
+  mapStyle: MapStyleId
   setContentMode: (mode: ViewerContentMode) => void
   setCamera: (camera: Partial<CameraViewState>) => void
   setSelection: (selection: SelectionState) => void
   setLayers: (layers: RenderLayer[]) => void
+  setMapStyle: (mapStyle: MapStyleId) => void
 }
 
 /** data-model.md "ViewerSession" — session-scoped only, no `persist` middleware, mirroring
@@ -45,8 +50,10 @@ export const useViewerEngineStore = create<ViewerEngineState>()((set) => ({
   },
   selection: { selectedLayerId: null, selectedElementId: null },
   layers: [],
+  mapStyle: 'roadmap',
   setContentMode: (contentMode) => set({ contentMode }),
   setCamera: (camera) => set((s) => ({ camera: { ...s.camera, ...camera } })),
   setSelection: (selection) => set({ selection }),
   setLayers: (layers) => set({ layers }),
+  setMapStyle: (mapStyle) => set({ mapStyle }),
 }))

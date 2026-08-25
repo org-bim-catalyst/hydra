@@ -1,5 +1,5 @@
 import type { RenderLayerKind } from './layers'
-import type { CameraViewMode } from './commands'
+import type { CameraViewMode, MapStyleId } from './commands'
 
 /** contracts/viewer-engine-api.md — every notification the viewer emits for external observers
  * (this feature's own UI today; a future AI agent or analytics later, per FR-023/FR-024). */
@@ -9,6 +9,7 @@ export type ViewerEvent =
   | { type: 'contentLoaded'; layerId: string }
   | { type: 'selectionChanged'; layerId: string | null; elementId: string | null }
   | { type: 'viewModeChanged'; mode: CameraViewMode }
+  | { type: 'mapStyleChanged'; mapStyle: MapStyleId }
   | { type: 'rotationChanged'; enabled: boolean }
 
 export type ViewerEventType = ViewerEvent['type']
