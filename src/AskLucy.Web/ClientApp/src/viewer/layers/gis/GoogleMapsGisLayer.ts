@@ -102,6 +102,13 @@ export async function createGoogleMapsGisLayer(
   const camera = new THREE.PerspectiveCamera()
   let renderer: THREE.WebGLRenderer | undefined
 
+  // Heading state managed as a simple closure variable — setHeading (called from
+  // RotationDriver's RAF loop) stores the value here; onDraw applies it to the Maps camera
+  // once per draw cycle so there is no competing RAF loop calling moveCamera directly. This
+  // eliminates the frame-contention that caused dropped frames during continuous rotation.
+  let desiredHeading = 0
+  let appliedHeading = 0
+
   const overlay = new google.maps.WebGLOverlayView()
 
   // Google's WebGLOverlayView contract requires all four lifecycle callbacks — its own
@@ -124,6 +131,13 @@ export async function createGoogleMapsGisLayer(
   }
 
   overlay.onDraw = ({ transformer }) => {
+    // Apply any pending heading update here — inside the Maps SDK draw cycle — so rotation
+    // is always synchronised with the Maps renderer. Only calls moveCamera when the heading
+    // has actually changed, avoiding redundant camera updates on frames where rotation is off.
+    if (desiredHeading !== appliedHeading) {
+      map.moveCamera({ heading: desiredHeading })
+      appliedHeading = desiredHeading
+    }
     const matrix = transformer.fromLatLngAltitude({
       lat: options.center.latitude,
       lng: options.center.longitude,
@@ -171,7 +185,7 @@ export async function createGoogleMapsGisLayer(
         : Math.max(ZOOM_MIN, currentZoom - 1)
       map.moveCamera({ zoom: newZoom })
     },
-    setHeading: (heading) => map.moveCamera({ heading }),
+    setHeading: (heading) => { desiredHeading = heading },
     setTilt: (tilt) => map.moveCamera({ tilt }),
     setMarkerHighlighted: (highlighted) => {
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
