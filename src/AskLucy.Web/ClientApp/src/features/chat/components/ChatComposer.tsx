@@ -349,9 +349,10 @@ export function ChatComposer({
 
               {/* FR-005/FR-019: live waveform alongside the mic while actively recording —
                   nothing left to visualize once capture has stopped and transcription has
-                  begun. Shown for both the tap and hold branches, since they're physically
-                  identical until release resolves which one it becomes. */}
-              {recording?.phase === 'recording' && (
+                  begun. Shown for hold-to-talk only; in tap-review the waveform moves into
+                  RecordingReviewControls' `middle` slot so it straddles cancel and finish
+                  (specs/040 US3 — Figure 3). */}
+              {recording?.phase === 'recording' && !isAwaitingTapReview && (
                 <Box sx={{ width: 64 }}>
                   <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
                 </Box>
@@ -363,6 +364,13 @@ export function ChatComposer({
                   onFinish={handleTapReviewFinish}
                   onCancelRecording={handleTapReviewCancel}
                   placement="right"
+                  middle={
+                    recording.phase === 'recording' ? (
+                      <Box sx={{ width: 64 }}>
+                        <VoiceAnalyzer state="listening" getIntensity={recording.getIntensity} />
+                      </Box>
+                    ) : undefined
+                  }
                 />
               ) : (
                 // Only ever reached in Push-to-Talk mode — Continuous mode's idle-listening
