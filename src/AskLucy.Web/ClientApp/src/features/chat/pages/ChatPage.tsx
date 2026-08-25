@@ -421,6 +421,10 @@ export function ConversationView({
   const togglePanelHeight = useChatPanelSizeStore((s) => s.toggle)
   useEffect(() => {
     tts.setMuted(isMutedPreference)
+    // Keep the continuous-mode analyzer gain in sync with the same preference. Without this,
+    // the GainNode used by useVoiceAnalyzer (Lucy's voice in Continuous mode) is never muted —
+    // only the Push-to-Talk TTS engine (tts.setMuted above) was wired up.
+    conversationAudio.setMuted(isMutedPreference)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMutedPreference])
 
@@ -619,6 +623,12 @@ export function ConversationView({
   // ChatComposer, since both read/write the same `voiceControlsProps`-shaped contract.
   const handleToggleMute = () => {
     if (tts.isSpeaking) tts.stop()
+    // research.md Decision 5a (muting while she's actively speaking stops playback immediately)
+    // applied to Continuous mode: if Lucy is speaking, stop the ongoing turn so the listener
+    // can resume. The runAssistantTurn coroutine resolves via waitForPlaybackComplete's pause
+    // listener when stop() resets the analyzer, then both paths attempt recognition.start()
+    // concurrently — start() has defensive cleanup at its head so the second call is harmless.
+    if (conversationAudio.voiceState === 'AiSpeaking') void conversationAudio.stop()
     void updateVoicePreference({ isMuted: !isMutedPreference })
   }
 
