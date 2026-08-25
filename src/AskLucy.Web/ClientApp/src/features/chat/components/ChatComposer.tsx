@@ -72,11 +72,11 @@ export interface ChatComposerProps {
  *
  * specs/039-composer-interaction-states-redesign — the footer's action set is now
  * state-dependent (contracts/composer-voice-states.md) rather than always-mounted: exactly
- * one of {attach + mic + continuous-conversation entry} (empty), {send} (typing, in either
- * voice mode), {cancel + confirm} (click-to-talk review), {non-interactive mic-fill
- * indicator} (hold-to-talk), or {mute + exit} (Continuous idle-listening) renders at a time.
- * Speaker-mute (Lucy's own voice output) is a separate, unrelated control that lives in
- * `ExpandedChatPanel`'s header, not here. */
+ * one of {attach + mic + continuous-conversation entry} (empty), {attach + mic + send}
+ * (typing, in either voice mode — specs/040 US2), {cancel + confirm} (click-to-talk review),
+ * {non-interactive mic-fill indicator} (hold-to-talk), or {mute + exit} (Continuous
+ * idle-listening) renders at a time. Speaker-mute (Lucy's own voice output) is a separate,
+ * unrelated control that lives in `ExpandedChatPanel`'s header, not here. */
 export function ChatComposer({
   value,
   onChange,
@@ -230,16 +230,15 @@ export function ChatComposer({
 
   // specs/039-composer-interaction-states-redesign FR-001/FR-002/FR-012 — the composer's
   // visible action set is derived from this single state, not several independent booleans
-  // (data-model.md "Composer State"). Recording takes priority over everything (including
-  // typed text — starting a recording is only reachable from the empty state to begin with,
-  // per FR-005/FR-008, so a recording can never coexist with `value !== ''`); typed text takes
-  // priority over Continuous mode's idle-listening view (Continuous *typing* shows the same
-  // send-only footer as ordinary typing — the two only differ in what they return to once
-  // `value` empties again, which this component doesn't need to know since that's driven
-  // entirely by the `conversationMode`/`isListening` props it already re-reads). Gating the
-  // Continuous branch on `conversationMode === 'Continuous'` alone (not additionally on
-  // `isListening`) is deliberate: muting must only change the mute button's own icon
-  // (FR-013), not make the whole footer revert to the empty view and lose the exit action.
+  // (data-model.md "Composer State"). Recording takes priority over everything; typed text
+  // takes priority over Continuous mode's idle-listening view (Continuous *typing* shows
+  // attach + mic + send, the same as ordinary typing — the two only differ in what they return
+  // to once `value` empties, driven by `conversationMode`/`isListening` props). specs/040 US2
+  // extends the typing footer from send-only to attach + mic + send, so attach and mic now
+  // render in both 'empty' and 'typing', while continuous-conversation entry stays 'empty'
+  // only. Gating the Continuous branch on `conversationMode === 'Continuous'` alone (not
+  // additionally on `isListening`) is deliberate: muting must only change the mute button's
+  // own icon (FR-013), not make the whole footer revert to the empty view and lose the exit.
   const composerVisualState: 'recording' | 'typing' | 'continuous' | 'empty' = isRecordingActive
     ? 'recording'
     : value !== ''
@@ -317,18 +316,20 @@ export function ChatComposer({
           spacing={0.5}
           sx={{ alignItems: 'center', width: '100%', flexShrink: 0 }}
         >
-          {/* specs/039-composer-interaction-states-redesign — the mic button spans both the
-              'empty' and 'recording' visual states as a SINGLE persistent element (never
-              unmounted/remounted between them): the specs/033 pointer-capture fix depends on
-              `pointerup` landing on the exact same DOM node `pointerdown` fired on, and
-              splitting it across two different conditional branches (as an earlier revision
-              of this file did) silently breaks that by letting React replace the element the
-              moment `recording.phase` changes. Only `isAwaitingTapReview` swaps it out (for
-              `RecordingReviewControls`) — that's fine, since by then the user has already
-              released and the gesture is over. */}
-          {(composerVisualState === 'empty' || composerVisualState === 'recording') && (
+          {/* specs/039-composer-interaction-states-redesign / specs/040-composer-interaction-
+              bug-fixes US2 — the mic button spans 'empty', 'recording', AND 'typing' as a
+              SINGLE persistent element (never unmounted/remounted among them): the specs/033
+              pointer-capture fix depends on `pointerup` landing on the exact same DOM node
+              `pointerdown` fired on. A press that starts in 'typing' transitions to 'recording'
+              mid-gesture (once `recording.phase` updates), so both states must share the same
+              mounted node — otherwise React replaces it and silently loses the `pointerup`.
+              Only `isAwaitingTapReview` swaps it out (for `RecordingReviewControls`) — that's
+              fine, since by then the user has already released and the gesture is over. */}
+          {(composerVisualState === 'empty' ||
+            composerVisualState === 'recording' ||
+            composerVisualState === 'typing') && (
             <>
-              {composerVisualState === 'empty' && (
+              {(composerVisualState === 'empty' || composerVisualState === 'typing') && (
                 <Tooltip title="Attach file">
                   <IconButton
                     onClick={() => fileInputRef.current?.click()}
