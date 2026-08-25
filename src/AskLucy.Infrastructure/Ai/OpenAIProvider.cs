@@ -397,12 +397,12 @@ public sealed class OpenAIProvider(
         {
             return await operation(cancellationToken);
         }
-        catch (AiProviderAuthenticationException)
-        {
-            // Never retry a bad credential — retrying wastes the retry budget on a failure
-            // mode that will not resolve itself between attempts (research.md Decision 9).
-            throw;
-        }
+        // Never retry: preserve the classified types so the middleware maps them correctly.
+        catch (AiProviderAuthenticationException) { throw; }
+        catch (AiProviderRateLimitedException) { throw; }
+        catch (AiProviderRequestInvalidException) { throw; }
+        // Never swallow a cancellation — the request was deliberately aborted.
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex) when (IsTransient(ex))
         {
             OpenAIProviderLog.RetryingAfterTransientFailure(logger, ex, RetryDelay.TotalMilliseconds);
@@ -412,15 +412,28 @@ public sealed class OpenAIProvider(
             {
                 return await operation(cancellationToken);
             }
-            catch (AiProviderAuthenticationException)
+            catch (AiProviderAuthenticationException) { throw; }
+            catch (AiProviderRateLimitedException) { throw; }
+            catch (AiProviderRequestInvalidException) { throw; }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception retryEx)
             {
-                throw;
-            }
-            catch (Exception retryEx) when (IsTransient(retryEx))
-            {
+                // Both transient-after-retry and any other failure on the second attempt
+                // become AiProviderUnavailableException — the request has now failed twice
+                // and further classification is not useful to the caller.
                 throw new AiProviderUnavailableException(
                     "The AI service could not process your request. Please try again.", retryEx);
             }
+        }
+        catch (Exception ex)
+        {
+            // Any non-transient exception that is not already a classified AiProvider* type
+            // (e.g. a configuration fault, an IO error reading the response stream, or an
+            // unexpected provider response shape) — wrap as AiProviderUnavailableException
+            // so the caller receives an actionable 502 instead of a generic 500
+            // (specs/040 US6 follow-up: close the remaining unclassified-escape paths).
+            throw new AiProviderUnavailableException(
+                "The AI service could not process your request. Please try again.", ex);
         }
     }
 
