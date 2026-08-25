@@ -339,6 +339,13 @@ export function ChatComposer({
                 </Tooltip>
               )}
 
+              {/* specs/040-composer-interaction-bug-fixes US1 — pins the attachment button to
+                  the leading edge and the mic/continuous-entry group to the trailing edge
+                  (Figure 1), instead of both clustering at the left with the row's other
+                  spacer (below) having nothing left to push against. Only present for 'empty':
+                  'recording' has no attachment button to separate from anything. */}
+              {composerVisualState === 'empty' && <Box sx={{ flex: 1 }} />}
+
               {/* FR-005/FR-019: live waveform alongside the mic while actively recording —
                   nothing left to visualize once capture has stopped and transcription has
                   begun. Shown for both the tap and hold branches, since they're physically
@@ -477,7 +484,12 @@ export function ChatComposer({
               </Tooltip>
             )}
 
-          <Box sx={{ flex: 1 }} />
+          {/* specs/040-composer-interaction-bug-fixes US1 — narrowed from unconditional: this
+              spacer's only remaining job is pushing Send to the trailing edge while typing.
+              'empty' now has its own dedicated spacer (above); 'recording'/'continuous' render
+              nothing after this point today, so an unconditional trailing spacer here had no
+              visible effect for them anyway. */}
+          {composerVisualState === 'typing' && <Box sx={{ flex: 1 }} />}
 
           {composerVisualState === 'typing' && (
             <Tooltip title="Send message">
