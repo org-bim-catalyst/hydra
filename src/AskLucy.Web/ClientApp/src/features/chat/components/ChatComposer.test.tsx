@@ -438,8 +438,10 @@ describe('ChatComposer — Continuous mode idle-listening (US4, FR-012/FR-013/FR
     expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
   })
 
-  it('typing while Continuous idle-listening shows only send, not mute/exit (matches ordinary typing)', () => {
+  it('typing while Continuous idle-listening shows attach + mic + send, not mute/exit (matches ordinary typing — specs/040 US2)', () => {
     renderComposer({ conversationMode: 'Continuous', isListening: true, value: 'hello' })
+    expect(screen.getByRole('button', { name: /attach file/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: MIC_BUTTON_NAME })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /mute microphone/i })).not.toBeInTheDocument()
     expect(
@@ -747,11 +749,11 @@ describe('ChatComposer — state-dependent action visibility (US1, FR-001/FR-002
     expect(screen.queryByRole('button', { name: /send message/i })).not.toBeInTheDocument()
   })
 
-  it('typing state: shows only send, hides attach/mic/continuous-conversation entry', () => {
+  it('typing state: shows attach + mic + send; hides only continuous-conversation entry (specs/040 US2)', () => {
     renderComposer({ value: 'hello' })
+    expect(screen.getByRole('button', { name: /attach file/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: MIC_BUTTON_NAME })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /attach file/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: MIC_BUTTON_NAME })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /start continuous conversation/i }),
     ).not.toBeInTheDocument()
@@ -833,6 +835,70 @@ describe('ChatComposer — empty-state button anchoring (specs/040 US1, FR-001)'
     expect(row.contains(spacer)).toBe(true)
     expect(spacer).not.toBeNull()
     expect(spacer?.matches('button')).toBe(false)
+  })
+})
+
+// specs/040-composer-interaction-bug-fixes US2 — attach and mic stay in the typing state;
+// only the continuous-conversation entry is replaced by Send. The mic must remain fully
+// functional (hold-to-talk, tap-to-review) while text is present, and the specs/033
+// pointer-capture invariant now extends to the 'typing' state as well as 'empty'/'recording'.
+describe('ChatComposer — typing-state keeps attach + mic (specs/040 US2)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('mic button pressed while text is present calls onStartCapture', () => {
+    const { props } = renderComposer({ value: 'existing text ' })
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micButton)
+
+    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
+  })
+
+  it('hold-to-talk from typing state finishes on release — no tap-review controls ever shown', () => {
+    vi.useFakeTimers()
+    const { props } = renderComposer({ value: 'existing text ' })
+    const micButton = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micButton)
+    vi.advanceTimersByTime(500) // past HOLD_THRESHOLD_MS
+    fireEvent.pointerUp(micButton)
+
+    expect(props.onStopCapture).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: /finished speaking/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cancel recording/i })).not.toBeInTheDocument()
+  })
+
+  it('mic IconButton is the same DOM node across a press that starts in typing and transitions to recording (specs/033 pointer-capture invariant extended to typing state)', () => {
+    const { props, rerender } = renderComposer({ value: 'existing text ', isListening: false })
+    const micBefore = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+
+    fireEvent.pointerDown(micBefore)
+    expect(props.onStartCapture).toHaveBeenCalledTimes(1)
+
+    // Parent re-renders with recording active (async state catch-up, same pattern as the
+    // pointer tap-to-record tests above).
+    rerender(
+      <ChatComposer
+        {...baseProps()}
+        value="existing text "
+        isListening
+        onStartCapture={props.onStartCapture}
+        onStopCapture={props.onStopCapture}
+        onClearCaptureError={props.onClearCaptureError}
+        recording={{
+          phase: 'recording',
+          getIntensity: () => 0,
+          onFinish: vi.fn(),
+          onCancelRecording: vi.fn(),
+        }}
+      />,
+    )
+
+    // composerVisualState is now 'recording' — same persistent block as 'typing', so React
+    // must not have remounted the mic element (which would lose the pointer capture and break
+    // the specs/033 contract).
+    const micAfter = screen.getByRole('button', { name: MIC_BUTTON_NAME })
+    expect(micAfter).toBe(micBefore)
   })
 })
 
