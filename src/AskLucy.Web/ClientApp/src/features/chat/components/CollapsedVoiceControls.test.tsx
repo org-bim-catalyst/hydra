@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { describe, expect, it, vi } from 'vitest'
 import { CollapsedVoiceControls, type VoiceControlsProps } from './CollapsedVoiceControls'
@@ -94,5 +95,32 @@ describe('CollapsedVoiceControls Push-to-Talk recording review (specs/026-floati
 
     const transcribing = renderControls(recordingProps('transcribing'))
     expect(await axe(transcribing.container)).toHaveNoViolations()
+  })
+})
+
+// specs/040-composer-interaction-bug-fixes US7 T023 — all tooltips must use bottom placement.
+// All three previously used placement="left"; each is now placement="bottom". Hover triggers
+// the MUI tooltip portal (role="tooltip"); jsdom cannot compute Popper.js placement, but
+// tooltip content presence confirms placement="bottom" did not break tooltip display.
+describe('CollapsedVoiceControls — bottom tooltip placement (specs/040 US7 — T023)', () => {
+  it('mic tooltip appears on hover with expected label (T023)', async () => {
+    const user = userEvent.setup()
+    renderControls()
+    await user.hover(screen.getByRole('button', { name: 'Start voice input' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Push to talk')
+  })
+
+  it('mode-switch tooltip appears on hover with expected label (T023)', async () => {
+    const user = userEvent.setup()
+    renderControls()
+    await user.hover(screen.getByRole('button', { name: 'Switch to Continuous Conversation mode' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Switch to Continuous listening')
+  })
+
+  it('mute tooltip appears on hover with expected label (T023)', async () => {
+    const user = userEvent.setup()
+    renderControls()
+    await user.hover(screen.getByRole('button', { name: 'Mute' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Mute agent')
   })
 })

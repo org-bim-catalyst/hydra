@@ -76,7 +76,7 @@ export function CollapsedVoiceControls({
           phase={recording.phase}
           onFinish={recording.onFinish}
           onCancelRecording={recording.onCancelRecording}
-          placement="left"
+          placement="bottom"
         />
       </Stack>
     )
@@ -85,7 +85,7 @@ export function CollapsedVoiceControls({
   return (
     <Stack spacing={1} sx={{ alignItems: 'center' }}>
       {conversationMode === 'PushToTalk' && (
-        <Tooltip title={isListening ? 'Stop' : 'Push to talk'} placement="left">
+        <Tooltip title={isListening ? 'Stop' : 'Push to talk'} placement="bottom">
           <IconButton
             onClick={handleMicClick}
             aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
@@ -102,7 +102,7 @@ export function CollapsedVoiceControls({
             ? 'Continuous listening — switch to Push-to-Talk'
             : 'Switch to Continuous listening'
         }
-        placement="left"
+        placement="bottom"
       >
         <IconButton
           onClick={onToggleMode}
@@ -124,7 +124,7 @@ export function CollapsedVoiceControls({
           )}
         </IconButton>
       </Tooltip>
-      <Tooltip title={isMuted ? 'Unmute agent' : 'Mute agent'} placement="left">
+      <Tooltip title={isMuted ? 'Unmute agent' : 'Mute agent'} placement="bottom">
         <IconButton
           onClick={onToggleMute}
           aria-label={isMuted ? 'Unmute' : 'Mute'}

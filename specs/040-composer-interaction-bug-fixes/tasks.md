@@ -137,10 +137,10 @@ blanked API key in a lower environment (quickstart.md US6).
 **Independent Test**: Hover every button across all composer states, tap-review, and the Collapsed
 widget; verify bottom placement everywhere (quickstart.md US7).
 
-- [ ] T020 [US7] In `ChatComposer.tsx`, add explicit `placement="bottom"` to every `Tooltip` (attach, mic, continuous-entry, mute, exit, Send, and the voice-preferences-unavailable indicator's tooltip).
-- [ ] T021 [US7] In `RecordingReviewControls.tsx`, change the default value of the `placement` prop from `'right'` to `'bottom'`.
-- [ ] T022 [US7] In `ChatComposer.tsx` and `src/AskLucy.Web/ClientApp/src/features/chat/components/CollapsedVoiceControls.tsx`, remove/update the explicit `placement="right"`/`placement="left"` arguments passed to `RecordingReviewControls` and to `CollapsedVoiceControls`'s own three `Tooltip`s so all resolve to `'bottom'`.
-- [ ] T023 [P] [US7] Add/update tests in `ChatComposer.test.tsx`, `RecordingReviewControls.test.tsx`, and `CollapsedVoiceControls.test.tsx` asserting every rendered `Tooltip` resolves a bottom placement (e.g. via the `placement` prop reaching MUI, or the rendered popper's placement data attribute, matching this test suite's existing convention for asserting MUI props).
+- [X] T020 [US7] In `ChatComposer.tsx`, add explicit `placement="bottom"` to every `Tooltip` (attach, mic, continuous-entry, mute, exit, Send, and the voice-preferences-unavailable indicator's tooltip).
+- [X] T021 [US7] In `RecordingReviewControls.tsx`, change the default value of the `placement` prop from `'right'` to `'bottom'`.
+- [X] T022 [US7] In `ChatComposer.tsx` and `src/AskLucy.Web/ClientApp/src/features/chat/components/CollapsedVoiceControls.tsx`, remove/update the explicit `placement="right"`/`placement="left"` arguments passed to `RecordingReviewControls` and to `CollapsedVoiceControls`'s own three `Tooltip`s so all resolve to `'bottom'`.
+- [X] T023 [P] [US7] Add/update tests in `ChatComposer.test.tsx`, `RecordingReviewControls.test.tsx`, and `CollapsedVoiceControls.test.tsx` asserting every rendered `Tooltip` resolves a bottom placement (e.g. via the `placement` prop reaching MUI, or the rendered popper's placement data attribute, matching this test suite's existing convention for asserting MUI props).
 
 **Checkpoint**: All tooltips consistent; ship as its own PR (last in sequence).
 

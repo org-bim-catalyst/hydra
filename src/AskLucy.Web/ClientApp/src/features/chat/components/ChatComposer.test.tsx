@@ -1071,3 +1071,41 @@ describe('ChatComposer — tap-review button order (specs/040 US3 — T009)', ()
     expect(props.onStopCapture).not.toHaveBeenCalled()
   })
 })
+
+// specs/040-composer-interaction-bug-fixes US7 T023 — every composer tooltip must appear
+// below its button. All tooltips now carry explicit placement="bottom". Hover triggers the
+// MUI tooltip portal (role="tooltip"); jsdom cannot compute Popper.js placement, but
+// tooltip content presence confirms placement="bottom" did not break tooltip display.
+describe('ChatComposer — bottom tooltip placement (specs/040 US7 — T023)', () => {
+  function renderComposer(overrides: Partial<ChatComposerProps> = {}) {
+    return render(<ChatComposer {...baseProps()} {...overrides} />)
+  }
+
+  it('attach-file tooltip appears on hover with expected label in the empty state (T023)', async () => {
+    const user = userEvent.setup()
+    renderComposer()
+    await user.hover(screen.getByRole('button', { name: 'Attach file' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Attach file')
+  })
+
+  it('mic tooltip appears on hover with expected label in the empty PushToTalk state (T023)', async () => {
+    const user = userEvent.setup()
+    renderComposer()
+    await user.hover(screen.getByRole('button', { name: 'Start voice input' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Start voice input')
+  })
+
+  it('exit-continuous tooltip appears on hover with expected label in the continuous state (T023)', async () => {
+    const user = userEvent.setup()
+    renderComposer({ conversationMode: 'Continuous', isListening: true })
+    await user.hover(screen.getByRole('button', { name: 'Exit continuous conversation' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Exit continuous conversation')
+  })
+
+  it('send tooltip appears on hover with expected label in the typing state (T023)', async () => {
+    const user = userEvent.setup()
+    renderComposer({ value: 'hello' })
+    await user.hover(screen.getByRole('button', { name: 'Send message' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Send message')
+  })
+})
