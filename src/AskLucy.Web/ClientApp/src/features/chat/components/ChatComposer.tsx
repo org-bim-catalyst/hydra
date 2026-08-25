@@ -17,7 +17,7 @@ import type { RecordingPhase } from '../voice/useVoiceRecorder'
 import { radius } from '../../../theme'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
 import { RecordingReviewControls } from './RecordingReviewControls'
-import { VoiceAnalyzer } from './VoiceAnalyzer'
+import { VoiceAnalyzer, type VoiceAnalyzerState } from './VoiceAnalyzer'
 
 export interface ChatComposerProps {
   value: string
@@ -66,6 +66,10 @@ export interface ChatComposerProps {
    * indicator here in the mic's settings area, replacing the previous full-width Snackbar
    * that fired on every chat load regardless of whether this ever happened. */
   voicePreferencesUnavailable?: boolean
+  /** specs/040 US4 — live audio analyzer for the continuous-listening footer. When provided
+   * (and composerVisualState === 'continuous'), renders a waveform at the leading edge of the
+   * composer row before the mute and exit buttons. Falls back to an idle waveform if omitted. */
+  continuousAnalyzer?: { state: VoiceAnalyzerState; getIntensity: () => number }
 }
 
 /** File-attach dispatch by MIME type (PDF/audio/CSV) - preserved from the legacy app.
@@ -92,6 +96,7 @@ export function ChatComposer({
   onToggleMode,
   recording,
   voicePreferencesUnavailable,
+  continuousAnalyzer,
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { extractText } = usePdfTextExtraction()
@@ -461,6 +466,13 @@ export function ChatComposer({
 
           {composerVisualState === 'continuous' && (
             <>
+              {/* specs/040 US4 — waveform fills the leading space; mute + exit stay trailing */}
+              <Box sx={{ flex: 1 }}>
+                <VoiceAnalyzer
+                  state={continuousAnalyzer?.state ?? 'idle'}
+                  getIntensity={continuousAnalyzer?.getIntensity ?? (() => 0)}
+                />
+              </Box>
               <Tooltip title={isListening ? 'Mute microphone' : 'Unmute microphone'}>
                 <IconButton
                   onClick={handleToggleContinuousMute}
