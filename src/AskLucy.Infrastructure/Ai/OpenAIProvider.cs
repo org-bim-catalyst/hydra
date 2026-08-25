@@ -191,7 +191,11 @@ public sealed class OpenAIProvider(
             using var client = CreateClient();
             using var form = new MultipartFormDataContent();
             using var fileContent = new StreamContent(audioContent);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            // Browsers append codec parameters (e.g. "audio/webm;codecs=opus"). MediaTypeHeaderValue
+            // rejects parameterised strings in its constructor — use the bare MIME type. OpenAI's
+            // Whisper API determines audio format from the filename extension, not MIME parameters.
+            var baseContentType = contentType.Contains(';') ? contentType[..contentType.IndexOf(';')].Trim() : contentType;
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(baseContentType);
 
             form.Add(fileContent, "file", fileName);
             form.Add(new StringContent(_options.TranscriptionModel), "model");

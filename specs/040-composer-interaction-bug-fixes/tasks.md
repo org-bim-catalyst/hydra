@@ -150,7 +150,7 @@ widget; verify bottom placement everywhere (quickstart.md US7).
 
 **Purpose**: Final validation after all seven stories have merged.
 
-- [ ] T024 Run the full frontend suite (`npm run lint` + `npx vitest run`) and the full backend suite (`dotnet format --verify-no-changes` + `dotnet build` + `dotnet test`) once all stories are merged to `main`, confirming no regression across the whole composer/voice feature area.
+- [X] T024 Run the full frontend suite (`npm run lint` + `npx vitest run`) and the full backend suite (`dotnet format --verify-no-changes` + `dotnet build` + `dotnet test`) once all stories are merged to `main`, confirming no regression across the whole composer/voice feature area.
 - [ ] T025 Re-run quickstart.md's seven manual scenarios end-to-end against the integrated app and record results in this file.
 
 ---
