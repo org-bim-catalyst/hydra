@@ -34,6 +34,7 @@ interface AiPresenceCardProps {
 export function AiPresenceCard({ getReactiveIntensity }: AiPresenceCardProps) {
   return (
     <Box
+      data-testid="ai-presence-card"
       sx={{
         position: 'absolute',
         left: { xs: 16, sm: 24 },

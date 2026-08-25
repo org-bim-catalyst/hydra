@@ -379,10 +379,11 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.getByTestId(/^viewer-(placeholder|fallback)$/)).toBeInTheDocument()
 
     // AiPresenceCard (the pre-existing, bottom-left decorative-sphere presence card) is a
-    // separate component this feature does not touch — it still renders and progresses
-    // through its normal lazy-load lifecycle exactly as before (its own dedicated
-    // AiPresenceCard.test.tsx covers the rest of its behavior in isolation).
-    expect(await screen.findByAltText('Lucy')).toBeInTheDocument()
+    // separate component this feature does not touch — it still renders. Its own dedicated
+    // AiPresenceCard.test.tsx covers the lazy-load lifecycle in isolation; the Suspense
+    // fallback no longer shows the Lucy portrait (replaced with a plain dark box per the
+    // analyzer issue fix), so we assert the card container itself rather than its portrait.
+    expect(screen.getByTestId('ai-presence-card')).toBeInTheDocument()
   })
 
   it('exposes no permanent toolbar/navigation landmark, only reachable circular controls (FR-004)', () => {
