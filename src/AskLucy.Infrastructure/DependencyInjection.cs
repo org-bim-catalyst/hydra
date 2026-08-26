@@ -1,8 +1,10 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
+using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Documents.Extraction;
@@ -126,6 +128,12 @@ public static class DependencyInjection
             .BindConfiguration(GoogleMapsGeocodingOptions.SectionName)
             .ValidateOnStart();
 
+        // specs/042-site-boundary-resolution — OSM Overpass boundary-candidate search; no
+        // ApiKey to validate (free, keyless API, same reasoning as GeocodingOptions above).
+        services.AddOptions<OverpassOptions>()
+            .BindConfiguration(OverpassOptions.SectionName)
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -222,6 +230,14 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(15);
         });
 
+        // specs/042-site-boundary-resolution: dedicated client for the OSM Overpass API — kept
+        // separate from "Geocoding" so boundary-search and point-geocoding timeouts/policies can
+        // diverge without coupling (same reasoning as "Geocoding" itself vs. "Weather").
+        services.AddHttpClient("Overpass", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
@@ -232,6 +248,7 @@ public static class DependencyInjection
             services.AddScoped<IGeocodingProvider, GoogleMapsGeocodingProvider>();
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
+        services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();

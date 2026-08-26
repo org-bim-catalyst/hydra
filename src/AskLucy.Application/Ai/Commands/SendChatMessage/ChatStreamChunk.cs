@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Ai.Commands.SendChatMessage;
 
@@ -38,4 +39,21 @@ public sealed record ChatStreamChunk(
     RagRetrievalOutcome? RetrievalOutcome = null,
     MemoryRetrievalOutcome? MemoryOutcome = null,
     ConfirmedLocationData? ConfirmedLocation = null,
-    ViewerZoomCommand? ViewerZoom = null);
+    ViewerZoomCommand? ViewerZoom = null,
+    ConfirmedSiteBoundaryData? ConfirmedBoundary = null);
+
+/// <summary>
+/// specs/042-site-boundary-resolution — the resolved site boundary carried on the final
+/// <see cref="ChatStreamChunk"/>, mirroring <see cref="ConfirmedLocationData"/> exactly.
+/// </summary>
+public sealed record ConfirmedSiteBoundaryData(
+    string SiteName,
+    double CentroidLatitude,
+    double CentroidLongitude,
+    IReadOnlyList<GeoPoint> Polygon,
+    double AreaSquareMeters,
+    double Confidence,
+    BoundaryConfidenceLevel ConfidenceLevel,
+    SiteBoundarySource Source,
+    string SourceDetail,
+    IReadOnlyList<string> AlternativeCandidateNames);

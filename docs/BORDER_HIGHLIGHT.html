@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Two Counter-Clockwise Shooting Stars</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #02050a;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+
+<script type="module">
+
+import * as THREE from "three";
+
+import { EffectComposer } from
+  "three/addons/postprocessing/EffectComposer.js";
+
+import { RenderPass } from
+  "three/addons/postprocessing/RenderPass.js";
+
+import { UnrealBloomPass } from
+  "three/addons/postprocessing/UnrealBloomPass.js";
+
+
+// ============================================================
+// SCENE
+// ============================================================
+
+const scene = new THREE.Scene();
+
+scene.background =
+  new THREE.Color(0x02050a);
+
+
+// ============================================================
+// CAMERA
+// ============================================================
+
+const camera =
+  new THREE.PerspectiveCamera(
+    45,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    100
+  );
+
+camera.position.set(0, 0, 8);
+
+camera.lookAt(0, 0, 0);
+
+
+// ============================================================
+// RENDERER
+// ============================================================
+
+const renderer =
+  new THREE.WebGLRenderer({
+    antialias: true
+  });
+
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
+
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, 2)
+);
+
+renderer.toneMapping =
+  THREE.ACESFilmicToneMapping;
+
+renderer.toneMappingExposure = 1.4;
+
+document.body.appendChild(
+  renderer.domElement
+);
+
+
+// ============================================================
+// BLOOM
+// ============================================================
+
+const composer =
+  new EffectComposer(renderer);
+
+composer.addPass(
+  new RenderPass(
+    scene,
+    camera
+  )
+);
+
+const bloom =
+  new UnrealBloomPass(
+    new THREE.Vector2(
+      window.innerWidth,
+      window.innerHeight
+    ),
+
+    2.8,  // strength
+    0.9,  // radius
+    0.02  // threshold
+  );
+
+composer.addPass(bloom);
+
+
+// ============================================================
+// RECTANGLE
+// ============================================================
+
+const width = 5;
+const height = 3;
+
+const points = [
+
+  // 0 — bottom-left
+  new THREE.Vector3(
+    -width / 2,
+    -height / 2,
+    0
+  ),
+
+  // 1 — bottom-right
+  new THREE.Vector3(
+     width / 2,
+    -height / 2,
+    0
+  ),
+
+  // 2 — top-right
+  new THREE.Vector3(
+     width / 2,
+     height / 2,
+    0
+  ),
+
+  // 3 — top-left
+  new THREE.Vector3(
+    -width / 2,
+     height / 2,
+    0
+  ),
+
+  // Close rectangle
+  new THREE.Vector3(
+    -width / 2,
+    -height / 2,
+    0
+  )
+
+];
+
+
+// ============================================================
+// STATIC BORDER
+// ============================================================
+
+const borderGeometry =
+  new THREE.BufferGeometry()
+    .setFromPoints(points);
+
+const borderMaterial =
+  new THREE.LineBasicMaterial({
+    color: 0x063746,
+    transparent: true,
+    opacity: 0.7
+  });
+
+const border =
+  new THREE.Line(
+    borderGeometry,
+    borderMaterial
+  );
+
+scene.add(border);
+
+
+// ============================================================
+// CALCULATE PERIMETER DISTANCES
+// ============================================================
+
+const distances = [0];
+
+let totalLength = 0;
+
+for (
+  let i = 0;
+  i < points.length - 1;
+  i++
+) {
+
+  const length =
+    points[i].distanceTo(
+      points[i + 1]
+    );
+
+  totalLength += length;
+
+  distances.push(
+    totalLength
+  );
+}
+
+
+// ============================================================
+// GET POINT ON RECTANGLE PERIMETER
+// ============================================================
+
+function getPointAtDistance(distance) {
+
+  // Wrap around the perimeter
+  distance =
+    ((distance % totalLength)
+      + totalLength)
+    % totalLength;
+
+
+  for (
+    let i = 0;
+    i < distances.length - 1;
+    i++
+  ) {
+
+    const start =
+      distances[i];
+
+    const end =
+      distances[i + 1];
+
+
+    if (
+      distance >= start &&
+      distance <= end
+    ) {
+
+      const t =
+        (distance - start) /
+        (end - start);
+
+
+      return points[i]
+        .clone()
+        .lerp(
+          points[i + 1],
+          t
+        );
+    }
+  }
+
+
+  return points[0].clone();
+}
+
+
+// ============================================================
+// SHOOTING STAR SHADER
+// ============================================================
+
+function createStarMaterial(color) {
+
+  return new THREE.ShaderMaterial({
+
+    uniforms: {
+
+      uColor: {
+        value: new THREE.Color(color)
+      }
+
+    },
+
+
+    vertexShader: `
+
+      attribute float aProgress;
+
+      varying float vProgress;
+
+      void main() {
+
+        vProgress = aProgress;
+
+        gl_Position =
+          projectionMatrix *
+          modelViewMatrix *
+          vec4(position, 1.0);
+
+      }
+
+    `,
+
+
+    fragmentShader: `
+
+      uniform vec3 uColor;
+
+      varying float vProgress;
+
+      void main() {
+
+        // ------------------------------------------------
+        // vProgress:
+        //
+        // 0 = end of tail
+        // 1 = shooting-star head
+        // ------------------------------------------------
+
+        // Fade the beginning of the tail
+        float tailFade =
+          smoothstep(
+            0.0,
+            0.18,
+            vProgress
+          );
+
+
+        // Bright region near the head
+        float head =
+          smoothstep(
+            0.55,
+            1.0,
+            vProgress
+          );
+
+
+        // Strong exponential fade
+        float intensity =
+          pow(
+            vProgress,
+            2.8
+          );
+
+
+        // Make the head much brighter
+        intensity *=
+          0.25 +
+          head * 3.0;
+
+
+        float alpha =
+          intensity *
+          tailFade;
+
+
+        // Hot bright head
+        vec3 color =
+          uColor *
+          (
+            1.0 +
+            head * 5.0
+          );
+
+
+        gl_FragColor =
+          vec4(
+            color,
+            alpha
+          );
+
+      }
+
+    `,
+
+
+    transparent: true,
+
+    blending:
+      THREE.AdditiveBlending,
+
+    depthWrite: false
+
+  });
+
+}
+
+
+// ============================================================
+// CREATE SHOOTING STAR
+// ============================================================
+
+function createStar(color) {
+
+  const geometry =
+    new THREE.BufferGeometry();
+
+  const material =
+    createStarMaterial(color);
+
+  const line =
+    new THREE.Line(
+      geometry,
+      material
+    );
+
+  scene.add(line);
+
+  return {
+    geometry,
+    line
+  };
+
+}
+
+
+// ============================================================
+// TWO STARS
+// ============================================================
+
+// Cyan
+const star1 =
+  createStar(0x00eaff);
+
+// Blue / violet
+const star2 =
+  createStar(0x4d7cff);
+
+
+// ============================================================
+// UPDATE SHOOTING STAR
+// ============================================================
+
+function updateStar(
+  star,
+  position
+) {
+
+  // Length of the shooting-star tail
+  const tailLength = 1.7;
+
+  // Number of points in the tail
+  const segments = 100;
+
+
+  const positions =
+    new Float32Array(
+      segments * 3
+    );
+
+
+  const progress =
+    new Float32Array(
+      segments
+    );
+
+
+  for (
+    let i = 0;
+    i < segments;
+    i++
+  ) {
+
+    const t =
+      i / (segments - 1);
+
+
+    // ------------------------------------------------
+    // Tail → Head
+    // ------------------------------------------------
+
+    const distance =
+      position -
+      tailLength +
+      tailLength * t;
+
+
+    const point =
+      getPointAtDistance(
+        distance
+      );
+
+
+    positions[i * 3 + 0] =
+      point.x;
+
+    positions[i * 3 + 1] =
+      point.y;
+
+    positions[i * 3 + 2] =
+      point.z + 0.03;
+
+
+    progress[i] =
+      t;
+
+  }
+
+
+  star.geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+
+  star.geometry.setAttribute(
+    "aProgress",
+    new THREE.BufferAttribute(
+      progress,
+      1
+    )
+  );
+
+}
+
+
+// ============================================================
+// ANIMATION
+// ============================================================
+
+const clock =
+  new THREE.Clock();
+
+
+// Star 1 starts at corner 0
+let position1 = 0;
+
+
+// Star 2 starts at opposite corner 2
+let position2 =
+  totalLength / 2;
+
+
+// Movement speed
+const speed = 1.15;
+
+
+function animate() {
+
+  requestAnimationFrame(
+    animate
+  );
+
+
+  const delta =
+    clock.getDelta();
+
+
+  // ========================================================
+  // BOTH MOVE COUNTER-CLOCKWISE
+  // ========================================================
+
+  position1 +=
+    speed * delta;
+
+  position2 +=
+    speed * delta;
+
+
+  // Update both stars
+  updateStar(
+    star1,
+    position1
+  );
+
+  updateStar(
+    star2,
+    position2
+  );
+
+
+  composer.render();
+
+}
+
+
+animate();
+
+
+// ============================================================
+// RESIZE
+// ============================================================
+
+window.addEventListener(
+  "resize",
+  () => {
+
+    camera.aspect =
+      window.innerWidth /
+      window.innerHeight;
+
+    camera.updateProjectionMatrix();
+
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+
+    composer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+  }
+);
+
+</script>
+
+</body>
+</html>

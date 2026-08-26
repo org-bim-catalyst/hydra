@@ -17,6 +17,7 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
 using AskLucy.Application.Workflows.Validation;
@@ -63,6 +64,16 @@ public static class DependencyInjection
         services.AddTransient<IViewerZoomDetector, ViewerZoomDetector>();
         services.AddOptions<LocationResolutionOptions>()
             .BindConfiguration(LocationResolutionOptions.SectionName)
+            .ValidateOnStart();
+
+        // Site Boundary Resolution (specs/042-site-boundary-resolution) — extends Locations
+        // rather than duplicating it (research.md #1); the primary invocation path is a
+        // SendChatMessageCommandHandler pipeline hook (research.md #11), not an IAgentTool.
+        services.AddScoped<BoundaryCandidateScorer>();
+        services.AddScoped<IBoundaryResolutionService, BoundaryResolutionService>();
+        services.AddOptions<BoundaryScoringOptions>()
+            .BindConfiguration(BoundaryScoringOptions.SectionName)
+            .ValidateDataAnnotations()
             .ValidateOnStart();
 
         // AI Memory System (specs/018-ai-memory-system) — Foundational.
@@ -142,6 +153,10 @@ public static class DependencyInjection
         // registered here alongside the other native tools since, unlike McpToolAdapter, it is not
         // constructed per-server-per-tool by IMcpToolRegistry.
         services.AddScoped<IAgentTool, McpResourceReadTool>();
+        // specs/042-site-boundary-resolution research.md #11 — secondary surface for custom
+        // agents; the base chat experience is driven by the SendChatMessageCommandHandler
+        // pipeline hook registered above, not this tool.
+        services.AddScoped<IAgentTool, SiteBoundaryResolverTool>();
         services.AddScoped<AgentBudgetGuard>();
         services.AddScoped<AgentDuplicateToolCallDetector>();
 

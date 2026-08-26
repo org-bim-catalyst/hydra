@@ -83,6 +83,9 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
 
       // specs/038-viewer-poi-zoom: expose the live map to POIMarkerOverlay via the shared store.
       useGoogleMapsStore.getState().setMap(handle.map)
+      // specs/042-site-boundary-resolution: expose the full handle so SiteBoundaryOverlay can
+      // call setSiteBoundary() without knowing about MapRenderTarget's internals.
+      useGoogleMapsStore.getState().setHandle(handle)
 
       rotationDriver = new RotationDriver({ setHeading: handle.setHeading })
 
@@ -131,6 +134,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       rotationDriver?.dispose()
       handle?.dispose()
       useGoogleMapsStore.getState().setMap(null)
+      useGoogleMapsStore.getState().setHandle(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layerId])
