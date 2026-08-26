@@ -2,6 +2,10 @@ import { Badge, Box, ClickAwayListener, Collapse, Fab } from '@mui/material'
 import { type KeyboardEvent, type ReactNode, useRef } from 'react'
 import { radius } from '../../theme'
 
+/** Direction the ribbon expands relative to the trigger button, derived from the
+ * button's screen placement: right-edge → left, top → down, bottom → up, left → right. */
+export type ExpandDirection = 'left' | 'right' | 'up' | 'down'
+
 export interface CircularActionProps {
   id: string
   label: string
@@ -11,36 +15,32 @@ export interface CircularActionProps {
   disabled?: boolean
   badge?: boolean
   children: ReactNode
+  /** Defaults to 'down' (existing behavior). WorkspaceOverlay derives this from placement. */
+  expandDirection?: ExpandDirection
 }
 
-/** Fixed "control chrome" colors, sampled directly from the readdy.ai reference's
- * computed styles (`getComputedStyle`, not eyeballed off a screenshot — its own page
- * root carries a `dark` class with `background-50: oklch(0.12 0.02 280)`; what reads as
- * "light" in a screenshot is Google Maps' own light basemap tiles showing through, not
- * the app chrome). Every floating control — collapsed circle *and* expanded pill — is a
- * dark navy glass family (`background-100`/`background-200`) with near-white icon/text,
- * deliberately independent of this app's own light/dark theme toggle, exactly like the
- * reference (its buttons never changed color when its own page theme did). */
+/** Fixed "control chrome" colors — deliberately independent of the app's light/dark theme
+ * (matching the established convention: these controls always render as a dark glass family
+ * regardless of the page theme). Collapsed button: #45454D per design spec. Expanded
+ * trigger: #2E7F26 (green) per design spec. */
 export const CIRCULAR_ACTION_CHROME = {
-  collapsedBg: 'oklch(0.25 0.02 280 / 0.85)',
+  collapsedBg: '#45454D',
   collapsedHoverBg: 'oklch(0.30 0.02 280 / 0.9)',
   expandedBg: 'oklch(0.18 0.02 280 / 0.97)',
+  expandedTriggerBg: '#2E7F26',
+  expandedTriggerHoverBg: '#3a6b1f',
   icon: 'oklch(0.97 0.01 100)',
   border: '1px solid oklch(0.34 0.02 280 / 0.6)',
 } as const
 
 /** The base building block of the workspace-shell control system (FR-006/FR-007): a
- * compact circular trigger that grows in place into a rounded container revealing
- * `children`, and shrinks back — never a detached popover (research.md #3). `expanded`
- * is always caller-controlled (never local state) so a coordinating parent (WorkspaceOverlay)
- * can enforce "only one expanded at a time" (FR-015) from a single source of truth.
- *
- * `children` stays mounted at all times (Collapse's default `unmountOnExit={false}`,
- * plus `inert` while collapsed) rather than unmounting — required by FloatingPanel's own
- * "don't lose in-progress state while collapsed" contract, and harmless for the simpler
- * ExpandableActionGroup case. Modeled as a WAI-ARIA disclosure widget (research.md #5):
- * native `<button>` Enter/Space activation needs no extra handling, and Escape while
- * focus is inside the expanded content collapses it and returns focus to the trigger. */
+ * compact circular trigger that expands into a ribbon — a single-row rounded-rect pill —
+ * in the direction specified by `expandDirection`. Direction is determined by placement:
+ * right-edge buttons expand left (horizontal ribbon), top buttons expand down, bottom
+ * buttons expand up. `expanded` is always caller-controlled (WorkspaceOverlay enforces
+ * "only one expanded at a time" via workspaceOverlayStore). Modeled as a WAI-ARIA
+ * disclosure widget: Escape while focus is inside the expanded content collapses it and
+ * returns focus to the trigger. */
 export function CircularAction({
   id,
   label,
@@ -50,9 +50,28 @@ export function CircularAction({
   disabled,
   badge,
   children,
+  expandDirection = 'down',
 }: CircularActionProps) {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const contentId = `${id}-content`
+
+  const isHorizontal = expandDirection === 'left' || expandDirection === 'right'
+
+  const flexDir =
+    expandDirection === 'left' ? 'row-reverse' :
+    expandDirection === 'right' ? 'row' :
+    expandDirection === 'up' ? 'column-reverse' :
+    'column'
+
+  const collapseOrientation: 'horizontal' | 'vertical' = isHorizontal ? 'horizontal' : 'vertical'
+
+  // Padding on the content Box — pushed to the side opposite the trigger so the icons
+  // have breathing room within the pill and aren't flush against the trigger circle.
+  const contentPadding =
+    expandDirection === 'left'  ? { py: 1.25, pl: 1.5,  pr: 0.5 } :
+    expandDirection === 'right' ? { py: 1.25, pl: 0.5,  pr: 1.5 } :
+    expandDirection === 'up'    ? { px: 1.5,  pt: 1.25, pb: 0.5 } :
+                                  { px: 1.5,  pb: 1.25, pt: 0.5 } // 'down'
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape' && expanded) {
@@ -68,10 +87,16 @@ export function CircularAction({
         onKeyDown={handleKeyDown}
         sx={{
           display: 'inline-flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          borderRadius: expanded ? `${radius.lg}px` : `${radius.pill}px`,
-          bgcolor: expanded ? CIRCULAR_ACTION_CHROME.expandedBg : CIRCULAR_ACTION_CHROME.collapsedBg,
+          flexDirection: flexDir,
+          // Horizontal ribbons center the trigger and pill vertically; vertical ribbons
+          // left-align so the trigger stays flush with the left edge of the pill.
+          alignItems: isHorizontal ? 'center' : 'flex-start',
+          // Horizontal ribbons keep pill shape always (circle → wider pill, never a box).
+          // Vertical ribbons: collapsed = circle, expanded = rounded-rect box.
+          borderRadius: expanded && !isHorizontal ? `${radius.lg}px` : `${radius.pill}px`,
+          // Outer Box carries the dark glass when expanded (forms the ribbon pill background).
+          // When collapsed the Fab carries the color; outer Box is transparent.
+          bgcolor: expanded ? CIRCULAR_ACTION_CHROME.expandedBg : 'transparent',
           border: CIRCULAR_ACTION_CHROME.border,
           backdropFilter: 'blur(12px)',
           boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
@@ -84,7 +109,7 @@ export function CircularAction({
           variant="dot"
           overlap="circular"
           invisible={!badge}
-          sx={{ alignSelf: 'flex-start' }}
+          sx={{ alignSelf: isHorizontal ? 'center' : 'flex-start' }}
         >
           <Fab
             ref={triggerRef}
@@ -96,11 +121,12 @@ export function CircularAction({
             disabled={disabled}
             sx={{
               boxShadow: 'none',
-              bgcolor: 'transparent',
+              // Collapsed: #45454D (solid dark-gray). Expanded: #2E7F26 (green) per design spec.
+              bgcolor: expanded ? CIRCULAR_ACTION_CHROME.expandedTriggerBg : CIRCULAR_ACTION_CHROME.collapsedBg,
               color: CIRCULAR_ACTION_CHROME.icon,
               transition: (t) => t.transitions.create(['transform', 'background-color']),
               '&:hover': {
-                bgcolor: CIRCULAR_ACTION_CHROME.collapsedHoverBg,
+                bgcolor: expanded ? CIRCULAR_ACTION_CHROME.expandedTriggerHoverBg : CIRCULAR_ACTION_CHROME.collapsedHoverBg,
                 transform: 'scale(1.05)',
               },
             }}
@@ -108,27 +134,22 @@ export function CircularAction({
             {icon}
           </Fab>
         </Badge>
-        <Collapse in={expanded}>
-          {/* Collapse only animates height — its child keeps its natural intrinsic width
-              even while the Collapse itself is visually 0px tall, which would otherwise
-              stretch this whole inline-flex column (and its pill/circle border-radius)
-              into a pill shape at rest. Forcing width to 0 (with overflow already hidden
-              on the outer Box) while collapsed removes that contribution entirely, so the
-              trigger alone determines the collapsed width — a true circle. */}
+        <Collapse in={expanded} orientation={collapseOrientation}>
+          {/* Vertical Collapse animates height but the content retains its natural width
+              while collapsed (height=0), which would stretch the outer Box horizontally.
+              `width: 0` when collapsed prevents this. Horizontal Collapse is the mirror
+              case — content retains its natural height while width=0, which would inflate
+              the pill taller than the trigger circle. `height: 0` prevents that. */}
           <Box
             id={contentId}
             role="group"
             aria-label={`${label} options`}
             inert={!expanded}
             sx={{
-              px: 1.5,
-              pb: 1.25,
-              pt: 0.5,
-              width: expanded ? 'auto' : 0,
+              ...contentPadding,
+              width: !isHorizontal ? (expanded ? 'auto' : 0) : undefined,
+              height: isHorizontal ? (expanded ? 'auto' : 0) : undefined,
               overflow: 'hidden',
-              // Explicit (not relying on CSS inheritance from a MUI Typography default)
-              // so every nested action label/icon reads correctly against the dark pill
-              // regardless of this app's own light/dark theme.
               color: CIRCULAR_ACTION_CHROME.icon,
             }}
           >
