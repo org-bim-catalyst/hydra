@@ -53,6 +53,43 @@ describe('streamChat', () => {
     expect(events[1]).toEqual({ type: 'location', ...locationPayload })
   })
 
+  // specs/042-site-boundary-resolution T031: __SITE_BOUNDARY__ trailing SSE event
+  it('parses a __SITE_BOUNDARY__ trailing event and yields a siteBoundary event', async () => {
+    const boundaryPayload = {
+      siteName: 'Al Safa Park 2',
+      centroid: { latitude: 25.156, longitude: 55.2218 },
+      polygon: [
+        { latitude: 25.156, longitude: 55.221 },
+        { latitude: 25.156, longitude: 55.222 },
+        { latitude: 25.155, longitude: 55.222 },
+      ],
+      areaSquareMeters: 15000,
+      confidence: 0.92,
+      confidenceLevel: 'high',
+      source: 'OsmBoundary',
+      sourceDetail: 'OpenStreetMap (leisure=park)',
+      alternativeCandidateNames: [],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Here you go.\n\n',
+          `data: __SITE_BOUNDARY__${JSON.stringify(boundaryPayload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toHaveLength(2)
+    expect(events[1]).toEqual({ type: 'siteBoundary', ...boundaryPayload })
+  })
+
   it('preserves the single meaningful space each streamed chunk carries', async () => {
     // Mirrors AiController.cs writing `data: {chunk}\n\n` — most word tokens from OpenAI
     // arrive with their own leading space (" I", " can", " hear"), which is the word boundary.

@@ -84,11 +84,24 @@ export type ChatStreamEvent =
       viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
     }
   | { type: 'zoom'; direction: 'in' | 'out' }
+  | {
+      type: 'siteBoundary'
+      siteName: string
+      centroid: { latitude: number; longitude: number }
+      polygon: { latitude: number; longitude: number }[]
+      areaSquareMeters: number
+      confidence: number
+      confidenceLevel: 'low' | 'medium' | 'high'
+      source: string
+      sourceDetail: string
+      alternativeCandidateNames: string[]
+    }
 
 const RAG_EVENT_PREFIX = '__RAG__'
 const MEMORY_EVENT_PREFIX = '__MEMORY__'
 const LOCATION_EVENT_PREFIX = '__LOCATION__'
 const ZOOM_EVENT_PREFIX = '__ZOOM__'
+const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
@@ -211,6 +224,35 @@ export async function* streamChat(
           source: payload.source,
           locationType: payload.locationType ?? null,
           viewport: payload.viewport ?? null,
+        }
+        continue
+      }
+
+      // specs/042-site-boundary-resolution: resolved site boundary — same distinguishable-prefix
+      // pattern as __LOCATION__.
+      if (data.startsWith(SITE_BOUNDARY_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(SITE_BOUNDARY_EVENT_PREFIX.length)) as {
+          siteName: string
+          centroid: { latitude: number; longitude: number }
+          polygon: { latitude: number; longitude: number }[]
+          areaSquareMeters: number
+          confidence: number
+          confidenceLevel: 'low' | 'medium' | 'high'
+          source: string
+          sourceDetail: string
+          alternativeCandidateNames: string[]
+        }
+        yield {
+          type: 'siteBoundary',
+          siteName: payload.siteName,
+          centroid: payload.centroid,
+          polygon: payload.polygon,
+          areaSquareMeters: payload.areaSquareMeters,
+          confidence: payload.confidence,
+          confidenceLevel: payload.confidenceLevel,
+          source: payload.source,
+          sourceDetail: payload.sourceDetail,
+          alternativeCandidateNames: payload.alternativeCandidateNames,
         }
         continue
       }

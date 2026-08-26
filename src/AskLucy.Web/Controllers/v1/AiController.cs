@@ -16,6 +16,7 @@ using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Chats.Commands.RecordActiveLocation;
+using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Domain.Chats;
@@ -70,6 +71,7 @@ public sealed partial class AiController(
         MemoryRetrievalOutcome? memoryOutcome = null;
         ConfirmedLocationData? confirmedLocation = null;
         ViewerZoomCommand? viewerZoom = null;
+        ConfirmedSiteBoundaryData? confirmedBoundary = null;
 
         await foreach (var chunk in mediator.CreateStream(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
@@ -105,6 +107,11 @@ public sealed partial class AiController(
             if (chunk.ViewerZoom is not null)
             {
                 viewerZoom = chunk.ViewerZoom;
+            }
+
+            if (chunk.ConfirmedBoundary is not null)
+            {
+                confirmedBoundary = chunk.ConfirmedBoundary;
             }
         }
 
@@ -205,6 +212,30 @@ public sealed partial class AiController(
                 },
             };
             await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
+        // specs/042-site-boundary-resolution: resolved site boundary trailing event — same
+        // distinguishable-prefix pattern as __LOCATION__. Persisted before the client is told
+        // about it (RecordActiveSiteBoundaryCommand), mirroring RecordActiveLocationCommand's
+        // ordering exactly, so a client that reloads immediately after sees consistent state.
+        if (confirmedBoundary is not null)
+        {
+            await mediator.Send(new RecordActiveSiteBoundaryCommand(request.ChatId, confirmedBoundary), cancellationToken);
+
+            var boundaryPayload = new
+            {
+                siteName = confirmedBoundary.SiteName,
+                centroid = new { latitude = confirmedBoundary.CentroidLatitude, longitude = confirmedBoundary.CentroidLongitude },
+                polygon = confirmedBoundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
+                areaSquareMeters = confirmedBoundary.AreaSquareMeters,
+                confidence = confirmedBoundary.Confidence,
+                confidenceLevel = confirmedBoundary.ConfidenceLevel.ToString().ToLowerInvariant(),
+                source = confirmedBoundary.Source.ToString(),
+                sourceDetail = confirmedBoundary.SourceDetail,
+                alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
+            };
+            await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 

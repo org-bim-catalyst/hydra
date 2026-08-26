@@ -7907,6 +7907,64 @@ namespace AskLucy.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.OwnsOne("AskLucy.Domain.Chats.ActiveSiteBoundary", "ActiveBoundary", b1 =>
+                        {
+                            b1.Property<Guid>("UserChatId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<double>("AreaSquareMeters")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryAreaSquareMeters");
+
+                            b1.Property<double>("CentroidLatitude")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryCentroidLatitude");
+
+                            b1.Property<double>("CentroidLongitude")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryCentroidLongitude");
+
+                            b1.Property<double>("Confidence")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryConfidence");
+
+                            b1.Property<string>("ConfidenceLevel")
+                                .IsRequired()
+                                .HasMaxLength(10)
+                                .HasColumnType("nvarchar(10)")
+                                .HasColumnName("ActiveBoundaryConfidenceLevel");
+
+                            b1.Property<string>("Polygon")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ActiveBoundaryPolygonJson");
+
+                            b1.Property<string>("SiteName")
+                                .IsRequired()
+                                .HasMaxLength(500)
+                                .HasColumnType("nvarchar(500)")
+                                .HasColumnName("ActiveBoundarySiteName");
+
+                            b1.Property<string>("Source")
+                                .IsRequired()
+                                .HasMaxLength(30)
+                                .HasColumnType("nvarchar(30)")
+                                .HasColumnName("ActiveBoundarySource");
+
+                            b1.Property<string>("SourceDetail")
+                                .IsRequired()
+                                .HasMaxLength(1000)
+                                .HasColumnType("nvarchar(1000)")
+                                .HasColumnName("ActiveBoundarySourceDetail");
+
+                            b1.HasKey("UserChatId");
+
+                            b1.ToTable("UserChats");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserChatId");
+                        });
+
                     b.OwnsOne("AskLucy.Domain.Chats.ActiveSiteLocation", "ActiveLocation", b1 =>
                         {
                             b1.Property<Guid>("UserChatId")
@@ -7937,6 +7995,8 @@ namespace AskLucy.Persistence.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("UserChatId");
                         });
+
+                    b.Navigation("ActiveBoundary");
 
                     b.Navigation("ActiveLocation");
                 });

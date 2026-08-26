@@ -1,6 +1,8 @@
 import { Loader } from '@googlemaps/js-api-loader'
 import * as THREE from 'three'
 import type { MapStyleId } from '../../api/commands'
+import { createSiteBoundaryRenderer } from './SiteBoundaryRenderer'
+import type { BorderConfidenceLevel, LocalPoint } from '../../effects/AnimatedBorderHighlight'
 
 export interface GoogleMapsGisLayerOptions {
   apiKey: string
@@ -39,6 +41,8 @@ export interface GoogleMapsGisLayerHandle {
   currentLocationMarkerId: string
   /** US5 (FR-018): visually distinguishes the marker as selected/unselected. */
   setMarkerHighlighted(highlighted: boolean): void
+  /** specs/042-site-boundary-resolution: shows/updates/clears the animated site-boundary highlight. Pass `null` to remove it. */
+  setSiteBoundary(input: { exteriorRing: { latitude: number; longitude: number }[]; confidenceLevel: BorderConfidenceLevel } | null): void
   dispose(): void
 }
 
@@ -53,6 +57,23 @@ const MOBILE_BREAKPOINT_PX = 600
 export function shouldReduceMapQuality(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 0.05}px)`).matches
+}
+
+/** specs/042-site-boundary-resolution research.md #8 — same equirectangular local-meters
+ * projection as the backend's `GeometryMath.ToLocalMeters` (no shared code between the two
+ * stacks; kept in sync deliberately, both being small, stable, single-purpose formulas).
+ * `reference` is always the layer's own fixed `options.center` — the same real-world anchor
+ * `onDraw` already uses for the camera's `transformer.fromLatLngAltitude` call every frame, so
+ * anything placed here in local meters tracks correctly with the live Maps camera with no
+ * separate per-object transform call needed. */
+const METERS_PER_DEGREE_LATITUDE = 111_320
+
+function toLocalMeters(point: { latitude: number; longitude: number }, reference: { latitude: number; longitude: number }): LocalPoint {
+  const metersPerDegreeLongitude = METERS_PER_DEGREE_LATITUDE * Math.cos((reference.latitude * Math.PI) / 180)
+  return {
+    x: (point.longitude - reference.longitude) * metersPerDegreeLongitude,
+    y: (point.latitude - reference.latitude) * METERS_PER_DEGREE_LATITUDE,
+  }
 }
 
 let loaderSingleton: Loader | null = null
@@ -105,6 +126,12 @@ export async function createGoogleMapsGisLayer(
   const camera = new THREE.PerspectiveCamera()
   let renderer: THREE.WebGLRenderer | undefined
 
+  // specs/042-site-boundary-resolution: added to `scene` once; contents are swapped internally
+  // by setSiteBoundary(). clock drives the comet animation from onDraw.
+  const siteBoundaryRenderer = createSiteBoundaryRenderer()
+  scene.add(siteBoundaryRenderer.object3D)
+  const siteBoundaryClock = new THREE.Clock()
+
   // Heading state managed as a simple closure variable — setHeading (called from
   // RotationDriver's RAF loop) stores the value here; onDraw applies it to the Maps camera
   // once per draw cycle so there is no competing RAF loop calling moveCamera directly. This
@@ -147,6 +174,7 @@ export async function createGoogleMapsGisLayer(
       altitude: 0,
     })
     camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix)
+    siteBoundaryRenderer.update(siteBoundaryClock.getDelta())
     overlay.requestRedraw()
     renderer?.render(scene, camera)
     renderer?.resetState()
@@ -203,9 +231,18 @@ export async function createGoogleMapsGisLayer(
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1
     },
+    setSiteBoundary: (input) => {
+      if (!input) {
+        siteBoundaryRenderer.setPolygon(null, 'low')
+        return
+      }
+      const localRing = input.exteriorRing.map((p) => toLocalMeters(p, options.center))
+      siteBoundaryRenderer.setPolygon(localRing, input.confidenceLevel)
+    },
     dispose: () => {
       marker.map = null
       overlay.setMap(null)
+      siteBoundaryRenderer.dispose()
       renderer?.dispose()
     },
   }

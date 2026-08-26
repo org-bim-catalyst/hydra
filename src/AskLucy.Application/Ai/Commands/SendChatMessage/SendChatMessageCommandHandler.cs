@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.SiteBoundaries;
 using FluentValidation;
 using Hangfire;
 using MediatR;
@@ -40,6 +41,7 @@ public sealed class SendChatMessageCommandHandler(
     IRagService ragService,
     IMemoryService memoryService,
     ILocationResolutionService locationResolutionService,
+    IBoundaryResolutionService boundaryResolutionService,
     IViewerZoomDetector viewerZoomDetector,
     IUserChatRepository userChatRepository,
     ICurrentUserAccessor currentUser,
@@ -117,6 +119,22 @@ public sealed class SendChatMessageCommandHandler(
                 "automatically; your role is only to provide a natural, brief confirmation."));
         }
 
+        // specs/042-site-boundary-resolution research.md #11: injected before streaming, using
+        // the turn-start value of ActiveBoundary, regardless of what this turn's location
+        // resolution ends up doing — lets the model answer a bare follow-up ("how sure are you
+        // about that?") or a correction request from context alone (FR-009/FR-010), with no new
+        // tool call or resolution. Inserting this AFTER streaming starts would have no effect,
+        // since StreamChatAsync below already consumes this exact `messages` list.
+        var activeBoundary = chat?.ActiveBoundary;
+        if (activeBoundary is not null)
+        {
+            messages.Insert(0, new ChatMessage(ChatRole.System,
+                $"An active site boundary is already shown for '{activeBoundary.SiteName}' " +
+                $"(confidence: {activeBoundary.ConfidenceLevel}, source: {activeBoundary.Source}). " +
+                "If the user asks about its confidence or source, answer using this information " +
+                $"directly — do not claim you cannot access it. {BoundaryConfirmationTemplates.CorrectionGuidance}"));
+        }
+
         await foreach (var chunk in aiProvider.StreamChatAsync(messages, model.ModelKey, request.GenerationParameters, cancellationToken))
         {
             yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
@@ -173,9 +191,26 @@ public sealed class SendChatMessageCommandHandler(
         var hasAnyActiveLocation = confirmedLocation is not null || activeLocation is not null;
         var viewerZoom = hasAnyActiveLocation ? zoomCommand : null;
 
-        if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocation is not null || viewerZoom is not null)
+        // specs/042-site-boundary-resolution research.md #11: only resolves a boundary when this
+        // turn's confirmed site differs from the one already active — a repeated reference to the
+        // same site reuses ActiveBoundary as-is (FR-009), never re-triggering Overpass/scoring.
+        // Piggybacks entirely on locationOutcome — no separate intent-classification call.
+        BoundaryResolutionOutcome? boundaryOutcome = null;
+        if (confirmedLocation is not null &&
+            !string.Equals(confirmedLocation.LocationName, activeBoundary?.SiteName, StringComparison.OrdinalIgnoreCase))
         {
-            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom);
+            boundaryOutcome = await boundaryResolutionService.ResolveAsync(confirmedLocation, request.ChatId, cancellationToken);
+            if (boundaryOutcome.ConfirmationText is not null)
+            {
+                yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null);
+            }
+        }
+
+        var confirmedBoundary = boundaryOutcome?.ConfirmedBoundary;
+
+        if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocation is not null || viewerZoom is not null || confirmedBoundary is not null)
+        {
+            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom, confirmedBoundary);
         }
 
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this

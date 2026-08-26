@@ -3,6 +3,7 @@ import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
 import { generateImage, streamChat, type ChatMessage, type GenerationParameters } from '../api/aiApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
 
 const TITLE_MAX_LENGTH = 60
@@ -172,12 +173,35 @@ export function useChatStream(
               event.locationType,
               event.viewport,
             )
+
+            // specs/042-site-boundary-resolution edge case: a new, unrelated site must replace
+            // the previously displayed boundary, not leave it overlaid — cleared here so a
+            // same-turn 'siteBoundary' event (if any) still applies cleanly, and so it's also
+            // cleared correctly when boundary resolution came back Unavailable this turn (no
+            // 'siteBoundary' event follows to replace it otherwise).
+            if (useActiveSiteBoundaryStore.getState().siteName !== event.locationName) {
+              useActiveSiteBoundaryStore.getState().clearBoundary()
+            }
           } else if (event.type === 'zoom') {
             // specs/038-viewer-poi-zoom US2: explicit zoom command — only execute when an active
             // location exists (C1 fix: no zoom without a confirmed location on screen).
             if (useActiveLocationStore.getState().latitude !== null) {
               viewerEngine.zoomBy(event.direction)
             }
+          } else if (event.type === 'siteBoundary') {
+            // specs/042-site-boundary-resolution: resolved site boundary — replaces the
+            // previously active one wholesale (a new site fully supersedes the previous one).
+            useActiveSiteBoundaryStore.getState().setBoundary({
+              siteName: event.siteName,
+              centroid: event.centroid,
+              polygon: event.polygon,
+              areaSquareMeters: event.areaSquareMeters,
+              confidence: event.confidence,
+              confidenceLevel: event.confidenceLevel,
+              source: event.source as SiteBoundarySource,
+              sourceDetail: event.sourceDetail,
+              alternativeCandidateNames: event.alternativeCandidateNames,
+            })
           }
         }
         if (isActiveRef.current) {
