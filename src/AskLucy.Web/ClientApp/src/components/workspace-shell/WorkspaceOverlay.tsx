@@ -57,6 +57,7 @@ export function WorkspaceOverlay({ controls, topClusterLeading, children }: Work
       onToggle={() => toggle(control.id)}
       badge={unreadControlIds.has(control.id)}
       expandDirection={PLACEMENT_DIRECTION[control.placement]}
+      noTriggerAccent={control.noTriggerAccent}
     >
       {control.content}
     </CircularAction>

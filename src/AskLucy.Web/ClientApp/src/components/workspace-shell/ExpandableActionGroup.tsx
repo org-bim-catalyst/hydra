@@ -62,8 +62,14 @@ export function ExpandableActionGroup({ actions, layout = 'row' }: ExpandableAct
             width: 40,
             height: 40,
             color: action.highlighted ? '#fff' : 'inherit',
-            bgcolor: action.highlighted ? '#9C62DE' : 'rgba(255,255,255,0.08)',
-            '&:hover': { bgcolor: action.highlighted ? '#7B43C0' : 'rgba(255,255,255,0.16)' },
+            bgcolor: action.highlighted
+              ? '#9C62DE'
+              : (t) => t.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+            '&:hover': {
+              bgcolor: action.highlighted
+                ? '#7B43C0'
+                : (t) => t.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)',
+            },
           }}
         >
           {action.icon}

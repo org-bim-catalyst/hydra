@@ -166,6 +166,7 @@ export function useAccountControl(): ControlDefinition {
     kind: 'action-group',
     placement: 'top-cluster',
     content: <ExpandableActionGroup layout="list" actions={actions} />,
+    noTriggerAccent: true,
   }
 }
 
