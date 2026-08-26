@@ -1,9 +1,15 @@
 import { Box } from '@mui/material'
 import type { ReactNode } from 'react'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
-import { CircularAction } from './CircularAction'
+import { CircularAction, type ExpandDirection } from './CircularAction'
 import { FloatingToolbar } from './FloatingToolbar'
 import type { ControlDefinition, ControlPlacement } from './types'
+
+const PLACEMENT_DIRECTION: Record<ControlPlacement, ExpandDirection> = {
+  'top-cluster': 'down',
+  'right-stack': 'left',
+  'bottom-end': 'up',
+}
 
 export interface WorkspaceOverlayProps {
   controls: ControlDefinition[]
@@ -50,6 +56,7 @@ export function WorkspaceOverlay({ controls, topClusterLeading, children }: Work
       expanded={expandedControlId === control.id}
       onToggle={() => toggle(control.id)}
       badge={unreadControlIds.has(control.id)}
+      expandDirection={PLACEMENT_DIRECTION[control.placement]}
     >
       {control.content}
     </CircularAction>

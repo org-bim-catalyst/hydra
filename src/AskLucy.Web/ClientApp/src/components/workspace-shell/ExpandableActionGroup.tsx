@@ -61,9 +61,9 @@ export function ExpandableActionGroup({ actions, layout = 'row' }: ExpandableAct
           sx={{
             width: 40,
             height: 40,
-            color: action.highlighted ? '#1C1B18' : 'inherit',
-            bgcolor: action.highlighted ? 'warning.main' : 'rgba(255,255,255,0.08)',
-            '&:hover': { bgcolor: action.highlighted ? 'warning.dark' : 'rgba(255,255,255,0.16)' },
+            color: action.highlighted ? '#fff' : 'inherit',
+            bgcolor: action.highlighted ? '#9C62DE' : 'rgba(255,255,255,0.08)',
+            '&:hover': { bgcolor: action.highlighted ? '#7B43C0' : 'rgba(255,255,255,0.16)' },
           }}
         >
           {action.icon}
