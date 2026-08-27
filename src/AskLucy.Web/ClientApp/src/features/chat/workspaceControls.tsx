@@ -40,6 +40,7 @@ import {
   RiUserSettingsLine,
   RiBrainLine,
 } from '@remixicon/react'
+import { Box, Divider, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
 import {
   ExpandableActionGroup,
@@ -48,6 +49,7 @@ import {
 import type { ControlDefinition } from '../../components/workspace-shell/types'
 import { useLogout } from '../auth/hooks/useAuth'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { useMyProfile } from '../profile/hooks/useProfile'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
@@ -70,6 +72,9 @@ export function useAccountControl(): ControlDefinition {
   const navigate = useNavigate()
   const isAdmin = useIsAdmin()
   const logout = useLogout()
+  const { data: profile } = useMyProfile()
+
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || profile?.email || ''
 
   const actions: ExpandableActionGroupAction[] = [
     {
@@ -165,8 +170,28 @@ export function useAccountControl(): ControlDefinition {
     status: 'functional',
     kind: 'action-group',
     placement: 'top-cluster',
-    content: <ExpandableActionGroup layout="list" actions={actions} />,
+    content: (
+      <Box sx={{ minWidth: 220 }}>
+        {displayName && (
+          <>
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {displayName}
+              </Typography>
+              {profile?.email && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {profile.email}
+                </Typography>
+              )}
+            </Box>
+            <Divider />
+          </>
+        )}
+        <ExpandableActionGroup layout="list" actions={actions} />
+      </Box>
+    ),
     noTriggerAccent: true,
+    contentShape: 'card',
   }
 }
 
