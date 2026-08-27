@@ -23,20 +23,29 @@ const COMET_SEGMENTS = 60
 const COMET_SPEED_HIGH = 1.15
 const COMET_SPEED_MEDIUM = 0.5
 
-const COLOR_HIGH_1 = 0x00eaff
-const COLOR_HIGH_2 = 0x4d7cff
-const COLOR_MEDIUM = 0x6d93a8
-const COLOR_LOW_STATIC = 0x8a8a8a
-const COLOR_STATIC_DEFAULT = 0x1c3d47
+// specs/042-site-boundary-resolution — corrected after a live production check: the reference
+// file's AdditiveBlending glow only reads against a near-black canvas (its own background is
+// #02050a). Google's default roadmap basemap is light, and additive blending of any dim/mid-tone
+// color onto already-bright pixels is visually imperceptible — the comets rendered but were
+// invisible. Switched to normal alpha blending (below) with bold, opaque colors that read
+// against light AND dark basemaps (roadmap/satellite/hybrid). The brand accent (#9C62DE) anchors
+// medium/high confidence for visual continuity with SiteBoundaryConfidenceBadge.
+const COLOR_HIGH_1 = 0x9c62de // brand accent — matches SiteBoundaryConfidenceBadge
+const COLOR_HIGH_2 = 0x22d3ee // complementary cyan — second comet, high confidence only
+const COLOR_MEDIUM = 0x9c62de
+const COLOR_LOW_STATIC = 0x757575
+const COLOR_STATIC_DEFAULT = 0x6a3fa0 // deeper violet — bold enough to read as a solid outline on any basemap
 
 /**
  * specs/042-site-boundary-resolution — generalized, confidence-aware adaptation of
  * `docs/BORDER_HIGHLIGHT.html`'s technique: a dim static perimeter line plus animated
- * arc-length-parameterized "comet" segments using additive blending and a head-brightening
- * intensity curve. Deliberately **not** using `UnrealBloomPass`/`EffectComposer` — confirmed the
- * viewer's GIS render path runs no post-processing pipeline (research.md #9); the glow here comes
- * entirely from the shader's own additive blending, matching where most of the reference file's
- * visual impact already comes from.
+ * arc-length-parameterized "comet" segments with a head-brightening intensity curve. Unlike the
+ * reference file, this uses normal (alpha) blending, not `AdditiveBlending` — additive only glows
+ * against a near-black background, and the viewer's basemap is not reliably dark. Deliberately
+ * still **not** using `UnrealBloomPass`/`EffectComposer` (research.md #9, viewer's GIS render path
+ * runs no post-processing pipeline) — the "hot head, fading tail" character comes from ramping
+ * alpha and mixing the head toward white, not from a bloom pass or from over-driving color values
+ * past 1.0 (which would just clip to white under normal blending, losing the hue entirely).
  *
  * Takes any ordered, closed ring of points (not hardcoded to a rectangle) — the point of
  * "keep it modular so it can be reused for other projects."
@@ -54,13 +63,18 @@ export function createAnimatedBorderHighlight(
   const points = ring.map((p) => new THREE.Vector3(p.x, p.y, 0))
 
   // ============================================================
-  // Static perimeter line — always present; dashed only for `low`.
+  // Static perimeter line — always present; genuinely dashed for `low` (previously used
+  // LineBasicMaterial with computeLineDistances() called but never applied — dashing needs
+  // LineDashedMaterial specifically, or the dash/gap sizes are silently ignored and the line
+  // always renders solid regardless of confidence level).
   // ============================================================
   const staticGeometry = new THREE.BufferGeometry().setFromPoints(points)
-  const staticMaterial = new THREE.LineBasicMaterial({
+  const staticMaterial = new THREE.LineDashedMaterial({
     color: COLOR_STATIC_DEFAULT,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.9,
+    dashSize: 1_000,
+    gapSize: 0, // effectively solid for medium/high; overridden to a real dash pattern for `low`
   })
   const staticLine = new THREE.Line(staticGeometry, staticMaterial)
   staticLine.computeLineDistances()
@@ -91,8 +105,12 @@ export function createAnimatedBorderHighlight(
   }
 
   // ============================================================
-  // Comet shader material — additive blending + head-brightening intensity curve,
-  // ported directly from docs/BORDER_HIGHLIGHT.html's fragment shader.
+  // Comet shader material — normal (alpha) blending, so it reads against any basemap brightness.
+  // The reference file's fragment shader over-drove color up to 6x, relying on AdditiveBlending
+  // to turn that into an on-top glow against a black canvas; under normal blending, multiplying
+  // a color that far past 1.0 just clips to flat white, losing the hue entirely. Here the "hot
+  // head, fading tail" character comes from alpha (near-opaque at the head, fading out along the
+  // tail) and a mild mix-toward-white at the head, not from over-driving the raw color values.
   // ============================================================
   function createCometMaterial(color: number): THREE.ShaderMaterial {
     return new THREE.ShaderMaterial({
@@ -111,15 +129,13 @@ export function createAnimatedBorderHighlight(
         void main() {
           float tailFade = smoothstep(0.0, 0.18, vProgress);
           float head = smoothstep(0.55, 1.0, vProgress);
-          float intensity = pow(vProgress, 2.8);
-          intensity *= 0.25 + head * 3.0;
-          float alpha = intensity * tailFade;
-          vec3 color = uColor * (1.0 + head * 5.0);
+          float alpha = pow(vProgress, 1.6) * tailFade;
+          alpha = clamp(alpha * (0.55 + head * 0.55), 0.0, 1.0);
+          vec3 color = mix(uColor, vec3(1.0), head * 0.5);
           gl_FragColor = vec4(color, alpha);
         }
       `,
       transparent: true,
-      blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
   }
@@ -163,12 +179,18 @@ export function createAnimatedBorderHighlight(
 
     if (level === 'low') {
       staticMaterial.color.setHex(COLOR_LOW_STATIC)
-      staticMaterial.opacity = 0.5
+      staticMaterial.opacity = 0.8
+      // A real dash pattern (see the LineDashedMaterial note above) — this IS the
+      // approximation/uncertainty cue for `low` (FR-006), not just a dimmer solid line.
+      staticMaterial.dashSize = 8
+      staticMaterial.gapSize = 5
       return
     }
 
     staticMaterial.color.setHex(COLOR_STATIC_DEFAULT)
-    staticMaterial.opacity = 0.7
+    staticMaterial.opacity = 0.9
+    staticMaterial.dashSize = 1_000
+    staticMaterial.gapSize = 0
 
     const specs: { color: number; startFraction: number; speed: number }[] =
       level === 'high'
