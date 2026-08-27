@@ -34,17 +34,32 @@ internal sealed class OverpassBoundaryCandidateProvider(
     private const string UserAgentHeader = "AskLucy/1.0 (+https://hydra.bimcatalyst.com)";
 
     /// <summary>
-    /// OSM tag keys whose presence marks a way as a plausible site-boundary candidate —
-    /// extensible, not restricted to park-specific tags (matches the reference notebook's own
-    /// broad tag-group list). Deliberately excludes "building": it's by far the most common tag
-    /// in OSM, so an "around" radius scan against it is the most expensive part of the query
-    /// (observed live: this made a production boundary lookup slow enough to exceed the client
-    /// timeout even after raising it) and buildings are rarely themselves a good match for a
-    /// site's own boundary anyway. "boundary" (administrative boundaries) is excluded too — it
-    /// tends to match oversized areas already penalized by the geometry-quality score, so it
-    /// adds query cost without adding good candidates.
+    /// OSM tag filters marking a way as a plausible site-boundary candidate — ported from the
+    /// reference notebook's own curated <c>BOUNDARY_SEARCH_TAGS</c>, not a blanket "any value of
+    /// this key" scan. <c>Values: null</c> means "any value" (matches the notebook's
+    /// <c>landuse: True</c>/<c>tourism: True</c>/<c>natural: True</c>); a non-null list restricts
+    /// to those exact values, exactly as the notebook restricts <c>leisure</c> to
+    /// park/garden/nature_reserve/recreation_ground and <c>amenity</c> to institutional types.
+    ///
+    /// Corrected after a live production failure: an unrestricted <c>["leisure"]</c> filter also
+    /// matched <c>leisure=playground</c>/<c>pitch</c>/<c>swimming_pool</c> — small sub-features
+    /// *within* a park, not candidates for the park's own boundary — and one of them (closer to
+    /// the geocoded center than the park's own way) won on proximity alone, since this codebase's
+    /// deterministic name-matcher can't credit an OSM name tagged in a different script (e.g.
+    /// Arabic "حديقة الصفا 2") against a Latin-script query ("Al Safa Park 2"). Restricting
+    /// <c>leisure</c>/<c>amenity</c> to the notebook's own curated values excludes that entire
+    /// class of wrong candidate at the source, rather than trying to out-score it after the fact.
+    /// "building"/"boundary" stay excluded — see research.md #2 (query cost) and #7 (oversized
+    /// administrative areas already penalized by geometry-quality) for why.
     /// </summary>
-    private static readonly string[] CandidateTagKeys = ["leisure", "landuse", "amenity", "tourism", "natural"];
+    private static readonly (string Key, string[]? Values)[] CandidateTagFilters =
+    [
+        ("leisure", ["park", "garden", "nature_reserve", "recreation_ground"]),
+        ("landuse", null),
+        ("amenity", ["school", "hospital", "university", "college"]),
+        ("tourism", null),
+        ("natural", null),
+    ];
 
     private readonly OverpassOptions _options = options.Value;
 
@@ -87,10 +102,13 @@ internal sealed class OverpassBoundaryCandidateProvider(
 
     private static string BuildQuery(GeoPoint center, int radiusMeters)
     {
-        var filters = string.Join(
-            Environment.NewLine,
-            CandidateTagKeys.Select(key => $"  way(around:{radiusMeters},{center.Latitude},{center.Longitude})[\"{key}\"];"));
+        var statements = CandidateTagFilters.SelectMany(filter =>
+            filter.Values is null
+                ? [$"  way(around:{radiusMeters},{center.Latitude},{center.Longitude})[\"{filter.Key}\"];"]
+                : filter.Values.Select(value =>
+                    $"  way(around:{radiusMeters},{center.Latitude},{center.Longitude})[\"{filter.Key}\"=\"{value}\"];"));
 
+        var filters = string.Join(Environment.NewLine, statements);
         return $"[out:json][timeout:25];({Environment.NewLine}{filters}{Environment.NewLine});out geom;";
     }
 

@@ -37,7 +37,7 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
         var breakdown = new Dictionary<string, double>
         {
             ["source_reliability"] = SourceReliability.GetValueOrDefault(candidate.Source, 0.5),
-            ["name_match"] = ScoreNameMatch(candidate.Name, siteNameQuery),
+            ["name_match"] = ScoreNameMatch(candidate, siteNameQuery),
             ["geometry_quality"] = ScoreGeometryQuality(candidate.AreaSquareMeters),
             ["center_proximity"] = ScoreCenterProximity(candidate.DistanceToCenterMeters, opts.SearchRadiusMeters),
             ["landuse_agreement"] = LandUseRelevantTagKeys.Any(k => candidate.Tags.ContainsKey(k)) ? 1.0 : 0.3,
@@ -53,15 +53,31 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
         return new ScoredBoundaryCandidate(candidate, Math.Round(total, 3), breakdown);
     }
 
-    private static double ScoreNameMatch(string candidateName, string siteNameQuery)
+    /// <summary>
+    /// Checks both <see cref="BoundaryCandidate.Name"/> (OSM's own "name" tag — often in the
+    /// site's local script/language, e.g. Arabic "حديقة الصفا 2") and a "name:en" tag if present,
+    /// so a real match isn't scored as 0 purely because the query happens to be in a different
+    /// script than the primary name tag (observed live: this was the second contributing cause
+    /// of a production mis-pick, alongside an over-broad tag filter — see
+    /// OverpassBoundaryCandidateProvider's CandidateTagFilters doc comment for the full story).
+    /// </summary>
+    private static double ScoreNameMatch(BoundaryCandidate candidate, string siteNameQuery)
     {
-        if (string.IsNullOrWhiteSpace(candidateName))
+        var query = (siteNameQuery ?? string.Empty).Trim().ToLowerInvariant();
+        if (query.Length == 0)
         {
             return 0.0;
         }
 
+        var candidateNames = new[] { candidate.Name, candidate.Tags.GetValueOrDefault("name:en") }
+            .Where(n => !string.IsNullOrWhiteSpace(n));
+
+        return candidateNames.Select(n => ScoreOneName(n!, query)).DefaultIfEmpty(0.0).Max();
+    }
+
+    private static double ScoreOneName(string candidateName, string query)
+    {
         var name = candidateName.Trim().ToLowerInvariant();
-        var query = (siteNameQuery ?? string.Empty).Trim().ToLowerInvariant();
 
         if (query.Contains(name) || name.Contains(query))
         {
