@@ -177,8 +177,15 @@ public sealed class GoogleGeminiProvider(
 
             var modelKey = name.StartsWith("models/", StringComparison.Ordinal) ? name["models/".Length..] : name;
             var displayName = model.TryGetProperty("displayName", out var displayNameElement) ? displayNameElement.GetString() ?? modelKey : modelKey;
-            var contextWindow = model.TryGetProperty("inputTokenLimit", out var inputLimit) ? inputLimit.GetInt32() : 0;
-            var maxOutput = model.TryGetProperty("outputTokenLimit", out var outputLimit) ? outputLimit.GetInt32() : 0;
+            // Gemini's catalog spans far more than chat models (embeddings, TTS, image/video
+            // generation, live-audio) — several of those report inputTokenLimit/outputTokenLimit
+            // as a JSON null rather than omitting the field, and GetInt32() throws on a null-kind
+            // element. Guarding the ValueKind here (not just TryGetProperty's presence check)
+            // stops one such model from taking down the entire catalog listing.
+            var contextWindow = model.TryGetProperty("inputTokenLimit", out var inputLimit) && inputLimit.ValueKind == JsonValueKind.Number
+                ? inputLimit.GetInt32() : 0;
+            var maxOutput = model.TryGetProperty("outputTokenLimit", out var outputLimit) && outputLimit.ValueKind == JsonValueKind.Number
+                ? outputLimit.GetInt32() : 0;
 
             results.Add(new ProviderModelInfo(
                 modelKey, displayName, contextWindow, maxOutput,
@@ -207,7 +214,7 @@ public sealed class GoogleGeminiProvider(
         return (client, apiKey);
     }
 
-    private static object BuildPayload(IReadOnlyList<ChatMessage> messages, GenerationParametersDto? parameters)
+    private static Dictionary<string, object?> BuildPayload(IReadOnlyList<ChatMessage> messages, GenerationParametersDto? parameters)
     {
         var systemInstructionText = string.Join(
             "\n\n", messages.Where(m => m.Role == ChatRole.System).Select(m => m.Content));

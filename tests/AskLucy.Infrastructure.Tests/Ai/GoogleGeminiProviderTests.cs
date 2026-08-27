@@ -102,4 +102,32 @@ public sealed class GoogleGeminiProviderTests
         finalChunk.Usage!.InputTokenCount.Should().Be(7);
         finalChunk.Usage!.OutputTokenCount.Should().Be(3);
     }
+
+    // Live bug (2026-08-27): Gemini's real catalog spans embeddings/TTS/image/video/live-audio
+    // models alongside chat models, and some of those report inputTokenLimit/outputTokenLimit
+    // as a JSON null rather than omitting the field — GetInt32() on a null-kind element used to
+    // throw, taking down the ENTIRE "sync catalog" admin action with a generic 500 for one
+    // unrelated model entry.
+    [Fact]
+    public async Task ListAvailableModelsAsync_ShouldTreatANullTokenLimit_AsZero_NotThrow()
+    {
+        const string json = """
+            {
+                "models": [
+                    { "name": "models/gemini-1.5-pro", "displayName": "Gemini 1.5 Pro", "inputTokenLimit": 2000000, "outputTokenLimit": 8192 },
+                    { "name": "models/text-embedding-004", "displayName": "Text Embedding 004", "inputTokenLimit": null, "outputTokenLimit": null }
+                ]
+            }
+            """;
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        }, out _);
+
+        var models = await provider.ListAvailableModelsAsync(CancellationToken.None);
+
+        models.Should().HaveCount(2);
+        models.Should().ContainSingle(m => m.ModelKey == "gemini-1.5-pro" && m.ContextWindowTokens == 2_000_000 && m.MaxOutputTokens == 8192);
+        models.Should().ContainSingle(m => m.ModelKey == "text-embedding-004" && m.ContextWindowTokens == 0 && m.MaxOutputTokens == 0);
+    }
 }
