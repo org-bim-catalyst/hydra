@@ -244,6 +244,14 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // specs/042-site-boundary-resolution — dedicated client for ESRI World Imagery's free,
+        // no-key export endpoint, feeding the Gemini vision cross-check. 30s matches the
+        // reference notebook's own hard_timeout(30) around the equivalent fetch.
+        services.AddHttpClient("EsriWorldImagery", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
@@ -255,6 +263,8 @@ public static class DependencyInjection
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
+        services.AddScoped<ISatelliteImageProvider, EsriSatelliteImageProvider>();
+        services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();

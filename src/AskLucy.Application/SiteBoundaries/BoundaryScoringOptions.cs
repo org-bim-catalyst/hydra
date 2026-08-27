@@ -41,6 +41,17 @@ public sealed class BoundaryScoringOptions : IValidatableObject
     [Range(0.0, 1.0)]
     public double LandUseAgreementWeight { get; set; } = 0.10;
 
+    /// <summary>
+    /// specs/042-site-boundary-resolution — the reference notebook's <c>SITE_BOUNDARY_CONFIG["enable_ai"]</c>,
+    /// gating the Gemini vision cross-check (<see cref="IBoundaryVisionAnalyzer"/>) that
+    /// disambiguates between multiple plausible OSM candidates using satellite imagery instead of
+    /// tag/geometry heuristics alone. Defaults to enabled here (the notebook itself defaults it to
+    /// <c>False</c> only because no vision API was wired into that notebook run) — a missing
+    /// Gemini credential still degrades this gracefully to the deterministic score alone via
+    /// <see cref="BoundaryVisionAnalysis.NotConfigured"/>, never an error.
+    /// </summary>
+    public bool EnableAiVisionVerification { get; set; } = true;
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         var weightSum = SourceReliabilityWeight + NameMatchWeight + GeometryQualityWeight

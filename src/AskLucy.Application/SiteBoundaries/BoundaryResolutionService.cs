@@ -26,6 +26,8 @@ internal static partial class BoundaryResolutionServiceLog
 public sealed class BoundaryResolutionService(
     IBoundaryCandidateProvider candidateProvider,
     BoundaryCandidateScorer scorer,
+    ISatelliteImageProvider satelliteImageProvider,
+    IBoundaryVisionAnalyzer visionAnalyzer,
     IOptions<BoundaryScoringOptions> options,
     ILogger<BoundaryResolutionService> logger) : IBoundaryResolutionService
 {
@@ -62,12 +64,16 @@ public sealed class BoundaryResolutionService(
         }
 
         var ranked = scorer.ScoreAll(candidates, confirmedLocation.LocationName);
-        var winner = ranked[0];
-        var confidenceLevel = ClassifyConfidence(winner.Score, opts);
+        var visionAnalysis = await AnalyzeWithVisionAsync(center, ranked, confirmedLocation.LocationName, opts, cancellationToken);
+        var selection = SelectFinalCandidate(ranked, visionAnalysis, opts);
+        var winner = selection.Winner;
+        var confidenceLevel = ClassifyConfidence(selection.CombinedScore, opts);
 
+        var topScore = ranked[0].Score;
         var alternativeNames = ranked
-            .Skip(1)
-            .Where(c => winner.Score - c.Score <= AlternativeCandidateScoreMargin && !string.IsNullOrWhiteSpace(c.Candidate.Name))
+            .Where(c => !ReferenceEquals(c, winner)
+                && topScore - c.Score <= AlternativeCandidateScoreMargin
+                && !string.IsNullOrWhiteSpace(c.Candidate.Name))
             .Select(c => c.Candidate.Name)
             .Distinct()
             .ToList();
@@ -78,17 +84,92 @@ public sealed class BoundaryResolutionService(
             center.Latitude, center.Longitude,
             winner.Candidate.Polygon.ExteriorRing,
             winner.Candidate.AreaSquareMeters,
-            winner.Score, confidenceLevel,
+            selection.CombinedScore, confidenceLevel,
             winner.Candidate.Source, sourceDetail,
             alternativeNames);
 
-        var confirmationText = BoundaryConfirmationTemplates.WithAlternatives(
-            BoundaryConfirmationTemplates.Confirmed(confirmedLocation.LocationName, confidenceLevel, sourceDetail),
-            alternativeNames);
+        var confirmationText = BoundaryConfirmationTemplates.WithAiVerificationNote(
+            BoundaryConfirmationTemplates.WithAlternatives(
+                BoundaryConfirmationTemplates.Confirmed(confirmedLocation.LocationName, confidenceLevel, sourceDetail),
+                alternativeNames),
+            DescribeAiVerification(selection.Agreement));
 
         BoundaryResolutionServiceLog.Resolved(logger, userChatId, BoundaryResolutionOutcomeType.Confirmed, confirmedLocation.LocationName);
         return new BoundaryResolutionOutcome(BoundaryResolutionOutcomeType.Confirmed, confirmedBoundary, confirmationText);
     }
+
+    /// <summary>
+    /// Optional-enhancement step (research.md's Gemini vision cross-check): fetches satellite
+    /// imagery and asks <see cref="IBoundaryVisionAnalyzer"/> to pick among the already-ranked
+    /// candidates. Never throws and never blocks resolution on failure — an unavailable image or
+    /// analyzer failure degrades to <see cref="BoundaryVisionAnalysis.NotConfigured"/>, exactly
+    /// like the reference notebook's own graceful fallback.
+    /// </summary>
+    private async Task<BoundaryVisionAnalysis> AnalyzeWithVisionAsync(
+        GeoPoint center, IReadOnlyList<ScoredBoundaryCandidate> ranked, string siteName,
+        BoundaryScoringOptions opts, CancellationToken cancellationToken)
+    {
+        if (!opts.EnableAiVisionVerification)
+        {
+            return BoundaryVisionAnalysis.NotConfigured(
+                "AI vision analysis is disabled (BoundaryScoring:EnableAiVisionVerification = false).");
+        }
+
+        var image = await satelliteImageProvider.FetchAsync(center, opts.SearchRadiusMeters, cancellationToken);
+        if (image is null)
+        {
+            return BoundaryVisionAnalysis.NotConfigured("No satellite image available to analyze this run.");
+        }
+
+        return await visionAnalyzer.AnalyzeAsync(image, ranked, siteName, center, cancellationToken);
+    }
+
+    /// <summary>
+    /// A direct port of the reference notebook's <c>select_final_candidate</c>: combines the AI's
+    /// selection with the deterministic score into one final decision rather than trusting either
+    /// signal alone.
+    /// - AI agrees with the top-ranked candidate → confidence gets a small agreement boost.
+    /// - AI picks a DIFFERENT candidate → the AI's pick wins (visual/name-matching evidence the
+    ///   deterministic scorer doesn't have), flagged as an override rather than silently swapped in.
+    /// - AI wasn't run, found no match, or named an unknown candidate id → falls back to the
+    ///   deterministic top-ranked candidate alone, exactly as before this feature existed.
+    /// </summary>
+    private static FinalSelection SelectFinalCandidate(
+        IReadOnlyList<ScoredBoundaryCandidate> ranked, BoundaryVisionAnalysis vision, BoundaryScoringOptions opts)
+    {
+        var topRanked = ranked[0];
+
+        if (!vision.AiUsed || vision.SelectedCandidateId is null)
+        {
+            return new FinalSelection(topRanked, topRanked.Score, "ai_not_used");
+        }
+
+        var aiCandidate = ranked.FirstOrDefault(c => c.Candidate.Id == vision.SelectedCandidateId);
+        if (aiCandidate is null)
+        {
+            return new FinalSelection(topRanked, topRanked.Score, "ai_selection_not_found");
+        }
+
+        if (aiCandidate.Candidate.Id == topRanked.Candidate.Id)
+        {
+            var aiConfidence = vision.Confidence ?? 0.0;
+            var blended = (Math.Max(topRanked.Score, aiConfidence) * 0.7) + (Math.Min(topRanked.Score, aiConfidence) * 0.3);
+            var combined = Math.Min(1.0, blended + 0.05);
+            return new FinalSelection(topRanked, Math.Round(combined, 3), "agree");
+        }
+
+        var overrideScore = vision.Confidence ?? aiCandidate.Score;
+        return new FinalSelection(aiCandidate, Math.Round(overrideScore, 3), "ai_override");
+    }
+
+    private static string? DescribeAiVerification(string agreement) => agreement switch
+    {
+        "agree" => "This was cross-checked against satellite imagery by Gemini vision analysis, which confirmed the same boundary.",
+        "ai_override" => "Note: satellite-image analysis by Gemini pointed to a different boundary than map-data scoring alone suggested, and I went with Gemini's pick since it has direct visual evidence.",
+        _ => null,
+    };
+
+    private sealed record FinalSelection(ScoredBoundaryCandidate Winner, double CombinedScore, string Agreement);
 
     private static ConfirmedSiteBoundaryData BuildManualFallback(string siteName, GeoPoint center)
     {

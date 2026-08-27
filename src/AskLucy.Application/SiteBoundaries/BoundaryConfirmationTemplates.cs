@@ -27,6 +27,17 @@ public static class BoundaryConfirmationTemplates
             ? baseMessage
             : $"{baseMessage} A few other similarly-plausible boundaries were also found ({string.Join(", ", alternativeCandidateNames)}) — let me know if I picked the wrong one.";
 
+    /// <summary>
+    /// FR-005 (result explains itself) extended to the Gemini vision cross-check
+    /// (<see cref="IBoundaryVisionAnalyzer"/>): appends a plain-language note only when AI
+    /// analysis actually ran and either confirmed or overrode the deterministic pick, mirroring
+    /// the reference notebook's own <c>agreement_msg</c>. Silent (no note) when AI verification
+    /// was disabled, unavailable, or returned an unrecognized candidate id — those cases behave
+    /// exactly as if AI verification didn't exist, matching prior behavior.
+    /// </summary>
+    public static string WithAiVerificationNote(string baseMessage, string? aiVerificationNote) =>
+        string.IsNullOrEmpty(aiVerificationNote) ? baseMessage : $"{baseMessage} {aiVerificationNote}";
+
     public static string NoCandidates(string siteName) =>
         $"I found {siteName}'s location, but couldn't find a reliable boundary shape for it — " +
         "I'll show an approximate area instead. Let me know if you have a more specific description of its extent.";

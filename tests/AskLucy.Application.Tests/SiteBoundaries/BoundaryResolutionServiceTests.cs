@@ -17,6 +17,8 @@ namespace AskLucy.Application.Tests.SiteBoundaries;
 public sealed class BoundaryResolutionServiceTests
 {
     private readonly IBoundaryCandidateProvider _candidateProvider = Substitute.For<IBoundaryCandidateProvider>();
+    private readonly ISatelliteImageProvider _satelliteImageProvider = Substitute.For<ISatelliteImageProvider>();
+    private readonly IBoundaryVisionAnalyzer _visionAnalyzer = Substitute.For<IBoundaryVisionAnalyzer>();
     private readonly BoundaryScoringOptions _options = new();
     private readonly BoundaryResolutionService _service;
 
@@ -28,11 +30,18 @@ public sealed class BoundaryResolutionServiceTests
         new GeoPoint(25.1550, 55.2220), new GeoPoint(25.1550, 55.2210), new GeoPoint(25.1560, 55.2210),
     ]);
 
+    private static readonly SatelliteImage SampleImage = new([1, 2, 3], "image/png", 55.2200, 25.1540, 55.2240, 25.1580);
+
     public BoundaryResolutionServiceTests()
     {
+        // AI vision verification is off by default in these tests unless a test explicitly wires
+        // up _satelliteImageProvider/_visionAnalyzer — an unconfigured NSubstitute returns null
+        // for FetchAsync, which degrades to "ai_not_used" exactly like the feature being disabled,
+        // so every pre-existing deterministic-only test keeps passing unchanged.
         var scorer = new BoundaryCandidateScorer(Microsoft.Extensions.Options.Options.Create(_options));
         _service = new BoundaryResolutionService(
-            _candidateProvider, scorer, Microsoft.Extensions.Options.Options.Create(_options), Substitute.For<ILogger<BoundaryResolutionService>>());
+            _candidateProvider, scorer, _satelliteImageProvider, _visionAnalyzer,
+            Microsoft.Extensions.Options.Options.Create(_options), Substitute.For<ILogger<BoundaryResolutionService>>());
     }
 
     private static BoundaryCandidate Candidate(
@@ -156,5 +165,63 @@ public sealed class BoundaryResolutionServiceTests
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.ManualFallback);
         outcome.ConfirmedBoundary.CentroidLatitude.Should().Be(latitude);
         outcome.ConfirmedBoundary.CentroidLongitude.Should().Be(longitude);
+    }
+
+    // specs/042-site-boundary-resolution — Gemini vision cross-check (select_final_candidate port).
+    [Fact]
+    public async Task ResolveAsync_ShouldKeepTopRankedCandidateWithBoostedConfidence_WhenAiVisionAgrees()
+    {
+        var winner = Candidate(name: "Al Safa Park 2", distanceMeters: 5);
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { winner });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(new BoundaryVisionAnalysis(AiUsed: true, "osm_1", 0.9, "high", ["Matches visible park boundary."], [], false));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.ConfidenceLevel.Should().Be(BoundaryConfidenceLevel.High);
+        outcome.ConfirmationText.Should().Contain("Gemini vision analysis");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldSwitchToAiSelectedCandidate_WhenAiVisionOverridesTheTopRankedCandidate()
+    {
+        var topRanked = Candidate(name: "Al Safa Park 2", distanceMeters: 2, areaSquareMeters: 15_000)
+            with { Id = "osm_top" };
+        var aiPick = Candidate(name: "Al Safa Park 2 (Actual Boundary)", distanceMeters: 40, areaSquareMeters: 22_000)
+            with { Id = "osm_ai_pick" };
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { topRanked, aiPick });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(new BoundaryVisionAnalysis(AiUsed: true, "osm_ai_pick", 0.88, "high", ["Visible fence line matches this candidate."], [], false));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.AreaSquareMeters.Should().Be(22_000);
+        outcome.ConfirmationText.Should().Contain("Gemini's pick");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldFallBackToDeterministicScoreSilently_WhenNoSatelliteImageIsAvailable()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns((SatelliteImage?)null);
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.ConfidenceLevel.Should().Be(BoundaryConfidenceLevel.High);
+        outcome.ConfirmationText.Should().NotContain("Gemini");
+        _ = _visionAnalyzer.DidNotReceive().AnalyzeAsync(
+            Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
     }
 }
