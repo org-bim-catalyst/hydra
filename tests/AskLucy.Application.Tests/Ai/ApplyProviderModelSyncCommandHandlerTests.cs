@@ -95,7 +95,7 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
 
         result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-5");
         result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-4-turbo" && f.Reason.Contains("stale"));
-        _models.Received(1).Add(Arg.Is<AIModel>(m => m.ModelKey == "gpt-5"));
+        _models.Received(1).Add(Arg.Is<AIModel>(m => m != null && m.ModelKey == "gpt-5"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -121,6 +121,36 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
         belongsToProvider.Status.Should().Be(AIModelStatus.Unavailable);
         result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-3.5");
         result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-old" && f.Reason.Contains("stale"));
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    // Live bug (2026-08-27): OpenAI's own ListAvailableModelsAsync always reports
+    // ContextWindowTokens: 0 (that vendor's model-list endpoint carries no such metadata at
+    // all), which AIModel.Create rejects with a DomainRuleViolationException — previously
+    // unhandled here, aborting the ENTIRE batch (including otherwise-valid rows) instead of
+    // reporting just that one row as failed, contradicting this handler's own "best-effort,
+    // per row" documentation.
+    [Fact]
+    public async Task Handle_ShouldReportAZeroContextWindowRowAsFailed_WithoutAbortingOtherValidRowsInTheSameBatch()
+    {
+        var providerId = Guid.NewGuid();
+        AIModel? created = null;
+        _models.When(m => m.Add(Arg.Any<AIModel>())).Do(call => created = call.Arg<AIModel>());
+
+        var command = new ApplyProviderModelSyncCommand(
+            providerId,
+            [
+                new ProviderModelInfo("gpt-4-turbo", "GPT-4 Turbo", ContextWindowTokens: 0, MaxOutputTokens: 0, Capabilities),
+                new ProviderModelInfo("gpt-5", "GPT-5", 200000, 32000, Capabilities),
+            ],
+            []);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-5");
+        result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-4-turbo" && f.Reason.Contains("Context window"));
+        created.Should().NotBeNull();
+        created!.ModelKey.Should().Be("gpt-5");
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }
