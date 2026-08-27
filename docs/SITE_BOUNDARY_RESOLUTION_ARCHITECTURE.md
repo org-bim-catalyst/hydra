@@ -1,13 +1,14 @@
 # Site Boundary Resolution — Architecture Proposal
 
 > **Status:** SUPERSEDED — implemented as `specs/042-site-boundary-resolution/`. This document
-> was the pre-implementation proposal; two of its central claims turned out to be wrong once the
-> actual codebase wiring was traced during implementation, and this file was **not** rewritten
-> to match (kept as a historical record of the proposal, not as current documentation). For the
-> accurate, implemented design, read `specs/042-site-boundary-resolution/research.md` (especially
-> #10-11), `data-model.md`, `contracts/`, and `tasks.md` instead of this file.
+> was the pre-implementation proposal; several of its central claims turned out to be wrong once the
+> actual codebase wiring was traced during implementation and, later, once real production usage
+> surfaced bugs the proposal hadn't anticipated. This file was **not** rewritten to match (kept as
+> a historical record of the proposal, not as current documentation). For the accurate, implemented
+> design, read `specs/042-site-boundary-resolution/research.md` (especially #10-11), `data-model.md`,
+> `contracts/`, and `tasks.md` instead of this file.
 >
-> **The two corrections:**
+> **The corrections:**
 > 1. **§5's `SiteBoundaryResolverTool : IAgentTool` is NOT the primary mechanism.** The feature's
 >    base-chat behavior (a user just asking Lucy about a site) is driven by a deterministic hook
 >    inside `SendChatMessageCommandHandler`/`AiController` — the same seam `ILocationResolutionService`
@@ -19,6 +20,25 @@
 >    turned out to already be a real, persisted owned-value column on `UserChat`, not in-memory —
 >    so `ActiveSiteBoundary` needed the identical treatment: new nullable columns on `UserChats`
 >    via a real EF Core migration, not "no persistence."
+> 3. **The primary viewer rendering path is a native `google.maps.Polygon`, not the Three.js/
+>    WebGLOverlayView bridge described in §7.** That bridge's own code comment admits it was never
+>    runtime-verified in a live browser, and a live production test proved it out: nothing rendered.
+>    `GoogleMapsGisLayer.setSiteBoundary` now draws a real `google.maps.Polygon` directly on the map
+>    as the guaranteed-visible path; the Three.js comet-highlight effect (§7) still runs alongside it
+>    as a bonus visual, wrapped in try/catch so a renderer failure there can never blank the boundary.
+> 4. **§2's "AI vision step is pluggable and optional, off by default" needs a footnote.** It's
+>    implemented almost verbatim from the notebook's `ai_boundary_analysis`/`select_final_candidate`
+>    (`IBoundaryVisionAnalyzer`/`GeminiBoundaryVisionAnalyzer`, `ISatelliteImageProvider`/
+>    `EsriSatelliteImageProvider`, reconciliation logic in `BoundaryResolutionService`), but defaults
+>    to **enabled** (`BoundaryScoring:EnableAiVisionVerification`), not disabled — a live bug (Al Safa
+>    Park 2 resolving to a small sub-feature inside the park instead of the park itself) showed that
+>    deterministic tag/geometry scoring alone isn't always enough to disambiguate similarly-plausible
+>    OSM candidates, and a missing Gemini credential already degrades this gracefully to the
+>    deterministic score alone (`BoundaryVisionAnalysis.NotConfigured`) rather than erroring. That
+>    same bug also required restricting the OSM tag filters (`OverpassBoundaryCandidateProvider`) to
+>    the notebook's own curated `leisure`/`amenity` values instead of a blanket "any value" scan, and
+>    crediting an OSM `name:en` tag so a non-Latin-script primary name (e.g. Arabic) can still match a
+>    Latin-script query.
 >
 > **Source material:** `docs/AL_SAFA_PARK_2_AI_ANALYSIS_V5.ipynb` (Module 01, cells 6–35) and `docs/BORDER_HIGHLIGHT.html`
 > **Related modules:** `specs/037-location-query-resolution` (point resolution), `specs/027-immersive-viewer-platform` (Three.js viewer), `specs/042-site-boundary-resolution` (the implemented spec)

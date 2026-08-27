@@ -173,7 +173,19 @@ description: "Task list for Site Boundary Resolution (specs/042-site-boundary-re
   - No new public HTTP endpoint was added; both invocation paths (chat pipeline, agent tool) ride existing, already-rate-limited/authorized surfaces.
   - No issues found requiring a code change.
 
-**Phase 8 complete. Feature implementation complete for specs/042-site-boundary-resolution**, except: T045 (live-browser manual QA, environment-blocked) and the deliberately-out-of-scope Phase-2 AI-vision critique (research.md #6, tracked separately, not part of this spec).
+**Phase 8 complete. Feature implementation complete for specs/042-site-boundary-resolution**, except: T045 (live-browser manual QA, environment-blocked). The Phase-2 AI-vision critique (research.md #6) was deliberately out of scope at the time this phase closed — see Phase 9 below, where live production bugs made it necessary sooner than planned.
+
+---
+
+## Phase 9: Post-release bug-fix follow-up (live production testing)
+
+**Purpose**: Manual QA (T045, deferred above) surfaced real bugs that automated tests alone hadn't caught, because they depended on live Overpass API responses and a live browser/Google Maps runtime — not on the deterministic scoring logic in isolation.
+
+- [X] T052 Fixed the Three.js/`WebGLOverlayView` render path never actually drawing anything in a live browser (the bridge's own doc comment had already flagged this as unverified) — added a native `google.maps.Polygon` in `GoogleMapsGisLayer.setSiteBoundary` as the primary, guaranteed-visible rendering path; the Three.js comet highlight now runs alongside it as a bonus effect, wrapped in try/catch so its failure can never blank the boundary. See architecture doc correction #3.
+- [X] T053 Fixed a wrong-candidate selection live bug for Al Safa Park 2 (resolved to a small sub-feature inside the park instead of the park itself), root-caused to two compounding issues: (a) `OverpassBoundaryCandidateProvider`'s `leisure`/`amenity` tag filters were unrestricted "any value" scans, matching playgrounds/pitches/pools instead of the notebook's own curated park/garden/nature_reserve/recreation_ground values; (b) `BoundaryCandidateScorer`'s name-matcher only checked the OSM `name` tag, which is often in the site's local script (e.g. Arabic), never crediting a match against an English-language query — fixed by also checking `name:en`.
+- [X] T054 Implemented the previously-deferred Phase-2 AI-vision critique (research.md #6) as the long-term fix for T053-class ambiguity: `IBoundaryVisionAnalyzer`/`GeminiBoundaryVisionAnalyzer` and `ISatelliteImageProvider`/`EsriSatelliteImageProvider`, ported near-verbatim from the notebook's `ai_boundary_analysis()`/`get_satellite_image_for_boundary()`, plus `select_final_candidate`-style agree/override/not-used reconciliation in `BoundaryResolutionService`. Gated by `BoundaryScoring:EnableAiVisionVerification` (defaults to enabled, unlike the notebook's own off-by-default), and degrades gracefully to the deterministic score alone (`BoundaryVisionAnalysis.NotConfigured`) when no Gemini credential is configured, imagery can't be fetched, or the request fails — never an error surfaced to the user. New/updated tests: `BoundaryResolutionServiceTests` (agree, override, and no-image-available reconciliation paths).
+
+**Phase 9 complete.** Full solution build clean; `BoundaryResolutionServiceTests` (20 tests) and Infrastructure `Boundaries`/`GoogleGemini` tests (12 tests) all passing. Manual live-browser verification of the rendered boundary and the AI-vision cross-check's real Gemini output is still pending (same T045 environment limitation — no live browser in this environment).
 
 ---
 
