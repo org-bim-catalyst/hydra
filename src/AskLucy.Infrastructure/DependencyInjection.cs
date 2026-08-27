@@ -225,9 +225,16 @@ public static class DependencyInjection
         // specs/037-location-query-resolution: dedicated client for Google Maps Geocoding API
         // (and Nominatim, if falling back). Kept separate from "Weather" so geocoding and
         // weather timeouts/policies can diverge without coupling.
+        // 30s, not 15s: same class of bug as "Overpass" below — observed live (2026-08-27),
+        // Google's own Cloud Console Geocoding metrics showed near-zero request volume and ZERO
+        // error responses for a period where the app was reliably surfacing "I couldn't look
+        // that up right now" (LocationConfirmationTemplates.Unavailable) — i.e. requests weren't
+        // reaching Google's servers at all (ruling out the key/quota/billing/API-enablement),
+        // consistent with this client's own short timeout aborting slow-but-otherwise-fine calls
+        // from this host before Google ever responded.
         services.AddHttpClient("Geocoding", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(15);
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         // specs/042-site-boundary-resolution: dedicated client for the OSM Overpass API — kept
