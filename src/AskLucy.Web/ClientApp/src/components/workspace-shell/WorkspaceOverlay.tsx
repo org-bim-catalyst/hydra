@@ -58,6 +58,7 @@ export function WorkspaceOverlay({ controls, topClusterLeading, children }: Work
       badge={unreadControlIds.has(control.id)}
       expandDirection={PLACEMENT_DIRECTION[control.placement]}
       noTriggerAccent={control.noTriggerAccent}
+      contentShape={control.contentShape}
     >
       {control.content}
     </CircularAction>
