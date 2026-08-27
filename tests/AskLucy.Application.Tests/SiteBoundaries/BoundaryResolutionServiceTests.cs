@@ -226,4 +226,75 @@ public sealed class BoundaryResolutionServiceTests
         _ = _visionAnalyzer.DidNotReceive().AnalyzeAsync(
             Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
     }
+
+    // specs/042-site-boundary-resolution post-release follow-up — user-requested vision-based
+    // geometry correction: a single-candidate site can have nothing else to "pick" even when its
+    // own OSM geometry is positionally wrong, so Gemini's own visual read of the boundary
+    // (already geo-referenced by IBoundaryVisionAnalyzer) can override the mapped geometry —
+    // but only after a plausibility check (area ratio + centroid distance), never at face value.
+    private static List<GeoPoint> ShiftedSamplePolygon(double latOffsetDegrees, double lonOffsetDegrees) =>
+        SamplePolygon.ExteriorRing.Select(p => new GeoPoint(p.Latitude + latOffsetDegrees, p.Longitude + lonOffsetDegrees)).ToList();
+
+    private static BoundaryVisionAnalysis VisionWithObservedBoundary(IReadOnlyList<GeoPoint> observedBoundary) => new(
+        AiUsed: true, SelectedCandidateId: "osm_1", Confidence: 0.85, BoundaryQuality: "high",
+        Reasoning: ["Matches visible fence line."], Issues: [], RequiresRefinement: false, ObservedBoundary: observedBoundary);
+
+    [Fact]
+    public async Task ResolveAsync_ShouldUseGeminisObservedGeometry_WhenItPassesThePlausibilityCheck()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        var observed = ShiftedSamplePolygon(0.0002, 0.0002); // ~20-30m shift — same shape/area, different position
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary(observed));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.AiInterpretation);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(observed, opts => opts.WithStrictOrdering());
+        outcome.ConfirmationText.Should().Contain("Gemini's own visual read");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldKeepMappedGeometry_WhenObservedAreaIsImplausiblySmall()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate(areaSquareMeters: 15_000) });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        // A tiny sliver (roughly 1m x 1m) — area ratio against 15,000 m2 is far below the 0.3x floor.
+        var tinyObserved = new List<GeoPoint>
+        {
+            new(25.1560, 55.2218), new(25.15601, 55.2218), new(25.15601, 55.22181), new(25.1560, 55.22181),
+        };
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary(tinyObserved));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldKeepMappedGeometry_WhenObservedCentroidIsFarOutsideTheSearchRadius()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        // Same shape/area as the mapped candidate, but shifted ~2 degrees (~200km) away — far
+        // outside SearchRadiusMeters (500m default), so this can't plausibly be the same feature.
+        var farAwayObserved = ShiftedSamplePolygon(2.0, 2.0);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary(farAwayObserved));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
+    }
 }

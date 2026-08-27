@@ -79,7 +79,7 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
             return string.IsNullOrWhiteSpace(text)
                 ? BoundaryVisionAnalysis.NotConfigured("Gemini returned an empty vision analysis response.")
-                : ParseAnalysis(text);
+                : ParseAnalysis(text, image);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -138,13 +138,12 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
             {{candidatesDescription}}
 
-            IMPORTANT RULES:
+            IMPORTANT RULES for selected_candidate_id:
 
-            1. DO NOT invent new coordinates.
-            2. DO NOT create a new polygon.
-            3. ONLY choose among the candidate IDs provided above.
-            4. If none of the candidates reasonably represents the site, return null.
-            5. Base your decision on visible physical features such as:
+            1. DO NOT invent new coordinates for this field.
+            2. ONLY choose among the candidate IDs provided above.
+            3. If none of the candidates reasonably represents the site, return null.
+            4. Base your decision on visible physical features such as:
                - walls
                - fences
                - paths
@@ -154,8 +153,18 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
                - buildings
                - roads
                - other visible site boundaries
-            6. Prefer an existing candidate over saying none fit when there is reasonable
+            5. Prefer an existing candidate over saying none fit when there is reasonable
                visual evidence supporting that candidate.
+
+            SEPARATELY, also report where YOU visually see the site's actual boundary in this
+            image, in observed_boundary_normalized — this is independent of which candidate you
+            picked above, and matters most when a candidate's mapped shape looks shifted from
+            where the real walls/fences/tree line actually are in the image. Report it as a list
+            of [x, y] pairs, each a fraction from 0.0 to 1.0 of this image's width/height, with
+            (0,0) at the image's top-left corner (x=0 is the west edge, x=1 is the east edge; y=0
+            is the north edge, y=1 is the south edge). Trace the corners of the boundary you can
+            actually see, in order around the perimeter (3 to 12 points). Set this to null if you
+            cannot clearly identify the boundary in the image — do not guess.
 
             Determine which candidate ID most likely represents the actual site boundary.
 
@@ -167,12 +176,13 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
                 "boundary_quality": "<high|medium|low>",
                 "reasoning": ["<short reason>", "..."],
                 "issues": ["<short issue>", "..."],
-                "requires_refinement": <true|false>
+                "requires_refinement": <true|false>,
+                "observed_boundary_normalized": [[0.12, 0.08], [0.85, 0.10], ...] or null
             }
             """;
     }
 
-    private static BoundaryVisionAnalysis ParseAnalysis(string json)
+    private static BoundaryVisionAnalysis ParseAnalysis(string json, SatelliteImage image)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -193,9 +203,48 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
         var issues = ReadStringArray(root, "issues");
         var requiresRefinement = root.TryGetProperty("requires_refinement", out var refinementElement)
             && refinementElement.ValueKind == JsonValueKind.True;
+        var observedBoundary = ReadObservedBoundary(root, image);
 
         return new BoundaryVisionAnalysis(
-            AiUsed: true, selectedId, confidence, quality, reasoning, issues, requiresRefinement);
+            AiUsed: true, selectedId, confidence, quality, reasoning, issues, requiresRefinement, observedBoundary);
+    }
+
+    /// <summary>
+    /// Converts Gemini's own image-relative read of the boundary (<c>observed_boundary_normalized</c>,
+    /// [0,1] fractions of image width/height, origin top-left) back to real WGS84 coordinates using
+    /// the satellite image's known geographic bounds — the same bounds given to Gemini in the
+    /// prompt. This is the model's honest visual estimate, not an invented shape: it can only ever
+    /// land somewhere inside the image it was shown. <see cref="BoundaryResolutionService"/> still
+    /// runs a plausibility check before trusting it over mapped OSM geometry.
+    /// </summary>
+    private static List<GeoPoint>? ReadObservedBoundary(JsonElement root, SatelliteImage image)
+    {
+        if (!root.TryGetProperty("observed_boundary_normalized", out var element) || element.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var points = new List<GeoPoint>();
+        foreach (var pair in element.EnumerateArray())
+        {
+            if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() != 2)
+            {
+                continue;
+            }
+
+            var x = pair[0].GetDouble();
+            var y = pair[1].GetDouble();
+            if (x is < 0.0 or > 1.0 || y is < 0.0 or > 1.0)
+            {
+                continue;
+            }
+
+            var longitude = image.West + (x * (image.East - image.West));
+            var latitude = image.North - (y * (image.North - image.South));
+            points.Add(new GeoPoint(latitude, longitude));
+        }
+
+        return points.Count >= 3 ? points : null;
     }
 
     private static List<string> ReadStringArray(JsonElement root, string propertyName) =>

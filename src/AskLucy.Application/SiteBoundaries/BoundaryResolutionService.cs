@@ -14,6 +14,10 @@ internal static partial class BoundaryResolutionServiceLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Boundary candidate provider unavailable for chat {UserChatId}")]
     public static partial void ProviderUnavailable(ILogger logger, Guid userChatId, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Boundary resolution for chat {UserChatId}: Gemini reported an observed boundary but it failed the plausibility check, so the mapped geometry was kept")]
+    public static partial void VisionCorrectionRejected(ILogger logger, Guid userChatId);
 }
 
 /// <summary>
@@ -78,21 +82,34 @@ public sealed class BoundaryResolutionService(
             .Distinct()
             .ToList();
 
-        var sourceDetail = DescribeSource(winner.Candidate);
+        var mappedSourceDetail = DescribeSource(winner.Candidate);
+        var visionGeometry = TryBuildVisionCorrectedGeometry(winner, visionAnalysis, center, opts, mappedSourceDetail);
+        if (visionAnalysis.ObservedBoundary is not null && visionGeometry is null)
+        {
+            BoundaryResolutionServiceLog.VisionCorrectionRejected(logger, userChatId);
+        }
+
+        var finalPolygon = visionGeometry?.Polygon ?? winner.Candidate.Polygon.ExteriorRing;
+        var finalArea = visionGeometry?.AreaSquareMeters ?? winner.Candidate.AreaSquareMeters;
+        var finalSource = visionGeometry?.Source ?? winner.Candidate.Source;
+        var sourceDetail = visionGeometry?.SourceDetail ?? mappedSourceDetail;
+
         var confirmedBoundary = new ConfirmedSiteBoundaryData(
             confirmedLocation.LocationName,
             center.Latitude, center.Longitude,
-            winner.Candidate.Polygon.ExteriorRing,
-            winner.Candidate.AreaSquareMeters,
+            finalPolygon, finalArea,
             selection.CombinedScore, confidenceLevel,
-            winner.Candidate.Source, sourceDetail,
+            finalSource, sourceDetail,
             alternativeNames);
 
+        var aiNote = visionGeometry is not null
+            ? "Note: satellite-image analysis found this boundary's mapped position looked shifted from what's actually visible, so I used Gemini's own visual read of the boundary instead of the raw map data."
+            : DescribeAiVerification(selection.Agreement);
         var confirmationText = BoundaryConfirmationTemplates.WithAiVerificationNote(
             BoundaryConfirmationTemplates.WithAlternatives(
                 BoundaryConfirmationTemplates.Confirmed(confirmedLocation.LocationName, confidenceLevel, sourceDetail),
                 alternativeNames),
-            DescribeAiVerification(selection.Agreement));
+            aiNote);
 
         BoundaryResolutionServiceLog.Resolved(logger, userChatId, BoundaryResolutionOutcomeType.Confirmed, confirmedLocation.LocationName);
         return new BoundaryResolutionOutcome(BoundaryResolutionOutcomeType.Confirmed, confirmedBoundary, confirmationText);
@@ -161,6 +178,62 @@ public sealed class BoundaryResolutionService(
         var overrideScore = vision.Confidence ?? aiCandidate.Score;
         return new FinalSelection(aiCandidate, Math.Round(overrideScore, 3), "ai_override");
     }
+
+    /// <summary>Plausibility gate for <see cref="BoundaryVisionAnalysis.ObservedBoundary"/> — the area and position must be broadly consistent with the mapped candidate it's meant to be describing, or it's discarded as an unreliable read rather than trusted at face value.</summary>
+    private const double VisionCorrectionMinAreaRatio = 0.3;
+
+    private const double VisionCorrectionMaxAreaRatio = 3.0;
+
+    /// <summary>
+    /// User-requested departure from the notebook's "AI never invents coordinates" rule: when a
+    /// site has only one real OSM candidate, "picking a better candidate" (<see cref="SelectFinalCandidate"/>)
+    /// has nothing else to pick even if that one candidate's own geometry is positionally wrong
+    /// (observed live: Al Safa Park 2's OSM way is shaped correctly but shifted from its true
+    /// position, likely inherited from misaligned source imagery used when it was originally
+    /// traced). Gemini's own visual read of the boundary (<see cref="BoundaryVisionAnalysis.ObservedBoundary"/>,
+    /// already geo-referenced from image-relative coordinates by <see cref="IBoundaryVisionAnalyzer"/>)
+    /// is trusted to override the mapped geometry ONLY after passing a plausibility check — area
+    /// within <see cref="VisionCorrectionMinAreaRatio"/>x-<see cref="VisionCorrectionMaxAreaRatio"/>x
+    /// of the mapped candidate's area, and centroid within the search radius of the resolved
+    /// center — so an unrelated or hallucinated read can't silently replace real mapped geometry.
+    /// </summary>
+    private static VisionCorrectedGeometry? TryBuildVisionCorrectedGeometry(
+        ScoredBoundaryCandidate winner, BoundaryVisionAnalysis vision, GeoPoint center, BoundaryScoringOptions opts, string mappedSourceDetail)
+    {
+        if (vision.ObservedBoundary is not { Count: >= 3 } observed)
+        {
+            return null;
+        }
+
+        var observedArea = GeometryMath.AreaSquareMeters(observed);
+        if (observedArea <= 0)
+        {
+            return null;
+        }
+
+        var mappedArea = winner.Candidate.AreaSquareMeters;
+        if (mappedArea > 0)
+        {
+            var ratio = observedArea / mappedArea;
+            if (ratio < VisionCorrectionMinAreaRatio || ratio > VisionCorrectionMaxAreaRatio)
+            {
+                return null;
+            }
+        }
+
+        var observedCentroid = GeometryMath.Centroid(observed);
+        if (GeometryMath.DistanceMeters(observedCentroid, center) > opts.SearchRadiusMeters)
+        {
+            return null;
+        }
+
+        return new VisionCorrectedGeometry(
+            observed, observedArea, SiteBoundarySource.AiInterpretation,
+            $"Gemini vision's own read of the satellite image (cross-checked against {mappedSourceDetail}, area within tolerance)");
+    }
+
+    private sealed record VisionCorrectedGeometry(
+        IReadOnlyList<GeoPoint> Polygon, double AreaSquareMeters, SiteBoundarySource Source, string SourceDetail);
 
     private static string? DescribeAiVerification(string agreement) => agreement switch
     {
