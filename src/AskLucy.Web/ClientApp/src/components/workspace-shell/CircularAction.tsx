@@ -109,53 +109,11 @@ export function CircularAction({
       {/* Outer Box sets the in-flow footprint (Fab size only — never changes on expand). */}
       <Box onKeyDown={handleKeyDown} sx={{ position: 'relative', display: 'inline-flex' }}>
 
-        {/* ── Content overlay ────────────────────────────────────────────────────
-            z-index:1 keeps it below the Fab wrapper (z-index:2) so the Fab remains
-            interactive even when the pill's background covers the Fab's area. */}
-        <Box
-          sx={{
-            position: 'absolute',
-            zIndex: 1,
-            pointerEvents: expanded ? 'auto' : 'none',
-            ...overlayPositionSx,
-          }}
-        >
-          <Collapse in={expanded} orientation={collapseOrientation}>
-            <Box
-              id={contentId}
-              role="group"
-              aria-label={`${label} options`}
-              inert={!expanded}
-              sx={{
-                ...contentPadding,
-                display: 'flex',
-                alignItems: isPill ? 'center' : 'stretch',
-                flexDirection: isHorizontal ? 'row' : 'column',
-                overflow: 'hidden',
-                bgcolor: (t) => t.palette.mode === 'dark'
-                  ? 'oklch(0.18 0.02 280 / 0.97)'
-                  : 'rgba(255,255,255,0.96)',
-                border: (t) => t.palette.mode === 'dark'
-                  ? '1px solid oklch(0.34 0.02 280 / 0.6)'
-                  : '1px solid rgba(0,0,0,0.12)',
-                borderRadius: isPill ? `${radius.pill}px` : '12px',
-                backdropFilter: 'blur(12px)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
-                color: (t) => t.palette.mode === 'dark'
-                  ? 'oklch(0.97 0.01 100)'
-                  : 'rgba(0,0,0,0.87)',
-                whiteSpace: isPill ? 'nowrap' : undefined,
-              }}
-            >
-              {children}
-            </Box>
-          </Collapse>
-        </Box>
-
-        {/* ── Trigger Fab ─────────────────────────────────────────────────────────
-            z-index:2 ensures the Fab paints above the pill background and stays
-            clickable even when the pill covers its position. `size="small"` keeps
-            the trigger the same 40 px as the option IconButtons. */}
+          {/* ── Trigger Fab ─────────────────────────────────────────────────────────
+            Rendered FIRST in DOM so it appears first in tab order: focus on the Fab
+            → Tab → expanded options (next in DOM). z-index:2 keeps it painted above
+            the overlay (z-index:1) even though the overlay follows in DOM order.
+            `size="small"` keeps the trigger the same 40 px as the option IconButtons. */}
         <Box sx={{ position: 'relative', zIndex: 2 }}>
           <Badge
             color="secondary"
@@ -206,6 +164,50 @@ export function CircularAction({
               {icon}
             </Fab>
           </Badge>
+        </Box>
+
+        {/* ── Content overlay ────────────────────────────────────────────────────
+            Rendered AFTER the Fab so tab order is Fab → options (DOM order = tab order).
+            z-index:1 keeps it below the Fab (z-index:2) so the Fab stays clickable
+            even when the pill background covers the Fab's area. */}
+        <Box
+          sx={{
+            position: 'absolute',
+            zIndex: 1,
+            pointerEvents: expanded ? 'auto' : 'none',
+            ...overlayPositionSx,
+          }}
+        >
+          <Collapse in={expanded} orientation={collapseOrientation}>
+            <Box
+              id={contentId}
+              role="group"
+              aria-label={`${label} options`}
+              inert={!expanded}
+              sx={{
+                ...contentPadding,
+                display: 'flex',
+                alignItems: isPill ? 'center' : 'stretch',
+                flexDirection: isHorizontal ? 'row' : 'column',
+                overflow: 'hidden',
+                bgcolor: (t) => t.palette.mode === 'dark'
+                  ? 'oklch(0.18 0.02 280 / 0.97)'
+                  : 'rgba(255,255,255,0.96)',
+                border: (t) => t.palette.mode === 'dark'
+                  ? '1px solid oklch(0.34 0.02 280 / 0.6)'
+                  : '1px solid rgba(0,0,0,0.12)',
+                borderRadius: isPill ? `${radius.pill}px` : '12px',
+                backdropFilter: 'blur(12px)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+                color: (t) => t.palette.mode === 'dark'
+                  ? 'oklch(0.97 0.01 100)'
+                  : 'rgba(0,0,0,0.87)',
+                whiteSpace: isPill ? 'nowrap' : undefined,
+              }}
+            >
+              {children}
+            </Box>
+          </Collapse>
         </Box>
       </Box>
     </ClickAwayListener>
