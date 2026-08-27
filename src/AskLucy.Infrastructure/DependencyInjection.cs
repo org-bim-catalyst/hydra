@@ -233,9 +233,15 @@ public static class DependencyInjection
         // specs/042-site-boundary-resolution: dedicated client for the OSM Overpass API — kept
         // separate from "Geocoding" so boundary-search and point-geocoding timeouts/policies can
         // diverge without coupling (same reasoning as "Geocoding" itself vs. "Weather").
+        // 30s, not 15s: the query itself declares "[timeout:25]" to the Overpass server (research.md
+        // #2/#12) — a 15s client-side timeout could abort a request Overpass was still legitimately
+        // working on, turning a slow-but-successful lookup into a false "Unavailable" (observed live:
+        // Al Safa Park 2's boundary lookup failed in production despite the identical query
+        // succeeding in ~1.4s from a different network — the public instance's latency varies by
+        // caller). 30s gives Overpass's own budget room to actually finish before the client gives up.
         services.AddHttpClient("Overpass", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(15);
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         services.AddSingleton<ITokenService, TokenService>();

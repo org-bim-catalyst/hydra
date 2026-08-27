@@ -33,8 +33,18 @@ internal sealed class OverpassBoundaryCandidateProvider(
 {
     private const string UserAgentHeader = "AskLucy/1.0 (+https://hydra.bimcatalyst.com)";
 
-    /// <summary>OSM tag keys whose presence marks a way as a plausible site-boundary candidate — extensible, not restricted to park-specific tags (matches the reference notebook's own broad tag-group list).</summary>
-    private static readonly string[] CandidateTagKeys = ["leisure", "landuse", "amenity", "tourism", "natural", "building", "boundary"];
+    /// <summary>
+    /// OSM tag keys whose presence marks a way as a plausible site-boundary candidate —
+    /// extensible, not restricted to park-specific tags (matches the reference notebook's own
+    /// broad tag-group list). Deliberately excludes "building": it's by far the most common tag
+    /// in OSM, so an "around" radius scan against it is the most expensive part of the query
+    /// (observed live: this made a production boundary lookup slow enough to exceed the client
+    /// timeout even after raising it) and buildings are rarely themselves a good match for a
+    /// site's own boundary anyway. "boundary" (administrative boundaries) is excluded too — it
+    /// tends to match oversized areas already penalized by the geometry-quality score, so it
+    /// adds query cost without adding good candidates.
+    /// </summary>
+    private static readonly string[] CandidateTagKeys = ["leisure", "landuse", "amenity", "tourism", "natural"];
 
     private readonly OverpassOptions _options = options.Value;
 
