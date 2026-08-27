@@ -191,9 +191,11 @@ public sealed class BoundaryResolutionServiceTests
     public async Task ResolveAsync_ShouldSwitchToAiSelectedCandidate_WhenAiVisionOverridesTheTopRankedCandidate()
     {
         var topRanked = Candidate(name: "Al Safa Park 2", distanceMeters: 2, areaSquareMeters: 15_000)
-            with { Id = "osm_top" };
+            with
+        { Id = "osm_top" };
         var aiPick = Candidate(name: "Al Safa Park 2 (Actual Boundary)", distanceMeters: 40, areaSquareMeters: 22_000)
-            with { Id = "osm_ai_pick" };
+            with
+        { Id = "osm_ai_pick" };
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { topRanked, aiPick });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())

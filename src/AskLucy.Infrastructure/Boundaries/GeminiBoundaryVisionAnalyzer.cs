@@ -94,8 +94,8 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
     private static Dictionary<string, object?> BuildPayload(
         SatelliteImage image, IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center) => new()
-    {
-        ["contents"] = new object[]
+        {
+            ["contents"] = new object[]
         {
             new
             {
@@ -107,8 +107,8 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
                 },
             },
         },
-        ["generationConfig"] = new { responseMimeType = "application/json" },
-    };
+            ["generationConfig"] = new { responseMimeType = "application/json" },
+        };
 
     /// <summary>Ported near-verbatim from the reference notebook's own prompt text.</summary>
     private static string BuildPrompt(
