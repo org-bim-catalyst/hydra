@@ -1,4 +1,5 @@
 import { apiFetch } from '../../../api/httpClient'
+import type { ProviderFailureKind } from '../../../api/httpClient'
 
 /** specs/005-multi-provider-ai-engine — mirrors `AdminAiProviderDto`. Never includes the credential value itself. */
 export interface AdminAiProvider {
@@ -11,9 +12,34 @@ export interface AdminAiProvider {
   defaultModelId: string | null
   healthStatus: 'Unknown' | 'Healthy' | 'Unhealthy'
   healthStatusCheckedAtUtc: string | null
+  /** specs/043 FR-016 — why the last check failed. Non-null only while `healthStatus` is `Unhealthy`. */
+  healthFailureKind: ProviderFailureKind | null
+  /** Administrator-facing prose for `healthFailureKind`. Never a raw vendor response body. */
+  healthFailureReason: string | null
+  /**
+   * specs/043 FR-019 — the instant this result stops being trustworthy (`checkedAt + 3x the
+   * configured check interval`). A horizon rather than a boolean, so an open page turns stale
+   * on its own instead of showing a verdict frozen at render time.
+   */
+  healthStaleAfterUtc: string | null
+}
+
+/** specs/043 FR-024 — the result of an administrator-triggered probe. */
+export interface CheckProviderHealthResult {
+  healthStatus: AdminAiProvider['healthStatus']
+  healthFailureKind: ProviderFailureKind | null
+  healthFailureReason: string | null
+  checkedAtUtc: string
+  healthStaleAfterUtc: string | null
 }
 
 export const getProviders = () => apiFetch<AdminAiProvider[]>('/admin/ai/providers')
+
+/** specs/043 FR-024. Bounded by the controller's existing `admin-endpoints` rate limit (FR-025). */
+export const checkProviderHealth = (providerId: string) =>
+  apiFetch<CheckProviderHealthResult>(`/admin/ai/providers/${providerId}/actions/check-health`, {
+    method: 'POST',
+  })
 
 export const updateProvider = (id: string, changes: { isEnabled?: boolean; defaultModelId?: string | null }) =>
   apiFetch<void>(`/admin/ai/providers/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
@@ -48,8 +74,9 @@ export interface AdminAiModel {
   id: string
   modelKey: string
   displayName: string
-  contextWindowTokens: number
-  maxOutputTokens: number
+  /** specs/043 FR-029/FR-030 — `null` means the vendor published no figure. Never rendered as 0. */
+  contextWindowTokens: number | null
+  maxOutputTokens: number | null
   capabilities: AdminAiModelCapabilities
   pricing: AdminAiModelPricing | null
   releaseDate: string | null
@@ -60,8 +87,9 @@ export interface AdminAiModel {
 export interface AddedProviderModel {
   modelKey: string
   displayName: string
-  contextWindowTokens: number
-  maxOutputTokens: number
+  /** specs/043 FR-029 — `null` when the vendor publishes no token metadata (OpenAI publishes none at all). */
+  contextWindowTokens: number | null
+  maxOutputTokens: number | null
   capabilities: AdminAiModelCapabilities
 }
 

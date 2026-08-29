@@ -1,5 +1,6 @@
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
+using AskLucy.Application.Ai.Commands.CheckAiProviderHealth;
 using AskLucy.Application.Ai.Commands.ClearAiProviderCredential;
 using AskLucy.Application.Ai.Commands.SetAiProviderCredential;
 using AskLucy.Application.Ai.Commands.UpdateAiModelStatus;
@@ -50,6 +51,14 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
         await mediator.Send(new ClearAiProviderCredentialCommand(id), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>specs/043 FR-024. A provider found failing still returns 200 - the check succeeded, and its finding is the payload; only a failure of the check mechanism is a 5xx.</summary>
+    [HttpPost("providers/{providerId:guid}/actions/check-health")]
+    [ProducesResponseType<CheckAiProviderHealthResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CheckAiProviderHealthResultDto>> CheckProviderHealth(Guid providerId, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new CheckAiProviderHealthCommand(providerId), cancellationToken));
 
     [HttpGet("providers/{providerId:guid}/models")]
     public async Task<ActionResult<IReadOnlyList<AdminAiModelDto>>> GetModels(Guid providerId, CancellationToken cancellationToken) =>

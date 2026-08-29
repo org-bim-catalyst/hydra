@@ -33,6 +33,12 @@ public sealed class GoogleGeminiProvider(
 {
     private const string ProviderKey = "google-gemini";
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>specs/043 FR-028a - the vendor's documented maximum, so the common catalog fits in one round trip.</summary>
+    private const int MaxModelPageSize = 1000;
+
+    /// <summary>Bounds the pagination loop so a malformed continuation token cannot spin forever.</summary>
+    private const int MaxModelPages = 20;
     private readonly GoogleGeminiOptions _options = options.Value;
 
     public string ProviderName => "Google Gemini";
@@ -141,73 +147,126 @@ public sealed class GoogleGeminiProvider(
     public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Google Gemini audio transcription is not supported by this provider.");
 
-    public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var (client, apiKey) = await CreateClientAsync(cancellationToken);
-            using var httpClient = client;
-            using var response = await httpClient.GetAsync($"models?key={apiKey}", cancellationToken);
-            return response.IsSuccessStatusCode;
-        }
-        catch (Exception ex) when (IsTransient(ex) || ex is AiProviderAuthenticationException)
-        {
-            return false;
-        }
-    }
-
-    public async Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default)
-    {
-        var (client, apiKey) = await CreateClientAsync(cancellationToken);
-        using var httpClient = client;
-        using var response = await httpClient.GetAsync($"models?key={apiKey}", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-        var results = new List<ProviderModelInfo>();
-        foreach (var model in document.RootElement.GetProperty("models").EnumerateArray())
-        {
-            var name = model.GetProperty("name").GetString();
-            if (string.IsNullOrEmpty(name))
+    public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.ProbeAsync(
+            async ct =>
             {
-                continue;
-            }
+                var (client, apiKey) = await CreateClientAsync(ct);
+                using var httpClient = client;
+                using var response = await httpClient.GetAsync($"models?key={apiKey}", ct);
+                await EnsureSuccessAsync(response, ct);
+            },
+            ProviderName,
+            logger,
+            cancellationToken);
 
-            var modelKey = name.StartsWith("models/", StringComparison.Ordinal) ? name["models/".Length..] : name;
-            var displayName = model.TryGetProperty("displayName", out var displayNameElement) ? displayNameElement.GetString() ?? modelKey : modelKey;
-            // Gemini's catalog spans far more than chat models (embeddings, TTS, image/video
-            // generation, live-audio) — several of those report inputTokenLimit/outputTokenLimit
-            // as a JSON null rather than omitting the field, and GetInt32() throws on a null-kind
-            // element. Guarding the ValueKind here (not just TryGetProperty's presence check)
-            // stops one such model from taking down the entire catalog listing.
-            var contextWindow = model.TryGetProperty("inputTokenLimit", out var inputLimit) && inputLimit.ValueKind == JsonValueKind.Number
-                ? inputLimit.GetInt32() : 0;
-            var maxOutput = model.TryGetProperty("outputTokenLimit", out var outputLimit) && outputLimit.ValueKind == JsonValueKind.Number
-                ? outputLimit.GetInt32() : 0;
+    public Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.TranslateAsync<IReadOnlyList<ProviderModelInfo>>(
+            async ct =>
+            {
+                var (client, apiKey) = await CreateClientAsync(ct);
+                using var httpClient = client;
 
-            results.Add(new ProviderModelInfo(
-                modelKey, displayName, contextWindow, maxOutput,
-                new AIModelCapabilities(
-                    Streaming: true, Vision: true, FunctionCalling: true, JsonMode: true,
-                    Reasoning: false, Embeddings: false, ImageInput: true, ImageOutput: false, Audio: false)));
+                var results = new List<ProviderModelInfo>();
+                string? pageToken = null;
+                var pagesRead = 0;
+
+                // specs/043 FR-028a: Gemini paginates this endpoint, and reading only the
+                // first page silently omits models while the diff still looks successful.
+                // The page cap turns a malformed continuation into a classified failure
+                // rather than an infinite loop.
+                do
+                {
+                    var url = $"models?key={apiKey}&pageSize={MaxModelPageSize}";
+                    if (!string.IsNullOrEmpty(pageToken))
+                    {
+                        url += $"&pageToken={Uri.EscapeDataString(pageToken)}";
+                    }
+
+                    using var response = await httpClient.GetAsync(url, ct);
+                    await EnsureSuccessAsync(response, ct);
+
+                    using var stream = await response.Content.ReadAsStreamAsync(ct);
+                    using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+                    if (document.RootElement.TryGetProperty("models", out var models) && models.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var model in models.EnumerateArray())
+                        {
+                            if (ReadModel(model) is { } info)
+                            {
+                                results.Add(info);
+                            }
+                        }
+                    }
+
+                    pageToken = document.RootElement.TryGetProperty("nextPageToken", out var next) && next.ValueKind == JsonValueKind.String
+                        ? next.GetString()
+                        : null;
+                }
+                while (!string.IsNullOrEmpty(pageToken) && ++pagesRead < MaxModelPages);
+
+                if (!string.IsNullOrEmpty(pageToken))
+                {
+                    throw AiProviderResponseClassifier.Create(AiProviderFailureKind.ResponseNotUnderstood, ProviderName);
+                }
+
+                return results;
+            },
+            ProviderName,
+            cancellationToken);
+
+    private static ProviderModelInfo? ReadModel(JsonElement model)
+    {
+        var name = model.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null;
+        if (string.IsNullOrEmpty(name))
+        {
+            return null;
         }
 
-        return results;
+        var modelKey = name.StartsWith("models/", StringComparison.Ordinal) ? name["models/".Length..] : name;
+        var displayName = model.TryGetProperty("displayName", out var displayNameElement) ? displayNameElement.GetString() ?? modelKey : modelKey;
+
+        // Gemini's catalog spans far more than chat models (embeddings, TTS, image/video
+        // generation, live-audio) - several of those report inputTokenLimit/outputTokenLimit
+        // as a JSON null rather than omitting the field, and GetInt32() throws on a null-kind
+        // element. Guarding the ValueKind (not just TryGetProperty's presence check) stops one
+        // such model from taking down the entire catalog listing; specs/043 FR-029 then keeps
+        // the absence as null rather than substituting a 0 the catalog would reject.
+        var contextWindow = model.TryGetProperty("inputTokenLimit", out var inputLimit) && inputLimit.ValueKind == JsonValueKind.Number
+            ? inputLimit.GetInt32() : (int?)null;
+        var maxOutput = model.TryGetProperty("outputTokenLimit", out var outputLimit) && outputLimit.ValueKind == JsonValueKind.Number
+            ? outputLimit.GetInt32() : (int?)null;
+
+        return new ProviderModelInfo(
+            modelKey, displayName, contextWindow, maxOutput,
+            new AIModelCapabilities(
+                Streaming: true, Vision: true, FunctionCalling: true, JsonMode: true,
+                Reasoning: false, Embeddings: false, ImageInput: true, ImageOutput: false, Audio: false));
     }
 
     private async Task<(HttpClient Client, string ApiKey)> CreateClientAsync(CancellationToken cancellationToken)
     {
         var provider = await providerRepository.GetByKeyAsync(ProviderKey, cancellationToken)
-            ?? throw new AiProviderAuthenticationException("Google Gemini is not configured in the provider catalog.");
+            ?? throw new AiProviderNotConfiguredException("Google Gemini is not configured in the provider catalog.");
 
         if (provider.CredentialCiphertext is null)
         {
-            throw new AiProviderAuthenticationException("Google Gemini has no credential configured. An administrator must set one.");
+            throw new AiProviderNotConfiguredException("Google Gemini has no credential configured. An administrator must set one.");
         }
 
-        var apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
+        // specs/043 FR-004: a key-ring change under a deployment leaves the ciphertext
+        // undecryptable. Left untranslated this surfaced as a generic 500 while the provider
+        // still displayed "Configured" - the exact pair of symptoms in the original report.
+        string apiKey;
+        try
+        {
+            apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
+        }
+        catch (System.Security.Cryptography.CryptographicException ex)
+        {
+            throw AiProviderResponseClassifier.Create(AiProviderFailureKind.CredentialUnreadable, ProviderName, retryAfter: null, ex);
+        }
 
         var client = httpClientFactory.CreateClient("GoogleGemini");
         client.BaseAddress = new Uri(_options.BaseUrl);
@@ -304,31 +363,9 @@ public sealed class GoogleGeminiProvider(
         }
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-        {
-            throw new AiProviderAuthenticationException($"Google Gemini rejected the configured credential ({(int)response.StatusCode}).");
-        }
-
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            var retryAfter = response.Headers.RetryAfter?.Delta;
-            throw new AiProviderRateLimitedException("Google Gemini rate-limited this request.", retryAfter);
-        }
-
-        throw new HttpRequestException(
-            $"Google Gemini request failed with {(int)response.StatusCode}: {body}",
-            inner: null,
-            statusCode: response.StatusCode);
-    }
+    /// <summary>specs/043: classification is delegated to the one shared table (research.md Decision 1) rather than re-derived from the status code here.</summary>
+    private Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
+        AiProviderResponseClassifier.EnsureSuccessAsync(response, AiVendor.GoogleGemini, ProviderName, logger, cancellationToken);
 
     private async Task<T> WithRetryAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken)
     {

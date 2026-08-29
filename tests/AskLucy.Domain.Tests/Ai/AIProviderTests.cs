@@ -91,4 +91,47 @@ public sealed class AIProviderTests
         provider.HealthStatus.Should().Be(ProviderHealthStatus.Healthy);
         provider.ModifiedAtUtc.Should().Be(modifiedAtAfterCredentialSet);
     }
+
+    [Fact]
+    public void UpdateHealthStatus_ShouldRecordTheClassification_WhenUnhealthy()
+    {
+        // specs/043 FR-016: an unexplained red chip is what made a quota problem, a bad key and
+        // a disabled billing account indistinguishable on the providers page.
+        var provider = AIProvider.Create("google-gemini", "Google Gemini", "admin-1");
+
+        provider.UpdateHealthStatus(
+            isHealthy: false, DateTime.UtcNow, AiProviderFailureKind.QuotaExhausted, "Quota exhausted.");
+
+        provider.HealthStatus.Should().Be(ProviderHealthStatus.Unhealthy);
+        provider.HealthFailureKind.Should().Be(AiProviderFailureKind.QuotaExhausted);
+        provider.HealthFailureReason.Should().Be("Quota exhausted.");
+    }
+
+    [Fact]
+    public void UpdateHealthStatus_ShouldClearTheClassification_OnRecovery()
+    {
+        // The invariant that matters: a reason recorded during an outage must not outlive the
+        // recovery and keep telling an administrator to fix something already fixed. The entity
+        // enforces this itself rather than trusting every caller to pass nulls.
+        var provider = AIProvider.Create("google-gemini", "Google Gemini", "admin-1");
+        provider.UpdateHealthStatus(false, DateTime.UtcNow, AiProviderFailureKind.CredentialRejected, "Bad key.");
+
+        provider.UpdateHealthStatus(isHealthy: true, DateTime.UtcNow);
+
+        provider.HealthStatus.Should().Be(ProviderHealthStatus.Healthy);
+        provider.HealthFailureKind.Should().BeNull();
+        provider.HealthFailureReason.Should().BeNull();
+    }
+
+    [Fact]
+    public void UpdateHealthStatus_ShouldIgnoreAClassification_PassedAlongsideAHealthyResult()
+    {
+        var provider = AIProvider.Create("google-gemini", "Google Gemini", "admin-1");
+
+        provider.UpdateHealthStatus(
+            isHealthy: true, DateTime.UtcNow, AiProviderFailureKind.RateLimited, "Should not be stored.");
+
+        provider.HealthFailureKind.Should().BeNull();
+        provider.HealthFailureReason.Should().BeNull();
+    }
 }

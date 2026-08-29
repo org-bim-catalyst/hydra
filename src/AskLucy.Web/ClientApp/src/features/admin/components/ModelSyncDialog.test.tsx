@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApplyProviderModelSyncResult, ProviderModelSyncDiff } from '../api/adminAiProvidersApi'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
+import { ApiError } from '../../../api/httpClient'
 import { ModelSyncDialog } from './ModelSyncDialog'
 
 // Same reasoning as AiProviderActionsMenu.test.tsx: MUI's Paper-based Dialog surfaces
@@ -234,3 +235,90 @@ describe('ModelSyncDialog', () => {
     expect(screen.getByText(/diff is stale/i)).toBeInTheDocument()
   })
 })
+
+describe('classified provider failures (specs/043 US1)', () => {
+  it.each([
+    [
+      'CredentialRejected' as const,
+      true,
+      'Google Gemini rejected the configured credential. An administrator needs to replace its API key.',
+    ],
+    [
+      'QuotaExhausted' as const,
+      false,
+      'Google Gemini is configured correctly, but its usage quota is exhausted.',
+    ],
+    [
+      'UsageRestricted' as const,
+      true,
+      'Google Gemini rejected the request because the account or project is restricted.',
+    ],
+    [
+      'CredentialUnreadable' as const,
+      true,
+      "Google Gemini's stored credential could not be read. An administrator needs to enter it again.",
+    ],
+  ])('renders the specific reason for %s instead of a generic error', async (kind, canAct, detail) => {
+    vi.mocked(adminAiProvidersApi.syncModels).mockRejectedValue(
+      new ApiError(502, 'AI provider failure', detail, undefined, {
+        kind,
+        canAdministratorAct: canAct,
+        retryAfterSeconds: null,
+      }),
+    )
+    renderDialog()
+
+    fireEvent.click(screen.getByText('Check for updates'))
+
+    await waitFor(() => expect(screen.getByText(detail)).toBeInTheDocument())
+    // SC-002: the string this whole feature exists to eliminate.
+    expect(screen.queryByText(/An unexpected error occurred/i)).not.toBeInTheDocument()
+  })
+
+  it('tells the administrator to act when they can (FR-011)', async () => {
+    vi.mocked(adminAiProvidersApi.syncModels).mockRejectedValue(
+      new ApiError(502, 'AI provider failure', 'Credential rejected.', undefined, {
+        kind: 'CredentialRejected',
+        canAdministratorAct: true,
+        retryAfterSeconds: null,
+      }),
+    )
+    renderDialog()
+
+    fireEvent.click(screen.getByText('Check for updates'))
+
+    await waitFor(() => expect(screen.getByText(/needs an administrator to fix it/)).toBeInTheDocument())
+  })
+
+  it('conveys the vendor retry hint when one was supplied (FR-012)', async () => {
+    vi.mocked(adminAiProvidersApi.syncModels).mockRejectedValue(
+      new ApiError(429, 'AI provider rate limited', 'Rate limited.', undefined, {
+        kind: 'RateLimited',
+        canAdministratorAct: false,
+        retryAfterSeconds: 30,
+      }),
+    )
+    renderDialog()
+
+    fireEvent.click(screen.getByText('Check for updates'))
+
+    await waitFor(() => expect(screen.getByText(/try again in about 30 seconds/)).toBeInTheDocument())
+  })
+
+  it('never invents a duration when the vendor supplied no hint (FR-012)', async () => {
+    vi.mocked(adminAiProvidersApi.syncModels).mockRejectedValue(
+      new ApiError(429, 'AI provider rate limited', 'Rate limited.', undefined, {
+        kind: 'RateLimited',
+        canAdministratorAct: false,
+        retryAfterSeconds: null,
+      }),
+    )
+    renderDialog()
+
+    fireEvent.click(screen.getByText('Check for updates'))
+
+    await waitFor(() => expect(screen.getByText(/try again later/)).toBeInTheDocument())
+    expect(screen.queryByText(/seconds/)).not.toBeInTheDocument()
+  })
+})
+

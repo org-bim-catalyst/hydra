@@ -19,6 +19,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import KeyIcon from '@mui/icons-material/Key'
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import DeleteIcon from '@mui/icons-material/Delete'
+import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
@@ -84,6 +85,31 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
       invalidate()
       setFeedback({ severity: 'success', message: 'Credential saved.' })
     },
+    onError,
+  })
+
+  /**
+   * specs/043 US3 (FR-024) — turns diagnosis into a closed loop: after replacing a credential
+   * or enabling billing, an administrator can confirm the fix now instead of waiting out the
+   * background cycle. FR-025's concurrency bound is the controller's existing
+   * `admin-endpoints` rate limit plus the pending-disabled trigger below, not new machinery.
+   */
+  const checkHealthMutation = useMutation({
+    mutationFn: () => adminAiProvidersApi.checkProviderHealth(provider.id),
+    onSuccess: (result) => {
+      invalidate()
+      setFeedback(
+        result.healthStatus === 'Healthy'
+          ? { severity: 'success', message: `${provider.displayName} is healthy.` }
+          : {
+              severity: 'error',
+              // The server's own classified prose — already administrator-facing and free of
+              // any vendor body or credential (FR-013).
+              message: result.healthFailureReason ?? `${provider.displayName} is unhealthy.`,
+            },
+      )
+    },
+    // constitution VIII: a failed probe request must reach the user, not just the console.
     onError,
   })
 
@@ -153,6 +179,18 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
             <PowerSettingsNewIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>{provider.isEnabled ? 'Disable' : 'Enable'}</ListItemText>
+        </MenuItem>
+        <MenuItem
+          disabled={!provider.hasCredential || checkHealthMutation.isPending}
+          onClick={() => {
+            closeMenu()
+            checkHealthMutation.mutate()
+          }}
+        >
+          <ListItemIcon>
+            <HealthAndSafetyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{checkHealthMutation.isPending ? 'Checking…' : 'Check now'}</ListItemText>
         </MenuItem>
         <MenuItem
           disabled={!provider.hasCredential}

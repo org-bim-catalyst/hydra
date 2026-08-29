@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
@@ -29,9 +30,29 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
     {
         var (statusCode, type, title, detail) = Map(exception);
 
+        // specs/043 FR-010/FR-014/FR-015a. An administrator gets the classifier's own prose -
+        // built from the classification alone, never from the vendor body - plus a
+        // machine-readable code for the admin UI to branch on. Everyone else keeps the
+        // pre-existing cause-free message and gets no extension at all.
+        var isProviderFailure = exception is AiProviderException;
+        var discloseClassification = isProviderFailure && IsAdministrator(context);
+        if (discloseClassification)
+        {
+            detail = exception.Message;
+        }
+
         if (statusCode >= 500)
         {
             ProblemDetailsMiddlewareLog.UnhandledException(logger, exception);
+        }
+
+        // specs/043 FR-014: every provider failure is recorded with its classification, whatever
+        // status it maps to. Without this the 4xx-mapped ones (rate limit, quota, invalid
+        // request) left no server-side trace at all, since only >= 500 was logged above.
+        if (exception is AiProviderException loggedFailure)
+        {
+            ProblemDetailsMiddlewareLog.ProviderFailureSurfaced(
+                logger, loggedFailure.Kind, statusCode, context.Request.Path);
         }
 
         // FR-028 (specs/002-chat-history-management): access-denial responses are logged as
@@ -64,10 +85,22 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
                 .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
         }
 
-        // FR-028: pass the vendor's own Retry-After hint through when it supplied one.
-        if (exception is AiProviderRateLimitedException { RetryAfter: { } retryAfter })
+        // FR-028, extended by specs/043 FR-012: any classified failure may carry the vendor's
+        // own Retry-After hint - an exhausted quota often does, not just a rate limit. Never
+        // invented when the vendor did not supply one.
+        if (exception is AiProviderException { RetryAfter: { } retryAfter })
         {
             context.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (discloseClassification && exception is AiProviderException classified)
+        {
+            problemDetails.Extensions["providerFailure"] = new Dictionary<string, object?>
+            {
+                ["kind"] = classified.Kind.ToString(),
+                ["canAdministratorAct"] = CanAdministratorAct(classified.Kind),
+                ["retryAfterSeconds"] = classified.RetryAfter is { } hint ? (int)hint.TotalSeconds : null,
+            };
         }
 
         // FR-029, contracts/document-processing-api.md: the client needs a machine-readable
@@ -208,38 +241,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "MCP server has references",
             hasReferencesEx.Message),
 
-        AiProviderUnavailableException => (
-            StatusCodes.Status502BadGateway,
-            "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
-            "AI provider unavailable",
-            "The AI service could not process your request. Please try again."),
-
-        // specs/005-multi-provider-ai-engine FR-028/FR-029 (research.md Decision 9): every
-        // vendor's authentication/rate-limit failures translate to these two shared types,
-        // regardless of which provider produced them.
-        AiProviderAuthenticationException => (
-            StatusCodes.Status502BadGateway,
-            "https://hydra.bimcatalyst.com/problems/ai-provider-authentication-failed",
-            "AI provider authentication failed",
-            "The AI provider rejected the configured credential. An administrator needs to check the provider's API key."),
-
-        AiProviderRateLimitedException => (
-            StatusCodes.Status429TooManyRequests,
-            "https://hydra.bimcatalyst.com/problems/ai-provider-rate-limited",
-            "AI provider rate limited",
-            "The AI provider is rate-limiting requests right now. Please try again shortly."),
-
-        // specs/032: a 4xx OpenAI rejects that isn't auth/rate-limit (most plausibly a
-        // rejected transcription upload) — distinct from AiProviderUnavailableException so
-        // the user sees "this request was rejected," not "the service is down." The raw
-        // upstream body (in the exception's own Message) is deliberately NOT surfaced here —
-        // this middleware never exposes a raw exception message to the client; it's logged
-        // server-side instead (OpenAIProviderLog.RequestRejectedByProvider).
-        AiProviderRequestInvalidException => (
-            StatusCodes.Status400BadRequest,
-            "https://hydra.bimcatalyst.com/problems/ai-provider-request-invalid",
-            "AI provider rejected the request",
-            "The AI provider could not process this request. Please try again."),
+        // specs/043 FR-001, contracts/provider-failure-classification.md §3: one arm for every
+        // provider-originated failure, switching on the classification rather than on the
+        // concrete exception type. This replaced five near-identical arms - adding a tenth
+        // classification now needs no change here beyond a row in MapProviderFailure.
+        //
+        // The detail produced here is the *generic* one every principal may see; an
+        // administrator's specific detail and the machine-readable extension are applied in
+        // HandleAsync, gated on role (FR-015a).
+        AiProviderException providerFailure => MapProviderFailure(providerFailure),
 
         // specs/040-composer-interaction-bug-fixes US6: any HttpRequestException that escapes
         // the AI providers without being caught and re-thrown as a typed AiProvider*Exception
@@ -278,12 +288,101 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "An unexpected error occurred",
             "An unexpected error occurred. Please try again."),
     };
+
+    /// <summary>
+    /// contracts/provider-failure-classification.md §3 - the status and problem type for each
+    /// classification, with the cause-free detail a non-administrator sees.
+    /// </summary>
+    private static (int StatusCode, string Type, string Title, string Detail) MapProviderFailure(AiProviderException exception) => exception.Kind switch
+    {
+        AiProviderFailureKind.CredentialRejected => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-authentication-failed",
+            "AI provider authentication failed",
+            "The AI provider rejected the configured credential. An administrator needs to check the provider's API key."),
+
+        AiProviderFailureKind.CredentialUnreadable => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-credential-unreadable",
+            "AI provider credential unreadable",
+            "The AI service could not process your request. Please try again."),
+
+        AiProviderFailureKind.NotConfigured => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-not-configured",
+            "AI provider not configured",
+            "The AI service could not process your request. Please try again."),
+
+        AiProviderFailureKind.QuotaExhausted => (
+            StatusCodes.Status429TooManyRequests,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-quota-exhausted",
+            "AI provider quota exhausted",
+            // Deliberately says no more than "temporarily unavailable" to a non-administrator:
+            // an exhausted commercial allowance is tenant operational state, and disclosing it
+            // to every end user is the leak FR-015a exists to prevent.
+            "The AI provider is temporarily unavailable. Please try again later."),
+
+        AiProviderFailureKind.RateLimited => (
+            StatusCodes.Status429TooManyRequests,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-rate-limited",
+            "AI provider rate limited",
+            "The AI provider is rate-limiting requests right now. Please try again shortly."),
+
+        AiProviderFailureKind.UsageRestricted => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-usage-restricted",
+            "AI provider usage restricted",
+            "The AI service could not process your request. Please try again."),
+
+        AiProviderFailureKind.RequestInvalid => (
+            StatusCodes.Status400BadRequest,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-request-invalid",
+            "AI provider rejected the request",
+            "The AI provider could not process this request. Please try again."),
+
+        AiProviderFailureKind.ResponseNotUnderstood => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-response-invalid",
+            "AI provider response not understood",
+            "The AI service could not process your request. Please try again."),
+
+        _ => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
+            "AI provider unavailable",
+            "The AI service could not process your request. Please try again."),
+    };
+
+    /// <summary>
+    /// FR-011 - whether an administrator can fix this now, or has to wait it out. Drives the
+    /// call-to-action the admin UI renders, so it must not claim an unfixable condition is
+    /// actionable.
+    /// </summary>
+    private static bool CanAdministratorAct(AiProviderFailureKind kind) => kind switch
+    {
+        AiProviderFailureKind.CredentialRejected => true,
+        AiProviderFailureKind.CredentialUnreadable => true,
+        AiProviderFailureKind.NotConfigured => true,
+        AiProviderFailureKind.UsageRestricted => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// FR-015a. Same role test as Program.cs's privileged-user check - the classification is
+    /// administrator-only, and a non-administrator must not be able to read it out of the
+    /// response either as prose or as the machine-readable extension.
+    /// </summary>
+    private static bool IsAdministrator(HttpContext context) =>
+        context.User?.IsInRole("Administrator") == true || context.User?.IsInRole("Super User") == true;
 }
 
 internal static partial class ProblemDetailsMiddlewareLog
 {
     [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception")]
     public static partial void UnhandledException(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "AI provider failure surfaced: kind={Kind}, status={StatusCode}, path={Path}")]
+    public static partial void ProviderFailureSurfaced(ILogger logger, AiProviderFailureKind kind, int statusCode, PathString path);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Access denied: {Path} returned {StatusCode}")]
     public static partial void AccessDenied(ILogger logger, PathString path, int statusCode);
