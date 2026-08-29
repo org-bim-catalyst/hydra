@@ -30,8 +30,9 @@ export interface ModelSummary {
   id: string
   modelKey: string
   displayName: string
-  contextWindowTokens: number
-  maxOutputTokens: number
+  /** specs/043 FR-029 — `null` when the vendor published no figure; display-only metadata. */
+  contextWindowTokens: number | null
+  maxOutputTokens: number | null
   capabilities: ModelCapabilities
   pricing: ModelPricing | null
   releaseDate: string | null

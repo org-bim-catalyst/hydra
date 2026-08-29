@@ -66,26 +66,41 @@ public sealed class ProviderHealthCheckHostedService(
 
         foreach (var provider in providers)
         {
-            bool isHealthy;
-            string? detail;
+            ProviderHealthResult result;
 
             try
             {
                 var aiProvider = resolver.Resolve(provider.ProviderKey);
-                isHealthy = await aiProvider.CheckHealthAsync(cancellationToken);
-                detail = isHealthy ? null : "Health check returned an unsuccessful response.";
+                result = await aiProvider.CheckHealthAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                isHealthy = false;
+                // specs/043 FR-023: reaching here means the *checking mechanism* failed (the
+                // provider key resolved to nothing, say) rather than the provider itself
+                // reporting a problem — CheckHealthAsync returns provider failures as a
+                // classified result instead of throwing. The provider is still recorded
+                // unhealthy, but with the honest reason that the check could not be completed.
                 // Never the raw exception message verbatim — some vendor error bodies echo
                 // request headers, which could include the credential (constitution §14).
-                detail = $"{ex.GetType().Name} during health check.";
+                result = new ProviderHealthResult(
+                    IsHealthy: false,
+                    Kind: AiProviderFailureKind.Unavailable,
+                    Reason: "The health check could not be completed.");
                 ProviderHealthCheckLog.HealthCheckFailed(logger, ex, provider.ProviderKey);
             }
 
-            provider.UpdateHealthStatus(isHealthy, checkedAtUtc);
-            healthCheckRepository.Add(ProviderHealthCheck.Create(provider.Id, checkedAtUtc, isHealthy, detail, actor: "system:health-check"));
+            // specs/043 FR-016: the classification and its reason are recorded alongside the
+            // coarse status, on both the provider's current state and the append-only history,
+            // so an administrator sees *why* rather than an unexplained red chip.
+            provider.UpdateHealthStatus(result.IsHealthy, checkedAtUtc, result.Kind, result.Reason);
+            healthCheckRepository.Add(ProviderHealthCheck.Create(
+                provider.Id,
+                checkedAtUtc,
+                result.IsHealthy,
+                result.Reason,
+                actor: "system:health-check",
+                result.Kind,
+                result.Reason));
         }
 
         if (providers.Count > 0)

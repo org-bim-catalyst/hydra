@@ -52,6 +52,23 @@ public sealed class BoundaryScoringOptions : IValidatableObject
     /// </summary>
     public bool EnableAiVisionVerification { get; set; } = true;
 
+    /// <summary>
+    /// specs/043 FR-034 - the time budget for one Gemini vision call, in seconds.
+    /// <para>
+    /// The analyzer previously inherited the shared GoogleGemini HttpClient timeout of two
+    /// minutes, so a hung vision call stalled an interactive boundary resolution for that long
+    /// before falling back. The fallback was correct; it was simply far too late.
+    /// </para>
+    /// <para>
+    /// 30s rather than something tighter because this host has twice produced false
+    /// "unavailable" results from 15s timeouts (Overpass and Geocoding were both widened to 30s
+    /// after exactly that), and a multimodal call carrying a base64 satellite image is heavier
+    /// than either. Too short a budget would manufacture the very failure US5 exists to survive.
+    /// </para>
+    /// </summary>
+    [Range(1, 300)]
+    public int VisionTimeoutSeconds { get; set; } = 30;
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         var weightSum = SourceReliabilityWeight + NameMatchWeight + GeometryQualityWeight

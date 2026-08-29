@@ -27,13 +27,52 @@ public sealed class AIModelTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public void Create_ShouldThrow_WhenContextWindowIsNotPositive(int invalidContextWindow)
+    public void Create_ShouldThrow_WhenContextWindowIsSuppliedAndNotPositive(int invalidContextWindow)
     {
         var act = () => AIModel.Create(
             ProviderId, "gpt-4.1", "GPT-4.1", invalidContextWindow, 16_384, NoCapabilities,
             releaseDate: null, pricing: null, actor: "admin-1");
 
         act.Should().Throw<DomainRuleViolationException>();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Create_ShouldThrow_WhenMaxOutputIsSuppliedAndNotPositive(int invalidMaxOutput)
+    {
+        var act = () => AIModel.Create(
+            ProviderId, "gpt-4.1", "GPT-4.1", 128_000, invalidMaxOutput, NoCapabilities,
+            releaseDate: null, pricing: null, actor: "admin-1");
+
+        act.Should().Throw<DomainRuleViolationException>();
+    }
+
+    [Fact]
+    public void Create_ShouldSucceed_WhenTokenLimitsAreAbsent()
+    {
+        // specs/043 FR-029: several vendors publish no token metadata at all - OpenAI's list
+        // carries none for any model. Rejecting those rows meant they could never be added to
+        // the catalog by any route, since no edit path for the figures exists either.
+        var model = AIModel.Create(
+            ProviderId, "gpt-4-turbo", "GPT-4 Turbo", contextWindowTokens: null, maxOutputTokens: null,
+            NoCapabilities, releaseDate: null, pricing: null, actor: "admin-1");
+
+        model.ContextWindowTokens.Should().BeNull();
+        model.MaxOutputTokens.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_ShouldSucceed_WhenOnlyOneTokenLimitIsAbsent()
+    {
+        // OpenRouter publishes a context length but no output limit - a mixed row must be
+        // just as acceptable as one missing both.
+        var model = AIModel.Create(
+            ProviderId, "some/model", "Some Model", contextWindowTokens: 64_000, maxOutputTokens: null,
+            NoCapabilities, releaseDate: null, pricing: null, actor: "admin-1");
+
+        model.ContextWindowTokens.Should().Be(64_000);
+        model.MaxOutputTokens.Should().BeNull();
     }
 
     [Theory]

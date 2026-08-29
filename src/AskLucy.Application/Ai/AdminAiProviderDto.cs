@@ -12,9 +12,17 @@ public sealed record AdminAiProviderDto(
     DateTime? CredentialLastRotatedAtUtc,
     Guid? DefaultModelId,
     ProviderHealthStatus HealthStatus,
-    DateTime? HealthStatusCheckedAtUtc)
+    DateTime? HealthStatusCheckedAtUtc,
+    AiProviderFailureKind? HealthFailureKind,
+    string? HealthFailureReason,
+    DateTime? HealthStaleAfterUtc)
 {
-    public static AdminAiProviderDto FromEntity(AIProvider provider) => new(
+    /// <summary>
+    /// specs/043 FR-017/FR-019. <paramref name="staleAfterUtc"/> is a computed horizon rather
+    /// than a boolean: returning the instant the result goes stale lets an open page re-evaluate
+    /// itself against the clock, instead of showing a staleness verdict frozen at render time.
+    /// </summary>
+    public static AdminAiProviderDto FromEntity(AIProvider provider, DateTime? staleAfterUtc) => new(
         provider.Id,
         provider.ProviderKey,
         provider.DisplayName,
@@ -23,5 +31,8 @@ public sealed record AdminAiProviderDto(
         provider.CredentialLastRotatedAtUtc,
         provider.DefaultModelId,
         provider.HealthStatus,
-        provider.HealthStatusCheckedAtUtc);
+        provider.HealthStatusCheckedAtUtc,
+        provider.HealthFailureKind,
+        provider.HealthFailureReason,
+        staleAfterUtc);
 }

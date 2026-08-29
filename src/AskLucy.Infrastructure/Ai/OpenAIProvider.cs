@@ -66,7 +66,7 @@ public sealed class OpenAIProvider(
             var payload = BuildChatPayload(messages, model, parameters, stream: false);
 
             using var response = await client.PostAsJsonAsync("chat/completions", payload, ct);
-            await EnsureSuccessAsync(response, logger, ct);
+            await EnsureSuccessAsync(response, ct);
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -103,7 +103,7 @@ public sealed class OpenAIProvider(
         try
         {
             response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            await EnsureSuccessAsync(response, logger, cancellationToken);
+            await EnsureSuccessAsync(response, cancellationToken);
         }
         catch (AiProviderAuthenticationException)
         {
@@ -173,7 +173,7 @@ public sealed class OpenAIProvider(
             var payload = new { model, prompt, n = 1, size = "1024x1024" };
 
             using var response = await client.PostAsJsonAsync("images/generations", payload, ct);
-            await EnsureSuccessAsync(response, logger, ct);
+            await EnsureSuccessAsync(response, ct);
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -201,7 +201,7 @@ public sealed class OpenAIProvider(
             form.Add(new StringContent(_options.TranscriptionModel), "model");
 
             using var response = await client.PostAsync("audio/transcriptions", form, ct);
-            await EnsureSuccessAsync(response, logger, ct);
+            await EnsureSuccessAsync(response, ct);
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
 
@@ -222,51 +222,55 @@ public sealed class OpenAIProvider(
             }
         }, cancellationToken);
 
-    public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var client = CreateClient();
-            using var response = await client.GetAsync("models", cancellationToken);
-            return response.IsSuccessStatusCode;
-        }
-        catch (Exception ex) when (IsTransient(ex))
-        {
-            return false;
-        }
-    }
-
-    public async Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default)
-    {
-        using var client = CreateClient();
-        using var response = await client.GetAsync("models", cancellationToken);
-        await EnsureSuccessAsync(response, logger, cancellationToken);
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-        var results = new List<ProviderModelInfo>();
-        foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
-        {
-            var id = model.GetProperty("id").GetString();
-            if (string.IsNullOrEmpty(id) || !id.Contains("gpt", StringComparison.OrdinalIgnoreCase))
+    public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.ProbeAsync(
+            async ct =>
             {
-                continue;
-            }
+                using var client = CreateClient();
+                using var response = await client.GetAsync("models", ct);
+                await EnsureSuccessAsync(response, ct);
+            },
+            ProviderName,
+            logger,
+            cancellationToken);
 
-            // OpenAI's models list carries no context-window/capability metadata — this is
-            // deliberately a rough starting point for an administrator to review and correct
-            // via the sync-diff flow (research.md Decision 5), not an authoritative catalog.
-            results.Add(new ProviderModelInfo(
-                id, id, ContextWindowTokens: 0, MaxOutputTokens: 0,
-                new AIModelCapabilities(
-                    Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
-                    Reasoning: id.Contains('o', StringComparison.OrdinalIgnoreCase),
-                    Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
-        }
+    public Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.TranslateAsync<IReadOnlyList<ProviderModelInfo>>(
+            async ct =>
+            {
+                using var client = CreateClient();
+                using var response = await client.GetAsync("models", ct);
+                await EnsureSuccessAsync(response, ct);
 
-        return results;
-    }
+                using var stream = await response.Content.ReadAsStreamAsync(ct);
+                using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+                var results = new List<ProviderModelInfo>();
+                foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
+                {
+                    var id = model.GetProperty("id").GetString();
+                    if (string.IsNullOrEmpty(id) || !id.Contains("gpt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    // OpenAI's models list carries no context-window/capability metadata for any
+                    // model - a rough starting point for an administrator to review via the
+                    // sync-diff flow (research.md Decision 5). specs/043 FR-029: absent figures
+                    // are null, not 0. Substituting 0 made every one of these rows fail the
+                    // catalog's own validation, so none of them could ever be added.
+                    results.Add(new ProviderModelInfo(
+                        id, id, ContextWindowTokens: null, MaxOutputTokens: null,
+                        new AIModelCapabilities(
+                            Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
+                            Reasoning: id.Contains('o', StringComparison.OrdinalIgnoreCase),
+                            Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
+                }
+
+                return results;
+            },
+            ProviderName,
+            cancellationToken);
 
     private HttpClient CreateClient()
     {
@@ -357,43 +361,9 @@ public sealed class OpenAIProvider(
         content = message.Content,
     };
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, ILogger logger, CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-        {
-            throw new AiProviderAuthenticationException($"OpenAI rejected the configured credential ({(int)response.StatusCode}).");
-        }
-
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            var retryAfter = response.Headers.RetryAfter?.Delta;
-            throw new AiProviderRateLimitedException("OpenAI rate-limited this request.", retryAfter);
-        }
-
-        if ((int)response.StatusCode is >= 400 and < 500)
-        {
-            // Any other 4xx (most plausibly a 400 rejecting a specific transcription upload)
-            // is a request-level problem, not an unavailable/authentication/rate-limit
-            // condition — classify it distinctly so it surfaces as an actionable message
-            // instead of falling through to a generic 500 (specs/032). The raw body is
-            // logged here (not in the exception message reaching the client) since
-            // ProblemDetailsMiddleware only logs unhandled exceptions at >= 500.
-            OpenAIProviderLog.RequestRejectedByProvider(logger, (int)response.StatusCode, body);
-            throw new AiProviderRequestInvalidException($"OpenAI rejected the request with {(int)response.StatusCode}: {body}");
-        }
-
-        throw new HttpRequestException(
-            $"OpenAI request failed with {(int)response.StatusCode}: {body}",
-            inner: null,
-            statusCode: response.StatusCode);
-    }
+    /// <summary>specs/043: classification is delegated to the one shared table (research.md Decision 1) rather than re-derived from the status code here.</summary>
+    private Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
+        AiProviderResponseClassifier.EnsureSuccessAsync(response, AiVendor.OpenAI, ProviderName, logger, cancellationToken);
 
     private async Task<T> WithRetryAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken)
     {

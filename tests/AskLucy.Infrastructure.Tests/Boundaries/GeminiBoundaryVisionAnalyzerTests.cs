@@ -44,7 +44,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         _credentialProtector.Unprotect("ciphertext").Returns("raw-api-key");
     }
 
-    private GeminiBoundaryVisionAnalyzer CreateAnalyzer(Func<HttpRequestMessage, HttpResponseMessage> responder)
+    private GeminiBoundaryVisionAnalyzer CreateAnalyzer(Func<HttpRequestMessage, HttpResponseMessage> responder, int visionTimeoutSeconds = 30)
     {
         var handler = new StubHttpMessageHandler(responder);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/") };
@@ -52,7 +52,8 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         factory.CreateClient("GoogleGemini").Returns(httpClient);
 
         var options = Options.Create(new GoogleGeminiOptions { ApiKey = "" });
-        return new GeminiBoundaryVisionAnalyzer(factory, options, _providers, _credentialProtector, NullLogger<GeminiBoundaryVisionAnalyzer>.Instance);
+        var boundaryOptions = Options.Create(new BoundaryScoringOptions { VisionTimeoutSeconds = visionTimeoutSeconds });
+        return new GeminiBoundaryVisionAnalyzer(factory, options, boundaryOptions, _providers, _credentialProtector, NullLogger<GeminiBoundaryVisionAnalyzer>.Instance);
     }
 
     private static HttpResponseMessage GeminiTextResponse(string innerJsonText)
@@ -162,5 +163,111 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         var result = await analyzer.AnalyzeAsync(Image, [], "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
+    }
+
+    // ---------------------------------------------------------------------------------
+    // specs/043 US5 — Gemini vision is an enhancement and must never become a single point
+    // of failure. Every one of these must degrade to the deterministic result, never throw.
+    // ---------------------------------------------------------------------------------
+
+    public static TheoryData<HttpStatusCode, string> VisionFailureModes() => new()
+    {
+        { HttpStatusCode.Unauthorized, """{"error":{"status":"UNAUTHENTICATED"}}""" },
+        { HttpStatusCode.Forbidden, """{"error":{"status":"PERMISSION_DENIED","details":[{"reason":"BILLING_DISABLED"}]}}""" },
+        { HttpStatusCode.TooManyRequests, """{"error":{"status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.QuotaFailure"}]}}""" },
+        { HttpStatusCode.TooManyRequests, """{"error":{"status":"RESOURCE_EXHAUSTED"}}""" },
+        { HttpStatusCode.InternalServerError, """{"error":{"status":"INTERNAL"}}""" },
+        { HttpStatusCode.ServiceUnavailable, "" },
+    };
+
+    [Theory]
+    [MemberData(nameof(VisionFailureModes))]
+    public async Task AnalyzeAsync_ShouldDegradeGracefully_ForEveryProviderFailureMode(HttpStatusCode status, string body)
+    {
+        // FR-032: quota, rate limit, credential rejection, outage - none may fail the workflow.
+        var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(status)
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        });
+
+        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+
+        result.AiUsed.Should().BeFalse();
+        result.Reasoning.Should().NotBeEmpty("the workflow must be told why AI verification was unavailable");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ShouldDegradeGracefully_WhenTheCredentialCannotBeDecrypted()
+    {
+        _credentialProtector.Unprotect("ciphertext").Returns(_ => throw new System.Security.Cryptography.CryptographicException("key ring changed"));
+        var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+
+        result.AiUsed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ShouldDegradeGracefully_WhenNoCredentialIsConfigured()
+    {
+        var uncredentialed = AIProvider.Create("google-gemini", "Google Gemini", "test");
+        _providers.GetByKeyAsync("google-gemini", Arg.Any<CancellationToken>()).Returns(uncredentialed);
+        var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+
+        result.AiUsed.Should().BeFalse();
+        result.Reasoning.Should().NotBeEmpty("the workflow must be told why AI verification was unavailable");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ShouldDegradeGracefully_WhenTheResponseIsUnparseable()
+    {
+        var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("not json at all", Encoding.UTF8, "application/json"),
+        });
+
+        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+
+        result.AiUsed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ShouldAbandonTheCall_AtItsOwnBudget_NotTheSharedClientTimeout()
+    {
+        // specs/043 FR-034/SC-007. The shared "GoogleGemini" client is configured with a
+        // two-minute timeout and also serves chat, so the budget has to be scoped here. Before
+        // this, a hung vision call stalled an interactive boundary resolution for two minutes
+        // before falling back - the fallback was right, just far too late.
+        var analyzer = CreateAnalyzer(
+            _ =>
+            {
+                // Outlive the one-second budget configured below.
+                Thread.Sleep(TimeSpan.FromMilliseconds(1500));
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            },
+            visionTimeoutSeconds: 1);
+
+        var started = DateTime.UtcNow;
+        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var elapsed = DateTime.UtcNow - started;
+
+        result.AiUsed.Should().BeFalse();
+        result.Reasoning.Should().ContainSingle(r => r.Contains("timed out", StringComparison.OrdinalIgnoreCase));
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ShouldPropagateACallerCancellation_RatherThanReportingAProviderFailure()
+    {
+        // FR-035: the user cancelling is not Gemini failing, and must not be recorded as such.
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+        var act = () => analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

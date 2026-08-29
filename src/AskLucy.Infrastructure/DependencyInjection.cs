@@ -367,6 +367,9 @@ public static class DependencyInjection
         services.AddSingleton<WhisperLocalTranscriptionProvider>();
         services.AddSingleton<ITranscriptionProvider>(sp => sp.GetRequiredService<WhisperLocalTranscriptionProvider>());
         services.AddHostedService<WhisperWarmupHostedService>();
+        // specs/043 FR-019 - stateless, so a singleton; shares the same options instance the
+        // hosted service reads, which is what keeps the window and the interval in step.
+        services.AddSingleton<IProviderHealthFreshnessPolicy, ProviderHealthFreshnessPolicy>();
         services.AddHostedService<ProviderHealthCheckHostedService>();
 
         services.AddScoped<ITextToSpeechProvider, ElevenLabsTextToSpeechProvider>();

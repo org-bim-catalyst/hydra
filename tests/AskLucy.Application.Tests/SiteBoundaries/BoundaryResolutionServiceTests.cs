@@ -297,4 +297,30 @@ public sealed class BoundaryResolutionServiceTests
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
         outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
     }
+
+    // specs/043 US5 (FR-032/FR-033) — Gemini vision is an enhancement, never a single point of
+    // failure. Whatever reason it is unavailable for, the deterministic result still stands.
+    [Theory]
+    [InlineData("Gemini vision request failed (429).")]
+    [InlineData("Gemini vision request failed (403).")]
+    [InlineData("Gemini vision analysis timed out after 30s.")]
+    [InlineData("Google Gemini has no credential configured — an administrator must set one to enable AI vision verification.")]
+    [InlineData("Gemini vision analysis failed: JsonException.")]
+    public async Task ResolveAsync_ShouldStillConfirmTheDeterministicBoundary_WhenVisionIsUnavailable(string reason)
+    {
+        var winner = Candidate(name: "Al Safa Park 2", distanceMeters: 5);
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { winner });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(BoundaryVisionAnalysis.NotConfigured(reason));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        // FR-033: and it must not claim an AI-verified confidence it never obtained.
+        outcome.ConfirmationText.Should().NotContain("Gemini vision analysis");
+    }
 }

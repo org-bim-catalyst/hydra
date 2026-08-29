@@ -19,6 +19,7 @@ import {
 } from '@mui/material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import type { ProviderFailure } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AddedProviderModel, ApplyProviderModelSyncResult, ProviderModelSyncDiff, RemovedProviderModel } from '../api/adminAiProvidersApi'
 
@@ -29,7 +30,22 @@ interface ModelSyncDialogProps {
   onClose: () => void
 }
 
-type Feedback = { severity: 'success' | 'error'; message: string } | null
+type Feedback = { severity: 'success' | 'error'; message: string; providerFailure?: ProviderFailure } | null
+
+/**
+ * specs/043 FR-011/FR-012 — what the administrator should actually do about this failure.
+ * Derived from the server's classification rather than guessed from the message text.
+ */
+function nextStep(failure: ProviderFailure): string {
+  if (failure.canAdministratorAct) {
+    return 'This needs an administrator to fix it — the provider will keep failing until then.'
+  }
+
+  // FR-012: convey the vendor's own hint, and never invent one when it supplied none.
+  return failure.retryAfterSeconds !== null
+    ? `Nothing to fix — try again in about ${failure.retryAfterSeconds} seconds.`
+    : 'Nothing to fix — try again later.'
+}
 
 const matchesFilter = (filterText: string) => (model: { displayName: string; modelKey: string }) => {
   const needle = filterText.trim().toLowerCase()
@@ -63,7 +79,14 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
 
   const onError = (err: unknown) => {
     const message = err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.'
-    setFeedback({ severity: 'error', message })
+    // specs/043 FR-010: for an administrator the server sends the specific classified reason
+    // plus a machine-readable kind, so this stops being the generic "unexpected error" that
+    // told nobody anything.
+    setFeedback({
+      severity: 'error',
+      message,
+      providerFailure: err instanceof ApiError ? err.providerFailure : undefined,
+    })
   }
 
   const resetReviewState = () => {
@@ -301,9 +324,23 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
+      {/*
+        specs/043 FR-010/FR-011: a classified failure stays visible until dismissed and carries
+        its next step. A five-second auto-hide is fine for "saved"; it is not fine for "your
+        billing is disabled", which the administrator needs time to read and act on.
+      */}
+      <Snackbar
+        open={feedback !== null}
+        autoHideDuration={feedback?.providerFailure ? null : 5000}
+        onClose={() => setFeedback(null)}
+      >
         <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
           {feedback?.message}
+          {feedback?.providerFailure && (
+            <Box component="span" sx={{ display: 'block', mt: 0.5, fontSize: '0.8125rem', opacity: 0.9 }}>
+              {nextStep(feedback.providerFailure)}
+            </Box>
+          )}
         </Alert>
       </Snackbar>
     </>

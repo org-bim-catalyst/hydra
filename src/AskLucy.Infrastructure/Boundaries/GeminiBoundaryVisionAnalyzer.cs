@@ -16,6 +16,9 @@ internal static partial class GeminiBoundaryVisionAnalyzerLog
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Gemini boundary vision analysis failed")]
     public static partial void Failed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Gemini boundary vision analysis exceeded its {TimeoutSeconds}s budget; falling back to the deterministic result")]
+    public static partial void TimedOut(ILogger logger, int timeoutSeconds);
 }
 
 /// <summary>
@@ -30,6 +33,7 @@ internal static partial class GeminiBoundaryVisionAnalyzerLog
 internal sealed class GeminiBoundaryVisionAnalyzer(
     IHttpClientFactory httpClientFactory,
     IOptions<GoogleGeminiOptions> options,
+    IOptions<BoundaryScoringOptions> boundaryOptions,
     IAIProviderRepository providerRepository,
     IAiCredentialProtector credentialProtector,
     ILogger<GeminiBoundaryVisionAnalyzer> logger) : IBoundaryVisionAnalyzer
@@ -62,19 +66,28 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             using var httpClient = httpClientFactory.CreateClient("GoogleGemini");
             httpClient.BaseAddress = new Uri(_options.BaseUrl);
 
+            // specs/043 FR-034: a budget scoped to this one call. The shared "GoogleGemini"
+            // client is configured with a two-minute timeout and also serves chat, so lowering
+            // that would wrongly cap chat; a linked token bounds only this call site - the same
+            // pattern the Mcp client already uses. Linking to the caller's token is what keeps
+            // FR-035 separable below: we can still tell who asked for the cancellation.
+            using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            budget.CancelAfter(TimeSpan.FromSeconds(boundaryOptions.Value.VisionTimeoutSeconds));
+            var visionToken = budget.Token;
+
             var payload = BuildPayload(image, rankedCandidates, siteName, center);
             using var response = await httpClient.PostAsJsonAsync(
-                $"models/{_options.VisionModel}:generateContent?key={apiKey}", payload, cancellationToken);
+                $"models/{_options.VisionModel}:generateContent?key={apiKey}", payload, visionToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(visionToken);
                 GeminiBoundaryVisionAnalyzerLog.RequestFailed(logger, (int)response.StatusCode, body);
                 return BoundaryVisionAnalysis.NotConfigured($"Gemini vision request failed ({(int)response.StatusCode}).");
             }
 
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            using var stream = await response.Content.ReadAsStreamAsync(visionToken);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: visionToken);
             var text = ExtractText(document.RootElement);
 
             return string.IsNullOrWhiteSpace(text)
@@ -83,7 +96,19 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // specs/043 FR-035: the *caller* cancelled. That is a user action, not a provider
+            // failure - it must propagate as cancellation and must never be recorded or
+            // reported as Gemini having failed. Checked before the budget case below, because
+            // when the caller cancels both tokens are cancelled and only this reading is true.
             throw;
+        }
+        catch (OperationCanceledException)
+        {
+            // Only the budget fired: the vision call outlived FR-034's window. Degrade to the
+            // deterministic result exactly like any other vision failure.
+            GeminiBoundaryVisionAnalyzerLog.TimedOut(logger, boundaryOptions.Value.VisionTimeoutSeconds);
+            return BoundaryVisionAnalysis.NotConfigured(
+                $"Gemini vision analysis timed out after {boundaryOptions.Value.VisionTimeoutSeconds}s.");
         }
         catch (Exception ex)
         {

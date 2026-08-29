@@ -36,6 +36,12 @@ public sealed class AnthropicProvider(
     ILogger<AnthropicProvider> logger) : IAIProvider
 {
     private const string ProviderKey = "anthropic";
+
+    /// <summary>specs/043 FR-028a - the vendor's documented maximum page size, so the catalog normally fits in one round trip.</summary>
+    private const int ModelPageSize = 1000;
+
+    /// <summary>Bounds the pagination loop so a malformed continuation cannot spin forever.</summary>
+    private const int MaxModelPages = 20;
     private const int DefaultMaxTokens = 4096;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
     private readonly AnthropicOptions _options = options.Value;
@@ -170,64 +176,109 @@ public sealed class AnthropicProvider(
     public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Anthropic does not support audio transcription.");
 
-    public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var client = await CreateClientAsync(cancellationToken);
-            using var response = await client.GetAsync("models", cancellationToken);
-            return response.IsSuccessStatusCode;
-        }
-        catch (Exception ex) when (IsTransient(ex) || ex is AiProviderAuthenticationException)
-        {
-            return false;
-        }
-    }
-
-    public async Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default)
-    {
-        using var client = await CreateClientAsync(cancellationToken);
-        using var response = await client.GetAsync("models", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-        var results = new List<ProviderModelInfo>();
-        foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
-        {
-            var id = model.GetProperty("id").GetString();
-            if (string.IsNullOrEmpty(id))
+    public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.ProbeAsync(
+            async ct =>
             {
-                continue;
-            }
+                using var client = await CreateClientAsync(ct);
+                using var response = await client.GetAsync("models", ct);
+                await EnsureSuccessAsync(response, ct);
+            },
+            ProviderName,
+            logger,
+            cancellationToken);
 
-            var displayName = model.TryGetProperty("display_name", out var displayNameElement) ? displayNameElement.GetString() ?? id : id;
+    public Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.TranslateAsync<IReadOnlyList<ProviderModelInfo>>(
+            async ct =>
+            {
+                using var client = await CreateClientAsync(ct);
 
-            // Anthropic's models list carries no context-window/capability metadata — a rough
-            // starting point for an administrator to review via the sync-diff flow (research.md
-            // Decision 5), matching OpenAIProvider.ListAvailableModelsAsync's same caveat.
-            results.Add(new ProviderModelInfo(
-                id, displayName, ContextWindowTokens: 0, MaxOutputTokens: 0,
-                new AIModelCapabilities(
-                    Streaming: true, Vision: true, FunctionCalling: true, JsonMode: false,
-                    Reasoning: false, Embeddings: false, ImageInput: true, ImageOutput: false, Audio: false)));
-        }
+                var results = new List<ProviderModelInfo>();
+                string? afterId = null;
+                var pagesRead = 0;
 
-        return results;
-    }
+                // specs/043 FR-028a: Anthropic paginates this endpoint with a small default
+                // page size, so reading only the first page silently omits models while the
+                // diff still looks successful.
+                while (true)
+                {
+                    var url = $"models?limit={ModelPageSize}";
+                    if (!string.IsNullOrEmpty(afterId))
+                    {
+                        url += $"&after_id={Uri.EscapeDataString(afterId)}";
+                    }
+
+                    using var response = await client.GetAsync(url, ct);
+                    await EnsureSuccessAsync(response, ct);
+
+                    using var stream = await response.Content.ReadAsStreamAsync(ct);
+                    using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+                    string? lastId = null;
+                    foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
+                    {
+                        var id = model.GetProperty("id").GetString();
+                        if (string.IsNullOrEmpty(id))
+                        {
+                            continue;
+                        }
+
+                        lastId = id;
+                        var displayName = model.TryGetProperty("display_name", out var displayNameElement) ? displayNameElement.GetString() ?? id : id;
+
+                        // Anthropic's models list carries no context-window/capability metadata
+                        // - a rough starting point for an administrator to review via the
+                        // sync-diff flow (research.md Decision 5). specs/043 FR-029: absent is
+                        // null, never a fabricated 0.
+                        results.Add(new ProviderModelInfo(
+                            id, displayName, ContextWindowTokens: null, MaxOutputTokens: null,
+                            new AIModelCapabilities(
+                                Streaming: true, Vision: true, FunctionCalling: true, JsonMode: false,
+                                Reasoning: false, Embeddings: false, ImageInput: true, ImageOutput: false, Audio: false)));
+                    }
+
+                    var hasMore = document.RootElement.TryGetProperty("has_more", out var hasMoreElement)
+                        && hasMoreElement.ValueKind == JsonValueKind.True;
+
+                    if (!hasMore || string.IsNullOrEmpty(lastId))
+                    {
+                        break;
+                    }
+
+                    if (++pagesRead >= MaxModelPages)
+                    {
+                        throw AiProviderResponseClassifier.Create(AiProviderFailureKind.ResponseNotUnderstood, ProviderName);
+                    }
+
+                    afterId = lastId;
+                }
+
+                return results;
+            },
+            ProviderName,
+            cancellationToken);
 
     private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken)
     {
         var provider = await providerRepository.GetByKeyAsync(ProviderKey, cancellationToken)
-            ?? throw new AiProviderAuthenticationException("Anthropic is not configured in the provider catalog.");
+            ?? throw new AiProviderNotConfiguredException("Anthropic is not configured in the provider catalog.");
 
         if (provider.CredentialCiphertext is null)
         {
-            throw new AiProviderAuthenticationException("Anthropic has no credential configured. An administrator must set one.");
+            throw new AiProviderNotConfiguredException("Anthropic has no credential configured. An administrator must set one.");
         }
 
-        var apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
+        // specs/043 FR-004 - see GoogleGeminiProvider.CreateClientAsync for why this matters.
+        string apiKey;
+        try
+        {
+            apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
+        }
+        catch (System.Security.Cryptography.CryptographicException ex)
+        {
+            throw AiProviderResponseClassifier.Create(AiProviderFailureKind.CredentialUnreadable, ProviderName, retryAfter: null, ex);
+        }
 
         var client = httpClientFactory.CreateClient("Anthropic");
         client.BaseAddress = new Uri(_options.BaseUrl);
@@ -236,7 +287,7 @@ public sealed class AnthropicProvider(
         return client;
     }
 
-    private static object BuildPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
+    private static Dictionary<string, object?> BuildPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
     {
         // Anthropic takes the system prompt as a top-level field, not a message with role
         // "system" — extract any ChatRole.System entries the Application layer assembled
@@ -314,31 +365,9 @@ public sealed class AnthropicProvider(
         }
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-        {
-            throw new AiProviderAuthenticationException($"Anthropic rejected the configured credential ({(int)response.StatusCode}).");
-        }
-
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            var retryAfter = response.Headers.RetryAfter?.Delta;
-            throw new AiProviderRateLimitedException("Anthropic rate-limited this request.", retryAfter);
-        }
-
-        throw new HttpRequestException(
-            $"Anthropic request failed with {(int)response.StatusCode}: {body}",
-            inner: null,
-            statusCode: response.StatusCode);
-    }
+    /// <summary>specs/043: classification is delegated to the one shared table (research.md Decision 1) rather than re-derived from the status code here.</summary>
+    private Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
+        AiProviderResponseClassifier.EnsureSuccessAsync(response, AiVendor.Anthropic, ProviderName, logger, cancellationToken);
 
     private async Task<T> WithRetryAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken)
     {
