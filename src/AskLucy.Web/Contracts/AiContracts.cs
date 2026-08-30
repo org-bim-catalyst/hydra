@@ -20,7 +20,7 @@ public sealed record GenerateImageResponse(string Url);
 
 public sealed record TranscriptionResponse(string Text);
 
-public sealed record UpdateAiProviderRequest(bool? IsEnabled, Guid? DefaultModelId);
+public sealed record UpdateAiProviderRequest(bool? IsEnabled, Guid? DefaultModelId, bool? ClearDefaultModel);
 
 public sealed record SetAiProviderCredentialRequest(string ApiKey);
 

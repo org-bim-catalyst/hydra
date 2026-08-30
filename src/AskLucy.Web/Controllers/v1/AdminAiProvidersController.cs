@@ -34,7 +34,9 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     [HttpPatch("providers/{id:guid}")]
     public async Task<IActionResult> UpdateProvider(Guid id, UpdateAiProviderRequest request, CancellationToken cancellationToken)
     {
-        await mediator.Send(new UpdateAiProviderCommand(id, request.IsEnabled, request.DefaultModelId), cancellationToken);
+        await mediator.Send(
+            new UpdateAiProviderCommand(id, request.IsEnabled, request.DefaultModelId, request.ClearDefaultModel ?? false),
+            cancellationToken);
         return NoContent();
     }
 
