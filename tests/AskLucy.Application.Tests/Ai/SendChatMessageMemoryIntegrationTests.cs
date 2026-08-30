@@ -32,6 +32,7 @@ public sealed class SendChatMessageMemoryIntegrationTests
     private readonly IBoundaryResolutionService _boundaryResolutionService = Substitute.For<IBoundaryResolutionService>();
     private readonly IViewerZoomDetector _viewerZoomDetector = Substitute.For<IViewerZoomDetector>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
+    private readonly BoundaryScoringOptions _boundaryScoringOptions = new();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
@@ -67,6 +68,8 @@ public sealed class SendChatMessageMemoryIntegrationTests
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
             _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            Microsoft.Extensions.Options.Options.Create(_boundaryScoringOptions),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SendChatMessageCommandHandler>.Instance,
             new SendChatMessageCommandValidator(_providers, _models));
     }
 

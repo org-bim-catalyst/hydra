@@ -61,4 +61,52 @@ public sealed class UserChatActiveBoundaryTests
         chat.ActiveBoundary.ConfidenceLevel.Should().Be(BoundaryConfidenceLevel.Medium);
         chat.ActiveBoundary.Source.Should().Be(SiteBoundarySource.ManualFallback);
     }
+
+    /// <summary>
+    /// specs/044-location-viewer-regression T013 (FR-009a, contract S-1/S-4) — a stored boundary
+    /// must never outlive the site it names, and clearing it must never disturb the location,
+    /// which is the mandatory outcome that survives every boundary failure.
+    /// </summary>
+    [Fact]
+    public void ClearActiveBoundary_ShouldRemoveTheBoundaryAndStampTheActor()
+    {
+        var chat = UserChat.Create("Chat", "user-1", null, "user-1");
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.156, 55.2218, SamplePolygon, 15_000, 0.9,
+            BoundaryConfidenceLevel.High, SiteBoundarySource.OsmBoundary, "OpenStreetMap (leisure=park)", "user-1");
+        chat.ActiveBoundary.Should().NotBeNull();
+
+        chat.ClearActiveBoundary("system:location-resolution");
+
+        chat.ActiveBoundary.Should().BeNull();
+        chat.ModifiedBy.Should().Be("system:location-resolution");
+        chat.ModifiedAtUtc.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ClearActiveBoundary_ShouldLeaveTheActiveLocationIntact()
+    {
+        var chat = UserChat.Create("Chat", "user-1", null, "user-1");
+        chat.SetActiveLocation(25.24, 55.30, "Zabeel Park", 0.88, "user-1");
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.156, 55.2218, SamplePolygon, 15_000, 0.9,
+            BoundaryConfidenceLevel.High, SiteBoundarySource.OsmBoundary, "OpenStreetMap (leisure=park)", "user-1");
+
+        chat.ClearActiveBoundary("user-1");
+
+        chat.ActiveBoundary.Should().BeNull();
+        chat.ActiveLocation.Should().NotBeNull();
+        chat.ActiveLocation!.LocationName.Should().Be("Zabeel Park");
+    }
+
+    [Fact]
+    public void ClearActiveBoundary_ShouldBeSafe_WhenNoBoundaryIsSet()
+    {
+        var chat = UserChat.Create("Chat", "user-1", null, "user-1");
+
+        var act = () => chat.ClearActiveBoundary("user-1");
+
+        act.Should().NotThrow();
+        chat.ActiveBoundary.Should().BeNull();
+    }
 }

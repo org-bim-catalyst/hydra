@@ -8,6 +8,15 @@
 > design, read `specs/042-site-boundary-resolution/research.md` (especially #10-11), `data-model.md`,
 > `contracts/`, and `tasks.md` instead of this file.
 >
+> **Then read `specs/044-location-viewer-regression/`.** Parts of 042's own contracts have since
+> been superseded too. 042 placed boundary resolution *between* resolving a location and delivering
+> it to the viewer, with neither a failure boundary nor a time boundary — so an optional enhancement
+> became a hard prerequisite for a mandatory outcome, and "Show me Al Safa Park 2" stopped updating
+> the viewer whenever the boundary step threw or hung. 044 restores the pre-042 property that no
+> network call sits between resolving a location and delivering it, caps the whole boundary step at
+> 45s, isolates its failures, and clears stored boundary state when the active site changes. Its
+> `contracts/chat-stream-events.md` is the current authority on SSE ordering.
+>
 > **The corrections:**
 > 1. **§5's `SiteBoundaryResolverTool : IAgentTool` is NOT the primary mechanism.** The feature's
 >    base-chat behavior (a user just asking Lucy about a site) is driven by a deterministic hook

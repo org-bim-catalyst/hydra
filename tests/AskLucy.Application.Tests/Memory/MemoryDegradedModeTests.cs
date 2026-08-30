@@ -30,6 +30,7 @@ public sealed class MemoryDegradedModeTests
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
+    private readonly BoundaryScoringOptions _boundaryScoringOptions = new();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
@@ -70,6 +71,8 @@ public sealed class MemoryDegradedModeTests
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
             _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            Microsoft.Extensions.Options.Options.Create(_boundaryScoringOptions),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SendChatMessageCommandHandler>.Instance,
             new SendChatMessageCommandValidator(_providers, _models));
     }
 

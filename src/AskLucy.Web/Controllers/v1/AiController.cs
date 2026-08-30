@@ -99,9 +99,16 @@ public sealed partial class AiController(
                 memoryOutcome = chunk.MemoryOutcome;
             }
 
+            // specs/044-location-viewer-regression FR-001a: written and flushed HERE, mid-stream,
+            // the moment the handler yields it — not after the loop drains. The handler already
+            // emits this chunk before starting the optional boundary step, but that reorder alone
+            // achieves nothing while this write waits for the whole stream: between specs/042 and
+            // this fix, a failing boundary step discarded __LOCATION__ entirely and a slow one held
+            // the viewer for up to ~90s. Both halves are required.
             if (chunk.ConfirmedLocation is not null)
             {
                 confirmedLocation = chunk.ConfirmedLocation;
+                await WriteConfirmedLocationEventAsync(request.ChatId, confirmedLocation, cancellationToken);
             }
 
             if (chunk.ViewerZoom is not null)
@@ -185,36 +192,6 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
-        // specs/036-startup-geolocation US3: agent-confirmed location trailing event — same
-        // distinguishable-prefix pattern as __RAG__ and __MEMORY__. The payload matches the
-        // wire format aiApi.ts's streamChat parser expects exactly. Emitted only when an agent
-        // tool or response analysis produced a ConfirmedLocationData on the final chunk.
-        if (confirmedLocation is not null)
-        {
-            // specs/037-location-query-resolution — persist the confirmed location onto UserChat
-            // so back-references in subsequent turns resolve without a new geocoding call (FR-014).
-            await mediator.Send(new RecordActiveLocationCommand(request.ChatId, confirmedLocation), cancellationToken);
-
-            var locationPayload = new
-            {
-                latitude = confirmedLocation.Latitude,
-                longitude = confirmedLocation.Longitude,
-                locationName = confirmedLocation.LocationName,
-                confidence = confirmedLocation.Confidence,
-                source = confirmedLocation.Source,
-                locationType = confirmedLocation.LocationType,
-                viewport = confirmedLocation.Viewport is null ? null : new
-                {
-                    northeastLat = confirmedLocation.Viewport.NortheastLat,
-                    northeastLng = confirmedLocation.Viewport.NortheastLng,
-                    southwestLat = confirmedLocation.Viewport.SouthwestLat,
-                    southwestLng = confirmedLocation.Viewport.SouthwestLng,
-                },
-            };
-            await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
-
         // specs/042-site-boundary-resolution: resolved site boundary trailing event — same
         // distinguishable-prefix pattern as __LOCATION__. Persisted before the client is told
         // about it (RecordActiveSiteBoundaryCommand), mirroring RecordActiveLocationCommand's
@@ -248,6 +225,45 @@ public sealed partial class AiController(
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+    }
+
+    /// <summary>
+    /// specs/036-startup-geolocation US3 / specs/037-location-query-resolution FR-014 /
+    /// specs/044-location-viewer-regression FR-001a — persists the confirmed location onto
+    /// UserChat (so later back-references resolve without a new geocoding call) and writes the
+    /// <c>__LOCATION__</c> trailing event, in that order, so a client reloading immediately after
+    /// sees consistent state.
+    /// <para>
+    /// Extracted from the post-loop block it used to live in so it can be called mid-stream. The
+    /// payload shape is unchanged — <c>aiApi.ts</c>'s parser matches on the prefix per line and
+    /// has no ordering state, so moving this ahead of <c>__RAG__</c>/<c>__MEMORY__</c> is
+    /// invisible to the client.
+    /// </para>
+    /// </summary>
+    private async Task WriteConfirmedLocationEventAsync(
+        Guid chatId, ConfirmedLocationData confirmedLocation, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new RecordActiveLocationCommand(chatId, confirmedLocation), cancellationToken);
+
+        var locationPayload = new
+        {
+            latitude = confirmedLocation.Latitude,
+            longitude = confirmedLocation.Longitude,
+            locationName = confirmedLocation.LocationName,
+            confidence = confirmedLocation.Confidence,
+            source = confirmedLocation.Source,
+            locationType = confirmedLocation.LocationType,
+            viewport = confirmedLocation.Viewport is null ? null : new
+            {
+                northeastLat = confirmedLocation.Viewport.NortheastLat,
+                northeastLng = confirmedLocation.Viewport.NortheastLng,
+                southwestLat = confirmedLocation.Viewport.SouthwestLat,
+                southwestLng = confirmedLocation.Viewport.SouthwestLng,
+            },
+        };
+
+        await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
     }
 
     // [Produces("application/json")]: without it, a bare string ActionResult serializes as
