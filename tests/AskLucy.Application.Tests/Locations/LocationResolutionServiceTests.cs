@@ -48,7 +48,8 @@ public sealed class LocationResolutionServiceTests
         var defaultResolver = new DefaultProviderResolver(_providers, _models);
         _service = new LocationResolutionService(
             defaultResolver, _providers, _models, _providerResolver,
-            _geocodingProvider, Substitute.For<ILogger<LocationResolutionService>>());
+            _geocodingProvider, Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            Substitute.For<ILogger<LocationResolutionService>>());
     }
 
     private void StubClassification(string intent, params string[] placeQueries)
@@ -144,12 +145,60 @@ public sealed class LocationResolutionServiceTests
         _geocodingProvider.SearchAsync("NowhereLand99", Arg.Any<CancellationToken>())
             .Returns(new List<GeocodingCandidate>
             {
-                new("Something Weak", 0, 0, 0.05) // below MinimumImportanceFloor=0.1
+                new("Something Weak", 0, 0, 0.0) // below MinimumImportanceFloor=0.05
             });
 
         var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me NowhereLand99", null);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.NotFound);
+    }
+
+    /// <summary>
+    /// Regression — "show me Al Safa Park 2 in the viewer" stopped moving the viewer entirely.
+    /// The cause was upstream of every boundary/streaming fix attempted for it: Nominatim scores
+    /// that park at importance 0.0801, the floor was 0.1, so the only correct candidate was
+    /// filtered out and the turn resolved to NotFound — no ConfirmedLocation, therefore no
+    /// __LOCATION__ event and no boundary step. Production never showed it because a configured
+    /// Geocoding:GoogleMapsApiKey routes to the Google adapter, whose synthesised importance
+    /// never drops below 0.40. Pinned with the real observed value.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldConfirm_WhenSoleCandidateIsAnOrdinaryLocalPlace()
+    {
+        StubClassification("new_query", "Al Safa Park 2");
+        _geocodingProvider.SearchAsync("Al Safa Park 2", Arg.Any<CancellationToken>())
+            .Returns(new List<GeocodingCandidate>
+            {
+                new("حديقة الصفا 2, دبي", 25.1556657, 55.2219295, 0.0801)
+            });
+
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Al Safa Park 2 in the viewer", null);
+
+        outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedLocation!.Latitude.Should().BeApproximately(25.1556657, 0.0001);
+        outcome.ConfirmedLocation.Longitude.Should().BeApproximately(55.2219295, 0.0001);
+    }
+
+    /// <summary>
+    /// The floor still has to earn its place: Nominatim returns importance 0.0 for a result that
+    /// merely shares a name (observed live — several unrelated streets named "Dubai Mall").
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldIgnoreZeroImportanceNameCollisions_AndConfirmTheRealPlace()
+    {
+        StubClassification("new_query", "Dubai Mall");
+        _geocodingProvider.SearchAsync("Dubai Mall", Arg.Any<CancellationToken>())
+            .Returns(new List<GeocodingCandidate>
+            {
+                new("Dubai Mall, Downtown Dubai", 25.1972, 55.2796, 0.4451),
+                new("Dubai Mall, Kozhikode, India", 11.2588, 75.7804, 0.0),
+                new("Dubai Mall, Belbeis Road, Egypt", 30.4, 31.5, 0.0)
+            });
+
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai Mall", null);
+
+        outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedLocation!.Latitude.Should().BeApproximately(25.1972, 0.0001);
     }
 
     [Fact]
