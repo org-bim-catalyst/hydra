@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Memory;
@@ -76,7 +77,7 @@ public sealed class MemoryExtractionRetryTests
             Substitute.For<IMemoryNotifier>(), Substitute.For<IEmbeddingProviderRepository>(),
             Substitute.For<IEmbeddingServiceResolver>(), Substitute.For<IMemoryVectorStore>(),
             aiProviderRepository, aiModelRepository, aiProviderResolver,
-            new DefaultProviderResolver(aiProviderRepository, aiModelRepository),
+            CapabilityResolverTestFactory.Unassigned(aiProviderRepository, aiModelRepository),
             Substitute.For<IUnitOfWork>(), Substitute.For<ILogger<MemoryExtractionJob>>());
 
         var act = () => job.RunAsync(chat.Id, CancellationToken.None);

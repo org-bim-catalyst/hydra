@@ -42,6 +42,7 @@ public static class DependencyInjection
 
         services.AddScoped<TokenIssuer>();
         services.AddScoped<DefaultProviderResolver>();
+        services.AddScoped<AiCapabilityProviderResolver>();
         services.AddScoped<IDocumentProcessingPipeline, DocumentProcessingPipeline>();
         services.AddScoped<DocumentUploadFinalizer>();
         services.AddScoped<IProcessingStageHandler, ValidationStageHandler>();

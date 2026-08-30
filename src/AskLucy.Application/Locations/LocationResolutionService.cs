@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -53,7 +54,7 @@ internal static partial class LocationResolutionServiceLog
 /// (constitution §2.VIII).
 /// </summary>
 public sealed class LocationResolutionService(
-    DefaultProviderResolver defaultProviderResolver,
+    AiCapabilityProviderResolver capabilityProviderResolver,
     IAIProviderRepository aiProviderRepository,
     IAIModelRepository aiModelRepository,
     IAIProviderResolver aiProviderResolver,
@@ -97,7 +98,7 @@ public sealed class LocationResolutionService(
         LocationIntentPayload? payload;
         try
         {
-            var resolved = await defaultProviderResolver.ResolveAsync(preference: null, cancellationToken);
+            var resolved = await capabilityProviderResolver.ResolveAsync(AiCapability.LocationIntent, cancellationToken);
             var provider = await aiProviderRepository.GetByIdAsync(resolved.ProviderId, cancellationToken)
                 ?? throw new KeyNotFoundException("Default AI provider not found.");
             var model = await aiModelRepository.GetByIdAsync(resolved.ModelId, cancellationToken)

@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Memory;
 using AskLucy.Domain.Retrieval;
@@ -51,7 +52,7 @@ public sealed class DirectContradictionTests
         _embeddingServiceResolver.Resolve("openai").Returns(_embeddingService);
         _embeddingService.EmbedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new EmbeddingResult(new float[1536], 1536));
 
-        var defaultProviderResolver = new DefaultProviderResolver(_aiProviderRepository, _aiModelRepository);
+        var defaultProviderResolver = CapabilityResolverTestFactory.Unassigned(_aiProviderRepository, _aiModelRepository);
 
         _service = new MemoryConflictDetectionService(
             _vectorStore, _memoryRepository, _conflictRepository, _versionRepository, _auditLogRepository, _notifier,
@@ -85,11 +86,11 @@ public sealed class DirectContradictionTests
         existingMemory.Content.Should().Be("I moved to React");
         candidateMemory.IsDeleted.Should().BeTrue("the candidate is merged into the existing memory, not kept as a separate row");
         _versionRepository.Received(1).Add(Arg.Is<MemoryVersion>(v =>
-            v.MemoryId == existingMemory.Id && v.PreviousContent == "I use Angular" && v.ChangeReason == MemoryChangeReason.ConflictResolutionSupersede));
+            v != null && v.MemoryId == existingMemory.Id && v.PreviousContent == "I use Angular" && v.ChangeReason == MemoryChangeReason.ConflictResolutionSupersede));
         _conflictRepository.Received(1).Add(Arg.Is<MemoryConflict>(c =>
-            c.ExistingMemoryId == existingMemory.Id && c.ResolutionStatus == MemoryConflictResolutionStatus.AutoResolved));
-        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.ConflictDetected));
-        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.ConflictResolved));
+            c != null && c.ExistingMemoryId == existingMemory.Id && c.ResolutionStatus == MemoryConflictResolutionStatus.AutoResolved));
+        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.ConflictDetected));
+        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.ConflictResolved));
         await _notifier.DidNotReceive().NotifyAsync(
             Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<MemoryNotificationEventType>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IAIProviderRepository, AIProviderRepository>();
+        services.AddScoped<IAiCapabilityAssignmentRepository, AiCapabilityAssignmentRepository>();
         services.AddScoped<IAIModelRepository, AIModelRepository>();
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();

@@ -40,6 +40,9 @@ public sealed class ScopeIsolatedLocationResolutionServiceTests
         services.AddScoped(_ => Substitute.For<IAIModelRepository>());
         services.AddScoped(_ => Substitute.For<IAIProviderResolver>());
         services.AddScoped<DefaultProviderResolver>();
+        services.AddScoped(_ => Substitute.For<IAiCapabilityAssignmentRepository>());
+        services.AddScoped<AiCapabilityProviderResolver>();
+        services.AddSingleton<ILogger<AiCapabilityProviderResolver>>(NullLogger<AiCapabilityProviderResolver>.Instance);
         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()));
         services.AddSingleton<ILogger<LocationResolutionService>>(NullLogger<LocationResolutionService>.Instance);
         services.AddScoped<LocationResolutionService>();

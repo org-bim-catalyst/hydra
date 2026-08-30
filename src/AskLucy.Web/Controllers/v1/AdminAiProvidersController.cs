@@ -2,12 +2,15 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
 using AskLucy.Application.Ai.Commands.CheckAiProviderHealth;
 using AskLucy.Application.Ai.Commands.ClearAiProviderCredential;
+using AskLucy.Application.Ai.Commands.SetAiCapabilityAssignment;
 using AskLucy.Application.Ai.Commands.SetAiProviderCredential;
 using AskLucy.Application.Ai.Commands.UpdateAiModelStatus;
 using AskLucy.Application.Ai.Commands.UpdateAiProvider;
 using AskLucy.Application.Ai.Queries.GetAdminAiModels;
 using AskLucy.Application.Ai.Queries.GetAdminAiProviders;
+using AskLucy.Application.Ai.Queries.GetAiCapabilityAssignments;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
+using AskLucy.Domain.Ai;
 using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +40,23 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
         await mediator.Send(
             new UpdateAiProviderCommand(id, request.IsEnabled, request.DefaultModelId, request.ClearDefaultModel ?? false),
             cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Which provider serves each non-chat capability. The model is not chosen here — it is
+    /// whatever default model the assigned provider carries, so the two settings can never
+    /// disagree.
+    /// </summary>
+    [HttpGet("capabilities")]
+    public async Task<ActionResult<IReadOnlyList<AiCapabilityAssignmentDto>>> GetCapabilityAssignments(CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetAiCapabilityAssignmentsQuery(), cancellationToken));
+
+    [HttpPut("capabilities/{capability}")]
+    public async Task<IActionResult> SetCapabilityAssignment(
+        AiCapability capability, SetAiCapabilityAssignmentRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new SetAiCapabilityAssignmentCommand(capability, request.ProviderId), cancellationToken);
         return NoContent();
     }
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.SiteBoundaries;
@@ -24,6 +25,8 @@ namespace AskLucy.Infrastructure.Tests.Boundaries;
 public sealed class GeminiBoundaryVisionAnalyzerTests
 {
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
+    private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
+    private readonly IAiCapabilityAssignmentRepository _assignments = Substitute.For<IAiCapabilityAssignmentRepository>();
     private readonly IAiCredentialProtector _credentialProtector = Substitute.For<IAiCredentialProtector>();
 
     private static readonly GeoPoint Center = new(25.1560, 55.2218);
@@ -40,8 +43,34 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
     {
         var provider = AIProvider.Create("google-gemini", "Google Gemini", "test");
         provider.SetCredential("ciphertext", "test");
-        _providers.GetByKeyAsync("google-gemini", Arg.Any<CancellationToken>()).Returns(provider);
+        UseProvider(provider);
         _credentialProtector.Unprotect("ciphertext").Returns("raw-api-key");
+    }
+
+    /// <summary>
+    /// The provider is no longer found by a hardcoded key — it comes from the
+    /// BoundaryVision capability assignment, so a test provider has to be both assigned
+    /// and enabled with a default model for the resolver to hand it back.
+    /// </summary>
+    private void UseProvider(AIProvider provider)
+    {
+        // Enable() refuses a provider with no credential, so an uncredentialed one stays
+        // disabled — which is the real state anyway: the resolver skips a disabled provider
+        // and the analyzer degrades to NotConfigured, exactly as the assertions expect.
+        if (provider.CredentialCiphertext is not null)
+        {
+            provider.Enable("test");
+        }
+
+        var model = AIModel.Create(
+            provider.Id, "gemini-3.6-flash", "Gemini 3.6 Flash", 128000, 8192,
+            new AIModelCapabilities(true, true, true, true, false, false, true, false, false), null, null, "test");
+        provider.SetDefaultModel(model.Id, "test");
+
+        _providers.GetByIdAsync(provider.Id, Arg.Any<CancellationToken>()).Returns(provider);
+        _models.GetByIdAsync(model.Id, Arg.Any<CancellationToken>()).Returns(model);
+        _assignments.GetByCapabilityAsync(AiCapability.BoundaryVision, Arg.Any<CancellationToken>())
+            .Returns(AiCapabilityAssignment.Create(AiCapability.BoundaryVision, provider.Id, "test"));
     }
 
     private GeminiBoundaryVisionAnalyzer CreateAnalyzer(Func<HttpRequestMessage, HttpResponseMessage> responder, int visionTimeoutSeconds = 30)
@@ -53,7 +82,12 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
 
         var options = Options.Create(new GoogleGeminiOptions { ApiKey = "" });
         var boundaryOptions = Options.Create(new BoundaryScoringOptions { VisionTimeoutSeconds = visionTimeoutSeconds });
-        return new GeminiBoundaryVisionAnalyzer(factory, options, boundaryOptions, _providers, _credentialProtector, NullLogger<GeminiBoundaryVisionAnalyzer>.Instance);
+        var capabilityResolver = new AiCapabilityProviderResolver(
+            _assignments, _providers, _models, new DefaultProviderResolver(_providers, _models),
+            NullLogger<AiCapabilityProviderResolver>.Instance);
+        return new GeminiBoundaryVisionAnalyzer(
+            factory, options, boundaryOptions, _providers, _models, capabilityResolver, _credentialProtector,
+            NullLogger<GeminiBoundaryVisionAnalyzer>.Instance);
     }
 
     private static HttpResponseMessage GeminiTextResponse(string innerJsonText)
@@ -136,7 +170,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
     public async Task AnalyzeAsync_ShouldReturnNotConfigured_WhenNoCredentialIsConfigured()
     {
         var uncredentialed = AIProvider.Create("google-gemini", "Google Gemini", "test");
-        _providers.GetByKeyAsync("google-gemini", Arg.Any<CancellationToken>()).Returns(uncredentialed);
+        UseProvider(uncredentialed);
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
         var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
@@ -211,7 +245,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
     public async Task AnalyzeAsync_ShouldDegradeGracefully_WhenNoCredentialIsConfigured()
     {
         var uncredentialed = AIProvider.Create("google-gemini", "Google Gemini", "test");
-        _providers.GetByKeyAsync("google-gemini", Arg.Any<CancellationToken>()).Returns(uncredentialed);
+        UseProvider(uncredentialed);
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
         var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);

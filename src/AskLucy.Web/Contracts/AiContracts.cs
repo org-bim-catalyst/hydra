@@ -22,6 +22,9 @@ public sealed record TranscriptionResponse(string Text);
 
 public sealed record UpdateAiProviderRequest(bool? IsEnabled, Guid? DefaultModelId, bool? ClearDefaultModel);
 
+/// <summary>Null <c>ProviderId</c> clears the assignment, returning the capability to the platform default.</summary>
+public sealed record SetAiCapabilityAssignmentRequest(Guid? ProviderId);
+
 public sealed record SetAiProviderCredentialRequest(string ApiKey);
 
 public sealed record SaveUserAiPreferenceRequest(Guid DefaultProviderId, Guid DefaultModelId, GenerationParametersDto? DefaultGenerationParameters);

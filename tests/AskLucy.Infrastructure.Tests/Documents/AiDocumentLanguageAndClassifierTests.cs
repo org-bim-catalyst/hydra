@@ -46,7 +46,10 @@ public sealed class AiDocumentLanguageAndClassifierTests
     }
 
     private AiDocumentLanguageAndClassifier CreateSut() => new(
-        new DefaultProviderResolver(_providerRepository, _modelRepository),
+        new AiCapabilityProviderResolver(
+            Substitute.For<IAiCapabilityAssignmentRepository>(), _providerRepository, _modelRepository,
+            new DefaultProviderResolver(_providerRepository, _modelRepository),
+            NullLogger<AiCapabilityProviderResolver>.Instance),
         _providerRepository,
         _modelRepository,
         _providerResolver,
