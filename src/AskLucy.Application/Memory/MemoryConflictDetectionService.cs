@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Memory;
 using AskLucy.Domain.Retrieval;
 using Microsoft.Extensions.Logging;
@@ -45,7 +46,7 @@ public sealed class MemoryConflictDetectionService(
     IAIProviderRepository aiProviderRepository,
     IAIModelRepository aiModelRepository,
     IAIProviderResolver aiProviderResolver,
-    DefaultProviderResolver defaultProviderResolver,
+    AiCapabilityProviderResolver capabilityProviderResolver,
     ILogger<MemoryConflictDetectionService> logger) : IMemoryConflictDetectionService
 {
     private const string SystemActor = "system:memory-conflict-detection";
@@ -159,7 +160,7 @@ public sealed class MemoryConflictDetectionService(
     {
         try
         {
-            var resolved = await defaultProviderResolver.ResolveAsync(preference: null, cancellationToken);
+            var resolved = await capabilityProviderResolver.ResolveAsync(AiCapability.MemoryConflictDetection, cancellationToken);
             var provider = await aiProviderRepository.GetByIdAsync(resolved.ProviderId, cancellationToken)
                 ?? throw new KeyNotFoundException("Provider not found.");
             var model = await aiModelRepository.GetByIdAsync(resolved.ModelId, cancellationToken)

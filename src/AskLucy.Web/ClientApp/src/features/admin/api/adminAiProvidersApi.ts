@@ -147,3 +147,33 @@ export const applyModelSync = (providerId: string, diff: ProviderModelSyncDiff) 
     method: 'POST',
     body: JSON.stringify(diff),
   })
+
+/**
+ * specs: the non-chat jobs the platform asks an LLM to do. Chat is absent on purpose — the
+ * user's own Settings preference governs that, and these have no user to ask.
+ */
+export type AiCapability =
+  | 'LocationIntent'
+  | 'MemoryExtraction'
+  | 'MemoryConflictDetection'
+  | 'DocumentClassification'
+  | 'BoundaryVision'
+
+export interface AiCapabilityAssignment {
+  capability: AiCapability
+  /** Null when nothing is assigned — the capability then falls back to the platform default. */
+  providerId: string | null
+  /** Where the capability actually lands today, assigned or not. Resolved server-side. */
+  effectiveProviderId: string | null
+  effectiveModelId: string | null
+}
+
+export const getCapabilityAssignments = () =>
+  apiFetch<AiCapabilityAssignment[]>('/admin/ai/capabilities')
+
+/** A null `providerId` clears the assignment, returning the capability to the platform default. */
+export const setCapabilityAssignment = (capability: AiCapability, providerId: string | null) =>
+  apiFetch<void>(`/admin/ai/capabilities/${capability}`, {
+    method: 'PUT',
+    body: JSON.stringify({ providerId }),
+  })

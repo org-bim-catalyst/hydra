@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using FluentAssertions;
@@ -45,7 +46,7 @@ public sealed class LocationResolutionServiceTests
         _models.ListAvailableByProviderIdAsync(_openAiProvider.Id, Arg.Any<CancellationToken>()).Returns(new List<AIModel> { _gpt41 });
         _providerResolver.Resolve("openai").Returns(_aiProvider);
 
-        var defaultResolver = new DefaultProviderResolver(_providers, _models);
+        var defaultResolver = CapabilityResolverTestFactory.Unassigned(_providers, _models);
         _service = new LocationResolutionService(
             defaultResolver, _providers, _models, _providerResolver,
             _geocodingProvider, Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Memory;
 using AskLucy.Domain.Retrieval;
@@ -40,7 +41,7 @@ public sealed class MemoryExtractionJob(
     IAIProviderRepository aiProviderRepository,
     IAIModelRepository aiModelRepository,
     IAIProviderResolver aiProviderResolver,
-    DefaultProviderResolver defaultProviderResolver,
+    AiCapabilityProviderResolver capabilityProviderResolver,
     IUnitOfWork unitOfWork,
     ILogger<MemoryExtractionJob> logger) : IMemoryExtractionJob
 {
@@ -198,7 +199,7 @@ public sealed class MemoryExtractionJob(
 
         try
         {
-            var resolved = await defaultProviderResolver.ResolveAsync(preference: null, cancellationToken);
+            var resolved = await capabilityProviderResolver.ResolveAsync(AiCapability.MemoryExtraction, cancellationToken);
             var provider = await aiProviderRepository.GetByIdAsync(resolved.ProviderId, cancellationToken)
                 ?? throw new KeyNotFoundException("Provider not found.");
             var model = await aiModelRepository.GetByIdAsync(resolved.ModelId, cancellationToken)
@@ -225,7 +226,7 @@ public sealed class MemoryExtractionJob(
         // treated as "nothing found" rather than retried, since retrying won't fix bad JSON.
     }
 
-    private static IReadOnlyList<ExtractedCandidate> ParseCandidates(string content)
+    private static List<ExtractedCandidate> ParseCandidates(string content)
     {
         var parsed = JsonSerializer.Deserialize<List<ExtractedCandidatePayload>>(ExtractJsonArray(content)) ?? [];
 

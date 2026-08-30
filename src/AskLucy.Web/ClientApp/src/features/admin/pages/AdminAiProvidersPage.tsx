@@ -12,6 +12,7 @@ import {
   TableHead,
   TableRow,
   Tooltip,
+  Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -22,6 +23,7 @@ import { AppShell } from '../../../components/AppShell'
 import { AiProviderActionsMenu } from '../components/AiProviderActionsMenu'
 import { ProviderHealthCell } from '../components/ProviderHealthCell'
 import { ProviderModelsSection } from '../components/ProviderModelsSection'
+import { CapabilityAssignmentsSection } from '../components/CapabilityAssignmentsSection'
 
 const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
 
@@ -42,6 +44,11 @@ export function AdminAiProvidersPage() {
       title="AI providers"
       subtitle="Enable a provider and configure its credential before end users can select it"
     >
+      <CapabilityAssignmentsSection providers={providers ?? []} />
+
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Providers
+      </Typography>
       <Paper elevation={1}>
         <TableContainer>
           <Table>

@@ -44,6 +44,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<ProviderHealthCheck> ProviderHealthChecks => Set<ProviderHealthCheck>();
 
+    public DbSet<AiCapabilityAssignment> AiCapabilityAssignments => Set<AiCapabilityAssignment>();
+
     public DbSet<UserAiPreference> UserAiPreferences => Set<UserAiPreference>();
 
     public DbSet<UserVoicePreference> UserVoicePreferences => Set<UserVoicePreference>();

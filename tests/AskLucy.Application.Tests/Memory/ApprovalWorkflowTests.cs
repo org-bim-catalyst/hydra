@@ -3,6 +3,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Memory;
 using AskLucy.Application.Memory.Commands.ApproveMemory;
 using AskLucy.Application.Memory.Commands.RejectMemory;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Memory;
@@ -64,7 +65,7 @@ public sealed class ApprovalWorkflowTests
         _embeddingServiceResolver.Resolve("openai").Returns(_embeddingService);
         _embeddingService.EmbedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new EmbeddingResult(new float[1536], 1536));
 
-        var defaultProviderResolver = new DefaultProviderResolver(_aiProviderRepository, _aiModelRepository);
+        var defaultProviderResolver = CapabilityResolverTestFactory.Unassigned(_aiProviderRepository, _aiModelRepository);
 
         _job = new MemoryExtractionJob(
             _userChatRepository, _messageRepository, _memoryRepository, _preferenceRepository, _approvalRepository,
@@ -102,7 +103,7 @@ public sealed class ApprovalWorkflowTests
         // A pending candidate is still embedded (harmless — SqlServerMemoryVectorStore's query
         // filters to State = 'Active', so it's simply not yet retrievable) so approval doesn't
         // need a separate re-embed step later; what matters here is the lifecycle state itself.
-        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m.State == MemoryLifecycleState.PendingApproval));
+        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m != null && m.State == MemoryLifecycleState.PendingApproval));
         await _notifier.DidNotReceive().NotifyAsync(
             Arg.Any<string>(), Arg.Any<Guid?>(), MemoryNotificationEventType.AutoApproved, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -117,8 +118,8 @@ public sealed class ApprovalWorkflowTests
 
         await _job.RunAsync(chat.Id, CancellationToken.None);
 
-        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m.State == MemoryLifecycleState.Active));
-        _approvalRepository.Received(1).Add(Arg.Is<MemoryApproval>(a => a.Decision == MemoryApprovalDecision.Approved));
+        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m != null && m.State == MemoryLifecycleState.Active));
+        _approvalRepository.Received(1).Add(Arg.Is<MemoryApproval>(a => a != null && a.Decision == MemoryApprovalDecision.Approved));
         await _notifier.Received(1).NotifyAsync(UserId, Arg.Any<Guid>(), MemoryNotificationEventType.AutoApproved, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 

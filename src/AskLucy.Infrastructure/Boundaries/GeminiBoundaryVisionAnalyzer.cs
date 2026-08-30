@@ -1,7 +1,9 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Ai;
 using Microsoft.Extensions.Logging;
@@ -35,6 +37,8 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
     IOptions<GoogleGeminiOptions> options,
     IOptions<BoundaryScoringOptions> boundaryOptions,
     IAIProviderRepository providerRepository,
+    IAIModelRepository modelRepository,
+    AiCapabilityProviderResolver capabilityProviderResolver,
     IAiCredentialProtector credentialProtector,
     ILogger<GeminiBoundaryVisionAnalyzer> logger) : IBoundaryVisionAnalyzer
 {
@@ -55,12 +59,31 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
         try
         {
-            var provider = await providerRepository.GetByKeyAsync(ProviderKey, cancellationToken);
-            if (provider?.CredentialCiphertext is null)
+            // Which provider serves BoundaryVision, and which of its models, is now an
+            // administrator setting rather than the constant this class used to hardcode
+            // alongside a model name read from appsettings. Two places nobody could see,
+            // for a capability the operator was never asked about.
+            var resolved = await capabilityProviderResolver.ResolveAsync(AiCapability.BoundaryVision, cancellationToken);
+            var provider = await providerRepository.GetByIdAsync(resolved.ProviderId, cancellationToken);
+
+            // The request/response shape below is Gemini's generateContent contract. Assigning
+            // a provider with no vision implementation is reported plainly instead of being
+            // silently served by Gemini anyway — the caller degrades to the deterministic
+            // boundary either way, but the administrator can now see why.
+            if (provider is null || !string.Equals(provider.ProviderKey, ProviderKey, StringComparison.Ordinal))
+            {
+                return BoundaryVisionAnalysis.NotConfigured(
+                    $"AI vision verification currently requires a Google Gemini provider; '{provider?.DisplayName ?? "none"}' is assigned to the boundary-vision capability.");
+            }
+
+            if (provider.CredentialCiphertext is null)
             {
                 return BoundaryVisionAnalysis.NotConfigured(
                     "Google Gemini has no credential configured — an administrator must set one to enable AI vision verification.");
             }
+
+            var visionModel = await modelRepository.GetByIdAsync(resolved.ModelId, cancellationToken);
+            var visionModelKey = visionModel?.ModelKey ?? _options.VisionModel;
 
             var apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
             using var httpClient = httpClientFactory.CreateClient("GoogleGemini");
@@ -77,7 +100,7 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
             var payload = BuildPayload(image, rankedCandidates, siteName, center);
             using var response = await httpClient.PostAsJsonAsync(
-                $"models/{_options.VisionModel}:generateContent?key={apiKey}", payload, visionToken);
+                $"models/{visionModelKey}:generateContent?key={apiKey}", payload, visionToken);
 
             if (!response.IsSuccessStatusCode)
             {

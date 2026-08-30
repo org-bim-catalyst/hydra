@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Memory;
 using FluentAssertions;
@@ -36,7 +37,7 @@ public sealed class MemoryDisabledExclusionTests
         // DefaultProviderResolver is a concrete Application class, not an interface — faking its
         // own two repository dependencies rather than the class itself keeps this test from ever
         // reaching it, since a disabled-memory user chat returns before any provider resolution.
-        var defaultProviderResolver = new DefaultProviderResolver(_aiProviderRepository, _aiModelRepository);
+        var defaultProviderResolver = CapabilityResolverTestFactory.Unassigned(_aiProviderRepository, _aiModelRepository);
 
         _job = new MemoryExtractionJob(
             _userChatRepository, _messageRepository, _memoryRepository, _preferenceRepository, _approvalRepository,
