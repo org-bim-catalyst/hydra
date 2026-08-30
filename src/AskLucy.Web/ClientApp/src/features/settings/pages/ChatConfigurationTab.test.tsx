@@ -8,7 +8,7 @@ import * as chatsApi from '../../chat/api/chatsApi'
 import * as voiceApi from '../../chat/api/voiceApi'
 import { useActiveConversationStore } from '../../chat/activeConversationStore'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
-import { SETTINGS_TAB_INDEX } from '../settingsTabs'
+import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
 
 vi.mock('../../chat/api/chatsApi')
@@ -78,6 +78,8 @@ function renderTab() {
               </>
             }
           />
+          {/* The Voice link leaves this page now — Voice is a tab on Chat settings. */}
+          <Route path="/chat-settings" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -238,13 +240,14 @@ describe('ChatConfigurationTab', () => {
     expect(screen.queryByRole('button', { name: 'Go to AI Providers' })).not.toBeInTheDocument()
   })
 
-  it('the Voice entry point navigates to Settings with the Voice tab selected', async () => {
+  it('the Voice entry point navigates to Chat settings with the Voice tab selected', async () => {
+    // Voice is a sibling tab on the same page now, not a tab inside general Settings.
     const user = userEvent.setup()
     renderTab()
 
     await user.click(await screen.findByRole('button', { name: 'Go to Voice' }))
 
     const state = JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')
-    expect(state).toEqual({ tab: SETTINGS_TAB_INDEX.Voice })
+    expect(state).toEqual({ tab: CHAT_SETTINGS_TAB_INDEX.Voice })
   })
 })

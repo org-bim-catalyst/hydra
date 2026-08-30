@@ -27,7 +27,6 @@ public sealed record SetAiCapabilityAssignmentRequest(Guid? ProviderId);
 
 public sealed record SetAiProviderCredentialRequest(string ApiKey);
 
-public sealed record SaveUserAiPreferenceRequest(Guid DefaultProviderId, Guid DefaultModelId, GenerationParametersDto? DefaultGenerationParameters);
 
 public sealed record UpdateAiModelStatusRequest(AIModelStatus Status);
 

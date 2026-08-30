@@ -95,16 +95,15 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
   const providerName = (id: string | null) => providers.find((p) => p.id === id)?.displayName ?? null
 
   /**
-   * Every enabled provider with a credential is listed, so the menu matches what the Providers
-   * page shows as usable. An earlier version also required a default model and silently dropped
-   * the rest, which left the list showing OpenAI alone while Anthropic and Google Gemini sat
-   * enabled and configured — the admin could see no reason why they were missing.
+   * A provider is offerable only once all three prerequisites hold: enabled, credentialled, and
+   * carrying a default model. The model is what the capability actually runs on, so a provider
+   * without one would store an assignment that DefaultProviderResolver immediately falls back
+   * from — configured, and silently doing nothing.
    *
-   * A provider still cannot be *chosen* until it has a default model, because the model is what
-   * the capability actually runs on. That is now shown as a disabled row explaining the missing
-   * step rather than as an absence explaining nothing.
+   * The missing default model is no longer explained inline here, because it now has a page of
+   * its own: Default models, the step between Providers and this one.
    */
-  const selectable = providers.filter((p) => p.isEnabled && p.hasCredential)
+  const selectable = providers.filter((p) => p.isEnabled && p.hasCredential && p.defaultModelId)
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -119,8 +118,8 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
 
       {selectable.length === 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          No provider can be assigned yet. Enable a provider and configure its credential on the
-          Providers page first.
+          No provider can be assigned yet. Enable a provider with its credential on the Providers
+          page, then give it a default model on the Default models page.
         </Alert>
       )}
 
@@ -173,17 +172,8 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
                         <em>Platform default</em>
                       </MenuItem>
                       {selectable.map((provider) => (
-                        <MenuItem
-                          key={provider.id}
-                          value={provider.id}
-                          disabled={!provider.defaultModelId}
-                        >
+                        <MenuItem key={provider.id} value={provider.id}>
                           {provider.displayName}
-                          {!provider.defaultModelId && (
-                            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                              — set a default model first
-                            </Typography>
-                          )}
                         </MenuItem>
                       ))}
                       </Select>

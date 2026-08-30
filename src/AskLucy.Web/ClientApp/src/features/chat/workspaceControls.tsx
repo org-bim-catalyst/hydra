@@ -55,7 +55,7 @@ import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOv
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
 import { useViewerEngineStore } from '../../viewer/store/viewerEngineStore'
 import type { MapStyleId } from '../../viewer/api/commands'
-import { SETTINGS_TAB_INDEX } from '../settings/settingsTabs'
+import { CHAT_SETTINGS_TAB_INDEX } from '../settings/chatSettingsTabs'
 
 function comingSoon(label: string) {
   useComingSoonStore.getState().show(label)
@@ -94,13 +94,13 @@ export function useAccountControl(): ControlDefinition {
       label: 'Chat Configuration',
       icon: <RiEqualizerLine size={20} />,
       onSelect: () =>
-        navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatConfiguration } }),
+        navigate('/chat-settings', { state: { tab: CHAT_SETTINGS_TAB_INDEX.ChatConfiguration } }),
     },
     {
       id: 'chat-history',
       label: 'Chat History',
       icon: <RiHistoryLine size={20} />,
-      onSelect: () => navigate('/settings', { state: { tab: SETTINGS_TAB_INDEX.ChatHistory } }),
+      onSelect: () => navigate('/chat-settings', { state: { tab: CHAT_SETTINGS_TAB_INDEX.ChatHistory } }),
     },
     {
       id: 'documents',
