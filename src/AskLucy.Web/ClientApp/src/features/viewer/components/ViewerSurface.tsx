@@ -138,7 +138,15 @@ export function ViewerSurface() {
           variant="outlined"
           color="default"
           data-testid="panel-hub-connection-status"
-          sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'background.paper' }}
+          sx={{
+              position: 'absolute',
+              bottom: { xs: 16, sm: 24 },
+              left: {
+                xs: 'calc(16px + min(25vh, 280px) + 12px)',
+                sm: 'calc(24px + min(25vh, 280px) + 12px)',
+              },
+              bgcolor: 'background.paper',
+            }}
         />
       )}
     </Box>
