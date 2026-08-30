@@ -251,8 +251,11 @@ flowchart TD
     I -->|new_query| G{Geocode}
     G -->|unavailable| N3["'I couldn't look that up<br/>right now'"]
     G -->|0 results| N4[Not found]
-    G -->|ambiguous| N5[Asks you to disambiguate]
-    G -->|1 clear winner| OK
+    G -->|results| FL{"importance >=<br/>MinimumImportanceFloor?"}
+    FL -->|none pass| N4
+    FL -->|pass| AMB{"leader beats runner-up<br/>by DominanceMargin?"}
+    AMB -->|no| N5[Asks you to disambiguate]
+    AMB -->|yes / sole candidate| OK
 
     OK["✅ __LOCATION__ emitted<br/>VIEWER MOVES"] --> SAME{Same site as<br/>stored boundary?}
     SAME -->|yes| REUSE["Reuse stored boundary.<br/>No Overpass call."]
@@ -285,6 +288,41 @@ flowchart TD
 
 Every leaf reaches `[DONE]`. There is no path that silently drops the turn.
 
+### The importance floor is a real gate, and it is provider-relative
+
+The `FL` node above is drawn separately for a reason: it is not part of "0 results", and
+it is where "show me Al Safa Park 2 in the viewer" was dying long after the boundary and
+streaming paths had each been rewritten to fix it.
+
+`GeocodingCandidate.Importance` has two completely different meanings depending on which
+`IGeocodingProvider` is registered — and which one that is, is decided silently by whether
+`Geocoding:GoogleMapsApiKey` happens to be set:
+
+| Provider | Where `Importance` comes from | Observed range |
+|---|---|---|
+| `GoogleMapsGeocodingProvider` | synthesised from `location_type` | 0.40 – 0.90, never lower |
+| `NominatimGeocodingProvider` | Nominatim's own `importance` field | 0.0 for a name collision, ~0.06–0.09 for an ordinary local place, 0.56 for Burj Khalifa |
+
+Nominatim's score is Wikipedia-linkage **popularity**, not match **quality**. Measured live
+(2026-08-30):
+
+| Query | Top result | `importance` |
+|---|---|---|
+| `Al Safa Park 2` | حديقة الصفا 2, Dubai — the correct park | **0.0801** |
+| `Burj Khalifa` | برج خليفة, Dubai | 0.5588 |
+| `Dubai Mall` | دبي مول, Dubai | 0.4451 |
+| `Dubai Mall` | unrelated streets in India / Egypt | 0.0 |
+
+With the floor at `0.1`, the sole correct candidate for Al Safa Park 2 was discarded, the
+turn resolved to `NotFound`, no `ConfirmedLocation` was produced — and therefore neither
+`__LOCATION__` nor the boundary step, which is gated on `confirmedLocation is not null`,
+ever ran. Production, which has a Google Maps key, never reproduced it: 0.40 clears 0.1
+comfortably. The floor is now `0.05` and configurable, which still rejects the 0.0
+collisions above.
+
+If a place query works deployed and not locally, read the startup line
+`Geocoding provider: … (Geocoding:GoogleMapsApiKey …)` before suspecting the code.
+
 ---
 
 ## 7. Time budgets
@@ -293,7 +331,7 @@ Every leaf reaches `[DONE]`. There is no path that silently drops the turn.
 |---|---|---|---|
 | Intent classification | 0.5–2 s | model default | concurrent with main stream |
 | Geocoding | 0.2–1 s | 30 s client | `"Geocoding"` HttpClient |
-| Location wait after text ends | ~0 s | **15 s** | `LocationResolution:ResolutionCeilingSeconds` |
+| Location wait after text ends | ~0 s | **30 s** | `LocationResolution:ResolutionCeilingSeconds` |
 | Overpass | 2–10 s | 30 s client | `"Overpass"` HttpClient |
 | ESRI imagery | 1–3 s | 30 s client | `"EsriWorldImagery"` HttpClient |
 | Gemini vision | 5–20 s | **30 s** | `BoundaryScoring:VisionTimeoutSeconds` |

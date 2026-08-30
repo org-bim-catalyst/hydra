@@ -5,6 +5,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Domain.Chats;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Application.Locations;
 
@@ -36,10 +37,10 @@ public sealed class LocationResolutionService(
     IAIModelRepository aiModelRepository,
     IAIProviderResolver aiProviderResolver,
     IGeocodingProvider geocodingProvider,
+    IOptions<LocationResolutionOptions> options,
     ILogger<LocationResolutionService> logger) : ILocationResolutionService
 {
-    private const double MinimumImportanceFloor = 0.1;
-    private const double DominanceMargin = 0.2;
+    private readonly LocationResolutionOptions _options = options.Value;
 
     /// <summary>
     /// v1 — versioned per constitution §9 ("prompt engineering… versioned artifacts… reviewed
@@ -169,7 +170,7 @@ public sealed class LocationResolutionService(
         }
 
         var filtered = candidates
-            .Where(c => c.Importance >= MinimumImportanceFloor)
+            .Where(c => c.Importance >= _options.MinimumImportanceFloor)
             .OrderByDescending(c => c.Importance)
             .ToList();
 
@@ -185,7 +186,7 @@ public sealed class LocationResolutionService(
         {
             winner = filtered[0];
         }
-        else if (filtered[0].Importance - filtered[1].Importance >= DominanceMargin)
+        else if (filtered[0].Importance - filtered[1].Importance >= _options.CandidateDominanceMargin)
         {
             winner = filtered[0];
         }
