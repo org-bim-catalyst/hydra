@@ -16,7 +16,6 @@ const base: AdminAiProvider = {
   healthFailureKind: null,
   healthFailureReason: null,
   healthStaleAfterUtc: '2026-08-29T09:13:49Z',
-  isEffectivePlatformDefault: false,
 }
 
 const NOW_FRESH = new Date('2026-08-29T09:10:00Z')

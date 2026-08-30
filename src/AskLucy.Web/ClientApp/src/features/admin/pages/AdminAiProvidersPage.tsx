@@ -12,7 +12,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -94,26 +93,7 @@ export function AdminAiProvidersPage() {
                           )}
                         </IconButton>
                       </TableCell>
-                      <TableCell>
-                        {provider.displayName}
-                        {/*
-                          Visible without expanding the row: this is the provider that serves
-                          every request made with no user model preference behind it. It used to
-                          be decided silently by alphabetical order, which is why background work
-                          ran on a provider the operator had never chosen.
-                        */}
-                        {provider.isEffectivePlatformDefault && (
-                          <Tooltip title="Serves location intent classification, memory extraction and any request with no user model preference">
-                            <Chip
-                              size="small"
-                              label="Platform default"
-                              color="primary"
-                              variant="outlined"
-                              sx={{ ml: 1 }}
-                            />
-                          </Tooltip>
-                        )}
-                      </TableCell>
+                      <TableCell>{provider.displayName}</TableCell>
                       <TableCell>
                         <Chip
                           size="small"

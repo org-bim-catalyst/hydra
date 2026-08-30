@@ -10,12 +10,14 @@ using Xunit;
 namespace AskLucy.Application.Tests.Ai;
 
 /// <summary>
-/// The platform default decides which provider serves every request that has no user preference
-/// behind it — location intent classification, memory extraction, background jobs. Until now no
-/// UI could set it, so every provider sat at null and DefaultProviderResolver fell through to
-/// "first enabled provider in display-name order". In production that silently routed location
-/// resolution to Anthropic while the operator's chat ran on OpenAI, and stayed that way after
-/// Anthropic's credit ran out.
+/// A provider's default model is what any capability assigned to that provider runs on, so a
+/// default naming another provider's model — or one that is not Available — stores a setting the
+/// resolver silently skips. Rejected at the boundary instead.
+/// <para>
+/// The "effective platform default" this file also used to cover is gone: an administrator now
+/// assigns a provider per capability explicitly, so surfacing an implicit alphabetical winner
+/// only described a fallback nobody configures against.
+/// </para>
 /// </summary>
 public sealed class PlatformDefaultModelTests
 {
@@ -34,49 +36,6 @@ public sealed class PlatformDefaultModelTests
         => AIModel.Create(
             providerId, key, key, 128000, 16384,
             new AIModelCapabilities(true, true, true, true, false, false, true, false, false), null, null, "test");
-
-    [Fact]
-    public async Task Handle_ShouldFlagTheProviderThatActuallyServes_NotSimplyTheFirstAlphabetically()
-    {
-        // Anthropic sorts before OpenAI, so the bare alphabetical fallback would pick it. Giving
-        // only OpenAI a default model is precisely how an administrator overrides that, and the
-        // page has to agree with the resolver about the outcome.
-        var anthropic = EnabledProvider("anthropic", "Anthropic");
-        var openai = EnabledProvider("openai", "OpenAI");
-        var gpt = AvailableModel(openai.Id, "gpt-4.1");
-        openai.SetDefaultModel(gpt.Id, "test");
-
-        _providers.ListAllAsync(Arg.Any<CancellationToken>()).Returns(new List<AIProvider> { anthropic, openai });
-        _providers.ListEnabledAsync(Arg.Any<CancellationToken>()).Returns(new List<AIProvider> { anthropic, openai });
-        _models.GetByIdAsync(gpt.Id, Arg.Any<CancellationToken>()).Returns(gpt);
-
-        var handler = new GetAdminAiProvidersQueryHandler(
-            _providers, Substitute.For<IProviderHealthFreshnessPolicy>(),
-            new DefaultProviderResolver(_providers, _models));
-
-        var result = await handler.Handle(new GetAdminAiProvidersQuery(), TestContext.Current.CancellationToken);
-
-        result.Single(p => p.ProviderKey == "openai").IsEffectivePlatformDefault.Should().BeTrue();
-        result.Single(p => p.ProviderKey == "anthropic").IsEffectivePlatformDefault.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task Handle_ShouldReportNoDefault_WhenNoEnabledProviderHasAnAvailableModel()
-    {
-        // The documented zero-providers state. This screen must render it, not fail on it.
-        var anthropic = EnabledProvider("anthropic", "Anthropic");
-        _providers.ListAllAsync(Arg.Any<CancellationToken>()).Returns(new List<AIProvider> { anthropic });
-        _providers.ListEnabledAsync(Arg.Any<CancellationToken>()).Returns(new List<AIProvider> { anthropic });
-        _models.ListAvailableByProviderIdAsync(anthropic.Id, Arg.Any<CancellationToken>()).Returns(new List<AIModel>());
-
-        var handler = new GetAdminAiProvidersQueryHandler(
-            _providers, Substitute.For<IProviderHealthFreshnessPolicy>(),
-            new DefaultProviderResolver(_providers, _models));
-
-        var result = await handler.Handle(new GetAdminAiProvidersQuery(), TestContext.Current.CancellationToken);
-
-        result.Should().OnlyContain(p => !p.IsEffectivePlatformDefault);
-    }
 
     [Fact]
     public async Task Validator_ShouldReject_AModelBelongingToAnotherProvider()

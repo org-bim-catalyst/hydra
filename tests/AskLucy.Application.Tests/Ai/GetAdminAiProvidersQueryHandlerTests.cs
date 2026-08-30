@@ -22,8 +22,7 @@ public sealed class GetAdminAiProvidersQueryHandlerTests
 
     public GetAdminAiProvidersQueryHandlerTests()
     {
-        _handler = new GetAdminAiProvidersQueryHandler(
-            _providers, _freshness, new DefaultProviderResolver(_providers, _models));
+        _handler = new GetAdminAiProvidersQueryHandler(_providers, _freshness);
     }
 
     [Fact]

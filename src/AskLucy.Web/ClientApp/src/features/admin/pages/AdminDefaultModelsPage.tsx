@@ -35,6 +35,13 @@ export function AdminDefaultModelsPage() {
     queryFn: adminAiProvidersApi.getProviders,
   })
 
+  /**
+   * Only providers that are enabled and hold a credential. A default model on a provider that
+   * cannot be used is a setting with nowhere to apply — and the Capabilities page will not offer
+   * it either, so listing it here only invites configuring something inert.
+   */
+  const assignableProviders = (providers ?? []).filter((p) => p.isEnabled && p.hasCredential)
+
   const setDefaultMutation = useMutation({
     mutationFn: ({ providerId, modelId }: { providerId: string; modelId: string | null }) =>
       modelId === null
@@ -72,8 +79,9 @@ export function AdminDefaultModelsPage() {
       }
     >
       <Alert severity="info" sx={{ mb: 2 }}>
-        Only models marked Available on the Providers page can be a default. A provider with no
-        default model cannot be assigned to a capability.
+        Only providers that are enabled with a credential appear here, and only models marked
+        Available on the Providers page can be a default. A provider with no default model cannot
+        be assigned to a capability.
       </Alert>
 
       <TableContainer component={Paper} variant="outlined">
@@ -86,7 +94,7 @@ export function AdminDefaultModelsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {providers?.map((provider) => (
+            {assignableProviders.map((provider) => (
               <ProviderDefaultModelRow
                 key={provider.id}
                 provider={provider}

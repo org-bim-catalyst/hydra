@@ -22,15 +22,6 @@ export interface AdminAiProvider {
    * on its own instead of showing a verdict frozen at render time.
    */
   healthStaleAfterUtc: string | null
-  /**
-   * Whether this provider is the one that actually serves every request with no user
-   * preference behind it — location intent classification, memory extraction, background
-   * jobs. Resolved server-side by `DefaultProviderResolver` itself, never re-derived here:
-   * the rule (first *enabled* provider in display-name order that has a default model set,
-   * and only while that model is Available) is surprising enough that a second
-   * implementation would drift from the runtime.
-   */
-  isEffectivePlatformDefault: boolean
 }
 
 /** specs/043 FR-024 — the result of an administrator-triggered probe. */
@@ -153,6 +144,7 @@ export const applyModelSync = (providerId: string, diff: ProviderModelSyncDiff) 
  * user's own Settings preference governs that, and these have no user to ask.
  */
 export type AiCapability =
+  | 'Chat'
   | 'LocationIntent'
   | 'MemoryExtraction'
   | 'MemoryConflictDetection'
