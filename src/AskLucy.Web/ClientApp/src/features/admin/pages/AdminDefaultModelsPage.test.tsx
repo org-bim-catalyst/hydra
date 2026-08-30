@@ -24,7 +24,6 @@ const openai: AdminAiProvider = {
   healthFailureKind: null,
   healthFailureReason: null,
   healthStaleAfterUtc: null,
-  isEffectivePlatformDefault: false,
 }
 
 const model = (overrides: Partial<AdminAiModel>): AdminAiModel => ({

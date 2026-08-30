@@ -24,7 +24,6 @@ function makeProvider(overrides: Partial<AdminAiProvider>): AdminAiProvider {
     healthFailureKind: null,
     healthFailureReason: null,
     healthStaleAfterUtc: null,
-    isEffectivePlatformDefault: true,
     ...overrides,
   }
 }
@@ -34,7 +33,6 @@ const anthropic = makeProvider({
   id: 'provider-anthropic',
   providerKey: 'anthropic',
   displayName: 'Anthropic',
-  isEffectivePlatformDefault: false,
 })
 
 const unassigned: AiCapabilityAssignment = {
@@ -116,7 +114,6 @@ describe('CapabilityAssignmentsSection', () => {
       providerKey: 'google-gemini',
       displayName: 'Google Gemini',
       defaultModelId: 'model-gemini',
-      isEffectivePlatformDefault: false,
     })
     renderSection([unassigned], [openai, anthropic, gemini])
 
@@ -125,6 +122,22 @@ describe('CapabilityAssignmentsSection', () => {
     expect(menu.getByText('OpenAI')).toBeInTheDocument()
     expect(menu.getByText('Anthropic')).toBeInTheDocument()
     expect(menu.getByText('Google Gemini')).toBeInTheDocument()
+  })
+
+  it('lists Chat, which the server enumerates alongside the background capabilities', async () => {
+    renderSection([{ ...unassigned, capability: 'Chat' }])
+
+    expect(await screen.findByText('Chat')).toBeInTheDocument()
+  })
+
+  it('renders a capability it has no copy for instead of taking the page down', async () => {
+    // The server enumerates the AiCapability enum. When "Chat" was added there before this
+    // table knew about it, indexing straight into the copy map returned undefined and reading
+    // `.label` threw during render — which the route error boundary turned into a full-page
+    // "Something went wrong", with nothing to say the cause was a missing label.
+    renderSection([{ ...unassigned, capability: 'SomethingNew' as AiCapabilityAssignment['capability'] }])
+
+    expect(await screen.findByText('SomethingNew')).toBeInTheDocument()
   })
 
   it('excludes a provider that is not enabled or has no credential', async () => {
@@ -137,7 +150,6 @@ describe('CapabilityAssignmentsSection', () => {
       isEnabled: false,
       hasCredential: false,
       defaultModelId: null,
-      isEffectivePlatformDefault: false,
     })
     renderSection([unassigned], [openai, openrouter])
 
@@ -154,7 +166,6 @@ describe('CapabilityAssignmentsSection', () => {
       providerKey: 'google-gemini',
       displayName: 'Google Gemini',
       defaultModelId: null,
-      isEffectivePlatformDefault: false,
     })
     renderSection([unassigned], [openai, noDefaultModel])
 

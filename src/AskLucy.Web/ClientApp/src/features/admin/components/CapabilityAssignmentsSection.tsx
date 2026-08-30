@@ -30,6 +30,10 @@ const CAPABILITY_QUERY_KEY = ['admin', 'ai-capabilities']
  * are on this screen.
  */
 const CAPABILITY_COPY: Record<AiCapability, { label: string; consequence: string }> = {
+  Chat: {
+    label: 'Chat',
+    consequence: 'Answers the user in conversation. Every other capability here is background work.',
+  },
   LocationIntent: {
     label: 'Location intent',
     consequence: 'Decides whether a message asks to view a place. Without it the viewer never moves.',
@@ -134,7 +138,14 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
           </TableHead>
           <TableBody>
             {assignments?.map((assignment) => {
-              const copy = CAPABILITY_COPY[assignment.capability]
+              // Never index straight into the copy table: the server enumerates the
+              // capability enum, so a capability added there before this table knows about it
+              // would otherwise throw during render and take the whole page to the error
+              // boundary. That is exactly what "Chat" did.
+              const copy = CAPABILITY_COPY[assignment.capability] ?? {
+                label: assignment.capability,
+                consequence: 'No description available for this capability yet.',
+              }
               const effective = providerName(assignment.effectiveProviderId)
               return (
                 <TableRow key={assignment.capability}>
