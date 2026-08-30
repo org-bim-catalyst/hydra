@@ -1,14 +1,22 @@
 import { RiHomeLine } from '@remixicon/react'
-import { Box, IconButton, Typography } from '@mui/material'
+import { Box, IconButton, Typography, alpha, darken, lighten } from '@mui/material'
+import type { Theme } from '@mui/material'
 import { useNavigate } from 'react-router'
 
-/** Sampled directly from the readdy.ai reference's own top-left card
- * (`getComputedStyle`): `rounded-full bg-background-100/60 backdrop-blur-md
- * border border-background-300/50`, positioned `absolute top-5 left-5`. */
-const CARD_BG = 'oklch(0.18 0.02 280 / 0.6)'
-const CARD_BORDER = '1px solid oklch(0.34 0.02 280 / 0.5)'
-const BUTTON_BG = 'oklch(0.25 0.02 280 / 0.8)'
-const TEXT_COLOR = 'oklch(0.97 0.01 100)'
+/**
+ * The readdy.ai reference's top-left card: `rounded-full bg-background-100/60 backdrop-blur-md
+ * border border-background-300/50`, positioned `absolute top-5 left-5`.
+ *
+ * Those were previously frozen as the dark literals they resolved to, because the reference was
+ * light-mode only at the time. Its ramps invert between modes, so the same three roles are
+ * mapped onto the MUI palette here instead — otherwise this card stays dark while the theme
+ * toggle changes everything around it.
+ */
+const cardBg = (t: Theme) => alpha(t.palette.background.paper, 0.6)
+const cardBorder = (t: Theme) => `1px solid ${alpha(t.palette.divider, 0.5)}`
+const buttonBg = (t: Theme) => alpha(t.palette.background.paper, 0.8)
+const buttonHoverBg = (t: Theme) =>
+  t.palette.mode === 'dark' ? lighten(t.palette.background.paper, 0.08) : darken(t.palette.background.paper, 0.05)
 
 /** The readdy.ai reference's top-left "Home › destination" breadcrumb card — this
  * feature has no equivalent "project/location" entity yet, so it shows the workspace's
@@ -32,8 +40,8 @@ export function HomeProjectCard() {
         pr: 2,
         py: 0.75,
         borderRadius: `999px`,
-        bgcolor: CARD_BG,
-        border: CARD_BORDER,
+        bgcolor: cardBg,
+        border: cardBorder,
         backdropFilter: 'blur(12px)',
         pointerEvents: 'auto',
         boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
@@ -44,14 +52,14 @@ export function HomeProjectCard() {
         onClick={() => navigate('/')}
         size="small"
         sx={{
-          color: TEXT_COLOR,
-          bgcolor: BUTTON_BG,
-          '&:hover': { bgcolor: 'oklch(0.30 0.02 280 / 0.9)' },
+          color: 'text.primary',
+          bgcolor: buttonBg,
+          '&:hover': { bgcolor: buttonHoverBg },
         }}
       >
         <RiHomeLine size={20} />
       </IconButton>
-      <Typography variant="subtitle2" sx={{ color: TEXT_COLOR, fontWeight: 600 }}>
+      <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
         Flumeria Studio
       </Typography>
     </Box>

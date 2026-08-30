@@ -431,7 +431,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
   it('keeps the theme toggle beside the account button, not inside its menu (FR-024)', () => {
     renderChatPage()
-    expect(screen.getByRole('button', { name: 'Toggle theme' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeInTheDocument()
   })
 
   it('reaches Chat settings from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
@@ -517,7 +517,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     await waitForModelSeeding(queryClient)
 
     for (const label of [
-      'Toggle theme',
+      'Switch to dark mode',
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
       'Account menu',
       'View mode',
