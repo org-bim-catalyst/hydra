@@ -24,6 +24,7 @@ using AskLucy.Infrastructure.Retrieval.VectorStores;
 using AskLucy.Infrastructure.Weather;
 using AskLucy.Infrastructure.Workflows;
 using Hangfire;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -161,7 +162,30 @@ public static class DependencyInjection
         services.AddScoped<McpServerHealthCheckJob>();
         services.AddScoped<McpCapabilityRefreshJob>();
 
-        services.AddDataProtection();
+        // The Data Protection key ring MUST outlive the process. With a bare
+        // AddDataProtection(), ASP.NET Core picks a repository by probing:
+        // %LOCALAPPDATA%\ASP.NET\DataProtection-Keys (needs a loaded user profile), then the
+        // HKCU registry — and when neither is available, which is the case for this app pool
+        // on site4now shared hosting, it falls back to an EPHEMERAL in-memory key ring that
+        // is regenerated on every start.
+        //
+        // Consequence, observed live in production on 2026-08-30: every AI provider
+        // credential encrypted through AiCredentialProtector became undecryptable the moment
+        // the app restarted, so AIProviders.HealthStatus read Unhealthy/CredentialUnreadable
+        // for anthropic and google-gemini. OpenAI stayed Healthy only because it reads its
+        // key from configuration (OpenAI:ApiKey) rather than the encrypted DB column, which
+        // is what made the failure look provider-specific instead of infrastructural.
+        // Since every deploy restarts the app, each one silently invalidated every stored
+        // credential, MCP credential and protected memory value.
+        //
+        // App_Data survives deploys: FTP-Deploy-Action only removes files it previously
+        // deployed (tracked in its sync state), so runtime-created content there is left
+        // alone — the same reason Serilog's App_Data/logs history accumulates across
+        // releases. SetApplicationName pins the purpose-derivation root so it stays stable
+        // if the content root path ever changes.
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(environment.ContentRootPath, "App_Data", "keys")))
+            .SetApplicationName("AskLucy");
         // Concrete IMemoryCache registration for KnowledgeBaseDashboardSummaryCache (Application) — see that DI's comment for why the registration itself lives here, not in Application.
         services.AddMemoryCache();
 
