@@ -28,7 +28,6 @@ import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router'
 import { API_BASE_URL } from '../../../api/httpClient'
 import { AppShell } from '../../../components/AppShell'
-import { EmptyState } from '../../../components/EmptyState'
 import { codeFontFamily } from '../../../theme/tokens/typography'
 import {
   useChangePassword,
@@ -40,11 +39,9 @@ import {
   useRemoveExternalLogin,
   useRequestEmailChange,
 } from '../../auth/hooks/useAuth'
-import { useAiModels, useAiProviders } from '../../chat/hooks/useAiCatalog'
 import { useDeleteAccount, useMyProfile } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
-import { useAiPreferences, useSaveAiPreferences } from '../hooks/useAiPreferences'
 import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
@@ -379,116 +376,6 @@ function DataTab() {
   )
 }
 
-/**
- * specs/005-multi-provider-ai-engine User Story 3 (FR-017/FR-019) — a saved default
- * provider/model pre-fills every *new* conversation going forward; it never changes an
- * existing conversation already in progress. Follows AccountTab's established shape
- * (local draft state + explicit Save button + inline Alert), not `ProviderModelSelector`'s
- * auto-persist-on-change behavior, which is specific to a live conversation.
- */
-export function AiProvidersTab() {
-  const { data: preference, isPending: isPreferencePending } = useAiPreferences()
-  const { data: providers } = useAiProviders()
-  const [draftProviderId, setDraftProviderId] = useState<string | null>(null)
-  const { data: models } = useAiModels(draftProviderId)
-  const [draftModelId, setDraftModelId] = useState<string | null>(null)
-  const savePreferences = useSaveAiPreferences()
-
-  // Seed the draft from the resolved preference once it loads — a real saved choice or the
-  // platform fallback, either way a starting point the user can then change (User Story 3,
-  // Acceptance Scenario 1). React's sanctioned "adjust state during render" pattern (not an
-  // effect, per react-hooks/set-state-in-effect): guarded by `hasSeededDraft` so this only
-  // ever fires once, the same render pass `preference` first arrives.
-  const [hasSeededDraft, setHasSeededDraft] = useState(false)
-  if (preference && !hasSeededDraft) {
-    setHasSeededDraft(true)
-    setDraftProviderId(preference.defaultProviderId)
-    setDraftModelId(preference.defaultModelId)
-  }
-
-  const handleProviderChange = (providerId: string) => {
-    setDraftProviderId(providerId)
-    setDraftModelId(null)
-  }
-
-  const handleSave = () => {
-    if (!draftProviderId || !draftModelId) return
-    savePreferences.mutate({ defaultProviderId: draftProviderId, defaultModelId: draftModelId })
-  }
-
-  return (
-    <Stack spacing={4}>
-      <Box>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Default AI provider &amp; model
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Applies to every new conversation you start — it never changes a conversation already in
-          progress.
-        </Typography>
-        {preference?.isPlatformDefault && (
-          <Alert severity="info" sx={{ mb: 2, maxWidth: 480 }}>
-            You haven't saved a personal default yet — showing the platform default.
-          </Alert>
-        )}
-        {savePreferences.isError && (
-          <Alert severity="error" sx={{ mb: 2, maxWidth: 480 }}>
-            Could not save your default provider/model.
-          </Alert>
-        )}
-        {savePreferences.isSuccess && (
-          <Alert severity="success" sx={{ mb: 2, maxWidth: 480 }}>
-            Default saved.
-          </Alert>
-        )}
-        {!isPreferencePending && providers && providers.length === 0 ? (
-          <EmptyState
-            title="No AI providers are enabled yet"
-            description="An administrator needs to configure one first."
-          />
-        ) : (
-          <Stack direction="row" spacing={2} sx={{ maxWidth: 480 }}>
-            <TextField
-              select
-              label="Provider"
-              fullWidth
-              value={draftProviderId ?? ''}
-              onChange={(e) => handleProviderChange(e.target.value)}
-            >
-              {(providers ?? []).map((provider) => (
-                <MenuItem key={provider.id} value={provider.id}>
-                  {provider.displayName}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Model"
-              fullWidth
-              disabled={!models || models.length === 0}
-              value={draftModelId ?? ''}
-              onChange={(e) => setDraftModelId(e.target.value)}
-            >
-              {(models ?? []).map((model) => (
-                <MenuItem key={model.id} value={model.id}>
-                  {model.displayName}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
-        )}
-        <Button
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={!draftProviderId || !draftModelId || savePreferences.isPending}
-          onClick={handleSave}
-        >
-          Save default
-        </Button>
-      </Box>
-    </Stack>
-  )
-}
 
 /**
  * spec 012-elevenlabs-voice-engine, contracts/voice-preferences.md (FR-029/FR-030). Every
@@ -680,15 +567,19 @@ export function SettingsPage() {
           onChange={(_, value: number) => setTab(value)}
           sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label="Security" />
-          <Tab label="Account" />
-          <Tab label="AI Providers" />
-          <Tab label="Voice" />
-          <Tab label="Chat Configuration" />
-          <Tab label="Chat History" />
-          <Tab label="Data" />
-          <Tab label="Cookies" />
-          <Tab label="Viewer" />
+          {/*
+            Explicit values, not positional indices. Removing the "AI Providers" tab would
+            otherwise renumber everything after it, silently repointing SETTINGS_TAB_INDEX, both
+            account menus and every saved deep link at the wrong tab.
+          */}
+          <Tab label="Security" value={SETTINGS_TAB_INDEX.Security} />
+          <Tab label="Account" value={SETTINGS_TAB_INDEX.Account} />
+          <Tab label="Voice" value={SETTINGS_TAB_INDEX.Voice} />
+          <Tab label="Chat Configuration" value={SETTINGS_TAB_INDEX.ChatConfiguration} />
+          <Tab label="Chat History" value={SETTINGS_TAB_INDEX.ChatHistory} />
+          <Tab label="Data" value={SETTINGS_TAB_INDEX.Data} />
+          <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
+          <Tab label="Viewer" value={SETTINGS_TAB_INDEX.Viewer} />
         </Tabs>
         <Box sx={{ p: 3 }}>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
@@ -696,9 +587,6 @@ export function SettingsPage() {
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
             <AccountTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.AiProviders}>
-            <AiProvidersTab />
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Voice}>
             <VoiceTab />

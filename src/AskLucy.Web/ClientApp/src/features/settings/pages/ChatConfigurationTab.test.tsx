@@ -229,14 +229,13 @@ describe('ChatConfigurationTab', () => {
     expect(await screen.findByText('Save failed.')).toBeInTheDocument()
   })
 
-  it('the AI Providers entry point navigates to Settings with the AI Providers tab selected', async () => {
-    const user = userEvent.setup()
+  it('no longer offers an AI Providers entry point, since that moved to the admin panel', async () => {
+    // Which provider and model answer a user is an administrator decision now, configured as the
+    // Chat capability. A link here would lead to a tab that no longer exists.
     renderTab()
 
-    await user.click(await screen.findByRole('button', { name: 'Go to AI Providers' }))
-
-    const state = JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')
-    expect(state).toEqual({ tab: SETTINGS_TAB_INDEX.AiProviders })
+    await screen.findByRole('button', { name: 'Go to Voice' })
+    expect(screen.queryByRole('button', { name: 'Go to AI Providers' })).not.toBeInTheDocument()
   })
 
   it('the Voice entry point navigates to Settings with the Voice tab selected', async () => {

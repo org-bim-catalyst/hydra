@@ -163,20 +163,6 @@ export function ChatConfigurationTab() {
 
       <Box>
         <Typography variant="h6" sx={{ mb: 1 }}>
-          AI model &amp; provider
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Set your default AI provider and model, used for every new conversation you start.
-        </Typography>
-        <Button variant="outlined" onClick={() => goToSettingsTab(SETTINGS_TAB_INDEX.AiProviders)}>
-          Go to AI Providers
-        </Button>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="h6" sx={{ mb: 1 }}>
           Voice, speech-to-text &amp; text-to-speech
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

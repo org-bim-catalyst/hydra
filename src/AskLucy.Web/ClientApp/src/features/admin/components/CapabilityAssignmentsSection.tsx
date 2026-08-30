@@ -94,9 +94,17 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
 
   const providerName = (id: string | null) => providers.find((p) => p.id === id)?.displayName ?? null
 
-  // Only a provider that can actually serve is offerable: it must be enabled and carry a default
-  // model, which is the previous step on this screen.
-  const assignable = providers.filter((p) => p.isEnabled && p.defaultModelId)
+  /**
+   * Every enabled provider with a credential is listed, so the menu matches what the Providers
+   * page shows as usable. An earlier version also required a default model and silently dropped
+   * the rest, which left the list showing OpenAI alone while Anthropic and Google Gemini sat
+   * enabled and configured — the admin could see no reason why they were missing.
+   *
+   * A provider still cannot be *chosen* until it has a default model, because the model is what
+   * the capability actually runs on. That is now shown as a disabled row explaining the missing
+   * step rather than as an absence explaining nothing.
+   */
+  const selectable = providers.filter((p) => p.isEnabled && p.hasCredential)
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -109,10 +117,10 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
         alphabetically — the behaviour this screen exists to replace.
       </Alert>
 
-      {assignable.length === 0 && (
+      {selectable.length === 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          No provider can be assigned yet. A provider must be enabled and have a default model set
-          before a capability can use it.
+          No provider can be assigned yet. Enable a provider and configure its credential on the
+          Providers page first.
         </Alert>
       )}
 
@@ -164,9 +172,18 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
                       <MenuItem value="">
                         <em>Platform default</em>
                       </MenuItem>
-                      {assignable.map((provider) => (
-                        <MenuItem key={provider.id} value={provider.id}>
+                      {selectable.map((provider) => (
+                        <MenuItem
+                          key={provider.id}
+                          value={provider.id}
+                          disabled={!provider.defaultModelId}
+                        >
                           {provider.displayName}
+                          {!provider.defaultModelId && (
+                            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                              — set a default model first
+                            </Typography>
+                          )}
                         </MenuItem>
                       ))}
                       </Select>

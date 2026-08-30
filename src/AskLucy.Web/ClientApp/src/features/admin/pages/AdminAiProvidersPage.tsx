@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import {
   Box,
+  Button,
   Chip,
   Collapse,
   IconButton,
@@ -12,18 +13,17 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { visuallyHidden } from '@mui/utils'
+import { Link as RouterLink } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import { AppShell } from '../../../components/AppShell'
 import { AiProviderActionsMenu } from '../components/AiProviderActionsMenu'
 import { ProviderHealthCell } from '../components/ProviderHealthCell'
 import { ProviderModelsSection } from '../components/ProviderModelsSection'
-import { CapabilityAssignmentsSection } from '../components/CapabilityAssignmentsSection'
 
 const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
 
@@ -42,13 +42,13 @@ export function AdminAiProvidersPage() {
   return (
     <AppShell
       title="AI providers"
-      subtitle="Enable a provider and configure its credential before end users can select it"
+      subtitle="Enable a provider, configure its credential, and choose the default model it contributes"
+      actions={
+        <Button component={RouterLink} to="/admin/ai-capabilities" variant="outlined" size="small">
+          Manage capabilities
+        </Button>
+      }
     >
-      <CapabilityAssignmentsSection providers={providers ?? []} />
-
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Providers
-      </Typography>
       <Paper elevation={1}>
         <TableContainer>
           <Table>

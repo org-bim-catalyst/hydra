@@ -31,22 +31,26 @@ function renderSettings(initialTab?: number) {
 }
 
 describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () => {
-  it('renders all 8 tabs, including Chat Configuration and Chat History', async () => {
+  it('renders every user-facing tab, no longer including AI Providers', async () => {
+    // "AI Providers" was the per-user default provider/model. It moved to the admin panel — which
+    // model answers a user is a platform decision, configured there as the Chat capability.
     renderSettings()
     await screen.findByRole('heading', { name: 'Settings' })
 
     for (const label of [
       'Security',
       'Account',
-      'AI Providers',
       'Voice',
       'Chat Configuration',
       'Chat History',
       'Data',
       'Cookies',
+      'Viewer',
     ]) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
     }
+
+    expect(screen.queryByRole('tab', { name: 'AI Providers' })).not.toBeInTheDocument()
   })
 
   it('defaults to the Security tab when no location.state.tab is provided', async () => {
@@ -64,18 +68,29 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
   })
 
   // Regression test: discovered via manual browser verification of quickstart.md — clicking
-  // Chat Configuration's own "Go to AI Providers"/"Go to Voice" links (both already on
-  // `/settings`) didn't switch tabs, because `useState`'s initializer only runs on first
-  // mount and SettingsPage doesn't remount for a same-pathname navigation. Fixed by
-  // re-syncing off `location.key`.
+  // Chat Configuration's own "Go to Voice" link (already on `/settings`) didn't switch tabs,
+  // because `useState`'s initializer only runs on first mount and SettingsPage doesn't remount
+  // for a same-pathname navigation. Fixed by re-syncing off `location.key`. Retargeted from the
+  // removed "Go to AI Providers" link, since the behaviour under test is the re-sync, not which
+  // link triggers it.
   it('re-syncs the active tab when navigating to /settings again while already mounted there', async () => {
     const user = userEvent.setup()
     renderSettings(SETTINGS_TAB_INDEX.ChatConfiguration)
     await screen.findByRole('heading', { name: 'Settings' })
     expect(screen.getByRole('tab', { name: 'Chat Configuration' })).toHaveAttribute('aria-selected', 'true')
 
-    await user.click(await screen.findByRole('button', { name: 'Go to AI Providers' }))
+    await user.click(await screen.findByRole('button', { name: 'Go to Voice' }))
 
-    expect(screen.getByRole('tab', { name: 'AI Providers' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Voice' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('keeps every remaining tab on its original index, so saved deep links still land', async () => {
+    // The tabs carry explicit values rather than positional indices. Removing "AI Providers"
+    // from the middle would otherwise shift everything after it by one and silently repoint
+    // every SETTINGS_TAB_INDEX consumer at the wrong tab.
+    renderSettings(SETTINGS_TAB_INDEX.Viewer)
+    await screen.findByRole('heading', { name: 'Settings' })
+
+    expect(screen.getByRole('tab', { name: 'Viewer' })).toHaveAttribute('aria-selected', 'true')
   })
 })
