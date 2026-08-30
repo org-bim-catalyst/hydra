@@ -42,11 +42,16 @@ export function AdminAiProvidersPage() {
   return (
     <AppShell
       title="AI providers"
-      subtitle="Enable a provider, configure its credential, and choose the default model it contributes"
+      subtitle="Enable a provider, configure its credential, and mark which of its models are available"
       actions={
-        <Button component={RouterLink} to="/admin/ai-capabilities" variant="outlined" size="small">
-          Manage capabilities
-        </Button>
+        <>
+          <Button component={RouterLink} to="/admin/default-models" variant="outlined" size="small" sx={{ mr: 1 }}>
+            Default models
+          </Button>
+          <Button component={RouterLink} to="/admin/ai-capabilities" variant="outlined" size="small">
+            Manage capabilities
+          </Button>
+        </>
       }
     >
       <Paper elevation={1}>

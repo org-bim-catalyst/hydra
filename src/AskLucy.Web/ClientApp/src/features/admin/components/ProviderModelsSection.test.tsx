@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { AdminAiModel, AdminAiProvider } from '../api/adminAiProvidersApi'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import { ProviderModelsSection } from './ProviderModelsSection'
 
 vi.mock('../api/adminAiProvidersApi', async () => {
   const actual = await vi.importActual<typeof adminAiProvidersApi>('../api/adminAiProvidersApi')
-  return { ...actual, getModels: vi.fn(), updateProvider: vi.fn() }
+  return { ...actual, getModels: vi.fn() }
 })
 
 const provider: AdminAiProvider = {
@@ -48,86 +48,15 @@ const baseModel: AdminAiModel = {
   status: 'Unavailable',
 }
 
-function renderSection(models: AdminAiModel[], providerOverride: Partial<AdminAiProvider> = {}) {
+function renderSection(models: AdminAiModel[]) {
   vi.mocked(adminAiProvidersApi.getModels).mockResolvedValue(models)
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <ProviderModelsSection provider={{ ...provider, ...providerOverride }} />
+      <ProviderModelsSection provider={provider} />
     </QueryClientProvider>,
   )
 }
-
-const availableModel: AdminAiModel = { ...baseModel, status: 'Available' }
-
-beforeEach(() => vi.clearAllMocks())
-
-/**
- * The control that did not exist until now. The PATCH endpoint always accepted
- * `defaultModelId`, but nothing in the UI ever sent it, so every provider sat at null and
- * DefaultProviderResolver fell through to "first enabled provider in display-name order" —
- * which routed location intent classification to a provider the operator never chose.
- */
-describe('ProviderModelsSection platform default model', () => {
-  it('sets the provider default from an Available model', async () => {
-    vi.mocked(adminAiProvidersApi.updateProvider).mockResolvedValue(undefined)
-    renderSection([availableModel])
-
-    const radio = await screen.findByLabelText(/Set gpt-4-turbo as the default model for OpenAI/)
-    fireEvent.click(radio)
-
-    await waitFor(() =>
-      expect(adminAiProvidersApi.updateProvider).toHaveBeenCalledWith('provider-1', {
-        defaultModelId: 'model-1',
-      }),
-    )
-  })
-
-  it('refuses to offer a non-Available model, which the resolver would silently skip', async () => {
-    renderSection([baseModel]) // status: 'Unavailable'
-
-    const radio = await screen.findByLabelText(/Set gpt-4-turbo as the default model for OpenAI/)
-    expect(radio).toBeDisabled()
-  })
-
-  it('clears via an explicit flag, never by sending a null id', async () => {
-    // Server-side, a null defaultModelId means "leave it alone" so that a PATCH toggling
-    // isEnabled cannot wipe the default as a side effect. Clearing needs its own signal.
-    vi.mocked(adminAiProvidersApi.updateProvider).mockResolvedValue(undefined)
-    renderSection([availableModel], { defaultModelId: 'model-1' })
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Clear default' }))
-
-    await waitFor(() =>
-      expect(adminAiProvidersApi.updateProvider).toHaveBeenCalledWith('provider-1', {
-        clearDefaultModel: true,
-      }),
-    )
-  })
-
-  it('surfaces a failed update to the user rather than only the console', async () => {
-    vi.mocked(adminAiProvidersApi.updateProvider).mockRejectedValue(new Error('boom'))
-    renderSection([availableModel])
-
-    fireEvent.click(await screen.findByLabelText(/Set gpt-4-turbo as the default model for OpenAI/))
-
-    expect(await screen.findByText(/Something went wrong/)).toBeInTheDocument()
-  })
-
-  it('warns that setting a default does not guarantee this provider wins', async () => {
-    // The rule is alphabetical-first-with-a-default. Setting one here while an earlier provider
-    // also has one changes nothing, which is exactly how the original accident happened.
-    renderSection([availableModel], { isEffectivePlatformDefault: false })
-
-    expect(await screen.findByText(/first enabled provider, in alphabetical order/)).toBeInTheDocument()
-  })
-
-  it('confirms plainly when this provider is the one actually serving', async () => {
-    renderSection([availableModel], { isEffectivePlatformDefault: true })
-
-    expect(await screen.findByText(/is currently the platform default/)).toBeInTheDocument()
-  })
-})
 
 describe('ProviderModelsSection token limits (specs/043 US4)', () => {
   it('shows an unpublished token limit as not published, never as zero (FR-030)', async () => {

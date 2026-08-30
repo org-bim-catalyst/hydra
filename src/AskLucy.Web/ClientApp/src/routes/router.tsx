@@ -69,6 +69,12 @@ const AdminAiProvidersPage = lazy(() =>
 const AdminAiCapabilitiesPage = lazy(() =>
   import('../features/admin/pages/AdminAiCapabilitiesPage').then((m) => ({ default: m.AdminAiCapabilitiesPage })),
 )
+const AdminDefaultModelsPage = lazy(() =>
+  import('../features/admin/pages/AdminDefaultModelsPage').then((m) => ({ default: m.AdminDefaultModelsPage })),
+)
+const ChatSettingsPage = lazy(() =>
+  import('../features/settings/pages/ChatSettingsPage').then((m) => ({ default: m.ChatSettingsPage })),
+)
 const AgentPoliciesAdminPage = lazy(() =>
   import('../features/agents/pages/AgentPoliciesAdminPage').then((m) => ({ default: m.AgentPoliciesAdminPage })),
 )
@@ -367,6 +373,17 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
+    path: '/chat-settings',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <ChatSettingsPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
     path: '/admin/dashboard',
     element: (
       <ProtectedRoute>
@@ -399,6 +416,19 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AdminAiProvidersPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/default-models',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <AdminDefaultModelsPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

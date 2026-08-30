@@ -64,6 +64,9 @@ beforeEach(() => vi.clearAllMocks())
  */
 async function openProviderMenu(capabilityLabel: string) {
   fireEvent.mouseDown(await screen.findByRole('combobox', { name: `Provider for ${capabilityLabel}` }))
+  // MUI opens the menu through a Popover transition, so the listbox is not in the DOM on the
+  // same tick as the mouseDown.
+  await waitFor(() => expect(document.querySelector('ul[role="listbox"]')).not.toBeNull())
   return within(document.querySelector('ul[role="listbox"]') as HTMLElement)
 }
 
@@ -107,24 +110,21 @@ describe('CapabilityAssignmentsSection', () => {
     expect(await screen.findByText('Nothing can serve this yet')).toBeInTheDocument()
   })
 
-  it('lists every enabled, configured provider — not only the ones ready to be assigned', async () => {
-    // Filtering out providers without a default model showed OpenAI alone while Anthropic and
-    // Google Gemini sat enabled and configured, with nothing on screen explaining the absence.
-    // They are listed, and the reason they cannot be picked yet is stated on the row.
-    const noDefaultModel = makeProvider({
+  it('lists every provider that is enabled, credentialled and has a default model', async () => {
+    const gemini = makeProvider({
       id: 'provider-gemini',
       providerKey: 'google-gemini',
       displayName: 'Google Gemini',
-      defaultModelId: null,
+      defaultModelId: 'model-gemini',
       isEffectivePlatformDefault: false,
     })
-    renderSection([unassigned], [openai, noDefaultModel])
+    renderSection([unassigned], [openai, anthropic, gemini])
 
     const menu = await openProviderMenu('Location intent')
 
     expect(menu.getByText('OpenAI')).toBeInTheDocument()
+    expect(menu.getByText('Anthropic')).toBeInTheDocument()
     expect(menu.getByText('Google Gemini')).toBeInTheDocument()
-    expect(menu.getByText(/set a default model first/)).toBeInTheDocument()
   })
 
   it('excludes a provider that is not enabled or has no credential', async () => {
@@ -146,9 +146,12 @@ describe('CapabilityAssignmentsSection', () => {
     expect(menu.queryByText('OpenRouter')).not.toBeInTheDocument()
   })
 
-  it('cannot assign a provider that has no default model yet', async () => {
+  it('excludes a provider with no default model, since the model is what the capability runs on', async () => {
+    // Assigning one would store a setting DefaultProviderResolver immediately falls back from.
+    // Giving it a default model is the previous step, on the Default models page.
     const noDefaultModel = makeProvider({
       id: 'provider-gemini',
+      providerKey: 'google-gemini',
       displayName: 'Google Gemini',
       defaultModelId: null,
       isEffectivePlatformDefault: false,
@@ -156,9 +159,8 @@ describe('CapabilityAssignmentsSection', () => {
     renderSection([unassigned], [openai, noDefaultModel])
 
     const menu = await openProviderMenu('Location intent')
-    fireEvent.click(menu.getByText('Google Gemini'))
 
-    expect(adminAiProvidersApi.setCapabilityAssignment).not.toHaveBeenCalled()
+    expect(menu.queryByText('Google Gemini')).not.toBeInTheDocument()
   })
 
   it('surfaces a rejected assignment to the user rather than only the console', async () => {

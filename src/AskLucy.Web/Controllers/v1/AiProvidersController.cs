@@ -1,5 +1,4 @@
 using AskLucy.Application.Ai;
-using AskLucy.Application.Ai.Commands.SaveUserAiPreference;
 using AskLucy.Application.Ai.Queries.GetAiModels;
 using AskLucy.Application.Ai.Queries.GetEnabledAiProviders;
 using AskLucy.Application.Ai.Queries.GetUserAiPreference;
@@ -39,9 +38,4 @@ public sealed class AiProvidersController(ISender mediator) : ControllerBase
     public async Task<ActionResult<UserAiPreferenceDto>> GetPreferences(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetUserAiPreferenceQuery(), cancellationToken));
 
-    [HttpPut("preferences")]
-    public async Task<ActionResult<UserAiPreferenceDto>> SavePreferences(SaveUserAiPreferenceRequest request, CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(
-            new SaveUserAiPreferenceCommand(request.DefaultProviderId, request.DefaultModelId, request.DefaultGenerationParameters),
-            cancellationToken));
 }

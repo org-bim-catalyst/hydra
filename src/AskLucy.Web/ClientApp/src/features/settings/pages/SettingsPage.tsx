@@ -45,8 +45,6 @@ import { CookiePreferencesPanel } from '../../consent/components/CookiePreferenc
 import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
-import { ChatConfigurationTab } from './ChatConfigurationTab'
-import { ChatHistoryTab } from './ChatHistoryTab'
 import { ViewerTab } from './ViewerTab'
 
 function TabPanel({
@@ -568,15 +566,13 @@ export function SettingsPage() {
           sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
         >
           {/*
-            Explicit values, not positional indices. Removing the "AI Providers" tab would
-            otherwise renumber everything after it, silently repointing SETTINGS_TAB_INDEX, both
-            account menus and every saved deep link at the wrong tab.
+            Explicit values, not positional indices. Tabs have been removed from the middle of
+            this list — AI Providers to the admin panel, and Voice/Chat Configuration/Chat History
+            to Chat settings. Positional numbering would have silently repointed
+            SETTINGS_TAB_INDEX, both account menus and every saved deep link at the wrong tab.
           */}
           <Tab label="Security" value={SETTINGS_TAB_INDEX.Security} />
           <Tab label="Account" value={SETTINGS_TAB_INDEX.Account} />
-          <Tab label="Voice" value={SETTINGS_TAB_INDEX.Voice} />
-          <Tab label="Chat Configuration" value={SETTINGS_TAB_INDEX.ChatConfiguration} />
-          <Tab label="Chat History" value={SETTINGS_TAB_INDEX.ChatHistory} />
           <Tab label="Data" value={SETTINGS_TAB_INDEX.Data} />
           <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
           <Tab label="Viewer" value={SETTINGS_TAB_INDEX.Viewer} />
@@ -587,15 +583,6 @@ export function SettingsPage() {
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
             <AccountTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Voice}>
-            <VoiceTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.ChatConfiguration}>
-            <ChatConfigurationTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.ChatHistory}>
-            <ChatHistoryTab />
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
             <DataTab />
