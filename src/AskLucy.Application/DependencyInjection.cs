@@ -59,7 +59,11 @@ public static class DependencyInjection
         services.AddScoped<IRagService, RagService>();
 
         // Location Query Resolution (specs/037-location-query-resolution).
-        services.AddScoped<ILocationResolutionService, LocationResolutionService>();
+        // Registered as the concrete type as well: ScopeIsolatedLocationResolutionService
+        // resolves it from a fresh scope so the concurrent location task never shares the
+        // request DbContext with the reply stream (see that class for the production race).
+        services.AddScoped<LocationResolutionService>();
+        services.AddScoped<ILocationResolutionService, ScopeIsolatedLocationResolutionService>();
         // specs/038-viewer-poi-zoom US2: pure keyword matcher — no infrastructure deps → Application.
         services.AddTransient<IViewerZoomDetector, ViewerZoomDetector>();
         services.AddOptions<LocationResolutionOptions>()

@@ -54,6 +54,15 @@ public sealed class AiProviderResponseClassifierTests
         { AiVendor.Anthropic, HttpStatusCode.BadRequest, """{"error":{"type":"invalid_request_error"}}""", AiProviderFailureKind.RequestInvalid },
         { AiVendor.Anthropic, (HttpStatusCode)529, """{"error":{"type":"overloaded_error"}}""", AiProviderFailureKind.Unavailable },
 
+        // Anthropic reports an exhausted prepaid balance as a bare invalid_request_error;
+        // the evidence lives only in the message. Body is the verbatim production response
+        // from 2026-08-30 (request_id req_011CeYgc4iXErFt5H6TZfHUA), which used to classify
+        // as RequestInvalid and tell the user their request was malformed.
+        { AiVendor.Anthropic, HttpStatusCode.BadRequest, """{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}""", AiProviderFailureKind.QuotaExhausted },
+
+        // The guard still has to hold: a genuinely malformed request stays RequestInvalid.
+        { AiVendor.Anthropic, HttpStatusCode.BadRequest, """{"type":"error","error":{"type":"invalid_request_error","message":"messages: at least one message is required"}}""", AiProviderFailureKind.RequestInvalid },
+
         // ---- OpenRouter ----
         { AiVendor.OpenRouter, HttpStatusCode.PaymentRequired, "{}", AiProviderFailureKind.QuotaExhausted },
         { AiVendor.OpenRouter, HttpStatusCode.Unauthorized, """{"error":{"code":"invalid_api_key"}}""", AiProviderFailureKind.CredentialRejected },

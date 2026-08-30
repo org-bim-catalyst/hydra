@@ -358,13 +358,29 @@ internal static class AiProviderResponseClassifier
         var signals = new[] { type, code }.Where(x => !string.IsNullOrEmpty(x)).ToArray();
         bool Has(params string[] candidates) => signals.Any(s => candidates.Contains(s, StringComparer.Ordinal));
 
+        // Anthropic reports an exhausted prepaid balance as a plain invalid_request_error
+        // with no distinguishing type or code — the only evidence is in the message.
+        // Observed verbatim in production 2026-08-30: "Your credit balance is too low to
+        // access the Anthropic API. Please go to Plans & Billing to upgrade or purchase
+        // credits." Read by type/code alone this fell through to RequestInvalid, and the
+        // user was told Anthropic "rejected this request as invalid" — which sends whoever
+        // reads it hunting for a malformed payload instead of at billing, exactly the wrong
+        // way round. Matched on the phrase, not the whole sentence, so Anthropic rewording
+        // the surrounding copy does not silently revert this to the misleading answer.
+        var message = error.TryGetProperty("message", out var messageElement) && messageElement.ValueKind == JsonValueKind.String
+            ? messageElement.GetString()
+            : null;
+        var hasCreditBalanceMessage =
+            message?.Contains("credit balance is too low", StringComparison.OrdinalIgnoreCase) == true;
+
         var summary = string.Join(",", signals);
 
         return new VendorReason(
             Summary: string.IsNullOrEmpty(summary) ? null : summary,
             IsCredentialRejected: Has("invalid_api_key", "authentication_error"),
             IsUsageRestricted: Has("permission_error", "access_terminated"),
-            IsQuotaExhausted: Has("insufficient_quota", "billing_hard_limit_reached", "credit_limit_reached"),
+            IsQuotaExhausted: Has("insufficient_quota", "billing_hard_limit_reached", "credit_limit_reached")
+                || hasCreditBalanceMessage,
             IsRateLimited: Has("rate_limit_exceeded", "rate_limit_error"));
     }
 
