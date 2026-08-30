@@ -18,6 +18,25 @@ internal static partial class SendChatMessageCommandHandlerLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Site-boundary resolution for chat {UserChatId} failed; the turn continued without a boundary")]
     public static partial void BoundaryFailed(ILogger logger, Guid userChatId, Exception exception);
+
+    // These three paths all surface LocationConfirmationTemplates.Unavailable — the same
+    // "I couldn't look that up right now" the user sees when intent classification or
+    // geocoding fails inside LocationResolutionService. Until now they logged nothing at
+    // all, so three of the eleven ways that sentence can be produced were invisible in the
+    // console and indistinguishable from the eight that do log (constitution: no silent
+    // failures). Each records the budget and how much of it the model's own stream spent,
+    // because that is the part that is not obvious from the ceiling value alone.
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Location resolution for chat {UserChatId} was abandoned: the {CeilingSeconds}s ceiling was already spent ({ElapsedSeconds:F1}s elapsed) before the model's stream ended, and geocoding had not finished")]
+    public static partial void LocationBudgetExhausted(ILogger logger, Guid userChatId, int ceilingSeconds, double elapsedSeconds);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Location resolution for chat {UserChatId} timed out with {RemainingSeconds:F1}s left of its {CeilingSeconds}s ceiling ({ElapsedSeconds:F1}s already spent streaming)")]
+    public static partial void LocationTimedOut(ILogger logger, Guid userChatId, double remainingSeconds, int ceilingSeconds, double elapsedSeconds);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Location resolution for chat {UserChatId} was cancelled internally (not by the caller); the turn continued without a location")]
+    public static partial void LocationCancelled(ILogger logger, Guid userChatId, Exception exception);
 }
 
 /// <summary>
@@ -162,6 +181,7 @@ public sealed class SendChatMessageCommandHandler(
         if (remaining <= TimeSpan.Zero && !locationTask.IsCompletedSuccessfully)
         {
             // Budget already elapsed and task hasn't finished — treat as Unavailable immediately.
+            SendChatMessageCommandHandlerLog.LocationBudgetExhausted(logger, request.ChatId, ceiling, elapsed.TotalSeconds);
             locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
                 LocationConfirmationTemplates.Unavailable);
         }
@@ -175,6 +195,7 @@ public sealed class SendChatMessageCommandHandler(
             }
             catch (TimeoutException)
             {
+                SendChatMessageCommandHandlerLog.LocationTimedOut(logger, request.ChatId, remaining.TotalSeconds, ceiling, elapsed.TotalSeconds);
                 locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
                     LocationConfirmationTemplates.Unavailable);
             }
@@ -183,9 +204,10 @@ public sealed class SendChatMessageCommandHandler(
                 // Client disconnected — re-throw so the iterator terminates cleanly (I2).
                 throw;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
                 // Internal task cancellation (not client disconnect) → Unavailable.
+                SendChatMessageCommandHandlerLog.LocationCancelled(logger, request.ChatId, ex);
                 locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
                     LocationConfirmationTemplates.Unavailable);
             }
