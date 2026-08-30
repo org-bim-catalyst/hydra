@@ -31,16 +31,26 @@ public sealed class UpdateAiProviderCommandHandler(
         }
 
         // Only touch DefaultModelId when the caller actually supplied it — a PATCH that only
-        // sets IsEnabled must not clear an existing DefaultModelId as a side effect.
-        if (request.DefaultModelId.HasValue)
+        // sets IsEnabled must not clear an existing DefaultModelId as a side effect. Clearing
+        // is therefore a separate explicit flag rather than "pass null".
+        if (request.ClearDefaultModel)
+        {
+            provider.SetDefaultModel(null, actorUserId);
+        }
+        else if (request.DefaultModelId.HasValue)
         {
             provider.SetDefaultModel(request.DefaultModelId, actorUserId);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        AiAdminActionLog.AdminAiProviderActionPerformed(
-            logger, "UpdateProvider", actorUserId, provider.Id,
-            $"isEnabled: {wasEnabled} -> {provider.IsEnabled}");
+        // CA1873 — the interpolated detail string is only built when Information logging is
+        // actually enabled, and passed in already-computed (as a plain local) rather than as a
+        // formatted expression at the call site.
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var detail = $"isEnabled: {wasEnabled} -> {provider.IsEnabled}";
+            AiAdminActionLog.AdminAiProviderActionPerformed(logger, "UpdateProvider", actorUserId, provider.Id, detail);
+        }
     }
 }

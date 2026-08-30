@@ -35,6 +35,7 @@ const disabledNoCredential: AdminAiProvider = {
   healthFailureKind: null,
   healthFailureReason: null,
   healthStaleAfterUtc: null,
+  isEffectivePlatformDefault: false,
 }
 
 const disabledWithCredential: AdminAiProvider = {

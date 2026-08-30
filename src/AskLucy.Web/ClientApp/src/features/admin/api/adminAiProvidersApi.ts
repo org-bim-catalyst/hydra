@@ -22,6 +22,15 @@ export interface AdminAiProvider {
    * on its own instead of showing a verdict frozen at render time.
    */
   healthStaleAfterUtc: string | null
+  /**
+   * Whether this provider is the one that actually serves every request with no user
+   * preference behind it — location intent classification, memory extraction, background
+   * jobs. Resolved server-side by `DefaultProviderResolver` itself, never re-derived here:
+   * the rule (first *enabled* provider in display-name order that has a default model set,
+   * and only while that model is Available) is surprising enough that a second
+   * implementation would drift from the runtime.
+   */
+  isEffectivePlatformDefault: boolean
 }
 
 /** specs/043 FR-024 — the result of an administrator-triggered probe. */
@@ -41,7 +50,15 @@ export const checkProviderHealth = (providerId: string) =>
     method: 'POST',
   })
 
-export const updateProvider = (id: string, changes: { isEnabled?: boolean; defaultModelId?: string | null }) =>
+/**
+ * `clearDefaultModel` rather than `defaultModelId: null`, because null already means "leave
+ * it alone" server-side — a PATCH that only flips `isEnabled` must not wipe the default as a
+ * side effect.
+ */
+export const updateProvider = (
+  id: string,
+  changes: { isEnabled?: boolean; defaultModelId?: string | null; clearDefaultModel?: boolean },
+) =>
   apiFetch<void>(`/admin/ai/providers/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
 
 export const setCredential = (id: string, apiKey: string) =>

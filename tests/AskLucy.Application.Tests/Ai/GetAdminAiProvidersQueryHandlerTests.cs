@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Queries.GetAdminAiProviders;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
@@ -16,11 +17,13 @@ public sealed class GetAdminAiProvidersQueryHandlerTests
 {
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
     private readonly IProviderHealthFreshnessPolicy _freshness = Substitute.For<IProviderHealthFreshnessPolicy>();
+    private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
     private readonly GetAdminAiProvidersQueryHandler _handler;
 
     public GetAdminAiProvidersQueryHandlerTests()
     {
-        _handler = new GetAdminAiProvidersQueryHandler(_providers, _freshness);
+        _handler = new GetAdminAiProvidersQueryHandler(
+            _providers, _freshness, new DefaultProviderResolver(_providers, _models));
     }
 
     [Fact]

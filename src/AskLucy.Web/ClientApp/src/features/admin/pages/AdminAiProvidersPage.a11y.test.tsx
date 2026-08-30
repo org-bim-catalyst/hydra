@@ -24,6 +24,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: null,
     healthFailureReason: null,
     healthStaleAfterUtc: null,
+    isEffectivePlatformDefault: false,
   },
   {
     id: 'provider-2',
@@ -38,6 +39,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: null,
     healthFailureReason: null,
     healthStaleAfterUtc: null,
+    isEffectivePlatformDefault: false,
   },
   {
     // specs/043 US2 — a provider that is configured and credentialled but temporarily limited,
@@ -55,6 +57,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: 'QuotaExhausted',
     healthFailureReason: 'Google Gemini is configured correctly, but its usage quota is exhausted.',
     healthStaleAfterUtc: '2026-07-31T00:06:00Z',
+    isEffectivePlatformDefault: false,
   },
   {
     // A credential failure, so the error-state chip and its reason are covered too.
@@ -70,6 +73,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: 'CredentialRejected',
     healthFailureReason: 'OpenRouter rejected the configured credential.',
     healthStaleAfterUtc: null,
+    isEffectivePlatformDefault: false,
   },
 ]
 
