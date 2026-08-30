@@ -1,4 +1,4 @@
-import { Badge, Box, ClickAwayListener, Collapse, Fab } from '@mui/material'
+import { Badge, Box, ClickAwayListener, Fab } from '@mui/material'
 import { type KeyboardEvent, type ReactNode, useRef } from 'react'
 import { radius } from '../../theme'
 
@@ -68,13 +68,13 @@ export function CircularAction({
   const contentId = `${id}-content`
 
   const isHorizontal = expandDirection === 'left' || expandDirection === 'right'
-  const collapseOrientation: 'horizontal' | 'vertical' = isHorizontal ? 'horizontal' : 'vertical'
   const isPill = contentShape === 'pill'
 
   // ── Overlay position ─────────────────────────────────────────────────────────
-  // pill  → anchor to the Fab's same edge so the pill's rounded end aligns with the
-  //         Fab's circular border; the Fab sits INSIDE the pill (pill wraps it).
-  // card  → position cleanly below (or beside) the Fab — no overlap with the Fab.
+  // pill  → anchored at the Fab's same edge (pill wraps the Fab); the Fab sits INSIDE
+  //         the pill at z-index:2 so it stays interactive and its circular border aligns
+  //         with the pill's rounded end.
+  // card  → positioned cleanly below (or beside) the Fab — no Fab overlap.
   const overlayPositionSx = isPill
     ? (expandDirection === 'left'  ? { top: 0, right: 0 }       :
        expandDirection === 'right' ? { top: 0, left: 0 }        :
@@ -86,15 +86,31 @@ export function CircularAction({
                                      { top: '100%',  right: 0, mt: 0.5 }) // 'down'
 
   // ── Content padding ──────────────────────────────────────────────────────────
-  // pill  → reserve space on the Fab side (FAB_PX + GAP_PX) so the Fab appears
-  //         embedded inside the pill while still being the topmost interactive element.
-  // card  → zero padding (the card's content manages its own internal spacing).
+  // pill  → Fab side reserves FAB_PX + GAP_PX (48 px); far side = GAP_PX (8 px) and
+  //         cross-axis = GAP_PX (8 px) → all visible gaps are equal at 8 px.
+  // card  → 14 px uniform padding (per user requirement).
   const contentPadding = isPill
-    ? (expandDirection === 'left'  ? { pl: 1.5, pr: TRIGGER_RESERVE, py: 0 }  :
-       expandDirection === 'right' ? { pr: 1.5, pl: TRIGGER_RESERVE, py: 0 }  :
-       expandDirection === 'up'    ? { pt: 1.5, pb: TRIGGER_RESERVE, px: 0 }  :
-                                     { pb: 1.5, pt: TRIGGER_RESERVE, px: 0 }) // 'down'
-    : { p: 0 }
+    ? (expandDirection === 'left'  ? { pl: 1, pr: TRIGGER_RESERVE, py: 1 }  :
+       expandDirection === 'right' ? { pr: 1, pl: TRIGGER_RESERVE, py: 1 }  :
+       expandDirection === 'up'    ? { pt: 1, pb: TRIGGER_RESERVE, px: 1 }  :
+                                     { pb: 1, pt: TRIGGER_RESERVE, px: 1 }) // 'down'
+    : { p: '14px' }
+
+  // ── clip-path animation ──────────────────────────────────────────────────────
+  // Replaces MUI <Collapse> to fix two problems with the Collapse approach:
+  //   1. Collapse's overflow:hidden creates visible black edges during the slide.
+  //   2. Collapse grows/shrinks the container size, making content appear to slide
+  //      toward the Fab rather than away from it.
+  // clip-path keeps the element full-size at all times; the inset values animate to
+  // reveal/hide the content from the Fab side outward (Fab-adjacent content stays
+  // visible longest during collapse and appears first during expand).
+  const clipR = isPill ? radius.pill : 12
+  const collapsedClipPath =
+    expandDirection === 'left'  ? `inset(0 0 0 100% round ${clipR}px)` :
+    expandDirection === 'right' ? `inset(0 100% 0 0 round ${clipR}px)` :
+    expandDirection === 'up'    ? `inset(100% 0 0 0 round ${clipR}px)` :
+                                  `inset(0 0 100% 0 round ${clipR}px)`  // 'down'
+  const expandedClipPath = `inset(0 0 0 0% round ${clipR}px)`
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape' && expanded) {
@@ -167,47 +183,47 @@ export function CircularAction({
         </Box>
 
         {/* ── Content overlay ────────────────────────────────────────────────────
-            Rendered AFTER the Fab so tab order is Fab → options (DOM order = tab order).
-            z-index:1 keeps it below the Fab (z-index:2) so the Fab stays clickable
-            even when the pill background covers the Fab's area. */}
+            Rendered AFTER the Fab (DOM order = tab order: Fab → options).
+            pill: z-index:1 keeps it below the Fab (z-index:2) so the Fab stays
+            clickable even when the pill background covers the Fab's area.
+            card: z-index:100 floats the dropdown above other workspace elements. */}
         <Box
           sx={{
             position: 'absolute',
-            zIndex: 1,
+            zIndex: isPill ? 1 : 100,
             pointerEvents: expanded ? 'auto' : 'none',
             ...overlayPositionSx,
           }}
         >
-          <Collapse in={expanded} orientation={collapseOrientation}>
-            <Box
-              id={contentId}
-              role="group"
-              aria-label={`${label} options`}
-              inert={!expanded}
-              sx={{
-                ...contentPadding,
-                display: 'flex',
-                alignItems: isPill ? 'center' : 'stretch',
-                flexDirection: isHorizontal ? 'row' : 'column',
-                overflow: 'hidden',
-                bgcolor: (t) => t.palette.mode === 'dark'
-                  ? 'oklch(0.18 0.02 280 / 0.97)'
-                  : 'rgba(255,255,255,0.96)',
-                border: (t) => t.palette.mode === 'dark'
-                  ? '1px solid oklch(0.34 0.02 280 / 0.6)'
-                  : '1px solid rgba(0,0,0,0.12)',
-                borderRadius: isPill ? `${radius.pill}px` : '12px',
-                backdropFilter: 'blur(12px)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
-                color: (t) => t.palette.mode === 'dark'
-                  ? 'oklch(0.97 0.01 100)'
-                  : 'rgba(0,0,0,0.87)',
-                whiteSpace: isPill ? 'nowrap' : undefined,
-              }}
-            >
-              {children}
-            </Box>
-          </Collapse>
+          <Box
+            id={contentId}
+            role="group"
+            aria-label={`${label} options`}
+            inert={!expanded}
+            sx={{
+              ...contentPadding,
+              display: 'flex',
+              alignItems: isPill ? 'center' : 'stretch',
+              flexDirection: isHorizontal ? 'row' : 'column',
+              bgcolor: (t) => t.palette.mode === 'dark'
+                ? 'oklch(0.18 0.02 280 / 0.97)'
+                : 'rgba(255,255,255,0.96)',
+              border: (t) => t.palette.mode === 'dark'
+                ? '1px solid oklch(0.34 0.02 280 / 0.6)'
+                : '1px solid rgba(0,0,0,0.12)',
+              borderRadius: isPill ? `${radius.pill}px` : '12px',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+              color: (t) => t.palette.mode === 'dark'
+                ? 'oklch(0.97 0.01 100)'
+                : 'rgba(0,0,0,0.87)',
+              whiteSpace: isPill ? 'nowrap' : undefined,
+              clipPath: expanded ? expandedClipPath : collapsedClipPath,
+              transition: 'clip-path 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            {children}
+          </Box>
         </Box>
       </Box>
     </ClickAwayListener>
