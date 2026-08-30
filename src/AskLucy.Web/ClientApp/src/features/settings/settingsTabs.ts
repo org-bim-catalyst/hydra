@@ -7,7 +7,13 @@
 export const SETTINGS_TAB_INDEX = {
   Security: 0,
   Account: 1,
-  AiProviders: 2,
+  /**
+   * Index 2 is deliberately left unused. It was "AI Providers", the per-user default
+   * provider/model, which moved to the admin panel — which model answers a user is a platform
+   * decision, configured there as the Chat capability. Renumbering the tabs after it would
+   * silently repoint every saved deep link and both account menus at the wrong tab, the same
+   * class of invisible mis-routing this whole change set exists to remove.
+   */
   Voice: 3,
   ChatConfiguration: 4,
   ChatHistory: 5,

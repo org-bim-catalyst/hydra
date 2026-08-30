@@ -10,12 +10,16 @@ namespace AskLucy.Domain.Ai;
 /// on a provider whose credit had run out while the operator's own chat ran happily on another.
 /// </para>
 /// <para>
-/// Chat is deliberately absent: it is not assigned here because the user's own
-/// <c>UserAiPreference</c> governs it, and these capabilities have no user to ask.
+/// <see cref="Chat"/> joined them once the chat default moved out of per-user Settings and into
+/// the admin panel: which model answers a user is a platform decision like the rest, so it is
+/// configured the same way rather than through a second mechanism.
 /// </para>
 /// </summary>
 public enum AiCapability
 {
+    /// <summary>Answers the user in conversation. Every other member is background work.</summary>
+    Chat,
+
     /// <summary>Decides whether a message asks to view a place, and extracts the place name.</summary>
     LocationIntent,
 
