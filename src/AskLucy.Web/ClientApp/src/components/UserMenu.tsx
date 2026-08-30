@@ -1,15 +1,6 @@
 import LogoutIcon from '@mui/icons-material/Logout'
-import {
-  Avatar,
-  Box,
-  Divider,
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Typography,
-} from '@mui/material'
+import { Avatar, Box, IconButton, Menu, MenuItem, Typography, alpha } from '@mui/material'
+import type { Theme } from '@mui/material'
 import { useState } from 'react'
 import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router'
@@ -18,7 +9,7 @@ import { useMyProfile } from '../features/profile/hooks/useProfile'
 import { useAccountMenuItems } from './account/useAccountMenuItems'
 import { isAccountModalPath } from './account/accountModalPages'
 import { useAccountModalStore } from '../store/accountModalStore'
-import { radius } from '../theme'
+import { overlaySurface } from '../theme/tokens/overlaySurface'
 import { zIndex } from '../theme/tokens/zIndex'
 
 interface UserMenuProps {
@@ -34,10 +25,14 @@ interface UserMenuProps {
  * The account menu — one component, used by both the AppShell top bar and the Studio
  * workspace's floating control cluster.
  *
- * Studio previously had its own parallel implementation built on `ExpandableActionGroup`,
- * with a comment asking whoever edited one list to remember the other. It drifted. This keeps
- * the Studio card's appearance (an identity header above the destinations) and takes its
- * destinations from `useAccountMenuItems`, so there is nothing left to keep in sync.
+ * Laid out to match the readdy.ai reference's dropdown, taken from its compiled markup rather
+ * than judged by eye: a `w-64` card at `rounded-xl` with `shadow-lg`, an identity header
+ * (`px-4 py-3.5`) carrying an avatar beside a name and email, then rows inside a `p-1.5` well
+ * — each row its own `rounded-lg` hover target rather than a full-bleed strip — and Sign Out
+ * below a rule, coloured as the destructive action it is.
+ *
+ * Colours go through the MUI palette rather than the reference's literal oklch values: that
+ * page is light-mode only with a fixed green brand, and hardcoding it would break dark mode.
  */
 export function UserMenu({ renderTrigger }: UserMenuProps) {
   const navigate = useNavigate()
@@ -70,13 +65,31 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
     logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) })
   }
 
+  const hoverTint = (t: Theme, color: string) => alpha(color, t.palette.mode === 'dark' ? 0.16 : 0.08)
+
+  // `px-3 py-2.5 gap-3 text-sm font-medium rounded-lg`. The reference's rows tint toward the
+  // brand on hover rather than the neutral grey MUI reaches for by default.
+  const rowSx = {
+    px: 1.5,
+    py: 1.25,
+    gap: 1.5,
+    minHeight: 0,
+    borderRadius: `${overlaySurface.itemRadius}px`,
+    fontSize: '0.875rem',
+    fontWeight: 500,
+    '&:hover': {
+      color: 'primary.main',
+      bgcolor: (t: Theme) => hoverTint(t, t.palette.primary.main),
+    },
+  } as const
+
   return (
     <>
       {renderTrigger ? (
         renderTrigger({ onClick: openMenu, open })
       ) : (
         <IconButton onClick={openMenu} aria-label="Account menu" size="small">
-          <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>{initials}</Avatar>
+          <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: 'primary.main' }}>{initials}</Avatar>
         </IconButton>
       )}
       <Menu
@@ -88,54 +101,82 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
         // Above MUI's own Fab layer (1050): in the Studio cluster this menu is anchored to a
         // Fab that sits beside two more, and at a lower layer they painted over its top edge.
         sx={{ zIndex: zIndex.dropdown }}
+        // `animate-scale-in origin-top-right` — 300ms ease-out, growing out of the corner it
+        // is anchored to.
+        transitionDuration={overlaySurface.enterDurationMs}
         slotProps={{
+          list: { sx: { p: 0 } },
           paper: {
-            elevation: 8,
+            elevation: 0,
             sx: {
-              mt: 1,
-              minWidth: 232,
-              borderRadius: radius.lg,
+              mt: `${overlaySurface.menuOffset}px`,
+              width: overlaySurface.menuWidth,
+              borderRadius: `${overlaySurface.panelRadius}px`,
               overflow: 'hidden',
-              // Theme-driven rather than a fixed dark panel, so the card follows light and
-              // dark mode like the rest of the app.
               bgcolor: 'background.paper',
               backgroundImage: 'none',
-              border: (t) =>
-                `1px solid ${t.palette.mode === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)'}`,
+              border: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
+              boxShadow: overlaySurface.menuShadow,
+              transformOrigin: 'top right',
             },
           },
         }}
       >
-        {/* The identity header the Studio card had and the top-bar menu did not. Not a
-            MenuItem: it is not selectable and must not take keyboard focus. */}
-        <Box sx={{ px: 2, pt: 1.5, pb: 1.25 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-            {displayName || 'Signed in'}
-          </Typography>
-          {profile?.email && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', wordBreak: 'break-all' }}
-            >
-              {profile.email}
+        {/* `px-4 py-3.5 border-b` — avatar, name, email. Not a MenuItem: it is not selectable
+            and must not take keyboard focus. */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            px: 2,
+            py: 1.75,
+            borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
+          }}
+        >
+          <Avatar sx={{ width: 40, height: 40, fontSize: '0.875rem', fontWeight: 600, bgcolor: 'primary.main' }}>
+            {initials}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }} noWrap>
+              {displayName || 'Signed in'}
             </Typography>
-          )}
+            {profile?.email && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                {profile.email}
+              </Typography>
+            )}
+          </Box>
         </Box>
-        <Divider />
-        {items.map((item) => (
-          <MenuItem key={item.id} onClick={() => goTo(item.path)}>
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText>{item.label}</ListItemText>
+
+        {/* `p-1.5` well, so each row's rounded hover sits inset from the card edge. */}
+        <Box sx={{ p: 0.75 }}>
+          {items.map((item) => (
+            <MenuItem key={item.id} onClick={() => goTo(item.path)} sx={rowSx}>
+              <Box sx={{ display: 'flex', color: 'text.disabled' }}>{item.icon}</Box>
+              {item.label}
+            </MenuItem>
+          ))}
+        </Box>
+
+        <Box sx={{ p: 0.75, borderTop: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}` }}>
+          <MenuItem
+            onClick={handleLogout}
+            sx={{
+              ...rowSx,
+              color: 'error.main',
+              '&:hover': {
+                color: 'error.main',
+                bgcolor: (t: Theme) => hoverTint(t, t.palette.error.main),
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex' }}>
+              <LogoutIcon fontSize="small" />
+            </Box>
+            Log out
           </MenuItem>
-        ))}
-        <Divider />
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Log out</ListItemText>
-        </MenuItem>
+        </Box>
       </Menu>
     </>
   )
