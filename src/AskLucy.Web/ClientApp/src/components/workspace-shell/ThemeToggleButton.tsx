@@ -13,10 +13,15 @@ export function ThemeToggleButton() {
 
   return (
     <Fab
-      size="medium"
+      size="small"
       aria-label="Toggle theme"
       onClick={toggle}
       sx={{
+        // 40 px, matching CircularAction's trigger Fab (FAB_PX). MUI's `medium` Fab is 48 px,
+        // which left the account button visibly smaller than the two buttons beside it.
+        width: 40,
+        height: 40,
+        minHeight: 40,
         boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
         bgcolor: CIRCULAR_ACTION_CHROME.collapsedBg,
         color: CIRCULAR_ACTION_CHROME.icon,

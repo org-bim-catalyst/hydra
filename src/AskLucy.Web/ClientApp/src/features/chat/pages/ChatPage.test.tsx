@@ -391,19 +391,31 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Account menu' })).toBeInTheDocument()
   })
 
+  // Menu contents are read from the DOM rather than through getByRole. Once MUI's portalled
+  // menu is mounted, Testing Library's role queries run an accessibility check that calls
+  // getComputedStyle, and jsdom throws "object null is not iterable" out of its font-size
+  // resolver — a jsdom bug, not a problem with the menu.
+  const openAccountMenuLabels = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }))
+    return Array.from(document.querySelectorAll('[role="menuitem"]')).map((el) =>
+      (el.textContent ?? '').trim(),
+    )
+  }
+
   it('reaches every account-menu destination and the theme toggle through the account control (FR-024)', () => {
+    // The workspace no longer owns a second copy of this list — the trigger is a Fab in the
+    // cluster, the menu behind it is the same UserMenu the AppShell renders.
     renderChatPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    const labels = openAccountMenuLabels()
 
     for (const label of [
       'Profile',
       'Settings',
-      'Chat Configuration',
-      'Chat History',
+      'Chat settings',
       'Documents',
       'Knowledge Bases',
       'Memory Center',
@@ -411,22 +423,23 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Agents',
       'Workflows',
       'Privacy Policy',
-      'Toggle theme',
       'Log out',
     ]) {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      expect(labels).toContain(label)
     }
   })
 
-  it('reaches Chat Configuration and Chat History from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
+  it('keeps the theme toggle beside the account button, not inside its menu (FR-024)', () => {
+    renderChatPage()
+    expect(screen.getByRole('button', { name: 'Toggle theme' })).toBeInTheDocument()
+  })
+
+  it('reaches Chat settings from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
     renderChatPage()
 
-    // Click 1: open the account control. Click 2: the destination itself — matches FR-011's
-    // "two clicks or fewer" requirement for reaching either Settings destination from the
-    // workspace.
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    expect(screen.getByRole('button', { name: 'Chat Configuration' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Chat History' })).toBeInTheDocument()
+    // Click 1: open the account menu. Click 2: the destination itself. Chat Configuration and
+    // Chat History are tabs on that one page now, so the workspace lists it once.
+    expect(openAccountMenuLabels()).toContain('Chat settings')
   })
 
   it('shows real icon actions (not placeholder text) for layers/navigation/selection/analysis, opening a "coming soon" dialog on click (FR-012/FR-021)', () => {
@@ -484,12 +497,15 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'true',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
-    expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-expanded', 'true')
+    // The account menu is a popover now, not a workspaceOverlayStore control — but opening it
+    // still collapses whatever tool control was expanded, so the workspace never shows two open
+    // panels at once. Read from the DOM: the open menu portal breaks role queries under jsdom.
+    const accountButton = screen.getByRole('button', { name: 'Account menu' })
+    fireEvent.click(accountButton)
+    expect(
+      document.querySelector('[aria-label="Navigation"]')?.getAttribute('aria-expanded'),
+    ).toBe('false')
+    expect(accountButton).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('Tab visits every WorkspaceOverlay control, in the same top-cluster → right-stack order they render (FR-009, US4)', async () => {
@@ -503,7 +519,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     for (const label of [
       'Toggle theme',
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
-      'Account',
+      'Account menu',
       'View mode',
       'Map style',
       'Layers',
@@ -572,7 +588,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
         'Navigation',
         'Selection',
         'Analysis',
-        'Account',
+        'Account menu',
       ]) {
         expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
       }
@@ -764,7 +780,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     // fireEvent (not userEvent) here: jsdom's CSS engine has a known issue resolving
     // computed styles for some elements in this larger tree when userEvent's
     // pointer-events/accessibility-tree checks run; fireEvent dispatches directly.
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }))
     fireEvent.click(screen.getByText('Log out'))
 
     await waitFor(() => expect(logoutRequested).toBe(true))

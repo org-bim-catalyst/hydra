@@ -1,6 +1,7 @@
 import { Badge, Box, ClickAwayListener, Fab } from '@mui/material'
 import { type KeyboardEvent, type ReactNode, useRef } from 'react'
 import { radius } from '../../theme'
+import { zIndex } from '../../theme/tokens/zIndex'
 
 /** Direction the ribbon expands relative to the trigger button, derived from placement:
  * right-edge → left, top → down, bottom → up, left → right. */
@@ -189,11 +190,14 @@ export function CircularAction({
             Rendered AFTER the Fab (DOM order = tab order: Fab → options).
             pill: z-index:1 keeps it below the Fab (z-index:2) so the Fab stays
             clickable even when the pill background covers the Fab's area.
-            card: z-index:100 floats the dropdown above other workspace elements. */}
+            card: floats the dropdown above every other workspace element. It has to clear
+            MUI's own Fab layer (theme.zIndex.fab, 1050) — the account card is a sibling of
+            the theme and rotation Fabs in the top cluster, and at the old z-index:100 they
+            painted over its top edge regardless of DOM order. */}
         <Box
           sx={{
             position: 'absolute',
-            zIndex: isPill ? 1 : 100,
+            zIndex: isPill ? 1 : zIndex.dropdown,
             pointerEvents: expanded ? 'auto' : 'none',
             ...overlayPositionSx,
           }}
