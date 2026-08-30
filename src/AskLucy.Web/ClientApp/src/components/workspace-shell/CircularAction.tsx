@@ -219,7 +219,15 @@ export function CircularAction({
                 : 'rgba(0,0,0,0.87)',
               whiteSpace: isPill ? 'nowrap' : undefined,
               clipPath: expanded ? expandedClipPath : collapsedClipPath,
-              transition: 'clip-path 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+              // visibility: jsdom applies this immediately (no CSS-transition simulation),
+              // which keeps the content out of the tab sequence in tests. Real browsers
+              // respect the delay: on expand it becomes visible at t=0 (so the clip-path
+              // reveal is visible); on collapse it becomes hidden at t=220ms (after the
+              // clip-path animation finishes, matching the animation duration).
+              visibility: expanded ? ('visible' as const) : ('hidden' as const),
+              transition: expanded
+                ? 'clip-path 220ms cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0ms'
+                : 'clip-path 220ms cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 220ms',
             }}
           >
             {children}
