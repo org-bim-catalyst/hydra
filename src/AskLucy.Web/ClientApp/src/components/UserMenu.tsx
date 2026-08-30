@@ -7,8 +7,6 @@ import { useNavigate } from 'react-router'
 import { useLogout } from '../features/auth/hooks/useAuth'
 import { useMyProfile } from '../features/profile/hooks/useProfile'
 import { useAccountMenuItems } from './account/useAccountMenuItems'
-import { isAccountModalPath } from './account/accountModalPages'
-import { useAccountModalStore } from '../store/accountModalStore'
 import { overlaySurface } from '../theme/tokens/overlaySurface'
 import { zIndex } from '../theme/tokens/zIndex'
 
@@ -39,7 +37,6 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
   const { data: profile } = useMyProfile()
   const logout = useLogout()
   const items = useAccountMenuItems()
-  const openModal = useAccountModalStore((s) => s.open)
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
   const initials = profile?.firstName ? profile.firstName[0].toUpperCase() : (profile?.email?.[0].toUpperCase() ?? '?')
@@ -48,16 +45,9 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
   const open = Boolean(anchorEl)
   const openMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
 
-  // Account destinations open over the page you are on rather than replacing it. Anything
-  // without a modal registered still navigates, so adding a destination never silently does
-  // nothing.
   const goTo = (path: string) => {
     setAnchorEl(null)
-    if (isAccountModalPath(path)) {
-      openModal(path)
-    } else {
-      navigate(path)
-    }
+    navigate(path)
   }
 
   const handleLogout = () => {

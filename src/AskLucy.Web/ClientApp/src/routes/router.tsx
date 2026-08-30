@@ -1,7 +1,6 @@
 import { Fade } from '@mui/material'
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router'
-import { AccountModalHost } from '../components/account/AccountModalHost'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { ErrorPage } from '../components/ErrorPage'
 import { AdminRoute } from './AdminRoute'
 import { ProtectedRoute } from './ProtectedRoute'
@@ -110,24 +109,7 @@ function Lazy({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * A pathless layout wrapping every route, so `AccountModalHost` is mounted exactly once and
- * still sits inside router context. Both the AppShell pages and the Studio workspace get the
- * account modals without either of them knowing the host exists.
- */
-function RootLayout() {
-  return (
-    <>
-      <Outlet />
-      <AccountModalHost />
-    </>
-  )
-}
-
 const router = createBrowserRouter([
-  {
-    element: <RootLayout />,
-    children: [
   {
     // Public marketing landing page (spec.md FR-001/FR-015): signed-out visitors see it;
     // an already-authenticated visitor is redirected straight into /studio by PublicOnlyRoute.
@@ -517,8 +499,6 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   { path: '*', element: <ErrorPage /> },
-    ],
-  },
 ])
 
 export function AppRouter() {

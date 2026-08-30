@@ -1,4 +1,4 @@
-import { RiContrast2Line } from '@remixicon/react'
+import { RiMoonLine, RiSunLine } from '@remixicon/react'
 import { Fab } from '@mui/material'
 import { useThemeStore } from '../../store/themeStore'
 import { CIRCULAR_ACTION_CHROME } from './CircularAction'
@@ -10,11 +10,16 @@ import { CIRCULAR_ACTION_CHROME } from './CircularAction'
  * family sitting right next to the account control. */
 export function ThemeToggleButton() {
   const toggle = useThemeStore((s) => s.toggle)
+  const mode = useThemeStore((s) => s.mode)
+  const isDark = mode === 'dark'
 
   return (
     <Fab
       size="small"
-      aria-label="Toggle theme"
+      // The reference names the destination, not the current state: `aria-label="Toggle dark
+      // mode"` with `${isDark ? 'ri-sun-line' : 'ri-moon-line'}`. A fixed contrast glyph — what
+      // this was — tells you nothing about what pressing it will do.
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       onClick={toggle}
       sx={{
         // 40 px, matching CircularAction's trigger Fab (FAB_PX). MUI's `medium` Fab is 48 px,
@@ -31,7 +36,7 @@ export function ThemeToggleButton() {
         transition: (t) => t.transitions.create(['transform', 'background-color']),
       }}
     >
-      <RiContrast2Line />
+      {isDark ? <RiSunLine size={20} /> : <RiMoonLine size={20} />}
     </Fab>
   )
 }

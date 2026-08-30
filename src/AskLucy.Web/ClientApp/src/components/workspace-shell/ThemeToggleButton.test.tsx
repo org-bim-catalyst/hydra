@@ -12,7 +12,7 @@ describe('ThemeToggleButton', () => {
   it('toggles the theme mode on click', async () => {
     const user = userEvent.setup()
     render(<ThemeToggleButton />)
-    await user.click(screen.getByRole('button', { name: 'Toggle theme' }))
+    await user.click(screen.getByRole('button', { name: 'Switch to dark mode' }))
     expect(useThemeStore.getState().mode).toBe('dark')
   })
 })

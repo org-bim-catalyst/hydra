@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router'
 import { BrandMark } from './BrandMark'
 import { UserMenu } from './UserMenu'
-import { useIsInModalPage } from './account/ModalPageContext'
-import BrightnessMediumIcon from '@mui/icons-material/Brightness4'
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { createGlassTokens } from '../theme/tokens/glass'
@@ -31,28 +31,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const theme = useTheme()
   const glass = createGlassTokens(theme.palette.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
+  const isDark = useThemeStore((s) => s.mode) === 'dark'
   const isAuthenticated = useAuthStore((s) => Boolean(s.accessToken))
   const { pathname } = useLocation()
   const isHome = pathname === '/studio'
-  const inModal = useIsInModalPage()
-
-  // Inside the account modal the dialog already supplies the frame, its own title bar and its
-  // own close affordance. Rendering the sticky top bar here too would put a second account menu
-  // inside the thing that account menu opened, and 100dvh would force the modal to full height
-  // whatever its content needs.
-  if (inModal) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {subtitle && (
-          <Typography variant="body2" color="text.secondary">
-            {subtitle}
-          </Typography>
-        )}
-        {actions && <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{actions}</Box>}
-        <Box sx={{ minHeight: 0 }}>{children}</Box>
-      </Box>
-    )
-  }
 
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
@@ -94,8 +76,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <IconButton onClick={toggleTheme} aria-label="Toggle theme">
-            <BrightnessMediumIcon />
+          {/* The icon names the destination, as the readdy.ai reference does: sun while dark,
+              moon while light. A fixed contrast glyph says nothing about what the press will do. */}
+          <IconButton onClick={toggleTheme} aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {isDark ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
           </IconButton>
           {isAuthenticated ? (
             <UserMenu />
