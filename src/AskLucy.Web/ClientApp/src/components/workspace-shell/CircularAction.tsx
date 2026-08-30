@@ -75,11 +75,14 @@ export function CircularAction({
   //         the pill at z-index:2 so it stays interactive and its circular border aligns
   //         with the pill's rounded end.
   // card  → positioned cleanly below (or beside) the Fab — no Fab overlap.
+  // GAP_PX offsets on the cross-axis center the pill around the Fab.
+  // Without the offset the pill starts at the Fab's edge and extends entirely beyond it,
+  // so the Fab sits at the pill's edge rather than its visual center.
   const overlayPositionSx = isPill
-    ? (expandDirection === 'left'  ? { top: 0, right: 0 }       :
-       expandDirection === 'right' ? { top: 0, left: 0 }        :
-       expandDirection === 'up'    ? { bottom: 0, right: 0 }    :
-                                     { top: 0, right: 0 })       // 'down'
+    ? (expandDirection === 'left'  ? { top: `-${GAP_PX}px`,    right: 0 }       :
+       expandDirection === 'right' ? { top: `-${GAP_PX}px`,    left: 0 }        :
+       expandDirection === 'up'    ? { bottom: 0, left: `-${GAP_PX}px` }        :
+                                     { top: 0,   left: `-${GAP_PX}px` })         // 'down'
     : (expandDirection === 'left'  ? { top: '100%', right: 0, mt: 0.5 }  :
        expandDirection === 'right' ? { top: '100%', left: 0,  mt: 0.5 }  :
        expandDirection === 'up'    ? { bottom: '100%', right: 0, mb: 0.5 } :
