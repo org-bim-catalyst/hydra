@@ -36,13 +36,13 @@ import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { WorkspaceOverlay } from '../../../components/workspace-shell/WorkspaceOverlay'
 import { ThemeToggleButton } from '../../../components/workspace-shell/ThemeToggleButton'
+import { StudioAccountMenuButton } from '../../../components/workspace-shell/StudioAccountMenuButton'
 import { ComingSoonDialog } from '../../../components/workspace-shell/ComingSoonDialog'
 import {
   analysisControl,
   layersControl,
   navigationControl,
   selectionControl,
-  useAccountControl,
   useMapStyleControl,
   useViewModeControl,
 } from '../workspaceControls'
@@ -97,7 +97,6 @@ export function ChatPage() {
   const tts = useVoiceOutput()
   // SPEC-024 FR-024: preserves account/session access (and theme toggle) that removing
   // MinimalTopBar would otherwise have dropped — see workspaceControls.tsx.
-  const accountControl = useAccountControl()
   // SPEC-024 FR-010/FR-011/FR-012: the five viewer-tool controls — only view-mode is
   // functional in this feature; layers/navigation/selection/analysis are established,
   // reachable "coming soon" placeholders (FR-021).
@@ -184,7 +183,6 @@ export function ChatPage() {
     navigationControl,
     selectionControl,
     analysisControl,
-    accountControl,
   ]
 
   // specs/026-floating-chat-assistant research.md #1: the one piece of workspaceOverlayStore
@@ -218,6 +216,9 @@ export function ChatPage() {
           <>
             <ThemeToggleButton />
             <RotationToggleButton />
+            {/* The account menu is no longer a workspace ControlDefinition — it is the same
+                UserMenu the AppShell renders, wearing this cluster's circular trigger. */}
+            <StudioAccountMenuButton />
             {/* specs/038-viewer-poi-zoom T034: show marker style picker only when an agent POI is active. */}
             {locationSource === 'agent' && <MarkerStyleSelector />}
           </>

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router'
 import { BrandMark } from './BrandMark'
 import { UserMenu } from './UserMenu'
+import { useIsInModalPage } from './account/ModalPageContext'
 import BrightnessMediumIcon from '@mui/icons-material/Brightness4'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
@@ -33,6 +34,25 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const isAuthenticated = useAuthStore((s) => Boolean(s.accessToken))
   const { pathname } = useLocation()
   const isHome = pathname === '/studio'
+  const inModal = useIsInModalPage()
+
+  // Inside the account modal the dialog already supplies the frame, its own title bar and its
+  // own close affordance. Rendering the sticky top bar here too would put a second account menu
+  // inside the thing that account menu opened, and 100dvh would force the modal to full height
+  // whatever its content needs.
+  if (inModal) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {subtitle && (
+          <Typography variant="body2" color="text.secondary">
+            {subtitle}
+          </Typography>
+        )}
+        {actions && <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{actions}</Box>}
+        <Box sx={{ minHeight: 0 }}>{children}</Box>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>

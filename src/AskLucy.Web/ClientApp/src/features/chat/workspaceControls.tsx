@@ -1,7 +1,5 @@
 import {
-  RiAdminLine,
   RiArrowLeftRightLine,
-  RiArticleLine,
   RiBankLine,
   RiBox3Line,
   RiBrush2Line,
@@ -9,190 +7,39 @@ import {
   RiCompassLine,
   RiCursorLine,
   RiDropLine,
-  RiFileTextLine,
   RiFilterLine,
   RiFingerprintLine,
   RiFlashlightLine,
-  RiFlowChart,
   RiFocus3Line,
-  RiFolderLine,
   RiFullscreenLine,
   RiGpsLine,
   RiGridLine,
   RiGroupLine,
-  RiHistoryLine,
   RiLineChartLine,
-  RiLogoutBoxLine,
   RiMapLine,
   RiNavigationLine,
   RiPlanetLine,
   RiRoadMapLine,
-  RiRobotLine,
   RiRouteLine,
-  RiSettings3Line,
-  RiShieldCheckLine,
   RiShoppingCartLine,
   RiStackLine,
   RiStackedView,
   RiSunLine,
   RiEqualizerLine,
-  RiUserLine,
-  RiUserSettingsLine,
-  RiBrainLine,
 } from '@remixicon/react'
-import { Box, Divider, Typography } from '@mui/material'
-import { useNavigate } from 'react-router'
 import {
   ExpandableActionGroup,
   type ExpandableActionGroupAction,
 } from '../../components/workspace-shell/ExpandableActionGroup'
 import type { ControlDefinition } from '../../components/workspace-shell/types'
-import { useLogout } from '../auth/hooks/useAuth'
-import { useIsAdmin } from '../../hooks/useIsAdmin'
-import { useMyProfile } from '../profile/hooks/useProfile'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
 import { useViewerEngineStore } from '../../viewer/store/viewerEngineStore'
 import type { MapStyleId } from '../../viewer/api/commands'
-import { CHAT_SETTINGS_TAB_INDEX } from '../settings/chatSettingsTabs'
 
 function comingSoon(label: string) {
   useComingSoonStore.getState().show(label)
-}
-
-/** FR-024: preserves every destination reachable from the existing account menu
- * (`UserMenu.tsx`, mounted elsewhere via `AppShell`) — the theme toggle is now its own
- * separate top-cluster button (readdy.ai reference), not one of these actions. This
- * list intentionally mirrors `UserMenu.tsx`'s destinations rather than importing it
- * directly (that component is built around a MUI `Menu` popover anchored to a button,
- * not an `ExpandableActionGroup`'s in-place list) — keep the two in sync if a
- * destination is added to or removed from either. */
-export function useAccountControl(): ControlDefinition {
-  const navigate = useNavigate()
-  const isAdmin = useIsAdmin()
-  const logout = useLogout()
-  const { data: profile } = useMyProfile()
-
-  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || profile?.email || ''
-
-  const actions: ExpandableActionGroupAction[] = [
-    {
-      id: 'profile',
-      label: 'Profile',
-      icon: <RiUserLine size={20} />,
-      onSelect: () => navigate('/profile'),
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: <RiSettings3Line size={20} />,
-      onSelect: () => navigate('/settings'),
-    },
-    {
-      id: 'chat-configuration',
-      label: 'Chat Configuration',
-      icon: <RiEqualizerLine size={20} />,
-      onSelect: () =>
-        navigate('/chat-settings', { state: { tab: CHAT_SETTINGS_TAB_INDEX.ChatConfiguration } }),
-    },
-    {
-      id: 'chat-history',
-      label: 'Chat History',
-      icon: <RiHistoryLine size={20} />,
-      onSelect: () => navigate('/chat-settings', { state: { tab: CHAT_SETTINGS_TAB_INDEX.ChatHistory } }),
-    },
-    {
-      id: 'documents',
-      label: 'Documents',
-      icon: <RiFileTextLine size={20} />,
-      onSelect: () => navigate('/documents'),
-    },
-    {
-      id: 'knowledge-bases',
-      label: 'Knowledge Bases',
-      icon: <RiFolderLine size={20} />,
-      onSelect: () => navigate('/knowledge-bases'),
-    },
-    {
-      id: 'memory',
-      label: 'Memory Center',
-      icon: <RiBrainLine size={20} />,
-      onSelect: () => navigate('/memory'),
-    },
-    {
-      id: 'prompts',
-      label: 'Prompts',
-      icon: <RiArticleLine size={20} />,
-      onSelect: () => navigate('/prompts'),
-    },
-    {
-      id: 'agents',
-      label: 'Agents',
-      icon: <RiRobotLine size={20} />,
-      onSelect: () => navigate('/agents'),
-    },
-    {
-      id: 'workflows',
-      label: 'Workflows',
-      icon: <RiFlowChart size={20} />,
-      onSelect: () => navigate('/workflows'),
-    },
-    ...(isAdmin
-      ? [
-          {
-            id: 'admin',
-            label: 'Admin panel',
-            icon: <RiAdminLine size={20} />,
-            onSelect: () => navigate('/admin/dashboard'),
-          },
-        ]
-      : []),
-    {
-      id: 'privacy',
-      label: 'Privacy Policy',
-      icon: <RiShieldCheckLine size={20} />,
-      onSelect: () => navigate('/privacy'),
-    },
-    {
-      id: 'logout',
-      label: 'Log out',
-      icon: <RiLogoutBoxLine size={20} />,
-      onSelect: () =>
-        logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) }),
-    },
-  ]
-
-  return {
-    id: 'account',
-    label: 'Account',
-    icon: <RiUserSettingsLine />,
-    status: 'functional',
-    kind: 'action-group',
-    placement: 'top-cluster',
-    content: (
-      <Box sx={{ minWidth: 220 }}>
-        {displayName && (
-          <>
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {displayName}
-              </Typography>
-              {profile?.email && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {profile.email}
-                </Typography>
-              )}
-            </Box>
-            <Divider />
-          </>
-        )}
-        <ExpandableActionGroup layout="list" actions={actions} />
-      </Box>
-    ),
-    noTriggerAccent: true,
-    contentShape: 'card',
-  }
 }
 
 /** specs/027-immersive-viewer-platform FR-013 (research.md Decision 4): repurposes what was
