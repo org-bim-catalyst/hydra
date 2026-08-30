@@ -35,8 +35,15 @@ class SceneErrorBoundary extends Component<
   }
 }
 
-/** FR-011: non-3D fallback shown when WebGL2 is unavailable, or the scene render fails. */
-function StaticFallback() {
+/**
+ * FR-011: non-3D fallback shown when WebGL2 is unavailable, or the scene render fails.
+ *
+ * Also used as the backdrop while the canvas is still coming up, which is why it takes a
+ * `visible` flag. It is opaque by design — as a *fallback* that is correct, but left painted
+ * underneath a live canvas it defeats the canvas's own transparency entirely, which is exactly
+ * what kept this card solid regardless of the renderer's alpha settings.
+ */
+function StaticFallback({ visible = true }: { visible?: boolean }) {
   return (
     <Box
       aria-hidden="true"
@@ -44,6 +51,8 @@ function StaticFallback() {
         position: 'absolute',
         inset: 0,
         zIndex: 0,
+        opacity: visible ? 1 : 0,
+        transition: (t) => t.transitions.create('opacity', { duration: t.transitions.duration.complex }),
         background: (theme) =>
           theme.palette.mode === 'dark'
             ? 'radial-gradient(circle at 50% 40%, #1D1B17 0%, #14130F 70%)'
@@ -85,7 +94,9 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
 
   return (
     <SceneErrorBoundary fallback={<StaticFallback />}>
-      <StaticFallback />
+      {/* Fades out as the canvas fades in, so what sits behind this card shows through the
+          transparent scene rather than through nothing. */}
+      <StaticFallback visible={!isReady} />
       <Box
         aria-hidden="true"
         tabIndex={-1}
@@ -95,13 +106,26 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
           zIndex: 0,
           opacity: isReady ? 1 : 0,
           transition: (t) => t.transitions.create('opacity', { duration: t.transitions.duration.complex }),
-          '& canvas': { outline: 'none' },
+          // Belt and braces: a background on the canvas or its wrapper would hide the
+          // renderer's alpha just as effectively as clearing opaque.
+          '& canvas': { outline: 'none', background: 'transparent' },
         }}
       >
         <Canvas
           dpr={[1, 2]}
           camera={{ position: [0, 0, 8], fov: 45 }}
-          onCreated={() => setIsReady(true)}
+          // `alpha: true` is what lets the canvas composite over the page at all; without it
+          // WebGL clears to an opaque buffer no matter what clear colour is set.
+          gl={{ alpha: true }}
+          onCreated={({ gl, scene }) => {
+            // Fully transparent clear, so the card's own translucent background — and the map
+            // behind it — is what shows between the dots.
+            gl.setClearColor(0x000000, 0)
+            gl.setClearAlpha(0)
+            // A scene background would paint over the cleared buffer and undo the above.
+            scene.background = null
+            setIsReady(true)
+          }}
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
               frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI).
