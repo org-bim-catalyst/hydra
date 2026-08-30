@@ -26,6 +26,18 @@ public sealed class RecordActiveLocationCommandHandler(
             request.ConfirmedLocation.Confidence,
             actor);
 
+        // specs/044-location-viewer-regression FR-009a/FR-009b: a stored boundary must never
+        // outlive the site it names. Cleared here — atomically with the location write, in the
+        // same unit of work — rather than wherever a boundary happens to be recorded, because the
+        // case that matters is precisely the one where NO boundary command ever arrives: the new
+        // site's resolution failed or timed out. Same OrdinalIgnoreCase comparison the handler's
+        // reuse guard uses, so "clear it" and "reuse it" can never disagree.
+        if (chat.ActiveBoundary is not null &&
+            !string.Equals(chat.ActiveBoundary.SiteName, request.ConfirmedLocation.LocationName, StringComparison.OrdinalIgnoreCase))
+        {
+            chat.ClearActiveBoundary(actor);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

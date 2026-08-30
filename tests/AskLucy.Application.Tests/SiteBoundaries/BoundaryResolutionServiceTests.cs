@@ -323,4 +323,146 @@ public sealed class BoundaryResolutionServiceTests
         // FR-033: and it must not claim an AI-verified confidence it never obtained.
         outcome.ConfirmationText.Should().NotContain("Gemini vision analysis");
     }
+
+    // -------------------------------------------------------------------------------------------
+    // specs/044-location-viewer-regression — US3: Gemini Vision must stay STRICTLY ADDITIVE.
+    // Vision may improve a boundary; it may never remove one. Until T020 the imagery/analysis calls
+    // sat outside any try/catch, so an escaped exception discarded a perfectly good
+    // deterministically-scored OSM boundary — and, before the handler fix, the whole chat turn.
+    // -------------------------------------------------------------------------------------------
+
+    public static TheoryData<Exception> VisionFailures() =>
+    [
+        new HttpRequestException("imagery host unreachable"),
+        new InvalidOperationException("bad state"),
+        new System.Text.Json.JsonException("unparseable vision payload"),
+    ];
+
+    /// <summary>specs/044 T021 (FR-004, contract B-3) — the imagery fetch throws.</summary>
+    [Theory]
+    [MemberData(nameof(VisionFailures))]
+    public async Task ResolveAsync_ShouldKeepTheDeterministicBoundary_WhenSatelliteImageryThrows(Exception failure)
+    {
+        _options.EnableAiVisionVerification = true;
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns<SatelliteImage?>(_ => throw failure);
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing);
+    }
+
+    /// <summary>specs/044 T021 (FR-004, contract B-3) — the vision analyzer itself throws.</summary>
+    [Theory]
+    [MemberData(nameof(VisionFailures))]
+    public async Task ResolveAsync_ShouldKeepTheDeterministicBoundary_WhenVisionAnalysisThrows(Exception failure)
+    {
+        _options.EnableAiVisionVerification = true;
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns<BoundaryVisionAnalysis>(_ => throw failure);
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+    }
+
+    /// <summary>
+    /// specs/044 T021 (contract B-2) — cancellation is the ONE exception this service may surface.
+    /// Swallowing it here would strip the caller's ability to tell a user cancellation from a
+    /// budget expiry (contract H-3).
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldPropagateCancellation_RatherThanDegradingLikeAVisionFailure()
+    {
+        _options.EnableAiVisionVerification = true;
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns<BoundaryVisionAnalysis>(_ => throw new OperationCanceledException());
+
+        var act = async () => await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    /// <summary>
+    /// specs/044 T022 (FR-008, SC-005) — the regression guard for 9b19695. The point of hardening
+    /// vision is that it must still DO its job: a plausible observed boundary still overrides
+    /// positionally-wrong OSM geometry. A fix that quietly disabled this would pass every other
+    /// test in this file.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldStillApplyVisionGeometryCorrection_WhenTheObservedBoundaryIsPlausible()
+    {
+        _options.EnableAiVisionVerification = true;
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+
+        // Same shape and size as the mapped candidate but nudged — the positional-offset case.
+        var observed = new List<GeoPoint>
+        {
+            new(25.1561, 55.2211), new(25.1561, 55.2221),
+            new(25.1551, 55.2221), new(25.1551, 55.2211), new(25.1561, 55.2211),
+        };
+
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(new BoundaryVisionAnalysis(
+                AiUsed: true, SelectedCandidateId: "osm_1", Confidence: 0.9, BoundaryQuality: "high",
+                Reasoning: [], Issues: [], RequiresRefinement: false, ObservedBoundary: observed));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.AiInterpretation);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(observed);
+        outcome.ConfirmationText.Should().Contain("shifted");
+    }
+
+    /// <summary>
+    /// specs/044 T022 (FR-008) — and the plausibility gate still rejects an implausible read,
+    /// keeping the mapped geometry. Vision is trusted conditionally, never at face value.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldStillRejectAnImplausibleObservedBoundary_AndKeepTheMappedGeometry()
+    {
+        _options.EnableAiVisionVerification = true;
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+
+        // Far too large relative to the mapped candidate — outside the 0.3x–3.0x area tolerance.
+        var implausible = new List<GeoPoint>
+        {
+            new(25.2000, 55.1000), new(25.2000, 55.4000),
+            new(25.0000, 55.4000), new(25.0000, 55.1000), new(25.2000, 55.1000),
+        };
+
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(new BoundaryVisionAnalysis(
+                AiUsed: true, SelectedCandidateId: "osm_1", Confidence: 0.9, BoundaryQuality: "low",
+                Reasoning: [], Issues: [], RequiresRefinement: false, ObservedBoundary: implausible));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing);
+    }
 }

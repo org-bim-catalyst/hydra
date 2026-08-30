@@ -18,6 +18,10 @@ internal static partial class BoundaryResolutionServiceLog
     [LoggerMessage(Level = LogLevel.Information,
         Message = "Boundary resolution for chat {UserChatId}: Gemini reported an observed boundary but it failed the plausibility check, so the mapped geometry was kept")]
     public static partial void VisionCorrectionRejected(ILogger logger, Guid userChatId);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "AI vision verification for chat {UserChatId} failed; the deterministically-scored boundary was kept")]
+    public static partial void VisionUnavailable(ILogger logger, Guid userChatId, Exception exception);
 }
 
 /// <summary>
@@ -68,7 +72,7 @@ public sealed class BoundaryResolutionService(
         }
 
         var ranked = scorer.ScoreAll(candidates, confirmedLocation.LocationName);
-        var visionAnalysis = await AnalyzeWithVisionAsync(center, ranked, confirmedLocation.LocationName, opts, cancellationToken);
+        var visionAnalysis = await AnalyzeWithVisionAsync(center, ranked, confirmedLocation.LocationName, opts, userChatId, cancellationToken);
         var selection = SelectFinalCandidate(ranked, visionAnalysis, opts);
         var winner = selection.Winner;
         var confidenceLevel = ClassifyConfidence(selection.CombinedScore, opts);
@@ -124,7 +128,7 @@ public sealed class BoundaryResolutionService(
     /// </summary>
     private async Task<BoundaryVisionAnalysis> AnalyzeWithVisionAsync(
         GeoPoint center, IReadOnlyList<ScoredBoundaryCandidate> ranked, string siteName,
-        BoundaryScoringOptions opts, CancellationToken cancellationToken)
+        BoundaryScoringOptions opts, Guid userChatId, CancellationToken cancellationToken)
     {
         if (!opts.EnableAiVisionVerification)
         {
@@ -132,13 +136,35 @@ public sealed class BoundaryResolutionService(
                 "AI vision analysis is disabled (BoundaryScoring:EnableAiVisionVerification = false).");
         }
 
-        var image = await satelliteImageProvider.FetchAsync(center, opts.SearchRadiusMeters, cancellationToken);
-        if (image is null)
+        // specs/044-location-viewer-regression FR-004 / contract B-3: this method's own summary has
+        // always claimed it "never throws and never blocks resolution on failure" — but until now
+        // nothing enforced that. Both collaborators document a never-throws contract of their own,
+        // and both have real escape hatches (EsriSatelliteImageProvider catches only
+        // HttpRequestException/TaskCanceledException; GeminiBoundaryVisionAnalyzer rethrows caller
+        // cancellation). An escaped exception here discarded a perfectly good deterministic OSM
+        // boundary — vision must be able to improve a result, never to remove one.
+        try
         {
-            return BoundaryVisionAnalysis.NotConfigured("No satellite image available to analyze this run.");
-        }
+            var image = await satelliteImageProvider.FetchAsync(center, opts.SearchRadiusMeters, cancellationToken);
+            if (image is null)
+            {
+                return BoundaryVisionAnalysis.NotConfigured("No satellite image available to analyze this run.");
+            }
 
-        return await visionAnalyzer.AnalyzeAsync(image, ranked, siteName, center, cancellationToken);
+            return await visionAnalyzer.AnalyzeAsync(image, ranked, siteName, center, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Contract B-2: cancellation is the one exception this service may surface. Callers
+            // distinguish caller-cancellation from a budget expiry; swallowing it here would strip
+            // the information they need to tell those apart.
+            throw;
+        }
+        catch (Exception ex)
+        {
+            BoundaryResolutionServiceLog.VisionUnavailable(logger, userChatId, ex);
+            return BoundaryVisionAnalysis.NotConfigured($"AI vision analysis failed: {ex.GetType().Name}.");
+        }
     }
 
     /// <summary>

@@ -60,7 +60,11 @@ if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocati
     yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom, confirmedBoundary);
 }
 ```
-- **No new time-budget ceiling is introduced for v1** — boundary resolution runs after `locationTask` already completed, so it doesn't compete with the model's first-byte latency; a future iteration MAY add its own `BoundaryResolutionOptions.ResolutionCeilingSeconds` mirroring `LocationResolutionOptions` if real-world latency (Overpass roundtrip + scoring) proves to need one. Not required to satisfy SC-001 (10s) in the common case.
+- ~~**No new time-budget ceiling is introduced for v1** — boundary resolution runs after `locationTask` already completed, so it doesn't compete with the model's first-byte latency; a future iteration MAY add its own `BoundaryResolutionOptions.ResolutionCeilingSeconds` mirroring `LocationResolutionOptions` if real-world latency (Overpass roundtrip + scoring) proves to need one. Not required to satisfy SC-001 (10s) in the common case.~~
+
+  > **SUPERSEDED by [specs/044-location-viewer-regression](../../044-location-viewer-regression/spec.md) FR-003.** The "future iteration" this anticipated arrived as a production regression. Without an aggregate ceiling, per-dependency timeouts summed — Overpass 30s + ESRI imagery 30s + Gemini vision 30s ≈ 90s — and because the boundary step also sat *ahead* of the `__LOCATION__` emission (see the next correction), a slow boundary held the viewer update hostage for that whole window. A single `BoundaryScoring:BoundaryTimeoutSeconds` (default **45s**) now caps the entire step; on expiry it is abandoned and the turn completes without a boundary.
+  >
+  > The premise that it "doesn't compete with first-byte latency" was correct but insufficient: it competed with *viewer* latency and with turn completion, neither of which this analysis considered.
 
 ## Backend: `AiController`
 
@@ -96,7 +100,11 @@ if (confirmedBoundary is not null)
 ```
 
 - Same distinguishable-SSE-prefix pattern as `__RAG__`/`__MEMORY__`/`__LOCATION__` — the frontend's existing stream parser gains one more prefix to recognize, not a new parsing mechanism.
-- `RecordActiveSiteBoundaryCommand` is sent (and awaited) before the trailing event is written, matching `RecordActiveLocationCommand`'s ordering exactly — persistence happens server-side before the client is told about it, so a client that reloads immediately after sees consistent state.
+- `RecordActiveSiteBoundaryCommand` is sent (and awaited) before the trailing event is written — persistence happens server-side before the client is told about it, so a client that reloads immediately after sees consistent state.
+
+  > **CORRECTED by [specs/044-location-viewer-regression](../../044-location-viewer-regression/spec.md) FR-001a.** This bullet used to add "matching `RecordActiveLocationCommand`'s ordering exactly". That symmetry no longer holds, deliberately: `RecordActiveLocationCommand` and its `__LOCATION__` event are now written **mid-stream**, the moment the handler yields the confirmed location and *before* the boundary step runs. The persist-then-notify rule still holds for both; what differs is *when* each fires.
+  >
+  > The two are no longer symmetric because they are no longer equally important: the location is the mandatory outcome and the boundary is an optional enhancement. Treating them identically is what let a boundary failure discard `__LOCATION__`, assistant-message persistence, and `[DONE]` along with it. See [contracts/chat-stream-events.md](../../044-location-viewer-regression/contracts/chat-stream-events.md) for the current ordering guarantees (C-1…C-6).
 
 ## Frontend: `aiApi.ts`
 

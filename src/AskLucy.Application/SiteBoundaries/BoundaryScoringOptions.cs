@@ -69,6 +69,26 @@ public sealed class BoundaryScoringOptions : IValidatableObject
     [Range(1, 300)]
     public int VisionTimeoutSeconds { get; set; } = 30;
 
+    /// <summary>
+    /// specs/044-location-viewer-regression FR-003 — the aggregate budget for one whole
+    /// boundary-resolution step, in seconds.
+    /// <para>
+    /// <see cref="VisionTimeoutSeconds"/> bounds a single external call; this bounds the entire
+    /// pipeline. Per-dependency timeouts alone do not, because they sum: Overpass (30s) + ESRI
+    /// imagery (30s) + vision (30s) is a ~90s worst case with nothing capping the total, which
+    /// left the chat turn — and, before this feature's reordering, the viewer update itself —
+    /// hostage to it.
+    /// </para>
+    /// <para>
+    /// 45s rather than 30s: a slow-but-healthy Overpass run can consume 30s on its own, so a
+    /// 30s aggregate would abandon boundaries that were about to succeed and manufacture the
+    /// false "unavailable" this host has already produced twice. Typical end-to-end runs land
+    /// at 10–30s, so 45s clears the normal case with headroom while halving the pathological one.
+    /// </para>
+    /// </summary>
+    [Range(1, 300)]
+    public int BoundaryTimeoutSeconds { get; set; } = 45;
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         var weightSum = SourceReliabilityWeight + NameMatchWeight + GeometryQualityWeight
@@ -85,6 +105,18 @@ public sealed class BoundaryScoringOptions : IValidatableObject
             yield return new ValidationResult(
                 $"{nameof(HighConfidenceThreshold)} ({HighConfidenceThreshold}) must be greater than {nameof(MediumConfidenceThreshold)} ({MediumConfidenceThreshold}).",
                 [nameof(HighConfidenceThreshold), nameof(MediumConfidenceThreshold)]);
+        }
+
+        // specs/044 FR-003: the aggregate budget must leave room for the vision call it contains.
+        // Configured the other way round, vision could never finish inside the budget and would be
+        // silently disabled in production — the exact class of quiet degradation constitution §VIII
+        // forbids. Failing at startup makes the misconfiguration loud instead.
+        if (BoundaryTimeoutSeconds <= VisionTimeoutSeconds)
+        {
+            yield return new ValidationResult(
+                $"{nameof(BoundaryTimeoutSeconds)} ({BoundaryTimeoutSeconds}) must be greater than {nameof(VisionTimeoutSeconds)} ({VisionTimeoutSeconds}), " +
+                "or AI vision verification can never complete within the boundary step's budget.",
+                [nameof(BoundaryTimeoutSeconds), nameof(VisionTimeoutSeconds)]);
         }
     }
 }

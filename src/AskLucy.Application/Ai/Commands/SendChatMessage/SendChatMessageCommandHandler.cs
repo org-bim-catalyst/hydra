@@ -4,9 +4,21 @@ using AskLucy.Application.SiteBoundaries;
 using FluentValidation;
 using Hangfire;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AskLucy.Application.Ai.Commands.SendChatMessage;
+
+internal static partial class SendChatMessageCommandHandlerLog
+{
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Site-boundary resolution for chat {UserChatId} exceeded its {BudgetSeconds}s budget; the turn continued without a boundary")]
+    public static partial void BoundaryTimedOut(ILogger logger, Guid userChatId, int budgetSeconds);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Site-boundary resolution for chat {UserChatId} failed; the turn continued without a boundary")]
+    public static partial void BoundaryFailed(ILogger logger, Guid userChatId, Exception exception);
+}
 
 /// <summary>
 /// MediatR's IPipelineBehavior validation pipeline covers ordinary requests only —
@@ -47,6 +59,8 @@ public sealed class SendChatMessageCommandHandler(
     ICurrentUserAccessor currentUser,
     IBackgroundJobClient backgroundJobClient,
     IOptions<LocationResolutionOptions> locationResolutionOptions,
+    IOptions<BoundaryScoringOptions> boundaryScoringOptions,
+    ILogger<SendChatMessageCommandHandler> logger,
     IValidator<SendChatMessageCommand> validator) : IStreamRequestHandler<SendChatMessageCommand, ChatStreamChunk>
 {
     public async IAsyncEnumerable<ChatStreamChunk> Handle(
@@ -191,26 +205,42 @@ public sealed class SendChatMessageCommandHandler(
         var hasAnyActiveLocation = confirmedLocation is not null || activeLocation is not null;
         var viewerZoom = hasAnyActiveLocation ? zoomCommand : null;
 
+        // specs/044-location-viewer-regression FR-001a: the viewer update is emitted BEFORE the
+        // boundary step runs. Between specs/042 and this fix it was emitted after, which made an
+        // optional enhancement a hard prerequisite for a mandatory outcome — a boundary failure
+        // took __LOCATION__, assistant-message persistence and [DONE] down with it, and a slow one
+        // held the viewer for up to ~90s. Restores the pre-88b631a property: no network call sits
+        // between resolving a location and delivering it. AiController flushes this chunk's
+        // __LOCATION__ event immediately rather than after the stream drains — both halves are
+        // required, since the controller's drain-then-write would otherwise nullify this reorder.
+        if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocation is not null || viewerZoom is not null)
+        {
+            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom);
+        }
+
         // specs/042-site-boundary-resolution research.md #11: only resolves a boundary when this
         // turn's confirmed site differs from the one already active — a repeated reference to the
         // same site reuses ActiveBoundary as-is (FR-009), never re-triggering Overpass/scoring.
         // Piggybacks entirely on locationOutcome — no separate intent-classification call.
-        BoundaryResolutionOutcome? boundaryOutcome = null;
         if (confirmedLocation is not null &&
             !string.Equals(confirmedLocation.LocationName, activeBoundary?.SiteName, StringComparison.OrdinalIgnoreCase))
         {
-            boundaryOutcome = await boundaryResolutionService.ResolveAsync(confirmedLocation, request.ChatId, cancellationToken);
+            // specs/044 FR-002/FR-003: isolated and bounded (see ResolveBoundarySafelyAsync). The
+            // call cannot live inline here — C# forbids `yield return` inside a try/catch — which
+            // is precisely why the original code had no protection around it at all.
+            var boundaryOutcome = await ResolveBoundarySafelyAsync(confirmedLocation, request.ChatId, cancellationToken);
+
             if (boundaryOutcome.ConfirmationText is not null)
             {
                 yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null);
             }
-        }
 
-        var confirmedBoundary = boundaryOutcome?.ConfirmedBoundary;
-
-        if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocation is not null || viewerZoom is not null || confirmedBoundary is not null)
-        {
-            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom, confirmedBoundary);
+            // specs/044 FR-001b: the boundary is its own later delivery, never bundled with the
+            // location chunk above. Omitted entirely when no boundary was produced.
+            if (boundaryOutcome.ConfirmedBoundary is not null)
+            {
+                yield return new ChatStreamChunk(null, null, ConfirmedBoundary: boundaryOutcome.ConfirmedBoundary);
+            }
         }
 
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this
@@ -220,6 +250,62 @@ public sealed class SendChatMessageCommandHandler(
         // by its own [AutomaticRetry] attribute, with MemoryExtractionSweepJob as the safety net if
         // even the enqueue itself fails.
         backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// specs/044-location-viewer-regression FR-002/FR-003/FR-007 — runs the optional boundary step
+    /// so that neither its failure nor its latency can damage the chat turn.
+    /// <para>
+    /// <b>Isolation (FR-002).</b> <see cref="IBoundaryResolutionService"/> documents a "never throws"
+    /// contract, but turn integrity must not depend on another type keeping its promise: this
+    /// catch-all also covers faults outside the vision path the service itself guards (an
+    /// unexpected exception type from candidate search, a scoring fault, an empty-collection
+    /// index). Per constitution §VIII this is isolation, not suppression — every branch logs its
+    /// cause and returns a user-visible outcome.
+    /// </para>
+    /// <para>
+    /// <b>Budget (FR-003).</b> A linked token, not <c>Task.WaitAsync</c>: the latter abandons the
+    /// await while Overpass/ESRI/Gemini keep consuming connections on a shared host. Per-dependency
+    /// timeouts sum to ~90s, so only an aggregate cap actually bounds the step.
+    /// </para>
+    /// <para>
+    /// <b>Cancellation (FR-007).</b> The two causes are told apart against the ORIGINAL request
+    /// token, never the linked one. Once a linked token goes down, <c>GeminiBoundaryVisionAnalyzer</c>'s
+    /// own identically-shaped guard sees it as "the caller cancelled" and rethrows on budget expiry;
+    /// that is correct only because this method re-adjudicates here. Reversing these two catches
+    /// would report every user cancellation as a boundary timeout.
+    /// </para>
+    /// </summary>
+    private async Task<BoundaryResolutionOutcome> ResolveBoundarySafelyAsync(
+        ConfirmedLocationData confirmedLocation, Guid userChatId, CancellationToken cancellationToken)
+    {
+        var budgetSeconds = boundaryScoringOptions.Value.BoundaryTimeoutSeconds;
+
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        budget.CancelAfter(TimeSpan.FromSeconds(budgetSeconds));
+
+        try
+        {
+            return await boundaryResolutionService.ResolveAsync(confirmedLocation, userChatId, budget.Token);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller cancelled (client disconnected). A user action, not a boundary failure —
+            // it must propagate and must never be recorded as the boundary having failed.
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            SendChatMessageCommandHandlerLog.BoundaryTimedOut(logger, userChatId, budgetSeconds);
+            return new BoundaryResolutionOutcome(
+                BoundaryResolutionOutcomeType.Unavailable, null, BoundaryConfirmationTemplates.Unavailable);
+        }
+        catch (Exception ex)
+        {
+            SendChatMessageCommandHandlerLog.BoundaryFailed(logger, userChatId, ex);
+            return new BoundaryResolutionOutcome(
+                BoundaryResolutionOutcomeType.Unavailable, null, BoundaryConfirmationTemplates.Unavailable);
+        }
     }
 
     private static ChatRole ParseRole(string role) => role.ToLowerInvariant() switch
