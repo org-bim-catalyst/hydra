@@ -22,6 +22,27 @@ internal static partial class LocationResolutionServiceLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Location intent classification failed for chat {UserChatId}")]
     public static partial void ClassificationFailed(ILogger logger, Guid userChatId, Exception exception);
+
+    /// <summary>
+    /// Geocoding failing is NOT classification failing, but both used to log the message
+    /// above — so a console line saying "intent classification failed" could equally mean
+    /// the classifier threw or that Google returned REQUEST_DENIED, two causes with
+    /// completely different fixes. Split out so the log names which half broke.
+    /// </summary>
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Geocoding failed for chat {UserChatId} (query: {Query}); intent classification had already succeeded")]
+    public static partial void GeocodingFailed(ILogger logger, Guid userChatId, string query, Exception exception);
+
+    /// <summary>
+    /// The classifier answering with something that is not bare JSON (a markdown fence, a
+    /// preamble) is a routine model behaviour and a completely different problem from the
+    /// provider being unreachable, yet both arrive as an exception. Logging a bounded
+    /// prefix of what actually came back is the only way to tell them apart.
+    /// </summary>
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Location intent classifier returned unparseable content for chat {UserChatId} using {ProviderKey}/{ModelKey}: {ContentPrefix}")]
+    public static partial void ClassifierContentUnparseable(
+        ILogger logger, Guid userChatId, string providerKey, string modelKey, string contentPrefix, Exception exception);
 }
 
 /// <summary>
@@ -90,7 +111,23 @@ public sealed class LocationResolutionService(
             };
 
             var completion = await aiProvider.ChatAsync(messages, model.ModelKey, parameters: null, cancellationToken);
-            payload = JsonSerializer.Deserialize<LocationIntentPayload>(completion.Content);
+
+            // Deserialize separately from the provider call so a model that answers with a
+            // markdown fence or a preamble is reported as exactly that, naming the provider
+            // and model that did it. Note this is the PLATFORM default pair (resolved with
+            // preference: null above), not whatever the user picked in Settings — so this can
+            // fail on a provider the user is not consciously using, while their chat replies
+            // keep working normally.
+            try
+            {
+                payload = JsonSerializer.Deserialize<LocationIntentPayload>(completion.Content);
+            }
+            catch (JsonException ex)
+            {
+                LocationResolutionServiceLog.ClassifierContentUnparseable(
+                    logger, userChatId, provider.ProviderKey, model.ModelKey, Truncate(completion.Content), ex);
+                return Unavailable();
+            }
 
             if (payload is null || payload.Intent is not ("none" or "new_query" or "back_reference"))
             {
@@ -165,7 +202,7 @@ public sealed class LocationResolutionService(
         }
         catch (GeocodingProviderUnavailableException ex)
         {
-            LocationResolutionServiceLog.ClassificationFailed(logger, userChatId, ex);
+            LocationResolutionServiceLog.GeocodingFailed(logger, userChatId, query, ex);
             return Unavailable();
         }
 
@@ -215,6 +252,12 @@ public sealed class LocationResolutionService(
 
     private static LocationResolutionOutcome Unavailable() =>
         new(LocationResolutionOutcomeType.Unavailable, null, LocationConfirmationTemplates.Unavailable);
+
+    /// <summary>Bounded so a runaway model reply cannot flood the log.</summary>
+    private static string Truncate(string? content) =>
+        string.IsNullOrEmpty(content)
+            ? "<empty>"
+            : content.Length <= 300 ? content : content[..300] + "…";
 
     private sealed record LocationIntentPayload(
         [property: JsonPropertyName("intent")] string Intent,
