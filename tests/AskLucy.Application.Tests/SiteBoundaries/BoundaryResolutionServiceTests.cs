@@ -263,6 +263,40 @@ public sealed class BoundaryResolutionServiceTests
     }
 
     [Fact]
+    public async Task ResolveAsync_ShouldAlignTheOutlineToTheGeocodersOwnPoint_WithoutNeedingVision()
+    {
+        // Measured on Al Safa Park 2: the OSM ring's centroid sits 24 m south-east of Google's
+        // geocoded point for the same park. Gemini corrects against ESRI imagery, but the viewer
+        // draws on Google's basemap — so the outline has to be aligned to the frame it is drawn
+        // in, and the geocoded point is already in that frame.
+        var mapped = new List<GeoPoint>
+        {
+            new(25.1548445, 55.2218037), new(25.1553063, 55.2210997), new(25.1562712, 55.2218513),
+            new(25.1563532, 55.2219158), new(25.1565255, 55.2220514), new(25.1560252, 55.2227775),
+            new(25.1551806, 55.2220769), new(25.1548445, 55.2218037),
+        };
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate>
+            {
+                new("osm_1", new SiteBoundaryPolygon(mapped), SiteBoundarySource.OsmBoundary, "Al Safa Park 2",
+                    new Dictionary<string, string> { ["leisure"] = "park" }, mapped.Count,
+                    GeometryMath.AreaSquareMeters(mapped)),
+            });
+        // No satellite image, so no vision path at all — alignment must stand on its own.
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns((SatelliteImage?)null);
+
+        var googlePoint = new ConfirmedLocationData(25.1558327, 55.2217644, "Al Safa Park 2", 0.9);
+        var outcome = await _service.ResolveAsync(googlePoint, ChatId, TestContext.Current.CancellationToken);
+
+        var result = outcome.ConfirmedBoundary!.Polygon;
+        result.Should().HaveCount(mapped.Count, "aligning moves the ring, it does not reshape it");
+        GeometryMath.DistanceMeters(GeometryMath.Centroid(result), new GeoPoint(googlePoint.Latitude, googlePoint.Longitude))
+            .Should().BeLessThan(1, "the ring is translated until its centroid meets the geocoded point");
+        outcome.ConfirmedBoundary.SourceDetail.Should().Contain("aligned");
+    }
+
+    [Fact]
     public async Task ResolveAsync_ShouldPreserveEveryMappedVertex_WhenGeminiTracesACruderOutline()
     {
         // The live failure this replaced: OSM's way for Al Safa Park 2 carries seven distinct

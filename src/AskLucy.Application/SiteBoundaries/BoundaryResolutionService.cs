@@ -87,7 +87,12 @@ public sealed class BoundaryResolutionService(
             .ToList();
 
         var mappedSourceDetail = DescribeSource(winner.Candidate);
-        var visionGeometry = TryBuildVisionCorrectedGeometry(winner, visionAnalysis, center, opts, mappedSourceDetail);
+        // Basemap alignment first: it puts the outline in the same frame as the map it is drawn
+        // on, using the geocoded point we already have. The vision correction is the fallback,
+        // for a geocoder whose frame we cannot assume matches the basemap.
+        var visionGeometry =
+            TryAlignToBasemap(winner, center, mappedSourceDetail)
+            ?? TryBuildVisionCorrectedGeometry(winner, visionAnalysis, center, opts, mappedSourceDetail);
         if (visionAnalysis.ObservedBoundary is not null && visionGeometry is null)
         {
             BoundaryResolutionServiceLog.VisionCorrectionRejected(logger, userChatId);
@@ -209,6 +214,67 @@ public sealed class BoundaryResolutionService(
     private const double VisionCorrectionMinAreaRatio = 0.3;
 
     private const double VisionCorrectionMaxAreaRatio = 3.0;
+
+    /// <summary>How far the mapped outline may be nudged onto the geocoder's own point for the same place.</summary>
+    private const double MaxBasemapAlignmentMeters = 60;
+
+    /// <summary>
+    /// Aligns the mapped outline to the reference frame it is actually drawn in.
+    ///
+    /// <para>
+    /// The remaining offset was a mismatch of frames, not a bad shape. Gemini's correction is
+    /// measured against ESRI World Imagery, while the viewer renders on Google's vector basemap —
+    /// so even a perfect read of the ESRI image lands the outline wherever ESRI and Google
+    /// disagree, which around the Gulf is tens of metres. Measured for Al Safa Park 2: the OSM
+    /// ring's centroid sits 24 m south-east of Google's own geocoded point for the same park
+    /// (17 m of latitude, 17 m of longitude).
+    /// </para>
+    ///
+    /// <para>
+    /// <paramref name="center"/> is that geocoded point, and in production it comes from Google —
+    /// the same source as the basemap underneath the polygon. Translating the ring so its centroid
+    /// meets it puts outline and basemap in one frame, using data already in hand and no extra
+    /// service. Preferred over the vision correction for exactly that reason; the vision path
+    /// remains the fallback for a geocoder whose frame we cannot assume.
+    /// </para>
+    ///
+    /// <para>
+    /// Capped at <see cref="MaxBasemapAlignmentMeters"/>. A geocoded point further out than that
+    /// is not describing this outline — it is an entrance, a car park, or a different feature —
+    /// and translating onto it would move the boundary off the site.
+    /// </para>
+    /// </summary>
+    private static VisionCorrectedGeometry? TryAlignToBasemap(
+        ScoredBoundaryCandidate winner, GeoPoint center, string mappedSourceDetail)
+    {
+        var mapped = winner.Candidate.Polygon.ExteriorRing;
+        if (mapped.Count < 3)
+        {
+            return null;
+        }
+
+        var mappedCentroid = GeometryMath.Centroid(mapped);
+        var shiftMeters = GeometryMath.DistanceMeters(mappedCentroid, center);
+        if (shiftMeters is < 1 or > MaxBasemapAlignmentMeters)
+        {
+            return null;
+        }
+
+        var deltaLat = center.Latitude - mappedCentroid.Latitude;
+        var deltaLon = center.Longitude - mappedCentroid.Longitude;
+        var aligned = mapped
+            .Select(p => new GeoPoint(p.Latitude + deltaLat, p.Longitude + deltaLon))
+            .ToList();
+
+        return new VisionCorrectedGeometry(
+            aligned,
+            // Rigid translation, so the mapped area still describes the shape exactly.
+            winner.Candidate.AreaSquareMeters > 0
+                ? winner.Candidate.AreaSquareMeters
+                : GeometryMath.AreaSquareMeters(aligned),
+            winner.Candidate.Source,
+            $"{mappedSourceDetail}, aligned {shiftMeters:F0} m onto the map's own position for this place");
+    }
 
     /// <summary>
     /// How far the mapped geometry may be nudged. A shift larger than this is not an alignment
