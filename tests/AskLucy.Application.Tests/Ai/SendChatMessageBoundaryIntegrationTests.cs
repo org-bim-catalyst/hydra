@@ -1,4 +1,4 @@
-using AskLucy.Application.Abstractions;
+﻿using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
@@ -200,6 +200,10 @@ public sealed class SendChatMessageBoundaryIntegrationTests
         chunks.Should().NotContain(c => c.ConfirmedBoundary != null);
     }
 
+    // CA2201: these are theory *data*, not exceptions this code raises. The test below asserts
+    // FR-002 holds for ANY exception type at any depth, and a runtime-reserved type is precisely
+    // the case a naive `catch (HttpRequestException)` would miss — so it has to stay in the set.
+#pragma warning disable CA2201
     public static TheoryData<Exception> BoundaryFailures() =>
     [
         new HttpRequestException("network"),
@@ -207,6 +211,7 @@ public sealed class SendChatMessageBoundaryIntegrationTests
         new InvalidOperationException("bad state"),
         new IndexOutOfRangeException("empty ranked list"),
     ];
+#pragma warning restore CA2201
 
     /// <summary>
     /// specs/044 T011 (FR-002/FR-005/FR-006) — FR-002 covers ANY exception type at any depth, not
