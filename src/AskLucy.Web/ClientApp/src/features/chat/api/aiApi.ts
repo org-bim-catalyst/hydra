@@ -66,13 +66,15 @@ export interface GenerationParameters {
  * the RAG retrieval outcome carried on the trailing `__RAG__` event,
  * (specs/018-ai-memory-system US1) the memory outcome + real persisted message id carried on the
  * trailing `__MEMORY__` event, (specs/036-startup-geolocation US3) the agent-confirmed location
- * carried on the trailing `__LOCATION__` event, or (specs/038-viewer-poi-zoom US2) an explicit
- * zoom command carried on the trailing `__ZOOM__` event.
+ * carried on the trailing `__LOCATION__` event, (specs/038-viewer-poi-zoom US2) an explicit
+ * zoom command carried on the trailing `__ZOOM__` event, or a `messageBreak` telling the caller
+ * that everything after it belongs to a second assistant message.
  */
 export type ChatStreamEvent =
   | { type: 'content'; delta: string }
   | { type: 'retrieval'; outcome: RagRetrievalOutcome; citations: Omit<Citation, 'id'>[]; error: string | null }
-  | { type: 'memory'; messageId: string; outcome: MemoryRetrievalOutcome }
+  /** `messageId` is null only when the turn persisted no assistant message at all. */
+  | { type: 'memory'; messageId: string | null; outcome: MemoryRetrievalOutcome }
   | {
       type: 'location'
       latitude: number
@@ -84,6 +86,11 @@ export type ChatStreamEvent =
       viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
     }
   | { type: 'zoom'; direction: 'in' | 'out' }
+  /**
+   * The server finished one assistant message and started another. Deltas that follow belong to
+   * the new one; the text so far is complete and already persisted server-side.
+   */
+  | { type: 'messageBreak' }
   | {
       type: 'siteBoundary'
       siteName: string
@@ -102,6 +109,7 @@ const MEMORY_EVENT_PREFIX = '__MEMORY__'
 const LOCATION_EVENT_PREFIX = '__LOCATION__'
 const ZOOM_EVENT_PREFIX = '__ZOOM__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
+const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
 
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
@@ -196,7 +204,7 @@ export async function* streamChat(
 
       if (data.startsWith(MEMORY_EVENT_PREFIX)) {
         const payload = JSON.parse(data.slice(MEMORY_EVENT_PREFIX.length)) as {
-          messageId: string
+          messageId: string | null
           memoryOutcome: MemoryRetrievalOutcome
         }
         yield { type: 'memory', messageId: payload.messageId, outcome: payload.memoryOutcome }
@@ -263,6 +271,13 @@ export async function* streamChat(
         if (direction === 'in' || direction === 'out') {
           yield { type: 'zoom', direction }
         }
+        continue
+      }
+
+      // Checked before the content fallback, and matched exactly rather than by prefix: the
+      // marker carries no payload, so a line that merely starts with it is ordinary text.
+      if (data === MESSAGE_BREAK_EVENT) {
+        yield { type: 'messageBreak' }
         continue
       }
 

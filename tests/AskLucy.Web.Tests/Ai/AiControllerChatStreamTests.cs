@@ -5,6 +5,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Locations;
+using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
 using AskLucy.Web.Controllers.v1;
 using FluentAssertions;
@@ -142,5 +143,92 @@ public sealed class AiControllerChatStreamTests : IDisposable
         var text = ResponseText();
         text.Split("__LOCATION__").Should().HaveCount(2, "the location event must not be written twice by the mid-stream move");
         text.Should().Contain("data: [DONE]");
+    }
+
+    /// <summary>
+    /// The boundary confirmation reports a second action, finishing seconds after the location
+    /// did. Appended to the reply it ran two unrelated sentences together and rewrote a bubble the
+    /// user had already read, so a chunk can now ask for a message break — and the break has to be
+    /// on the wire before the first character that belongs to the new message.
+    /// </summary>
+    [Fact]
+    public async Task Chat_ShouldWriteTheMessageBreak_BeforeTheContentThatBelongsToTheNewMessage()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("Centred the viewer on it.", null);
+            yield return new ChatStreamChunk("I have outlined the site boundary.", null, StartsNewMessage: true);
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var text = ResponseText();
+        text.IndexOf("__MESSAGE_BREAK__", StringComparison.Ordinal).Should().BeGreaterThan(
+            text.IndexOf("Centred the viewer on it.", StringComparison.Ordinal),
+            "the first message is complete before the break is announced");
+        text.IndexOf("__MESSAGE_BREAK__", StringComparison.Ordinal).Should().BeLessThan(
+            text.IndexOf("I have outlined the site boundary.", StringComparison.Ordinal),
+            "the client must have opened the new bubble before its first character arrives");
+    }
+
+    [Fact]
+    public async Task Chat_ShouldPersistTwoAssistantMessages_WhenAChunkStartsANewOne()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("Centred the viewer on it.", null);
+            yield return new ChatStreamChunk("I have outlined the site boundary.", null, StartsNewMessage: true);
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var assistantContents = _mediator.ReceivedCalls()
+            .Select(call => call.GetArguments().FirstOrDefault())
+            .OfType<AppendMessageCommand>()
+            .Where(command => command.Role == MessageRole.Assistant)
+            .Select(command => command.Content)
+            .ToList();
+
+        assistantContents.Should().Equal("Centred the viewer on it.", "I have outlined the site boundary.");
+    }
+
+    /// <summary>
+    /// A break that arrives with nothing buffered — a turn whose whole reply is the confirmation —
+    /// must not persist an empty message or leave an empty bubble on screen.
+    /// </summary>
+    [Fact]
+    public async Task Chat_ShouldNotPersistAnEmptyMessage_WhenTheBreakArrivesWithNothingBuffered()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("I have outlined the site boundary.", null, StartsNewMessage: true);
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var assistantContents = _mediator.ReceivedCalls()
+            .Select(call => call.GetArguments().FirstOrDefault())
+            .OfType<AppendMessageCommand>()
+            .Where(command => command.Role == MessageRole.Assistant)
+            .Select(command => command.Content)
+            .ToList();
+
+        assistantContents.Should().Equal("I have outlined the site boundary.");
+        ResponseText().Should().NotContain("__MESSAGE_BREAK__");
     }
 }

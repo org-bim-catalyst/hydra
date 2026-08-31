@@ -1406,6 +1406,38 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(screen.queryByRole('status', { name: 'Ask Lucy is thinking' })).not.toBeInTheDocument()
   })
 
+  /**
+   * The site-boundary confirmation reports a second action, which finishes seconds after the
+   * location did. Appending it to the reply ran two unrelated sentences straight together and
+   * rewrote a bubble the user had most likely already read, so the server closes the first
+   * message and opens a second.
+   */
+  it('renders a __MESSAGE_BREAK__ as a second assistant bubble rather than more text on the first', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream([
+          'Centred the viewer on Al Safa Park 2.',
+          '__MESSAGE_BREAK__',
+          "I've outlined the site boundary.",
+        ])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    // Two separate bubbles: the marker itself never renders, and neither sentence has been
+    // concatenated onto the other.
+    expect(await screen.findByText('Centred the viewer on Al Safa Park 2.')).toBeInTheDocument()
+    expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
+    expect(screen.queryByText(/__MESSAGE_BREAK__/)).not.toBeInTheDocument()
+  })
+
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),

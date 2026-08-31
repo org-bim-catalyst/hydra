@@ -19,6 +19,7 @@ using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
 using MediatR;
@@ -65,7 +66,18 @@ public sealed partial class AiController(
         Response.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
 
+        // Read before the loop rather than after it: an assistant message can now be persisted
+        // mid-stream, when a chunk asks to start a new one.
+        var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
+        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
+        var generationParametersJson = request.GenerationParameters is null
+            ? null
+            : JsonSerializer.Serialize(request.GenerationParameters);
+
         var assistantContent = new StringBuilder();
+        // The turn's first assistant message - the reply. It is the one the memory trace and the
+        // __MEMORY__ event refer to; any later message is an application-written confirmation.
+        Guid? firstAssistantMessageId = null;
         ChatUsage? finalUsage = null;
         RagRetrievalOutcome? retrievalOutcome = null;
         MemoryRetrievalOutcome? memoryOutcome = null;
@@ -77,6 +89,19 @@ public sealed partial class AiController(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
             cancellationToken))
         {
+            // Handled before this chunk's own content goes out, so the client closes the current
+            // bubble and opens a new one ahead of the first character that belongs in it.
+            if (chunk.StartsNewMessage && assistantContent.Length > 0)
+            {
+                firstAssistantMessageId ??= await PersistAssistantMessageAsync(
+                    request, assistantContent.ToString(), provider, model, generationParametersJson,
+                    finalUsage, retrievalOutcome, cancellationToken);
+                assistantContent.Clear();
+
+                await Response.WriteAsync("data: __MESSAGE_BREAK__\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
             if (!string.IsNullOrEmpty(chunk.ContentDelta))
             {
                 assistantContent.Append(chunk.ContentDelta);
@@ -150,44 +175,31 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
-        var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
-        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
-        var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, finalUsage?.InputTokenCount, finalUsage?.OutputTokenCount);
-        var generationParametersJson = request.GenerationParameters is null
-            ? null
-            : JsonSerializer.Serialize(request.GenerationParameters);
-
-        // US1: RAG-grounded citations are attached to the persisted assistant message only when
-        // retrieval actually found relevant content — NoRelevantContent/Unavailable never attach
-        // citations (research.md Decision 8).
-        var citations = retrievalOutcome?.Type == RagRetrievalOutcomeType.Grounded
-            ? retrievalOutcome.Citations
-                .Select(c => new AppendMessageCitationInput(
-                    c.DocumentTitle, null, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))
-                .ToList()
-            : null;
-
-        // Persisted — and, for memory, its trace recorded (FR-014) — before [DONE] is written, so
+        // Persisted - and, for memory, its trace recorded (FR-014) - before [DONE] is written, so
         // the trailing __MEMORY__ event below can carry the now-real message id and the client can
         // fetch its "why does Lucy know this" trace immediately, in the same session, rather than
         // only after a reload re-fetches persisted history (quickstart.md Scenario 1).
-        var assistantMessage = await mediator.Send(
-            new AppendMessageCommand(
-                request.ChatId, MessageRole.Assistant, MessageKind.Text, assistantContent.ToString(), null,
-                Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
-                InputTokenCount: finalUsage?.InputTokenCount, OutputTokenCount: finalUsage?.OutputTokenCount,
-                CachedTokenCount: finalUsage?.CachedTokenCount, ReasoningTokenCount: finalUsage?.ReasoningTokenCount,
-                LatencyMs: finalUsage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
-            cancellationToken);
-
-        if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found)
+        //
+        // Skipped when nothing is buffered, which happens when the turn's last chunk opened a new
+        // message that then produced no text: an empty bubble helps nobody.
+        if (assistantContent.Length > 0)
         {
-            await mediator.Send(new RecordMemoryReferencesCommand(assistantMessage.Id, memoryOutcome.UsedMemories), cancellationToken);
+            var persistedId = await PersistAssistantMessageAsync(
+                request, assistantContent.ToString(), provider, model, generationParametersJson,
+                finalUsage, retrievalOutcome, cancellationToken);
+            firstAssistantMessageId ??= persistedId;
+        }
+
+        // The memory trace belongs to the turn's first message - the reply itself. A later message
+        // carries only a confirmation sentence the application wrote, which no memory informed.
+        if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found && firstAssistantMessageId is { } tracedMessageId)
+        {
+            await mediator.Send(new RecordMemoryReferencesCommand(tracedMessageId, memoryOutcome.UsedMemories), cancellationToken);
         }
 
         if (memoryOutcome is not null)
         {
-            var memoryPayload = new { messageId = assistantMessage.Id, memoryOutcome = memoryOutcome.Type.ToString() };
+            var memoryPayload = new { messageId = firstAssistantMessageId, memoryOutcome = memoryOutcome.Type.ToString() };
             await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
@@ -225,6 +237,51 @@ public sealed partial class AiController(
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+    }
+
+    /// <summary>
+    /// Persists one assistant message of the current turn, carrying the turn's provider/model
+    /// attribution, token usage, estimated cost and RAG citations.
+    /// </summary>
+    /// <remarks>
+    /// A turn can produce more than one assistant message. The site-boundary confirmation reports
+    /// a second action that finishes seconds after the location did, so appending it to the reply
+    /// ran two unrelated sentences together and silently rewrote a bubble the user had already
+    /// read. The handler now marks that chunk as starting a new message, which means persistence
+    /// runs once per message rather than once per turn - hence this extraction.
+    /// </remarks>
+    private async Task<Guid> PersistAssistantMessageAsync(
+        ChatRequest request,
+        string content,
+        AIProvider? provider,
+        AIModel? model,
+        string? generationParametersJson,
+        ChatUsage? usage,
+        RagRetrievalOutcome? retrievalOutcome,
+        CancellationToken cancellationToken)
+    {
+        var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, usage?.InputTokenCount, usage?.OutputTokenCount);
+
+        // US1: RAG-grounded citations are attached to the persisted assistant message only when
+        // retrieval actually found relevant content - NoRelevantContent/Unavailable never attach
+        // citations (research.md Decision 8).
+        var citations = retrievalOutcome?.Type == RagRetrievalOutcomeType.Grounded
+            ? retrievalOutcome.Citations
+                .Select(c => new AppendMessageCitationInput(
+                    c.DocumentTitle, null, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))
+                .ToList()
+            : null;
+
+        var message = await mediator.Send(
+            new AppendMessageCommand(
+                request.ChatId, MessageRole.Assistant, MessageKind.Text, content, null,
+                Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
+                InputTokenCount: usage?.InputTokenCount, OutputTokenCount: usage?.OutputTokenCount,
+                CachedTokenCount: usage?.CachedTokenCount, ReasoningTokenCount: usage?.ReasoningTokenCount,
+                LatencyMs: usage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
+            cancellationToken);
+
+        return message.Id;
     }
 
     /// <summary>

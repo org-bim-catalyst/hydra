@@ -261,7 +261,10 @@ public sealed class SendChatMessageCommandHandler(
 
             if (boundaryOutcome.ConfirmationText is not null)
             {
-                yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null);
+                // Its own message, not more text on the end of the reply. The boundary lands
+                // seconds after the location did, so appending it edits a bubble the user has
+                // most likely already read.
+                yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null, StartsNewMessage: true);
             }
 
             // specs/044 FR-001b: the boundary is its own later delivery, never bundled with the

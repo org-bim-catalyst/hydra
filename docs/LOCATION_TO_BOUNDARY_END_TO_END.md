@@ -130,6 +130,11 @@ sequenceDiagram
     BND->>BND: plausibility gate<br/>(area 0.3×–3.0×, centroid in radius)
     BND-->>H: ConfirmedSiteBoundary
 
+    H-->>API: chunk{ConfirmationText, StartsNewMessage}
+    API->>DB: persist the reply as its own message
+    API-->>FE: data: __MESSAGE_BREAK__
+    API-->>FE: data: I've outlined ...
+
     H-->>API: chunk{ConfirmedBoundary}
     API->>DB: RecordActiveSiteBoundary
     API-->>FE: data: __SITE_BOUNDARY__{...}
@@ -151,9 +156,19 @@ sequenceDiagram
 | Send | User message persisted, appears immediately |
 | Streaming | Assistant text accumulates token by token |
 | Location resolved | Deterministic sentence appended: *"I've located Al Safa Park 2."* |
-| Boundary resolved | Second sentence: *"I've outlined Al Safa Park 2's boundary with high confidence, based on OpenStreetMap (leisure=park)."* + alternatives + AI-verification note |
+| Boundary resolved | A **second assistant message**: *"I've outlined Al Safa Park 2's boundary with high confidence, based on OpenStreetMap (leisure=park)."* + alternatives + AI-verification note |
 | Boundary failed | *"I couldn't look up the site boundary right now…"* — says **site boundary**, never implies the location failed |
-| Done | Assistant message persisted with provider, model, tokens, cost, latency |
+| Done | Each assistant message persisted; provider, model, tokens, cost, latency and citations go on the first — the reply itself |
+
+The boundary confirmation is a **separate message**, not more text on the end of the reply. It
+reports a second action that finishes seconds after the location did, so appending it ran two
+unrelated sentences straight together (*"…centred the viewer on it.I've outlined…"*) and silently
+rewrote a bubble the user had already read.
+
+The wire carries this as a bare `data: __MESSAGE_BREAK__` frame, matched **exactly** rather than by
+prefix — it has no payload, so a line that merely starts with the marker is ordinary text. On
+seeing it the server persists what it has buffered and starts a new message; `useChatStream` closes
+the current bubble and opens the next. `ChatStreamChunk.StartsNewMessage` is what asks for it.
 
 **Next turn**, if the boundary succeeded, a system message is injected at position 0 telling the
 model a boundary is active for this site, with its confidence and source — so "how sure are you?"

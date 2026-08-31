@@ -32,6 +32,13 @@ public sealed record ConfirmedLocationData(
 /// <see cref="ConfirmedLocation"/> (specs/036-startup-geolocation) ride the final chunk the
 /// same way, for the same reason. <see cref="ViewerZoom"/> (specs/038-viewer-poi-zoom) carries
 /// an explicit zoom command when detected in the user's message.
+/// <para>
+/// <see cref="StartsNewMessage"/> asks the controller to close the assistant message built so
+/// far and begin another. The boundary confirmation uses it: it is reporting a second action,
+/// finished seconds after the first and often after the reply has been read, so appending it to
+/// the same bubble ran two unrelated statements together — "…centred the viewer on it.I've
+/// outlined…" — and silently rewrote a message the user had already seen.
+/// </para>
 /// </summary>
 public sealed record ChatStreamChunk(
     string? ContentDelta,
@@ -40,7 +47,8 @@ public sealed record ChatStreamChunk(
     MemoryRetrievalOutcome? MemoryOutcome = null,
     ConfirmedLocationData? ConfirmedLocation = null,
     ViewerZoomCommand? ViewerZoom = null,
-    ConfirmedSiteBoundaryData? ConfirmedBoundary = null);
+    ConfirmedSiteBoundaryData? ConfirmedBoundary = null,
+    bool StartsNewMessage = false);
 
 /// <summary>
 /// specs/042-site-boundary-resolution — the resolved site boundary carried on the final

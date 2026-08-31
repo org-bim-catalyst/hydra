@@ -134,7 +134,13 @@ export function useChatStream(
       const controller = new AbortController()
       abortRef.current = controller
 
-      let assistantContent = ''
+      // A turn can produce more than one assistant message: the site-boundary confirmation
+      // reports a second action that finishes seconds after the location did, and the server
+      // sends a `messageBreak` before it rather than appending it to a bubble the user has
+      // already read. The last entry is the one currently streaming.
+      let assistantParts = ['']
+      const renderParts = (parts: string[]): ChatMessage[] =>
+        parts.map((content) => ({ role: 'assistant' as const, content }))
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
       let retrievalError: ChatMessage['retrievalError']
@@ -144,9 +150,15 @@ export function useChatStream(
         const activeChatId = await ensureChatId(content)
         for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
           if (event.type === 'content') {
-            assistantContent += event.delta
+            assistantParts = [...assistantParts.slice(0, -1), assistantParts[assistantParts.length - 1] + event.delta]
             if (isActiveRef.current) {
-              setMessages([...history, { role: 'assistant', content: assistantContent }])
+              setMessages([...history, ...renderParts(assistantParts)])
+            }
+          } else if (event.type === 'messageBreak') {
+            // Close the current bubble and open a new one. Guarded so a break that arrives with
+            // nothing buffered cannot leave an empty bubble on screen.
+            if (assistantParts[assistantParts.length - 1] !== '') {
+              assistantParts = [...assistantParts, '']
             }
           } else if (event.type === 'retrieval') {
             // specs/016-rag-semantic-search US1 — carried on the stream's trailing event so
@@ -159,7 +171,7 @@ export function useChatStream(
             // specs/018-ai-memory-system US1 — the assistant message's real persisted id only
             // exists once AppendMessageCommand has run, so this trailing event is also the
             // earliest point the "why does Lucy know this" trace becomes fetchable this session.
-            messageId = event.messageId
+            messageId = event.messageId ?? undefined
             memoryOutcome = event.outcome
           } else if (event.type === 'location') {
             // specs/036-startup-geolocation US3: agent-confirmed location overrides the startup
@@ -205,9 +217,14 @@ export function useChatStream(
           }
         }
         if (isActiveRef.current) {
+          // The citations, retrieval outcome, memory outcome and persisted id all belong to the
+          // reply itself — the turn's first message. Anything after it is a confirmation
+          // sentence the application wrote, which none of that metadata describes.
+          const [reply, ...rest] = assistantParts.filter((part, index) => part !== '' || index === 0)
           setMessages([
             ...history,
-            { id: messageId, role: 'assistant', content: assistantContent, citations, retrievalOutcome, retrievalError, memoryOutcome },
+            { id: messageId, role: 'assistant', content: reply, citations, retrievalOutcome, retrievalError, memoryOutcome },
+            ...renderParts(rest),
           ])
         }
       } catch (err) {
@@ -215,7 +232,13 @@ export function useChatStream(
           // FR-030: keep whatever partial content already streamed in (flagged incomplete)
           // rather than discarding it — a connection drop mid-stream shouldn't erase a
           // reply the user could already see arriving.
-          setMessages([...history, { role: 'assistant', content: assistantContent, isIncomplete: true }])
+          // Every bubble already completed stays as it is; only the one that was still streaming
+          // is flagged incomplete.
+          setMessages([
+            ...history,
+            ...renderParts(assistantParts.slice(0, -1)),
+            { role: 'assistant', content: assistantParts[assistantParts.length - 1], isIncomplete: true },
+          ])
           setError(err instanceof Error ? err.message : 'Failed to send message. Please try again.')
         }
       } finally {
