@@ -90,6 +90,78 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             NullLogger<GeminiBoundaryVisionAnalyzer>.Instance);
     }
 
+    private static HttpResponseMessage ServiceUnavailable() =>
+        new(HttpStatusCode.ServiceUnavailable)
+        {
+            Content = new StringContent(
+                """{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}""",
+                Encoding.UTF8,
+                "application/json"),
+        };
+
+    /// <summary>
+    /// The failure that actually happens in production. On 2026-08-31 every boundary request came
+    /// back 503 UNAVAILABLE — "spikes in demand are usually temporary" — and a single attempt
+    /// turned each one into a silently uncorrected boundary for hours.
+    /// </summary>
+    [Fact]
+    public async Task AnalyzeAsync_ShouldRetry_WhenGeminiReportsItIsTemporarilyOverloaded()
+    {
+        var attempts = 0;
+        var analyzer = CreateAnalyzer(_ =>
+        {
+            attempts++;
+            return attempts < 3
+                ? ServiceUnavailable()
+                : GeminiTextResponse("""{"selected_candidate_id":"osm_1","confidence":0.9,"boundary_quality":"high","reasoning":[],"issues":[],"requires_refinement":false}""");
+        });
+
+        var analysis = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+
+        attempts.Should().Be(3);
+        analysis.AiUsed.Should().BeTrue();
+        analysis.SelectedCandidateId.Should().Be("osm_1");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ShouldGiveUp_AfterTheRetriesAreExhausted()
+    {
+        var attempts = 0;
+        var analyzer = CreateAnalyzer(_ =>
+        {
+            attempts++;
+            return ServiceUnavailable();
+        });
+
+        var analysis = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+
+        attempts.Should().Be(3, "three attempts including the first, not an unbounded loop");
+        analysis.AiUsed.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// A 4xx other than 429 is our fault — a bad model id, a malformed payload — and will fail
+    /// identically however many times it is sent. Retrying it only burns the vision budget.
+    /// </summary>
+    [Fact]
+    public async Task AnalyzeAsync_ShouldNotRetry_WhenTheRequestItselfWasRejected()
+    {
+        var attempts = 0;
+        var analyzer = CreateAnalyzer(_ =>
+        {
+            attempts++;
+            return new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = new StringContent("""{"error":{"code":400,"message":"Invalid model."}}""", Encoding.UTF8, "application/json"),
+            };
+        });
+
+        var analysis = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+
+        attempts.Should().Be(1);
+        analysis.AiUsed.Should().BeFalse();
+    }
+
     private static HttpResponseMessage GeminiTextResponse(string innerJsonText)
     {
         var wrapper = new { candidates = new[] { new { content = new { parts = new[] { new { text = innerJsonText } } } } } };

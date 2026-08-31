@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
@@ -15,6 +16,9 @@ internal static partial class GeminiBoundaryVisionAnalyzerLog
 {
     [LoggerMessage(Level = LogLevel.Warning, Message = "Gemini boundary vision request failed with {StatusCode}: {Body}")]
     public static partial void RequestFailed(ILogger logger, int statusCode, string body);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Gemini boundary vision returned {StatusCode}; retrying (attempt {Attempt} of {MaxAttempts})")]
+    public static partial void RetryingAfterTransientFailure(ILogger logger, int statusCode, int attempt, int maxAttempts);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Gemini boundary vision analysis failed")]
     public static partial void Failed(ILogger logger, Exception exception);
@@ -99,23 +103,54 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             var visionToken = budget.Token;
 
             var payload = BuildPayload(image, rankedCandidates, siteName, center);
-            using var response = await httpClient.PostAsJsonAsync(
-                $"models/{visionModelKey}:generateContent?key={apiKey}", payload, visionToken);
 
-            if (!response.IsSuccessStatusCode)
+            // Retried, because the failure that actually happens here is transient. Every boundary
+            // request on 2026-08-31 came back 503 UNAVAILABLE — "This model is currently
+            // experiencing high demand. Spikes in demand are usually temporary." — and a single
+            // attempt turned each one into a silently uncorrected boundary. Same shape as the
+            // retry OverpassBoundaryCandidateProvider already carries for the same reason.
+            //
+            // The whole loop still runs inside the vision budget, so retrying can delay the turn
+            // by the delays below but never past VisionTimeoutSeconds.
+            HttpResponseMessage? response = null;
+            try
             {
-                var body = await response.Content.ReadAsStringAsync(visionToken);
-                GeminiBoundaryVisionAnalyzerLog.RequestFailed(logger, (int)response.StatusCode, body);
-                return BoundaryVisionAnalysis.NotConfigured($"Gemini vision request failed ({(int)response.StatusCode}).");
+                for (var attempt = 1; ; attempt++)
+                {
+                    response?.Dispose();
+                    response = await httpClient.PostAsJsonAsync(
+                        $"models/{visionModelKey}:generateContent?key={apiKey}", payload, visionToken);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        break;
+                    }
+
+                    var body = await response.Content.ReadAsStringAsync(visionToken);
+                    var status = (int)response.StatusCode;
+                    GeminiBoundaryVisionAnalyzerLog.RequestFailed(logger, status, body);
+
+                    if (attempt >= MaxAttempts || !IsTransient(response.StatusCode))
+                    {
+                        return BoundaryVisionAnalysis.NotConfigured($"Gemini vision request failed ({status}).");
+                    }
+
+                    GeminiBoundaryVisionAnalyzerLog.RetryingAfterTransientFailure(logger, status, attempt, MaxAttempts);
+                    await Task.Delay(RetryDelay * attempt, visionToken);
+                }
+
+                using var stream = await response.Content.ReadAsStreamAsync(visionToken);
+                using var document = await JsonDocument.ParseAsync(stream, cancellationToken: visionToken);
+                var text = ExtractText(document.RootElement);
+
+                return string.IsNullOrWhiteSpace(text)
+                    ? BoundaryVisionAnalysis.NotConfigured("Gemini returned an empty vision analysis response.")
+                    : ParseAnalysis(text, image);
             }
-
-            using var stream = await response.Content.ReadAsStreamAsync(visionToken);
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: visionToken);
-            var text = ExtractText(document.RootElement);
-
-            return string.IsNullOrWhiteSpace(text)
-                ? BoundaryVisionAnalysis.NotConfigured("Gemini returned an empty vision analysis response.")
-                : ParseAnalysis(text, image);
+            finally
+            {
+                response?.Dispose();
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -229,6 +264,24 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             }
             """;
     }
+
+    /// <summary>Attempts per boundary, including the first.</summary>
+    private const int MaxAttempts = 3;
+
+    /// <summary>Multiplied by the attempt number, so the waits are ~1s then ~2s.</summary>
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Statuses worth a second attempt: the model being busy or rate-limited says nothing about
+    /// whether the request was valid. A 4xx other than 429 is our fault and will fail identically
+    /// however many times it is sent.
+    /// </summary>
+    private static bool IsTransient(HttpStatusCode status) =>
+        status is HttpStatusCode.ServiceUnavailable      // 503 — the one actually seen
+            or HttpStatusCode.TooManyRequests            // 429
+            or HttpStatusCode.InternalServerError        // 500
+            or HttpStatusCode.BadGateway                 // 502
+            or HttpStatusCode.GatewayTimeout;            // 504
 
     private static BoundaryVisionAnalysis ParseAnalysis(string json, SatelliteImage image)
     {

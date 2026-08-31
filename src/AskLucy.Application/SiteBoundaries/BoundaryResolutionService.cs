@@ -117,7 +117,14 @@ public sealed class BoundaryResolutionService(
             finalSource, sourceDetail,
             alternativeNames);
 
-        var aiNote = DescribeAiVerification(selection.Agreement);
+        // Said out loud when it did not happen. The cross-check failing is invisible otherwise:
+        // the outline still renders, still says "high confidence", and simply is not corrected —
+        // which on 2026-08-31 meant every boundary went uncorrected for hours behind a run of
+        // Gemini 503s with nothing on screen to suggest anything was missing (constitution: no
+        // silent failures).
+        var aiNote = visionAnalysis.AiUsed
+            ? DescribeAiVerification(selection.Agreement)
+            : "Note: I couldn't cross-check this against satellite imagery just now, so the outline is straight from map data and may sit slightly off the fence.";
         var confirmationText = BoundaryConfirmationTemplates.WithAiVerificationNote(
             BoundaryConfirmationTemplates.WithAlternatives(
                 BoundaryConfirmationTemplates.Confirmed(confirmedLocation.LocationName, confidenceLevel, sourceDetail),

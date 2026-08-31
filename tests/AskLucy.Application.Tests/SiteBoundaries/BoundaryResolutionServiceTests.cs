@@ -533,6 +533,35 @@ public sealed class BoundaryResolutionServiceTests
     }
 
     /// <summary>
+    /// A failed cross-check is said out loud.
+    ///
+    /// <para>
+    /// It is invisible otherwise: the outline still renders, still reports high confidence, and
+    /// simply is not corrected. On 2026-08-31 that meant every boundary went uncorrected for hours
+    /// behind a run of Gemini 503s, with nothing on screen to suggest anything was missing.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldSayTheCrossCheckDidNotHappen_WhenVisionIsUnavailable()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(BoundaryVisionAnalysis.NotConfigured("Gemini vision request failed (503)."));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmationText.Should().Contain("couldn't cross-check");
+        outcome.ConfirmedBoundary!.Polygon.Should().BeEquivalentTo(
+            SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering(),
+            "an unavailable cross-check must leave the mapped geometry alone, not break the boundary");
+    }
+
+    /// <summary>
     /// specs/044 T022 (FR-008, SC-005) — the guard that vision must still DO its job. A plausible
     /// observed boundary repositions the mapped ring; a fix that quietly disabled this would pass
     /// every other test in this file.
