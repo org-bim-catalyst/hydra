@@ -35,11 +35,22 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             seedContext.UserChats.AddRange(chats);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();
         var repository = new UserChatRepository(dbContext);
+
+        // Warm-up run, result discarded. These thresholds guard the query plan, but the first
+        // read after a bulk seed is a cold one and on this shared host that is the entire
+        // measurement — see docs/TESTING.md §13. It needs the longer timeout precisely because
+        // it is the slow one; the measured call below keeps the default so a real regression
+        // still fails fast.
+        await using (var warmupContext = fixture.CreateMaintenanceDbContext())
+        {
+            _ = await new UserChatRepository(warmupContext).SearchAsync(
+                userId, ConversationView.Active, null, null, null, ConversationSort.Alphabetical, null, pageSize: 50, CancellationToken.None);
+        }
 
         var stopwatch = Stopwatch.StartNew();
         var (items, nextCursor) = await repository.SearchAsync(
@@ -66,12 +77,22 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
                 var batch = Enumerable.Range(batchStart, Math.Min(1000, MessageCountInLargeConversation - batchStart))
                     .Select(i => Message.Create(chat.Id, MessageRole.User, MessageKind.Text, $"Message {i}", null, userId));
                 seedContext.Messages.AddRange(batch);
-                await seedContext.SaveChangesAsync();
+                await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
         }
 
         await using var dbContext = fixture.CreateDbContext();
         var repository = new MessageRepository(dbContext);
+
+        // Warm-up run, result discarded. These thresholds guard the query plan, but the first
+        // read after a bulk seed is a cold one and on this shared host that is the entire
+        // measurement — see docs/TESTING.md §13. It needs the longer timeout precisely because
+        // it is the slow one; the measured call below keeps the default so a real regression
+        // still fails fast.
+        await using (var warmupContext = fixture.CreateMaintenanceDbContext())
+        {
+            _ = await new MessageRepository(warmupContext).ListPagedByChatIdAsync(chat.Id, cursor: null, pageSize: 50, CancellationToken.None);
+        }
 
         var stopwatch = Stopwatch.StartNew();
         var (items, _) = await repository.ListPagedByChatIdAsync(chat.Id, cursor: null, pageSize: 50, CancellationToken.None);

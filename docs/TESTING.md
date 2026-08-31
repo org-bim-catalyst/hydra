@@ -241,6 +241,45 @@ listing the migration names — check it after every deploy, and whenever
 `dotnet ef database update --project src/AskLucy.Persistence --startup-project src/AskLucy.Web`
 against it manually; nothing else will.
 
+## Scale-performance tests measure the query, not the host's cold storage
+
+The scale tests (`ConversationScalePerformanceTests`, `KnowledgeBaseScalePerformanceTests`,
+`PromptSearchScaleTests`, `MemoryRetrievalPerformanceTests`) seed thousands of rows and then time
+a single query against a documented threshold. Their own doc comments state the purpose: a
+regression guard for the **query plan**.
+
+The measured call is therefore preceded by an identical warm-up run whose result is discarded.
+Without it the timed call is the *first* read of freshly-seeded rows, which on this shared
+site4now.net instance is dominated by physical IO rather than by anything the repository does.
+Measured on the conversation search, same query, same plan, same statistics:
+
+| Run | CPU time | Elapsed |
+|---|---|---|
+| Cold | 0 ms | **15,129 ms** |
+| Warm | 47 ms | **83 ms** |
+
+Zero CPU in the cold run: it was waiting on storage, not working. A 3-second threshold applied to
+that number tests the host's disk, and fails on it.
+
+Two consequences worth knowing:
+
+* **The warm-up runs on `fixture.CreateMaintenanceDbContext()`**, whose command timeout is far
+  above the 30 s default, because the warm-up is by definition the slow one. The timed call must
+  keep using `fixture.CreateDbContext()` so a query that has genuinely regressed still fails fast.
+* **A previous diagnosis of these same failures was wrong.** On 2026-08-18 the same suites failed
+  at the same magnitudes and `EXEC sp_updatestats` appeared to fix them, which was recorded as a
+  stale-statistics problem. `sp_updatestats` reads every table, so it warmed the buffer pool as a
+  side effect. When it recurred on 2026-08-31 the statistics were confirmed fresh — 10,000 rows,
+  modification counter 0 — and the query still took 30 s. Statistics were probably never the
+  cause. If these tests fail again, compare CPU time against elapsed time before touching
+  statistics or query plans.
+
+`PersistenceTestFixture.InitializeAsync` uses the same long timeout for the same reason: a run
+that dies part-way leaves its seed data behind, so the next run's reset has tens of thousands of
+rows and a fully-populated full-text catalog to clear. At the default timeout that reset threw,
+which failed the whole collection and left the data behind again — one failure and every
+subsequent run failed until the database was cleared by hand.
+
 ---
 
 # 14. API Tests

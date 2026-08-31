@@ -70,9 +70,30 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
         return connectionString;
     }
 
+    /// <summary>
+    /// Command timeout for the reset below, well past the 30 s default.
+    ///
+    /// <para>
+    /// The reset deletes every row and rebuilds three full-text catalogs against a shared
+    /// site4now.net instance whose throughput is not ours to control. When a run dies part-way
+    /// (a failing test, a cancelled CI job) it leaves the seed data behind — tens of thousands of
+    /// rows plus a fully-populated ConversationSearchCatalog — so the *next* run's reset has far
+    /// more to do than a clean one. At the default timeout that reset threw, which failed the
+    /// whole collection at InitializeAsync and left the data behind again: a run that fails once
+    /// stays failing until someone clears the database by hand.
+    /// </para>
+    ///
+    /// <para>
+    /// Deliberately scoped to this method rather than to <see cref="CreateDbContext"/>: the scale
+    /// tests measure query time against contexts from that method, and a query that should take
+    /// under a second must still fail fast rather than grind on for minutes.
+    /// </para>
+    /// </summary>
+    private const int MaintenanceCommandTimeoutSeconds = 600;
+
     public async ValueTask InitializeAsync()
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = CreateDbContext(MaintenanceCommandTimeoutSeconds);
 
         // Clears every EF-mapped table's data (schema untouched) so each run starts from the
         // same empty-tables state a fresh Testcontainers instance gave, without ever touching
@@ -164,10 +185,34 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
     // analyzer, with no behavioral benefit and a large, purely-mechanical diff across the whole
     // suite.
 #pragma warning disable CA1822
-    public AskLucyDbContext CreateDbContext()
+    public AskLucyDbContext CreateDbContext() => CreateDbContext(commandTimeoutSeconds: null);
+
+    /// <summary>
+    /// A context whose commands may take as long as this shared host needs — for seeding and for
+    /// the warm-up read a scale test does before it starts timing.
+    /// </summary>
+    /// <remarks>
+    /// The measured call must still use <see cref="CreateDbContext"/>, so a query that has
+    /// genuinely regressed fails fast instead of grinding on for ten minutes. Only the work
+    /// either side of the stopwatch belongs here.
+    /// </remarks>
+    public AskLucyDbContext CreateMaintenanceDbContext() => CreateDbContext(MaintenanceCommandTimeoutSeconds);
+
+    /// <summary>
+    /// <paramref name="commandTimeoutSeconds"/> is <see langword="null"/> for test contexts, which
+    /// keeps SqlClient's 30 s default so a query that has gone wrong fails fast. Only the
+    /// fixture's own bulk maintenance passes a value.
+    /// </summary>
+    private static AskLucyDbContext CreateDbContext(int? commandTimeoutSeconds)
     {
         var options = new DbContextOptionsBuilder<AskLucyDbContext>()
-            .UseSqlServer(ResolveConnectionString())
+            .UseSqlServer(ResolveConnectionString(), sql =>
+            {
+                if (commandTimeoutSeconds is { } seconds)
+                {
+                    sql.CommandTimeout(seconds);
+                }
+            })
             .Options;
 
         return new AskLucyDbContext(options, new Base64MemoryContentProtector());

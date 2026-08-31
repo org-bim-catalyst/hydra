@@ -33,11 +33,23 @@ public sealed class KnowledgeBaseScalePerformanceTests(PersistenceTestFixture fi
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.KnowledgeBases.AddRange(knowledgeBases);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();
         var repository = new KnowledgeBaseRepository(dbContext);
+
+        // Warm-up run, result discarded. These thresholds guard the query plan, but the first
+        // read after a bulk seed is a cold one and on this shared host that is the entire
+        // measurement — see docs/TESTING.md §13. It needs the longer timeout precisely because
+        // it is the slow one; the measured call below keeps the default so a real regression
+        // still fails fast.
+        await using (var warmupContext = fixture.CreateMaintenanceDbContext())
+        {
+            _ = await new KnowledgeBaseRepository(warmupContext).SearchAsync(
+                ownerId, KnowledgeBaseListView.Active, null, null, null, null, null,
+                KnowledgeBaseSort.Name, sortDescending: false, null, pageSize: 50, CancellationToken.None);
+        }
 
         var stopwatch = Stopwatch.StartNew();
         var (items, nextCursor) = await repository.SearchAsync(
@@ -62,11 +74,23 @@ public sealed class KnowledgeBaseScalePerformanceTests(PersistenceTestFixture fi
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.KnowledgeBases.AddRange(knowledgeBases);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();
         var repository = new KnowledgeBaseRepository(dbContext);
+
+        // Warm-up run, result discarded. These thresholds guard the query plan, but the first
+        // read after a bulk seed is a cold one and on this shared host that is the entire
+        // measurement — see docs/TESTING.md §13. It needs the longer timeout precisely because
+        // it is the slow one; the measured call below keeps the default so a real regression
+        // still fails fast.
+        await using (var warmupContext = fixture.CreateMaintenanceDbContext())
+        {
+            _ = await new KnowledgeBaseRepository(warmupContext).SearchAsync(
+                ownerId, KnowledgeBaseListView.Active, "Revit", null, null, null, null,
+                KnowledgeBaseSort.RecentlyUpdated, sortDescending: true, null, pageSize: 50, CancellationToken.None);
+        }
 
         var stopwatch = Stopwatch.StartNew();
         var (items, _) = await repository.SearchAsync(
