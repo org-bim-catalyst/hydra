@@ -3,7 +3,6 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Prompts;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
-using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.Prompts;
 

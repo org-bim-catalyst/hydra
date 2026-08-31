@@ -3,7 +3,6 @@ using AskLucy.Application.KnowledgeBases;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
-using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.KnowledgeBases;
 

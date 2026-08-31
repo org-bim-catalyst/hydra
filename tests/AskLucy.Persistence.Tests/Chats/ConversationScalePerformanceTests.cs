@@ -3,7 +3,6 @@ using AskLucy.Application.Chats.Queries.SearchUserChats;
 using AskLucy.Domain.Chats;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
-using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.Chats;
 
