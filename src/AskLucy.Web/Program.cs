@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using System.Threading.RateLimiting;
 using AskLucy.Application;

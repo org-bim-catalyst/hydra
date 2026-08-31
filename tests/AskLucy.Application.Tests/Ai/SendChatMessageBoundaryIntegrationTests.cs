@@ -1,4 +1,4 @@
-﻿using AskLucy.Application.Abstractions;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
