@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Threading.RateLimiting;
 using AskLucy.Application;
@@ -653,12 +653,14 @@ if (app.Environment.IsDevelopment())
 // worked in Production and returned NotFound locally with nothing in the logs to say why.
 // Stated once at startup so that divergence can never again read as a code regression.
 var hasGeocodingKey = !string.IsNullOrWhiteSpace(app.Configuration["Geocoding:GoogleMapsApiKey"]);
-#pragma warning disable CA1848
+// CA1873 is a false positive here: it flags the call even after the arguments are hoisted into
+// plain locals, and this is a single startup statement, not a hot path — nothing to defer.
+#pragma warning disable CA1848, CA1873
 app.Logger.LogInformation(
     "Geocoding provider: {Provider} (Geocoding:GoogleMapsApiKey {KeyState}).",
     hasGeocodingKey ? "GoogleMaps" : "Nominatim",
     hasGeocodingKey ? "configured" : "not configured");
-#pragma warning restore CA1848
+#pragma warning restore CA1848, CA1873
 
 app.Run();
 
