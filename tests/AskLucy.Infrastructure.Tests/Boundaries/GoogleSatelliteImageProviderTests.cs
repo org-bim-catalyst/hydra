@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Web;
@@ -53,7 +54,7 @@ public sealed class GoogleSatelliteImageProviderTests
     }
 
     private static int ZoomOf(Uri uri) =>
-        int.Parse(HttpUtility.ParseQueryString(uri.Query)["zoom"]!);
+        int.Parse(HttpUtility.ParseQueryString(uri.Query)["zoom"]!, CultureInfo.InvariantCulture);
 
     [Fact]
     public async Task FetchAsync_ShouldRequestSatelliteImageryFromGoogle_AtDoubleResolution()
@@ -69,6 +70,10 @@ public sealed class GoogleSatelliteImageProviderTests
         // being a pixel wide and being several.
         query.Should().Contain("scale=2");
         query.Should().Contain("size=640x640");
+        // JPEG, not PNG: these bytes ride inside the vision request, so their size is part of the
+        // 30s vision budget. The same frame is 1.51 MB base64 as PNG and 449 KB as JPEG, and
+        // requests carrying the PNG were still in flight when the budget expired.
+        query.Should().Contain("format=jpg");
     }
 
     /// <summary>
