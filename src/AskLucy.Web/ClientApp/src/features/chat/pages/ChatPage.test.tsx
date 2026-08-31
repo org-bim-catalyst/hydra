@@ -1463,6 +1463,42 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(screen.queryByText(/__MESSAGE_BREAK__/)).not.toBeInTheDocument()
   })
 
+  /**
+   * Auto-speak used to read `messages[length - 1]` and require an `id` on it. Splitting the
+   * boundary confirmation into its own bubble broke both halves at once: the last message became
+   * the confirmation, so the reply went unspoken, and the confirmation carries no server id — only
+   * the turn's first message gets one — so the id guard silenced the turn outright. Lucy simply
+   * stopped talking on every "show me" query.
+   */
+  it('speaks every message of a split turn, including the one with no server id', async () => {
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream([
+          'Centred the viewer on Al Safa Park 2.',
+          '__MESSAGE_BREAK__',
+          "I've outlined the site boundary.",
+        ])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalled())
+
+    const spoken = speak.mock.calls.at(-1)![0]
+    expect(spoken).toContain('Centred the viewer on Al Safa Park 2.')
+    expect(spoken).toContain("I've outlined the site boundary.")
+  })
+
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
