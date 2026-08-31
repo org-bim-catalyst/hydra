@@ -14,13 +14,28 @@ internal static partial class EsriSatelliteImageProviderLog
 }
 
 /// <summary>
-/// specs/042-site-boundary-resolution — a direct port of the reference notebook's
-/// <c>get_satellite_image_for_boundary</c>: ESRI World Imagery's free, no-key export endpoint
-/// (same source already used for basemap imagery elsewhere in the reference material). Never
-/// throws (constitution §VIII) — a failed fetch returns <see langword="null"/>, and
+/// Keyless fallback imagery for the vision cross-check, from ESRI World Imagery's free export
+/// endpoint. Registered only when no Google Maps key is configured.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="GoogleSatelliteImageProvider"/> is the primary provider and should stay that way
+/// wherever a key exists. What the analyzer reads off this image is used to reposition an outline
+/// that is then drawn on Google's basemap; read off a different vendor's imagery, even a perfect
+/// trace lands wherever the two vendors disagree, which is a frame swap rather than a correction.
+/// This provider can therefore position a boundary no better than ESRI and Google happen to
+/// agree — acceptable as a degraded mode, not as the default.
+/// </para>
+/// <para>
+/// It also takes the requested radius literally with no framing logic, so callers that want the
+/// site to fill the image must size the radius themselves.
+/// </para>
+/// <para>
+/// Never throws (constitution §VIII) — a failed fetch returns <see langword="null"/>, and
 /// <see cref="AskLucy.Application.SiteBoundaries.BoundaryResolutionService"/> treats that as
 /// "AI vision verification unavailable this run," not an error.
-/// </summary>
+/// </para>
+/// </remarks>
 internal sealed class EsriSatelliteImageProvider(
     IHttpClientFactory httpClientFactory,
     ILogger<EsriSatelliteImageProvider> logger) : ISatelliteImageProvider

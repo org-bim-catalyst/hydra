@@ -48,7 +48,8 @@ That fork at `C` is the whole point of spec 044. Before it, `D` was a prerequisi
 | `BoundaryResolutionService` | Application | Overpass search → deterministic scoring → optional vision → final polygon. |
 | `OverpassBoundaryCandidateProvider` | Infrastructure | OSM Overpass query, tag-scoped to curated `leisure`/`amenity` values. |
 | `BoundaryCandidateScorer` | Application | Weighted score: source 0.35, name 0.20, geometry 0.15, proximity 0.20, land-use 0.10. |
-| `EsriSatelliteImageProvider` | Infrastructure | 640×640 PNG from ESRI World Imagery. Keyless. Returns `null` on failure. |
+| `GoogleSatelliteImageProvider` | Infrastructure | Google Static Maps satellite PNG, framed on the candidate at `scale=2` (~0.27 m/px at park scale). Returns `null` on failure. |
+| `EsriSatelliteImageProvider` | Infrastructure | Keyless fallback, registered only when no Google Maps key is configured. Different reference frame from the viewer — see §9.5. |
 | `GeminiBoundaryVisionAnalyzer` | Infrastructure | Multimodal `generateContent`. Picks a candidate **and** reports what it visually sees. |
 | `RecordActiveLocationCommand` | Application | Persists `ActiveLocation` **and** clears a stale `ActiveBoundary`, atomically. |
 | `RecordActiveSiteBoundaryCommand` | Application | Persists `ActiveBoundary`. |
@@ -84,7 +85,7 @@ sequenceDiagram
     participant GEO as Geocoding
     participant BND as BoundaryResolution<br/>Service
     participant OSM as Overpass
-    participant VIS as ESRI + Gemini
+    participant VIS as Google imagery + Gemini
     participant DB as UserChat
     participant V as Viewer
 
@@ -125,9 +126,9 @@ sequenceDiagram
     BND->>OSM: SearchAsync(centre, 500m)
     OSM-->>BND: candidate ways/relations
     BND->>BND: ScoreAll(...)
-    BND->>VIS: fetch image → analyse
-    VIS-->>BND: selected id + confidence
-    BND->>BND: pick the candidate<br/>(geometry used as mapped)
+    BND->>VIS: fetch image (framed on candidate) → analyse
+    VIS-->>BND: selected id + observed boundary
+    BND->>BND: pick candidate, then translate<br/>its mapped ring onto the observed one
     BND-->>H: ConfirmedSiteBoundary
 
     H-->>API: chunk{ConfirmationText, StartsNewMessage}
@@ -211,7 +212,7 @@ This is the part worth reviewing closely.
 flowchart TB
     subgraph OLD["❌ Before (88b631a → 8e83b8f)"]
         direction TB
-        A1[compute confirmedLocation] --> A2["await boundary<br/>Overpass + ESRI + Gemini<br/>UNGUARDED, UNBOUNDED"]
+        A1[compute confirmedLocation] --> A2["await boundary<br/>Overpass + imagery + Gemini<br/>UNGUARDED, UNBOUNDED"]
         A2 --> A3["yield chunk<br/>location + boundary together"]
         A3 --> A4["controller drains stream"]
         A4 --> A5[write __LOCATION__]
@@ -348,7 +349,7 @@ If a place query works deployed and not locally, read the startup line
 | Geocoding | 0.2–1 s | 30 s client | `"Geocoding"` HttpClient |
 | Location wait after text ends | ~0 s | **30 s** | `LocationResolution:ResolutionCeilingSeconds` |
 | Overpass | 2–10 s | 30 s client | `"Overpass"` HttpClient |
-| ESRI imagery | 1–3 s | 30 s client | `"EsriWorldImagery"` HttpClient |
+| Google satellite imagery | 1–3 s | 30 s client | `"GoogleStaticMaps"` HttpClient |
 | Gemini vision | 5–20 s | **30 s** | `BoundaryScoring:VisionTimeoutSeconds` |
 | **Whole boundary step** | **10–30 s** | **45 s** | `BoundaryScoring:BoundaryTimeoutSeconds` |
 
@@ -368,7 +369,7 @@ rejected for it: a slow-but-healthy Overpass run alone can consume 30 s.
 | Location emitted first | It is the **mandatory** outcome; the boundary is **optional**. Treating them symmetrically is exactly what let one damage the other. |
 | Protection at two layers | Different invariants: the service-level wrap keeps *vision optional*; the handler-level catch-all keeps the *turn intact* regardless of the service's internals. |
 | Stale-clear in `RecordActiveLocationCommandHandler` | It already loads the chat and owns the unit of work, so the clear is atomic. Critically, it fires even when **no boundary command ever arrives** — the failure case. |
-| Vision selects, it never moves geometry | Two repositioning steps were tried and both made the outline worse; see §9.5. The mapped ring is drawn exactly as OSM has it. |
+| OSM supplies the shape, vision supplies the position | The mapped ring is surveyed and carries the mappers' detail; what it does not guarantee is sitting on the fence. Vision contributes one translation, applied to every vertex unchanged. See §9.5. |
 | No client changes | `aiApi.ts` dispatches by prefix with no ordering state; `useChatStream` already cleared stale overlays. Verified, not assumed. |
 
 ---
@@ -394,31 +395,34 @@ Things a reviewer should push on.
    confidence classification, source description, and message composition in one class. It is
    coherent but close to the edge.
 
-5. **The offset was self-inflicted, and it took three attempts to see it.** Two correction steps
-   were built on the assumption that OSM's ring sat in a different frame from the viewer's Google
-   basemap:
+5. **Two of the three corrections tried here were wrong, and one was right.** The history is
+   worth keeping, because each was plausible and only measurement separated them.
 
-   | Step | What it did | Why it was wrong |
+   | Step | What it did | Verdict |
    |---|---|---|
-   | Vision reposition | Translated the ring onto Gemini's read of an ESRI World Imagery crop | ESRI is a *third* frame; a correct read of the wrong image still lands wrong |
-   | Basemap alignment | Snapped the ring's centroid onto the geocoded point | For a park Google returns an establishment POI (`location_type` ROOFTOP, `bounds` null) — a marker placed *inside* the polygon, not its centre |
+   | Basemap alignment | Snapped the ring's centroid onto the geocoded point | **Removed.** For a park Google returns an establishment POI (`location_type` ROOFTOP, `bounds` null) — a marker placed *inside* the polygon, not its centre. It dragged a correct ring 24 m north-west. |
+   | Vision replaces geometry | Substituted Gemini's traced outline for the mapped one | **Removed.** The trace is a four- or five-point approximation; substituting it discards whatever detail the mappers surveyed. |
+   | Vision repositions geometry | Translates the mapped ring by the offset between its centroid and the observed one | **Kept.** Every mapped vertex is carried along unchanged. |
 
-   Neither assumption was ever measured. Drawing the raw OSM ring on a Google Static Maps render
-   of the same ground settles it in one image: for Al Safa Park 2 the ring already lands on
-   Google's own park polygon to within a few metres. The basemap alignment was dragging a correct
-   ring 24 m north-west — which was the reported offset, in the reported direction.
+   The third was briefly removed too, on the evidence that OSM's ring already matched Google's
+   *drawn* park polygon. That comparison was between two vendors' opinions, neither of which is
+   ground truth. Against satellite imagery the ring does sit a little off the visible wall, which
+   is what the correction is for.
 
-   Both steps are gone. Gemini still picks *which* candidate is the site; it no longer moves
-   geometry. **The lesson worth keeping: a geometric correction is a measurement, and this one was
-   never measured against the surface it renders on.**
+   Two inputs had to change before the correction could work at all. The imagery came from ESRI
+   World Imagery — a third reference frame, so a correct read still landed wherever ESRI and
+   Google disagree. And it was requested at the 500 m search radius, so a 90 × 166 m park sat in a
+   1 km frame with no fence more than a pixel wide; nothing could be traced from it however good
+   the model. Both are fixed: Google Static Maps, framed on the candidate, at `scale=2`.
 
-6. **Zoom uses a hardcoded altitude table.** `LOCATION_TYPE_ALTITUDE` is a literal inside a React
-   component, re-created on every render, and only used when `viewport` is absent.
+   **What this can and cannot do.** It fixes *position*. It cannot add detail the mapped ring does
+   not have — translating a rectangle yields a rectangle. Al Safa Park 2's OSM way, for instance,
+   has seven points but only four corners; the other three sit on straight edges, 0.05 m, 0.00 m
+   and 0.32 m off the line. If a real fence steps in and out, moving individual vertices would be
+   a separate change.
 
-7. **Test-only environmental coupling.** `AskLucy.Web.Tests` silently falls back to LocalDB and
-   fails ~30 tests when `PERSISTENCE_TESTS_CONNECTION_STRING` is unset — a failure mode that looks
-   like a code regression but isn't.
-
+   **The lesson worth keeping:** a geometric correction is a measurement. Compare against ground
+   truth — imagery — not against another vendor's drawing.
 ---
 
 ## 10. Where to look in the code

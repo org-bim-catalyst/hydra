@@ -235,18 +235,17 @@ public sealed class BoundaryResolutionServiceTests
         Reasoning: ["Matches visible fence line."], Issues: [], RequiresRefinement: false, ObservedBoundary: observedBoundary);
 
     /// <summary>
-    /// Gemini's read never moves the outline.
+    /// OSM supplies the shape, Gemini supplies the position.
     ///
     /// <para>
-    /// It used to: a plausible observed boundary translated the mapped ring onto its centroid.
-    /// The read is taken from an ESRI World Imagery crop while the viewer draws on Google's
-    /// basemap, so the "correction" swapped one reference frame for another on geometry that was
-    /// already in the right place. Gemini still picks which candidate is the site — that part
-    /// works and is asserted elsewhere in this file.
+    /// The read contributes exactly one thing — the translation between where OSM puts the site
+    /// and where the image shows it. Every mapped vertex is carried along unchanged, because the
+    /// observed outline is a model's traced approximation and substituting it discards whatever
+    /// detail the mappers surveyed.
     /// </para>
     /// </summary>
     [Fact]
-    public async Task ResolveAsync_ShouldKeepTheMappedGeometryExactly_WhenGeminiReadsADifferentPosition()
+    public async Task ResolveAsync_ShouldTranslateTheMappedRing_OntoTheBoundaryGeminiSees()
     {
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { Candidate() });
@@ -259,11 +258,46 @@ public sealed class BoundaryResolutionServiceTests
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        // The observed ring is the mapped one under the same shift, so a correct translation
+        // lands exactly on it — but it got there by moving OSM's vertices, not by adopting the trace.
         outcome.ConfirmedBoundary!.Polygon.Should().BeEquivalentTo(
-            SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering().Using<double>(
+            observed, opts => opts.WithStrictOrdering().Using<double>(
                 ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
-        outcome.ConfirmedBoundary.Source.Should().Be(SiteBoundarySource.OsmBoundary);
-        outcome.ConfirmationText.Should().NotContain("repositioned");
+        outcome.ConfirmedBoundary.SourceDetail.Should().Contain("shifted");
+    }
+
+    /// <summary>
+    /// The image is framed on the site, not on the search radius.
+    ///
+    /// <para>
+    /// At the search radius a 90 x 166 m park sat inside a 1 km frame a few pixels across, with no
+    /// fence resolvable at any resolution — the analyzer was being asked to trace something the
+    /// image did not contain. This is the fix for that, and it is invisible in every other
+    /// assertion here, so it needs its own.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldRequestImagery_FramedOnTheCandidateRatherThanTheSearchRadius()
+    {
+        _options.SearchRadiusMeters = 500;
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        // No observed boundary: this test is about the image that gets requested, not what the
+        // analyzer then makes of it.
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary([]) with { ObservedBoundary = null });
+
+        await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        // SamplePolygon spans roughly 100 x 110 m, so its framing radius is well under the 500 m
+        // search radius and comfortably above the 60 m floor.
+        await _satelliteImageProvider.Received(1).FetchAsync(
+            Arg.Any<GeoPoint>(),
+            Arg.Is<int>(radius => radius > 60 && radius < 200),
+            Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -499,17 +533,12 @@ public sealed class BoundaryResolutionServiceTests
     }
 
     /// <summary>
-    /// specs/044 T022 (FR-008, SC-005), inverted.
-    ///
-    /// <para>
-    /// This used to assert the opposite — that a plausible observed boundary overrode
-    /// positionally-wrong OSM geometry. Measured against Google's basemap the OSM geometry was
-    /// not wrong, and the override was itself the offset users kept reporting. Vision informs
-    /// candidate selection; it does not move geometry.
-    /// </para>
+    /// specs/044 T022 (FR-008, SC-005) — the guard that vision must still DO its job. A plausible
+    /// observed boundary repositions the mapped ring; a fix that quietly disabled this would pass
+    /// every other test in this file.
     /// </summary>
     [Fact]
-    public async Task ResolveAsync_ShouldNotApplyAVisionGeometryCorrection_EvenWhenTheObservedBoundaryIsPlausible()
+    public async Task ResolveAsync_ShouldApplyTheVisionOffset_WhenTheObservedBoundaryIsPlausible()
     {
         _options.EnableAiVisionVerification = true;
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
@@ -517,7 +546,7 @@ public sealed class BoundaryResolutionServiceTests
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
 
-        // Same shape and size as the mapped candidate but nudged — the case that used to win.
+        // Same shape and size as the mapped candidate but nudged — the positional-offset case.
         var observed = new List<GeoPoint>
         {
             new(25.1561, 55.2211), new(25.1561, 55.2221),
@@ -533,11 +562,10 @@ public sealed class BoundaryResolutionServiceTests
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
-        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
-        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(
-            SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering().Using<double>(
+        outcome.ConfirmedBoundary!.Polygon.Should().BeEquivalentTo(
+            observed, opts => opts.WithStrictOrdering().Using<double>(
                 ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
-        outcome.ConfirmationText.Should().NotContain("repositioned");
+        outcome.ConfirmationText.Should().Contain("shifted");
     }
 
     /// <summary>
