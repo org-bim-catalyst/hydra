@@ -101,6 +101,7 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             budget.CancelAfter(TimeSpan.FromSeconds(boundaryOptions.Value.VisionTimeoutSeconds));
             var visionToken = budget.Token;
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(boundaryOptions.Value.VisionTimeoutSeconds);
 
             var payload = BuildPayload(image, rankedCandidates, siteName, center);
 
@@ -130,7 +131,12 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
                     var status = (int)response.StatusCode;
                     GeminiBoundaryVisionAnalyzerLog.RequestFailed(logger, status, body);
 
-                    if (attempt >= MaxAttempts || !IsTransient(response.StatusCode))
+                    // A retry is only worth starting if the budget can actually pay for it.
+                    // On 2026-08-31 a fast 503 was retried with 27 s left, the second attempt ran
+                    // until the budget expired, and the turn spent that time to reach the same
+                    // answer it already had. Failing fast is better than failing slowly.
+                    var remaining = deadline - DateTimeOffset.UtcNow - (RetryDelay * attempt);
+                    if (attempt >= MaxAttempts || !IsTransient(response.StatusCode) || remaining < MinimumBudgetForRetry)
                     {
                         return BoundaryVisionAnalysis.NotConfigured($"Gemini vision request failed ({status}).");
                     }
@@ -270,6 +276,9 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
     /// <summary>Multiplied by the attempt number, so the waits are ~1s then ~2s.</summary>
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
+
+    /// <summary>Budget a retry needs left on the clock to be worth starting at all.</summary>
+    private static readonly TimeSpan MinimumBudgetForRetry = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Statuses worth a second attempt: the model being busy or rate-limited says nothing about

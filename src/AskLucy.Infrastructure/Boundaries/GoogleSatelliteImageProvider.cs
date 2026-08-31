@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Geocoding;
@@ -43,6 +43,14 @@ internal static partial class GoogleSatelliteImageProviderLog
 /// several pixels wide and a corner is unambiguous.
 /// </para>
 /// <para>
+/// <b>Encoding.</b> JPEG, not PNG. The bytes are uploaded to the vision model inside the
+/// request body, so their size is part of the vision budget: the same 1280 px frame is
+/// 1.13 MB as PNG and 337 KB as JPEG — 1.51 MB versus 449 KB once base64-encoded. Requests
+/// carrying the PNG were still in flight when the 30 s budget expired. Lossy compression
+/// costs nothing that matters here; the model is looking for walls and tree lines, not
+/// pixel-exact colour.
+/// </para>
+/// <para>
 /// Keeps <see cref="ISatelliteImageProvider"/>'s never-throws contract: a failed fetch returns
 /// <see langword="null"/> and the caller treats that as "vision unavailable this run".
 /// </para>
@@ -79,16 +87,22 @@ internal sealed class GoogleSatelliteImageProvider(
             var zoom = ChooseZoomToFit(center.Latitude, radiusMeters);
             var (west, south, east, north) = CoveredBounds(center, zoom);
 
-            var metersPerPixel = MetersPerPixel(center.Latitude, zoom);
-            GoogleSatelliteImageProviderLog.Framed(
-                logger, center.Latitude, center.Longitude, radiusMeters, zoom,
-                (int)(metersPerPixel * ImageSizePixels), Math.Round(metersPerPixel / 2, 3));
+            // Framed is Debug-only and the framing maths exists solely to feed it, so the whole
+            // block stays behind IsEnabled rather than costing a trig call per fetch in
+            // Production, where Debug is off (CA1873).
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                var metersPerPixel = MetersPerPixel(center.Latitude, zoom);
+                GoogleSatelliteImageProviderLog.Framed(
+                    logger, center.Latitude, center.Longitude, radiusMeters, zoom,
+                    (int)(metersPerPixel * ImageSizePixels), Math.Round(metersPerPixel / 2, 3));
+            }
 
             var url = "staticmap"
                 + $"?center={center.Latitude.ToString("R", CultureInfo.InvariantCulture)},{center.Longitude.ToString("R", CultureInfo.InvariantCulture)}"
                 + $"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}"
                 + $"&size={ImageSizePixels}x{ImageSizePixels}"
-                + "&scale=2&maptype=satellite&format=png"
+                + "&scale=2&maptype=satellite&format=jpg"
                 + $"&key={Uri.EscapeDataString(apiKey)}";
 
             // Not disposed: the client comes from the factory, whose handler lifetime it manages.

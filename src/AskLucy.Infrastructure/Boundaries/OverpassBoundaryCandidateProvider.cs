@@ -88,13 +88,33 @@ internal sealed class OverpassBoundaryCandidateProvider(
 
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// The primary endpoint first, then each mirror. Retries within a host are pointless when the
+    /// host itself is saturated, which is the failure that actually happens: overpass-api.de
+    /// answered 504 three times in a row, ~10 s apart, and the site was left with no boundary.
+    /// </summary>
+    private IEnumerable<string> Endpoints()
+    {
+        yield return _options.SearchBaseUrl;
+        foreach (var mirror in _options.MirrorBaseUrls ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(mirror) && mirror != _options.SearchBaseUrl)
+            {
+                yield return mirror;
+            }
+        }
+    }
+
     public async Task<IReadOnlyList<BoundaryCandidate>> SearchAsync(GeoPoint center, int radiusMeters, CancellationToken cancellationToken = default)
     {
+        var endpoints = Endpoints().ToList();
         for (var attempt = 1; ; attempt++)
         {
+            // Each attempt moves to the next host, wrapping once the list is exhausted.
+            var endpoint = endpoints[(attempt - 1) % endpoints.Count];
             try
             {
-                return await SearchOnceAsync(center, radiusMeters, cancellationToken);
+                return await SearchOnceAsync(endpoint, center, radiusMeters, cancellationToken);
             }
             catch (BoundaryProviderUnavailableException) when (attempt < MaxAttempts && !cancellationToken.IsCancellationRequested)
             {
@@ -104,7 +124,8 @@ internal sealed class OverpassBoundaryCandidateProvider(
         }
     }
 
-    private async Task<IReadOnlyList<BoundaryCandidate>> SearchOnceAsync(GeoPoint center, int radiusMeters, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<BoundaryCandidate>> SearchOnceAsync(
+        string baseUrl, GeoPoint center, int radiusMeters, CancellationToken cancellationToken)
     {
         try
         {
@@ -114,7 +135,7 @@ internal sealed class OverpassBoundaryCandidateProvider(
             var httpClient = httpClientFactory.CreateClient("Overpass");
 
             var query = BuildQuery(center, radiusMeters);
-            var url = $"{_options.SearchBaseUrl}interpreter";
+            var url = $"{baseUrl}interpreter";
             using var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
                 Content = new FormUrlEncodedContent([new KeyValuePair<string, string>("data", query)]),

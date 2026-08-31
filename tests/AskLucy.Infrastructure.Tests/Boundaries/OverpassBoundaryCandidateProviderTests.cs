@@ -50,6 +50,51 @@ public sealed class OverpassBoundaryCandidateProviderTests
         return new OverpassBoundaryCandidateProvider(factory, options, NullLogger<OverpassBoundaryCandidateProvider>.Instance);
     }
 
+    /// <summary>
+    /// The saturated host is the load balancer, not the data.
+    ///
+    /// <para>
+    /// On 2026-08-31 <c>overpass-api.de</c> answered 504 three times ~10 s apart and the site was
+    /// left with no boundary at all; later it returned 429 on every attempt. Its cluster's own
+    /// nodes answered the same query in 1-5 s throughout. Retrying the same entry point could
+    /// never have recovered that.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldFallOverToAMirror_WhenThePrimaryIsSaturated()
+    {
+        var hosts = new List<string>();
+        var provider = CreateProvider(request =>
+        {
+            hosts.Add(request.RequestUri!.Host);
+            return hosts.Count == 1
+                ? new HttpResponseMessage(HttpStatusCode.GatewayTimeout)
+                : JsonResponse(ClosedParkWayJson);
+        }, out _);
+
+        var candidates = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        candidates.Should().NotBeEmpty("the mirror answered what the primary could not");
+        hosts.Should().HaveCount(2);
+        hosts[1].Should().NotBe(hosts[0], "the second attempt must go to a different host, not the same saturated one");
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldGiveUp_OnlyAfterEveryEndpointHasBeenTried()
+    {
+        var hosts = new List<string>();
+        var provider = CreateProvider(request =>
+        {
+            hosts.Add(request.RequestUri!.Host);
+            return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        }, out _);
+
+        var act = async () => await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<BoundaryProviderUnavailableException>();
+        hosts.Distinct().Should().HaveCountGreaterThan(1, "giving up must not mean hammering one host three times");
+    }
+
     private static HttpResponseMessage JsonResponse(string json) =>
         new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
