@@ -89,8 +89,12 @@ export type ChatStreamEvent =
   /**
    * The server finished one assistant message and started another. Deltas that follow belong to
    * the new one; the text so far is complete and already persisted server-side.
+   *
+   * `pendingLabel` is present when the break was announced *before* the work that fills the new
+   * message — "Finding the site boundary" — so the caller can say what is happening instead of
+   * leaving the reply looking finished and silent for tens of seconds.
    */
-  | { type: 'messageBreak' }
+  | { type: 'messageBreak'; pendingLabel: string | null }
   | {
       type: 'siteBoundary'
       siteName: string
@@ -274,10 +278,16 @@ export async function* streamChat(
         continue
       }
 
-      // Checked before the content fallback, and matched exactly rather than by prefix: the
-      // marker carries no payload, so a line that merely starts with it is ordinary text.
+      // Checked before the content fallback. The marker is either bare or followed
+      // immediately by its JSON payload, so a line that starts with it and continues with
+      // anything else is ordinary text, not a malformed event.
       if (data === MESSAGE_BREAK_EVENT) {
-        yield { type: 'messageBreak' }
+        yield { type: 'messageBreak', pendingLabel: null }
+        continue
+      }
+      if (data.startsWith(`${MESSAGE_BREAK_EVENT}{`)) {
+        const payload = JSON.parse(data.slice(MESSAGE_BREAK_EVENT.length)) as { pendingLabel?: string }
+        yield { type: 'messageBreak', pendingLabel: payload.pendingLabel ?? null }
         continue
       }
 

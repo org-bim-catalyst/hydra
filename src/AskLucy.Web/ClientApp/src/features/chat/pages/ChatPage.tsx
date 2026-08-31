@@ -299,6 +299,7 @@ export function ConversationView({
   const {
     messages,
     isStreaming,
+    pendingLabel,
     error,
     clearError,
     send,
@@ -365,33 +366,47 @@ export function ConversationView({
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
   const [isManualReplay, setIsManualReplay] = useState(false)
 
-  useEffect(() => {
-    if (wasStreamingRef.current && !isStreaming) {
-      // Every assistant message this turn produced, not just the last one.
-      //
-      // A turn can end in two bubbles since the boundary confirmation was split out of the
-      // reply, and that broke this in two ways: `messages[length - 1]` was the confirmation,
-      // so the reply itself went unspoken — and the confirmation carries no server id (only
-      // the turn's first message gets one, via __MEMORY__), so the `&& last.id` guard here
-      // silenced the whole turn instead.
-      let turnStart = messages.length - 1
-      while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
-      const replies = messages.slice(turnStart + 1).filter((m) => m.role === 'assistant' && m.content)
-      const spokenText = replies.map((m) => m.content).join(' ')
+  /**
+   * Assistant messages already spoken this turn, so each is voiced exactly once.
+   *
+   * Keyed by content rather than id because the turn's first message is issued a client-side id
+   * while streaming and then re-keyed to the server's when `__MEMORY__` lands; keying on the id
+   * would speak that reply a second time the moment it changed.
+   */
+  const spokenRepliesRef = useRef(new Set<string>())
 
-      if (spokenText) {
-        tts.speak(spokenText, language)
-        // The turn's first message is the one that has an id, and the one whose replay control
-        // should read as playing.
-        setPlayingMessageId(replies[0]?.id ?? null)
-        setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
-        // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
-        // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
-        // this component's single source of truth for "is the panel open," replacing the
-        // separate `isPanelOpen` store read this effect used to compute independently.
-        if (!expanded) markUnread('chat')
-      }
-    }
+  useEffect(() => {
+    // Spoken as each reply *completes*, not when the whole turn ends.
+    //
+    // A turn can hold the stream open for tens of seconds after the reply is finished — the
+    // boundary lookup — and waiting for the end meant the reply sat there silently until the
+    // confirmation arrived. A reply is complete once another message has appeared behind it, or
+    // once streaming has stopped.
+    let turnStart = messages.length - 1
+    while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
+    if (turnStart < 0) return
+
+    // Empty placeholders are kept in this list on purpose. One of them is exactly how the
+    // server says "this reply is finished, the next is still being worked on" — filtering them
+    // out first made the finished reply look like the last one, so nothing was ever spoken until
+    // the whole turn ended.
+    const replies = messages.slice(turnStart + 1).filter((m) => m.role === 'assistant')
+
+    replies.forEach((reply, index) => {
+      const isComplete = index < replies.length - 1 || !isStreaming
+      if (!reply.content || !isComplete || spokenRepliesRef.current.has(reply.content)) return
+
+      spokenRepliesRef.current.add(reply.content)
+      tts.speak(reply.content, language)
+      setPlayingMessageId(reply.id ?? null)
+      setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
+      // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
+      // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
+      // this component's single source of truth for "is the panel open," replacing the
+      // separate `isPanelOpen` store read this effect used to compute independently.
+      if (!expanded) markUnread('chat')
+    })
+
     wasStreamingRef.current = isStreaming
   }, [isStreaming, messages, language, tts, expanded, markUnread])
 
@@ -837,7 +852,7 @@ export function ConversationView({
                         }}
                       >
                         {isThinking ? (
-                          <ThinkingIndicator />
+                          <ThinkingIndicator label={pendingLabel ?? undefined} />
                         ) : (
                           <MessageBubble
                             message={message}

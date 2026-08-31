@@ -48,7 +48,19 @@ public sealed record ChatStreamChunk(
     ConfirmedLocationData? ConfirmedLocation = null,
     ViewerZoomCommand? ViewerZoom = null,
     ConfirmedSiteBoundaryData? ConfirmedBoundary = null,
-    bool StartsNewMessage = false);
+    bool StartsNewMessage = false,
+
+    /// <summary>
+    /// What the newly-opened message is waiting for, shown to the user while it is empty.
+    /// </summary>
+    /// <remarks>
+    /// Set on a <see cref="StartsNewMessage"/> chunk that carries no text yet, so the break can be
+    /// announced <i>before</i> the slow work rather than after it. Without this the reply sat
+    /// on screen looking finished while the boundary resolved — up to 45 s of silence with
+    /// nothing to say anything was still happening, and the reply was not spoken until it was
+    /// over.
+    /// </remarks>
+    string? PendingLabel = null);
 
 /// <summary>
 /// specs/042-site-boundary-resolution — the resolved site boundary carried on the final

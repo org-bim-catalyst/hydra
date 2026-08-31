@@ -7,6 +7,8 @@ import { AiActivityIndicator } from '../../../components/AiActivityIndicator'
  * prior standalone implementation, respects `prefers-reduced-motion` (SPEC-017 FR-010),
  * superseding the earlier "always animates" decision.
  */
-export function ThinkingIndicator() {
-  return <AiActivityIndicator state="thinking" label="Ask Lucy is thinking" />
+export function ThinkingIndicator({ label }: { label?: string }) {
+  // `label` names the specific work when the server told us what it is — "Finding the site
+  // boundary" — so a long wait says what it is waiting for instead of just "thinking".
+  return <AiActivityIndicator state="thinking" label={label ?? 'Ask Lucy is thinking'} />
 }

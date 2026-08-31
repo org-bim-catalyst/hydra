@@ -91,14 +91,22 @@ public sealed partial class AiController(
         {
             // Handled before this chunk's own content goes out, so the client closes the current
             // bubble and opens a new one ahead of the first character that belongs in it.
-            if (chunk.StartsNewMessage && assistantContent.Length > 0)
+            // The break is written even when nothing is buffered — a chunk may open a
+            // message purely to say what it is waiting for. Only the persist is conditional.
+            if (chunk.StartsNewMessage)
             {
-                firstAssistantMessageId ??= await PersistAssistantMessageAsync(
-                    request, assistantContent.ToString(), provider, model, generationParametersJson,
-                    finalUsage, retrievalOutcome, cancellationToken);
-                assistantContent.Clear();
+                if (assistantContent.Length > 0)
+                {
+                    firstAssistantMessageId ??= await PersistAssistantMessageAsync(
+                        request, assistantContent.ToString(), provider, model, generationParametersJson,
+                        finalUsage, retrievalOutcome, cancellationToken);
+                    assistantContent.Clear();
+                }
 
-                await Response.WriteAsync("data: __MESSAGE_BREAK__\n\n", cancellationToken);
+                var breakPayload = chunk.PendingLabel is null
+                    ? string.Empty
+                    : JsonSerializer.Serialize(new { pendingLabel = chunk.PendingLabel });
+                await Response.WriteAsync($"data: __MESSAGE_BREAK__{breakPayload}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
 

@@ -76,9 +76,31 @@ describe('streamChat', () => {
 
     expect(events).toEqual([
       { type: 'content', delta: 'Centred the viewer on it.' },
-      { type: 'messageBreak' },
+      { type: 'messageBreak', pendingLabel: null },
       { type: 'content', delta: "I've outlined the site boundary." },
     ])
+  })
+
+  // The break is announced before the work that fills the new message, so it can say what that
+  // work is — otherwise the reply looks finished and the user waits in silence.
+  it('carries the pending label when the break announces work that has not finished', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Centred the viewer on it.\n\n',
+          'data: __MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toContainEqual({ type: 'messageBreak', pendingLabel: 'Finding the site boundary' })
   })
 
   it('treats a line that merely starts with the marker as content, since the marker carries no payload', async () => {
