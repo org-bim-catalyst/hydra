@@ -5,7 +5,6 @@ using AskLucy.Persistence.Memory;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
 using MemoryEntity = AskLucy.Domain.Memory.Memory;
-using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.Memory;
 

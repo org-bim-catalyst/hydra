@@ -9,7 +9,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.KnowledgeBases;
 
