@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Prompts;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
+using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.Prompts;
 
@@ -26,7 +27,9 @@ public sealed class PromptSearchScaleTests(PersistenceTestFixture fixture)
         new("document", null, PromptVariableType.File, true, null, null, null, 0),
     ];
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task SearchAsync_FilteredByStatus_ShouldReturnAPage_InUnderTenSeconds_At1000Prompts()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -69,7 +72,9 @@ public sealed class PromptSearchScaleTests(PersistenceTestFixture fixture)
         stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(10), "SC-003: locating a prompt via filters must complete in under 10s at 1,000+ prompts");
     }
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task SearchAsync_FullTextQuery_ShouldReturnMatches_InUnderTenSeconds_At1000Prompts()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

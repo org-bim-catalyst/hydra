@@ -3,6 +3,7 @@ using AskLucy.Application.KnowledgeBases;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
+using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.KnowledgeBases;
 
@@ -21,7 +22,9 @@ public sealed class KnowledgeBaseScalePerformanceTests(PersistenceTestFixture fi
 {
     private const int KnowledgeBaseCount = 1_000;
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task SearchAsync_ShouldReturnAPage_InUnderTwoSeconds_At1000KnowledgeBases()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -62,7 +65,9 @@ public sealed class KnowledgeBaseScalePerformanceTests(PersistenceTestFixture fi
         stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2), "SC-003: dashboard list/search/filter/sort must complete in under 2s at 1,000+ knowledge bases");
     }
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task SearchAsync_ShouldReturnAFilteredSearchPage_InUnderTwoSeconds_At1000KnowledgeBases()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
