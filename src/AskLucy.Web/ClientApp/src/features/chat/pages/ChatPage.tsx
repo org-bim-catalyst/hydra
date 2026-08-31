@@ -214,13 +214,15 @@ export function ChatPage() {
         controls={workspaceControls}
         topClusterLeading={
           <>
+            {/* specs/038-viewer-poi-zoom T034: shown only while an agent POI is active, and
+                first in the row so the cluster's fixed controls never shift sideways as it
+                appears and disappears. */}
+            {locationSource === 'agent' && <MarkerStyleSelector />}
             <ThemeToggleButton />
             <RotationToggleButton />
             {/* The account menu is no longer a workspace ControlDefinition — it is the same
                 UserMenu the AppShell renders, wearing this cluster's circular trigger. */}
             <StudioAccountMenuButton />
-            {/* specs/038-viewer-poi-zoom T034: show marker style picker only when an agent POI is active. */}
-            {locationSource === 'agent' && <MarkerStyleSelector />}
           </>
         }
       >

@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -636,6 +637,30 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
     expect(await screen.findByText('Hello from the chat control')).toBeInTheDocument()
   }, 15000)
+
+  /**
+   * The marker-style button appears only while an agent POI is active. Rendered last it pushed
+   * the cluster's three fixed buttons sideways every time a location resolved; first, the row
+   * stays put and it grows off the left edge instead.
+   */
+  it('places the marker-style button ahead of the theme toggle in the top cluster', async () => {
+    renderChatPage()
+    // Set after mount: ChatPage clears the store on mount when geolocation is unavailable,
+    // which it is under jsdom.
+    act(() => {
+      useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Al Safa Park 2', 0.9)
+    })
+
+    try {
+      const marker = await screen.findByRole('button', { name: 'Change POI marker style' })
+      const theme = screen.getByRole('button', { name: /Switch to (light|dark) mode/i })
+
+      // Node.DOCUMENT_POSITION_FOLLOWING — the theme toggle comes after the marker button.
+      expect(marker.compareDocumentPosition(theme) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    } finally {
+      act(() => useActiveLocationStore.getState().clear())
+    }
+  })
 
   it('no longer renders a provider/model switcher or a conversation-history panel in the chat control (specs/025-chat-configuration-settings FR-008)', () => {
     renderChatPage()

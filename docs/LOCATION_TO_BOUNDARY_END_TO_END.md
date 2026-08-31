@@ -126,8 +126,8 @@ sequenceDiagram
     OSM-->>BND: candidate ways/relations
     BND->>BND: ScoreAll(...)
     BND->>VIS: fetch image → analyse
-    VIS-->>BND: selected id + observed_boundary
-    BND->>BND: plausibility gate<br/>(area 0.3×–3.0×, centroid in radius)
+    VIS-->>BND: selected id + confidence
+    BND->>BND: pick the candidate<br/>(geometry used as mapped)
     BND-->>H: ConfirmedSiteBoundary
 
     H-->>API: chunk{ConfirmationText, StartsNewMessage}
@@ -368,7 +368,7 @@ rejected for it: a slow-but-healthy Overpass run alone can consume 30 s.
 | Location emitted first | It is the **mandatory** outcome; the boundary is **optional**. Treating them symmetrically is exactly what let one damage the other. |
 | Protection at two layers | Different invariants: the service-level wrap keeps *vision optional*; the handler-level catch-all keeps the *turn intact* regardless of the service's internals. |
 | Stale-clear in `RecordActiveLocationCommandHandler` | It already loads the chat and owns the unit of work, so the clear is atomic. Critically, it fires even when **no boundary command ever arrives** — the failure case. |
-| Vision may override geometry, but gated | A single-candidate site has nothing to "pick"; only a geo-referenced visual read can fix a shifted polygon. Trusted only after an area/centroid plausibility check. |
+| Vision selects, it never moves geometry | Two repositioning steps were tried and both made the outline worse; see §9.5. The mapped ring is drawn exactly as OSM has it. |
 | No client changes | `aiApi.ts` dispatches by prefix with no ordering state; `useChatStream` already cleared stale overlays. Verified, not assumed. |
 
 ---
@@ -391,14 +391,26 @@ Things a reviewer should push on.
    *viewer*. The background-job option remains the real fix if this bites.
 
 4. **`BoundaryResolutionService` is doing a lot.** Search, scoring, vision orchestration,
-   plausibility gating, confidence classification, source description, and message composition in
-   one class. It is coherent but close to the edge; the vision-correction logic in particular
-   would sit more comfortably behind its own seam.
+   confidence classification, source description, and message composition in one class. It is
+   coherent but close to the edge.
 
-5. **Vision geometry override is a real trust escalation.** The reference notebook forbade the AI
-   inventing coordinates; we allow it, gated. The gate (area 0.3–3.0×, centroid within 500 m) is
-   broad. A plausible-but-wrong read inside those bounds is accepted silently — logged only when
-   *rejected*, not when *applied*.
+5. **The offset was self-inflicted, and it took three attempts to see it.** Two correction steps
+   were built on the assumption that OSM's ring sat in a different frame from the viewer's Google
+   basemap:
+
+   | Step | What it did | Why it was wrong |
+   |---|---|---|
+   | Vision reposition | Translated the ring onto Gemini's read of an ESRI World Imagery crop | ESRI is a *third* frame; a correct read of the wrong image still lands wrong |
+   | Basemap alignment | Snapped the ring's centroid onto the geocoded point | For a park Google returns an establishment POI (`location_type` ROOFTOP, `bounds` null) — a marker placed *inside* the polygon, not its centre |
+
+   Neither assumption was ever measured. Drawing the raw OSM ring on a Google Static Maps render
+   of the same ground settles it in one image: for Al Safa Park 2 the ring already lands on
+   Google's own park polygon to within a few metres. The basemap alignment was dragging a correct
+   ring 24 m north-west — which was the reported offset, in the reported direction.
+
+   Both steps are gone. Gemini still picks *which* candidate is the site; it no longer moves
+   geometry. **The lesson worth keeping: a geometric correction is a measurement, and this one was
+   never measured against the surface it renders on.**
 
 6. **Zoom uses a hardcoded altitude table.** `LOCATION_TYPE_ALTITUDE` is a literal inside a React
    component, re-created on every render, and only used when `viewport` is absent.
