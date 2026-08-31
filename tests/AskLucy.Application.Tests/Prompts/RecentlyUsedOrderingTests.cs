@@ -78,7 +78,7 @@ public sealed class RecentlyUsedOrderingTests
 
         await CreateHandler().Handle(BuildCommand(promptId, PromptExecutionOutcome.Success), CancellationToken.None);
         var firstUseAt = usageStatistics.LastSuccessfulUseAtUtc;
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         await CreateHandler().Handle(BuildCommand(promptId, PromptExecutionOutcome.Success), CancellationToken.None);
 
         usageStatistics.SuccessfulExecutionCount.Should().Be(2);

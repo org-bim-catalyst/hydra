@@ -46,7 +46,7 @@ public sealed class ListMemoriesQueryHandler(
         return namesById;
     }
 
-    private static MemoryListItemDto ToDto(MemoryEntity memory, IReadOnlyDictionary<Guid, string> projectNamesById) =>
+    private static MemoryListItemDto ToDto(MemoryEntity memory, Dictionary<Guid, string> projectNamesById) =>
         new(
             memory.Id, memory.Category.ToString(), memory.Content, memory.State.ToString(), memory.IsSensitive,
             memory.ProjectId, memory.ProjectId is { } pid && projectNamesById.TryGetValue(pid, out var name) ? name : null,

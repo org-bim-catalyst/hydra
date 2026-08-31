@@ -92,7 +92,7 @@ public sealed class PromptNodeExecutorTests
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("text").GetString().Should().Be("Generated text.");
         await _aiProvider.Received(1).ChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m.Any(msg => msg.Content.Contains("quarterly report"))),
+            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Any(msg => msg.Content.Contains("quarterly report"))),
             model.ModelKey, Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
     }
 

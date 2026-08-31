@@ -26,12 +26,17 @@ public sealed class RecordFunnelEventCommandHandlerTests
 
         await handler.Handle(command, CancellationToken.None);
 
+        // CA1873 false positive: this is an NSubstitute `Received()` call-verification, not a
+        // live ILogger.Log invocation guarded by IsEnabled — the arguments are matchers
+        // evaluated once during assertion, not "expensive logging arguments" on a hot path.
+#pragma warning disable CA1873
         logger.Received().Log(
             LogLevel.Information,
             Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("CtaClicked", StringComparison.Ordinal)),
+            Arg.Is<object>(o => o != null && o.ToString()!.Contains("CtaClicked", StringComparison.Ordinal)),
             null,
             Arg.Any<Func<object, Exception?, string>>());
+#pragma warning restore CA1873
     }
 
     [Fact]
@@ -48,11 +53,16 @@ public sealed class RecordFunnelEventCommandHandlerTests
 
         await handler.Handle(command, CancellationToken.None);
 
+        // CA1873 false positive: this is an NSubstitute `Received()` call-verification, not a
+        // live ILogger.Log invocation guarded by IsEnabled — the arguments are matchers
+        // evaluated once during assertion, not "expensive logging arguments" on a hot path.
+#pragma warning disable CA1873
         logger.Received().Log(
             LogLevel.Information,
             Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("FunnelCompleted", StringComparison.Ordinal)),
+            Arg.Is<object>(o => o != null && o.ToString()!.Contains("FunnelCompleted", StringComparison.Ordinal)),
             null,
             Arg.Any<Func<object, Exception?, string>>());
+#pragma warning restore CA1873
     }
 }

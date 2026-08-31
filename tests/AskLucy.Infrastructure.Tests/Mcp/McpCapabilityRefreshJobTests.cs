@@ -60,7 +60,7 @@ public sealed class McpCapabilityRefreshJobTests
 
         await CreateJob().RunAsync(CancellationToken.None);
 
-        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => s.McpServerId == dueServer.Id));
+        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => s != null && s.McpServerId == dueServer.Id));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class McpCapabilityRefreshJobTests
         var act = async () => await CreateJob().RunAsync(CancellationToken.None);
 
         await act.Should().NotThrowAsync();
-        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => s.McpServerId == serverB.Id));
+        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => s != null && s.McpServerId == serverB.Id));
     }
 
     [Fact]

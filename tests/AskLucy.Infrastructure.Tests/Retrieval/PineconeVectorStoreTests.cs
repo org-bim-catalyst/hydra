@@ -46,7 +46,7 @@ public sealed class PineconeVectorStoreTests
 
         handler.LastRequest!.RequestUri!.ToString().Should().Contain("vectors/upsert");
 
-        var body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        var body = await handler.LastRequest.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
         using var document = JsonDocument.Parse(body);
         var vector = document.RootElement.GetProperty("vectors")[0];
 
@@ -74,7 +74,7 @@ public sealed class PineconeVectorStoreTests
         var results = await store.QueryNearestAsync([0.1f, 0.2f], [KnowledgeBaseId], topK: 5, similarityThreshold: 0.5, CancellationToken.None);
 
         handler.LastRequest!.RequestUri!.ToString().Should().Contain("query");
-        var body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        var body = await handler.LastRequest.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.Should().Contain("$in").And.Contain(KnowledgeBaseId.ToString("D"));
 
         results.Should().ContainSingle();
@@ -121,7 +121,7 @@ public sealed class PineconeVectorStoreTests
         await store.DeleteAsync(DocumentChunkId, CancellationToken.None);
 
         handler.LastRequest!.RequestUri!.ToString().Should().Contain("vectors/delete");
-        var body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        var body = await handler.LastRequest.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.Should().Contain($"{DocumentChunkId:N}:{EmbeddingId:N}");
     }
 

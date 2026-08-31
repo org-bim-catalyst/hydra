@@ -49,7 +49,7 @@ public sealed class McpServerHealthCheckJobTests
         await CreateJob().RunAsync(CancellationToken.None);
 
         await client.Received(2).PingAsync(Arg.Any<CancellationToken>());
-        _serverRepository.Received(2).AddHealth(Arg.Is<McpServerHealth>(h => h.Status == McpServerHealthStatus.Healthy));
+        _serverRepository.Received(2).AddHealth(Arg.Is<McpServerHealth>(h => h != null && h.Status == McpServerHealthStatus.Healthy));
         await _mcpToolRegistry.Received(1).InvalidateAsync(Arg.Any<CancellationToken>());
     }
 

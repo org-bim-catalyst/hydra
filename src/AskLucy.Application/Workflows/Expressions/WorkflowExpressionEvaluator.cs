@@ -181,10 +181,10 @@ public sealed class WorkflowExpressionEvaluator : IWorkflowExpressionEvaluator
         };
     }
 
-    private static WorkflowExpressionValue RequireSingleArgument(IReadOnlyList<WorkflowExpressionValue> arguments, string functionName) =>
+    private static WorkflowExpressionValue RequireSingleArgument(List<WorkflowExpressionValue> arguments, string functionName) =>
         arguments.Count == 1 ? arguments[0] : throw new WorkflowExpressionEvaluationException($"'{functionName}' requires exactly one argument.");
 
-    private static IReadOnlyList<WorkflowExpressionValue> RequireArguments(IReadOnlyList<WorkflowExpressionValue> arguments, string functionName, int count) =>
+    private static List<WorkflowExpressionValue> RequireArguments(List<WorkflowExpressionValue> arguments, string functionName, int count) =>
         arguments.Count == count ? arguments : throw new WorkflowExpressionEvaluationException($"'{functionName}' requires exactly {count} arguments.");
 
     private static double EvaluateLength(WorkflowExpressionValue value) => value.Kind switch
@@ -194,7 +194,7 @@ public sealed class WorkflowExpressionEvaluator : IWorkflowExpressionEvaluator
         _ => throw new WorkflowExpressionEvaluationException("'length' requires a String or Collection argument."),
     };
 
-    private static bool EvaluateContains(IReadOnlyList<WorkflowExpressionValue> arguments)
+    private static bool EvaluateContains(List<WorkflowExpressionValue> arguments)
     {
         var (haystack, needle) = (arguments[0], arguments[1]);
 

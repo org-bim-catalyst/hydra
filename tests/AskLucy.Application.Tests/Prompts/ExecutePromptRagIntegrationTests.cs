@@ -113,7 +113,7 @@ public sealed class ExecutePromptRagIntegrationTests
         await _ragService.Received(1).RetrieveContextAsync(
             Arg.Is<Guid>(id => id != prompt.Id && id != version.Id),
             "Answer using only the provided documentation.",
-            Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == knowledgeBaseId),
+            Arg.Is<IReadOnlyList<Guid>>(ids => ids != null && ids.Count == 1 && ids[0] == knowledgeBaseId),
             Arg.Any<CancellationToken>());
     }
 
@@ -140,7 +140,7 @@ public sealed class ExecutePromptRagIntegrationTests
 
         _aiProvider.Received(1).StreamChatAsync(
             Arg.Is<IReadOnlyList<ChatMessage>>(messages =>
-                messages.Any(m => m.Role == ChatRole.System && m.Content.Contains("<context>") && m.Content.Contains("Q3 budget details."))),
+                messages != null && messages.Any(m => m.Role == ChatRole.System && m.Content.Contains("<context>") && m.Content.Contains("Q3 budget details."))),
             model.ModelKey, Arg.Any<GenerationParametersDto>(), Arg.Any<CancellationToken>());
 
         chunks[^1].RetrievalOutcome.Should().NotBeNull();

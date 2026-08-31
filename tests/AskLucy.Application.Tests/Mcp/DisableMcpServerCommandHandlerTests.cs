@@ -33,7 +33,7 @@ public sealed class DisableMcpServerCommandHandlerTests
         var result = await handler.Handle(new DisableMcpServerCommand(server.Id), CancellationToken.None);
 
         result.IsEnabled.Should().BeFalse();
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ServerDisabled));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ServerDisabled));
         // FR-004/SC-008 — every tool from this server is immediately absent from ActiveTools.
         await _mcpToolRegistry.Received(1).InvalidateAsync(Arg.Any<CancellationToken>());
     }

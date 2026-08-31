@@ -11,7 +11,7 @@ public sealed class GetMcpServerHealthQueryHandlerTests
 {
     private readonly IMcpServerRepository _serverRepository = Substitute.For<IMcpServerRepository>();
 
-    private McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, "admin-1", 60);
+    private static McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, "admin-1", 60);
 
     [Fact]
     public async Task Handle_ShouldReturnExistingHealth_WhenPresent()

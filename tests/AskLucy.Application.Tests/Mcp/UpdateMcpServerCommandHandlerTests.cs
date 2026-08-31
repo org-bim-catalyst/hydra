@@ -19,7 +19,7 @@ public sealed class UpdateMcpServerCommandHandlerTests
 
     private UpdateMcpServerCommandHandler CreateHandler() => new(_serverRepository, _auditLogRepository, _endpointValidator, _unitOfWork, _currentUser);
 
-    private McpServer RegisterServer() => McpServer.Register(
+    private static McpServer RegisterServer() => McpServer.Register(
         "Original", "desc", "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey,
         false, false, null, false, null, AdminId, 60);
 
@@ -122,6 +122,6 @@ public sealed class UpdateMcpServerCommandHandlerTests
 
         await handler.Handle(ValidCommand(server.Id), CancellationToken.None);
 
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ServerUpdated));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ServerUpdated));
     }
 }

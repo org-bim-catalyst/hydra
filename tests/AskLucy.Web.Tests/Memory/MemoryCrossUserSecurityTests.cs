@@ -24,14 +24,14 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     [Fact]
     public async Task ListMemories_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/memories");
+        var response = await _client.GetAsync("/api/v1/memories", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetMemoryById_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/memories/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/memories/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -39,7 +39,7 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     public async Task EditMemory_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
         var response = await _client.PutAsJsonAsync(
-            $"/api/v1/memories/{Guid.NewGuid()}", new { content = "Hijacked" });
+            $"/api/v1/memories/{Guid.NewGuid()}", new { content = "Hijacked" }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -47,7 +47,7 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     [Fact]
     public async Task DeleteMemory_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.DeleteAsync($"/api/v1/memories/{Guid.NewGuid()}");
+        var response = await _client.DeleteAsync($"/api/v1/memories/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -56,7 +56,7 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     [InlineData("reject")]
     public async Task ApprovalAction_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent(string action)
     {
-        var response = await _client.PostAsync($"/api/v1/memories/{Guid.NewGuid()}/actions/{action}", content: null);
+        var response = await _client.PostAsync($"/api/v1/memories/{Guid.NewGuid()}/actions/{action}", content: null, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -64,7 +64,7 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     public async Task ResolveConflict_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
         var response = await _client.PostAsJsonAsync(
-            $"/api/v1/memories/{Guid.NewGuid()}/actions/resolve-conflict", new { resolution = "KeepExisting" });
+            $"/api/v1/memories/{Guid.NewGuid()}/actions/resolve-conflict", new { resolution = "KeepExisting" }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -72,28 +72,28 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     [Fact]
     public async Task ClearAllMemories_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/memories/actions/clear-all", new { confirm = true });
+        var response = await _client.PostAsJsonAsync("/api/v1/memories/actions/clear-all", new { confirm = true }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task RequestExport_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync("/api/v1/memories/actions/export", content: null);
+        var response = await _client.PostAsync("/api/v1/memories/actions/export", content: null, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetExportStatus_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/memories/exports/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/memories/exports/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetPreferences_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/memories/preferences");
+        var response = await _client.GetAsync("/api/v1/memories/preferences", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -101,7 +101,7 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     public async Task UpdatePreferences_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
         var response = await _client.PutAsJsonAsync(
-            "/api/v1/memories/preferences", new { memoryEnabled = false, categories = Array.Empty<object>() });
+            "/api/v1/memories/preferences", new { memoryEnabled = false, categories = Array.Empty<object>() }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -109,14 +109,14 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     [Fact]
     public async Task ListNotifications_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/memories/notifications");
+        var response = await _client.GetAsync("/api/v1/memories/notifications", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task MarkNotificationRead_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/memories/notifications/{Guid.NewGuid()}/actions/mark-read", content: null);
+        var response = await _client.PostAsync($"/api/v1/memories/notifications/{Guid.NewGuid()}/actions/mark-read", content: null, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -126,35 +126,35 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
         // Intentionally [AllowAnonymous] (a signed link is its own authorization, mirroring
         // DocumentsController.DownloadContent) — so the security boundary here is signature
         // validation, not the JWT auth gate. An unsigned/forged request must still be denied.
-        var response = await _client.GetAsync("/api/v1/memories/exports/content?fileName=someone-elses-export.json&exp=0&sig=forged");
+        var response = await _client.GetAsync("/api/v1/memories/exports/content?fileName=someone-elses-export.json&exp=0&sig=forged", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]
     public async Task ListProjects_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/projects");
+        var response = await _client.GetAsync("/api/v1/projects", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task CreateProject_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/projects", new { name = "Hijacked Project" });
+        var response = await _client.PostAsJsonAsync("/api/v1/projects", new { name = "Hijacked Project" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task RenameProject_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PutAsJsonAsync($"/api/v1/projects/{Guid.NewGuid()}", new { name = "Hijacked" });
+        var response = await _client.PutAsJsonAsync($"/api/v1/projects/{Guid.NewGuid()}", new { name = "Hijacked" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task DeleteProject_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.DeleteAsync($"/api/v1/projects/{Guid.NewGuid()}");
+        var response = await _client.DeleteAsync($"/api/v1/projects/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -162,7 +162,7 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
     public async Task AssignConversationToProject_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
         var response = await _client.PutAsJsonAsync(
-            $"/api/v1/chats/{Guid.NewGuid()}/project", new { projectId = Guid.NewGuid() });
+            $"/api/v1/chats/{Guid.NewGuid()}/project", new { projectId = Guid.NewGuid() }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

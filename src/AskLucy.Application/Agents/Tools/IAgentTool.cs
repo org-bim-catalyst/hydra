@@ -3,6 +3,12 @@ using AskLucy.Domain.Agents;
 
 namespace AskLucy.Application.Agents.Tools;
 
+// CA1711: not renamed — member names (not this type name) are round-tripped through
+// Enum.TryParse against persisted data (McpTool.RequiredPermissionsJson via
+// McpToolAdapter.ParsePermissions) and this type is referenced across native tools and the
+// Application.Tests project, which are outside this cleanup's Application/Domain scope, so a
+// rename here cannot safely update every reference in the same change.
+#pragma warning disable CA1711
 public enum AgentToolPermission
 {
     ReadKnowledge,
@@ -25,6 +31,7 @@ public enum AgentToolPermission
     DeleteExternalData,
     ExecuteOperation,
 }
+#pragma warning restore CA1711
 
 /// <summary>Per-call context passed to every <see cref="IAgentTool"/> (contracts/agent-tool-contract.md). <see cref="UserChatId"/> is the execution's linked conversation, if any (FR-051/FR-052) — surfaced here so <see cref="ConversationTool"/> doesn't need its own repository round-trip just to resolve it.</summary>
 public sealed record AgentToolExecutionContext(Guid ExecutionId, Guid StepId, string UserId, Guid AgentId, Guid AgentVersionId, Guid? UserChatId);

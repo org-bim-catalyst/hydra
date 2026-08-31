@@ -29,8 +29,8 @@ public sealed class McpClient(SdkMcpClient sdkClient) : IMcpClient
     public async Task<McpToolCallResult> CallToolAsync(string toolName, JsonDocument input, CancellationToken cancellationToken = default)
     {
         var arguments = input.RootElement.ValueKind == JsonValueKind.Object
-            ? input.RootElement.EnumerateObject().ToDictionary(p => p.Name, object (p) => p.Value)
-            : new Dictionary<string, object>();
+            ? input.RootElement.EnumerateObject().ToDictionary(p => p.Name, object? (p) => p.Value)
+            : new Dictionary<string, object?>();
 
         var result = await sdkClient.CallToolAsync(toolName, arguments, cancellationToken: cancellationToken);
 
@@ -54,7 +54,7 @@ public sealed class McpClient(SdkMcpClient sdkClient) : IMcpClient
 
     public async Task<string> GetPromptAsync(string name, IReadOnlyDictionary<string, string>? arguments, CancellationToken cancellationToken = default)
     {
-        var argumentObjects = arguments?.ToDictionary(kv => kv.Key, object (kv) => kv.Value);
+        var argumentObjects = arguments?.ToDictionary(kv => kv.Key, object? (kv) => kv.Value);
         var result = await sdkClient.GetPromptAsync(name, argumentObjects, cancellationToken: cancellationToken);
         return string.Join('\n', result.Messages.Select(m => ExtractText(m.Content)));
     }

@@ -47,7 +47,7 @@ public sealed class KnowledgeBasePurgeHostedServiceTests
         await CreateService(timeProvider).RunOnceAsync(CancellationToken.None);
 
         _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(
-            a => a.KnowledgeBaseId == dueKnowledgeBase.Id && a.Action == KnowledgeBaseAuditAction.PermanentlyDeleted));
+            a => a != null && a.KnowledgeBaseId == dueKnowledgeBase.Id && a.Action == KnowledgeBaseAuditAction.PermanentlyDeleted));
         await _repository.Received(1).PurgeAsync(dueKnowledgeBase.Id, Arg.Any<CancellationToken>());
     }
 

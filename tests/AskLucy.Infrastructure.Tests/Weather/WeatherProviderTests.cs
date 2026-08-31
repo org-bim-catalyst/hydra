@@ -21,7 +21,7 @@ public sealed class WeatherProviderTests
         {"display_name":"London, Greater London, England, United Kingdom","address":{"city":"London","country":"United Kingdom"}}
         """;
 
-    private WeatherProvider CreateProvider(
+    private static WeatherProvider CreateProvider(
         Func<HttpRequestMessage, HttpResponseMessage> responder, out StubHttpMessageHandler handler)
     {
         handler = new StubHttpMessageHandler(responder);

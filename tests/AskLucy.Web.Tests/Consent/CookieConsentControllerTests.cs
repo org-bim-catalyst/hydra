@@ -14,7 +14,7 @@ public sealed class CookieConsentControllerTests(CustomWebApplicationFactory fac
     [Fact]
     public async Task GetMine_ShouldReturn401_WhenNoBearerTokenIsProvided()
     {
-        var response = await _client.GetAsync("/api/v1/users/me/cookie-consent");
+        var response = await _client.GetAsync("/api/v1/users/me/cookie-consent", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -25,7 +25,7 @@ public sealed class CookieConsentControllerTests(CustomWebApplicationFactory fac
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/users/me/cookie-consent");
+        var response = await _client.GetAsync("/api/v1/users/me/cookie-consent", TestContext.Current.CancellationToken);
 
         // No live database in this environment (see CustomWebApplicationFactory) — proves
         // authorization let the caller through to the handler, never 401.
@@ -35,7 +35,7 @@ public sealed class CookieConsentControllerTests(CustomWebApplicationFactory fac
     [Fact]
     public async Task SaveMine_ShouldReturn401_WhenNoBearerTokenIsProvided()
     {
-        var response = await _client.PutAsJsonAsync("/api/v1/users/me/cookie-consent", new { functional = true, analytics = true, marketing = true });
+        var response = await _client.PutAsJsonAsync("/api/v1/users/me/cookie-consent", new { functional = true, analytics = true, marketing = true }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -48,7 +48,7 @@ public sealed class CookieConsentControllerTests(CustomWebApplicationFactory fac
 
         // "analytics" omitted entirely — FluentValidation's NotNull() must reject this before
         // the handler (and the database) is ever reached.
-        var response = await _client.PutAsJsonAsync("/api/v1/users/me/cookie-consent", new { functional = true, marketing = true });
+        var response = await _client.PutAsJsonAsync("/api/v1/users/me/cookie-consent", new { functional = true, marketing = true }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");

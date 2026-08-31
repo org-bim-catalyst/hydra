@@ -44,7 +44,7 @@ public sealed class MemoryCleanupJobTests
         await _job.RunAsync(CancellationToken.None);
 
         candidates.Should().OnlyContain(m => m.IsDeleted);
-        _auditLogRepository.Received(2).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.Expired));
+        _auditLogRepository.Received(2).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.Expired));
         await _unitOfWork.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

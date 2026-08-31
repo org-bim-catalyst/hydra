@@ -31,7 +31,7 @@ public sealed class CreateAgentCommandHandlerTests
 
         result.Name.Should().Be("My Agent");
         result.Status.Should().Be(nameof(AgentStatus.Draft));
-        _agentRepository.Received(1).Add(Arg.Is<Agent>(a => a.OwnerId == "user-1" && a.Status == AgentStatus.Draft));
+        _agentRepository.Received(1).Add(Arg.Is<Agent>(a => a != null && a.OwnerId == "user-1" && a.Status == AgentStatus.Draft));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

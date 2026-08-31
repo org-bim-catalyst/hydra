@@ -25,7 +25,7 @@ public sealed class ClearAllMemoriesTests
     {
         var validator = new ClearAllMemoriesCommandValidator();
 
-        var result = await validator.ValidateAsync(new ClearAllMemoriesCommand(false));
+        var result = await validator.ValidateAsync(new ClearAllMemoriesCommand(false), TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeFalse();
     }
@@ -44,7 +44,7 @@ public sealed class ClearAllMemoriesTests
         await handler.Handle(new ClearAllMemoriesCommand(true), CancellationToken.None);
 
         memories.Should().OnlyContain(m => m.IsDeleted);
-        _auditLogRepository.Received(3).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.Deleted));
+        _auditLogRepository.Received(3).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.Deleted));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

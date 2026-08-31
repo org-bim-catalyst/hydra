@@ -19,7 +19,7 @@ public sealed class ApplyProviderModelSyncCommandValidatorTests
     {
         var command = new ApplyProviderModelSyncCommand(Guid.NewGuid(), [], []);
 
-        var result = await _validator.ValidateAsync(command);
+        var result = await _validator.ValidateAsync(command, TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.ErrorMessage == "Nothing to apply.");
@@ -31,7 +31,7 @@ public sealed class ApplyProviderModelSyncCommandValidatorTests
         var command = new ApplyProviderModelSyncCommand(
             Guid.NewGuid(), [new ProviderModelInfo("gpt-5", "GPT-5", 200000, 32000, Capabilities)], []);
 
-        var result = await _validator.ValidateAsync(command);
+        var result = await _validator.ValidateAsync(command, TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeTrue();
     }
@@ -42,7 +42,7 @@ public sealed class ApplyProviderModelSyncCommandValidatorTests
         var command = new ApplyProviderModelSyncCommand(
             Guid.NewGuid(), [], [new RemovedModelDto(Guid.NewGuid(), "gpt-3.5", "GPT-3.5")]);
 
-        var result = await _validator.ValidateAsync(command);
+        var result = await _validator.ValidateAsync(command, TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeTrue();
     }
@@ -53,7 +53,7 @@ public sealed class ApplyProviderModelSyncCommandValidatorTests
         var command = new ApplyProviderModelSyncCommand(
             Guid.Empty, [new ProviderModelInfo("gpt-5", "GPT-5", 200000, 32000, Capabilities)], []);
 
-        var result = await _validator.ValidateAsync(command);
+        var result = await _validator.ValidateAsync(command, TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeFalse();
     }

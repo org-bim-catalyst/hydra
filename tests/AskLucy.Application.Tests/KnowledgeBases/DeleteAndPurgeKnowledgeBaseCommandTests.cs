@@ -31,7 +31,7 @@ public sealed class DeleteKnowledgeBaseCommandHandlerTests
 
         knowledgeBase.IsDeleted.Should().BeTrue();
         knowledgeBase.PurgeScheduledAtUtc.Should().NotBeNull();
-        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a.Action == KnowledgeBaseAuditAction.Deleted));
+        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a != null && a.Action == KnowledgeBaseAuditAction.Deleted));
     }
 }
 
@@ -62,7 +62,7 @@ public sealed class PurgeKnowledgeBaseCommandHandlerTests
         // MediatR pipeline, not the handler — verified directly here since this test bypasses
         // that pipeline.
         var validator = new PurgeKnowledgeBaseCommandValidator();
-        var result = await validator.ValidateAsync(new PurgeKnowledgeBaseCommand(knowledgeBase.Id, false));
+        var result = await validator.ValidateAsync(new PurgeKnowledgeBaseCommand(knowledgeBase.Id, false), TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeFalse();
     }
@@ -101,7 +101,7 @@ public sealed class PurgeKnowledgeBaseCommandHandlerTests
 
         await CreateHandler().Handle(new PurgeKnowledgeBaseCommand(knowledgeBase.Id, true), CancellationToken.None);
 
-        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a.Action == KnowledgeBaseAuditAction.PermanentlyDeleted));
+        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a != null && a.Action == KnowledgeBaseAuditAction.PermanentlyDeleted));
         await _fileStorage.Received(1).DeleteAsync("stored-a", Arg.Any<CancellationToken>());
         await _fileStorage.Received(1).DeleteAsync("stored-b", Arg.Any<CancellationToken>());
         await _repository.Received(1).PurgeAsync(knowledgeBase.Id, Arg.Any<CancellationToken>());

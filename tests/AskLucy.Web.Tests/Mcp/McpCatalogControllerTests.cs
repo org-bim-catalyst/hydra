@@ -20,7 +20,7 @@ public sealed class McpCatalogControllerTests(CustomWebApplicationFactory factor
     [InlineData("/api/v1/mcp/catalog/tools/" + SomeNamespacedName)]
     public async Task ShouldReturn401_WhenAnonymous(string path)
     {
-        var response = await _client.GetAsync(path);
+        var response = await _client.GetAsync(path, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -32,7 +32,7 @@ public sealed class McpCatalogControllerTests(CustomWebApplicationFactory factor
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
 
-        var response = await _client.GetAsync(path);
+        var response = await _client.GetAsync(path, TestContext.Current.CancellationToken);
 
         // No live database in this environment (see CustomWebApplicationFactory) — proves
         // authorization let a plain, non-admin user through to the handler, never 401/403.

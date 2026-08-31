@@ -32,7 +32,7 @@ public sealed class CreateFolderCommandHandlerTests
 
         result.Name.Should().Be("Contracts");
         result.Depth.Should().Be(0);
-        _folderRepository.Received(1).Add(Arg.Is<KnowledgeBaseFolder>(f => f.Name == "Contracts"));
+        _folderRepository.Received(1).Add(Arg.Is<KnowledgeBaseFolder>(f => f != null && f.Name == "Contracts"));
     }
 
     [Fact]

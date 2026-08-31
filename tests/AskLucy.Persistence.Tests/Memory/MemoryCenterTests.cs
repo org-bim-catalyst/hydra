@@ -30,7 +30,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.Memories.AddRange(preferences);
             dbContext.Memories.AddRange(facts);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var seen = new List<Guid>();
@@ -61,7 +61,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.Memories.AddRange(memories);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -83,7 +83,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.Memories.AddRange(target, other);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -104,7 +104,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.Memories.Add(memory);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var writeContext = fixture.CreateDbContext())
@@ -115,7 +115,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
 
             var previousContent = loaded.Edit("Corrected content", userId);
             versionRepository.Add(MemoryVersion.Create(loaded.Id, previousContent, MemoryChangeReason.UserEdit, userId));
-            await writeContext.SaveChangesAsync();
+            await writeContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -136,7 +136,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.Memories.Add(memory);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var writeContext = fixture.CreateDbContext())
@@ -144,7 +144,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
             var repository = new MemoryRepository(writeContext);
             var loaded = await repository.GetByIdAsync(memory.Id, CancellationToken.None) ?? throw new InvalidOperationException();
             loaded.SoftDelete(userId);
-            await writeContext.SaveChangesAsync();
+            await writeContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();

@@ -21,7 +21,7 @@ public sealed class DeleteMcpServerCommandHandlerTests
 
     public DeleteMcpServerCommandHandlerTests() => _currentUser.UserId.Returns(AdminId);
 
-    private McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
+    private static McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
 
     [Fact]
     public async Task Handle_ShouldSoftDeleteServer_WhenNoReferences()
@@ -34,7 +34,7 @@ public sealed class DeleteMcpServerCommandHandlerTests
         await handler.Handle(new DeleteMcpServerCommand(server.Id), CancellationToken.None);
 
         server.IsDeleted.Should().BeTrue();
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ServerRemoved));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ServerRemoved));
     }
 
     [Fact]
@@ -52,6 +52,6 @@ public sealed class DeleteMcpServerCommandHandlerTests
         var exception = await act.Should().ThrowAsync<McpServerHasReferencesException>();
         exception.Which.ReferencingAgentTools.Should().ContainSingle(r => r.AgentId == agentId);
         server.IsDeleted.Should().BeFalse();
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ServerRemovalBlocked));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ServerRemovalBlocked));
     }
 }

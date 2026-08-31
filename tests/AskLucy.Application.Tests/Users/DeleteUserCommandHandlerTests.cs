@@ -30,7 +30,7 @@ public sealed class DeleteUserCommandHandlerTests
         var act = () => _handler.Handle(new DeleteUserCommand("admin-1"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _userAdminRepository.DidNotReceiveWithAnyArgs().DeleteAsync(default!, default!, default);
+        await _userAdminRepository.DidNotReceiveWithAnyArgs().DeleteAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class DeleteUserCommandHandlerTests
         var act = () => _handler.Handle(new DeleteUserCommand("user-2"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _userAdminRepository.DidNotReceiveWithAnyArgs().DeleteAsync(default!, default!, default);
+        await _userAdminRepository.DidNotReceiveWithAnyArgs().DeleteAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

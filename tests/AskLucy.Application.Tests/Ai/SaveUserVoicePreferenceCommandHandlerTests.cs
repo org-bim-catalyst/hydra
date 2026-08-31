@@ -33,7 +33,7 @@ public sealed class SaveUserVoicePreferenceCommandHandlerTests
             CancellationToken.None);
 
         result.DefaultLanguage.Should().Be("fr");
-        _preferences.Received(1).Add(Arg.Is<UserVoicePreference>(p => p.DefaultLanguage == "fr"));
+        _preferences.Received(1).Add(Arg.Is<UserVoicePreference>(p => p != null && p.DefaultLanguage == "fr"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

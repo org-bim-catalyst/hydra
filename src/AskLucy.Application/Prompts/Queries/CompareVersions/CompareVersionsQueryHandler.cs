@@ -1,3 +1,4 @@
+using System.Globalization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Prompts.Authorization;
 using AskLucy.Domain.Prompts;
@@ -38,8 +39,8 @@ public sealed class CompareVersionsQueryHandler(IPromptRepository promptReposito
         Compare(nameof(PromptVersion.Constraints), from.Constraints, to.Constraints);
         Compare(nameof(PromptVersion.ProviderKey), from.ProviderKey, to.ProviderKey);
         Compare(nameof(PromptVersion.ModelKey), from.ModelKey, to.ModelKey);
-        Compare(nameof(PromptVersion.Temperature), from.Temperature?.ToString(), to.Temperature?.ToString());
-        Compare(nameof(PromptVersion.MaxOutputTokens), from.MaxOutputTokens?.ToString(), to.MaxOutputTokens?.ToString());
+        Compare(nameof(PromptVersion.Temperature), from.Temperature?.ToString(CultureInfo.InvariantCulture), to.Temperature?.ToString(CultureInfo.InvariantCulture));
+        Compare(nameof(PromptVersion.MaxOutputTokens), from.MaxOutputTokens?.ToString(CultureInfo.InvariantCulture), to.MaxOutputTokens?.ToString(CultureInfo.InvariantCulture));
 
         var fromVariableNames = from.Variables.Select(v => v.Name).OrderBy(n => n).ToList();
         var toVariableNames = to.Variables.Select(v => v.Name).OrderBy(n => n).ToList();

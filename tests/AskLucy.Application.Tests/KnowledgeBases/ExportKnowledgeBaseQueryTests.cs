@@ -1,3 +1,4 @@
+using System.Globalization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.KnowledgeBases.Queries.ExportKnowledgeBase;
 using AskLucy.Domain.KnowledgeBases;
@@ -13,7 +14,7 @@ public sealed class ExportKnowledgeBaseQueryTests
     private readonly IKnowledgeBaseFolderRepository _folderRepository = Substitute.For<IKnowledgeBaseFolderRepository>();
     private readonly IKnowledgeBaseCategoryRepository _categoryRepository = Substitute.For<IKnowledgeBaseCategoryRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
-    private readonly FakeTimeProvider _timeProvider = new(DateTimeOffset.Parse("2026-08-04T12:00:00Z"));
+    private readonly FakeTimeProvider _timeProvider = new(DateTimeOffset.Parse("2026-08-04T12:00:00Z", CultureInfo.InvariantCulture));
 
     private ExportKnowledgeBaseQueryHandler CreateHandler() =>
         new(_knowledgeBaseRepository, _folderRepository, _categoryRepository, _timeProvider, _currentUser);

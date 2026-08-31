@@ -1,3 +1,4 @@
+using System.Globalization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Documents.Authorization;
 using AskLucy.Domain.Documents;
@@ -22,8 +23,8 @@ public sealed class CompareVersionsQueryHandler(IDocumentRepository documentRepo
 
         var metadataDiff = new Dictionary<string, MetadataFieldDiff>();
         AddIfDifferent(metadataDiff, "originalFileName", fromVersion.OriginalFileName, toVersion.OriginalFileName);
-        AddIfDifferent(metadataDiff, "sizeBytes", fromVersion.SizeBytes.ToString(), toVersion.SizeBytes.ToString());
-        AddIfDifferent(metadataDiff, "pageCount", fromVersion.PageCount?.ToString(), toVersion.PageCount?.ToString());
+        AddIfDifferent(metadataDiff, "sizeBytes", fromVersion.SizeBytes.ToString(CultureInfo.InvariantCulture), toVersion.SizeBytes.ToString(CultureInfo.InvariantCulture));
+        AddIfDifferent(metadataDiff, "pageCount", fromVersion.PageCount?.ToString(CultureInfo.InvariantCulture), toVersion.PageCount?.ToString(CultureInfo.InvariantCulture));
 
         return new DocumentVersionCompareDto(extractedTextDiff, metadataDiff);
     }

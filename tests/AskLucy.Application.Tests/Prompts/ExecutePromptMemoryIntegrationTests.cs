@@ -135,7 +135,7 @@ public sealed class ExecutePromptMemoryIntegrationTests
 
         _aiProvider.Received(1).StreamChatAsync(
             Arg.Is<IReadOnlyList<ChatMessage>>(messages =>
-                messages.Any(m => m.Role == ChatRole.System && m.Content.Contains("<user_memory>") && m.Content.Contains("Prefers bullet points."))),
+                messages != null && messages.Any(m => m.Role == ChatRole.System && m.Content.Contains("<user_memory>") && m.Content.Contains("Prefers bullet points."))),
             model.ModelKey, Arg.Any<GenerationParametersDto>(), Arg.Any<CancellationToken>());
 
         chunks[^1].MemoryOutcome.Should().NotBeNull();
@@ -165,7 +165,7 @@ public sealed class ExecutePromptMemoryIntegrationTests
 
         _aiProvider.Received(1).StreamChatAsync(
             Arg.Is<IReadOnlyList<ChatMessage>>(messages =>
-                messages.Count == 4 &&
+                messages != null && messages.Count == 4 &&
                 messages[0].Role == ChatRole.System && messages[0].Content.Contains("You are helpful.") && messages[0].Content.Contains("Be concise.") &&
                 messages[1].Role == ChatRole.System && messages[1].Content.Contains("<user_memory>") &&
                 messages[2].Role == ChatRole.System && messages[2].Content.Contains("<context>") &&

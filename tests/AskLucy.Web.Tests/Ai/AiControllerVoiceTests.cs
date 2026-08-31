@@ -23,7 +23,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     public async Task CreateVoiceSttSession_ShouldReturn401_WhenAnonymous()
     {
         var response = await _client.PostAsync(
-            "/api/v1/ai/voice/stt-session", JsonContent.Create(new CreateSpeechToTextSessionRequest("en")));
+            "/api/v1/ai/voice/stt-session", JsonContent.Create(new CreateSpeechToTextSessionRequest("en")), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -34,7 +34,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
 
         var response = await _client.PostAsync(
-            "/api/v1/ai/voice/stt-session", JsonContent.Create(new CreateSpeechToTextSessionRequest("en")));
+            "/api/v1/ai/voice/stt-session", JsonContent.Create(new CreateSpeechToTextSessionRequest("en")), TestContext.Current.CancellationToken);
 
         // No live ElevenLabs connectivity in this environment — proves the request reached
         // the handler rather than being rejected at the auth gate.
@@ -48,7 +48,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
         var request = new VoiceReplyRequest(
             Guid.NewGuid(), [new ChatMessageDto("user", "Hi")], Guid.NewGuid(), Guid.NewGuid(), null, "en");
 
-        var response = await _client.PostAsync("/api/v1/ai/voice/reply", JsonContent.Create(request));
+        var response = await _client.PostAsync("/api/v1/ai/voice/reply", JsonContent.Create(request), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -60,7 +60,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
         var request = new VoiceReplyRequest(
             Guid.NewGuid(), [new ChatMessageDto("user", "Hi")], Guid.NewGuid(), Guid.NewGuid(), null, "en");
 
-        var response = await _client.PostAsync("/api/v1/ai/voice/reply", JsonContent.Create(request));
+        var response = await _client.PostAsync("/api/v1/ai/voice/reply", JsonContent.Create(request), TestContext.Current.CancellationToken);
 
         // No live database in this environment (see CustomWebApplicationFactory) — proves
         // authorization let the request through to the handler, never 401/403.
@@ -71,7 +71,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     [Fact]
     public async Task GetVoicePreferences_ShouldReturn401_WhenAnonymous()
     {
-        var response = await _client.GetAsync("/api/v1/ai/voice/preferences");
+        var response = await _client.GetAsync("/api/v1/ai/voice/preferences", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -81,7 +81,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
 
-        var response = await _client.GetAsync("/api/v1/ai/voice/preferences");
+        var response = await _client.GetAsync("/api/v1/ai/voice/preferences", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
@@ -92,7 +92,8 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     {
         var response = await _client.PutAsync(
             "/api/v1/ai/voice/preferences",
-            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "fr")));
+            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "fr")),
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -104,7 +105,8 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
 
         var response = await _client.PutAsync(
             "/api/v1/ai/voice/preferences",
-            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "fr")));
+            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "fr")),
+            TestContext.Current.CancellationToken);
 
         // No live database in this environment (see CustomWebApplicationFactory) — proves
         // authorization let the request through to the handler, never 401/403.
@@ -123,7 +125,8 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
 
         var response = await _client.PutAsync(
             "/api/v1/ai/voice/preferences",
-            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "not-a-real-language")));
+            JsonContent.Create(new SaveVoicePreferenceRequest("PushToTalk", false, null, null, null, null, null, "not-a-real-language")),
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -131,7 +134,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     [Fact]
     public async Task GetVoiceProviderHealth_ShouldReturn401_WhenAnonymous()
     {
-        var response = await _client.GetAsync("/api/v1/ai/voice/health");
+        var response = await _client.GetAsync("/api/v1/ai/voice/health", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -141,7 +144,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
 
-        var response = await _client.GetAsync("/api/v1/ai/voice/health");
+        var response = await _client.GetAsync("/api/v1/ai/voice/health", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -151,7 +154,7 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("admin-1", "Administrator"));
 
-        var response = await _client.GetAsync("/api/v1/ai/voice/health");
+        var response = await _client.GetAsync("/api/v1/ai/voice/health", TestContext.Current.CancellationToken);
 
         // No live database in this environment (see CustomWebApplicationFactory) — proves
         // authorization let the admin through to the handler, never 401/403.

@@ -20,6 +20,6 @@ public sealed class UpdateAiModelStatusCommandHandler(
         model.SetStatus(request.Status, actorUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        AiAdminActionLog.AdminAiModelStatusChanged(logger, actorUserId, model.Id, oldStatus.ToString(), request.Status.ToString());
+        AiAdminActionLog.AdminAiModelStatusChanged(logger, actorUserId, model.Id, oldStatus, request.Status);
     }
 }

@@ -24,7 +24,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.AddRange(chats);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var seen = new List<Guid>();
@@ -54,7 +54,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.AddRange(chats);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -68,7 +68,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
         await using (var writeContext = fixture.CreateDbContext())
         {
             writeContext.UserChats.Add(insertedLate);
-            await writeContext.SaveChangesAsync();
+            await writeContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var (secondPage, _) = await repository.SearchAsync(
@@ -93,7 +93,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.AddRange(messages);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var seenContent = new List<string>();

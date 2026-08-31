@@ -54,7 +54,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         await using (var dbContext = fixture.CreateDbContext())
         {
             dbContext.DocumentProcessingJobs.Add(job);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -81,7 +81,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         await using (var dbContext = fixture.CreateDbContext())
         {
             dbContext.DocumentProcessingJobs.Add(job);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -111,7 +111,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         await using (var dbContext = fixture.CreateDbContext())
         {
             dbContext.DocumentProcessingJobs.AddRange(job, otherJob);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();

@@ -44,7 +44,7 @@ public sealed class ChunkedUploadTests
         var result = await handler.Handle(new StartUploadCommand("report.pdf", 512), CancellationToken.None);
 
         result.ChunkSizeBytes.Should().Be(256);
-        _sessionRepository.Received(1).Add(Arg.Is<DocumentUploadSession>(s => s.OwnerId == "user-1" && s.FileName == "report.pdf"));
+        _sessionRepository.Received(1).Add(Arg.Is<DocumentUploadSession>(s => s != null && s.OwnerId == "user-1" && s.FileName == "report.pdf"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

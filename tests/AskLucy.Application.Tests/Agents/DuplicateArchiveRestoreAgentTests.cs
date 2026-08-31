@@ -43,7 +43,7 @@ public sealed class DuplicateArchiveRestoreAgentTests
         result.Status.Should().Be(nameof(AgentStatus.Draft));
         result.PublishedVersionNumber.Should().BeNull();
         result.ToolNames.Should().Contain("KnowledgeSearchTool");
-        agentRepository.Received(1).Add(Arg.Is<Agent>(a => a.Id != agent.Id));
+        agentRepository.Received(1).Add(Arg.Is<Agent>(a => a != null && a.Id != agent.Id));
     }
 
     [Fact]

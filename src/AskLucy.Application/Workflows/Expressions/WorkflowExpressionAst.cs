@@ -25,6 +25,10 @@ public sealed record LogicalExpressionNode(string Operator, WorkflowExpressionNo
 /// <summary><see cref="FunctionName"/> is always one of the four whitelisted pure functions: <c>concat</c>, <c>length</c>, <c>contains</c>, <c>isEmpty</c> — the parser never produces any other value here.</summary>
 public sealed record FunctionCallExpressionNode(string FunctionName, IReadOnlyList<WorkflowExpressionNode> Arguments) : WorkflowExpressionNode;
 
+// CA1720: not renamed — this enum represents runtime value-type kinds (the expression engine's
+// own closed type system), and "String" is the correct, idiomatic name for that kind; renaming it
+// away from the actual data type it represents would hurt readability for no benefit.
+#pragma warning disable CA1720
 public enum WorkflowExpressionValueKind
 {
     String,
@@ -33,6 +37,7 @@ public enum WorkflowExpressionValueKind
     Null,
     Collection,
 }
+#pragma warning restore CA1720
 
 /// <summary>A runtime value produced by parsing a literal or resolving a reference/evaluating an expression — a small, closed tagged union, never an arbitrary CLR object.</summary>
 public sealed record WorkflowExpressionValue(

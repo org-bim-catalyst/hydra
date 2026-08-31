@@ -25,7 +25,7 @@ public sealed class ForceReset2faCommandHandlerTests
         var act = () => _handler.Handle(new ForceReset2faCommand("admin-1"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _identityService.DidNotReceiveWithAnyArgs().DisableTwoFactorAsync(default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().DisableTwoFactorAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

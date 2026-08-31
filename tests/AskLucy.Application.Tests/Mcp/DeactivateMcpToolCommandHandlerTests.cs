@@ -33,7 +33,7 @@ public sealed class DeactivateMcpToolCommandHandlerTests
         var result = await handler.Handle(new DeactivateMcpToolCommand(tool.McpServerId, tool.Id), CancellationToken.None);
 
         result.ActivationStatus.Should().Be(McpToolActivationStatus.Deactivated);
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ToolDeactivated));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ToolDeactivated));
         await _mcpToolRegistry.Received(1).InvalidateAsync(Arg.Any<CancellationToken>());
     }
 

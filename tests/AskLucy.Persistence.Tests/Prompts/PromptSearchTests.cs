@@ -106,7 +106,7 @@ public sealed class PromptSearchTests(PersistenceTestFixture fixture)
             dbContext.PromptCategories.Add(category);
             dbContext.PromptFolders.Add(folder);
             dbContext.Prompts.AddRange(matching, wrongFolder, wrongCategory);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var repository = new PromptRepository(fixture.CreateDbContext());

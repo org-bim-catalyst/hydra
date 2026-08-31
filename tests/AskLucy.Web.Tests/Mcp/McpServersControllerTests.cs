@@ -84,13 +84,13 @@ public sealed class McpServersControllerTests(CustomWebApplicationFactory factor
         return method switch
         {
             "GET" => _client.GetAsync(path),
-            "POST" when path.EndsWith("/servers") =>
+            "POST" when path.EndsWith("/servers", StringComparison.Ordinal) =>
                 _client.PostAsync(path, JsonContent.Create(new RegisterMcpServerRequest(
                     "Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey,
                     null, false, false, null, false, null, 60))),
-            "POST" when path.EndsWith("/actions/activate") =>
+            "POST" when path.EndsWith("/actions/activate", StringComparison.Ordinal) =>
                 _client.PostAsync(path, JsonContent.Create(new ActivateMcpToolRequest(null, null))),
-            "POST" when path.EndsWith("/actions/rotate-credential") =>
+            "POST" when path.EndsWith("/actions/rotate-credential", StringComparison.Ordinal) =>
                 _client.PostAsync(path, JsonContent.Create(new RotateMcpServerCredentialRequest("new-secret"))),
             "POST" => _client.PostAsync(path, content: null),
             "PUT" => _client.PutAsync(path, JsonContent.Create(new UpdateMcpServerRequest(
