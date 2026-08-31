@@ -236,10 +236,25 @@ disabled.
   (documents already-shipped, already-verified work), but folding it into this feature's `/
   speckit-cicd` commit as a small separate doc-only commit is cleaner than leaving it stranded
   indefinitely.
-- [ ] T020 Run this feature's full `/speckit-cicd` pass to completion — commit, push, PR, CI,
+- [X] T020 Run this feature's full `/speckit-cicd` pass to completion — commit, push, PR, CI,
   merge, and verify the deployed production build reflects this commit, including confirming the
   new log file sink is actually writable/written-to in the production environment (not just
-  configured) — a repeat of specs/032's process gap must not recur
+  configured) — a repeat of specs/032's process gap must not recur. Branch
+  `034-transcription-crash-gesture-and-continuous-view` → commit `ae8523d` (20 files, exactly the
+  intended set) + carryover doc commit `1530e28` (specs/033 T015 note) → PR #312 → CI green
+  (frontend 2m28s, backend 13m41s) → squash-merged as `5add8cb` → post-merge `main` CI/deploy run
+  green (backend 14m0s, Deploy to site4now.net 3m17s) → verified `https://hydra.bimcatalyst.com
+  /health` and `/health/ready` both return 200 → local + remote feature branch deleted → local
+  `main` fast-forwarded to `5add8cb`, 0 ahead/behind `origin/main`, `git fsck` clean.
+  **Exception, called out explicitly per T019's finding**: the log-file-sink half of this
+  verification could NOT be completed end-to-end. `appsettings.Production.json` is gitignored
+  (holds live secrets) and was therefore never part of the commit/PR/CI/deploy pipeline at all —
+  the `Serilog:WriteTo` file-sink entry only exists in this session's local working copy, not on
+  the production server. Confirming it is "actually writable/written-to in the production
+  environment" requires someone with server access to (1) add the same `WriteTo` entry to the
+  real `appsettings.Production.json` on the server, (2) restart the app pool, and (3) verify
+  `App_Data/logs/asklucy-*.log` receives writes — flagged in the PR description as a required
+  follow-up, not silently treated as done.
 
 ---
 

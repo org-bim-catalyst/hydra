@@ -132,7 +132,9 @@
       "PowerShell(& \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\.specify\\\\scripts\\\\powershell\\\\setup-plan.ps1\" -Json)",
       "PowerShell(& \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\.specify\\\\scripts\\\\powershell\\\\setup-tasks.ps1\" -Json)",
       "Bash(awk '$1>1')",
-      "Bash(awk 'BEGIN{p=0} {if\\($1!=p+1\\) print \"GAP after T\"p\" -> T\"$1; p=$1} END{print \"last: T\"p}')"
+      "Bash(awk 'BEGIN{p=0} {if\\($1!=p+1\\) print \"GAP after T\"p\" -> T\"$1; p=$1} END{print \"last: T\"p}')",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\specs\\\\038-viewer-poi-zoom\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\specs\\\\038-viewer-poi-zoom\\\\checklists\")"
     ],
     "additionalDirectories": [
       "\\tmp",
