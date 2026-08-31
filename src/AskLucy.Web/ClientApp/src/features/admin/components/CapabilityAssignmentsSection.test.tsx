@@ -81,31 +81,34 @@ describe('CapabilityAssignmentsSection', () => {
     )
   })
 
-  it('clears the assignment back to the platform default', async () => {
-    vi.mocked(adminAiProvidersApi.setCapabilityAssignment).mockResolvedValue(undefined)
-    renderSection([{ ...unassigned, providerId: 'provider-anthropic' }])
-
-    const menu = await openProviderMenu('Location intent')
-    fireEvent.click(menu.getByText('Platform default'))
-
-    await waitFor(() =>
-      expect(adminAiProvidersApi.setCapabilityAssignment).toHaveBeenCalledWith('LocationIntent', null),
-    )
-  })
-
-  it('shows where an unassigned capability actually lands, not just that it is unassigned', async () => {
-    // "Unassigned" and "not working" are different states. Conflating them is what let a
-    // capability run on a provider nobody chose without anything on screen saying so.
+  it('offers no "platform default" option — a capability is either assigned or it is not', async () => {
     renderSection([unassigned])
 
-    expect(await screen.findByText(/via platform default/)).toBeInTheDocument()
-    expect(screen.getByText('OpenAI')).toBeInTheDocument()
+    const menu = await openProviderMenu('Location intent')
+
+    expect(menu.queryByText('Platform default')).not.toBeInTheDocument()
   })
 
-  it('reports plainly when nothing can serve a capability', async () => {
-    renderSection([{ ...unassigned, effectiveProviderId: null, effectiveModelId: null }])
+  it('prompts for a choice until one is made', async () => {
+    renderSection([unassigned])
 
-    expect(await screen.findByText('Nothing can serve this yet')).toBeInTheDocument()
+    expect(await screen.findByText('Please select AI provider')).toBeInTheDocument()
+  })
+
+  it('disables the control and says so when no provider can serve anything yet', async () => {
+    // A fresh install: nothing enabled, credentialled and carrying a default model.
+    renderSection([unassigned], [])
+
+    expect(await screen.findByText('No AI provider available')).toBeInTheDocument()
+    expect(document.querySelector('[role="combobox"]')?.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('reports an unassigned capability as unassigned, not as running somewhere', async () => {
+    // The server still resolves a fallback so nothing breaks mid-turn, but the screen must not
+    // present that as configuration: an unassigned capability is a decision not yet made.
+    renderSection([unassigned])
+
+    expect(await screen.findByText('Not assigned')).toBeInTheDocument()
   })
 
   it('lists every provider that is enabled, credentialled and has a default model', async () => {

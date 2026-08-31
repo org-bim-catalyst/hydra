@@ -108,6 +108,7 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
    * its own: Default models, the step between Providers and this one.
    */
   const selectable = providers.filter((p) => p.isEnabled && p.hasCredential && p.defaultModelId)
+  const hasNoProviders = selectable.length === 0
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -116,8 +117,7 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
       </Typography>
       <Alert severity="info" sx={{ mb: 2 }}>
         Each capability runs on the provider assigned here, using that provider&apos;s default
-        model. Leave one unassigned and it falls back to the platform default, which is decided
-        alphabetically — the behaviour this screen exists to replace.
+        model.
       </Alert>
 
       {selectable.length === 0 && (
@@ -166,44 +166,45 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
                         {`Provider for ${copy.label}`}
                       </InputLabel>
                       <Select
-                      labelId={`${assignment.capability}-label`}
-                      size="small"
-                      value={assignment.providerId ?? ''}
-                      displayEmpty
-                      disabled={assignMutation.isPending}
-                      onChange={(event) =>
-                        assignMutation.mutate({
-                          capability: assignment.capability,
-                          providerId: event.target.value === '' ? null : event.target.value,
-                        })
-                      }
-                      sx={{ minWidth: 200 }}
-                    >
-                      <MenuItem value="">
-                        <em>Platform default</em>
-                      </MenuItem>
-                      {selectable.map((provider) => (
-                        <MenuItem key={provider.id} value={provider.id}>
-                          {provider.displayName}
-                        </MenuItem>
-                      ))}
+                        labelId={`${assignment.capability}-label`}
+                        size="small"
+                        value={assignment.providerId ?? ''}
+                        displayEmpty
+                        disabled={hasNoProviders || assignMutation.isPending}
+                        onChange={(event) =>
+                          assignMutation.mutate({
+                            capability: assignment.capability,
+                            providerId: event.target.value === '' ? null : event.target.value,
+                          })
+                        }
+                        // The empty value is a placeholder, never a choice — there is no
+                        // "platform default" to pick. Until a provider is chosen the control
+                        // says so, and with nothing to choose from it says that instead.
+                        renderValue={(value) => {
+                          const chosen = providerName(value as string)
+                          if (chosen) return chosen
+                          return (
+                            <Typography component="span" variant="body2" color="text.secondary">
+                              {hasNoProviders ? 'No AI provider available' : 'Please select AI provider'}
+                            </Typography>
+                          )
+                        }}
+                        sx={{ minWidth: 200 }}
+                      >
+                        {selectable.map((provider) => (
+                          <MenuItem key={provider.id} value={provider.id}>
+                            {provider.displayName}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                   </TableCell>
                   <TableCell>
-                    {effective ? (
-                      <Typography variant="body2">
-                        {effective}
-                        {assignment.providerId === null && (
-                          <Typography component="span" variant="caption" color="text.secondary">
-                            {' '}
-                            (via platform default)
-                          </Typography>
-                        )}
-                      </Typography>
+                    {assignment.providerId && effective ? (
+                      <Typography variant="body2">{effective}</Typography>
                     ) : (
-                      <Typography variant="body2" color="error">
-                        Nothing can serve this yet
+                      <Typography variant="body2" color="text.secondary">
+                        Not assigned
                       </Typography>
                     )}
                   </TableCell>
