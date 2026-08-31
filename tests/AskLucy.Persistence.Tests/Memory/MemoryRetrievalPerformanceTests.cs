@@ -5,6 +5,7 @@ using AskLucy.Persistence.Memory;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
 using MemoryEntity = AskLucy.Domain.Memory.Memory;
+using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.Memory;
 
@@ -34,7 +35,9 @@ public sealed class MemoryRetrievalPerformanceTests(PersistenceTestFixture fixtu
     private const int MemoryCount = 3_000;
     private const int TopK = 8;
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task QueryNearestAsync_ThenGetActiveByIdsAsync_ShouldCompleteWellUnderAPerceptibleDelay_At3000StoredMemories()
     {
         var userId = $"owner-{Guid.NewGuid():N}";

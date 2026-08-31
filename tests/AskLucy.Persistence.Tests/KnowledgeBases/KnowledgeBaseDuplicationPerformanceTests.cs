@@ -9,6 +9,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.KnowledgeBases;
 
@@ -24,7 +25,9 @@ public sealed class KnowledgeBaseDuplicationPerformanceTests(PersistenceTestFixt
 {
     private const int DocumentCount = 1_000;
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task Handle_ShouldDuplicateAKnowledgeBaseWith1000Documents_InUnderTenSeconds()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -42,7 +45,7 @@ public sealed class KnowledgeBaseDuplicationPerformanceTests(PersistenceTestFixt
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.KnowledgeBases.Add(source);
             seedContext.KnowledgeBaseDocuments.AddRange(documents);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();

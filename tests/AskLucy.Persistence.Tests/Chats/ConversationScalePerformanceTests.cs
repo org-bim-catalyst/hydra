@@ -3,6 +3,7 @@ using AskLucy.Application.Chats.Queries.SearchUserChats;
 using AskLucy.Domain.Chats;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
+using AskLucy.Persistence.Tests;
 
 namespace AskLucy.Persistence.Tests.Chats;
 
@@ -23,7 +24,9 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
     private const int ConversationCount = 10_000;
     private const int MessageCountInLargeConversation = 20_000;
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task SearchAsync_ShouldReturnAPage_InUnderThreeSeconds_At10000Conversations()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -62,7 +65,9 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
         stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3), "SC-001: search/filter must return in under 3s at 10,000+ conversations");
     }
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task ListPagedByChatIdAsync_ShouldReturnAPage_Quickly_ForAVeryLongConversation()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
