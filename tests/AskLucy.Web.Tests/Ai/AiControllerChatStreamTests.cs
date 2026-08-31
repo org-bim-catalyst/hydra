@@ -203,9 +203,41 @@ public sealed class AiControllerChatStreamTests : IDisposable
     }
 
     /// <summary>
-    /// A break that arrives with nothing buffered — a turn whose whole reply is the confirmation —
-    /// must not persist an empty message or leave an empty bubble on screen.
+    /// The break carries what the newly-opened message is waiting for, so the client can say so
+    /// instead of leaving a finished-looking reply silent for tens of seconds.
     /// </summary>
+    [Fact]
+    public async Task Chat_ShouldWriteThePendingLabel_OnABreakThatAnnouncesUnfinishedWork()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("Centred the viewer on it.", null);
+            yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: "Finding the site boundary");
+            yield return new ChatStreamChunk("I have outlined the site boundary.", null);
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var text = ResponseText();
+        text.Should().Contain(@"__MESSAGE_BREAK__{""pendingLabel"":""Finding the site boundary""}");
+        text.IndexOf("__MESSAGE_BREAK__", StringComparison.Ordinal).Should().BeLessThan(
+            text.IndexOf("I have outlined", StringComparison.Ordinal),
+            "the label has to reach the client before the work it describes finishes");
+    }
+
+    /// <summary>
+    /// A break that arrives with nothing buffered must not persist an empty message.
+    /// </summary>
+    /// <remarks>
+    /// The break itself is still written. A chunk may open a message purely to say what it is
+    /// waiting for — "Finding the site boundary" — so that the reply can be shown as finished and
+    /// spoken while the slow work runs, instead of after it. Only the persist is conditional.
+    /// </remarks>
     [Fact]
     public async Task Chat_ShouldNotPersistAnEmptyMessage_WhenTheBreakArrivesWithNothingBuffered()
     {
@@ -229,6 +261,6 @@ public sealed class AiControllerChatStreamTests : IDisposable
             .ToList();
 
         assistantContents.Should().Equal("I have outlined the site boundary.");
-        ResponseText().Should().NotContain("__MESSAGE_BREAK__");
+        ResponseText().Should().Contain("__MESSAGE_BREAK__");
     }
 }

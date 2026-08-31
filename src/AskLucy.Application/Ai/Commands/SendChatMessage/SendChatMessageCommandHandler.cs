@@ -257,14 +257,21 @@ public sealed class SendChatMessageCommandHandler(
             // specs/044 FR-002/FR-003: isolated and bounded (see ResolveBoundarySafelyAsync). The
             // call cannot live inline here — C# forbids `yield return` inside a try/catch — which
             // is precisely why the original code had no protection around it at all.
+            // The break is announced BEFORE the boundary work, not after it. Everything the
+            // reply has to say is complete at this point, so closing its message here lets the
+            // client render it as finished and speak it immediately, and show this label while
+            // the boundary resolves — which can take tens of seconds. Announced afterwards, the
+            // reply looked finished but stayed silent until the whole turn ended.
+            yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: "Finding the site boundary");
+
             var boundaryOutcome = await ResolveBoundarySafelyAsync(confirmedLocation, request.ChatId, cancellationToken);
 
             if (boundaryOutcome.ConfirmationText is not null)
             {
-                // Its own message, not more text on the end of the reply. The boundary lands
-                // seconds after the location did, so appending it edits a bubble the user has
-                // most likely already read.
-                yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null, StartsNewMessage: true);
+                // Streams into the message opened above. Its own message, not more text on the
+                // end of the reply: the boundary reports a separate action that finished seconds
+                // later, and appending it edits a bubble the user has most likely already read.
+                yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null);
             }
 
             // specs/044 FR-001b: the boundary is its own later delivery, never bundled with the

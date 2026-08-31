@@ -1464,6 +1464,59 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
   })
 
   /**
+   * The turn holds the stream open while the boundary resolves — tens of seconds, sometimes the
+   * full 45s budget. Before this, the reply sat on screen looking finished, silent, with nothing
+   * to say anything was still happening.
+   */
+  it('shows what it is waiting for while the boundary resolves, and speaks the reply without waiting', async () => {
+    // Cleared because `mockTts` is shared across this file and vi.spyOn on an already-spied
+    // property hands back the same accumulating mock, so counts leak between tests.
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    speak.mockClear()
+    let releaseBoundary: () => void = () => {}
+    const boundaryDone = new Promise<void>((resolve) => {
+      releaseBoundary = resolve
+    })
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode('data: Centred the viewer on it.\n\n'))
+            controller.enqueue(
+              encoder.encode('data: __MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}\n\n'),
+            )
+            await boundaryDone
+            controller.enqueue(encoder.encode("data: I've outlined the site boundary.\n\n"))
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            controller.close()
+          },
+        })
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    // Still mid-stream: the reply is complete and voiced, and the pending work is named.
+    expect(await screen.findByText('Centred the viewer on it.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: 'Finding the site boundary' })).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
+    expect(speak.mock.calls[0][0]).toContain('Centred the viewer on it.')
+
+    act(() => releaseBoundary())
+
+    expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+  })
+
+  /**
    * Auto-speak used to read `messages[length - 1]` and require an `id` on it. Splitting the
    * boundary confirmation into its own bubble broke both halves at once: the last message became
    * the confirmation, so the reply went unspoken, and the confirmation carries no server id — only
@@ -1472,6 +1525,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
    */
   it('speaks every message of a split turn, including the one with no server id', async () => {
     const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    speak.mockClear() // shared mockTts — see the note above
 
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
@@ -1492,11 +1546,14 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
     expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
-    await waitFor(() => expect(speak).toHaveBeenCalled())
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
 
-    const spoken = speak.mock.calls.at(-1)![0]
-    expect(spoken).toContain('Centred the viewer on Al Safa Park 2.')
-    expect(spoken).toContain("I've outlined the site boundary.")
+    // Each reply is voiced as it completes, not both together once the turn ends. The boundary
+    // can hold the stream open for tens of seconds after the reply is finished, and waiting for
+    // the end left that reply on screen in silence.
+    const spoken = speak.mock.calls.map((call) => call[0])
+    expect(spoken[0]).toContain('Centred the viewer on Al Safa Park 2.')
+    expect(spoken[1]).toContain("I've outlined the site boundary.")
   })
 
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
