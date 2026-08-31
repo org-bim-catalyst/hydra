@@ -240,7 +240,7 @@ public sealed class BoundaryResolutionServiceTests
         Reasoning: ["Matches visible fence line."], Issues: [], RequiresRefinement: false, ObservedBoundary: observedBoundary);
 
     [Fact]
-    public async Task ResolveAsync_ShouldUseGeminisObservedGeometry_WhenItPassesThePlausibilityCheck()
+    public async Task ResolveAsync_ShouldRepositionTheMappedGeometry_RatherThanReplaceItWithGeminisOutline()
     {
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { Candidate() });
@@ -254,8 +254,60 @@ public sealed class BoundaryResolutionServiceTests
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.AiInterpretation);
-        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(observed, opts => opts.WithStrictOrdering());
-        outcome.ConfirmationText.Should().Contain("Gemini's own visual read");
+        // Same shift, so the corrected outline lands on the observed one — but it got there by
+        // translating the mapped ring, not by adopting Gemini's trace.
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(
+            observed, opts => opts.WithStrictOrdering().Using<double>(
+                ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
+        outcome.ConfirmationText.Should().Contain("repositioned");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldPreserveEveryMappedVertex_WhenGeminiTracesACruderOutline()
+    {
+        // The live failure this replaced: OSM's way for Al Safa Park 2 carries seven distinct
+        // corners including a stepped notch on one side, and Gemini traces it as a four-point
+        // approximation. Substituting the trace fixed the offset and destroyed the shape.
+        var mapped = new List<GeoPoint>
+        {
+            new(25.1548445, 55.2218037),
+            new(25.1553063, 55.2210997),
+            new(25.1562712, 55.2218513),
+            new(25.1563532, 55.2219158), // the stepped corner — three vertices where a
+            new(25.1565255, 55.2220514), // rectangle would have one
+            new(25.1560252, 55.2227775),
+            new(25.1551806, 55.2220769),
+            new(25.1548445, 55.2218037),
+        };
+        var crudeTrace = new List<GeoPoint>
+        {
+            new(25.1550, 55.2213), new(25.1565, 55.2222), new(25.1560, 55.2229), new(25.1550, 55.2213),
+        };
+
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate>
+            {
+                new("osm_1", new SiteBoundaryPolygon(mapped), SiteBoundarySource.OsmBoundary, "Al Safa Park 2",
+                    new Dictionary<string, string> { ["leisure"] = "park" }, mapped.Count,
+                    GeometryMath.AreaSquareMeters(mapped)),
+            });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary(crudeTrace));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        var result = outcome.ConfirmedBoundary!.Polygon;
+        result.Should().HaveCount(mapped.Count, "every mapped vertex survives a repositioning");
+
+        // Rigid translation: every edge keeps its length, so the notch is still a notch.
+        for (var i = 1; i < mapped.Count; i++)
+        {
+            GeometryMath.DistanceMeters(result[i - 1], result[i])
+                .Should().BeApproximately(GeometryMath.DistanceMeters(mapped[i - 1], mapped[i]), 0.5);
+        }
     }
 
     [Fact]
@@ -430,8 +482,10 @@ public sealed class BoundaryResolutionServiceTests
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.AiInterpretation);
-        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(observed);
-        outcome.ConfirmationText.Should().Contain("shifted");
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(
+            observed, opts => opts.WithStrictOrdering().Using<double>(
+                ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
+        outcome.ConfirmationText.Should().Contain("repositioned");
     }
 
     /// <summary>

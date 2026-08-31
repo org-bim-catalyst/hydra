@@ -97,11 +97,15 @@ public sealed class SendChatMessageMemoryIntegrationTests
         }
 
         _resolvedProvider.Received(1).StreamChatAsync(
+            // Memory still precedes RAG. Both now sit after the standing reply-scope
+            // instruction, which is inserted first so everything after it refines a reply
+            // already scoped to the question.
             Arg.Is<IReadOnlyList<ChatMessage>>(m =>
                 m != null
-                && m.Count == 3
-                && m[0].Role == ChatRole.System && m[0].Content.Contains("The user prefers React.")
-                && m[1].Role == ChatRole.System && m[1].Content.Contains("RAG excerpt.")),
+                && m.Count == 4
+                && m[0].Role == ChatRole.System && m[0].Content.Contains("Answer only what was asked")
+                && m[1].Role == ChatRole.System && m[1].Content.Contains("The user prefers React.")
+                && m[2].Role == ChatRole.System && m[2].Content.Contains("RAG excerpt.")),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
     }
 
@@ -118,7 +122,10 @@ public sealed class SendChatMessageMemoryIntegrationTests
         }
 
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
+            // Every turn now opens with ReplyScopePromptFraming, so "no retrieval/memory context"
+            // means exactly two messages: that standing instruction, then the user.
+            Arg.Is<IReadOnlyList<ChatMessage>>(m =>
+                m != null && m.Count == 2 && m[0].Role == ChatRole.System && m[1].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
     }
 

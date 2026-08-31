@@ -211,17 +211,38 @@ public sealed class BoundaryResolutionService(
     private const double VisionCorrectionMaxAreaRatio = 3.0;
 
     /// <summary>
-    /// User-requested departure from the notebook's "AI never invents coordinates" rule: when a
-    /// site has only one real OSM candidate, "picking a better candidate" (<see cref="SelectFinalCandidate"/>)
-    /// has nothing else to pick even if that one candidate's own geometry is positionally wrong
-    /// (observed live: Al Safa Park 2's OSM way is shaped correctly but shifted from its true
-    /// position, likely inherited from misaligned source imagery used when it was originally
-    /// traced). Gemini's own visual read of the boundary (<see cref="BoundaryVisionAnalysis.ObservedBoundary"/>,
-    /// already geo-referenced from image-relative coordinates by <see cref="IBoundaryVisionAnalyzer"/>)
-    /// is trusted to override the mapped geometry ONLY after passing a plausibility check — area
-    /// within <see cref="VisionCorrectionMinAreaRatio"/>x-<see cref="VisionCorrectionMaxAreaRatio"/>x
-    /// of the mapped candidate's area, and centroid within the search radius of the resolved
-    /// center — so an unrelated or hallucinated read can't silently replace real mapped geometry.
+    /// How far the mapped geometry may be nudged. A shift larger than this is not an alignment
+    /// error — it means the vision read is describing something else, and translating onto it
+    /// would move the boundary off the site entirely.
+    /// </summary>
+    private const double MaxVisionCorrectionMeters = 80;
+
+    /// <summary>
+    /// Corrects the mapped geometry's <b>position</b> using Gemini's visual read, and nothing
+    /// else.
+    ///
+    /// <para>
+    /// This used to replace the mapped polygon with the observed one outright. That was wrong in
+    /// a way the live result made obvious: OSM's way for Al Safa Park 2 carries seven distinct
+    /// corners including a stepped notch on one side, and Gemini's traced outline is a four- or
+    /// five-point approximation. Substituting it fixed the offset and destroyed the shape —
+    /// visibly worse than the geometry it replaced, despite passing every plausibility check.
+    /// </para>
+    ///
+    /// <para>
+    /// The mapped outline was never the problem. Al Safa Park 2's OSM way is shaped correctly but
+    /// sits shifted from its true position, most likely traced against misaligned imagery. So the
+    /// vision read is used only for what it is actually good at — telling us where the site really
+    /// is — and the correction applied is the translation between the two centroids, with every
+    /// mapped vertex carried along unchanged.
+    /// </para>
+    ///
+    /// <para>
+    /// Three gates, all of which must hold: the observed area is within
+    /// <see cref="VisionCorrectionMinAreaRatio"/>x-<see cref="VisionCorrectionMaxAreaRatio"/>x of
+    /// the mapped area (it is looking at the same site), the observed centroid is inside the
+    /// search radius, and the resulting shift is under <see cref="MaxVisionCorrectionMeters"/>.
+    /// </para>
     /// </summary>
     private static VisionCorrectedGeometry? TryBuildVisionCorrectedGeometry(
         ScoredBoundaryCandidate winner, BoundaryVisionAnalysis vision, GeoPoint center, BoundaryScoringOptions opts, string mappedSourceDetail)
@@ -233,6 +254,12 @@ public sealed class BoundaryResolutionService(
 
         var observedArea = GeometryMath.AreaSquareMeters(observed);
         if (observedArea <= 0)
+        {
+            return null;
+        }
+
+        var mapped = winner.Candidate.Polygon.ExteriorRing;
+        if (mapped.Count < 3)
         {
             return null;
         }
@@ -253,9 +280,32 @@ public sealed class BoundaryResolutionService(
             return null;
         }
 
+        var mappedCentroid = GeometryMath.Centroid(mapped);
+        var shiftMeters = GeometryMath.DistanceMeters(mappedCentroid, observedCentroid);
+        if (shiftMeters > MaxVisionCorrectionMeters)
+        {
+            return null;
+        }
+
+        // Nothing to gain from a sub-metre nudge, and reporting a correction that moved nothing
+        // would overstate what happened.
+        if (shiftMeters < 1)
+        {
+            return null;
+        }
+
+        var deltaLat = observedCentroid.Latitude - mappedCentroid.Latitude;
+        var deltaLon = observedCentroid.Longitude - mappedCentroid.Longitude;
+        var corrected = mapped
+            .Select(p => new GeoPoint(p.Latitude + deltaLat, p.Longitude + deltaLon))
+            .ToList();
+
         return new VisionCorrectedGeometry(
-            observed, observedArea, SiteBoundarySource.AiInterpretation,
-            $"Gemini vision's own read of the satellite image (cross-checked against {mappedSourceDetail}, area within tolerance)");
+            corrected,
+            // The shape is unchanged, so the mapped area still describes it exactly.
+            mappedArea > 0 ? mappedArea : GeometryMath.AreaSquareMeters(corrected),
+            SiteBoundarySource.AiInterpretation,
+            $"{mappedSourceDetail}, repositioned {shiftMeters:F0} m by Gemini vision to match the satellite image");
     }
 
     private sealed record VisionCorrectedGeometry(

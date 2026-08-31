@@ -97,7 +97,10 @@ public sealed class SendChatMessageRetrievalOutageTests
 
         // Unaugmented — no system context was inserted (nothing was retrieved to inject).
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
+            // Every turn now opens with ReplyScopePromptFraming, so "no retrieval/memory context"
+            // means exactly two messages: that standing instruction, then the user.
+            Arg.Is<IReadOnlyList<ChatMessage>>(m =>
+                m != null && m.Count == 2 && m[0].Role == ChatRole.System && m[1].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
 
         // A separate, non-silent, visible retrieval error rides the final chunk (FR-037a).
