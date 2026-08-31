@@ -90,7 +90,10 @@ public sealed class MemoryDegradedModeTests
         // Never blocked — content still streams in full, unaugmented (no memory system message).
         chunks.Select(c => c.ContentDelta).Should().Contain("Here's an answer, no memory needed.");
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
+            // Every turn now opens with ReplyScopePromptFraming, so "no retrieval/memory context"
+            // means exactly two messages: that standing instruction, then the user.
+            Arg.Is<IReadOnlyList<ChatMessage>>(m =>
+                m != null && m.Count == 2 && m[0].Role == ChatRole.System && m[1].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
 
         // The failure rides the final chunk (visible, non-silent) rather than being swallowed.

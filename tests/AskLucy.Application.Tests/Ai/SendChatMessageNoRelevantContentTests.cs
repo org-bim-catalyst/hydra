@@ -93,7 +93,10 @@ public sealed class SendChatMessageNoRelevantContentTests
 
         // Unaugmented — no system message inserted (Decision 8: sends the user's message ungrounded).
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
+            // Every turn now opens with ReplyScopePromptFraming, so "no retrieval/memory context"
+            // means exactly two messages: that standing instruction, then the user.
+            Arg.Is<IReadOnlyList<ChatMessage>>(m =>
+                m != null && m.Count == 2 && m[0].Role == ChatRole.System && m[1].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
 
         chunks.Select(c => c.ContentDelta).Should().Contain("I don't have information about that.");

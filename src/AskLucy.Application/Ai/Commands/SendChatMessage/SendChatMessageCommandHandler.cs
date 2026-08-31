@@ -102,6 +102,7 @@ public sealed class SendChatMessageCommandHandler(
             .Select(m => new ChatMessage(ParseRole(m.Role), m.Content))
             .ToList();
 
+
         var knowledgeBaseIds = (await conversationKnowledgeBaseRepository.GetByConversationAsync(request.ChatId, cancellationToken))
             .Select(l => l.KnowledgeBaseId)
             .ToList();
@@ -167,6 +168,12 @@ public sealed class SendChatMessageCommandHandler(
                 "If the user asks about its confidence or source, answer using this information " +
                 $"directly — do not claim you cannot access it. {BoundaryConfirmationTemplates.CorrectionGuidance}"));
         }
+
+        // Inserted last and therefore first in the list: every preceding block also uses
+        // Insert(0, ...), so adding this earlier would have left it buried under them. It leads,
+        // so everything after it refines a reply already scoped to what was actually asked.
+        // See ReplyScopePromptFraming for why it is standing rather than location-triggered.
+        messages.Insert(0, new ChatMessage(ChatRole.System, ReplyScopePromptFraming.BuildSystemMessage()));
 
         await foreach (var chunk in aiProvider.StreamChatAsync(messages, model.ModelKey, request.GenerationParameters, cancellationToken))
         {
