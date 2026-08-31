@@ -22,7 +22,7 @@ public sealed class LastSuperUserGuardTests
             _identityService, "target-1", actionRemovesTargetsSuperUserStatus: false, CancellationToken.None);
 
         await act.Should().NotThrowAsync();
-        await _identityService.DidNotReceiveWithAnyArgs().GetRolesAsync(default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().GetRolesAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class LastSuperUserGuardTests
             _identityService, "target-1", actionRemovesTargetsSuperUserStatus: true, CancellationToken.None);
 
         await act.Should().NotThrowAsync();
-        await _identityService.DidNotReceiveWithAnyArgs().CountActiveSuperUsersAsync(default);
+        await _identityService.DidNotReceiveWithAnyArgs().CountActiveSuperUsersAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]

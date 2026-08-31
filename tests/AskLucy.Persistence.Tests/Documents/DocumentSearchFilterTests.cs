@@ -90,7 +90,7 @@ public sealed class DocumentSearchFilterTests(PersistenceTestFixture fixture)
         await using (var categoryContext = fixture.CreateDbContext())
         {
             categoryContext.DocumentCategories.AddRange(category, otherCategory);
-            await categoryContext.SaveChangesAsync();
+            await categoryContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         // Matches every filter below.
@@ -125,7 +125,7 @@ public sealed class DocumentSearchFilterTests(PersistenceTestFixture fixture)
         await using (var dbContext = fixture.CreateDbContext())
         {
             dbContext.DocumentMetadata.Add(DocumentMetadata.CreateFromExtraction(documentId, "Quarterly Invoice Summary", null, null, null, null, null, ownerId));
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();

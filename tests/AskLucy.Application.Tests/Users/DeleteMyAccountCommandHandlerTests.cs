@@ -40,6 +40,6 @@ public sealed class DeleteMyAccountCommandHandlerTests
 
         result.Status.Should().Be(IdentityResultStatus.Failed);
         result.Errors.Should().Contain("Incorrect password.");
-        await _identityService.DidNotReceiveWithAnyArgs().DeleteAsync(default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().DeleteAsync(default!, TestContext.Current.CancellationToken);
     }
 }

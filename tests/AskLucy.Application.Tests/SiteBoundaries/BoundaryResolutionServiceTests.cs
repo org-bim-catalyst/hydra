@@ -55,7 +55,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { Candidate() });
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary.Should().NotBeNull();
@@ -71,7 +71,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate>());
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.NoCandidates);
         outcome.ConfirmedBoundary.Should().NotBeNull("User Story 1 acceptance scenario 3 requires an actual approximate area to render");
@@ -87,7 +87,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<IReadOnlyList<BoundaryCandidate>>(new BoundaryProviderUnavailableException("Overpass down.")));
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Unavailable);
         outcome.ConfirmedBoundary.Should().BeNull("FR-012 forbids returning a default result when the source itself is unreachable");
@@ -107,7 +107,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { winner, closeSecond });
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.AlternativeCandidateNames.Should().Contain("Al Safa Park 2 (Landuse Boundary)");
@@ -122,7 +122,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { winner, farWeaker });
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.ConfirmedBoundary!.AlternativeCandidateNames.Should().BeEmpty();
     }
@@ -141,7 +141,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { candidate });
 
-        var outcome = await _service.ResolveAsync(location, ChatId);
+        var outcome = await _service.ResolveAsync(location, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.SiteName.Should().Be(siteName);
@@ -159,7 +159,7 @@ public sealed class BoundaryResolutionServiceTests
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate>());
 
-        var outcome = await _service.ResolveAsync(location, ChatId);
+        var outcome = await _service.ResolveAsync(location, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.NoCandidates);
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.ManualFallback);
@@ -179,7 +179,7 @@ public sealed class BoundaryResolutionServiceTests
         _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryVisionAnalysis(AiUsed: true, "osm_1", 0.9, "high", ["Matches visible park boundary."], [], false));
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
@@ -203,7 +203,7 @@ public sealed class BoundaryResolutionServiceTests
         _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryVisionAnalysis(AiUsed: true, "osm_ai_pick", 0.88, "high", ["Visible fence line matches this candidate."], [], false));
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.AreaSquareMeters.Should().Be(22_000);
@@ -218,7 +218,7 @@ public sealed class BoundaryResolutionServiceTests
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns((SatelliteImage?)null);
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.ConfidenceLevel.Should().Be(BoundaryConfidenceLevel.High);
@@ -407,7 +407,7 @@ public sealed class BoundaryResolutionServiceTests
         _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary(tinyObserved));
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
         outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
@@ -426,7 +426,7 @@ public sealed class BoundaryResolutionServiceTests
         _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary(farAwayObserved));
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
         outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
@@ -450,7 +450,7 @@ public sealed class BoundaryResolutionServiceTests
         _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(BoundaryVisionAnalysis.NotConfigured(reason));
 
-        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId);
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);

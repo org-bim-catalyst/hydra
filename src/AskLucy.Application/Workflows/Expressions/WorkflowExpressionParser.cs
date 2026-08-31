@@ -149,7 +149,7 @@ internal static class WorkflowExpressionParser
         }
     }
 
-    private static WorkflowExpressionNode ParseFunctionCall(IReadOnlyList<Token> tokens, ref int position)
+    private static FunctionCallExpressionNode ParseFunctionCall(IReadOnlyList<Token> tokens, ref int position)
     {
         var functionName = tokens[position].Text;
         position++;

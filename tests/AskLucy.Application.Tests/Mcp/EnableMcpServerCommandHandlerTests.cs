@@ -30,7 +30,7 @@ public sealed class EnableMcpServerCommandHandlerTests
         var result = await handler.Handle(new EnableMcpServerCommand(server.Id), CancellationToken.None);
 
         result.IsEnabled.Should().BeTrue();
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ServerEnabled));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ServerEnabled));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

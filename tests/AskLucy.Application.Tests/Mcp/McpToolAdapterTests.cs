@@ -46,7 +46,7 @@ public sealed class McpToolAdapterTests
             .Returns(new McpToolCallResult(false, JsonDocument.Parse("""{"result":"ok"}"""), null));
         var adapter = CreateAdapter(tool);
 
-        var result = await adapter.ExecuteAsync(Context(), EmptyInput());
+        var result = await adapter.ExecuteAsync(Context(), EmptyInput(), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("result").GetString().Should().Be("ok");
@@ -59,7 +59,7 @@ public sealed class McpToolAdapterTests
         _rateLimiter.TryAcquireAsync(Arg.Any<McpRateLimitKey>(), Arg.Any<CancellationToken>()).Returns((IAsyncDisposable?)null);
         var adapter = CreateAdapter(tool);
 
-        var result = await adapter.ExecuteAsync(Context(), EmptyInput());
+        var result = await adapter.ExecuteAsync(Context(), EmptyInput(), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("[RateLimit]");
@@ -74,7 +74,7 @@ public sealed class McpToolAdapterTests
             .Returns(new McpToolCallResult(true, null, "boom"));
         var adapter = CreateAdapter(tool);
 
-        var result = await adapter.ExecuteAsync(Context(), EmptyInput());
+        var result = await adapter.ExecuteAsync(Context(), EmptyInput(), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("[ServerError]").And.Contain("boom");
@@ -89,7 +89,7 @@ public sealed class McpToolAdapterTests
         _schemaValidator.Validate(Arg.Any<JsonElement>(), Arg.Any<JsonElement>(), Arg.Any<long>()).Returns(["result must be a string"]);
         var adapter = CreateAdapter(tool);
 
-        var result = await adapter.ExecuteAsync(Context(), EmptyInput());
+        var result = await adapter.ExecuteAsync(Context(), EmptyInput(), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("[InvalidResponse]");
@@ -103,7 +103,7 @@ public sealed class McpToolAdapterTests
             .Returns(callInfo => DelayForeverAsync(callInfo.ArgAt<CancellationToken>(2)));
         var adapter = CreateAdapter(tool, maxCallDurationSeconds: 1);
 
-        var result = await adapter.ExecuteAsync(Context(), EmptyInput());
+        var result = await adapter.ExecuteAsync(Context(), EmptyInput(), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("[Timeout]");
@@ -123,7 +123,7 @@ public sealed class McpToolAdapterTests
             .Returns<McpToolCallResult>(_ => throw new InvalidOperationException("secret-token-abc123 leaked"));
         var adapter = CreateAdapter(tool);
 
-        var result = await adapter.ExecuteAsync(Context(), EmptyInput());
+        var result = await adapter.ExecuteAsync(Context(), EmptyInput(), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("[ConnectionFailure]");

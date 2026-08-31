@@ -34,6 +34,6 @@ public sealed class KnowledgeBaseUpdatedNotificationPublishingTests
             publisher.Publish(Arg.Any<KnowledgeBaseUpdatedNotification>(), Arg.Any<CancellationToken>());
         });
         await publisher.Received(1).Publish(
-            Arg.Is<KnowledgeBaseUpdatedNotification>(n => n.KnowledgeBaseId == knowledgeBase.Id && n.OwnerId == "user-1"), Arg.Any<CancellationToken>());
+            Arg.Is<KnowledgeBaseUpdatedNotification>(n => n != null && n.KnowledgeBaseId == knowledgeBase.Id && n.OwnerId == "user-1"), Arg.Any<CancellationToken>());
     }
 }

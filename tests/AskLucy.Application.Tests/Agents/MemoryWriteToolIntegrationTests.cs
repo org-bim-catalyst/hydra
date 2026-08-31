@@ -30,7 +30,7 @@ public sealed class MemoryWriteToolIntegrationTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("memoryId").GetGuid().Should().Be(candidateId);
-        await sender.Received(1).Send(Arg.Is<CreateMemoryCandidateCommand>(c => c.UserId == "user-42" && c.Content == "Prefers dark mode." && c.Category == MemoryCategory.UserPreference), Arg.Any<CancellationToken>());
+        await sender.Received(1).Send(Arg.Is<CreateMemoryCandidateCommand>(c => c != null && c.UserId == "user-42" && c.Content == "Prefers dark mode." && c.Category == MemoryCategory.UserPreference), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class MemoryWriteToolIntegrationTests
         var memoryId = await handler.Handle(command, CancellationToken.None);
 
         memoryId.Should().NotBeNull();
-        memoryRepository.Received(1).Add(Arg.Is<Domain.Memory.Memory>(m => m.UserId == "user-1" && m.SourceType == MemorySourceType.AgentProposed));
+        memoryRepository.Received(1).Add(Arg.Is<Domain.Memory.Memory>(m => m != null && m.UserId == "user-1" && m.SourceType == MemorySourceType.AgentProposed));
         approvalRepository.Received(1).Add(Arg.Any<MemoryApproval>());
         await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }

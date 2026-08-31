@@ -28,7 +28,7 @@ public sealed class McpRateLimiterTests
     {
         using var limiter = CreateLimiter();
 
-        var lease = await limiter.TryAcquireAsync(Key());
+        var lease = await limiter.TryAcquireAsync(Key(), TestContext.Current.CancellationToken);
 
         lease.Should().NotBeNull();
         if (lease is not null)
@@ -43,8 +43,8 @@ public sealed class McpRateLimiterTests
         using var limiter = CreateLimiter(maxRequestsPerMinute: 1, maxConcurrentRequestsPerServer: 10);
         var key = Key();
 
-        var first = await limiter.TryAcquireAsync(key);
-        var second = await limiter.TryAcquireAsync(key);
+        var first = await limiter.TryAcquireAsync(key, TestContext.Current.CancellationToken);
+        var second = await limiter.TryAcquireAsync(key, TestContext.Current.CancellationToken);
 
         first.Should().NotBeNull();
         second.Should().BeNull();
@@ -55,8 +55,8 @@ public sealed class McpRateLimiterTests
     {
         using var limiter = CreateLimiter(maxRequestsPerMinute: 1, maxConcurrentRequestsPerServer: 10);
 
-        var first = await limiter.TryAcquireAsync(Key(user: "user-1"));
-        var second = await limiter.TryAcquireAsync(Key(user: "user-2"));
+        var first = await limiter.TryAcquireAsync(Key(user: "user-1"), TestContext.Current.CancellationToken);
+        var second = await limiter.TryAcquireAsync(Key(user: "user-2"), TestContext.Current.CancellationToken);
 
         first.Should().NotBeNull();
         second.Should().NotBeNull();
@@ -68,8 +68,8 @@ public sealed class McpRateLimiterTests
         using var limiter = CreateLimiter(maxRequestsPerMinute: 100, maxConcurrentRequestsPerServer: 1);
         var serverId = Guid.NewGuid();
 
-        var first = await limiter.TryAcquireAsync(Key(serverId: serverId, tool: "toolA"));
-        var second = await limiter.TryAcquireAsync(Key(serverId: serverId, tool: "toolB"));
+        var first = await limiter.TryAcquireAsync(Key(serverId: serverId, tool: "toolA"), TestContext.Current.CancellationToken);
+        var second = await limiter.TryAcquireAsync(Key(serverId: serverId, tool: "toolB"), TestContext.Current.CancellationToken);
 
         first.Should().NotBeNull();
         second.Should().BeNull();
@@ -79,7 +79,7 @@ public sealed class McpRateLimiterTests
             await first.DisposeAsync();
         }
 
-        var third = await limiter.TryAcquireAsync(Key(serverId: serverId, tool: "toolC"));
+        var third = await limiter.TryAcquireAsync(Key(serverId: serverId, tool: "toolC"), TestContext.Current.CancellationToken);
         third.Should().NotBeNull();
     }
 }

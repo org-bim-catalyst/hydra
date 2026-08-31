@@ -30,7 +30,7 @@ public sealed class WorkflowFailureStrategyTests
             .Returns((IReadOnlyList<WorkflowPolicy>)[]);
     }
 
-    private sealed class FakeExecutor(WorkflowNodeType nodeType, bool succeeds, string? retryPolicyJson = null) : IWorkflowNodeExecutor
+    private sealed class FakeExecutor(WorkflowNodeType nodeType, bool succeeds) : IWorkflowNodeExecutor
     {
         public int InvocationCount { get; private set; }
 

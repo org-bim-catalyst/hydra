@@ -31,7 +31,7 @@ public sealed class RestoreKnowledgeBaseCommandHandlerTests
         result.IsDeleted.Should().BeFalse();
         knowledgeBase.PurgeScheduledAtUtc.Should().BeNull();
         knowledgeBase.Status.Should().Be(KnowledgeBaseStatus.Active, "restore must preserve the status held before delete");
-        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a.Action == KnowledgeBaseAuditAction.Restored));
+        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a != null && a.Action == KnowledgeBaseAuditAction.Restored));
     }
 
     [Fact]

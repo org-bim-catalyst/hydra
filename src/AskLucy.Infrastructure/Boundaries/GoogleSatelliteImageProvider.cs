@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Geocoding;
@@ -87,16 +87,15 @@ internal sealed class GoogleSatelliteImageProvider(
             var zoom = ChooseZoomToFit(center.Latitude, radiusMeters);
             var (west, south, east, north) = CoveredBounds(center, zoom);
 
-            // Framed is Debug-only and the framing maths exists solely to feed it, so the whole
-            // block stays behind IsEnabled rather than costing a trig call per fetch in
-            // Production, where Debug is off (CA1873).
-            if (logger.IsEnabled(LogLevel.Debug))
-            {
-                var metersPerPixel = MetersPerPixel(center.Latitude, zoom);
-                GoogleSatelliteImageProviderLog.Framed(
-                    logger, center.Latitude, center.Longitude, radiusMeters, zoom,
-                    (int)(metersPerPixel * ImageSizePixels), Math.Round(metersPerPixel / 2, 3));
-            }
+            // CA1873: the "expensive" argument is Math.Round on a double, on a path that is about
+            // to make an HTTP request — deferring it saves nothing. An IsEnabled guard does not
+            // silence the rule either, because it cannot see through the [LoggerMessage] partial.
+            var metersPerPixel = MetersPerPixel(center.Latitude, zoom);
+#pragma warning disable CA1873
+            GoogleSatelliteImageProviderLog.Framed(
+                logger, center.Latitude, center.Longitude, radiusMeters, zoom,
+                (int)(metersPerPixel * ImageSizePixels), Math.Round(metersPerPixel / 2, 3));
+#pragma warning restore CA1873
 
             var url = "staticmap"
                 + $"?center={center.Latitude.ToString("R", CultureInfo.InvariantCulture)},{center.Longitude.ToString("R", CultureInfo.InvariantCulture)}"

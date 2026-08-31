@@ -68,7 +68,7 @@ public sealed class LocationResolutionServiceTests
     {
         StubClassification("none");
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "I read about Paris", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "I read about Paris", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.NoIntent);
         outcome.ConfirmedLocation.Should().BeNull();
@@ -85,7 +85,7 @@ public sealed class LocationResolutionServiceTests
                 new("Dubai, UAE", 25.2048, 55.2708, 0.85)
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation.Should().NotBeNull();
@@ -105,7 +105,7 @@ public sealed class LocationResolutionServiceTests
                 new("London, Ontario, Canada", 42.9849, -81.2453, 0.5) // margin 0.4 >= 0.2
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Where is London?", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Where is London?", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation!.LocationName.Should().Be("London");
@@ -122,7 +122,7 @@ public sealed class LocationResolutionServiceTests
                 new("Springfield, MA", 42.1015, -72.5898, 0.70) // margin 0.05 < 0.2
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Springfield", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Springfield", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Ambiguous);
         outcome.ConfirmedLocation.Should().BeNull();
@@ -133,7 +133,7 @@ public sealed class LocationResolutionServiceTests
     {
         StubClassification("new_query", "Dubai", "Abu Dhabi");
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Compare Dubai and Abu Dhabi", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Compare Dubai and Abu Dhabi", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Ambiguous);
         await _geocodingProvider.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -149,7 +149,7 @@ public sealed class LocationResolutionServiceTests
                 new("Something Weak", 0, 0, 0.0) // below MinimumImportanceFloor=0.05
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me NowhereLand99", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me NowhereLand99", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.NotFound);
     }
@@ -173,7 +173,7 @@ public sealed class LocationResolutionServiceTests
                 new("حديقة الصفا 2, دبي", 25.1556657, 55.2219295, 0.0801)
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Al Safa Park 2 in the viewer", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Al Safa Park 2 in the viewer", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation!.Latitude.Should().BeApproximately(25.1556657, 0.0001);
@@ -196,7 +196,7 @@ public sealed class LocationResolutionServiceTests
                 new("Dubai Mall, Belbeis Road, Egypt", 30.4, 31.5, 0.0)
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai Mall", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai Mall", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation!.Latitude.Should().BeApproximately(25.1972, 0.0001);
@@ -209,7 +209,7 @@ public sealed class LocationResolutionServiceTests
         _geocodingProvider.SearchAsync("VoidTown", Arg.Any<CancellationToken>())
             .Returns(new List<GeocodingCandidate>());
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me VoidTown", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me VoidTown", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.NotFound);
     }
@@ -224,7 +224,7 @@ public sealed class LocationResolutionServiceTests
                 new("Out of Range Place", 200.0, 55.0, 0.9) // lat 200 > 90
             });
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me BadCoord", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me BadCoord", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.NotFound);
     }
@@ -237,7 +237,7 @@ public sealed class LocationResolutionServiceTests
             .Returns(Task.FromException<IReadOnlyList<GeocodingCandidate>>(
                 new GeocodingProviderUnavailableException("Nominatim down.")));
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Unavailable);
         outcome.ConfirmationText.Should().NotBeNullOrEmpty();
@@ -251,7 +251,7 @@ public sealed class LocationResolutionServiceTests
             Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<ChatCompletionResult>(new AiProviderUnavailableException("down")));
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Unavailable);
     }
@@ -264,7 +264,7 @@ public sealed class LocationResolutionServiceTests
             Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("not valid json at all", new ChatUsage(10, 5, null, null, null)));
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Show me Dubai", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Unavailable);
     }
@@ -275,7 +275,7 @@ public sealed class LocationResolutionServiceTests
         StubClassification("back_reference");
         var existing = new ActiveSiteLocation(25.2048, 55.2708, "Dubai, UAE", 0.85);
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Zoom in on it", existing);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Zoom in on it", existing, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation!.Latitude.Should().Be(25.2048);
@@ -288,7 +288,7 @@ public sealed class LocationResolutionServiceTests
     {
         StubClassification("back_reference");
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "Go there", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "Go there", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Unavailable);
         outcome.ConfirmationText.Should().Be(LocationConfirmationTemplates.BackReferenceNoActive);
@@ -300,7 +300,7 @@ public sealed class LocationResolutionServiceTests
     {
         StubClassification("none");
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "I read that Al Safa Park was renovated", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "I read that Al Safa Park was renovated", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.NoIntent);
         outcome.ConfirmationText.Should().BeNull();
@@ -312,7 +312,7 @@ public sealed class LocationResolutionServiceTests
     {
         StubClassification("none");
 
-        await _service.ResolveAsync("user-1", ChatId, "compare parking ratios", null);
+        await _service.ResolveAsync("user-1", ChatId, "compare parking ratios", null, TestContext.Current.CancellationToken);
 
         await _geocodingProvider.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -326,7 +326,7 @@ public sealed class LocationResolutionServiceTests
             Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("{\"intent\":\"maybe\",\"placeQueries\":[]}", new ChatUsage(5, 5, null, null, null)));
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "maybe show Dubai?", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "maybe show Dubai?", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Unavailable);
         outcome.ConfirmationText.Should().NotBeNullOrEmpty();
@@ -355,7 +355,7 @@ public sealed class LocationResolutionServiceTests
                 break;
         }
 
-        var outcome = await _service.ResolveAsync("user-1", ChatId, "test message", null);
+        var outcome = await _service.ResolveAsync("user-1", ChatId, "test message", null, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(expectedType);
         outcome.ConfirmedLocation.Should().BeNull();

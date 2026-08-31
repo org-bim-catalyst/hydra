@@ -121,9 +121,7 @@ public sealed class WorkflowEventTriggerHandler(
                 var knowledgeBase = await knowledgeBaseRepository.GetByIdAsync(knowledgeBaseId, cancellationToken);
                 if (knowledgeBase is null || knowledgeBase.OwnerId != workflow.OwnerId)
                 {
-                    logger.LogWarning(
-                        "Event-driven workflow {WorkflowId} was not started: owner {OwnerId} no longer has access to knowledge base {KnowledgeBaseId}.",
-                        workflow.Id, workflow.OwnerId, knowledgeBaseId);
+                    WorkflowEventTriggerHandlerLog.KnowledgeBaseAccessLost(logger, workflow.Id, workflow.OwnerId, knowledgeBaseId);
                     auditLogRepository.Add(WorkflowAuditLog.Create(
                         workflow.Id, null, workflow.OwnerId, WorkflowAuditAction.PermissionDenied,
                         JsonSerializer.Serialize(new { eventType, knowledgeBaseId }, InputJsonOptions)));
@@ -137,9 +135,7 @@ public sealed class WorkflowEventTriggerHandler(
                 // FR-064/Acceptance Scenario 9.2 — an event type with no knowledge-base scope
                 // (DocumentProcessed) is still scoped to the triggering resource's own owner; a
                 // workflow belonging to anyone else never sees it.
-                logger.LogWarning(
-                    "Event-driven workflow {WorkflowId} was not started: owner {OwnerId} does not own the resource that triggered this event.",
-                    workflow.Id, workflow.OwnerId);
+                WorkflowEventTriggerHandlerLog.OwnerDoesNotOwnResource(logger, workflow.Id, workflow.OwnerId);
                 auditLogRepository.Add(WorkflowAuditLog.Create(
                     workflow.Id, null, workflow.OwnerId, WorkflowAuditAction.PermissionDenied,
                     JsonSerializer.Serialize(new { eventType }, InputJsonOptions)));
@@ -154,9 +150,7 @@ public sealed class WorkflowEventTriggerHandler(
             {
                 // FR-070/Acceptance Scenario 9.4 — a burst of matching events never exceeds the
                 // owner's concurrency cap; excess events are simply skipped, not queued indefinitely.
-                logger.LogWarning(
-                    "Event-driven workflow {WorkflowId} was not started: owner {OwnerId} is at their concurrency cap ({MaxConcurrentExecutions}).",
-                    workflow.Id, workflow.OwnerId, maxConcurrentExecutions);
+                WorkflowEventTriggerHandlerLog.ConcurrencyCapReached(logger, workflow.Id, workflow.OwnerId, maxConcurrentExecutions);
                 continue;
             }
 
@@ -171,4 +165,17 @@ public sealed class WorkflowEventTriggerHandler(
             await runner.EnqueueAsync(execution.Id, cancellationToken);
         }
     }
+}
+
+/// <summary>CA1848 — LoggerMessage delegates for <see cref="WorkflowEventTriggerHandler"/>'s dispatch-skip paths.</summary>
+internal static partial class WorkflowEventTriggerHandlerLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Event-driven workflow {WorkflowId} was not started: owner {OwnerId} no longer has access to knowledge base {KnowledgeBaseId}.")]
+    public static partial void KnowledgeBaseAccessLost(ILogger logger, Guid workflowId, string ownerId, Guid knowledgeBaseId);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Event-driven workflow {WorkflowId} was not started: owner {OwnerId} does not own the resource that triggered this event.")]
+    public static partial void OwnerDoesNotOwnResource(ILogger logger, Guid workflowId, string ownerId);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Event-driven workflow {WorkflowId} was not started: owner {OwnerId} is at their concurrency cap ({MaxConcurrentExecutions}).")]
+    public static partial void ConcurrencyCapReached(ILogger logger, Guid workflowId, string ownerId, int maxConcurrentExecutions);
 }

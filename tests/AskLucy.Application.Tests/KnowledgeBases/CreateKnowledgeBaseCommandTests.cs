@@ -30,8 +30,8 @@ public sealed class CreateKnowledgeBaseCommandHandlerTests
         result.Name.Should().Be("BIM Standards");
         result.Status.Should().Be(KnowledgeBaseStatus.Draft);
         result.Tags.Should().BeEquivalentTo(["revit", "standards"]);
-        _repository.Received(1).Add(Arg.Is<KnowledgeBase>(k => k.OwnerId == "user-1" && k.Name == "BIM Standards"));
-        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a.Action == KnowledgeBaseAuditAction.Created));
+        _repository.Received(1).Add(Arg.Is<KnowledgeBase>(k => k != null && k.OwnerId == "user-1" && k.Name == "BIM Standards"));
+        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a != null && a.Action == KnowledgeBaseAuditAction.Created));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -56,7 +56,7 @@ public sealed class CreateKnowledgeBaseCommandValidatorTests
     [InlineData("   ")]
     public async Task ShouldHaveError_WhenNameIsBlank(string blankName)
     {
-        var result = await _validator.ValidateAsync(new CreateKnowledgeBaseCommand(blankName, null, null, null, null, null));
+        var result = await _validator.ValidateAsync(new CreateKnowledgeBaseCommand(blankName, null, null, null, null, null), TestContext.Current.CancellationToken);
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateKnowledgeBaseCommand.Name));
     }
@@ -64,7 +64,7 @@ public sealed class CreateKnowledgeBaseCommandValidatorTests
     [Fact]
     public async Task ShouldNotHaveError_WhenNameIsProvided()
     {
-        var result = await _validator.ValidateAsync(new CreateKnowledgeBaseCommand("BIM Standards", null, null, null, null, null));
+        var result = await _validator.ValidateAsync(new CreateKnowledgeBaseCommand("BIM Standards", null, null, null, null, null), TestContext.Current.CancellationToken);
         result.IsValid.Should().BeTrue();
     }
 }

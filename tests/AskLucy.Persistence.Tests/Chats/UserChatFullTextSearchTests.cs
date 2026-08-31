@@ -24,7 +24,7 @@ public sealed class UserChatFullTextSearchTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.AddRange(matching, nonMatching);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -48,7 +48,7 @@ public sealed class UserChatFullTextSearchTests(PersistenceTestFixture fixture)
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.Add(message);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();

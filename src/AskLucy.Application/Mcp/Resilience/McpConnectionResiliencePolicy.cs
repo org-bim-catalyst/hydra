@@ -42,7 +42,7 @@ public sealed class McpConnectionResiliencePolicy(IOptions<McpRuntimeOptions> op
     {
         if (IsCircuitOpen(mcpServerId))
         {
-            logger.LogWarning("MCP circuit open for server {McpServerId} — call rejected without attempting the request", mcpServerId);
+            McpConnectionResiliencePolicyLog.CircuitOpen(logger, mcpServerId);
             throw new McpCircuitOpenException(mcpServerId);
         }
 
@@ -56,25 +56,39 @@ public sealed class McpConnectionResiliencePolicy(IOptions<McpRuntimeOptions> op
                 RecordSuccess(mcpServerId);
                 // FR-057 — tool-call/connection latency, discoverable through the platform's
                 // existing observability capability (structured Serilog logging, constitution §14).
-                logger.LogInformation(
-                    "MCP call to server {McpServerId} succeeded in {ElapsedMilliseconds}ms after {Attempts} attempt(s)",
-                    mcpServerId, stopwatch.ElapsedMilliseconds, attempt + 1);
+                McpConnectionResiliencePolicyLog.CallSucceeded(logger, mcpServerId, stopwatch.ElapsedMilliseconds, attempt + 1);
                 return result;
             }
             catch (Exception ex) when (isIdempotent && attempt < options.Value.MaxRetries)
             {
                 attempt++;
                 RecordFailure(mcpServerId);
-                logger.LogWarning(ex, "MCP call to server {McpServerId} failed on attempt {Attempt}; retrying", mcpServerId, attempt);
+                McpConnectionResiliencePolicyLog.CallFailedRetrying(logger, ex, mcpServerId, attempt);
                 var backoff = TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt - 1));
                 await Task.Delay(backoff, cancellationToken);
             }
             catch (Exception ex)
             {
                 RecordFailure(mcpServerId);
-                logger.LogWarning(ex, "MCP call to server {McpServerId} failed after {ElapsedMilliseconds}ms, {Attempts} attempt(s)", mcpServerId, stopwatch.ElapsedMilliseconds, attempt + 1);
+                McpConnectionResiliencePolicyLog.CallFailedFinal(logger, ex, mcpServerId, stopwatch.ElapsedMilliseconds, attempt + 1);
                 throw;
             }
         }
     }
+}
+
+/// <summary>CA1848 — LoggerMessage delegates for <see cref="McpConnectionResiliencePolicy"/>'s hot retry/circuit-breaker path.</summary>
+internal static partial class McpConnectionResiliencePolicyLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "MCP circuit open for server {McpServerId} — call rejected without attempting the request")]
+    public static partial void CircuitOpen(ILogger logger, Guid mcpServerId);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "MCP call to server {McpServerId} succeeded in {ElapsedMilliseconds}ms after {Attempts} attempt(s)")]
+    public static partial void CallSucceeded(ILogger logger, Guid mcpServerId, long elapsedMilliseconds, int attempts);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "MCP call to server {McpServerId} failed on attempt {Attempt}; retrying")]
+    public static partial void CallFailedRetrying(ILogger logger, Exception exception, Guid mcpServerId, int attempt);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "MCP call to server {McpServerId} failed after {ElapsedMilliseconds}ms, {Attempts} attempt(s)")]
+    public static partial void CallFailedFinal(ILogger logger, Exception exception, Guid mcpServerId, long elapsedMilliseconds, int attempts);
 }

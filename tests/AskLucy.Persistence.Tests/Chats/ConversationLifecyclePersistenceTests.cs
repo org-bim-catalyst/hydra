@@ -27,14 +27,14 @@ public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            var toDelete = await dbContext.UserChats.SingleAsync(c => c.Id == chat.Id);
+            var toDelete = await dbContext.UserChats.SingleAsync(c => c.Id == chat.Id, TestContext.Current.CancellationToken);
             toDelete.SoftDelete(userId);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -61,7 +61,7 @@ public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.Add(message);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var purgeContext = fixture.CreateDbContext())
@@ -71,8 +71,8 @@ public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture
         }
 
         await using var verifyContext = fixture.CreateDbContext();
-        var chatStillExists = await verifyContext.UserChats.IgnoreQueryFilters().AnyAsync(c => c.Id == chat.Id);
-        var messageStillExists = await verifyContext.Messages.IgnoreQueryFilters().AnyAsync(m => m.Id == message.Id);
+        var chatStillExists = await verifyContext.UserChats.IgnoreQueryFilters().AnyAsync(c => c.Id == chat.Id, TestContext.Current.CancellationToken);
+        var messageStillExists = await verifyContext.Messages.IgnoreQueryFilters().AnyAsync(m => m.Id == message.Id, TestContext.Current.CancellationToken);
 
         chatStillExists.Should().BeFalse("Purge must physically remove the row, not merely soft-delete it again");
         messageStillExists.Should().BeFalse("messages must cascade-delete when their conversation is purged");

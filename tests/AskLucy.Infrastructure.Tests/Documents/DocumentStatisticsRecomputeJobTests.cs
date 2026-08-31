@@ -66,7 +66,7 @@ public sealed class DocumentStatisticsRecomputeJobTests
             .Returns((DocumentStatistics?)null);
 
         var added = new List<DocumentStatistics>();
-        _statisticsRepository.When(r => r.Add(Arg.Any<DocumentStatistics>())).Do(c => added.Add(c.Arg<DocumentStatistics>()));
+        _statisticsRepository.When(r => r.Add(Arg.Any<DocumentStatistics>())).Do(c => added.Add(c.Arg<DocumentStatistics>()!));
 
         await CreateSut().RecomputeAllAsync(CancellationToken.None);
 
@@ -88,7 +88,7 @@ public sealed class DocumentStatisticsRecomputeJobTests
             .Returns((DocumentStatistics?)null);
 
         var added = new List<DocumentStatistics>();
-        _statisticsRepository.When(r => r.Add(Arg.Any<DocumentStatistics>())).Do(c => added.Add(c.Arg<DocumentStatistics>()));
+        _statisticsRepository.When(r => r.Add(Arg.Any<DocumentStatistics>())).Do(c => added.Add(c.Arg<DocumentStatistics>()!));
 
         await CreateSut().RecomputeAllAsync(CancellationToken.None);
 

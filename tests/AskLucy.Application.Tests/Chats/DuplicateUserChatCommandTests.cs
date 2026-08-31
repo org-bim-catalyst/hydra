@@ -40,8 +40,8 @@ public sealed class DuplicateUserChatCommandTests
         result.IsFavorite.Should().BeFalse();
         result.IsArchived.Should().BeFalse();
 
-        _messageRepository.Received(2).Add(Arg.Is<Message>(m => m.UserChatId == result.Id));
-        _chatRepository.Received(1).Add(Arg.Is<UserChat>(c => c.Id == result.Id));
+        _messageRepository.Received(2).Add(Arg.Is<Message>(m => m != null && m.UserChatId == result.Id));
+        _chatRepository.Received(1).Add(Arg.Is<UserChat>(c => c != null && c.Id == result.Id));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
 
         // The source itself must never be mutated by duplication.

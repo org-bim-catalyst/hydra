@@ -49,7 +49,7 @@ public sealed class DuplicateArchiveRestoreWorkflowTests
         result.Status.Should().Be(nameof(WorkflowStatus.Draft));
         result.PublishedVersionNumber.Should().BeNull();
         result.DraftDefinitionJson.Should().Be(workflow.DraftDefinitionJson);
-        workflowRepository.Received(1).Add(Arg.Is<Workflow>(w => w.Id != workflow.Id));
+        workflowRepository.Received(1).Add(Arg.Is<Workflow>(w => w != null && w.Id != workflow.Id));
     }
 
     [Fact]

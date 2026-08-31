@@ -20,35 +20,35 @@ public sealed class AccountManagementTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task ChangePassword_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "x", newPassword = "y" });
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "x", newPassword = "y" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task RequestEmailChange_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/change-email/request", new { newEmail = "new@example.com" });
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/change-email/request", new { newEmail = "new@example.com" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetExternalLogins_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/auth/external-logins");
+        var response = await _client.GetAsync("/api/v1/auth/external-logins", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task RemoveExternalLogin_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.DeleteAsync("/api/v1/auth/external-logins/google/some-key");
+        var response = await _client.DeleteAsync("/api/v1/auth/external-logins/google/some-key", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task DownloadPersonalData_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/users/me/personal-data");
+        var response = await _client.GetAsync("/api/v1/users/me/personal-data", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -60,14 +60,14 @@ public sealed class AccountManagementTests(CustomWebApplicationFactory factory)
             Content = JsonContent.Create(new { password = "x" }),
         };
 
-        var response = await _client.SendAsync(request);
+        var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task ConfirmEmail_ShouldReturn400_WhenTokenIsMissing()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = "user-1", token = "" });
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = "user-1", token = "" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
@@ -76,7 +76,8 @@ public sealed class AccountManagementTests(CustomWebApplicationFactory factory)
     {
         var response = await _client.PostAsJsonAsync(
             "/api/v1/auth/change-email/confirm",
-            new { userId = "user-1", newEmail = "not-an-email", token = "token" });
+            new { userId = "user-1", newEmail = "not-an-email", token = "token" },
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

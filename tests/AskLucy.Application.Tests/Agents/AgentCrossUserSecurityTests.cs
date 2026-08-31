@@ -39,7 +39,7 @@ public sealed class AgentCrossUserSecurityTests
         var act = () => handler.Handle(new GetAgentExecutionQuery(execution.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
-        auditLogRepository.Received(1).Add(Arg.Is<AgentAuditLog>(log => log.Action == AgentAuditAction.CrossUserAccessAttempted && log.UserId == AttackerId));
+        auditLogRepository.Received(1).Add(Arg.Is<AgentAuditLog>(log => log != null && log.Action == AgentAuditAction.CrossUserAccessAttempted && log.UserId == AttackerId));
         await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

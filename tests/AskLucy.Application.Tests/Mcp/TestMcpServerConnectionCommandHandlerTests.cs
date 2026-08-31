@@ -25,7 +25,7 @@ public sealed class TestMcpServerConnectionCommandHandlerTests
         policy ?? new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new AskLucy.Application.Options.McpRuntimeOptions()), Substitute.For<ILogger<McpConnectionResiliencePolicy>>()),
         _unitOfWork, _currentUser);
 
-    private McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
+    private static McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
 
     public TestMcpServerConnectionCommandHandlerTests() => _currentUser.UserId.Returns(AdminId);
 
@@ -93,6 +93,6 @@ public sealed class TestMcpServerConnectionCommandHandlerTests
 
         await handler.Handle(new TestMcpServerConnectionCommand(server.Id), CancellationToken.None);
 
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.HealthStateChanged));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.HealthStateChanged));
     }
 }

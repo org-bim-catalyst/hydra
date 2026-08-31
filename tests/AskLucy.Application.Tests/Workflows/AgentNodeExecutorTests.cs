@@ -117,7 +117,7 @@ public sealed class AgentNodeExecutorTests
         _planner.CreatePlanAsync(
                 Arg.Any<string>(), Arg.Any<AgentInstructions>(), Arg.Any<IReadOnlyList<IAgentTool>>(),
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo => new AgentPlan((string)callInfo[0], [new AgentPlanStep(0, "Respond.", AgentExecutionStepType.ModelReasoning, null)]));
+            .Returns(callInfo => new AgentPlan(callInfo.ArgAt<string>(0), [new AgentPlanStep(0, "Respond.", AgentExecutionStepType.ModelReasoning, null)]));
 
         var aiProvider = Substitute.For<IAIProvider>();
         aiProvider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
@@ -132,7 +132,7 @@ public sealed class AgentNodeExecutorTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("text").GetString().Should().Be("Nested agent result.");
-        _agentExecutionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e.Objective == "Summarize the report." && e.RunByUserId == OwnerId));
+        _agentExecutionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e != null && e.Objective == "Summarize the report." && e.RunByUserId == OwnerId));
     }
 
     [Fact]

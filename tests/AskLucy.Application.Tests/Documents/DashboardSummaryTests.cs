@@ -1,3 +1,4 @@
+using System.Globalization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Documents.Queries.GetDocumentDashboardSummary;
 using AskLucy.Application.Documents.Queries.GetOrganizationDashboardSummary;
@@ -14,7 +15,7 @@ public sealed class DashboardSummaryTests
     private readonly IDocumentProcessingJobRepository _jobRepository = Substitute.For<IDocumentProcessingJobRepository>();
     private readonly IDocumentStatisticsRepository _statisticsRepository = Substitute.For<IDocumentStatisticsRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
-    private readonly FakeTimeProvider _timeProvider = new(DateTimeOffset.Parse("2026-08-04T12:00:00Z"));
+    private readonly FakeTimeProvider _timeProvider = new(DateTimeOffset.Parse("2026-08-04T12:00:00Z", CultureInfo.InvariantCulture));
 
     [Fact]
     public async Task GetDocumentDashboardSummary_ShouldQueryOnlyTheCallersOwnScope()

@@ -52,7 +52,7 @@ public sealed class McpPromptDuplicateExecutionFramingTests
         var context = new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), OwnerId, Guid.NewGuid(), Guid.NewGuid(), null);
         var input = JsonDocument.Parse($$"""{"promptId":"{{duplicateResult.Id}}"}""");
 
-        var executionResult = await executionTool.ExecuteAsync(context, input);
+        var executionResult = await executionTool.ExecuteAsync(context, input, TestContext.Current.CancellationToken);
 
         // PromptExecutionTool returns the resolved text verbatim, exactly as it would for any
         // user-authored prompt — no additional wrapping/escaping/rejection triggered by the fact

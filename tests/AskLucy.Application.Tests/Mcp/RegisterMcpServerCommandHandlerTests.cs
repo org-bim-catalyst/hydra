@@ -63,7 +63,7 @@ public sealed class RegisterMcpServerCommandHandlerTests
         await handler.Handle(ValidCommand(), CancellationToken.None);
 
         _credentialProtector.Received(1).Protect("raw-api-key");
-        _serverRepository.Received(1).AddCredential(Arg.Is<McpServerCredential>(c => c.CiphertextBlob == "encrypted:raw-api-key"));
+        _serverRepository.Received(1).AddCredential(Arg.Is<McpServerCredential>(c => c!.CiphertextBlob == "encrypted:raw-api-key"));
     }
 
     [Fact]
@@ -121,6 +121,6 @@ public sealed class RegisterMcpServerCommandHandlerTests
 
         await handler.Handle(ValidCommand(), CancellationToken.None);
 
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ServerRegistered && a.UserId == AdminId));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ServerRegistered && a.UserId == AdminId));
     }
 }

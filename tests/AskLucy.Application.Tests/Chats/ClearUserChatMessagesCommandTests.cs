@@ -64,6 +64,6 @@ public sealed class ClearUserChatMessagesCommandTests
         var act = () => handler.Handle(new ClearUserChatMessagesCommand(chat.Id, true), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
-        await _messageRepository.DidNotReceiveWithAnyArgs().DeleteAllByChatIdAsync(default, default);
+        await _messageRepository.DidNotReceiveWithAnyArgs().DeleteAllByChatIdAsync(default, TestContext.Current.CancellationToken);
     }
 }

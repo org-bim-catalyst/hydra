@@ -24,7 +24,7 @@ public sealed class ExternalLoginTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task ExternalChallenge_ShouldReturn400_WhenProviderIsUnknown()
     {
-        var response = await _client.GetAsync("/api/v1/auth/external/twitter/challenge");
+        var response = await _client.GetAsync("/api/v1/auth/external/twitter/challenge", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
@@ -34,21 +34,21 @@ public sealed class ExternalLoginTests(CustomWebApplicationFactory factory)
         // Google is a recognized provider name, but has no ClientId configured in the test
         // host, so Program.cs never registers its scheme — this is exactly the crash this
         // check (ResolveConfiguredSchemeAsync) prevents from surfacing as a raw 500.
-        var response = await _client.GetAsync("/api/v1/auth/external/google/challenge");
+        var response = await _client.GetAsync("/api/v1/auth/external/google/challenge", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     public async Task ExternalLink_ShouldReturn400_WhenProviderIsNotConfigured()
     {
-        var response = await _client.GetAsync("/api/v1/auth/external/facebook/link?ticket=irrelevant");
+        var response = await _client.GetAsync("/api/v1/auth/external/facebook/link?ticket=irrelevant", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     public async Task IssueExternalLoginLinkTicket_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync("/api/v1/auth/external/link-ticket", content: null);
+        var response = await _client.PostAsync("/api/v1/auth/external/link-ticket", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -58,17 +58,17 @@ public sealed class ExternalLoginTests(CustomWebApplicationFactory factory)
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
 
-        var response = await _client.PostAsync("/api/v1/auth/external/link-ticket", content: null);
+        var response = await _client.PostAsync("/api/v1/auth/external/link-ticket", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var ticket = await response.Content.ReadFromJsonAsync<string>();
+        var ticket = await response.Content.ReadFromJsonAsync<string>(TestContext.Current.CancellationToken);
         ticket.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public async Task CompleteExternalLogin_ShouldReturn401_WhenCodeIsInvalid()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/external/complete", new { code = "never-issued" });
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/external/complete", new { code = "never-issued" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

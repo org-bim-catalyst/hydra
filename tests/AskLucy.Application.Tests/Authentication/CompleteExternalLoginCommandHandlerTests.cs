@@ -49,6 +49,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
         var result = await _handler.Handle(new CompleteExternalLoginCommand("bad-code"), CancellationToken.None);
 
         result.Outcome.Should().Be(AuthOutcome.InvalidCredentials);
-        await _identityService.DidNotReceiveWithAnyArgs().GetClaimsAsync(default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().GetClaimsAsync(default!, TestContext.Current.CancellationToken);
     }
 }

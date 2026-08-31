@@ -18,56 +18,56 @@ public sealed class AgentExecutionHistorySecurityTests(CustomWebApplicationFacto
     [Fact]
     public async Task ListAgentExecutions_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/agent-executions");
+        var response = await _client.GetAsync("/api/v1/agent-executions", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetAgentExecutionSteps_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/steps");
+        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/steps", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetAgentToolCalls_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/tool-calls");
+        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/tool-calls", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetAgentExecutionUsage_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/usage");
+        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/usage", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetAgentExecutionEvents_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/events");
+        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/events", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task PauseAgentExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/pause", content: null);
+        var response = await _client.PostAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/pause", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task ResumeAgentExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/resume", content: null);
+        var response = await _client.PostAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/resume", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task CancelAgentExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/cancel", content: null);
+        var response = await _client.PostAsync($"/api/v1/agent-executions/{Guid.NewGuid()}/cancel", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

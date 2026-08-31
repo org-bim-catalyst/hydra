@@ -101,7 +101,7 @@ public sealed class McpAuthorizationBypassSecurityTests
         execution.Status.Should().Be(AgentExecutionStatus.Failed);
         execution.Errors.Should().ContainSingle();
         await planner.Received(1).CreatePlanAsync(
-            Arg.Any<string>(), Arg.Any<AgentInstructions>(), Arg.Is<IReadOnlyList<IAgentTool>>(tools => tools.Count == 0),
+            Arg.Any<string>(), Arg.Any<AgentInstructions>(), Arg.Is<IReadOnlyList<IAgentTool>>(tools => tools!.Count == 0),
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 }

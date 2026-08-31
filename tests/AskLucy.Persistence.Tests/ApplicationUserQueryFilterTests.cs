@@ -25,12 +25,12 @@ public sealed class ApplicationUserQueryFilterTests(PersistenceTestFixture fixtu
                 new ApplicationUser { UserName = activeEmail, Email = activeEmail, CreatedAtUtc = DateTime.UtcNow, IsDeleted = false },
                 new ApplicationUser { UserName = deletedEmail, Email = deletedEmail, CreatedAtUtc = DateTime.UtcNow, IsDeleted = true, DeletedAtUtc = DateTime.UtcNow, DeletedBy = "test-admin" });
 
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            var emails = await dbContext.Users.Select(u => u.Email).ToListAsync();
+            var emails = await dbContext.Users.Select(u => u.Email).ToListAsync(TestContext.Current.CancellationToken);
 
             emails.Should().Contain(activeEmail);
             emails.Should().NotContain(deletedEmail);
@@ -54,12 +54,12 @@ public sealed class ApplicationUserQueryFilterTests(PersistenceTestFixture fixtu
                 DeletedBy = "test-admin",
             });
 
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            var found = await dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == deletedEmail);
+            var found = await dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == deletedEmail, TestContext.Current.CancellationToken);
 
             found.Should().NotBeNull();
             found!.IsDeleted.Should().BeTrue();

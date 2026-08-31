@@ -26,7 +26,7 @@ public sealed class CreateCustomCategoryCommandTests
 
         result.Name.Should().Be("Vendor Docs");
         result.IsPredefined.Should().BeFalse();
-        _repository.Received(1).Add(Arg.Is<KnowledgeBaseCategory>(c => c.OwnerId == "user-1" && c.Name == "Vendor Docs"));
+        _repository.Received(1).Add(Arg.Is<KnowledgeBaseCategory>(c => c != null && c.OwnerId == "user-1" && c.Name == "Vendor Docs"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
