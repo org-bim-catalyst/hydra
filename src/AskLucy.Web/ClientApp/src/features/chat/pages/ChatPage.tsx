@@ -367,10 +367,23 @@ export function ConversationView({
 
   useEffect(() => {
     if (wasStreamingRef.current && !isStreaming) {
-      const last = messages[messages.length - 1]
-      if (last?.role === 'assistant' && last.content && last.id) {
-        tts.speak(last.content, language)
-        setPlayingMessageId(last.id)
+      // Every assistant message this turn produced, not just the last one.
+      //
+      // A turn can end in two bubbles since the boundary confirmation was split out of the
+      // reply, and that broke this in two ways: `messages[length - 1]` was the confirmation,
+      // so the reply itself went unspoken — and the confirmation carries no server id (only
+      // the turn's first message gets one, via __MEMORY__), so the `&& last.id` guard here
+      // silenced the whole turn instead.
+      let turnStart = messages.length - 1
+      while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
+      const replies = messages.slice(turnStart + 1).filter((m) => m.role === 'assistant' && m.content)
+      const spokenText = replies.map((m) => m.content).join(' ')
+
+      if (spokenText) {
+        tts.speak(spokenText, language)
+        // The turn's first message is the one that has an id, and the one whose replay control
+        // should read as playing.
+        setPlayingMessageId(replies[0]?.id ?? null)
         setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
         // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
         // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
