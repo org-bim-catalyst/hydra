@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   Alert,
-  Button,
   Paper,
   Snackbar,
   Table,
@@ -11,11 +10,10 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material'
-import { Link as RouterLink } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import { AppShell } from '../../../components/AppShell'
+import { AdminShell } from '../components/AdminShell'
 import { ProviderDefaultModelRow } from '../components/ProviderDefaultModelRow'
 
 const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
@@ -64,19 +62,10 @@ export function AdminDefaultModelsPage() {
   })
 
   return (
-    <AppShell
+    <AdminShell
       title="Default models"
       subtitle="The model each provider contributes — a capability assigned to a provider runs on the model chosen here"
-      actions={
-        <>
-          <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small" sx={{ mr: 1 }}>
-            Manage providers
-          </Button>
-          <Button component={RouterLink} to="/admin/ai-capabilities" variant="outlined" size="small">
-            Manage capabilities
-          </Button>
-        </>
-      }
+
     >
       <Alert severity="info" sx={{ mb: 2 }}>
         Only providers that are enabled with a credential appear here, and only models marked
@@ -111,6 +100,6 @@ export function AdminDefaultModelsPage() {
           {feedback?.message}
         </Alert>
       </Snackbar>
-    </AppShell>
+    </AdminShell>
   )
 }

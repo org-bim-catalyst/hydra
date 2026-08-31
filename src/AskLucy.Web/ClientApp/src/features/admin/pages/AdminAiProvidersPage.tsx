@@ -1,7 +1,6 @@
 import { Fragment, useState } from 'react'
 import {
   Box,
-  Button,
   Chip,
   Collapse,
   IconButton,
@@ -16,10 +15,9 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { visuallyHidden } from '@mui/utils'
-import { Link as RouterLink } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import { AppShell } from '../../../components/AppShell'
+import { AdminShell } from '../components/AdminShell'
 import { AiProviderActionsMenu } from '../components/AiProviderActionsMenu'
 import { ProviderHealthCell } from '../components/ProviderHealthCell'
 import { ProviderModelsSection } from '../components/ProviderModelsSection'
@@ -39,19 +37,10 @@ export function AdminAiProvidersPage() {
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null)
 
   return (
-    <AppShell
+    <AdminShell
       title="AI providers"
       subtitle="Enable a provider, configure its credential, and mark which of its models are available"
-      actions={
-        <>
-          <Button component={RouterLink} to="/admin/default-models" variant="outlined" size="small" sx={{ mr: 1 }}>
-            Default models
-          </Button>
-          <Button component={RouterLink} to="/admin/ai-capabilities" variant="outlined" size="small">
-            Manage capabilities
-          </Button>
-        </>
-      }
+
     >
       <Paper elevation={1}>
         <TableContainer>
@@ -134,6 +123,6 @@ export function AdminAiProvidersPage() {
           </Table>
         </TableContainer>
       </Paper>
-    </AppShell>
+    </AdminShell>
   )
 }

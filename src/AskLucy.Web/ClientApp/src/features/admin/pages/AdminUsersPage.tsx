@@ -15,7 +15,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import * as adminApi from '../api/adminApi'
 import type { UserSortBy } from '../api/adminApi'
-import { AppShell } from '../../../components/AppShell'
+import { AdminShell } from '../components/AdminShell'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { useMyProfile } from '../../profile/hooks/useProfile'
 import { UserActionMenu } from '../components/UserActionMenu'
@@ -53,7 +53,7 @@ export function AdminUsersPage() {
   }
 
   return (
-    <AppShell title="User management" subtitle={`${data?.totalCount ?? 0} registered users`}>
+    <AdminShell title="User management" subtitle={`${data?.totalCount ?? 0} registered users`}>
       <TextField
         label="Search by name or email"
         size="small"
@@ -157,6 +157,6 @@ export function AdminUsersPage() {
           rowsPerPageOptions={[10, 20, 50]}
         />
       </Paper>
-    </AppShell>
+    </AdminShell>
   )
 }

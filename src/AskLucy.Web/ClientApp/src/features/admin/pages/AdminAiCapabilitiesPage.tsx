@@ -1,8 +1,6 @@
-import { Button } from '@mui/material'
-import { Link as RouterLink } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import { AppShell } from '../../../components/AppShell'
+import { AdminShell } from '../components/AdminShell'
 import { CapabilityAssignmentsSection } from '../components/CapabilityAssignmentsSection'
 
 const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
@@ -21,16 +19,12 @@ export function AdminAiCapabilitiesPage() {
   })
 
   return (
-    <AppShell
+    <AdminShell
       title="AI capabilities"
       subtitle="Choose which provider serves each capability — the model follows from that provider's default"
-      actions={
-        <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small">
-          Manage providers
-        </Button>
-      }
+
     >
       <CapabilityAssignmentsSection providers={providers ?? []} />
-    </AppShell>
+    </AdminShell>
   )
 }
