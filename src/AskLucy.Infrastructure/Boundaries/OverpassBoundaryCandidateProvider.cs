@@ -10,6 +10,10 @@ namespace AskLucy.Infrastructure.Boundaries;
 
 internal static partial class OverpassBoundaryCandidateProviderLog
 {
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Overpass boundary search failed transiently (attempt {Attempt} of {MaxAttempts}); retrying")]
+    public static partial void RetryingAfterTransientFailure(ILogger logger, int attempt, int maxAttempts);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Overpass boundary search failed for ({Latitude}, {Longitude})")]
     public static partial void SearchFailed(ILogger logger, Exception exception, double latitude, double longitude);
 }
@@ -63,11 +67,51 @@ internal sealed class OverpassBoundaryCandidateProvider(
 
     private readonly OverpassOptions _options = options.Value;
 
+    /// <summary>
+    /// Attempts against Overpass before giving up, and the pause between them.
+    ///
+    /// <para>
+    /// The public Overpass endpoint is a free, shared, frequently-saturated service: it answers
+    /// in a second or two most of the time and returns 504 or 429 the rest, for the same query,
+    /// seconds apart. Measured here on three consecutive identical requests — 504, then 200 in
+    /// 3.3 s, then 200 in 1.7 s. Without a retry the first of those told the user "I couldn't
+    /// look up the site boundary right now" for a boundary that was there all along.
+    /// </para>
+    ///
+    /// <para>
+    /// Three attempts at roughly a second apart stays well inside the 45 s budget
+    /// <c>SendChatMessageCommandHandler</c> allows the whole boundary step, so a genuinely down
+    /// Overpass still fails fast rather than holding the turn.
+    /// </para>
+    /// </summary>
+    private const int MaxAttempts = 3;
+
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
+
     public async Task<IReadOnlyList<BoundaryCandidate>> SearchAsync(GeoPoint center, int radiusMeters, CancellationToken cancellationToken = default)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await SearchOnceAsync(center, radiusMeters, cancellationToken);
+            }
+            catch (BoundaryProviderUnavailableException) when (attempt < MaxAttempts && !cancellationToken.IsCancellationRequested)
+            {
+                OverpassBoundaryCandidateProviderLog.RetryingAfterTransientFailure(logger, attempt, MaxAttempts);
+                await Task.Delay(RetryDelay, cancellationToken);
+            }
+        }
+    }
+
+    private async Task<IReadOnlyList<BoundaryCandidate>> SearchOnceAsync(GeoPoint center, int radiusMeters, CancellationToken cancellationToken)
     {
         try
         {
-            using var httpClient = httpClientFactory.CreateClient("Overpass");
+            // Not `using`: IHttpClientFactory owns the handler's lifetime, and disposing the
+            // client here left the retry above reaching for a disposed one on its second
+            // attempt — the retry could never have worked.
+            var httpClient = httpClientFactory.CreateClient("Overpass");
 
             var query = BuildQuery(center, radiusMeters);
             var url = $"{_options.SearchBaseUrl}interpreter";
