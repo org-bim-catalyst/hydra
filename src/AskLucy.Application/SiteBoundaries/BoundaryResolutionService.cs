@@ -15,6 +15,10 @@ internal static partial class BoundaryResolutionServiceLog
         Message = "Boundary candidate provider unavailable for chat {UserChatId}")]
     public static partial void ProviderUnavailable(ILogger logger, Guid userChatId, Exception exception);
 
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Boundary resolution for chat {UserChatId}: Gemini reported an observed boundary but it failed the plausibility check, so the mapped geometry was kept unmoved")]
+    public static partial void VisionCorrectionRejected(ILogger logger, Guid userChatId);
+
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "AI vision verification for chat {UserChatId} failed; the deterministically-scored boundary was kept")]
     public static partial void VisionUnavailable(ILogger logger, Guid userChatId, Exception exception);
@@ -82,28 +86,28 @@ public sealed class BoundaryResolutionService(
             .Distinct()
             .ToList();
 
-        // The mapped ring is used exactly as OSM has it.
+        // OSM supplies the shape; vision supplies the position.
         //
-        // Two repositioning steps used to run here and both made the outline worse. Measured
-        // against Google's own basemap — the one the viewer actually draws on — OSM's ring for
-        // Al Safa Park 2 already lands on Google's park polygon to within a few metres. There was
-        // no offset to correct; the offset the user was seeing was the correction itself.
+        // The mapped ring is the geometry — it is surveyed, and it carries whatever detail the
+        // mappers put in. What it does not guarantee is that it sits exactly on the fence. So the
+        // only thing taken from Gemini's read is the translation between where OSM puts the site
+        // and where the image shows it, applied to every mapped vertex unchanged.
         //
-        // What each one did wrong:
-        //  - Basemap alignment snapped the ring's centroid onto the geocoded point. For a park
-        //    Google returns an establishment POI (location_type ROOFTOP, bounds null) — a marker
-        //    placed inside the polygon, not its centre. Snapping to it dragged a correct ring
-        //    24 m north-west.
-        //  - The vision correction translated the ring onto Gemini's read of an ESRI World
-        //    Imagery crop, which is a different frame again, on top of a shape that was already
-        //    in the right place.
-        //
-        // Gemini's read is still used, for the thing it is genuinely good at: picking which
-        // candidate is the site (SelectFinalCandidate above). It no longer moves geometry.
-        var sourceDetail = DescribeSource(winner.Candidate);
-        var finalPolygon = winner.Candidate.Polygon.ExteriorRing;
-        var finalArea = winner.Candidate.AreaSquareMeters;
-        var finalSource = winner.Candidate.Source;
+        // Basemap alignment, which used to run ahead of this, is gone for good: it snapped the
+        // ring's centroid onto the geocoded point, and for a park Google returns an establishment
+        // POI (location_type ROOFTOP, bounds null) — a marker inside the polygon, not its centre.
+        // That dragged a correct ring 24 m north-west.
+        var mappedSourceDetail = DescribeSource(winner.Candidate);
+        var visionGeometry = TryBuildVisionCorrectedGeometry(winner, visionAnalysis, center, opts, mappedSourceDetail);
+        if (visionAnalysis.ObservedBoundary is not null && visionGeometry is null)
+        {
+            BoundaryResolutionServiceLog.VisionCorrectionRejected(logger, userChatId);
+        }
+
+        var sourceDetail = visionGeometry?.SourceDetail ?? mappedSourceDetail;
+        var finalPolygon = visionGeometry?.Polygon ?? winner.Candidate.Polygon.ExteriorRing;
+        var finalArea = visionGeometry?.AreaSquareMeters ?? winner.Candidate.AreaSquareMeters;
+        var finalSource = visionGeometry?.Source ?? winner.Candidate.Source;
 
         var confirmedBoundary = new ConfirmedSiteBoundaryData(
             confirmedLocation.LocationName,
@@ -150,7 +154,12 @@ public sealed class BoundaryResolutionService(
         // boundary — vision must be able to improve a result, never to remove one.
         try
         {
-            var image = await satelliteImageProvider.FetchAsync(center, opts.SearchRadiusMeters, cancellationToken);
+            // Framed on the best-ranked candidate rather than on the search radius. At the search
+            // radius a 90 x 166 m park sat inside a 1 km frame, a few pixels across, with no fence
+            // resolvable at any resolution — the analyzer was being asked to trace something the
+            // image did not contain. ImageryRadiusFor gives it the site, filling the frame.
+            var imageryRadius = ImageryRadiusFor(ranked[0].Candidate, opts);
+            var image = await satelliteImageProvider.FetchAsync(center, imageryRadius, cancellationToken);
             if (image is null)
             {
                 return BoundaryVisionAnalysis.NotConfigured("No satellite image available to analyze this run.");
@@ -209,6 +218,136 @@ public sealed class BoundaryResolutionService(
         var overrideScore = vision.Confidence ?? aiCandidate.Score;
         return new FinalSelection(aiCandidate, Math.Round(overrideScore, 3), "ai_override");
     }
+
+    /// <summary>Smallest frame the analyzer is asked for: below this a small site fills the image with no surrounding context to place it against.</summary>
+    private const double MinimumImageryRadiusMeters = 60;
+
+    /// <summary>Margin around the candidate, so its corners are never on the frame's edge.</summary>
+    private const double ImageryFramingMargin = 1.35;
+
+    /// <summary>
+    /// How much ground the vision cross-check's image should cover: the candidate's own extent
+    /// plus a margin, never more than the search radius that produced it.
+    /// </summary>
+    private static int ImageryRadiusFor(BoundaryCandidate candidate, BoundaryScoringOptions opts)
+    {
+        var ring = candidate.Polygon.ExteriorRing;
+        if (ring.Count < 3)
+        {
+            return opts.SearchRadiusMeters;
+        }
+
+        var (minLat, minLon, maxLat, maxLon) = GeometryMath.BoundingBox(ring);
+        var halfExtent = GeometryMath.DistanceMeters(new GeoPoint(minLat, minLon), new GeoPoint(maxLat, maxLon)) / 2;
+
+        return (int)Math.Clamp(halfExtent * ImageryFramingMargin, MinimumImageryRadiusMeters, opts.SearchRadiusMeters);
+    }
+
+    /// <summary>Plausibility gate for <see cref="BoundaryVisionAnalysis.ObservedBoundary"/> — the area and position must be broadly consistent with the mapped candidate it is meant to be describing, or it is discarded as an unreliable read rather than trusted at face value.</summary>
+    private const double VisionCorrectionMinAreaRatio = 0.3;
+
+    private const double VisionCorrectionMaxAreaRatio = 3.0;
+
+    /// <summary>
+    /// How far the mapped geometry may be nudged. A shift larger than this is not an alignment
+    /// error — it means the read is describing something else, and translating onto it would move
+    /// the boundary off the site entirely.
+    /// </summary>
+    private const double MaxVisionCorrectionMeters = 80;
+
+    /// <summary>
+    /// Corrects the mapped geometry's <b>position</b> using Gemini's visual read, and nothing
+    /// else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This used to replace the mapped polygon with the observed one outright, which was wrong:
+    /// the observed outline is a four- or five-point approximation traced by a model, and
+    /// substituting it discards whatever detail the mappers surveyed. So the read contributes one
+    /// thing — the translation between the two centroids — and every mapped vertex is carried
+    /// along unchanged.
+    /// </para>
+    /// <para>
+    /// It is worth being precise about what this can and cannot fix. It fixes <i>position</i>. It
+    /// cannot add detail the mapped ring does not have: translating a rectangle yields a
+    /// rectangle. Al Safa Park 2's OSM way, for instance, has seven points but only four corners —
+    /// the other three sit on straight edges, 0.05 m, 0.00 m and 0.32 m off the line. If the real
+    /// fence steps in and out, no offset will reproduce that; moving individual vertices would be
+    /// a separate change.
+    /// </para>
+    /// <para>
+    /// Three gates, all of which must hold: the observed area is within
+    /// <see cref="VisionCorrectionMinAreaRatio"/>x-<see cref="VisionCorrectionMaxAreaRatio"/>x of
+    /// the mapped area (it is looking at the same site), the observed centroid is inside the
+    /// search radius, and the resulting shift is under <see cref="MaxVisionCorrectionMeters"/>.
+    /// </para>
+    /// </remarks>
+    private static VisionCorrectedGeometry? TryBuildVisionCorrectedGeometry(
+        ScoredBoundaryCandidate winner, BoundaryVisionAnalysis vision, GeoPoint center, BoundaryScoringOptions opts, string mappedSourceDetail)
+    {
+        if (vision.ObservedBoundary is not { Count: >= 3 } observed)
+        {
+            return null;
+        }
+
+        var observedArea = GeometryMath.AreaSquareMeters(observed);
+        if (observedArea <= 0)
+        {
+            return null;
+        }
+
+        var mapped = winner.Candidate.Polygon.ExteriorRing;
+        if (mapped.Count < 3)
+        {
+            return null;
+        }
+
+        var mappedArea = winner.Candidate.AreaSquareMeters;
+        if (mappedArea > 0)
+        {
+            var ratio = observedArea / mappedArea;
+            if (ratio < VisionCorrectionMinAreaRatio || ratio > VisionCorrectionMaxAreaRatio)
+            {
+                return null;
+            }
+        }
+
+        var observedCentroid = GeometryMath.Centroid(observed);
+        if (GeometryMath.DistanceMeters(observedCentroid, center) > opts.SearchRadiusMeters)
+        {
+            return null;
+        }
+
+        var mappedCentroid = GeometryMath.Centroid(mapped);
+        var shiftMeters = GeometryMath.DistanceMeters(mappedCentroid, observedCentroid);
+        if (shiftMeters > MaxVisionCorrectionMeters)
+        {
+            return null;
+        }
+
+        // Nothing to gain from a sub-metre nudge, and reporting a correction that moved nothing
+        // would overstate what happened.
+        if (shiftMeters < 1)
+        {
+            return null;
+        }
+
+        var deltaLat = observedCentroid.Latitude - mappedCentroid.Latitude;
+        var deltaLon = observedCentroid.Longitude - mappedCentroid.Longitude;
+        var corrected = mapped
+            .Select(p => new GeoPoint(p.Latitude + deltaLat, p.Longitude + deltaLon))
+            .ToList();
+
+        return new VisionCorrectedGeometry(
+            corrected,
+            // The shape is unchanged, so the mapped area still describes it exactly.
+            mappedArea > 0 ? mappedArea : GeometryMath.AreaSquareMeters(corrected),
+            winner.Candidate.Source,
+            $"{mappedSourceDetail}, shifted {shiftMeters:F0} m onto the boundary visible in Google's satellite imagery");
+    }
+
+    private sealed record VisionCorrectedGeometry(
+        IReadOnlyList<GeoPoint> Polygon, double AreaSquareMeters, SiteBoundarySource Source, string SourceDetail);
 
     private static string? DescribeAiVerification(string agreement) => agreement switch
     {

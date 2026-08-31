@@ -275,9 +275,18 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        // specs/042-site-boundary-resolution — dedicated client for ESRI World Imagery's free,
-        // no-key export endpoint, feeding the Gemini vision cross-check. 30s matches the
-        // reference notebook's own hard_timeout(30) around the equivalent fetch.
+        // Imagery for the Gemini vision cross-check. Google Static Maps is the primary provider:
+        // it is what the viewer renders on, so a boundary read off this image is measured in the
+        // same reference frame it will be drawn in. 30s matches the vision step's own budget.
+        services.AddHttpClient("GoogleStaticMaps", client =>
+        {
+            client.BaseAddress = new Uri("https://maps.googleapis.com/maps/api/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // ESRI World Imagery, kept only as the keyless fallback for environments with no Google
+        // Maps key. Its imagery is in a different frame from the viewer's basemap, so anything
+        // measured on it can position a boundary no better than the two vendors agree.
         services.AddHttpClient("EsriWorldImagery", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
@@ -294,7 +303,12 @@ public static class DependencyInjection
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
-        services.AddScoped<ISatelliteImageProvider, EsriSatelliteImageProvider>();
+        // Same key-presence rule as the geocoder above, and for the same reason: prefer Google
+        // where we can reach it, degrade to a keyless provider where we cannot.
+        if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))
+            services.AddScoped<ISatelliteImageProvider, GoogleSatelliteImageProvider>();
+        else
+            services.AddScoped<ISatelliteImageProvider, EsriSatelliteImageProvider>();
         services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
