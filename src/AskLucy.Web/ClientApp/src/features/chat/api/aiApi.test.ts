@@ -53,6 +53,48 @@ describe('streamChat', () => {
     expect(events[1]).toEqual({ type: 'location', ...locationPayload })
   })
 
+  // The site-boundary confirmation reports a second action, finishing seconds after the location
+  // did. Appending it to the reply ran two unrelated sentences together and rewrote a bubble the
+  // user had already read, so the server breaks the message instead.
+  it('parses a __MESSAGE_BREAK__ event and yields a messageBreak', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Centred the viewer on it.\n\n',
+          'data: __MESSAGE_BREAK__\n\n',
+          "data: I've outlined the site boundary.\n\n",
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([
+      { type: 'content', delta: 'Centred the viewer on it.' },
+      { type: 'messageBreak' },
+      { type: 'content', delta: "I've outlined the site boundary." },
+    ])
+  })
+
+  it('treats a line that merely starts with the marker as content, since the marker carries no payload', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(sseResponse(['data: __MESSAGE_BREAK__ is the marker\n\n', 'data: [DONE]\n\n'])),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([{ type: 'content', delta: '__MESSAGE_BREAK__ is the marker' }])
+  })
+
   // specs/042-site-boundary-resolution T031: __SITE_BOUNDARY__ trailing SSE event
   it('parses a __SITE_BOUNDARY__ trailing event and yields a siteBoundary event', async () => {
     const boundaryPayload = {
