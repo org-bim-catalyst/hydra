@@ -284,6 +284,14 @@ public sealed class AnthropicProvider(
         client.BaseAddress = new Uri(_options.BaseUrl);
         client.DefaultRequestHeaders.Add("x-api-key", apiKey);
         client.DefaultRequestHeaders.Add("anthropic-version", _options.ApiVersion);
+
+        // Required by identity-linked keys and rejected by nothing, so it is sent whenever it is
+        // configured — see AnthropicOptions.WorkspaceId.
+        if (!string.IsNullOrWhiteSpace(_options.WorkspaceId))
+        {
+            client.DefaultRequestHeaders.Add("anthropic-workspace-id", _options.WorkspaceId);
+        }
+
         return client;
     }
 
