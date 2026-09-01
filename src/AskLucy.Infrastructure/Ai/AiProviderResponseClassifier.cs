@@ -82,7 +82,7 @@ internal static class AiProviderResponseClassifier
         AiProviderResponseClassifierLog.ProviderRequestFailed(
             logger, providerName, kind, (int)response.StatusCode, vendorReason.Summary, Truncate(body));
 
-        throw Create(kind, providerName, retryAfter);
+        throw Create(kind, providerName, retryAfter, inner: null, remedy: DescribeRemedy(vendorReason.Message));
     }
 
     /// <summary>
@@ -173,7 +173,8 @@ internal static class AiProviderResponseClassifier
 
     /// <summary>Builds the typed exception for a classification, with administrator-facing prose and never a vendor body (FR-013).</summary>
     public static AiProviderException Create(
-        AiProviderFailureKind kind, string providerName, TimeSpan? retryAfter = null, Exception? inner = null) => kind switch
+        AiProviderFailureKind kind, string providerName, TimeSpan? retryAfter = null, Exception? inner = null,
+        string? remedy = null) => kind switch
         {
             AiProviderFailureKind.CredentialRejected => new AiProviderAuthenticationException(
                 $"{providerName} rejected the configured credential. An administrator needs to replace its API key.", inner),
@@ -195,8 +196,15 @@ internal static class AiProviderResponseClassifier
                 $"{providerName} rejected the request because the account or project is restricted — billing may be disabled, or the API may not be enabled for the project. The credential itself is valid.",
                 inner),
 
+            // `remedy` is text WE wrote for a condition we recognised — never the vendor's body,
+            // which can echo request material back including credentials (SC-008). Without it
+            // this kind says only "rejected this request as invalid", which sends whoever reads
+            // it hunting for a malformed payload when the real answer was a missing header.
             AiProviderFailureKind.RequestInvalid => new AiProviderRequestInvalidException(
-                $"{providerName} rejected this request as invalid.", inner),
+                string.IsNullOrWhiteSpace(remedy)
+                    ? $"{providerName} rejected this request as invalid."
+                    : $"{providerName} rejected this request as invalid. {remedy}",
+                inner),
 
             AiProviderFailureKind.ResponseNotUnderstood => new AiProviderResponseInvalidException(
                 $"{providerName} returned a response Ask Lucy could not interpret.", inner),
@@ -381,7 +389,8 @@ internal static class AiProviderResponseClassifier
             IsUsageRestricted: Has("permission_error", "access_terminated"),
             IsQuotaExhausted: Has("insufficient_quota", "billing_hard_limit_reached", "credit_limit_reached")
                 || hasCreditBalanceMessage,
-            IsRateLimited: Has("rate_limit_exceeded", "rate_limit_error"));
+            IsRateLimited: Has("rate_limit_exceeded", "rate_limit_error"),
+            Message: message);
     }
 
     private static TimeSpan? ReadRetryAfter(HttpResponseMessage response)
@@ -425,12 +434,51 @@ internal static class AiProviderResponseClassifier
         : body[..BodyExcerptMaxLength] + "…(truncated)";
 
     /// <summary>What a vendor's error envelope told us, normalized across the four vocabularies.</summary>
+    /// <summary>
+    /// Turns a recognised vendor message into guidance of our own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Matching on a phrase, then emitting text we wrote, is the same approach this file already
+    /// takes for Anthropic's "credit balance is too low". It keeps the actionable part while
+    /// honouring SC-008: the vendor's body never reaches the exception message, because it can
+    /// echo request material back — including credentials.
+    /// </para>
+    /// <para>
+    /// Returns <see langword="null"/> for anything unrecognised, which leaves the generic message
+    /// exactly as it was. The body is still logged in full for whoever is diagnosing.
+    /// </para>
+    /// </remarks>
+    private static string? DescribeRemedy(string? vendorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(vendorMessage))
+        {
+            return null;
+        }
+
+        // Anthropic's identity-linked keys refuse every request without a workspace header, which
+        // left Anthropic unusable in production on 2026-09-01 behind a message about an invalid
+        // request. Configure Anthropic:WorkspaceId, or issue a classic key instead.
+        if (vendorMessage.Contains("anthropic-workspace-id", StringComparison.OrdinalIgnoreCase))
+        {
+            return "This looks like an identity-linked API key, which must name the workspace it "
+                + "acts in. Set the provider's WorkspaceId setting, or issue a classic API key.";
+        }
+
+        return null;
+    }
+
     private readonly record struct VendorReason(
         string? Summary,
         bool IsCredentialRejected,
         bool IsUsageRestricted,
         bool IsQuotaExhausted,
-        bool IsRateLimited)
+        bool IsRateLimited,
+        /// <summary>
+        /// The vendor's own human-readable message, surfaced for the failure kinds where it is
+        /// the only thing that says what to actually do.
+        /// </summary>
+        string? Message = null)
     {
         public static VendorReason None => new(null, false, false, false, false);
     }

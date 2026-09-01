@@ -83,6 +83,47 @@ public sealed class AiProviderResponseClassifierTests
         thrown.Kind.Should().Be(expected);
     }
 
+    /// <summary>
+    /// Anthropic's identity-linked API keys refuse every request without an
+    /// <c>anthropic-workspace-id</c> header. In production on 2026-09-01 that left Anthropic
+    /// unusable behind an admin card reading only "rejected this request as invalid", which points
+    /// at a malformed payload rather than at the setting that fixes it.
+    /// </summary>
+    [Fact]
+    public async Task EnsureSuccessAsync_ShouldExplainTheWorkspaceRequirement_WhenAnthropicNamesIt()
+    {
+        var response = Response(
+            HttpStatusCode.BadRequest,
+            """{"type":"error","error":{"type":"invalid_request_error","message":"anthropic-workspace-id is required when authenticating with an identity-linked API key; send the id of the workspace this request acts in."}}""");
+
+        var act = () => AiProviderResponseClassifier.EnsureSuccessAsync(
+            response, AiVendor.Anthropic, ProviderName, NullLogger.Instance, CancellationToken.None);
+
+        var thrown = (await act.Should().ThrowAsync<AiProviderRequestInvalidException>()).Which;
+
+        thrown.Message.Should().Contain("workspace");
+        // SC-008 still holds: the guidance is ours, the vendor's own body never reaches the
+        // message an administrator reads.
+        thrown.Message.Should().NotContain("anthropic-workspace-id is required when authenticating");
+        thrown.Message.Should().NotContain("invalid_request_error");
+    }
+
+    /// <summary>An unrecognised message leaves the generic wording untouched.</summary>
+    [Fact]
+    public async Task EnsureSuccessAsync_ShouldKeepTheGenericMessage_WhenTheVendorReasonIsUnrecognised()
+    {
+        var response = Response(
+            HttpStatusCode.BadRequest,
+            """{"type":"error","error":{"type":"invalid_request_error","message":"something we have never seen"}}""");
+
+        var act = () => AiProviderResponseClassifier.EnsureSuccessAsync(
+            response, AiVendor.Anthropic, ProviderName, NullLogger.Instance, CancellationToken.None);
+
+        var thrown = (await act.Should().ThrowAsync<AiProviderRequestInvalidException>()).Which;
+
+        thrown.Message.Should().Be($"{ProviderName} rejected this request as invalid.");
+    }
+
     [Theory]
     [MemberData(nameof(VendorCases))]
     public async Task EnsureSuccessAsync_ShouldNeverLeakTheVendorBody_IntoTheMessage(
