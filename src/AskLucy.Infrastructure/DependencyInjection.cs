@@ -243,7 +243,13 @@ public static class DependencyInjection
         // same reasoning as the "Mcp" client above.
         services.AddHttpClient("Weather", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(15);
+            // 30s, not 15s — the same correction Overpass and Geocoding already needed on this
+            // shared host. Open-Meteo and Nominatim both answer in well under a second most of
+            // the time, but on 2026-09-01 two lookups ran past 15s, the client aborted them, and
+            // the resulting WeatherProviderUnavailableException reached the global handler as an
+            // unhandled exception — the browser saw a 502 for a widget that had nothing wrong
+            // with it. A slow upstream is not an outage; give it room to answer.
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         // specs/037-location-query-resolution: dedicated client for Google Maps Geocoding API
