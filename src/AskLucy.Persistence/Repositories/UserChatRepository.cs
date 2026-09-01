@@ -31,6 +31,11 @@ public sealed class UserChatRepository(AskLucyDbContext dbContext) : IUserChatRe
             .Take(batchSize)
             .ToListAsync(cancellationToken);
 
+    public Task MarkMemoryAnalyzedAsync(Guid chatId, DateTime analyzedAtUtc, CancellationToken cancellationToken = default) =>
+        dbContext.UserChats
+            .Where(c => c.Id == chatId)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.LastMemoryAnalyzedAtUtc, analyzedAtUtc), cancellationToken);
+
     /// <summary>
     /// Cursor-based (keyset) search/filter/sort over a user's own conversations
     /// (FR-019/FR-020/FR-021/FR-022, research.md Topics 5/6). Pinned conversations always

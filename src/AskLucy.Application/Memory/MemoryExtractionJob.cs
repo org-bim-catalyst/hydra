@@ -88,8 +88,12 @@ public sealed class MemoryExtractionJob(
             await ProcessCandidateAsync(userChat, candidate, cancellationToken);
         }
 
-        userChat.MarkMemoryAnalyzed();
+        // Saved first, then the timestamp stamped separately. This job is enqueued as the turn
+        // ends, so the turn is still writing this same UserChat row — going through the tracked
+        // entity meant its rowversion was already stale and the save matched zero rows. See
+        // IUserChatRepository.MarkMemoryAnalyzedAsync.
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await userChatRepository.MarkMemoryAnalyzedAsync(userChat.Id, DateTime.UtcNow, cancellationToken);
     }
 
     private async Task ProcessCandidateAsync(UserChat userChat, ExtractedCandidate candidate, CancellationToken cancellationToken)
