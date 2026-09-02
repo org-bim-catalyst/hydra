@@ -73,7 +73,7 @@ public sealed class McpCredentialRotationInFlightCallTests
         await rotateHandler.Handle(new RotateMcpServerCredentialCommand(server.Id, "new-secret"), CancellationToken.None);
 
         var context = new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), AdminId, Guid.NewGuid(), Guid.NewGuid(), null);
-        var result = await adapter.ExecuteAsync(context, JsonDocument.Parse("{}"));
+        var result = await adapter.ExecuteAsync(context, JsonDocument.Parse("{}"), TestContext.Current.CancellationToken);
 
         // Never silently disappears — a definite, categorized, recorded outcome.
         result.Succeeded.Should().BeFalse();
@@ -100,7 +100,7 @@ public sealed class McpCredentialRotationInFlightCallTests
             Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions()));
 
         var context = new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), AdminId, Guid.NewGuid(), Guid.NewGuid(), null);
-        var result = await adapter.ExecuteAsync(context, JsonDocument.Parse("{}"));
+        var result = await adapter.ExecuteAsync(context, JsonDocument.Parse("{}"), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
     }

@@ -108,7 +108,7 @@ public sealed class McpToolAdapter(
         return AgentToolResult.Success(output);
     }
 
-    private static IReadOnlyList<AgentToolPermission> ParsePermissions(string requiredPermissionsJson)
+    private static List<AgentToolPermission> ParsePermissions(string requiredPermissionsJson)
     {
         using var document = JsonDocument.Parse(requiredPermissionsJson);
         var permissions = new List<AgentToolPermission>();

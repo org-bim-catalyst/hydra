@@ -28,7 +28,7 @@ public sealed class LockUnlockUserCommandHandlerTests
         var act = () => handler.Handle(new LockUserCommand("admin-1"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _identityService.DidNotReceiveWithAnyArgs().SetLockoutAsync(default!, default, default);
+        await _identityService.DidNotReceiveWithAnyArgs().SetLockoutAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class LockUnlockUserCommandHandlerTests
         var act = () => handler.Handle(new LockUserCommand("user-2"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _identityService.DidNotReceiveWithAnyArgs().SetLockoutAsync(default!, default, default);
+        await _identityService.DidNotReceiveWithAnyArgs().SetLockoutAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

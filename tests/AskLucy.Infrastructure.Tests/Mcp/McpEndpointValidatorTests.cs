@@ -19,7 +19,7 @@ public sealed class McpEndpointValidatorTests
     [InlineData("https://127.0.0.1/")]
     public async Task ValidateAsync_ShouldRejectPrivateOrLoopback_ByDefault(string endpoint)
     {
-        var result = await _validator.ValidateAsync(endpoint, allowOverride: false);
+        var result = await _validator.ValidateAsync(endpoint, allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedPrivateOrLoopback);
     }
@@ -29,7 +29,7 @@ public sealed class McpEndpointValidatorTests
     [InlineData("https://169.254.169.254/")]
     public async Task ValidateAsync_ShouldRejectLinkLocalAndCloudMetadata_ByDefault(string endpoint)
     {
-        var result = await _validator.ValidateAsync(endpoint, allowOverride: false);
+        var result = await _validator.ValidateAsync(endpoint, allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedLinkLocalOrCloudMetadata);
     }
@@ -37,7 +37,7 @@ public sealed class McpEndpointValidatorTests
     [Fact]
     public async Task ValidateAsync_ShouldAllow_WhenOverrideIsExplicitlySet()
     {
-        var result = await _validator.ValidateAsync("https://10.0.0.5/", allowOverride: true);
+        var result = await _validator.ValidateAsync("https://10.0.0.5/", allowOverride: true, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.Allowed);
     }
@@ -45,7 +45,7 @@ public sealed class McpEndpointValidatorTests
     [Fact]
     public async Task ValidateAsync_ShouldRejectInsecureScheme()
     {
-        var result = await _validator.ValidateAsync("ftp://8.8.8.8/", allowOverride: false);
+        var result = await _validator.ValidateAsync("ftp://8.8.8.8/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedInsecureScheme);
     }
@@ -55,7 +55,7 @@ public sealed class McpEndpointValidatorTests
     {
         // 8.8.8.8 is a public, well-known address (Google Public DNS) — used as a literal IP so
         // this test never performs an actual DNS lookup.
-        var result = await _validator.ValidateAsync("https://8.8.8.8/", allowOverride: false);
+        var result = await _validator.ValidateAsync("https://8.8.8.8/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.Allowed);
     }
@@ -63,7 +63,7 @@ public sealed class McpEndpointValidatorTests
     [Fact]
     public async Task ValidateAsync_ShouldRejectUnresolvable_WhenEndpointIsNotAnAbsoluteUri()
     {
-        var result = await _validator.ValidateAsync("not-a-uri", allowOverride: false);
+        var result = await _validator.ValidateAsync("not-a-uri", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedUnresolvable);
     }
@@ -79,7 +79,7 @@ public sealed class McpEndpointValidatorTests
     [InlineData("https://169.255.0.0/")] // one above 169.254.0.0/16
     public async Task ValidateAsync_ShouldAllow_AddressesJustOutsideAPrivateOrLinkLocalRange(string endpoint)
     {
-        var result = await _validator.ValidateAsync(endpoint, allowOverride: false);
+        var result = await _validator.ValidateAsync(endpoint, allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.Allowed);
     }
@@ -87,7 +87,7 @@ public sealed class McpEndpointValidatorTests
     [Fact]
     public async Task ValidateAsync_ShouldRejectIPv6Loopback()
     {
-        var result = await _validator.ValidateAsync("https://[::1]/", allowOverride: false);
+        var result = await _validator.ValidateAsync("https://[::1]/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedPrivateOrLoopback);
     }
@@ -96,7 +96,7 @@ public sealed class McpEndpointValidatorTests
     public async Task ValidateAsync_ShouldRejectIPv6UniqueLocalAddresses()
     {
         // fc00::/7 — the IPv6 analogue of RFC1918 private ranges.
-        var result = await _validator.ValidateAsync("https://[fd12:3456:789a::1]/", allowOverride: false);
+        var result = await _validator.ValidateAsync("https://[fd12:3456:789a::1]/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedPrivateOrLoopback);
     }
@@ -104,7 +104,7 @@ public sealed class McpEndpointValidatorTests
     [Fact]
     public async Task ValidateAsync_ShouldRejectIPv6LinkLocalAddresses()
     {
-        var result = await _validator.ValidateAsync("https://[fe80::1]/", allowOverride: false);
+        var result = await _validator.ValidateAsync("https://[fe80::1]/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be(McpEndpointValidationResult.RejectedLinkLocalOrCloudMetadata);
     }
@@ -116,8 +116,8 @@ public sealed class McpEndpointValidatorTests
         // call performs a fresh DNS resolution, so a hostname that resolves differently between
         // two calls (as in a rebinding attack) is independently re-checked both times, never
         // trusting an earlier call's result.
-        var first = await _validator.ValidateAsync("https://8.8.8.8/", allowOverride: false);
-        var second = await _validator.ValidateAsync("https://10.0.0.5/", allowOverride: false);
+        var first = await _validator.ValidateAsync("https://8.8.8.8/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
+        var second = await _validator.ValidateAsync("https://10.0.0.5/", allowOverride: false, cancellationToken: TestContext.Current.CancellationToken);
 
         first.Should().Be(McpEndpointValidationResult.Allowed);
         second.Should().Be(McpEndpointValidationResult.RejectedPrivateOrLoopback);

@@ -60,7 +60,7 @@ public sealed class KnowledgeBaseLifecycleTransitionTests
         result.Status.Should().Be(KnowledgeBaseStatus.Archived);
         result.IsFavorite.Should().BeTrue("archiving a favorited knowledge base must keep it favorited (spec.md Edge Cases)");
         result.IsPinned.Should().BeTrue();
-        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a.Action == KnowledgeBaseAuditAction.Archived));
+        _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(a => a != null && a.Action == KnowledgeBaseAuditAction.Archived));
     }
 
     [Fact]

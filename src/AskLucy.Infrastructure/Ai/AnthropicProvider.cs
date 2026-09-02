@@ -236,7 +236,7 @@ public sealed class AnthropicProvider(
         return client;
     }
 
-    private static object BuildPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
+    private static Dictionary<string, object?> BuildPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
     {
         // Anthropic takes the system prompt as a top-level field, not a message with role
         // "system" — extract any ChatRole.System entries the Application layer assembled

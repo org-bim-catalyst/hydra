@@ -21,7 +21,7 @@ public sealed class AdminDashboardTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/admin/dashboard/summary");
+        var response = await _client.GetAsync("/api/v1/admin/dashboard/summary", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -34,7 +34,7 @@ public sealed class AdminDashboardTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("admin-1", role);
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/admin/dashboard/summary");
+        var response = await _client.GetAsync("/api/v1/admin/dashboard/summary", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
@@ -43,7 +43,7 @@ public sealed class AdminDashboardTests(CustomWebApplicationFactory factory) : I
     [Fact]
     public async Task GetSummary_ShouldReturn401_WhenAnonymous()
     {
-        var response = await _client.GetAsync("/api/v1/admin/dashboard/summary");
+        var response = await _client.GetAsync("/api/v1/admin/dashboard/summary", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

@@ -41,7 +41,7 @@ public sealed class WorkflowCrossUserSecurityTests
         var act = () => handler.Handle(new GetWorkflowExecutionQuery(execution.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
-        auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log.Action == WorkflowAuditAction.CrossUserAccessAttempted && log.ActorUserId == AttackerId));
+        auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log != null && log.Action == WorkflowAuditAction.CrossUserAccessAttempted && log.ActorUserId == AttackerId));
         await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

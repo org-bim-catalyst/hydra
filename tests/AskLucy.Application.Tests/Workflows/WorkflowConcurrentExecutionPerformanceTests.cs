@@ -113,7 +113,7 @@ public sealed class WorkflowConcurrentExecutionPerformanceTests
 
         var stopwatch = Stopwatch.StartNew();
         // WaitAsync is the deadlock guard — a hang here fails the test instead of hanging the suite.
-        await Task.WhenAll(executions.Select(RunOne)).WaitAsync(TimeSpan.FromSeconds(30));
+        await Task.WhenAll(executions.Select(RunOne)).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         stopwatch.Stop();
 
         executions.Should().OnlyContain(e => e.Status == WorkflowExecutionStatus.Completed);

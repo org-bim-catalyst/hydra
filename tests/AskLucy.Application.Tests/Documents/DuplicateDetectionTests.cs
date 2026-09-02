@@ -121,7 +121,7 @@ public sealed class DuplicateDetectionTests
 
         result.Should().NotBeNull();
         existingDocument.CurrentVersionId.Should().NotBe(existingVersion.Id, "a new version was created and repointed");
-        _documentRepository.Received(1).AddVersion(Arg.Is<DocumentVersion>(v => v.VersionMajor == 1 && v.VersionMinor == 1));
+        _documentRepository.Received(1).AddVersion(Arg.Is<DocumentVersion>(v => v != null && v.VersionMajor == 1 && v.VersionMinor == 1));
         await _processingPipeline.Received(1).EnqueueAsync(existingDocument.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 

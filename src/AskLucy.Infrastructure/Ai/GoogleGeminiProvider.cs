@@ -207,7 +207,7 @@ public sealed class GoogleGeminiProvider(
         return (client, apiKey);
     }
 
-    private static object BuildPayload(IReadOnlyList<ChatMessage> messages, GenerationParametersDto? parameters)
+    private static Dictionary<string, object?> BuildPayload(IReadOnlyList<ChatMessage> messages, GenerationParametersDto? parameters)
     {
         var systemInstructionText = string.Join(
             "\n\n", messages.Where(m => m.Role == ChatRole.System).Select(m => m.Content));

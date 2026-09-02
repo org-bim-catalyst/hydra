@@ -84,7 +84,7 @@ public sealed class AdminAiProvidersControllerTests(CustomWebApplicationFactory 
             "PATCH" => _client.PatchAsync(path, JsonContent.Create(new UpdateAiProviderRequest(true, null))),
             "PUT" => _client.PutAsync(path, JsonContent.Create(new SetAiProviderCredentialRequest("test-key"))),
             "DELETE" => _client.DeleteAsync(path),
-            "POST" when path.EndsWith("/apply") => _client.PostAsync(path, JsonContent.Create(new ApplyProviderModelSyncRequest([], []))),
+            "POST" when path.EndsWith("/apply", StringComparison.Ordinal) => _client.PostAsync(path, JsonContent.Create(new ApplyProviderModelSyncRequest([], []))),
             "POST" => _client.PostAsync(path, content: null),
             _ => throw new ArgumentOutOfRangeException(nameof(method)),
         };

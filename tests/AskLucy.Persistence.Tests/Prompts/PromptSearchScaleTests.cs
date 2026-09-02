@@ -40,7 +40,7 @@ public sealed class PromptSearchScaleTests(PersistenceTestFixture fixture)
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.Prompts.AddRange(prompts);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();
@@ -71,7 +71,7 @@ public sealed class PromptSearchScaleTests(PersistenceTestFixture fixture)
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.Prompts.AddRange(prompts);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var repository = new PromptRepository(fixture.CreateDbContext());
@@ -91,7 +91,7 @@ public sealed class PromptSearchScaleTests(PersistenceTestFixture fixture)
                 break;
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200));
+            await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
         } while (DateTime.UtcNow < deadline);
         stopwatch.Stop();
 

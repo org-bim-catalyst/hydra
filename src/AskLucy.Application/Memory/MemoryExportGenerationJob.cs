@@ -28,6 +28,8 @@ public sealed class MemoryExportGenerationJob(
 {
     private const string SystemActor = "system:memory-export";
 
+    private static readonly JsonSerializerOptions ExportJsonOptions = new() { WriteIndented = true };
+
     private sealed record ExportedMemory(
         [property: JsonPropertyName("content")] string Content,
         [property: JsonPropertyName("state")] string State,
@@ -63,7 +65,7 @@ public sealed class MemoryExportGenerationJob(
                         g.Select(m => new ExportedMemory(m.Content, m.State.ToString(), m.SourceType.ToString(), m.CreatedAtUtc)).ToList()))
                     .ToList());
 
-            var json = JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(document, ExportJsonOptions);
             await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             var storedFileName = await fileStorage.SaveAsync(stream, "memory-export.json", cancellationToken);
 

@@ -37,7 +37,7 @@ public sealed class WorkflowConcurrencyLimitTests
         var result = await handler.Handle(new SetWorkflowUserExecutionLimitCommand(UserId, 10), CancellationToken.None);
 
         result.Should().Be(new WorkflowUserExecutionLimitDto(UserId, 10));
-        policyRepository.Received(1).AddUserExecutionLimit(Arg.Is<WorkflowUserExecutionLimit>(l => l.UserId == UserId && l.MaxConcurrentExecutions == 10 && l.SetByUserId == AdminId));
+        policyRepository.Received(1).AddUserExecutionLimit(Arg.Is<WorkflowUserExecutionLimit>(l => l != null && l.UserId == UserId && l.MaxConcurrentExecutions == 10 && l.SetByUserId == AdminId));
         await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

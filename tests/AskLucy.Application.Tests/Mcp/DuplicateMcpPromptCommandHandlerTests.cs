@@ -37,7 +37,7 @@ public sealed class DuplicateMcpPromptCommandHandlerTests
         var result = await handler.Handle(new DuplicateMcpPromptCommand(source.NamespacedName), CancellationToken.None);
 
         result.UserInstructions.Should().Be("You are a helpful research assistant.");
-        _promptRepository.Received(1).Add(Arg.Is<Prompt>(p => p.OwnerId == OwnerId && p.Name == source.Name));
+        _promptRepository.Received(1).Add(Arg.Is<Prompt>(p => p!.OwnerId == OwnerId && p.Name == source.Name));
     }
 
     [Fact]

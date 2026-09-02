@@ -37,9 +37,9 @@ public sealed class CreatePromptCommandHandlerTests
         result.Name.Should().Be("Summarize a document");
         result.Variables.Should().HaveCount(2);
         result.CurrentVersion.VersionNumber.Should().Be(1);
-        _promptRepository.Received(1).Add(Arg.Is<Prompt>(p => p.OwnerId == "user-1"));
+        _promptRepository.Received(1).Add(Arg.Is<Prompt>(p => p != null && p.OwnerId == "user-1"));
         _promptRepository.Received(1).AddUsageStatistics(Arg.Any<PromptUsageStatistics>());
-        _auditLogRepository.Received(1).Add(Arg.Is<PromptAuditLog>(a => a.Action == PromptAuditAction.Created));
+        _auditLogRepository.Received(1).Add(Arg.Is<PromptAuditLog>(a => a != null && a.Action == PromptAuditAction.Created));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

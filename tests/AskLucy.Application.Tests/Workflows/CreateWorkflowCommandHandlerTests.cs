@@ -27,7 +27,7 @@ public sealed class CreateWorkflowCommandHandlerTests
 
         result.Name.Should().Be("My Workflow");
         result.Status.Should().Be(nameof(WorkflowStatus.Draft));
-        _workflowRepository.Received(1).Add(Arg.Is<Workflow>(w => w.OwnerId == "user-1" && w.Status == WorkflowStatus.Draft));
+        _workflowRepository.Received(1).Add(Arg.Is<Workflow>(w => w != null && w.OwnerId == "user-1" && w.Status == WorkflowStatus.Draft));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

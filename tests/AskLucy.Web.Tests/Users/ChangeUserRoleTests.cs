@@ -17,7 +17,7 @@ public sealed class ChangeUserRoleTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Regular" }));
+        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Regular" }), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -28,7 +28,7 @@ public sealed class ChangeUserRoleTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Super User" }));
+        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Super User" }), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -39,7 +39,7 @@ public sealed class ChangeUserRoleTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Administrator" }));
+        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Administrator" }), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -50,7 +50,7 @@ public sealed class ChangeUserRoleTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Regular" }));
+        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Regular" }), TestContext.Current.CancellationToken);
 
         // No live database in this environment — proves the plain-Administrator privilege
         // guard did NOT reject this request (never 401/403), since neither the caller's
@@ -65,7 +65,7 @@ public sealed class ChangeUserRoleTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("super-1", "Super User");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Super User" }));
+        var response = await _client.PatchAsync("/api/v1/users/some-other-user/role", JsonContent.Create(new { role = "Super User" }), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);

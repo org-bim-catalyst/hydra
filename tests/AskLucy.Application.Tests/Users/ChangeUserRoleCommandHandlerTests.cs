@@ -30,7 +30,7 @@ public sealed class ChangeUserRoleCommandHandlerTests
         var act = () => _handler.Handle(new ChangeUserRoleCommand("target-1", "Super User"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _identityService.DidNotReceiveWithAnyArgs().ChangeRoleAsync(default!, default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().ChangeRoleAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class ChangeUserRoleCommandHandlerTests
         var act = () => _handler.Handle(new ChangeUserRoleCommand("target-1", "Regular"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _identityService.DidNotReceiveWithAnyArgs().ChangeRoleAsync(default!, default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().ChangeRoleAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

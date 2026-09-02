@@ -95,7 +95,7 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
 
         result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-5");
         result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-4-turbo" && f.Reason.Contains("stale"));
-        _models.Received(1).Add(Arg.Is<AIModel>(m => m.ModelKey == "gpt-5"));
+        _models.Received(1).Add(Arg.Is<AIModel>(m => m != null && m.ModelKey == "gpt-5"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

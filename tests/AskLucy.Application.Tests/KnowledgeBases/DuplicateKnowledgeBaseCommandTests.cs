@@ -48,7 +48,7 @@ public sealed class DuplicateKnowledgeBaseCommandTests
         result.Status.Should().Be(KnowledgeBaseStatus.Draft);
         result.Tags.Should().ContainSingle().Which.Should().Be("revit");
         result.Id.Should().NotBe(source.Id);
-        _knowledgeBaseRepository.Received(1).Add(Arg.Is<KnowledgeBase>(k => k.Name == "Copy of BIM Standards"));
+        _knowledgeBaseRepository.Received(1).Add(Arg.Is<KnowledgeBase>(k => k != null && k.Name == "Copy of BIM Standards"));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class DuplicateKnowledgeBaseCommandTests
         await CreateHandler().Handle(new DuplicateKnowledgeBaseCommand(source.Id), CancellationToken.None);
 
         _auditLogRepository.Received(1).Add(Arg.Is<KnowledgeBaseAuditLog>(
-            a => a.KnowledgeBaseId == source.Id && a.Action == KnowledgeBaseAuditAction.Duplicated));
+            a => a != null && a.KnowledgeBaseId == source.Id && a.Action == KnowledgeBaseAuditAction.Duplicated));
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class DuplicateKnowledgeBaseCommandTests
 
         result.DocumentCount.Should().Be(1);
         _documentRepository.Received(1).Add(Arg.Is<KnowledgeBaseDocument>(d =>
-            d.StoredFileName == "stored-standards-copy.pdf" && d.FileName == "standards.pdf" && d.KnowledgeBaseId == result.Id));
+            d != null && d.StoredFileName == "stored-standards-copy.pdf" && d.FileName == "standards.pdf" && d.KnowledgeBaseId == result.Id));
         await _fileStorage.Received(1).OpenReadAsync("stored-standards.pdf", Arg.Any<CancellationToken>());
     }
 
@@ -105,8 +105,8 @@ public sealed class DuplicateKnowledgeBaseCommandTests
         _folderRepository.ListByKnowledgeBaseIdAsync(source.Id, Arg.Any<CancellationToken>()).Returns([root, child]);
         KnowledgeBaseFolder? capturedRootCopy = null;
         KnowledgeBaseFolder? capturedChildCopy = null;
-        _folderRepository.When(r => r.Add(Arg.Is<KnowledgeBaseFolder>(f => f.Name == "Root"))).Do(ci => capturedRootCopy = ci.Arg<KnowledgeBaseFolder>());
-        _folderRepository.When(r => r.Add(Arg.Is<KnowledgeBaseFolder>(f => f.Name == "Child"))).Do(ci => capturedChildCopy = ci.Arg<KnowledgeBaseFolder>());
+        _folderRepository.When(r => r.Add(Arg.Is<KnowledgeBaseFolder>(f => f != null && f.Name == "Root"))).Do(ci => capturedRootCopy = ci.Arg<KnowledgeBaseFolder>());
+        _folderRepository.When(r => r.Add(Arg.Is<KnowledgeBaseFolder>(f => f != null && f.Name == "Child"))).Do(ci => capturedChildCopy = ci.Arg<KnowledgeBaseFolder>());
 
         await CreateHandler().Handle(new DuplicateKnowledgeBaseCommand(source.Id), CancellationToken.None);
 

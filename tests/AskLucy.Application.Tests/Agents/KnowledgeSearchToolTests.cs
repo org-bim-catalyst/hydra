@@ -50,7 +50,7 @@ public sealed class KnowledgeSearchToolTests
         // than bypassing that resolution (FR-049).
         _knowledgeBaseRepository.ResolveOwnedIdsAsync("user-1", Arg.Is<IReadOnlyCollection<Guid>?>(c => c != null && c.Contains(ownedId) && c.Contains(notOwnedId)), Arg.Any<IReadOnlyCollection<Guid>?>(), Arg.Any<CancellationToken>())
             .Returns([ownedId]);
-        _ragService.RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>())
+        _ragService.RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids != null && ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>())
             .Returns(new RagRetrievalOutcome(RagRetrievalOutcomeType.NoRelevantContent, null, [], null));
 
         var tool = new KnowledgeSearchTool(_ragService, _knowledgeBaseRepository);
@@ -59,7 +59,7 @@ public sealed class KnowledgeSearchToolTests
         var result = await tool.ExecuteAsync(Context(), input, CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
-        await _ragService.Received(1).RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>());
+        await _ragService.Received(1).RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids != null && ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>());
     }
 
     [Fact]

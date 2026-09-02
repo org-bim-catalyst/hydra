@@ -57,7 +57,7 @@ public sealed class DocumentEventNotificationPublishingTests
             publisher.Publish(Arg.Any<DocumentUploadedNotification>(), Arg.Any<CancellationToken>());
         });
         await publisher.Received(1).Publish(
-            Arg.Is<DocumentUploadedNotification>(n => n.KnowledgeBaseId == knowledgeBase.Id && n.OwnerId == "user-1" && n.FileName == "doc.pdf"),
+            Arg.Is<DocumentUploadedNotification>(n => n != null && n.KnowledgeBaseId == knowledgeBase.Id && n.OwnerId == "user-1" && n.FileName == "doc.pdf"),
             Arg.Any<CancellationToken>());
     }
 
@@ -106,7 +106,7 @@ public sealed class DocumentEventNotificationPublishingTests
         // combined with DocumentUploadedNotification's simpler single-SaveChangesAsync ordering
         // test already demonstrates the pattern for.
         await publisher.Received(1).Publish(
-            Arg.Is<DocumentProcessedNotification>(n => n.DocumentId == document.Id && n.OwnerId == "user-1" && n.FileName == "file.pdf"),
+            Arg.Is<DocumentProcessedNotification>(n => n != null && n.DocumentId == document.Id && n.OwnerId == "user-1" && n.FileName == "file.pdf"),
             Arg.Any<CancellationToken>());
     }
 }

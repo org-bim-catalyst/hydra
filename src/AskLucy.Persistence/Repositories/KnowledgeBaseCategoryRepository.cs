@@ -20,7 +20,14 @@ public sealed class KnowledgeBaseCategoryRepository(AskLucyDbContext dbContext) 
             .ThenBy(c => c.Name)
             .ToListAsync(cancellationToken);
 
-    public async Task<bool> ExistsByNameForOwnerAsync(string ownerId, string name, CancellationToken cancellationToken = default) =>
-        await dbContext.KnowledgeBaseCategories.AnyAsync(
+    public async Task<bool> ExistsByNameForOwnerAsync(string ownerId, string name, CancellationToken cancellationToken = default)
+    {
+        // ToLower() runs inside an EF Core expression tree translated to SQL LOWER(); the
+        // StringComparison/CultureInfo overloads CA1304/CA1311/CA1862 suggest cannot be
+        // translated and would throw at query execution time.
+#pragma warning disable CA1304, CA1311, CA1862
+        return await dbContext.KnowledgeBaseCategories.AnyAsync(
             c => c.OwnerId == ownerId && c.Name.ToLower() == name.ToLower(), cancellationToken);
+#pragma warning restore CA1304, CA1311, CA1862
+    }
 }

@@ -120,7 +120,7 @@ public sealed class WorkflowVersioningTests
 
         await CreateStartHandler().Handle(new StartWorkflowExecutionCommand(workflow.Id, null, "{}", WorkflowExecutionTriggerType.Manual), CancellationToken.None);
 
-        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e.WorkflowVersionId == v2.Id));
+        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e != null && e.WorkflowVersionId == v2.Id));
     }
 
     [Fact]
@@ -138,6 +138,6 @@ public sealed class WorkflowVersioningTests
 
         await CreateStartHandler().Handle(new StartWorkflowExecutionCommand(workflow.Id, 1, "{}", WorkflowExecutionTriggerType.Manual), CancellationToken.None);
 
-        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e.WorkflowVersionId == v1.Id));
+        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e != null && e.WorkflowVersionId == v1.Id));
     }
 }

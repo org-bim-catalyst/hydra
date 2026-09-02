@@ -25,8 +25,8 @@ public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixt
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            await dbContext.Users.AddAsync(PersistenceTestFixture.CreateTestUser(ownerId));
-            await dbContext.SaveChangesAsync();
+            await dbContext.Users.AddAsync(PersistenceTestFixture.CreateTestUser(ownerId), TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var workflow = Workflow.Create(ownerId, $"Stats Workflow {suffix}", null, WorkflowType.Manual, ownerId);
             var version = workflow.Publish(
@@ -38,7 +38,7 @@ public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixt
                 [], "{}", "{}", "{}", "{}", "{}", null, ownerId);
 
             dbContext.Workflows.Add(workflow);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             workflowId = workflow.Id;
             versionId = version.Id;
@@ -83,7 +83,7 @@ public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixt
             completed2.SetCost(WorkflowExecutionCost.Create(completed2.Id, 0.25m, "USD"));
 
             dbContext.WorkflowExecutions.AddRange(running, paused, queued, failed, cancelled, timedOut, completed1, completed2);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -111,8 +111,8 @@ public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixt
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            await dbContext.Users.AddAsync(PersistenceTestFixture.CreateTestUser(ownerId));
-            await dbContext.SaveChangesAsync();
+            await dbContext.Users.AddAsync(PersistenceTestFixture.CreateTestUser(ownerId), TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var workflow = Workflow.Create(ownerId, $"Empty Stats Workflow {suffix}", null, WorkflowType.Manual, ownerId);
             var version = workflow.Publish(
@@ -124,11 +124,11 @@ public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixt
                 [], "{}", "{}", "{}", "{}", "{}", null, ownerId);
 
             dbContext.Workflows.Add(workflow);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var queued = WorkflowExecution.Create(workflow.Id, version.Id, ownerId, WorkflowExecutionTriggerType.Manual, null, "{}", ownerId);
             dbContext.WorkflowExecutions.Add(queued);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();

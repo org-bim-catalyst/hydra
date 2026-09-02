@@ -22,7 +22,7 @@ public sealed class RoleAuthorizationTests(CustomWebApplicationFactory factory) 
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/users");
+        var response = await _client.GetAsync("/api/v1/users", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -35,7 +35,7 @@ public sealed class RoleAuthorizationTests(CustomWebApplicationFactory factory) 
         var token = TestJwtFactory.Create("admin-1", role);
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/users");
+        var response = await _client.GetAsync("/api/v1/users", TestContext.Current.CancellationToken);
 
         // No live database in this environment, so the request cannot succeed end-to-end —
         // what this proves is that authorization let the admin through to the handler
@@ -52,7 +52,8 @@ public sealed class RoleAuthorizationTests(CustomWebApplicationFactory factory) 
 
         var response = await _client.PatchAsync(
             "/api/v1/users/some-other-user",
-            System.Net.Http.Json.JsonContent.Create(new { firstName = "Eve" }));
+            System.Net.Http.Json.JsonContent.Create(new { firstName = "Eve" }),
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

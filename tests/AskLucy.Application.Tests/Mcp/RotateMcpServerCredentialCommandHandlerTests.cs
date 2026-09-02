@@ -57,7 +57,7 @@ public sealed class RotateMcpServerCredentialCommandHandlerTests
 
         await handler.Handle(new RotateMcpServerCredentialCommand(server.Id, "new-secret-value"), CancellationToken.None);
 
-        _serverRepository.Received(1).AddCredential(Arg.Is<McpServerCredential>(c => c.CiphertextBlob == "new-ciphertext"));
+        _serverRepository.Received(1).AddCredential(Arg.Is<McpServerCredential>(c => c!.CiphertextBlob == "new-ciphertext"));
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class RotateMcpServerCredentialCommandHandlerTests
         // McpServerDto has no credential-shaped field at all (verified structurally by every other
         // McpServerDto-returning handler test) — this asserts the audit record specifically.
         _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a =>
-            a.Action == McpAuditAction.CredentialRotated &&
+            a!.Action == McpAuditAction.CredentialRotated &&
             !a.DetailsJson.Contains("super-secret-token-abc123") &&
             !a.DetailsJson.Contains("ciphertext-xyz")));
         result.Should().NotBeNull();

@@ -54,7 +54,7 @@ public sealed class McpResourceReadToolTests
         _client.ReadResourceAsync(resource.Uri, Arg.Any<CancellationToken>()).Returns(JsonDocument.Parse("""{"content":"report text"}"""));
         var tool = CreateTool();
 
-        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName));
+        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("content").GetString().Should().Be("report text");
@@ -66,7 +66,7 @@ public sealed class McpResourceReadToolTests
         _resourceRepository.GetAvailableByNamespacedNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((McpResource?)null);
         var tool = CreateTool();
 
-        var result = await tool.ExecuteAsync(Context(), InputFor("mcp:some-server:file:///missing.txt"));
+        var result = await tool.ExecuteAsync(Context(), InputFor("mcp:some-server:file:///missing.txt"), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         await _client.DidNotReceive().ReadResourceAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -80,7 +80,7 @@ public sealed class McpResourceReadToolTests
         _rateLimiter.TryAcquireAsync(Arg.Any<McpRateLimitKey>(), Arg.Any<CancellationToken>()).Returns((IAsyncDisposable?)null);
         var tool = CreateTool();
 
-        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName));
+        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("RateLimit");
@@ -95,7 +95,7 @@ public sealed class McpResourceReadToolTests
             .Returns(JsonDocument.Parse($$"""{"content":"{{new string('a', 200)}}"}"""));
         var tool = CreateTool(maxResponseSizeBytes: 50);
 
-        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName));
+        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("InvalidResponse");
@@ -110,7 +110,7 @@ public sealed class McpResourceReadToolTests
             .Returns(callInfo => DelayForeverAsync(callInfo.ArgAt<CancellationToken>(1)));
         var tool = CreateTool(maxCallDurationSeconds: 1);
 
-        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName));
+        var result = await tool.ExecuteAsync(Context(), InputFor(resource.NamespacedName), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("Timeout");

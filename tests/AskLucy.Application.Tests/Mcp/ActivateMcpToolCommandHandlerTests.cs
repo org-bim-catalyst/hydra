@@ -37,7 +37,7 @@ public sealed class ActivateMcpToolCommandHandlerTests
         var result = await handler.Handle(new ActivateMcpToolCommand(tool.McpServerId, tool.Id, null, null), CancellationToken.None);
 
         result.ActivationStatus.Should().Be(McpToolActivationStatus.Active);
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.ToolActivated));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.ToolActivated));
         await _mcpToolRegistry.Received(1).InvalidateAsync(Arg.Any<CancellationToken>());
     }
 

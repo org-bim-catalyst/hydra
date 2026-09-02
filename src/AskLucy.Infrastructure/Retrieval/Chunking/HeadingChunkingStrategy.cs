@@ -12,7 +12,7 @@ namespace AskLucy.Infrastructure.Retrieval.Chunking;
 /// per section, carrying the heading text and page number for citations (FR-002). Falls back to
 /// <see cref="ParagraphChunkingStrategy"/>'s behavior when no structure JSON is available.
 /// </summary>
-public sealed class HeadingChunkingStrategy(ParagraphChunkingStrategy fallback, ILogger<HeadingChunkingStrategy> logger) : IChunkingStrategy
+public sealed partial class HeadingChunkingStrategy(ParagraphChunkingStrategy fallback, ILogger<HeadingChunkingStrategy> logger) : IChunkingStrategy
 {
     public ChunkingStrategy Strategy => ChunkingStrategy.Heading;
 
@@ -63,7 +63,7 @@ public sealed class HeadingChunkingStrategy(ParagraphChunkingStrategy fallback, 
             : await fallback.ChunkAsync(extractedText, extractedStructureJson, language, cancellationToken);
     }
 
-    private IReadOnlyList<DocumentStructureElement>? TryDeserialize(string? json)
+    private List<DocumentStructureElement>? TryDeserialize(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -79,8 +79,11 @@ public sealed class HeadingChunkingStrategy(ParagraphChunkingStrategy fallback, 
             // Not a silent failure (constitution §2.VIII): logged, then this chunking strategy
             // degrades to ParagraphChunkingStrategy rather than throwing — a malformed structure
             // JSON for one document must not block indexing every other document in the batch.
-            logger.LogWarning(ex, "Failed to deserialize ExtractedStructureJson for heading-based chunking; falling back to paragraph chunking.");
+            LogStructureDeserializationFailed(ex);
             return null;
         }
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Failed to deserialize ExtractedStructureJson for heading-based chunking; falling back to paragraph chunking.")]
+    private partial void LogStructureDeserializationFailed(Exception exception);
 }

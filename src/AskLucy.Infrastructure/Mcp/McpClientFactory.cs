@@ -24,7 +24,7 @@ namespace AskLucy.Infrastructure.Mcp;
 /// <see cref="IMcpEndpointValidator"/> on every new connection, not only at registration
 /// (FR-050, contracts/mcp-security-model.md).
 /// </summary>
-public sealed class McpClientFactory(
+public sealed partial class McpClientFactory(
     IServiceScopeFactory scopeFactory,
     IMcpCredentialProtector credentialProtector,
     IMcpEndpointValidator endpointValidator,
@@ -85,7 +85,7 @@ public sealed class McpClientFactory(
         var sdkClient = await SdkMcpClient.CreateAsync(transport, loggerFactory: loggerFactory, cancellationToken: cancellationToken);
         // FR-057 — connection latency, discoverable through the platform's existing
         // observability capability (structured Serilog logging, constitution §14).
-        logger.LogInformation("MCP connection established to server {McpServerId} in {ElapsedMilliseconds}ms", server.Id, stopwatch.ElapsedMilliseconds);
+        LogConnectionEstablished(server.Id, stopwatch.ElapsedMilliseconds);
         return (server.ConfigurationVersion, new McpClient(sdkClient));
     }
 
@@ -144,4 +144,7 @@ public sealed class McpClientFactory(
             }
         }
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "MCP connection established to server {McpServerId} in {ElapsedMilliseconds}ms")]
+    private partial void LogConnectionEstablished(Guid mcpServerId, long elapsedMilliseconds);
 }

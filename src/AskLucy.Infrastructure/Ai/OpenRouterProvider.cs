@@ -228,7 +228,7 @@ public sealed class OpenRouterProvider(
         return client;
     }
 
-    private static object BuildChatPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
+    private static Dictionary<string, object?> BuildChatPayload(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, bool stream)
     {
         var payload = new Dictionary<string, object?>
         {

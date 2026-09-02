@@ -48,7 +48,7 @@ public sealed class CapabilityNodeExecutorTests
         tool.ExecuteAsync(Arg.Any<AgentToolExecutionContext>(), Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                var input = (JsonDocument)call[1];
+                var input = call.ArgAt<JsonDocument>(1);
                 input.RootElement.GetProperty("query").GetString().Should().Be("hello");
                 input.RootElement.GetProperty("knowledgeBaseIds").GetArrayLength().Should().Be(1);
                 return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { contextText = "grounded" }));
@@ -153,7 +153,7 @@ public sealed class CapabilityNodeExecutorTests
         tool.ExecuteAsync(Arg.Any<AgentToolExecutionContext>(), Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                var input = (JsonDocument)call[1];
+                var input = call.ArgAt<JsonDocument>(1);
                 input.RootElement.GetProperty("message").GetString().Should().Be("hello");
                 return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { sent = true }));
             });

@@ -61,7 +61,7 @@ public sealed class ReplaceDocumentTests
         session.Status.Should().Be(DocumentUploadSessionStatus.Completed);
         result.Id.Should().Be(document.Id);
 
-        _documentRepository.Received(1).AddVersion(Arg.Is<DocumentVersion>(v => v.VersionMajor == 1 && v.VersionMinor == 1));
+        _documentRepository.Received(1).AddVersion(Arg.Is<DocumentVersion>(v => v != null && v.VersionMajor == 1 && v.VersionMinor == 1));
         await _processingPipeline.Received(1).EnqueueAsync(document.Id, document.CurrentVersionId, Arg.Any<CancellationToken>());
         await _resumableStorage.Received(1).DeleteAsync(session.Id.ToString(), Arg.Any<CancellationToken>());
     }
@@ -78,7 +78,7 @@ public sealed class ReplaceDocumentTests
 
         await CreateSut().Handle(new ReplaceDocumentCommand(document.Id, session.Id, VersionIncrement.Major), CancellationToken.None);
 
-        _documentRepository.Received(1).AddVersion(Arg.Is<DocumentVersion>(v => v.VersionMajor == 2 && v.VersionMinor == 0));
+        _documentRepository.Received(1).AddVersion(Arg.Is<DocumentVersion>(v => v != null && v.VersionMajor == 2 && v.VersionMinor == 0));
     }
 
     [Fact]

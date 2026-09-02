@@ -1,3 +1,4 @@
+using System.Globalization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.KnowledgeBases;
 using AskLucy.Application.KnowledgeBases.Queries.GetKnowledgeBaseDashboardSummary;
@@ -14,7 +15,7 @@ public sealed class DashboardSummaryQueryTests
     private readonly IKnowledgeBaseRepository _repository = Substitute.For<IKnowledgeBaseRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly KnowledgeBaseDashboardSummaryCache _cache = new(new MemoryCache(new MemoryCacheOptions()));
-    private readonly FakeTimeProvider _timeProvider = new(DateTimeOffset.Parse("2026-08-04T12:00:00Z"));
+    private readonly FakeTimeProvider _timeProvider = new(DateTimeOffset.Parse("2026-08-04T12:00:00Z", CultureInfo.InvariantCulture));
 
     [Fact]
     public async Task Handle_ShouldComputeAndCache_OnFirstCall()

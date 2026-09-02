@@ -50,6 +50,6 @@ public sealed class RegisterCommandHandlerTests
 
         result.Outcome.Should().Be(AuthOutcome.Failed);
         result.Errors.Should().Contain("Email already taken");
-        await _emailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default);
+        await _emailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, TestContext.Current.CancellationToken);
     }
 }

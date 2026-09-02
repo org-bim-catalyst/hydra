@@ -10,7 +10,7 @@ namespace AskLucy.Infrastructure.Mcp;
 /// contracts/mcp-security-model.md) — the first utility of this kind in this codebase; no prior
 /// private-IP/DNS-guard utility exists to reuse.
 /// </summary>
-public sealed class McpEndpointValidator(ILogger<McpEndpointValidator> logger) : IMcpEndpointValidator
+public sealed partial class McpEndpointValidator(ILogger<McpEndpointValidator> logger) : IMcpEndpointValidator
 {
     public async Task<McpEndpointValidationResult> ValidateAsync(string endpoint, bool allowOverride, CancellationToken cancellationToken = default)
     {
@@ -31,7 +31,7 @@ public sealed class McpEndpointValidator(ILogger<McpEndpointValidator> logger) :
         }
         catch (SocketException ex)
         {
-            logger.LogWarning(ex, "DNS resolution failed for MCP endpoint host {Host}", uri.Host);
+            LogDnsResolutionFailed(ex, uri.Host);
             return McpEndpointValidationResult.RejectedUnresolvable;
         }
 
@@ -121,4 +121,7 @@ public sealed class McpEndpointValidator(ILogger<McpEndpointValidator> logger) :
 
         return false;
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "DNS resolution failed for MCP endpoint host {Host}")]
+    private partial void LogDnsResolutionFailed(Exception exception, string host);
 }

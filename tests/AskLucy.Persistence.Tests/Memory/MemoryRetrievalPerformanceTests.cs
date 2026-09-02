@@ -56,7 +56,7 @@ public sealed class MemoryRetrievalPerformanceTests(PersistenceTestFixture fixtu
             seedContext.EmbeddingProviders.Add(provider);
             seedContext.Memories.AddRange(memories);
             seedContext.MemoryEmbeddings.AddRange(embeddings);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var vectorStore = new SqlServerMemoryVectorStore(seedContext);
             foreach (var embedding in embeddings)

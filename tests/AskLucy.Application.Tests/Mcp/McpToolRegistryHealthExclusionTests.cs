@@ -48,13 +48,13 @@ public sealed class McpToolRegistryHealthExclusionTests
         toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[(tool, "Acme Docs")]);
         var registry = CreateRegistry(toolRepository);
 
-        await registry.InvalidateAsync();
+        await registry.InvalidateAsync(TestContext.Current.CancellationToken);
         registry.ActiveTools.Should().ContainSingle(t => t.Name == tool.NamespacedName);
 
         // Simulates the server's health leaving Healthy — the repository's own join (already
         // Active/Available/enabled/healthy filtered) simply stops returning this tool.
         toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[]);
-        await registry.InvalidateAsync();
+        await registry.InvalidateAsync(TestContext.Current.CancellationToken);
 
         registry.ActiveTools.Should().BeEmpty();
     }
@@ -67,11 +67,11 @@ public sealed class McpToolRegistryHealthExclusionTests
         toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[]);
         var registry = CreateRegistry(toolRepository);
 
-        await registry.InvalidateAsync();
+        await registry.InvalidateAsync(TestContext.Current.CancellationToken);
         registry.ActiveTools.Should().BeEmpty();
 
         toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[(tool, "Acme Docs")]);
-        await registry.InvalidateAsync();
+        await registry.InvalidateAsync(TestContext.Current.CancellationToken);
 
         registry.ActiveTools.Should().ContainSingle(t => t.Name == tool.NamespacedName);
     }

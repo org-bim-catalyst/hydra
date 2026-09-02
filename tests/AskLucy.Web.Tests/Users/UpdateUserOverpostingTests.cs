@@ -43,7 +43,7 @@ public sealed class UpdateUserOverpostingTests(CustomWebApplicationFactory facto
             }),
         };
 
-        var response = await _client.SendAsync(request);
+        var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

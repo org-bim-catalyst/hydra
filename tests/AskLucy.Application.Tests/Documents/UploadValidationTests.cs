@@ -72,7 +72,7 @@ public sealed class UploadValidationTests
         var act = () => handler.Handle(new CompleteUploadCommand(session.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainRuleViolationException>();
-        _ = _fileStorage.DidNotReceiveWithAnyArgs().SaveAsync(default!, default!, default);
+        _ = _fileStorage.DidNotReceiveWithAnyArgs().SaveAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

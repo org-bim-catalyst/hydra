@@ -86,9 +86,9 @@ public sealed class AmbiguousConflictTests
         existingMemory.IsDeleted.Should().BeFalse();
         candidateMemory.IsDeleted.Should().BeFalse();
         _conflictRepository.Received(1).Add(Arg.Is<MemoryConflict>(c =>
-            c.ExistingMemoryId == existingMemory.Id && c.NewMemoryId == candidateMemory.Id
+            c != null && c.ExistingMemoryId == existingMemory.Id && c.NewMemoryId == candidateMemory.Id
             && c.ResolutionStatus == MemoryConflictResolutionStatus.PendingUserConfirmation));
-        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.ConflictDetected));
+        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.ConflictDetected));
         await _notifier.Received(1).NotifyAsync(
             existingMemory.UserId, candidateMemory.Id, MemoryNotificationEventType.ConflictNeedsConfirmation, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

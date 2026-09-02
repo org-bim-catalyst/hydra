@@ -35,7 +35,7 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             seedContext.UserChats.AddRange(chats);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();
@@ -66,7 +66,7 @@ public sealed class ConversationScalePerformanceTests(PersistenceTestFixture fix
                 var batch = Enumerable.Range(batchStart, Math.Min(1000, MessageCountInLargeConversation - batchStart))
                     .Select(i => Message.Create(chat.Id, MessageRole.User, MessageKind.Text, $"Message {i}", null, userId));
                 seedContext.Messages.AddRange(batch);
-                await seedContext.SaveChangesAsync();
+                await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
         }
 

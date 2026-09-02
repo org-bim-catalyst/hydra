@@ -74,9 +74,9 @@ public sealed class WorkflowEventTriggerHandlerTests
 
         await CreateHandler().Handle(new DocumentUploadedNotification(Guid.NewGuid(), KnowledgeBaseId, "uploader", "file.pdf"), CancellationToken.None);
 
-        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e.RunByUserId == OwnerId && e.TriggerType == WorkflowExecutionTriggerType.EventDriven));
+        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e != null && e.RunByUserId == OwnerId && e.TriggerType == WorkflowExecutionTriggerType.EventDriven));
         await _runner.Received(1).EnqueueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        _auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log.Action == WorkflowAuditAction.ExecutionStarted));
+        _auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log != null && log.Action == WorkflowAuditAction.ExecutionStarted));
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class WorkflowEventTriggerHandlerTests
 
         _executionRepository.DidNotReceive().Add(Arg.Any<WorkflowExecution>());
         await _runner.DidNotReceive().EnqueueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        _auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log.Action == WorkflowAuditAction.PermissionDenied && log.ActorUserId == OwnerId));
+        _auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log != null && log.Action == WorkflowAuditAction.PermissionDenied && log.ActorUserId == OwnerId));
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class WorkflowEventTriggerHandlerTests
 
         _executionRepository.DidNotReceive().Add(Arg.Any<WorkflowExecution>());
         await _runner.DidNotReceive().EnqueueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        _auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log.Action == WorkflowAuditAction.PermissionDenied));
+        _auditLogRepository.Received(1).Add(Arg.Is<WorkflowAuditLog>(log => log != null && log.Action == WorkflowAuditAction.PermissionDenied));
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class WorkflowEventTriggerHandlerTests
 
         await CreateHandler().Handle(new KnowledgeBaseUpdatedNotification(KnowledgeBaseId, "someone-else"), CancellationToken.None);
 
-        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e.RunByUserId == OwnerId));
+        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e != null && e.RunByUserId == OwnerId));
         await _runner.Received(1).EnqueueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 }

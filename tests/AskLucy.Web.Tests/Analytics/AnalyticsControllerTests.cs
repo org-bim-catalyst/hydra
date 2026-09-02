@@ -26,7 +26,7 @@ public sealed class AnalyticsControllerTests(CustomWebApplicationFactory factory
             ctaId = "SignUp",
             sessionId = Guid.NewGuid(),
             occurredAtUtc = DateTime.UtcNow,
-        });
+        }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     }
@@ -40,7 +40,7 @@ public sealed class AnalyticsControllerTests(CustomWebApplicationFactory factory
             funnelType = "SignIn",
             sessionId = Guid.NewGuid(),
             occurredAtUtc = DateTime.UtcNow,
-        });
+        }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     }
@@ -53,7 +53,7 @@ public sealed class AnalyticsControllerTests(CustomWebApplicationFactory factory
             eventType = "CtaClicked",
             sessionId = Guid.NewGuid(),
             occurredAtUtc = DateTime.UtcNow,
-        });
+        }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
@@ -68,7 +68,7 @@ public sealed class AnalyticsControllerTests(CustomWebApplicationFactory factory
             ctaId = "SignIn",
             sessionId = Guid.Empty,
             occurredAtUtc = DateTime.UtcNow,
-        });
+        }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

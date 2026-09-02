@@ -22,35 +22,35 @@ public sealed class AgentsControllerTests(CustomWebApplicationFactory factory) :
     [Fact]
     public async Task CreateAgent_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/agents", new { name = "Hijacked" });
+        var response = await _client.PostAsJsonAsync("/api/v1/agents", new { name = "Hijacked" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetAgent_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/agents/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/agents/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task ListAgents_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/agents");
+        var response = await _client.GetAsync("/api/v1/agents", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task UpdateAgent_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PutAsJsonAsync($"/api/v1/agents/{Guid.NewGuid()}", new { name = "Hijacked" });
+        var response = await _client.PutAsJsonAsync($"/api/v1/agents/{Guid.NewGuid()}", new { name = "Hijacked" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task PublishAgentVersion_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync($"/api/v1/agents/{Guid.NewGuid()}/versions", new { changeDescription = (string?)null });
+        var response = await _client.PostAsJsonAsync($"/api/v1/agents/{Guid.NewGuid()}/versions", new { changeDescription = (string?)null }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -59,7 +59,8 @@ public sealed class AgentsControllerTests(CustomWebApplicationFactory factory) :
     {
         var response = await _client.PostAsJsonAsync(
             "/api/v1/agent-executions",
-            new { agentId = Guid.NewGuid(), objective = "Hijacked", conversationIntegrationMode = "Standalone" });
+            new { agentId = Guid.NewGuid(), objective = "Hijacked", conversationIntegrationMode = "Standalone" },
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -67,7 +68,7 @@ public sealed class AgentsControllerTests(CustomWebApplicationFactory factory) :
     [Fact]
     public async Task GetAgentExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/agent-executions/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

@@ -49,7 +49,7 @@ public sealed class McpMaliciousOutputSecurityTests
         _client.CallToolAsync(tool.ToolName, Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>()).Returns(new McpToolCallResult(false, hugePayload, null));
         var adapter = CreateAdapter(tool, maxResponseSizeBytes: 1024);
 
-        var result = await adapter.ExecuteAsync(new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), null), JsonDocument.Parse("{}"));
+        var result = await adapter.ExecuteAsync(new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), null), JsonDocument.Parse("{}"), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().Contain("InvalidResponse");
@@ -65,7 +65,7 @@ public sealed class McpMaliciousOutputSecurityTests
         _client.CallToolAsync(tool.ToolName, Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>()).Returns(new McpToolCallResult(false, payload, null));
         var adapter = CreateAdapter(tool, maxResponseSizeBytes: byteCount);
 
-        var result = await adapter.ExecuteAsync(new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), null), JsonDocument.Parse("{}"));
+        var result = await adapter.ExecuteAsync(new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), null), JsonDocument.Parse("{}"), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
     }
