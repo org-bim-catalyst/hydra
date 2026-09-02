@@ -48,7 +48,7 @@ public sealed class StartWorkflowExecutionCommandHandlerTests
             new StartWorkflowExecutionCommand(workflow.Id, null, "{}", WorkflowExecutionTriggerType.Manual), CancellationToken.None);
 
         result.Status.Should().Be(nameof(WorkflowExecutionStatus.Queued));
-        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e.RunByUserId == OwnerId));
+        _executionRepository.Received(1).Add(Arg.Is<WorkflowExecution>(e => e != null && e.RunByUserId == OwnerId));
         await _runner.Received(1).EnqueueAsync(result.Id, Arg.Any<CancellationToken>());
     }
 

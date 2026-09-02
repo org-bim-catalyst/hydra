@@ -33,7 +33,7 @@ public sealed class AgentToolAccessBoundaryTests
                 Arg.Any<IReadOnlyCollection<Guid>?>(), Arg.Any<CancellationToken>())
             .Returns([ownedId]);
         var ragService = Substitute.For<IRagService>();
-        ragService.RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>())
+        ragService.RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids != null && ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>())
             .Returns(new RagRetrievalOutcome(RagRetrievalOutcomeType.NoRelevantContent, null, [], null));
 
         var tool = new KnowledgeSearchTool(ragService, knowledgeBaseRepository);
@@ -42,7 +42,7 @@ public sealed class AgentToolAccessBoundaryTests
         var result = await tool.ExecuteAsync(Context(), input, CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
-        await ragService.Received(1).RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>());
+        await ragService.Received(1).RetrieveContextAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Is<IReadOnlyList<Guid>>(ids => ids != null && ids.Count == 1 && ids[0] == ownedId), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -35,11 +35,11 @@ public sealed class UserCookieConsentRepositoryTests(PersistenceTestFixture fixt
 
         var repository = new UserCookieConsentRepository(fixture.CreateDbContext());
 
-        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-01-01.1", false, false, false));
-        await Task.Delay(10); // guarantee a distinct CreatedAtUtc ordering, since both rows are otherwise inserted in the same test
-        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-07-30.1", true, true, false));
+        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-01-01.1", false, false, false), TestContext.Current.CancellationToken);
+        await Task.Delay(10, TestContext.Current.CancellationToken); // guarantee a distinct CreatedAtUtc ordering, since both rows are otherwise inserted in the same test
+        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-07-30.1", true, true, false), TestContext.Current.CancellationToken);
 
-        var latest = await repository.GetLatestAsync(userId);
+        var latest = await repository.GetLatestAsync(userId, TestContext.Current.CancellationToken);
 
         latest.Should().NotBeNull();
         latest!.PolicyVersion.Should().Be("2026-07-30.1");
@@ -56,11 +56,11 @@ public sealed class UserCookieConsentRepositoryTests(PersistenceTestFixture fixt
         }
 
         var repository = new UserCookieConsentRepository(fixture.CreateDbContext());
-        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-01-01.1", false, false, false));
-        await Task.Delay(10);
-        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-07-30.1", true, true, true));
+        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-01-01.1", false, false, false), TestContext.Current.CancellationToken);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-07-30.1", true, true, true), TestContext.Current.CancellationToken);
 
-        var history = await repository.GetHistoryAsync(userId);
+        var history = await repository.GetHistoryAsync(userId, TestContext.Current.CancellationToken);
 
         history.Should().HaveCount(2);
         history[0].PolicyVersion.Should().Be("2026-07-30.1");
@@ -77,18 +77,18 @@ public sealed class UserCookieConsentRepositoryTests(PersistenceTestFixture fixt
         }
 
         var repository = new UserCookieConsentRepository(fixture.CreateDbContext());
-        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-07-30.1", true, false, false));
+        await repository.AddAsync(CookieConsentRecord.Create(userId, "2026-07-30.1", true, false, false), TestContext.Current.CancellationToken);
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            var user = await dbContext.Users.FirstAsync(u => u.Id == userId);
+            var user = await dbContext.Users.FirstAsync(u => u.Id == userId, TestContext.Current.CancellationToken);
             dbContext.Users.Remove(user);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            var remaining = await dbContext.CookieConsentRecords.Where(c => c.UserId == userId).ToListAsync();
+            var remaining = await dbContext.CookieConsentRecords.Where(c => c.UserId == userId).ToListAsync(TestContext.Current.CancellationToken);
             remaining.Should().BeEmpty();
         }
     }

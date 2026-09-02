@@ -16,14 +16,18 @@ public sealed class McpObservabilityTests
         var logger = Substitute.For<ILogger<McpConnectionResiliencePolicy>>();
         var policy = new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions()), logger);
 
-        await policy.ExecuteAsync(Guid.NewGuid(), isIdempotent: true, _ => Task.FromResult(1));
+        await policy.ExecuteAsync(Guid.NewGuid(), isIdempotent: true, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
+        // Mock-verification call (NSubstitute Received()), not a real logging invocation — CA1873's
+        // "expensive eager evaluation" concern doesn't apply since there is no disabled-logger fast path here.
+#pragma warning disable CA1873
         logger.Received().Log(
             LogLevel.Information,
             Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("succeeded", StringComparison.Ordinal)),
+            Arg.Is<object>(o => o!.ToString()!.Contains("succeeded", StringComparison.Ordinal)),
             null,
             Arg.Any<Func<object, Exception?, string>>());
+#pragma warning restore CA1873
     }
 
     [Fact]
@@ -57,7 +61,7 @@ public sealed class McpObservabilityTests
         logger.Received().Log(
             LogLevel.Warning,
             Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("circuit", StringComparison.OrdinalIgnoreCase)),
+            Arg.Is<object>(o => o!.ToString()!.Contains("circuit", StringComparison.OrdinalIgnoreCase)),
             null,
             Arg.Any<Func<object, Exception?, string>>());
     }

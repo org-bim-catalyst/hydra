@@ -40,6 +40,6 @@ public sealed class CancelUploadTests
         var act = () => handler.Handle(new CancelUploadCommand(session.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
-        await _resumableStorage.DidNotReceiveWithAnyArgs().DeleteAsync(default!, default);
+        await _resumableStorage.DidNotReceiveWithAnyArgs().DeleteAsync(default!, TestContext.Current.CancellationToken);
     }
 }

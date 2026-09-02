@@ -19,7 +19,7 @@ public sealed class AdminDashboardRepositoryTests(PersistenceTestFixture fixture
         await using (var dbContext = fixture.CreateDbContext())
         {
             var superUserRole = new IdentityRole($"Super User-{suffix}") { NormalizedName = $"SUPER USER-{suffix}".ToUpperInvariant() };
-            await dbContext.Roles.AddAsync(superUserRole);
+            await dbContext.Roles.AddAsync(superUserRole, TestContext.Current.CancellationToken);
 
             var confirmedActiveUser = new ApplicationUser
             {
@@ -47,23 +47,23 @@ public sealed class AdminDashboardRepositoryTests(PersistenceTestFixture fixture
             };
 
             await dbContext.Users.AddRangeAsync(confirmedActiveUser, pendingLockedUser, superUser);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            await dbContext.UserRoles.AddAsync(new IdentityUserRole<string> { UserId = superUser.Id, RoleId = superUserRole.Id });
-            await dbContext.SaveChangesAsync();
+            await dbContext.UserRoles.AddAsync(new IdentityUserRole<string> { UserId = superUser.Id, RoleId = superUserRole.Id }, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
         var repository = new AdminDashboardRepository(readContext);
 
-        var summary = await repository.GetSummaryAsync();
+        var summary = await repository.GetSummaryAsync(TestContext.Current.CancellationToken);
 
         var todaysCount = summary.NewUsersLast30Days.Single(d => d.Date == DateOnly.FromDateTime(now));
         todaysCount.NewUsers.Should().BeGreaterThanOrEqualTo(2); // confirmedActiveUser + superUser created "today", possibly alongside other tests' rows
 
         summary.RoleDistribution.Should().Contain(r => r.RoleName == $"Super User-{suffix}" && r.UserCount == 1);
 
-        var lockedNow = await readContext.Users.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.UtcNow);
+        var lockedNow = await readContext.Users.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.UtcNow, TestContext.Current.CancellationToken);
         summary.LockedOutUsers.Should().Be(lockedNow);
     }
 }

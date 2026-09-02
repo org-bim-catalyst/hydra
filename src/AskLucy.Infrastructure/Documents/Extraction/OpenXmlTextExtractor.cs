@@ -34,7 +34,7 @@ public sealed class OpenXmlTextExtractor : IDocumentTextExtractor
     private static DocumentTextExtractionResult ExtractWord(Stream content)
     {
         using var document = WordprocessingDocument.Open(content, false);
-        var body = document.MainDocumentPart?.Document.Body;
+        var body = document.MainDocumentPart?.Document?.Body;
         var elements = new List<DocumentStructureElement>();
 
         if (body is not null)
@@ -130,7 +130,7 @@ public sealed class OpenXmlTextExtractor : IDocumentTextExtractor
 
         foreach (var worksheetPart in workbookPart.WorksheetParts)
         {
-            var sheetData = worksheetPart.Worksheet.Elements<SheetData>().FirstOrDefault();
+            var sheetData = worksheetPart.Worksheet?.Elements<SheetData>().FirstOrDefault();
             if (sheetData is null)
             {
                 continue;
@@ -174,7 +174,7 @@ public sealed class OpenXmlTextExtractor : IDocumentTextExtractor
 
         for (var i = 0; i < slideParts.Count; i++)
         {
-            var slideText = string.Join(" ", slideParts[i].Slide.Descendants<A.Text>().Select(t => t.Text));
+            var slideText = string.Join(" ", slideParts[i].Slide?.Descendants<A.Text>().Select(t => t.Text) ?? []);
             if (!string.IsNullOrWhiteSpace(slideText))
             {
                 elements.Add(new DocumentStructureElement("slide", slideText, PageNumber: i + 1));

@@ -18,56 +18,56 @@ public sealed class WorkflowExecutionHistorySecurityTests(CustomWebApplicationFa
     [Fact]
     public async Task ListWorkflowExecutions_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/workflow-executions");
+        var response = await _client.GetAsync("/api/v1/workflow-executions", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetWorkflowExecutionNodes_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/nodes");
+        var response = await _client.GetAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/nodes", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetWorkflowExecutionUsage_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/usage");
+        var response = await _client.GetAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/usage", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetWorkflowExecutionEvents_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/events");
+        var response = await _client.GetAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/events", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task PauseWorkflowExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/pause", content: null);
+        var response = await _client.PostAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/pause", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task ResumeWorkflowExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/resume", content: null);
+        var response = await _client.PostAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/resume", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task CancelWorkflowExecution_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/cancel", content: null);
+        var response = await _client.PostAsync($"/api/v1/workflow-executions/{Guid.NewGuid()}/cancel", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetWorkflowStatistics_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/workflows/statistics");
+        var response = await _client.GetAsync("/api/v1/workflows/statistics", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

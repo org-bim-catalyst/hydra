@@ -33,7 +33,7 @@ public sealed class KnowledgeBaseScalePerformanceTests(PersistenceTestFixture fi
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.KnowledgeBases.AddRange(knowledgeBases);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();
@@ -62,7 +62,7 @@ public sealed class KnowledgeBaseScalePerformanceTests(PersistenceTestFixture fi
         {
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.KnowledgeBases.AddRange(knowledgeBases);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();

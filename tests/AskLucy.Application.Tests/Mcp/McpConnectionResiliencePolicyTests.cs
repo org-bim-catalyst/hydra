@@ -19,7 +19,7 @@ public sealed class McpConnectionResiliencePolicyTests
     {
         var policy = CreatePolicy();
 
-        var result = await policy.ExecuteAsync(Guid.NewGuid(), isIdempotent: true, _ => Task.FromResult(42));
+        var result = await policy.ExecuteAsync(Guid.NewGuid(), isIdempotent: true, _ => Task.FromResult(42), TestContext.Current.CancellationToken);
 
         result.Should().Be(42);
     }
@@ -71,7 +71,7 @@ public sealed class McpConnectionResiliencePolicyTests
             }
 
             return Task.FromResult(99);
-        });
+        }, TestContext.Current.CancellationToken);
 
         result.Should().Be(99);
         attempts.Should().Be(2);

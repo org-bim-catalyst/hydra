@@ -30,7 +30,7 @@ public sealed class RefreshMcpCapabilitiesCommandHandlerTests
         new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions { MaxRetries = maxRetries }), Substitute.For<ILogger<McpConnectionResiliencePolicy>>()),
         _unitOfWork, _currentUser);
 
-    private McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
+    private static McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
 
     public RefreshMcpCapabilitiesCommandHandlerTests()
     {
@@ -59,8 +59,8 @@ public sealed class RefreshMcpCapabilitiesCommandHandlerTests
 
         result.WasSuccessful.Should().BeTrue();
         result.ToolCount.Should().Be(1);
-        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => s.WasSuccessful && s.SnapshotVersion == 1));
-        _toolRepository.Received(1).Add(Arg.Is<McpTool>(t => t.ToolName == "search" && t.ActivationStatus == McpToolActivationStatus.PendingReview));
+        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => s!.WasSuccessful && s.SnapshotVersion == 1));
+        _toolRepository.Received(1).Add(Arg.Is<McpTool>(t => t!.ToolName == "search" && t.ActivationStatus == McpToolActivationStatus.PendingReview));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class RefreshMcpCapabilitiesCommandHandlerTests
 
         await handler.Handle(new RefreshMcpCapabilitiesCommand(server.Id), CancellationToken.None);
 
-        _toolRepository.Received(1).Add(Arg.Is<McpTool>(t => t.ActivationStatus == McpToolActivationStatus.Active));
+        _toolRepository.Received(1).Add(Arg.Is<McpTool>(t => t!.ActivationStatus == McpToolActivationStatus.Active));
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class RefreshMcpCapabilitiesCommandHandlerTests
 
         result.WasSuccessful.Should().BeFalse();
         _toolRepository.DidNotReceive().Add(Arg.Any<McpTool>());
-        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => !s.WasSuccessful));
-        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a.Action == McpAuditAction.CapabilityDiscoveryFailed));
+        _serverRepository.Received(1).AddCapabilitySnapshot(Arg.Is<McpCapabilitySnapshot>(s => !s!.WasSuccessful));
+        _auditLogRepository.Received(1).Add(Arg.Is<McpAuditLog>(a => a!.Action == McpAuditAction.CapabilityDiscoveryFailed));
     }
 }

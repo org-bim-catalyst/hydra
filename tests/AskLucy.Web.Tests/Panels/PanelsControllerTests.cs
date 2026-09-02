@@ -42,7 +42,7 @@ public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) :
     [Fact]
     public async Task GetPreferences_ShouldReturn401_WhenNoBearerTokenIsProvided()
     {
-        var response = await _client.GetAsync("/api/v1/panels/preferences");
+        var response = await _client.GetAsync("/api/v1/panels/preferences", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -55,10 +55,10 @@ public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) :
         var client = CreateClientWithRepository(repository);
         Authorize(client);
 
-        var response = await client.GetAsync("/api/v1/panels/preferences");
+        var response = await client.GetAsync("/api/v1/panels/preferences", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<UserPanelPreferenceDto>();
+        var body = await response.Content.ReadFromJsonAsync<UserPanelPreferenceDto>(TestContext.Current.CancellationToken);
         body!.OpacityPercent.Should().Be(UserPanelPreference.DefaultOpacityPercent);
     }
 
@@ -72,9 +72,9 @@ public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) :
         var client = CreateClientWithRepository(repository);
         Authorize(client);
 
-        var response = await client.GetAsync("/api/v1/panels/preferences");
+        var response = await client.GetAsync("/api/v1/panels/preferences", TestContext.Current.CancellationToken);
 
-        var body = await response.Content.ReadFromJsonAsync<UserPanelPreferenceDto>();
+        var body = await response.Content.ReadFromJsonAsync<UserPanelPreferenceDto>(TestContext.Current.CancellationToken);
         body!.OpacityPercent.Should().Be(55);
     }
 
@@ -86,12 +86,12 @@ public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) :
         var client = CreateClientWithRepository(repository);
         Authorize(client);
 
-        var response = await client.PutAsJsonAsync("/api/v1/panels/preferences", new SavePanelPreferencesRequest(60));
+        var response = await client.PutAsJsonAsync("/api/v1/panels/preferences", new SavePanelPreferencesRequest(60), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<UserPanelPreferenceDto>();
+        var body = await response.Content.ReadFromJsonAsync<UserPanelPreferenceDto>(TestContext.Current.CancellationToken);
         body!.OpacityPercent.Should().Be(60);
-        repository.Received(1).Add(Arg.Is<UserPanelPreference>(p => p.OpacityPercent == 60));
+        repository.Received(1).Add(Arg.Is<UserPanelPreference>(p => p != null && p.OpacityPercent == 60));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) :
         var client = CreateClientWithRepository(repository);
         Authorize(client);
 
-        var response = await client.PutAsJsonAsync("/api/v1/panels/preferences", new SavePanelPreferencesRequest(10));
+        var response = await client.PutAsJsonAsync("/api/v1/panels/preferences", new SavePanelPreferencesRequest(10), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");

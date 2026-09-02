@@ -39,7 +39,7 @@ public sealed class McpPromptRefreshTests
         new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions { MaxRetries = 0 }), Substitute.For<ILogger<McpConnectionResiliencePolicy>>()),
         _unitOfWork, _currentUser);
 
-    private McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
+    private static McpServer RegisterServer() => McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
 
     public McpPromptRefreshTests()
     {
@@ -87,7 +87,7 @@ public sealed class McpPromptRefreshTests
 
         result.WasSuccessful.Should().BeTrue();
         result.PromptCount.Should().Be(1);
-        _promptRepository.Received(1).Add(Arg.Is<McpPrompt>(p => p.Name == "summarize" && p.ContentTemplate == "Summarize the following text concisely."));
+        _promptRepository.Received(1).Add(Arg.Is<McpPrompt>(p => p!.Name == "summarize" && p.ContentTemplate == "Summarize the following text concisely."));
     }
 
     [Fact]

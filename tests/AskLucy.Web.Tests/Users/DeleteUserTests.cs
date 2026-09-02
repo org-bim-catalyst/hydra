@@ -21,7 +21,7 @@ public sealed class DeleteUserTests(CustomWebApplicationFactory factory) : IClas
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.DeleteAsync("/api/v1/users/some-other-user");
+        var response = await _client.DeleteAsync("/api/v1/users/some-other-user", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -32,7 +32,7 @@ public sealed class DeleteUserTests(CustomWebApplicationFactory factory) : IClas
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.DeleteAsync("/api/v1/users/admin-1");
+        var response = await _client.DeleteAsync("/api/v1/users/admin-1", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -43,7 +43,7 @@ public sealed class DeleteUserTests(CustomWebApplicationFactory factory) : IClas
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.DeleteAsync("/api/v1/users/some-other-user");
+        var response = await _client.DeleteAsync("/api/v1/users/some-other-user", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
@@ -58,7 +58,7 @@ public sealed class DeleteUserTests(CustomWebApplicationFactory factory) : IClas
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.DeleteAsync("/api/v1/users/me");
+        var response = await _client.DeleteAsync("/api/v1/users/me", TestContext.Current.CancellationToken);
 
         // DeleteMyAccountCommand requires a Password field in the body; an empty body
         // fails validation (400), never the admin-only 403 DeleteUser would produce for a

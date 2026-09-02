@@ -21,7 +21,7 @@ public sealed class GetUsersTests(CustomWebApplicationFactory factory) : IClassF
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/users?search=jane&sortBy=createdAtUtc&sortDescending=true&page=2&pageSize=10");
+        var response = await _client.GetAsync("/api/v1/users?search=jane&sortBy=createdAtUtc&sortDescending=true&page=2&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -32,7 +32,7 @@ public sealed class GetUsersTests(CustomWebApplicationFactory factory) : IClassF
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/users");
+        var response = await _client.GetAsync("/api/v1/users", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -43,7 +43,7 @@ public sealed class GetUsersTests(CustomWebApplicationFactory factory) : IClassF
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/v1/users?sortBy=notARealColumn");
+        var response = await _client.GetAsync("/api/v1/users?sortBy=notARealColumn", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

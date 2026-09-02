@@ -28,7 +28,7 @@ public sealed class NoSecretLeakageTests(CustomWebApplicationFactory factory) : 
     [Fact]
     public async Task GetAllUsers_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/users");
+        var response = await _client.GetAsync("/api/v1/users", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

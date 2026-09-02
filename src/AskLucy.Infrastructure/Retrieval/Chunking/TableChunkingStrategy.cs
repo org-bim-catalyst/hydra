@@ -12,7 +12,7 @@ namespace AskLucy.Infrastructure.Retrieval.Chunking;
 /// surrounding prose grouped via <see cref="ParagraphChunkingStrategy"/>'s behavior. Falls back
 /// entirely to paragraph chunking when no structure JSON is available.
 /// </summary>
-public sealed class TableChunkingStrategy(ParagraphChunkingStrategy fallback, ILogger<TableChunkingStrategy> logger) : IChunkingStrategy
+public sealed partial class TableChunkingStrategy(ParagraphChunkingStrategy fallback, ILogger<TableChunkingStrategy> logger) : IChunkingStrategy
 {
     public ChunkingStrategy Strategy => ChunkingStrategy.Table;
 
@@ -68,7 +68,7 @@ public sealed class TableChunkingStrategy(ParagraphChunkingStrategy fallback, IL
             : await fallback.ChunkAsync(extractedText, extractedStructureJson, language, cancellationToken);
     }
 
-    private IReadOnlyList<DocumentStructureElement>? TryDeserialize(string? json)
+    private List<DocumentStructureElement>? TryDeserialize(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -81,8 +81,11 @@ public sealed class TableChunkingStrategy(ParagraphChunkingStrategy fallback, IL
         }
         catch (JsonException ex)
         {
-            logger.LogWarning(ex, "Failed to deserialize ExtractedStructureJson for table-aware chunking; falling back to paragraph chunking.");
+            LogStructureDeserializationFailed(ex);
             return null;
         }
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Failed to deserialize ExtractedStructureJson for table-aware chunking; falling back to paragraph chunking.")]
+    private partial void LogStructureDeserializationFailed(Exception exception);
 }

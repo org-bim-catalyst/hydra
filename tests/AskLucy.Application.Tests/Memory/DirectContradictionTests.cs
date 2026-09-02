@@ -85,11 +85,11 @@ public sealed class DirectContradictionTests
         existingMemory.Content.Should().Be("I moved to React");
         candidateMemory.IsDeleted.Should().BeTrue("the candidate is merged into the existing memory, not kept as a separate row");
         _versionRepository.Received(1).Add(Arg.Is<MemoryVersion>(v =>
-            v.MemoryId == existingMemory.Id && v.PreviousContent == "I use Angular" && v.ChangeReason == MemoryChangeReason.ConflictResolutionSupersede));
+            v != null && v.MemoryId == existingMemory.Id && v.PreviousContent == "I use Angular" && v.ChangeReason == MemoryChangeReason.ConflictResolutionSupersede));
         _conflictRepository.Received(1).Add(Arg.Is<MemoryConflict>(c =>
-            c.ExistingMemoryId == existingMemory.Id && c.ResolutionStatus == MemoryConflictResolutionStatus.AutoResolved));
-        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.ConflictDetected));
-        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a.Action == MemoryAuditAction.ConflictResolved));
+            c != null && c.ExistingMemoryId == existingMemory.Id && c.ResolutionStatus == MemoryConflictResolutionStatus.AutoResolved));
+        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.ConflictDetected));
+        _auditLogRepository.Received(1).Add(Arg.Is<MemoryAuditLog>(a => a != null && a.Action == MemoryAuditAction.ConflictResolved));
         await _notifier.DidNotReceive().NotifyAsync(
             Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<MemoryNotificationEventType>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

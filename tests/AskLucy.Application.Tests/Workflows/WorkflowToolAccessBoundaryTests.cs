@@ -28,6 +28,7 @@ namespace AskLucy.Application.Tests.Workflows;
 public sealed class WorkflowToolAccessBoundaryTests
 {
     private const string OwnerId = "user-1";
+    private static readonly string[] OwnersOwnMemory = ["owner's own memory"];
     private readonly IWorkflowExpressionEvaluator _expressionEvaluator = new WorkflowExpressionEvaluator();
 
     private static WorkflowNode Node(WorkflowNodeType type, string configurationJson)
@@ -56,7 +57,7 @@ public sealed class WorkflowToolAccessBoundaryTests
         tool.ExecuteAsync(Arg.Any<AgentToolExecutionContext>(), Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                seenUserId = ((AgentToolExecutionContext)call[0]).UserId;
+                seenUserId = call.ArgAt<AgentToolExecutionContext>(0).UserId;
                 // KnowledgeSearchTool itself already excludes "kb-owned-by-someone-else" (proven by
                 // AgentToolAccessBoundaryTests) — simulated here by only returning the owned chunk.
                 return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { contextText = "owned-knowledge-base-content" }));
@@ -81,10 +82,10 @@ public sealed class WorkflowToolAccessBoundaryTests
         tool.ExecuteAsync(Arg.Any<AgentToolExecutionContext>(), Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                seenUserId = ((AgentToolExecutionContext)call[0]).UserId;
+                seenUserId = call.ArgAt<AgentToolExecutionContext>(0).UserId;
                 // MemorySearchTool itself already scopes retrieval to context.UserId (proven by
                 // AgentToolAccessBoundaryTests) — simulated here by returning only this user's memory.
-                return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { memories = new[] { "owner's own memory" } }));
+                return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { memories = OwnersOwnMemory }));
             });
 
         var node = Node(WorkflowNodeType.MemorySearch, """{"query":"project preferences"}""");
@@ -129,7 +130,7 @@ public sealed class WorkflowToolAccessBoundaryTests
         tool.ExecuteAsync(Arg.Any<AgentToolExecutionContext>(), Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                seenUserId = ((AgentToolExecutionContext)call[0]).UserId;
+                seenUserId = call.ArgAt<AgentToolExecutionContext>(0).UserId;
                 return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { records = Array.Empty<object>() }));
             });
 

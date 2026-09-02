@@ -30,7 +30,7 @@ public sealed class MessagePersistenceTests(PersistenceTestFixture fixture)
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
             dbContext.UserChats.Add(chat);
             dbContext.Messages.Add(message);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var dbContext = fixture.CreateDbContext())
@@ -38,7 +38,7 @@ public sealed class MessagePersistenceTests(PersistenceTestFixture fixture)
             var reloaded = await dbContext.Messages
                 .Include(m => m.Attachments)
                 .Include(m => m.Citations)
-                .SingleAsync(m => m.Id == message.Id);
+                .SingleAsync(m => m.Id == message.Id, TestContext.Current.CancellationToken);
 
             reloaded.Provider.Should().Be("OpenAI");
             reloaded.Model.Should().Be("gpt-4");

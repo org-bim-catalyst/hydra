@@ -11,7 +11,7 @@ public sealed class CookiePolicyEndpointTests(CustomWebApplicationFactory factor
     [Fact]
     public async Task GetPolicy_ShouldReturn200_WithNoAuthorizationHeader()
     {
-        var response = await _client.GetAsync("/api/v1/cookie-policy");
+        var response = await _client.GetAsync("/api/v1/cookie-policy", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

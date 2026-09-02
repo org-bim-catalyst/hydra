@@ -42,7 +42,7 @@ public sealed class KnowledgeBaseDuplicationPerformanceTests(PersistenceTestFixt
             seedContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             seedContext.KnowledgeBases.Add(source);
             seedContext.KnowledgeBaseDocuments.AddRange(documents);
-            await seedContext.SaveChangesAsync();
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var dbContext = fixture.CreateDbContext();

@@ -2,6 +2,10 @@ using AskLucy.Domain.Common;
 
 namespace AskLucy.Domain.Prompts;
 
+// CA1720: not renamed — this enum represents a prompt variable's value-type kind, and "String" is
+// the correct, idiomatic name for that kind; it is also persisted by member name (EF-mapped
+// column/JSON), so renaming the member would be a breaking change independent of the type name.
+#pragma warning disable CA1720
 public enum PromptVariableType
 {
     String,
@@ -14,6 +18,7 @@ public enum PromptVariableType
     Conversation,
     KnowledgeBase,
 }
+#pragma warning restore CA1720
 
 /// <summary>Input shape for defining a variable at prompt-create/edit time (spec.md FR-010-FR-012) — not itself persisted, mapped into a <see cref="PromptVariable"/> row per <see cref="PromptVersion"/>.</summary>
 public sealed record PromptVariableDefinition(

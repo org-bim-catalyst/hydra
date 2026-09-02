@@ -43,7 +43,8 @@ public sealed class SearchDocumentsFilterTests
         await _documentRepository.Received(1).SearchAsync(
             "user-1", DocumentListView.Active, null,
             Arg.Is<DocumentSearchFilters>(f =>
-                f.Query == "invoice" && f.Author == "Jane" && f.LanguageCode == "en" && f.Tag == "Reviewed" &&
+                f != null
+                && f.Query == "invoice" && f.Author == "Jane" && f.LanguageCode == "en" && f.Tag == "Reviewed" &&
                 f.CategoryId == categoryId && f.DateFrom == dateFrom && f.DateTo == dateTo && f.Status == DocumentProcessingStatus.Completed),
             null, 50, Arg.Any<CancellationToken>());
     }

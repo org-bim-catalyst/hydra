@@ -102,7 +102,7 @@ public sealed class ApprovalWorkflowTests
         // A pending candidate is still embedded (harmless — SqlServerMemoryVectorStore's query
         // filters to State = 'Active', so it's simply not yet retrievable) so approval doesn't
         // need a separate re-embed step later; what matters here is the lifecycle state itself.
-        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m.State == MemoryLifecycleState.PendingApproval));
+        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m != null && m.State == MemoryLifecycleState.PendingApproval));
         await _notifier.DidNotReceive().NotifyAsync(
             Arg.Any<string>(), Arg.Any<Guid?>(), MemoryNotificationEventType.AutoApproved, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -117,8 +117,8 @@ public sealed class ApprovalWorkflowTests
 
         await _job.RunAsync(chat.Id, CancellationToken.None);
 
-        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m.State == MemoryLifecycleState.Active));
-        _approvalRepository.Received(1).Add(Arg.Is<MemoryApproval>(a => a.Decision == MemoryApprovalDecision.Approved));
+        _memoryRepository.Received(1).Add(Arg.Is<MemoryEntity>(m => m != null && m.State == MemoryLifecycleState.Active));
+        _approvalRepository.Received(1).Add(Arg.Is<MemoryApproval>(a => a != null && a.Decision == MemoryApprovalDecision.Approved));
         await _notifier.Received(1).NotifyAsync(UserId, Arg.Any<Guid>(), MemoryNotificationEventType.AutoApproved, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 

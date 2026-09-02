@@ -65,7 +65,7 @@ public sealed class McpFailureCategorizationTests
                 break;
         }
 
-        var result = await adapter.ExecuteAsync(new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), null), JsonDocument.Parse("{}"));
+        var result = await adapter.ExecuteAsync(new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), null), JsonDocument.Parse("{}"), TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeFalse();
         result.FailureReason.Should().StartWith($"[{expectedCategory}]");

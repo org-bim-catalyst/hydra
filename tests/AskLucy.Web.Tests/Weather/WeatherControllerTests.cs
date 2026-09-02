@@ -41,7 +41,7 @@ public sealed class WeatherControllerTests(CustomWebApplicationFactory factory) 
     [Fact]
     public async Task GetCurrent_ShouldReturn401_WhenNoBearerTokenIsProvided()
     {
-        var response = await _client.GetAsync("/api/v1/weather/current?latitude=51.5074&longitude=-0.1278");
+        var response = await _client.GetAsync("/api/v1/weather/current?latitude=51.5074&longitude=-0.1278", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -52,7 +52,7 @@ public sealed class WeatherControllerTests(CustomWebApplicationFactory factory) 
         var client = _client;
         Authorize(client);
 
-        var response = await client.GetAsync("/api/v1/weather/current?latitude=999&longitude=0");
+        var response = await client.GetAsync("/api/v1/weather/current?latitude=999&longitude=0", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
@@ -68,7 +68,7 @@ public sealed class WeatherControllerTests(CustomWebApplicationFactory factory) 
         var client = CreateClientWithProvider(provider);
         Authorize(client);
 
-        var response = await client.GetAsync("/api/v1/weather/current?latitude=51.5074&longitude=-0.1278");
+        var response = await client.GetAsync("/api/v1/weather/current?latitude=51.5074&longitude=-0.1278", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         // Matches the API's own JSON configuration (JsonEnumSerializationTests.cs) — enums
@@ -78,7 +78,7 @@ public sealed class WeatherControllerTests(CustomWebApplicationFactory factory) 
             PropertyNameCaseInsensitive = true,
             Converters = { new JsonStringEnumConverter() },
         };
-        var body = await response.Content.ReadFromJsonAsync<WeatherSnapshotDto>(jsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<WeatherSnapshotDto>(jsonOptions, TestContext.Current.CancellationToken);
         body!.LocationName.Should().Be("London, United Kingdom");
         body.Condition.Should().Be(WeatherCondition.Cloudy);
     }
@@ -92,7 +92,7 @@ public sealed class WeatherControllerTests(CustomWebApplicationFactory factory) 
         var client = CreateClientWithProvider(provider);
         Authorize(client);
 
-        var response = await client.GetAsync("/api/v1/weather/current?latitude=51.5074&longitude=-0.1278");
+        var response = await client.GetAsync("/api/v1/weather/current?latitude=51.5074&longitude=-0.1278", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");

@@ -52,6 +52,6 @@ public sealed class PurgeUserChatCommandHandlerTests
         var act = () => handler.Handle(new PurgeUserChatCommand(chat.Id, true), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
-        await _repository.DidNotReceiveWithAnyArgs().PurgeAsync(default, default);
+        await _repository.DidNotReceiveWithAnyArgs().PurgeAsync(default, TestContext.Current.CancellationToken);
     }
 }

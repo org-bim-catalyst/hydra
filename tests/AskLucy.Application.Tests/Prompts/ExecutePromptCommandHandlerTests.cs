@@ -146,7 +146,7 @@ public sealed class ExecutePromptCommandHandlerTests
 
         _aiProvider.Received(1).StreamChatAsync(
             Arg.Is<IReadOnlyList<ChatMessage>>(messages =>
-                messages.Count == 2 &&
+                messages != null && messages.Count == 2 &&
                 messages[0].Role == ChatRole.System && messages[0].Content == "You are helpful." &&
                 messages[1].Role == ChatRole.User && messages[1].Content == "Summarize my report."),
             model.ModelKey, Arg.Any<GenerationParametersDto>(), Arg.Any<CancellationToken>());

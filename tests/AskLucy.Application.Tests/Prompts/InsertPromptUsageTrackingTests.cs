@@ -93,9 +93,9 @@ public sealed class InsertPromptUsageTrackingTests
         _messageRepository.ListByChatIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(new List<Message>());
 
         var assistantMessage = BuildMessageDto(MessageRole.Assistant);
-        _mediator.Send(Arg.Is<AppendMessageCommand>(c => c.Role == MessageRole.User), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Is<AppendMessageCommand>(c => c != null && c.Role == MessageRole.User), Arg.Any<CancellationToken>())
             .Returns(BuildMessageDto(MessageRole.User));
-        _mediator.Send(Arg.Is<AppendMessageCommand>(c => c.Role == MessageRole.Assistant), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Is<AppendMessageCommand>(c => c != null && c.Role == MessageRole.Assistant), Arg.Any<CancellationToken>())
             .Returns(assistantMessage);
         _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>())
             .Returns(StreamOf(new ChatStreamChunk("A summary.", new ChatUsage(10, 5, null, null, 100))));
@@ -108,7 +108,7 @@ public sealed class InsertPromptUsageTrackingTests
 
         await _mediator.Received(1).Send(
             Arg.Is<RecordPromptExecutionCommand>(c =>
-                c.Origin == PromptExecutionOrigin.ConversationInsertion &&
+                c != null && c.Origin == PromptExecutionOrigin.ConversationInsertion &&
                 c.Outcome == PromptExecutionOutcome.Success &&
                 c.ResultMessageId == assistantMessage.Id),
             Arg.Any<CancellationToken>());
@@ -124,7 +124,7 @@ public sealed class InsertPromptUsageTrackingTests
         _promptRepository.GetVersionAsync(prompt.Id, prompt.CurrentVersionNumber, Arg.Any<CancellationToken>()).Returns(version);
         _messageRepository.ListByChatIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(new List<Message>());
 
-        _mediator.Send(Arg.Is<AppendMessageCommand>(c => c.Role == MessageRole.User), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Is<AppendMessageCommand>(c => c != null && c.Role == MessageRole.User), Arg.Any<CancellationToken>())
             .Returns(BuildMessageDto(MessageRole.User));
         _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>())
             .Returns(ThrowingStream());
@@ -139,7 +139,7 @@ public sealed class InsertPromptUsageTrackingTests
         };
 
         await act.Should().ThrowAsync<AiProviderUnavailableException>();
-        await _mediator.DidNotReceive().Send(Arg.Is<AppendMessageCommand>(c => c.Role == MessageRole.Assistant), Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive().Send(Arg.Is<AppendMessageCommand>(c => c != null && c.Role == MessageRole.Assistant), Arg.Any<CancellationToken>());
         await _mediator.DidNotReceive().Send(Arg.Any<RecordPromptExecutionCommand>(), Arg.Any<CancellationToken>());
     }
 

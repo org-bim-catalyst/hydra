@@ -25,19 +25,19 @@ public sealed class PromptConcurrencyTests(PersistenceTestFixture fixture)
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             dbContext.Prompts.Add(prompt);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         // Load the same row into two independent DbContext instances, simulating two browser tabs.
         await using var dbContextA = fixture.CreateDbContext();
         await using var dbContextB = fixture.CreateDbContext();
 
-        var promptA = await dbContextA.Prompts.Include(p => p.Versions).ThenInclude(v => v.Variables).FirstAsync(p => p.Id == prompt.Id);
-        var promptB = await dbContextB.Prompts.Include(p => p.Versions).ThenInclude(v => v.Variables).FirstAsync(p => p.Id == prompt.Id);
+        var promptA = await dbContextA.Prompts.Include(p => p.Versions).ThenInclude(v => v.Variables).FirstAsync(p => p.Id == prompt.Id, TestContext.Current.CancellationToken);
+        var promptB = await dbContextB.Prompts.Include(p => p.Versions).ThenInclude(v => v.Variables).FirstAsync(p => p.Id == prompt.Id, TestContext.Current.CancellationToken);
 
         promptA.ApplyEdit(InitialContent with { UserInstructions = "First edit {{document}}." },
             [new PromptVariableDefinition("document", null, PromptVariableType.File, true, null, null, null, 0)], null, ownerId);
-        await dbContextA.SaveChangesAsync();
+        await dbContextA.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         promptB.ApplyEdit(InitialContent with { UserInstructions = "Second, conflicting edit {{document}}." },
             [new PromptVariableDefinition("document", null, PromptVariableType.File, true, null, null, null, 0)], null, ownerId);

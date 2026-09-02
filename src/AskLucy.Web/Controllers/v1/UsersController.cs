@@ -32,6 +32,7 @@ public sealed class UsersController(
     IFileStorage fileStorage) : ControllerBase
 {
     private static readonly TimeSpan AvatarUrlLifetime = TimeSpan.FromMinutes(15);
+    private static readonly JsonSerializerOptions PersonalDataExportOptions = new() { WriteIndented = true };
 
     [HttpGet("me")]
     public async Task<ActionResult<UserProfileDto>> GetMe(CancellationToken cancellationToken) =>
@@ -82,7 +83,7 @@ public sealed class UsersController(
     public async Task<IActionResult> DownloadMyPersonalData(CancellationToken cancellationToken)
     {
         var profile = await mediator.Send(new GetMyProfileQuery(), cancellationToken);
-        var json = JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(profile, PersonalDataExportOptions);
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
         return File(bytes, "application/json", "ask-lucy-personal-data.json");
     }

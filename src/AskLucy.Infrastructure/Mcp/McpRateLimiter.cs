@@ -14,7 +14,7 @@ namespace AskLucy.Infrastructure.Mcp;
 /// which only governs the admin/browsing REST endpoints. Registered as a singleton so limits are
 /// enforced across the whole process, not reset per scope.
 /// </summary>
-public sealed class McpRateLimiter(IOptions<McpRuntimeOptions> options, ILogger<McpRateLimiter> logger) : IMcpRateLimiter, IDisposable
+public sealed partial class McpRateLimiter(IOptions<McpRuntimeOptions> options, ILogger<McpRateLimiter> logger) : IMcpRateLimiter, IDisposable
 {
     private readonly ConcurrentDictionary<string, RateLimiter> _perKeyLimiters = new();
     private readonly ConcurrentDictionary<Guid, RateLimiter> _perServerConcurrencyLimiters = new();
@@ -28,9 +28,7 @@ public sealed class McpRateLimiter(IOptions<McpRuntimeOptions> options, ILogger<
             rateLease.Dispose();
             // FR-057 — rate-limit event, discoverable through the platform's existing
             // observability capability (structured Serilog logging, constitution §14).
-            logger.LogWarning(
-                "MCP rate limit exceeded for server {McpServerId}, tool {ToolName}, user {UserId}, agent {AgentId}",
-                key.McpServerId, key.ToolName, key.UserId, key.AgentId);
+            LogRateLimitExceeded(key.McpServerId, key.ToolName, key.UserId, key.AgentId);
             return null;
         }
 
@@ -40,16 +38,14 @@ public sealed class McpRateLimiter(IOptions<McpRuntimeOptions> options, ILogger<
         {
             concurrencyLease.Dispose();
             rateLease.Dispose();
-            logger.LogWarning(
-                "MCP concurrency limit exceeded for server {McpServerId} (tool {ToolName}, user {UserId}, agent {AgentId})",
-                key.McpServerId, key.ToolName, key.UserId, key.AgentId);
+            LogConcurrencyLimitExceeded(key.McpServerId, key.ToolName, key.UserId, key.AgentId);
             return null;
         }
 
         return new CompositeLease(rateLease, concurrencyLease);
     }
 
-    private RateLimiter CreateRateWindowLimiter() => new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+    private FixedWindowRateLimiter CreateRateWindowLimiter() => new(new FixedWindowRateLimiterOptions
     {
         PermitLimit = options.Value.MaxRequestsPerMinute,
         Window = TimeSpan.FromMinutes(1),
@@ -57,7 +53,7 @@ public sealed class McpRateLimiter(IOptions<McpRuntimeOptions> options, ILogger<
         AutoReplenishment = true,
     });
 
-    private RateLimiter CreateConcurrencyLimiter() => new ConcurrencyLimiter(new ConcurrencyLimiterOptions
+    private ConcurrencyLimiter CreateConcurrencyLimiter() => new(new ConcurrencyLimiterOptions
     {
         PermitLimit = options.Value.MaxConcurrentRequestsPerServer,
         QueueLimit = 0,
@@ -87,4 +83,10 @@ public sealed class McpRateLimiter(IOptions<McpRuntimeOptions> options, ILogger<
             return ValueTask.CompletedTask;
         }
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "MCP rate limit exceeded for server {McpServerId}, tool {ToolName}, user {UserId}, agent {AgentId}")]
+    private partial void LogRateLimitExceeded(Guid mcpServerId, string toolName, string userId, Guid agentId);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "MCP concurrency limit exceeded for server {McpServerId} (tool {ToolName}, user {UserId}, agent {AgentId})")]
+    private partial void LogConcurrencyLimitExceeded(Guid mcpServerId, string toolName, string userId, Guid agentId);
 }

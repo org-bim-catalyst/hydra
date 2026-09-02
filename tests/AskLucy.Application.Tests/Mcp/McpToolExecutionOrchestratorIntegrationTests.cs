@@ -44,7 +44,7 @@ public sealed class McpToolExecutionOrchestratorIntegrationTests
         Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false, Reasoning: false,
         Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false);
 
-    private McpTool CreateActiveMcpTool()
+    private static McpTool CreateActiveMcpTool()
     {
         var tool = McpTool.CreateFromDiscovery(
             Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, AgentToolRiskLevel.Low, "[]", null, null);
@@ -123,7 +123,7 @@ public sealed class McpToolExecutionOrchestratorIntegrationTests
 
         execution.Status.Should().Be(AgentExecutionStatus.Completed);
         execution.Steps.Should().ContainSingle(s => s.StepType == AgentExecutionStepType.ToolCall && s.Status == AgentExecutionStepStatus.Completed && s.ToolName == mcpTool.NamespacedName);
-        _executionRepository.Received(1).AddToolCall(Arg.Is<AgentToolCall>(tc => tc.ToolName == mcpTool.NamespacedName));
+        _executionRepository.Received(1).AddToolCall(Arg.Is<AgentToolCall>(tc => tc!.ToolName == mcpTool.NamespacedName));
     }
 
     [Fact]
@@ -137,6 +137,6 @@ public sealed class McpToolExecutionOrchestratorIntegrationTests
         await orchestrator.RunAsync(execution.Id, CancellationToken.None);
 
         execution.Errors.Should().ContainSingle(e => e.Category == AgentExecutionErrorCategory.ToolFailure);
-        _executionRepository.Received(1).AddToolCall(Arg.Is<AgentToolCall>(tc => tc.FailureReason != null));
+        _executionRepository.Received(1).AddToolCall(Arg.Is<AgentToolCall>(tc => tc!.FailureReason != null));
     }
 }

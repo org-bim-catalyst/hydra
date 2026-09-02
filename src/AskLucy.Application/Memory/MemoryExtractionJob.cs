@@ -225,7 +225,7 @@ public sealed class MemoryExtractionJob(
         // treated as "nothing found" rather than retried, since retrying won't fix bad JSON.
     }
 
-    private static IReadOnlyList<ExtractedCandidate> ParseCandidates(string content)
+    private static List<ExtractedCandidate> ParseCandidates(string content)
     {
         var parsed = JsonSerializer.Deserialize<List<ExtractedCandidatePayload>>(ExtractJsonArray(content)) ?? [];
 

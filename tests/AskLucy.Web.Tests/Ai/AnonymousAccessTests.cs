@@ -18,21 +18,21 @@ public sealed class AnonymousAccessTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task Chat_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/ai/chat", new { messages = new[] { new { role = "user", content = "hi" } } });
+        var response = await _client.PostAsJsonAsync("/api/v1/ai/chat", new { messages = new[] { new { role = "user", content = "hi" } } }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task Translate_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/ai/translate", new { text = "hi", targetLanguage = "fr" });
+        var response = await _client.PostAsJsonAsync("/api/v1/ai/translate", new { text = "hi", targetLanguage = "fr" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GenerateImage_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/ai/images", new { prompt = "a cat" });
+        var response = await _client.PostAsJsonAsync("/api/v1/ai/images", new { prompt = "a cat" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -44,14 +44,14 @@ public sealed class AnonymousAccessTests(CustomWebApplicationFactory factory)
             { new ByteArrayContent([1, 2, 3]), "file", "clip.wav" },
         };
 
-        var response = await _client.PostAsync("/api/v1/ai/transcriptions", content);
+        var response = await _client.PostAsync("/api/v1/ai/transcriptions", content, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task Chats_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync("/api/v1/chats");
+        var response = await _client.GetAsync("/api/v1/chats", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

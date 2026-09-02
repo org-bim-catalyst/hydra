@@ -28,7 +28,7 @@ public sealed class SaveUserPanelPreferenceCommandHandlerTests
         var result = await _handler.Handle(new SaveUserPanelPreferenceCommand(60), CancellationToken.None);
 
         result.OpacityPercent.Should().Be(60);
-        _preferences.Received(1).Add(Arg.Is<UserPanelPreference>(p => p.OpacityPercent == 60));
+        _preferences.Received(1).Add(Arg.Is<UserPanelPreference>(p => p != null && p.OpacityPercent == 60));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

@@ -68,7 +68,7 @@ public sealed class DocumentMetadataConcurrencyTests(PersistenceTestFixture fixt
             var firstEditorRepository = new DocumentRepository(firstEditorContext);
             var metadata = await firstEditorRepository.GetMetadataByDocumentIdAsync(documentId, CancellationToken.None);
             metadata!.ApplyUserEdit("First Editor's Title", "First Editor", null, null, null, ownerId);
-            await firstEditorContext.SaveChangesAsync();
+            await firstEditorContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         // The "stale" caller loaded its own copy before the edit above committed, so its

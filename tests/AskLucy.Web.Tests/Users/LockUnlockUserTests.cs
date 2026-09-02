@@ -18,7 +18,7 @@ public sealed class LockUnlockUserTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("user-1");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PostAsync(path, content: null);
+        var response = await _client.PostAsync(path, content: null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -29,7 +29,7 @@ public sealed class LockUnlockUserTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PostAsync("/api/v1/users/admin-1/actions/lock", content: null);
+        var response = await _client.PostAsync("/api/v1/users/admin-1/actions/lock", content: null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -42,7 +42,7 @@ public sealed class LockUnlockUserTests(CustomWebApplicationFactory factory) : I
         var token = TestJwtFactory.Create("admin-1", "Administrator");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.PostAsync(path, content: null);
+        var response = await _client.PostAsync(path, content: null, TestContext.Current.CancellationToken);
 
         // No live database in this environment (see CustomWebApplicationFactory) — proves
         // authorization let the admin through to the handler, never 401/403.

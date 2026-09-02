@@ -26,7 +26,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             dbContext.KnowledgeBases.AddRange(knowledgeBases);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var seen = new List<Guid>();
@@ -59,7 +59,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             dbContext.KnowledgeBases.AddRange(knowledgeBases);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var readContext = fixture.CreateDbContext();
@@ -73,7 +73,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         await using (var writeContext = fixture.CreateDbContext())
         {
             writeContext.KnowledgeBases.Add(insertedLate);
-            await writeContext.SaveChangesAsync();
+            await writeContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var (secondPage, _) = await repository.SearchAsync(
@@ -101,7 +101,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             dbContext.KnowledgeBases.AddRange(pinned);
             dbContext.KnowledgeBases.AddRange(unpinned);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var seenInOrder = new List<Guid>();
@@ -142,7 +142,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         {
             dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
             dbContext.KnowledgeBases.AddRange(knowledgeBases);
-            await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var seen = new List<Guid>();

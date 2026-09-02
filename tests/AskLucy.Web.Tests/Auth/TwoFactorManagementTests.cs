@@ -20,28 +20,28 @@ public sealed class TwoFactorManagementTests(CustomWebApplicationFactory factory
     [Fact]
     public async Task Enable_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync("/api/v1/auth/2fa/enable", null);
+        var response = await _client.PostAsync("/api/v1/auth/2fa/enable", null, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task Disable_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync("/api/v1/auth/2fa/disable", null);
+        var response = await _client.PostAsync("/api/v1/auth/2fa/disable", null, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task RecoveryCodes_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.PostAsync("/api/v1/auth/2fa/recovery-codes", null);
+        var response = await _client.PostAsync("/api/v1/auth/2fa/recovery-codes", null, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task Login_ShouldReturn400_WhenEmailIsMissing()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", new { email = "", password = "x" });
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", new { email = "", password = "x" }, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

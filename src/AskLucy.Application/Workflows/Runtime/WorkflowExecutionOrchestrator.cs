@@ -790,7 +790,7 @@ public sealed class WorkflowExecutionOrchestrator(
 
     /// <summary>research.md Decision 14/FR-042 — walks already-<see cref="WorkflowExecutionNodeStatus.Completed"/> nodes in reverse execution order and runs each one's own explicitly configured <see cref="WorkflowNode.CompensatingNodeId"/> (never inferred) through the same node-dispatch path as normal execution. Best-effort: a compensating node that itself fails is recorded but does not block compensating the rest, and is never itself subject to a further round of compensation.</summary>
     private async Task RunCompensationsAsync(
-        WorkflowExecution execution, IReadOnlyDictionary<Guid, WorkflowNode> nodesById, Dictionary<string, WorkflowExpressionValue> resolvedValues, CancellationToken cancellationToken)
+        WorkflowExecution execution, Dictionary<Guid, WorkflowNode> nodesById, Dictionary<string, WorkflowExpressionValue> resolvedValues, CancellationToken cancellationToken)
     {
         var completedNodes = execution.Nodes.Where(n => n.Status == WorkflowExecutionNodeStatus.Completed).Reverse().ToList();
         foreach (var completedNode in completedNodes)
@@ -853,7 +853,7 @@ public sealed class WorkflowExecutionOrchestrator(
     /// </summary>
     private async Task<ParallelExecutionOutcome> ExecuteParallelAsync(
         WorkflowExecution execution, WorkflowNode parallelNode, Dictionary<string, WorkflowExpressionValue> resolvedValues,
-        WorkflowExecutionPolicy executionPolicy, IReadOnlyDictionary<Guid, WorkflowNode> nodesById, IReadOnlyList<WorkflowConnection> connections,
+        WorkflowExecutionPolicy executionPolicy, Dictionary<Guid, WorkflowNode> nodesById, IReadOnlyList<WorkflowConnection> connections,
         CancellationToken cancellationToken)
     {
         var branchConnections = connections.Where(c => c.SourceNodeId == parallelNode.Id && c.BranchLabel != WorkflowConnection.LoopBackBranchLabel).ToList();

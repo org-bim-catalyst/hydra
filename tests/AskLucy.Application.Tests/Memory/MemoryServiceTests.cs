@@ -48,7 +48,7 @@ public sealed class MemoryServiceTests
         var memory = CreateActiveMemory(0.8m, 0.9m);
         _vectorStore.QueryNearestAsync(Arg.Any<float[]>(), UserId, null, Arg.Any<int>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
             .Returns(new List<MemoryVectorSearchCandidate> { new(memory.Id, 0.1) });
-        _memoryRepository.GetActiveByIdsAsync(Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Contains(memory.Id)), Arg.Any<CancellationToken>())
+        _memoryRepository.GetActiveByIdsAsync(Arg.Is<IReadOnlyCollection<Guid>>(ids => ids != null && ids.Contains(memory.Id)), Arg.Any<CancellationToken>())
             .Returns(new List<MemoryEntity> { memory });
 
         var outcome = await _service.RetrieveRelevantMemoriesAsync(UserId, Guid.NewGuid(), null, "What framework do I use?", CancellationToken.None);

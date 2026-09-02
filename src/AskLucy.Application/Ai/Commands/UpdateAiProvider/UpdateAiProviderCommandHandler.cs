@@ -39,8 +39,13 @@ public sealed class UpdateAiProviderCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        AiAdminActionLog.AdminAiProviderActionPerformed(
-            logger, "UpdateProvider", actorUserId, provider.Id,
-            $"isEnabled: {wasEnabled} -> {provider.IsEnabled}");
+        // CA1873 — the interpolated detail string is only built when Information logging is
+        // actually enabled, and passed in already-computed (as a plain local) rather than as a
+        // formatted expression at the call site.
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var detail = $"isEnabled: {wasEnabled} -> {provider.IsEnabled}";
+            AiAdminActionLog.AdminAiProviderActionPerformed(logger, "UpdateProvider", actorUserId, provider.Id, detail);
+        }
     }
 }

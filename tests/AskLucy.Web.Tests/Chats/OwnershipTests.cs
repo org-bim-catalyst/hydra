@@ -27,7 +27,7 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
     [Fact]
     public async Task GetChatById_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/chats/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/chats/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -36,7 +36,8 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
     {
         var response = await _client.PatchAsync(
             $"/api/v1/chats/{Guid.NewGuid()}",
-            JsonContent.Create(new { title = "Hijacked" }));
+            JsonContent.Create(new { title = "Hijacked" }),
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -44,7 +45,7 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
     [Fact]
     public async Task DeleteChatById_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.DeleteAsync($"/api/v1/chats/{Guid.NewGuid()}");
+        var response = await _client.DeleteAsync($"/api/v1/chats/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -58,7 +59,7 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
     [InlineData("duplicate")]
     public async Task PostAction_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent(string action)
     {
-        var response = await _client.PostAsync($"/api/v1/chats/{Guid.NewGuid()}/actions/{action}", content: null);
+        var response = await _client.PostAsync($"/api/v1/chats/{Guid.NewGuid()}/actions/{action}", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -66,7 +67,9 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
     public async Task ClearAction_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
         var response = await _client.PostAsync(
-            $"/api/v1/chats/{Guid.NewGuid()}/actions/clear", JsonContent.Create(new { confirm = true }));
+            $"/api/v1/chats/{Guid.NewGuid()}/actions/clear",
+            JsonContent.Create(new { confirm = true }),
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -78,7 +81,7 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
         {
             Content = JsonContent.Create(new { confirm = true }),
         };
-        var response = await _client.SendAsync(request);
+        var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -86,7 +89,7 @@ public sealed class OwnershipTests(CustomWebApplicationFactory factory) : IClass
     [Fact]
     public async Task ExportEndpoint_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
     {
-        var response = await _client.GetAsync($"/api/v1/chats/{Guid.NewGuid()}/export");
+        var response = await _client.GetAsync($"/api/v1/chats/{Guid.NewGuid()}/export", TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

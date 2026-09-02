@@ -53,7 +53,7 @@ public sealed class StartAgentExecutionCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.AgentId.Should().Be(agent.Id);
-        _executionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e.UserChatId == null && e.ConversationIntegrationMode == AgentConversationIntegrationMode.Standalone));
+        _executionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e != null && e.UserChatId == null && e.ConversationIntegrationMode == AgentConversationIntegrationMode.Standalone));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         await _runner.Received(1).EnqueueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
@@ -90,7 +90,7 @@ public sealed class StartAgentExecutionCommandHandlerTests
         var command = new StartAgentExecutionCommand(agent.Id, null, "Do the thing.", AgentConversationIntegrationMode.NewConversation, null, false);
         await CreateHandler().Handle(command, CancellationToken.None);
 
-        _executionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e.UserChatId == newChatId));
+        _executionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e != null && e.UserChatId == newChatId));
     }
 
     [Fact]

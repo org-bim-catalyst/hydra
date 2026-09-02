@@ -16,7 +16,7 @@ public sealed class AiProvidersControllerTests(CustomWebApplicationFactory facto
     [InlineData("/api/v1/ai/preferences")]
     public async Task ShouldReturn401_WhenAnonymous(string path)
     {
-        var response = await _client.GetAsync(path);
+        var response = await _client.GetAsync(path, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -29,7 +29,7 @@ public sealed class AiProvidersControllerTests(CustomWebApplicationFactory facto
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
 
-        var response = await _client.GetAsync(path);
+        var response = await _client.GetAsync(path, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);

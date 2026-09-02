@@ -11,8 +11,13 @@ public sealed class PromptRepository(AskLucyDbContext dbContext) : IPromptReposi
     public Task<Prompt?> GetByIdForOwnerAsync(Guid id, string ownerId, CancellationToken cancellationToken = default) =>
         dbContext.Prompts.Include(p => p.Tags).FirstOrDefaultAsync(p => p.Id == id && p.OwnerId == ownerId, cancellationToken);
 
+    // ToLower() runs inside an EF Core expression tree translated to SQL LOWER(); the
+    // StringComparison/CultureInfo overloads CA1304/CA1311/CA1862 suggest cannot be
+    // translated and would throw at query execution time.
+#pragma warning disable CA1304, CA1311, CA1862
     public Task<Prompt?> GetByOwnerAndNameAsync(string ownerId, string name, CancellationToken cancellationToken = default) =>
         dbContext.Prompts.FirstOrDefaultAsync(p => p.OwnerId == ownerId && p.Name.ToLower() == name.ToLower(), cancellationToken);
+#pragma warning restore CA1304, CA1311, CA1862
 
     public void Add(Prompt prompt) => dbContext.Prompts.Add(prompt);
 
@@ -103,7 +108,7 @@ public sealed class PromptRepository(AskLucyDbContext dbContext) : IPromptReposi
         };
     }
 
-    private async Task<(IReadOnlyList<Prompt> Items, string? NextCursor)> FetchByModifiedAsync(
+    private static async Task<(IReadOnlyList<Prompt> Items, string? NextCursor)> FetchByModifiedAsync(
         IQueryable<Prompt> baseQuery, string? cursor, int pageSize, CancellationToken cancellationToken)
     {
         var decoded = PromptCursor.Decode(cursor);
