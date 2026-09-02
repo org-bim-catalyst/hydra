@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
 using FluentValidation;
@@ -27,10 +28,12 @@ public sealed class SendChatMessageCommandHandlerTests
     private readonly IRagService _ragService = Substitute.For<IRagService>();
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
+    private readonly IBoundaryResolutionService _boundaryResolutionService = Substitute.For<IBoundaryResolutionService>();
     private readonly IViewerZoomDetector _viewerZoomDetector = Substitute.For<IViewerZoomDetector>();
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
+    private readonly BoundaryScoringOptions _boundaryScoringOptions = new();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
@@ -69,8 +72,10 @@ public sealed class SendChatMessageCommandHandlerTests
 
         _handler = new SendChatMessageCommandHandler(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
-            _locationResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
+            _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            Microsoft.Extensions.Options.Options.Create(_boundaryScoringOptions),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SendChatMessageCommandHandler>.Instance,
             new SendChatMessageCommandValidator(_providers, _models));
     }
 

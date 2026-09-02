@@ -30,6 +30,28 @@ public interface IUserChatRepository
     /// <summary>specs/018-ai-memory-system, research.md Decision 6 — conversations touched since their own <see cref="UserChat.LastMemoryAnalyzedAtUtc"/> checkpoint (or never analyzed), for <c>MemoryExtractionSweepJob</c> to pick up turns the per-turn enqueue missed.</summary>
     Task<IReadOnlyList<UserChat>> ListNeedingMemoryAnalysisAsync(int batchSize, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Stamps "memory analysis ran" against a conversation, without going through the tracked
+    /// entity.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="UserChat"/> carries a rowversion, and the memory-extraction job is enqueued at
+    /// the very end of a chat turn — the same moment the turn is still writing that row (the
+    /// assistant messages, and for a location query the resolved boundary). The job would load
+    /// the chat, those writes would bump the rowversion, and its own save then matched zero rows
+    /// and threw <c>DbUpdateConcurrencyException</c>. Observed three times on 2026-09-01, each
+    /// one immediately after a turn completed.
+    /// </para>
+    /// <para>
+    /// A targeted update rather than optimistic concurrency because this timestamp is monotonic
+    /// bookkeeping: last writer wins is the correct answer, and there is nothing here for a
+    /// concurrent edit to corrupt. The rowversion still guards everything about the conversation
+    /// that a user can actually change.
+    /// </para>
+    /// </remarks>
+    Task MarkMemoryAnalyzedAsync(Guid chatId, DateTime analyzedAtUtc, CancellationToken cancellationToken = default);
+
     /// <summary>Cursor-paginated search/filter/sort (FR-019–FR-022, research.md Topics 5/6).</summary>
     Task<(IReadOnlyList<UserChat> Items, string? NextCursor)> SearchAsync(
         string userId,

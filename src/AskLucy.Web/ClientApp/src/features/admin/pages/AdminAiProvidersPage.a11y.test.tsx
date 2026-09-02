@@ -21,6 +21,9 @@ const providers: AdminAiProvider[] = [
     defaultModelId: null,
     healthStatus: 'Healthy',
     healthStatusCheckedAtUtc: '2026-07-31T00:00:00Z',
+    healthFailureKind: null,
+    healthFailureReason: null,
+    healthStaleAfterUtc: null,
   },
   {
     id: 'provider-2',
@@ -32,6 +35,41 @@ const providers: AdminAiProvider[] = [
     defaultModelId: null,
     healthStatus: 'Unknown',
     healthStatusCheckedAtUtc: null,
+    healthFailureKind: null,
+    healthFailureReason: null,
+    healthStaleAfterUtc: null,
+  },
+  {
+    // specs/043 US2 — a provider that is configured and credentialled but temporarily limited,
+    // whose last result is also past its freshness horizon. Exercises both the warning-state
+    // chip and the staleness affordance under axe.
+    id: 'provider-3',
+    providerKey: 'google-gemini',
+    displayName: 'Google Gemini',
+    isEnabled: true,
+    hasCredential: true,
+    credentialLastRotatedAtUtc: '2026-07-30T00:00:00Z',
+    defaultModelId: null,
+    healthStatus: 'Unhealthy',
+    healthStatusCheckedAtUtc: '2026-07-31T00:00:00Z',
+    healthFailureKind: 'QuotaExhausted',
+    healthFailureReason: 'Google Gemini is configured correctly, but its usage quota is exhausted.',
+    healthStaleAfterUtc: '2026-07-31T00:06:00Z',
+  },
+  {
+    // A credential failure, so the error-state chip and its reason are covered too.
+    id: 'provider-4',
+    providerKey: 'openrouter',
+    displayName: 'OpenRouter',
+    isEnabled: true,
+    hasCredential: true,
+    credentialLastRotatedAtUtc: '2026-07-30T00:00:00Z',
+    defaultModelId: null,
+    healthStatus: 'Unhealthy',
+    healthStatusCheckedAtUtc: '2026-07-31T00:00:00Z',
+    healthFailureKind: 'CredentialRejected',
+    healthFailureReason: 'OpenRouter rejected the configured credential.',
+    healthStaleAfterUtc: null,
   },
 ]
 

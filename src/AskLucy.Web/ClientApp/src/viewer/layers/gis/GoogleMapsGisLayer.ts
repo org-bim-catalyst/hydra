@@ -1,6 +1,8 @@
 import { Loader } from '@googlemaps/js-api-loader'
 import * as THREE from 'three'
 import type { MapStyleId } from '../../api/commands'
+import { createSiteBoundaryRenderer } from './SiteBoundaryRenderer'
+import type { BorderConfidenceLevel, LocalPoint } from '../../effects/AnimatedBorderHighlight'
 
 export interface GoogleMapsGisLayerOptions {
   apiKey: string
@@ -39,6 +41,8 @@ export interface GoogleMapsGisLayerHandle {
   currentLocationMarkerId: string
   /** US5 (FR-018): visually distinguishes the marker as selected/unselected. */
   setMarkerHighlighted(highlighted: boolean): void
+  /** specs/042-site-boundary-resolution: shows/updates/clears the animated site-boundary highlight. Pass `null` to remove it. */
+  setSiteBoundary(input: { exteriorRing: { latitude: number; longitude: number }[]; confidenceLevel: BorderConfidenceLevel } | null): void
   dispose(): void
 }
 
@@ -53,6 +57,23 @@ const MOBILE_BREAKPOINT_PX = 600
 export function shouldReduceMapQuality(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 0.05}px)`).matches
+}
+
+/** specs/042-site-boundary-resolution research.md #8 — same equirectangular local-meters
+ * projection as the backend's `GeometryMath.ToLocalMeters` (no shared code between the two
+ * stacks; kept in sync deliberately, both being small, stable, single-purpose formulas).
+ * `reference` is always the layer's own fixed `options.center` — the same real-world anchor
+ * `onDraw` already uses for the camera's `transformer.fromLatLngAltitude` call every frame, so
+ * anything placed here in local meters tracks correctly with the live Maps camera with no
+ * separate per-object transform call needed. */
+const METERS_PER_DEGREE_LATITUDE = 111_320
+
+function toLocalMeters(point: { latitude: number; longitude: number }, reference: { latitude: number; longitude: number }): LocalPoint {
+  const metersPerDegreeLongitude = METERS_PER_DEGREE_LATITUDE * Math.cos((reference.latitude * Math.PI) / 180)
+  return {
+    x: (point.longitude - reference.longitude) * metersPerDegreeLongitude,
+    y: (point.latitude - reference.latitude) * METERS_PER_DEGREE_LATITUDE,
+  }
 }
 
 let loaderSingleton: Loader | null = null
@@ -105,6 +126,35 @@ export async function createGoogleMapsGisLayer(
   const camera = new THREE.PerspectiveCamera()
   let renderer: THREE.WebGLRenderer | undefined
 
+  // specs/042-site-boundary-resolution: added to `scene` once; contents are swapped internally
+  // by setSiteBoundary(). clock drives the comet animation from onDraw.
+  const siteBoundaryRenderer = createSiteBoundaryRenderer()
+  scene.add(siteBoundaryRenderer.object3D)
+  const siteBoundaryClock = new THREE.Clock()
+
+  // specs/042-site-boundary-resolution bugfix: MapRenderTarget only creates this layer ONCE
+  // (its effect depends on [layerId], a stable constant — `options.center` is whatever location
+  // was active at that single mount, never updated on later searches). The camera itself already
+  // pans correctly via map.moveCamera() elsewhere, but this closure's own Three.js anchor point
+  // does NOT track that — a boundary resolved far from the original mount location was being
+  // placed in local-meters space relative to a stale, unrelated anchor. Re-anchored to the
+  // boundary's own centroid on every setSiteBoundary() call instead of the frozen options.center
+  // — always accurate for whatever is actually being rendered, and sidesteps float precision
+  // concerns from a potentially-distant fixed anchor.
+  let sceneAnchor = { ...options.center }
+
+  // specs/042-site-boundary-resolution: a plain google.maps.Polygon is the RELIABLE boundary
+  // shape — native Maps JS rendering, no dependency on the WebGLOverlayView/Three.js bridge
+  // (whose "not runtime-verified" status is documented on this function). The animated comet
+  // effect (siteBoundaryRenderer above) still layers on top when the bridge is working; if it
+  // isn't, the user still sees a clearly recognizable boundary via this polygon alone (FR-002).
+  let boundaryPolygon: google.maps.Polygon | undefined
+  const BOUNDARY_STYLE: Record<BorderConfidenceLevel, { color: string; fillOpacity: number; strokeOpacity: number }> = {
+    high: { color: '#9C62DE', fillOpacity: 0.18, strokeOpacity: 0.95 },
+    medium: { color: '#9C62DE', fillOpacity: 0.14, strokeOpacity: 0.85 },
+    low: { color: '#757575', fillOpacity: 0.08, strokeOpacity: 0.7 },
+  }
+
   // Heading state managed as a simple closure variable — setHeading (called from
   // RotationDriver's RAF loop) stores the value here; onDraw applies it to the Maps camera
   // once per draw cycle so there is no competing RAF loop calling moveCamera directly. This
@@ -142,14 +192,24 @@ export async function createGoogleMapsGisLayer(
       appliedHeading = desiredHeading
     }
     const matrix = transformer.fromLatLngAltitude({
-      lat: options.center.latitude,
-      lng: options.center.longitude,
+      lat: sceneAnchor.latitude,
+      lng: sceneAnchor.longitude,
       altitude: 0,
     })
     camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix)
-    overlay.requestRedraw()
-    renderer?.render(scene, camera)
-    renderer?.resetState()
+    try {
+      // specs/042-site-boundary-resolution diagnostic: this Three.js/WebGLOverlayView bridge
+      // was never runtime-verified before this feature (see this function's own doc comment).
+      // google.maps.WebGLOverlayView appears to swallow exceptions thrown from onDraw silently
+      // (no console error, nothing rendered) — wrapped so a real bug here becomes visible
+      // instead of looking identical to "nothing to render".
+      siteBoundaryRenderer.update(siteBoundaryClock.getDelta())
+      overlay.requestRedraw()
+      renderer?.render(scene, camera)
+      renderer?.resetState()
+    } catch (error) {
+      console.error('[GoogleMapsGisLayer] Three.js site-boundary render failed:', error)
+    }
   }
 
   overlay.setMap(map)
@@ -203,9 +263,66 @@ export async function createGoogleMapsGisLayer(
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1
     },
+    setSiteBoundary: (input) => {
+      if (!input) {
+        boundaryPolygon?.setMap(null)
+        boundaryPolygon = undefined
+        try {
+          siteBoundaryRenderer.setPolygon(null, 'low')
+        } catch (error) {
+          console.error('[GoogleMapsGisLayer] Failed to clear the Three.js site-boundary highlight:', error)
+        }
+        return
+      }
+
+      // The reliable path — always runs, never depends on the Three.js bridge.
+      const style = BOUNDARY_STYLE[input.confidenceLevel]
+      const path = input.exteriorRing.map((p) => ({ lat: p.latitude, lng: p.longitude }))
+      if (!boundaryPolygon) {
+        boundaryPolygon = new google.maps.Polygon({
+          map,
+          paths: path,
+          strokeColor: style.color,
+          strokeOpacity: style.strokeOpacity,
+          strokeWeight: 3,
+          fillColor: style.color,
+          fillOpacity: style.fillOpacity,
+          clickable: false,
+          zIndex: 10,
+        })
+      } else {
+        boundaryPolygon.setPath(path)
+        boundaryPolygon.setOptions({
+          strokeColor: style.color,
+          strokeOpacity: style.strokeOpacity,
+          fillColor: style.color,
+          fillOpacity: style.fillOpacity,
+        })
+        boundaryPolygon.setMap(map)
+      }
+
+      // The bonus path — best-effort animated highlight via the Three.js bridge. Wrapped so a
+      // failure here never affects the reliable google.maps.Polygon above (see this function's
+      // own doc comment on the bridge's unverified status).
+      try {
+        // Re-anchor to this boundary's own centroid (not the frozen options.center — see the
+        // sceneAnchor declaration above) before converting to local meters, so precision is
+        // always good regardless of how far the map has panned since this layer was created.
+        sceneAnchor = {
+          latitude: input.exteriorRing.reduce((sum, p) => sum + p.latitude, 0) / input.exteriorRing.length,
+          longitude: input.exteriorRing.reduce((sum, p) => sum + p.longitude, 0) / input.exteriorRing.length,
+        }
+        const localRing = input.exteriorRing.map((p) => toLocalMeters(p, sceneAnchor))
+        siteBoundaryRenderer.setPolygon(localRing, input.confidenceLevel)
+      } catch (error) {
+        console.error('[GoogleMapsGisLayer] Failed to build the Three.js site-boundary highlight (native polygon above still shows the boundary):', error)
+      }
+    },
     dispose: () => {
       marker.map = null
       overlay.setMap(null)
+      boundaryPolygon?.setMap(null)
+      siteBoundaryRenderer.dispose()
       renderer?.dispose()
     },
   }

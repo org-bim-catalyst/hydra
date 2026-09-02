@@ -36,13 +36,13 @@ import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { WorkspaceOverlay } from '../../../components/workspace-shell/WorkspaceOverlay'
 import { ThemeToggleButton } from '../../../components/workspace-shell/ThemeToggleButton'
+import { StudioAccountMenuButton } from '../../../components/workspace-shell/StudioAccountMenuButton'
 import { ComingSoonDialog } from '../../../components/workspace-shell/ComingSoonDialog'
 import {
   analysisControl,
   layersControl,
   navigationControl,
   selectionControl,
-  useAccountControl,
   useMapStyleControl,
   useViewModeControl,
 } from '../workspaceControls'
@@ -97,7 +97,6 @@ export function ChatPage() {
   const tts = useVoiceOutput()
   // SPEC-024 FR-024: preserves account/session access (and theme toggle) that removing
   // MinimalTopBar would otherwise have dropped — see workspaceControls.tsx.
-  const accountControl = useAccountControl()
   // SPEC-024 FR-010/FR-011/FR-012: the five viewer-tool controls — only view-mode is
   // functional in this feature; layers/navigation/selection/analysis are established,
   // reachable "coming soon" placeholders (FR-021).
@@ -184,7 +183,6 @@ export function ChatPage() {
     navigationControl,
     selectionControl,
     analysisControl,
-    accountControl,
   ]
 
   // specs/026-floating-chat-assistant research.md #1: the one piece of workspaceOverlayStore
@@ -216,10 +214,15 @@ export function ChatPage() {
         controls={workspaceControls}
         topClusterLeading={
           <>
+            {/* specs/038-viewer-poi-zoom T034: shown only while an agent POI is active, and
+                first in the row so the cluster's fixed controls never shift sideways as it
+                appears and disappears. */}
+            {locationSource === 'agent' && <MarkerStyleSelector />}
             <ThemeToggleButton />
             <RotationToggleButton />
-            {/* specs/038-viewer-poi-zoom T034: show marker style picker only when an agent POI is active. */}
-            {locationSource === 'agent' && <MarkerStyleSelector />}
+            {/* The account menu is no longer a workspace ControlDefinition — it is the same
+                UserMenu the AppShell renders, wearing this cluster's circular trigger. */}
+            <StudioAccountMenuButton />
           </>
         }
       >
@@ -296,6 +299,7 @@ export function ConversationView({
   const {
     messages,
     isStreaming,
+    pendingLabel,
     error,
     clearError,
     send,
@@ -362,20 +366,47 @@ export function ConversationView({
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
   const [isManualReplay, setIsManualReplay] = useState(false)
 
+  /**
+   * Assistant messages already spoken this turn, so each is voiced exactly once.
+   *
+   * Keyed by content rather than id because the turn's first message is issued a client-side id
+   * while streaming and then re-keyed to the server's when `__MEMORY__` lands; keying on the id
+   * would speak that reply a second time the moment it changed.
+   */
+  const spokenRepliesRef = useRef(new Set<string>())
+
   useEffect(() => {
-    if (wasStreamingRef.current && !isStreaming) {
-      const last = messages[messages.length - 1]
-      if (last?.role === 'assistant' && last.content && last.id) {
-        tts.speak(last.content, language)
-        setPlayingMessageId(last.id)
-        setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
-        // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
-        // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
-        // this component's single source of truth for "is the panel open," replacing the
-        // separate `isPanelOpen` store read this effect used to compute independently.
-        if (!expanded) markUnread('chat')
-      }
-    }
+    // Spoken as each reply *completes*, not when the whole turn ends.
+    //
+    // A turn can hold the stream open for tens of seconds after the reply is finished — the
+    // boundary lookup — and waiting for the end meant the reply sat there silently until the
+    // confirmation arrived. A reply is complete once another message has appeared behind it, or
+    // once streaming has stopped.
+    let turnStart = messages.length - 1
+    while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
+    if (turnStart < 0) return
+
+    // Empty placeholders are kept in this list on purpose. One of them is exactly how the
+    // server says "this reply is finished, the next is still being worked on" — filtering them
+    // out first made the finished reply look like the last one, so nothing was ever spoken until
+    // the whole turn ended.
+    const replies = messages.slice(turnStart + 1).filter((m) => m.role === 'assistant')
+
+    replies.forEach((reply, index) => {
+      const isComplete = index < replies.length - 1 || !isStreaming
+      if (!reply.content || !isComplete || spokenRepliesRef.current.has(reply.content)) return
+
+      spokenRepliesRef.current.add(reply.content)
+      tts.speak(reply.content, language)
+      setPlayingMessageId(reply.id ?? null)
+      setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
+      // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
+      // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
+      // this component's single source of truth for "is the panel open," replacing the
+      // separate `isPanelOpen` store read this effect used to compute independently.
+      if (!expanded) markUnread('chat')
+    })
+
     wasStreamingRef.current = isStreaming
   }, [isStreaming, messages, language, tts, expanded, markUnread])
 
@@ -821,7 +852,7 @@ export function ConversationView({
                         }}
                       >
                         {isThinking ? (
-                          <ThinkingIndicator />
+                          <ThinkingIndicator label={pendingLabel ?? undefined} />
                         ) : (
                           <MessageBubble
                             message={message}

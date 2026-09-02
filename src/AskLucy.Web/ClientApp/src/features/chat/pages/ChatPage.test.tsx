@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -391,19 +392,31 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Account menu' })).toBeInTheDocument()
   })
 
+  // Menu contents are read from the DOM rather than through getByRole. Once MUI's portalled
+  // menu is mounted, Testing Library's role queries run an accessibility check that calls
+  // getComputedStyle, and jsdom throws "object null is not iterable" out of its font-size
+  // resolver — a jsdom bug, not a problem with the menu.
+  const openAccountMenuLabels = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }))
+    return Array.from(document.querySelectorAll('[role="menuitem"]')).map((el) =>
+      (el.textContent ?? '').trim(),
+    )
+  }
+
   it('reaches every account-menu destination and the theme toggle through the account control (FR-024)', () => {
+    // The workspace no longer owns a second copy of this list — the trigger is a Fab in the
+    // cluster, the menu behind it is the same UserMenu the AppShell renders.
     renderChatPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    const labels = openAccountMenuLabels()
 
     for (const label of [
       'Profile',
       'Settings',
-      'Chat Configuration',
-      'Chat History',
+      'Chat settings',
       'Documents',
       'Knowledge Bases',
       'Memory Center',
@@ -411,22 +424,23 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Agents',
       'Workflows',
       'Privacy Policy',
-      'Toggle theme',
       'Log out',
     ]) {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      expect(labels).toContain(label)
     }
   })
 
-  it('reaches Chat Configuration and Chat History from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
+  it('keeps the theme toggle beside the account button, not inside its menu (FR-024)', () => {
+    renderChatPage()
+    expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeInTheDocument()
+  })
+
+  it('reaches Chat settings from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
     renderChatPage()
 
-    // Click 1: open the account control. Click 2: the destination itself — matches FR-011's
-    // "two clicks or fewer" requirement for reaching either Settings destination from the
-    // workspace.
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    expect(screen.getByRole('button', { name: 'Chat Configuration' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Chat History' })).toBeInTheDocument()
+    // Click 1: open the account menu. Click 2: the destination itself. Chat Configuration and
+    // Chat History are tabs on that one page now, so the workspace lists it once.
+    expect(openAccountMenuLabels()).toContain('Chat settings')
   })
 
   it('shows real icon actions (not placeholder text) for layers/navigation/selection/analysis, opening a "coming soon" dialog on click (FR-012/FR-021)', () => {
@@ -484,12 +498,15 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'true',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    expect(screen.getByRole('button', { name: 'Navigation' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
-    expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-expanded', 'true')
+    // The account menu is a popover now, not a workspaceOverlayStore control — but opening it
+    // still collapses whatever tool control was expanded, so the workspace never shows two open
+    // panels at once. Read from the DOM: the open menu portal breaks role queries under jsdom.
+    const accountButton = screen.getByRole('button', { name: 'Account menu' })
+    fireEvent.click(accountButton)
+    expect(
+      document.querySelector('[aria-label="Navigation"]')?.getAttribute('aria-expanded'),
+    ).toBe('false')
+    expect(accountButton).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('Tab visits every WorkspaceOverlay control, in the same top-cluster → right-stack order they render (FR-009, US4)', async () => {
@@ -501,9 +518,9 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     await waitForModelSeeding(queryClient)
 
     for (const label of [
-      'Toggle theme',
+      'Switch to dark mode',
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
-      'Account',
+      'Account menu',
       'View mode',
       'Map style',
       'Layers',
@@ -572,7 +589,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
         'Navigation',
         'Selection',
         'Analysis',
-        'Account',
+        'Account menu',
       ]) {
         expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
       }
@@ -620,6 +637,30 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
 
     expect(await screen.findByText('Hello from the chat control')).toBeInTheDocument()
   }, 15000)
+
+  /**
+   * The marker-style button appears only while an agent POI is active. Rendered last it pushed
+   * the cluster's three fixed buttons sideways every time a location resolved; first, the row
+   * stays put and it grows off the left edge instead.
+   */
+  it('places the marker-style button ahead of the theme toggle in the top cluster', async () => {
+    renderChatPage()
+    // Set after mount: ChatPage clears the store on mount when geolocation is unavailable,
+    // which it is under jsdom.
+    act(() => {
+      useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Al Safa Park 2', 0.9)
+    })
+
+    try {
+      const marker = await screen.findByRole('button', { name: 'Change POI marker style' })
+      const theme = screen.getByRole('button', { name: /Switch to (light|dark) mode/i })
+
+      // Node.DOCUMENT_POSITION_FOLLOWING — the theme toggle comes after the marker button.
+      expect(marker.compareDocumentPosition(theme) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    } finally {
+      act(() => useActiveLocationStore.getState().clear())
+    }
+  })
 
   it('no longer renders a provider/model switcher or a conversation-history panel in the chat control (specs/025-chat-configuration-settings FR-008)', () => {
     renderChatPage()
@@ -764,7 +805,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     // fireEvent (not userEvent) here: jsdom's CSS engine has a known issue resolving
     // computed styles for some elements in this larger tree when userEvent's
     // pointer-events/accessibility-tree checks run; fireEvent dispatches directly.
-    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }))
     fireEvent.click(screen.getByText('Log out'))
 
     await waitFor(() => expect(logoutRequested).toBe(true))
@@ -1388,6 +1429,131 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 
     await waitFor(() => expect(screen.getByText('Hello there')).toBeInTheDocument())
     expect(screen.queryByRole('status', { name: 'Ask Lucy is thinking' })).not.toBeInTheDocument()
+  })
+
+  /**
+   * The site-boundary confirmation reports a second action, which finishes seconds after the
+   * location did. Appending it to the reply ran two unrelated sentences straight together and
+   * rewrote a bubble the user had most likely already read, so the server closes the first
+   * message and opens a second.
+   */
+  it('renders a __MESSAGE_BREAK__ as a second assistant bubble rather than more text on the first', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream([
+          'Centred the viewer on Al Safa Park 2.',
+          '__MESSAGE_BREAK__',
+          "I've outlined the site boundary.",
+        ])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    // Two separate bubbles: the marker itself never renders, and neither sentence has been
+    // concatenated onto the other.
+    expect(await screen.findByText('Centred the viewer on Al Safa Park 2.')).toBeInTheDocument()
+    expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
+    expect(screen.queryByText(/__MESSAGE_BREAK__/)).not.toBeInTheDocument()
+  })
+
+  /**
+   * The turn holds the stream open while the boundary resolves — tens of seconds, sometimes the
+   * full 45s budget. Before this, the reply sat on screen looking finished, silent, with nothing
+   * to say anything was still happening.
+   */
+  it('shows what it is waiting for while the boundary resolves, and speaks the reply without waiting', async () => {
+    // Cleared because `mockTts` is shared across this file and vi.spyOn on an already-spied
+    // property hands back the same accumulating mock, so counts leak between tests.
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    speak.mockClear()
+    let releaseBoundary: () => void = () => {}
+    const boundaryDone = new Promise<void>((resolve) => {
+      releaseBoundary = resolve
+    })
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode('data: Centred the viewer on it.\n\n'))
+            controller.enqueue(
+              encoder.encode('data: __MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}\n\n'),
+            )
+            await boundaryDone
+            controller.enqueue(encoder.encode("data: I've outlined the site boundary.\n\n"))
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            controller.close()
+          },
+        })
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    // Still mid-stream: the reply is complete and voiced, and the pending work is named.
+    expect(await screen.findByText('Centred the viewer on it.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: 'Finding the site boundary' })).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
+    expect(speak.mock.calls[0][0]).toContain('Centred the viewer on it.')
+
+    act(() => releaseBoundary())
+
+    expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+  })
+
+  /**
+   * Auto-speak used to read `messages[length - 1]` and require an `id` on it. Splitting the
+   * boundary confirmation into its own bubble broke both halves at once: the last message became
+   * the confirmation, so the reply went unspoken, and the confirmation carries no server id — only
+   * the turn's first message gets one — so the id guard silenced the turn outright. Lucy simply
+   * stopped talking on every "show me" query.
+   */
+  it('speaks every message of a split turn, including the one with no server id', async () => {
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    speak.mockClear() // shared mockTts — see the note above
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream([
+          'Centred the viewer on Al Safa Park 2.',
+          '__MESSAGE_BREAK__',
+          "I've outlined the site boundary.",
+        ])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+
+    // Each reply is voiced as it completes, not both together once the turn ends. The boundary
+    // can hold the stream open for tens of seconds after the reply is finished, and waiting for
+    // the end left that reply on screen in silence.
+    const spoken = speak.mock.calls.map((call) => call[0])
+    expect(spoken[0]).toContain('Centred the viewer on Al Safa Park 2.')
+    expect(spoken[1]).toContain("I've outlined the site boundary.")
   })
 
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {

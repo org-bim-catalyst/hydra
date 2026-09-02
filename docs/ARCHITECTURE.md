@@ -404,6 +404,37 @@ The AI Provider Engine selects the active provider based on user settings.
 
 Every provider must implement identical interfaces.
 
+## Failure classification
+
+Every provider-originated failure classifies to exactly one `AiProviderFailureKind`
+(specs/043, ADR 0008): credential rejected, credential unreadable, not configured, quota
+exhausted, rate limited, usage restricted, unavailable, request invalid, or response not
+understood. There is deliberately no "internal error" member — that condition is the *absence*
+of a classified provider failure, and continues to map to the generic 500.
+
+The split across layers follows the dependency rule:
+
+- **Domain** owns `AiProviderFailureKind`, because `AIProvider` and `ProviderHealthCheck`
+  persist it as part of their own state and Domain may reference nothing.
+- **Application** owns the `AiProviderException` hierarchy keyed by that enum. The four
+  original exception types are subtypes, so existing catch-by-type sites are unaffected.
+- **Infrastructure** owns `AiProviderResponseClassifier`, the single place an
+  `HttpResponseMessage` and a vendor error envelope become a classification. Vendor reason
+  codes never escape this layer.
+
+Two invariants hold across all of it:
+
+1. **The vendor reason wins over the HTTP status.** Google returns 403 for an invalid key, a
+   disabled API and disabled billing alike; status alone told administrators to check a key
+   that was fine.
+2. **The vendor response body never enters an exception message.** It is logged server-side,
+   truncated. The message becomes the administrator-visible Problem Details `detail`, and the
+   classification is disclosed to administrators only — end-user messaging is unchanged.
+
+Provider health records the same `Kind` alongside its coarse status, and the admin provider
+list returns a computed staleness horizon (3x the configured check interval) so a status that
+has not been reconfirmed is never presented as current fact.
+
 ---
 
 # 10. Chat Engine

@@ -21,4 +21,10 @@ export interface ControlDefinition {
   kind: ControlKind
   placement: ControlPlacement
   content: ReactNode
+  /** Pass true to suppress the green accent on the trigger when expanded.
+   * Use for controls whose icon identity (e.g. avatar) must stay consistent. */
+  noTriggerAccent?: boolean
+  /** 'pill' (default): sliding ribbon that wraps around the trigger button.
+   * 'card': classic floating dropdown that sits below the trigger button. */
+  contentShape?: 'pill' | 'card'
 }

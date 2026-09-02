@@ -1,4 +1,5 @@
-import BrightnessMediumIcon from '@mui/icons-material/Brightness4'
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material'
 import { BrandMark } from '../../../components/BrandMark'
 import { UserMenu } from '../../../components/UserMenu'
@@ -14,6 +15,7 @@ import { radius } from '../../../theme'
 export function MinimalTopBar() {
   const theme = useTheme()
   const toggleTheme = useThemeStore((s) => s.toggle)
+  const isDark = useThemeStore((s) => s.mode) === 'dark'
   const glass = createGlassTokens(theme.palette.mode)
 
   // A translucent backdrop only behind each control cluster (not the full bar) keeps
@@ -61,8 +63,8 @@ export function MinimalTopBar() {
         </Typography>
       </Stack>
       <Stack direction="row" spacing={0.5} sx={clusterSx}>
-        <IconButton onClick={toggleTheme} aria-label="Toggle theme">
-          <BrightnessMediumIcon />
+        <IconButton onClick={toggleTheme} aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+          {isDark ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
         </IconButton>
         <UserMenu />
       </Stack>

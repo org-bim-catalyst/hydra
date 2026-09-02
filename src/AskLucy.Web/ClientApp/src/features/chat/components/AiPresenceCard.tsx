@@ -1,11 +1,18 @@
-import { Box } from '@mui/material'
+import { Box, alpha } from '@mui/material'
+import type { Theme } from '@mui/material'
 import { lazy, Suspense } from 'react'
 
-/** Sampled directly from the readdy.ai reference's own presence-preview card
- * (`getComputedStyle`, not eyeballed): `w-[25vh] h-[25vh] rounded-lg
- * bg-background-100/50 backdrop-blur-lg border border-background-300/60`. */
-const CARD_BG = 'oklch(0.18 0.02 280 / 0.5)'
-const CARD_BORDER = '1px solid oklch(0.34 0.02 280 / 0.6)'
+/**
+ * The readdy.ai reference's presence-preview card: `w-[25vh] h-[25vh] rounded-lg
+ * bg-background-100/50 backdrop-blur-lg border border-background-300/60`.
+ *
+ * `/50` and `/60` — the card was always meant to be translucent. It was frozen here as the
+ * dark literals those tokens resolved to on a light-mode-only preview, which both pinned it
+ * dark and, together with the scene's opaque backdrop, made it read as a solid tile. The
+ * reference's ramps invert between modes, so the roles are mapped onto the palette instead.
+ */
+const cardBg = (t: Theme) => alpha(t.palette.background.paper, 0.5)
+const cardBorder = (t: Theme) => `1px solid ${alpha(t.palette.divider, 0.6)}`
 
 const SceneBackground = lazy(() =>
   import('../scene/SceneBackground').then((m) => ({ default: m.SceneBackground })),
@@ -46,16 +53,16 @@ export function AiPresenceCard({ getReactiveIntensity }: AiPresenceCardProps) {
         borderRadius: '8px',
         overflow: 'hidden',
         pointerEvents: 'auto',
-        bgcolor: CARD_BG,
-        border: CARD_BORDER,
+        bgcolor: cardBg,
+        border: cardBorder,
         backdropFilter: 'blur(16px)',
-        boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+        boxShadow: (t) => (t.palette.mode === 'dark' ? '0 8px 28px rgba(0,0,0,0.35)' : '0 8px 28px rgba(0,0,0,0.18)'),
       }}
     >
       <Suspense
         fallback={
-          // Dark background while the scene chunk loads — no portrait flash (issue doc §Bug A).
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: CARD_BG }} />
+          // Plain surface while the scene chunk loads — no portrait flash (issue doc §Bug A).
+          <Box sx={{ position: 'absolute', inset: 0, bgcolor: cardBg }} />
         }
       >
         <SceneBackground getReactiveIntensity={getReactiveIntensity} />

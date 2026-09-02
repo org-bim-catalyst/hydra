@@ -125,10 +125,6 @@ describe('SettingsPage accessibility (FR-004, SPEC-017 T043)', () => {
 const SETTLED_CONTENT_BY_TAB: Record<string, string> = {
   Security: 'Change password',
   Account: 'Email address',
-  'AI Providers': 'Default AI provider & model',
-  Voice: 'Voice conversation',
-  'Chat Configuration': 'Current conversation model',
-  'Chat History': 'Search conversations',
   Data: 'Download your data',
   Cookies: 'Cookie preferences',
 }

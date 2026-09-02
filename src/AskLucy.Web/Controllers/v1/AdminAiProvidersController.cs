@@ -1,12 +1,16 @@
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
+using AskLucy.Application.Ai.Commands.CheckAiProviderHealth;
 using AskLucy.Application.Ai.Commands.ClearAiProviderCredential;
+using AskLucy.Application.Ai.Commands.SetAiCapabilityAssignment;
 using AskLucy.Application.Ai.Commands.SetAiProviderCredential;
 using AskLucy.Application.Ai.Commands.UpdateAiModelStatus;
 using AskLucy.Application.Ai.Commands.UpdateAiProvider;
 using AskLucy.Application.Ai.Queries.GetAdminAiModels;
 using AskLucy.Application.Ai.Queries.GetAdminAiProviders;
+using AskLucy.Application.Ai.Queries.GetAiCapabilityAssignments;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
+using AskLucy.Domain.Ai;
 using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -33,7 +37,26 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     [HttpPatch("providers/{id:guid}")]
     public async Task<IActionResult> UpdateProvider(Guid id, UpdateAiProviderRequest request, CancellationToken cancellationToken)
     {
-        await mediator.Send(new UpdateAiProviderCommand(id, request.IsEnabled, request.DefaultModelId), cancellationToken);
+        await mediator.Send(
+            new UpdateAiProviderCommand(id, request.IsEnabled, request.DefaultModelId, request.ClearDefaultModel ?? false),
+            cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Which provider serves each non-chat capability. The model is not chosen here — it is
+    /// whatever default model the assigned provider carries, so the two settings can never
+    /// disagree.
+    /// </summary>
+    [HttpGet("capabilities")]
+    public async Task<ActionResult<IReadOnlyList<AiCapabilityAssignmentDto>>> GetCapabilityAssignments(CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetAiCapabilityAssignmentsQuery(), cancellationToken));
+
+    [HttpPut("capabilities/{capability}")]
+    public async Task<IActionResult> SetCapabilityAssignment(
+        AiCapability capability, SetAiCapabilityAssignmentRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new SetAiCapabilityAssignmentCommand(capability, request.ProviderId), cancellationToken);
         return NoContent();
     }
 
@@ -50,6 +73,14 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
         await mediator.Send(new ClearAiProviderCredentialCommand(id), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>specs/043 FR-024. A provider found failing still returns 200 - the check succeeded, and its finding is the payload; only a failure of the check mechanism is a 5xx.</summary>
+    [HttpPost("providers/{providerId:guid}/actions/check-health")]
+    [ProducesResponseType<CheckAiProviderHealthResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CheckAiProviderHealthResultDto>> CheckProviderHealth(Guid providerId, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new CheckAiProviderHealthCommand(providerId), cancellationToken));
 
     [HttpGet("providers/{providerId:guid}/models")]
     public async Task<ActionResult<IReadOnlyList<AdminAiModelDto>>> GetModels(Guid providerId, CancellationToken cancellationToken) =>

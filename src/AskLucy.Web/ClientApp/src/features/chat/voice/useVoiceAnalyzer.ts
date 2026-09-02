@@ -33,6 +33,36 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
   const hasStartedPlaybackRef = useRef(false)
   const pendingEndOfStreamRef = useRef(false)
 
+  /**
+   * The single place a chunk is handed to the SourceBuffer.
+   *
+   * `appendBuffer` throws `InvalidStateError` if the buffer is still processing a previous
+   * append, and again if the MediaSource has already been sealed by `endOfStream()`. Both were
+   * reachable: a late `audio-chunk` arriving after the reply's `done` event hit the second, and
+   * it surfaced as an uncaught error in the console rather than as anything the code handled.
+   *
+   * Returns false when the chunk could not be appended, so callers can re-queue rather than
+   * lose it.
+   */
+  const appendChunk = useCallback((bytes: Uint8Array): boolean => {
+    const sourceBuffer = sourceBufferRef.current
+    const mediaSource = mediaSourceRef.current
+    if (!sourceBuffer || sourceBuffer.updating) return false
+    // Sealed or torn down: nothing more can be appended, and trying is the console error.
+    if (!mediaSource || mediaSource.readyState !== 'open') return false
+
+    try {
+      sourceBuffer.appendBuffer(bytes as unknown as BufferSource)
+      return true
+    } catch (err) {
+      // constitution VIII: never swallowed. A failed append means this turn's audio is
+      // incomplete, which the caller surfaces the same way as any other playback failure.
+      const message = err instanceof Error ? err.message : String(err)
+      onPlaybackError?.(`Failed to append audio chunk: ${message}`)
+      return false
+    }
+  }, [onPlaybackError])
+
   const ensureGraph = useCallback(() => {
     if (audioContextRef.current) {
       // If the MediaSource has ended or closed (normal end-of-turn after endStream()) the
@@ -105,7 +135,8 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
         startPlaybackOnce()
         const next = pendingChunksRef.current.shift()
         if (next) {
-          sourceBuffer.appendBuffer(next)
+          // Put it back if the buffer cannot take it right now, rather than dropping audio.
+          if (!appendChunk(next)) pendingChunksRef.current.unshift(next)
           return
         }
         // Queue drained — if endStream() was called while we were still appending, seal now.
@@ -126,8 +157,8 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
       // fired — without this, the queue would never drain: draining otherwise only
       // happens inside 'updateend', which never fires without a first appendBuffer call.
       const queued = pendingChunksRef.current.shift()
-      if (queued) {
-        sourceBuffer.appendBuffer(queued)
+      if (queued && !appendChunk(queued)) {
+        pendingChunksRef.current.unshift(queued)
       }
     })
 
@@ -147,7 +178,8 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     analyserRef.current = analyser
     gainRef.current = gain
     frequencyDataRef.current = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount))
-  }, [onPlaybackError])
+  }, [onPlaybackError, appendChunk])
+
 
   /** Call for every `audio-chunk` event, in arrival order (contracts/voice-reply-stream.md). */
   const playAudioChunk = useCallback(
@@ -157,14 +189,12 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
       const bytes = new Uint8Array(new ArrayBuffer(binary.length))
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
 
-      const sourceBuffer = sourceBufferRef.current
-      if (sourceBuffer && !sourceBuffer.updating && pendingChunksRef.current.length === 0) {
-        sourceBuffer.appendBuffer(bytes)
-      } else {
+      // Queue whenever anything is already waiting, so chunks keep their arrival order.
+      if (pendingChunksRef.current.length > 0 || !appendChunk(bytes)) {
         pendingChunksRef.current.push(bytes)
       }
     },
-    [ensureGraph],
+    [ensureGraph, appendChunk],
   )
 
   /** Ends the MediaSource stream once the reply's `done`/`audio-failed` event arrives — no

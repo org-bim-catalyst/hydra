@@ -184,13 +184,13 @@ describe('ChatPage accessibility — Studio workspace shell (SPEC-024, FR-019, c
   it('has no automatically detectable a11y violations in the all-collapsed state (FR-019, US4)', async () => {
     const { container, findByRole } = renderChatPage()
 
-    await findByRole('button', { name: 'Account' })
+    await findByRole('button', { name: 'Account menu' })
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
-  it.each(['View mode', 'Layers', 'Navigation', 'Selection', 'Analysis', 'Account'])(
+  it.each(['View mode', 'Layers', 'Navigation', 'Selection', 'Analysis'])(
     'has no automatically detectable a11y violations with %s expanded (FR-019, US4)',
     async (label) => {
       const { container, findByRole } = renderChatPage()

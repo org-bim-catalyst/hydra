@@ -1051,7 +1051,7 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("ContextWindowTokens")
+                    b.Property<int?>("ContextWindowTokens")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAtUtc")
@@ -1072,7 +1072,7 @@ namespace AskLucy.Persistence.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<int>("MaxOutputTokens")
+                    b.Property<int?>("MaxOutputTokens")
                         .HasColumnType("int");
 
                     b.Property<string>("ModelKey")
@@ -1170,6 +1170,14 @@ namespace AskLucy.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("HealthFailureKind")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("HealthFailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("HealthStatus")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1210,6 +1218,55 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("AIProviders", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Ai.AiCapabilityAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Capability")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Capability")
+                        .IsUnique()
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("ProviderId");
+
+                    b.ToTable("AiCapabilityAssignments", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Ai.ProviderHealthCheck", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1232,6 +1289,14 @@ namespace AskLucy.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("FailureKind")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -7811,6 +7876,15 @@ namespace AskLucy.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Ai.AiCapabilityAssignment", b =>
+                {
+                    b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Ai.ProviderHealthCheck", b =>
                 {
                     b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
@@ -7907,6 +7981,64 @@ namespace AskLucy.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.OwnsOne("AskLucy.Domain.Chats.ActiveSiteBoundary", "ActiveBoundary", b1 =>
+                        {
+                            b1.Property<Guid>("UserChatId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<double>("AreaSquareMeters")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryAreaSquareMeters");
+
+                            b1.Property<double>("CentroidLatitude")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryCentroidLatitude");
+
+                            b1.Property<double>("CentroidLongitude")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryCentroidLongitude");
+
+                            b1.Property<double>("Confidence")
+                                .HasColumnType("float")
+                                .HasColumnName("ActiveBoundaryConfidence");
+
+                            b1.Property<string>("ConfidenceLevel")
+                                .IsRequired()
+                                .HasMaxLength(10)
+                                .HasColumnType("nvarchar(10)")
+                                .HasColumnName("ActiveBoundaryConfidenceLevel");
+
+                            b1.Property<string>("Polygon")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ActiveBoundaryPolygonJson");
+
+                            b1.Property<string>("SiteName")
+                                .IsRequired()
+                                .HasMaxLength(500)
+                                .HasColumnType("nvarchar(500)")
+                                .HasColumnName("ActiveBoundarySiteName");
+
+                            b1.Property<string>("Source")
+                                .IsRequired()
+                                .HasMaxLength(30)
+                                .HasColumnType("nvarchar(30)")
+                                .HasColumnName("ActiveBoundarySource");
+
+                            b1.Property<string>("SourceDetail")
+                                .IsRequired()
+                                .HasMaxLength(1000)
+                                .HasColumnType("nvarchar(1000)")
+                                .HasColumnName("ActiveBoundarySourceDetail");
+
+                            b1.HasKey("UserChatId");
+
+                            b1.ToTable("UserChats");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserChatId");
+                        });
+
                     b.OwnsOne("AskLucy.Domain.Chats.ActiveSiteLocation", "ActiveLocation", b1 =>
                         {
                             b1.Property<Guid>("UserChatId")
@@ -7937,6 +8069,8 @@ namespace AskLucy.Persistence.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("UserChatId");
                         });
+
+                    b.Navigation("ActiveBoundary");
 
                     b.Navigation("ActiveLocation");
                 });

@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -45,9 +46,23 @@ public sealed class ApplyProviderModelSyncCommandHandler(
                 continue;
             }
 
-            var model = AIModel.Create(
-                request.ProviderId, added.ModelKey, added.DisplayName, added.ContextWindowTokens, added.MaxOutputTokens,
-                added.Capabilities, releaseDate: null, pricing: null, actorUserId);
+            AIModel model;
+            try
+            {
+                model = AIModel.Create(
+                    request.ProviderId, added.ModelKey, added.DisplayName, added.ContextWindowTokens, added.MaxOutputTokens,
+                    added.Capabilities, releaseDate: null, pricing: null, actorUserId);
+            }
+            catch (DomainRuleViolationException ex)
+            {
+                // The vendor's own model-list endpoint often omits metadata a couple of these
+                // providers can't supply at all (e.g. OpenAI's list carries no context-window
+                // figure for any model) — a single bad row must not abort every other row's
+                // add/remove in the same batch (FR-007a "best-effort, per row").
+                failed.Add(new SyncApplyFailureDto(added.ModelKey, added.DisplayName, ex.Message));
+                continue;
+            }
+
             model.SetStatus(AIModelStatus.Unavailable, actorUserId);
             models.Add(model);
             appliedModelKeys.Add(added.ModelKey);

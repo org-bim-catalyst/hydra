@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Retrieval;
 using FluentAssertions;
@@ -30,8 +31,10 @@ public sealed class SendChatMessageRagIntegrationTests
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
+    private readonly IBoundaryResolutionService _boundaryResolutionService = Substitute.For<IBoundaryResolutionService>();
     private readonly IViewerZoomDetector _viewerZoomDetector = Substitute.For<IViewerZoomDetector>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
+    private readonly BoundaryScoringOptions _boundaryScoringOptions = new();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
@@ -67,8 +70,10 @@ public sealed class SendChatMessageRagIntegrationTests
 
         _handler = new SendChatMessageCommandHandler(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
-            _locationResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
+            _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            Microsoft.Extensions.Options.Options.Create(_boundaryScoringOptions),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SendChatMessageCommandHandler>.Instance,
             new SendChatMessageCommandValidator(_providers, _models));
     }
 
@@ -110,7 +115,10 @@ public sealed class SendChatMessageRagIntegrationTests
         await _ragService.DidNotReceive().RetrieveContextAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>());
         _resolvedProvider.Received(1).StreamChatAsync(
-            Arg.Is<IReadOnlyList<ChatMessage>>(m => m != null && m.Count == 1 && m[0].Role == ChatRole.User),
+            // Every turn now opens with ReplyScopePromptFraming, so "no retrieval/memory context"
+            // means exactly two messages: that standing instruction, then the user.
+            Arg.Is<IReadOnlyList<ChatMessage>>(m =>
+                m != null && m.Count == 2 && m[0].Role == ChatRole.System && m[1].Role == ChatRole.User),
             "gpt-4.1", Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
         chunks.Should().NotContain(c => c.RetrievalOutcome != null);
     }

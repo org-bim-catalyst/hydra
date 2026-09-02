@@ -1,0 +1,105 @@
+import { useState } from 'react'
+import {
+  Alert,
+  Paper,
+  Snackbar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from '@mui/material'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '../../../api/httpClient'
+import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
+import { AdminShell } from '../components/AdminShell'
+import { ProviderDefaultModelRow } from '../components/ProviderDefaultModelRow'
+
+const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
+
+/**
+ * Step two of three: each provider's default model. Kept on its own page because it is the
+ * hinge between the other two — a capability assignment names a provider, and the model it runs
+ * on is whatever is chosen here. Burying it inside an expandable row on the Providers page made
+ * a platform-wide decision look like a per-provider detail.
+ */
+export function AdminDefaultModelsPage() {
+  const queryClient = useQueryClient()
+  const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
+
+  const { data: providers } = useQuery({
+    queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY,
+    queryFn: adminAiProvidersApi.getProviders,
+  })
+
+  /**
+   * Only providers that are enabled and hold a credential. A default model on a provider that
+   * cannot be used is a setting with nowhere to apply — and the Capabilities page will not offer
+   * it either, so listing it here only invites configuring something inert.
+   */
+  const assignableProviders = (providers ?? []).filter((p) => p.isEnabled && p.hasCredential)
+
+  const setDefaultMutation = useMutation({
+    mutationFn: ({ providerId, modelId }: { providerId: string; modelId: string | null }) =>
+      modelId === null
+        ? adminAiProvidersApi.updateProvider(providerId, { clearDefaultModel: true })
+        : adminAiProvidersApi.updateProvider(providerId, { defaultModelId: modelId }),
+    onSuccess: (_, { modelId }) => {
+      void queryClient.invalidateQueries({ queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY })
+      setFeedback({
+        severity: 'success',
+        message: modelId === null ? 'Default model cleared.' : 'Default model saved.',
+      })
+    },
+    // constitution VIII: a failed save must reach the user, not just the console.
+    onError: (err: unknown) => {
+      setFeedback({
+        severity: 'error',
+        message: err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.',
+      })
+    },
+  })
+
+  return (
+    <AdminShell
+      title="Default models"
+      subtitle="The model each provider contributes — a capability assigned to a provider runs on the model chosen here"
+
+    >
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Only providers that are enabled with a credential appear here, and only models marked
+        Available on the Providers page can be a default. A provider with no default model cannot
+        be assigned to a capability.
+      </Alert>
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Provider</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Default model</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {assignableProviders.map((provider) => (
+              <ProviderDefaultModelRow
+                key={provider.id}
+                provider={provider}
+                disabled={setDefaultMutation.isPending}
+                onChange={(modelId) => setDefaultMutation.mutate({ providerId: provider.id, modelId })}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
+        <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
+          {feedback?.message}
+        </Alert>
+      </Snackbar>
+    </AdminShell>
+  )
+}

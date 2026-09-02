@@ -13,6 +13,8 @@ import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPane
 import '../../../viewer/panels/types'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { POIMarkerOverlay } from './POIMarkerOverlay'
+import { SiteBoundaryOverlay } from './SiteBoundaryOverlay'
+import { SiteBoundaryConfidenceBadge } from './SiteBoundaryConfidenceBadge'
 
 const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
@@ -120,6 +122,9 @@ export function ViewerSurface() {
       )}
       {/* specs/038-viewer-poi-zoom T016/T017: POI marker for agent-confirmed locations. */}
       <POIMarkerOverlay />
+      {/* specs/042-site-boundary-resolution: animated highlight for the resolved site boundary. */}
+      <SiteBoundaryOverlay />
+      <SiteBoundaryConfidenceBadge />
       <FloatingPanelHost />
       {/* specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
           ExecutionMonitor already uses for useWorkflowExecutionHub's isLive, adapted to only
@@ -133,7 +138,15 @@ export function ViewerSurface() {
           variant="outlined"
           color="default"
           data-testid="panel-hub-connection-status"
-          sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'background.paper' }}
+          sx={{
+              position: 'absolute',
+              bottom: { xs: 16, sm: 24 },
+              left: {
+                xs: 'calc(16px + min(25vh, 280px) + 12px)',
+                sm: 'calc(24px + min(25vh, 280px) + 12px)',
+              },
+              bgcolor: 'background.paper',
+            }}
         />
       )}
     </Box>

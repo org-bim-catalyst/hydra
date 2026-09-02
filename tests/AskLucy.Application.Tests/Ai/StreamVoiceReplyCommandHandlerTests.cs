@@ -70,6 +70,48 @@ public sealed class StreamVoiceReplyCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ShouldSpeakEachMarkdownLine_WithoutWaitingForTerminalPunctuation()
+    {
+        // Replies are markdown. Headings and bullet items routinely carry no full stop, so on
+        // terminal punctuation alone the buffer ran through the whole list before one sentence
+        // could be synthesised — which is why Lucy started speaking long after the text had
+        // finished rendering. A line is a natural unit of speech in its own right.
+        SetUpLlmStream(new ChatStreamChunk("### Facilities\n- Walking tracks\n- Tennis courts\n", null));
+
+        _textToSpeech.StreamSpeechAsync(Arg.Any<string>(), DefaultSettings, Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable<byte[]>([[1]]));
+
+        await CollectAsync(new StreamVoiceReplyCommand(Guid.NewGuid(), [], Guid.NewGuid(), Guid.NewGuid(), null, "en"));
+
+        _textToSpeech.Received().StreamSpeechAsync("### Facilities", DefaultSettings, Arg.Any<CancellationToken>());
+        _textToSpeech.Received().StreamSpeechAsync("- Walking tracks", DefaultSettings, Arg.Any<CancellationToken>());
+        _textToSpeech.Received().StreamSpeechAsync("- Tennis courts", DefaultSettings, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ShouldFlushALongUnpunctuatedRun_RatherThanHoldItUntilItEnds()
+    {
+        // No boundary of any kind for far longer than anyone should wait in silence.
+        var runOn = string.Join(' ', Enumerable.Repeat("word", 60));
+        SetUpLlmStream(new ChatStreamChunk(runOn, null));
+
+        _textToSpeech.StreamSpeechAsync(Arg.Any<string>(), DefaultSettings, Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable<byte[]>([[1]]));
+
+        await CollectAsync(new StreamVoiceReplyCommand(Guid.NewGuid(), [], Guid.NewGuid(), Guid.NewGuid(), null, "en"));
+
+        var spoken = _textToSpeech.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(ITextToSpeechProvider.StreamSpeechAsync))
+            .Select(c => (string)c.GetArguments()[0]!)
+            .ToList();
+
+        spoken.Should().NotBeEmpty();
+        spoken[0].Length.Should().BeLessThan(runOn.Length, "the first utterance must not wait for the whole run");
+        // Broken on a word boundary, never mid-word.
+        spoken[0].Should().NotEndWith("wor");
+    }
+
+    [Fact]
     public async Task Handle_ShouldEmitAudioFailed_AndRecordFailover_ButStillCompleteTheTextStream_WhenTtsFails()
     {
         SetUpLlmStream(new ChatStreamChunk("First sentence. ", null), new ChatStreamChunk("Second sentence.", null));

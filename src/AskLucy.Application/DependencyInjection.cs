@@ -17,6 +17,7 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
 using AskLucy.Application.Workflows.Validation;
@@ -41,6 +42,7 @@ public static class DependencyInjection
 
         services.AddScoped<TokenIssuer>();
         services.AddScoped<DefaultProviderResolver>();
+        services.AddScoped<AiCapabilityProviderResolver>();
         services.AddScoped<IDocumentProcessingPipeline, DocumentProcessingPipeline>();
         services.AddScoped<DocumentUploadFinalizer>();
         services.AddScoped<IProcessingStageHandler, ValidationStageHandler>();
@@ -58,11 +60,25 @@ public static class DependencyInjection
         services.AddScoped<IRagService, RagService>();
 
         // Location Query Resolution (specs/037-location-query-resolution).
-        services.AddScoped<ILocationResolutionService, LocationResolutionService>();
+        // Registered as the concrete type as well: ScopeIsolatedLocationResolutionService
+        // resolves it from a fresh scope so the concurrent location task never shares the
+        // request DbContext with the reply stream (see that class for the production race).
+        services.AddScoped<LocationResolutionService>();
+        services.AddScoped<ILocationResolutionService, ScopeIsolatedLocationResolutionService>();
         // specs/038-viewer-poi-zoom US2: pure keyword matcher — no infrastructure deps → Application.
         services.AddTransient<IViewerZoomDetector, ViewerZoomDetector>();
         services.AddOptions<LocationResolutionOptions>()
             .BindConfiguration(LocationResolutionOptions.SectionName)
+            .ValidateOnStart();
+
+        // Site Boundary Resolution (specs/042-site-boundary-resolution) — extends Locations
+        // rather than duplicating it (research.md #1); the primary invocation path is a
+        // SendChatMessageCommandHandler pipeline hook (research.md #11), not an IAgentTool.
+        services.AddScoped<BoundaryCandidateScorer>();
+        services.AddScoped<IBoundaryResolutionService, BoundaryResolutionService>();
+        services.AddOptions<BoundaryScoringOptions>()
+            .BindConfiguration(BoundaryScoringOptions.SectionName)
+            .ValidateDataAnnotations()
             .ValidateOnStart();
 
         // AI Memory System (specs/018-ai-memory-system) — Foundational.
@@ -142,6 +158,10 @@ public static class DependencyInjection
         // registered here alongside the other native tools since, unlike McpToolAdapter, it is not
         // constructed per-server-per-tool by IMcpToolRegistry.
         services.AddScoped<IAgentTool, McpResourceReadTool>();
+        // specs/042-site-boundary-resolution research.md #11 — secondary surface for custom
+        // agents; the base chat experience is driven by the SendChatMessageCommandHandler
+        // pipeline hook registered above, not this tool.
+        services.AddScoped<IAgentTool, SiteBoundaryResolverTool>();
         services.AddScoped<AgentBudgetGuard>();
         services.AddScoped<AgentDuplicateToolCallDetector>();
 

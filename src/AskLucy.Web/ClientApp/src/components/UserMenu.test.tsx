@@ -5,11 +5,14 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { SETTINGS_TAB_INDEX } from '../features/settings/settingsTabs'
 import { UserMenu } from './UserMenu'
 
 const server = setupServer(
-  http.get('*/api/v1/profile', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
+  // The profile endpoint is /users/me — the old '*/api/v1/profile' handler never matched, which
+  // went unnoticed while no test asserted on profile data.
+  http.get('*/api/v1/users/me', () =>
+    HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy', lastName: 'Ali' }),
+  ),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
@@ -43,28 +46,27 @@ function renderMenu() {
 }
 
 describe('UserMenu (specs/025-chat-configuration-settings FR-011)', () => {
-  it('navigates to Settings with the Chat Configuration tab selected', async () => {
+  it('offers one Chat settings destination in place of the two tab deep links', async () => {
+    // Voice, Chat Configuration and Chat History moved onto a page of their own, so the menu
+    // names the page rather than pointing at two tabs inside general Settings.
     const user = userEvent.setup()
     renderMenu()
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }))
-    await user.click(await screen.findByText('Chat Configuration'))
+    await user.click(await screen.findByText('Chat settings'))
 
-    const location = screen.getByTestId('location').textContent ?? ''
-    expect(location).toContain('/settings')
-    expect(JSON.parse(location.replace('/settings', ''))).toEqual({ tab: SETTINGS_TAB_INDEX.ChatConfiguration })
+    expect(screen.getByTestId('location').textContent ?? '').toContain('/chat-settings')
   })
 
-  it('navigates to Settings with the Chat History tab selected', async () => {
+  it('no longer lists the separate Chat Configuration and Chat History items', async () => {
     const user = userEvent.setup()
     renderMenu()
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }))
-    await user.click(await screen.findByText('Chat History'))
+    await screen.findByText('Chat settings')
 
-    const location = screen.getByTestId('location').textContent ?? ''
-    expect(location).toContain('/settings')
-    expect(JSON.parse(location.replace('/settings', ''))).toEqual({ tab: SETTINGS_TAB_INDEX.ChatHistory })
+    expect(screen.queryByText('Chat Configuration')).not.toBeInTheDocument()
+    expect(screen.queryByText('Chat History')).not.toBeInTheDocument()
   })
 
   it('still lists the plain Settings destination without a tab preselected', async () => {
@@ -75,5 +77,15 @@ describe('UserMenu (specs/025-chat-configuration-settings FR-011)', () => {
     await user.click(await screen.findByText('Settings'))
 
     expect(screen.getByTestId('location').textContent).toBe('/settingsnull')
+  })
+
+  it('shows who is signed in, the identity header the Studio card had and this one did not', async () => {
+    const user = userEvent.setup()
+    renderMenu()
+
+    await user.click(screen.getByRole('button', { name: 'Account menu' }))
+
+    expect(await screen.findByText('Lucy Ali')).toBeInTheDocument()
+    expect(screen.getByText('lucy@example.com')).toBeInTheDocument()
   })
 })

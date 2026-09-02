@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Divider, Stack, Typography } from '@mui/material'
-import { AppShell } from '../../../components/AppShell'
+import { AdminShell } from '../../admin/components/AdminShell'
 import { McpServerList } from '../components/McpServerList'
 import { McpHealthBadge } from '../components/McpHealthBadge'
 import { McpToolActivationPanel } from '../components/McpToolActivationPanel'
@@ -14,7 +14,7 @@ export function McpAdministrationPage() {
   const { data: health } = useMcpServerHealth(selectedServerId)
 
   return (
-    <AppShell title="MCP servers" subtitle="Register, monitor, and review tools exposed by Model Context Protocol servers">
+    <AdminShell title="MCP servers" subtitle="Register, monitor, and review tools exposed by Model Context Protocol servers">
       <McpServerList selectedServerId={selectedServerId} onSelectServer={setSelectedServerId} />
 
       {selectedServerId && (
@@ -30,6 +30,6 @@ export function McpAdministrationPage() {
           </Stack>
         </>
       )}
-    </AppShell>
+    </AdminShell>
   )
 }

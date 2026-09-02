@@ -38,6 +38,44 @@ const snapshot = {
 }
 
 describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
+  /**
+   * A failed lookup used to render nothing at all, so the widget vanished and said nothing. On
+   * 2026-09-01 the weather endpoint 502'd twice — the upstream call had run past a 15s client
+   * timeout — and this silence was the entire visible effect, which the constitution's
+   * no-silent-failures rule does not allow even for a decorative widget.
+   */
+  it('says so when the lookup fails, instead of quietly disappearing', async () => {
+    server.use(
+      http.get('*/api/v1/weather/current', () => new HttpResponse(null, { status: 502 })),
+    )
+    act(() => {
+      useActiveLocationStore.getState().setFromGeolocation(51.5, -0.12)
+    })
+
+    renderWidget()
+
+    expect(await screen.findByRole('status', { name: 'Weather is unavailable' })).toBeInTheDocument()
+    expect(screen.getByText('Weather unavailable')).toBeInTheDocument()
+  })
+
+  it('still renders nothing while the first lookup is merely in flight', async () => {
+    server.use(
+      http.get('*/api/v1/weather/current', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        return HttpResponse.json(snapshot)
+      }),
+    )
+    act(() => {
+      useActiveLocationStore.getState().setFromGeolocation(51.5, -0.12)
+    })
+
+    const { container } = renderWidget()
+
+    // Pending is not failed — nothing is claimed until there is something to claim.
+    expect(container).toBeEmptyDOMElement()
+    expect(await screen.findByText('London, United Kingdom')).toBeInTheDocument()
+  })
+
   it('renders nothing while location has not resolved (FR-008)', () => {
     // Store starts empty (afterEach clears it)
     renderWidget()

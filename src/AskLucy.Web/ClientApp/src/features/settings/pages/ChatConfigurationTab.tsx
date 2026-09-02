@@ -21,7 +21,7 @@ import { useAiProviders } from '../../chat/hooks/useAiCatalog'
 import { useChatDetail } from '../../chat/hooks/useChats'
 import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
-import { SETTINGS_TAB_INDEX } from '../settingsTabs'
+import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 
 /**
  * specs/025-chat-configuration-settings — a hub, not an embedded-controls tab (Clarifications
@@ -61,7 +61,7 @@ export function ChatConfigurationTab() {
       })
   }
 
-  const goToSettingsTab = (tab: number) => navigate('/settings', { state: { tab } })
+  const goToChatSettingsTab = (tab: number) => navigate('/chat-settings', { state: { tab } })
 
   const renderCurrentConversationControl = () => {
     // FR-005/spec.md Edge Cases: reuses AiProvidersTab's exact "no providers configured"
@@ -163,27 +163,13 @@ export function ChatConfigurationTab() {
 
       <Box>
         <Typography variant="h6" sx={{ mb: 1 }}>
-          AI model &amp; provider
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Set your default AI provider and model, used for every new conversation you start.
-        </Typography>
-        <Button variant="outlined" onClick={() => goToSettingsTab(SETTINGS_TAB_INDEX.AiProviders)}>
-          Go to AI Providers
-        </Button>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="h6" sx={{ mb: 1 }}>
           Voice, speech-to-text &amp; text-to-speech
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Manage voice conversation mode, mute, selected voice, speed, style, and microphone/speaker
           devices.
         </Typography>
-        <Button variant="outlined" onClick={() => goToSettingsTab(SETTINGS_TAB_INDEX.Voice)}>
+        <Button variant="outlined" onClick={() => goToChatSettingsTab(CHAT_SETTINGS_TAB_INDEX.Voice)}>
           Go to Voice
         </Button>
       </Box>

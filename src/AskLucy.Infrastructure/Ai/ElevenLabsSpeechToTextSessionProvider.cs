@@ -82,7 +82,6 @@ public sealed class ElevenLabsSpeechToTextSessionProvider(
             return;
         }
 
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
@@ -95,8 +94,12 @@ public sealed class ElevenLabsSpeechToTextSessionProvider(
             throw new AiProviderRateLimitedException("ElevenLabs rate-limited this request.", retryAfter);
         }
 
+        // specs/043 FR-013: the vendor body must not travel in the message. Since
+        // AiProviderException now carries the classification the Problem Details boundary
+        // reads, an administrator sees this message verbatim - so anything the vendor echoed
+        // back, which can include request material, would reach the client from here.
         throw new AiProviderUnavailableException(
-            $"ElevenLabs request failed with {(int)response.StatusCode}: {body}");
+            $"ElevenLabs could not process this request ({(int)response.StatusCode}).");
     }
 
     private static bool IsTransient(Exception ex) => ex switch

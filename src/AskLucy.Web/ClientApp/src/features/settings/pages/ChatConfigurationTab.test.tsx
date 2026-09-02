@@ -8,7 +8,7 @@ import * as chatsApi from '../../chat/api/chatsApi'
 import * as voiceApi from '../../chat/api/voiceApi'
 import { useActiveConversationStore } from '../../chat/activeConversationStore'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
-import { SETTINGS_TAB_INDEX } from '../settingsTabs'
+import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
 
 vi.mock('../../chat/api/chatsApi')
@@ -78,6 +78,8 @@ function renderTab() {
               </>
             }
           />
+          {/* The Voice link leaves this page now — Voice is a tab on Chat settings. */}
+          <Route path="/chat-settings" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -229,23 +231,23 @@ describe('ChatConfigurationTab', () => {
     expect(await screen.findByText('Save failed.')).toBeInTheDocument()
   })
 
-  it('the AI Providers entry point navigates to Settings with the AI Providers tab selected', async () => {
-    const user = userEvent.setup()
+  it('no longer offers an AI Providers entry point, since that moved to the admin panel', async () => {
+    // Which provider and model answer a user is an administrator decision now, configured as the
+    // Chat capability. A link here would lead to a tab that no longer exists.
     renderTab()
 
-    await user.click(await screen.findByRole('button', { name: 'Go to AI Providers' }))
-
-    const state = JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')
-    expect(state).toEqual({ tab: SETTINGS_TAB_INDEX.AiProviders })
+    await screen.findByRole('button', { name: 'Go to Voice' })
+    expect(screen.queryByRole('button', { name: 'Go to AI Providers' })).not.toBeInTheDocument()
   })
 
-  it('the Voice entry point navigates to Settings with the Voice tab selected', async () => {
+  it('the Voice entry point navigates to Chat settings with the Voice tab selected', async () => {
+    // Voice is a sibling tab on the same page now, not a tab inside general Settings.
     const user = userEvent.setup()
     renderTab()
 
     await user.click(await screen.findByRole('button', { name: 'Go to Voice' }))
 
     const state = JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')
-    expect(state).toEqual({ tab: SETTINGS_TAB_INDEX.Voice })
+    expect(state).toEqual({ tab: CHAT_SETTINGS_TAB_INDEX.Voice })
   })
 })

@@ -22,7 +22,7 @@ describe('MinimalTopBar brand-transition element (spec.md FR-011, US3 Scenario 4
     expect(screen.getByText('Flumeria')).toBeInTheDocument()
     expect(screen.queryByText('Ask Lucy')).not.toBeInTheDocument()
     // Still only the brand cluster, theme toggle, and account menu — no new nav items.
-    expect(screen.getByLabelText('Toggle theme')).toBeInTheDocument()
+    expect(screen.getByLabelText('Switch to dark mode')).toBeInTheDocument()
     expect(screen.getByLabelText('Account menu')).toBeInTheDocument()
   })
 })
