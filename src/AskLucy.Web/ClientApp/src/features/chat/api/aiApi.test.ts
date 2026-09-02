@@ -53,6 +53,107 @@ describe('streamChat', () => {
     expect(events[1]).toEqual({ type: 'location', ...locationPayload })
   })
 
+  // The site-boundary confirmation reports a second action, finishing seconds after the location
+  // did. Appending it to the reply ran two unrelated sentences together and rewrote a bubble the
+  // user had already read, so the server breaks the message instead.
+  it('parses a __MESSAGE_BREAK__ event and yields a messageBreak', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Centred the viewer on it.\n\n',
+          'data: __MESSAGE_BREAK__\n\n',
+          "data: I've outlined the site boundary.\n\n",
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([
+      { type: 'content', delta: 'Centred the viewer on it.' },
+      { type: 'messageBreak', pendingLabel: null },
+      { type: 'content', delta: "I've outlined the site boundary." },
+    ])
+  })
+
+  // The break is announced before the work that fills the new message, so it can say what that
+  // work is — otherwise the reply looks finished and the user waits in silence.
+  it('carries the pending label when the break announces work that has not finished', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Centred the viewer on it.\n\n',
+          'data: __MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toContainEqual({ type: 'messageBreak', pendingLabel: 'Finding the site boundary' })
+  })
+
+  it('treats a line that merely starts with the marker as content, since the marker carries no payload', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(sseResponse(['data: __MESSAGE_BREAK__ is the marker\n\n', 'data: [DONE]\n\n'])),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([{ type: 'content', delta: '__MESSAGE_BREAK__ is the marker' }])
+  })
+
+  // specs/042-site-boundary-resolution T031: __SITE_BOUNDARY__ trailing SSE event
+  it('parses a __SITE_BOUNDARY__ trailing event and yields a siteBoundary event', async () => {
+    const boundaryPayload = {
+      siteName: 'Al Safa Park 2',
+      centroid: { latitude: 25.156, longitude: 55.2218 },
+      polygon: [
+        { latitude: 25.156, longitude: 55.221 },
+        { latitude: 25.156, longitude: 55.222 },
+        { latitude: 25.155, longitude: 55.222 },
+      ],
+      areaSquareMeters: 15000,
+      confidence: 0.92,
+      confidenceLevel: 'high',
+      source: 'OsmBoundary',
+      sourceDetail: 'OpenStreetMap (leisure=park)',
+      alternativeCandidateNames: [],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Here you go.\n\n',
+          `data: __SITE_BOUNDARY__${JSON.stringify(boundaryPayload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toHaveLength(2)
+    expect(events[1]).toEqual({ type: 'siteBoundary', ...boundaryPayload })
+  })
+
   it('preserves the single meaningful space each streamed chunk carries', async () => {
     // Mirrors AiController.cs writing `data: {chunk}\n\n` — most word tokens from OpenAI
     // arrive with their own leading space (" I", " can", " hear"), which is the word boundary.

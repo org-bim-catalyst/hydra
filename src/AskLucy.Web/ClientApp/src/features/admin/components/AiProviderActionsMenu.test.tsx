@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
+import { ApiError } from '../../../api/httpClient'
 import { AiProviderActionsMenu } from './AiProviderActionsMenu'
 
 // Same reasoning as UserActionMenu.test.tsx: MUI's Paper-based Popper/Dialog surfaces
@@ -17,6 +18,7 @@ vi.mock('../api/adminAiProvidersApi', async () => {
     updateProvider: vi.fn().mockResolvedValue(undefined),
     setCredential: vi.fn().mockResolvedValue(undefined),
     clearCredential: vi.fn().mockResolvedValue(undefined),
+    checkProviderHealth: vi.fn(),
   }
 })
 
@@ -30,6 +32,9 @@ const disabledNoCredential: AdminAiProvider = {
   defaultModelId: null,
   healthStatus: 'Unknown',
   healthStatusCheckedAtUtc: null,
+  healthFailureKind: null,
+  healthFailureReason: null,
+  healthStaleAfterUtc: null,
 }
 
 const disabledWithCredential: AdminAiProvider = {
@@ -177,3 +182,62 @@ describe('AiProviderActionsMenu', () => {
     expect(screen.queryByText('Set credential')).not.toBeInTheDocument()
   })
 })
+
+describe('Check now (specs/043 US3)', () => {
+  it('reports a healthy result after a successful probe', async () => {
+    vi.mocked(adminAiProvidersApi.checkProviderHealth).mockResolvedValue({
+      healthStatus: 'Healthy',
+      healthFailureKind: null,
+      healthFailureReason: null,
+      checkedAtUtc: '2026-08-29T14:22:10Z',
+      healthStaleAfterUtc: '2026-08-29T14:28:10Z',
+    })
+    renderMenu(enabledWithCredential)
+
+    fireEvent.click(screen.getByLabelText(/Actions for/))
+    fireEvent.click(screen.getByText('Check now'))
+
+    await waitFor(() => expect(screen.getByText(/is healthy/)).toBeInTheDocument())
+    expect(adminAiProvidersApi.checkProviderHealth).toHaveBeenCalledWith(enabledWithCredential.id)
+  })
+
+  it('surfaces the classified reason when the probe finds the provider still failing', async () => {
+    vi.mocked(adminAiProvidersApi.checkProviderHealth).mockResolvedValue({
+      healthStatus: 'Unhealthy',
+      healthFailureKind: 'UsageRestricted',
+      healthFailureReason: 'Billing may be disabled for the project. The credential itself is valid.',
+      checkedAtUtc: '2026-08-29T14:22:10Z',
+      healthStaleAfterUtc: '2026-08-29T14:28:10Z',
+    })
+    renderMenu(enabledWithCredential)
+
+    fireEvent.click(screen.getByLabelText(/Actions for/))
+    fireEvent.click(screen.getByText('Check now'))
+
+    await waitFor(() => expect(screen.getByText(/Billing may be disabled/)).toBeInTheDocument())
+    // The misdirection this feature removes: never tell an administrator to check a key that
+    // is demonstrably fine.
+    expect(screen.queryByText(/API key/i)).not.toBeInTheDocument()
+  })
+
+  it('surfaces a failed probe request rather than failing silently (constitution VIII)', async () => {
+    vi.mocked(adminAiProvidersApi.checkProviderHealth).mockRejectedValue(
+      new ApiError(500, 'Server error', 'Something broke.'),
+    )
+    renderMenu(enabledWithCredential)
+
+    fireEvent.click(screen.getByLabelText(/Actions for/))
+    fireEvent.click(screen.getByText('Check now'))
+
+    await waitFor(() => expect(screen.getByText('Something broke.')).toBeInTheDocument())
+  })
+
+  it('is unavailable for a provider with no credential to check', () => {
+    renderMenu(disabledNoCredential)
+
+    fireEvent.click(screen.getByLabelText(/Actions for/))
+
+    expect(screen.getByText('Check now').closest('li')).toHaveAttribute('aria-disabled', 'true')
+  })
+})
+

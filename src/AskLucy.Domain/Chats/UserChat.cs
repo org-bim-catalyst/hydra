@@ -1,5 +1,6 @@
 using AskLucy.Domain.Common;
 using AskLucy.Domain.Retrieval;
+using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Domain.Chats;
 
@@ -246,4 +247,45 @@ public sealed class UserChat : BaseEntity
 
     /// <summary>specs/037-location-query-resolution — the currently confirmed viewer location; null until the first successful location resolution for this chat.</summary>
     public ActiveSiteLocation? ActiveLocation { get; private set; }
+
+    /// <summary>
+    /// specs/042-site-boundary-resolution — persists the resolved site boundary so a repeated
+    /// reference to the same site in a later turn reuses it instead of forcing a fresh
+    /// resolution (FR-009). Mirrors <see cref="SetActiveLocation"/> exactly.
+    /// </summary>
+    public void SetActiveBoundary(
+        string siteName, double centroidLatitude, double centroidLongitude, IReadOnlyList<GeoPoint> polygon,
+        double areaSquareMeters, double confidence, BoundaryConfidenceLevel confidenceLevel,
+        SiteBoundarySource source, string sourceDetail, string actor)
+    {
+        ActiveBoundary = new ActiveSiteBoundary(
+            siteName, centroidLatitude, centroidLongitude, polygon, areaSquareMeters,
+            confidence, confidenceLevel, source, sourceDetail);
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>
+    /// specs/044-location-viewer-regression FR-009a — drops the stored boundary when it no longer
+    /// describes this chat's active site.
+    /// <para>
+    /// Before this existed, <see cref="ActiveBoundary"/> was only ever replaced on a *successful*
+    /// resolution, so navigating to a new site whose boundary failed left the previous site's
+    /// boundary stored. The next turn then injected "a boundary is already shown for &lt;old
+    /// site&gt;" into the model prompt while the viewer showed somewhere else, and Lucy would
+    /// answer confidence/source questions about the wrong place.
+    /// </para>
+    /// <para>
+    /// Invariant: a stored boundary must never outlive the site it names.
+    /// </para>
+    /// </summary>
+    public void ClearActiveBoundary(string actor)
+    {
+        ActiveBoundary = null;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>specs/042-site-boundary-resolution — the currently confirmed site boundary; null until the first successful boundary resolution for this chat.</summary>
+    public ActiveSiteBoundary? ActiveBoundary { get; private set; }
 }

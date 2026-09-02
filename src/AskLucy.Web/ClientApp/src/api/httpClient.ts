@@ -2,17 +2,49 @@ import { useAuthStore } from '../store/authStore'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
+/** specs/043 — mirrors `AiProviderFailureKind`. */
+export type ProviderFailureKind =
+  | 'CredentialRejected'
+  | 'CredentialUnreadable'
+  | 'NotConfigured'
+  | 'QuotaExhausted'
+  | 'RateLimited'
+  | 'UsageRestricted'
+  | 'Unavailable'
+  | 'RequestInvalid'
+  | 'ResponseNotUnderstood'
+
+/**
+ * The `providerFailure` Problem Details extension (specs/043, contracts/provider-failure-classification.md §3).
+ * Present only for administrators — the server withholds it from everyone else, so a
+ * non-administrator cannot read the tenant's quota or billing state out of a response.
+ */
+export interface ProviderFailure {
+  kind: ProviderFailureKind
+  canAdministratorAct: boolean
+  retryAfterSeconds: number | null
+}
+
 export class ApiError extends Error {
   status: number
   detail?: string
   /** The `errors` Problem Details extension (`ProblemDetailsMiddleware.cs`) — per-field/per-entry messages for a `validation-failed` (400) response. Undefined for every other error shape. */
   errors?: Record<string, string[]>
+  /** specs/043 — set only when the server classified the failure *and* the caller is an administrator. */
+  providerFailure?: ProviderFailure
 
-  constructor(status: number, message: string, detail?: string, errors?: Record<string, string[]>) {
+  constructor(
+    status: number,
+    message: string,
+    detail?: string,
+    errors?: Record<string, string[]>,
+    providerFailure?: ProviderFailure,
+  ) {
     super(message)
     this.status = status
     this.detail = detail
     this.errors = errors
+    this.providerFailure = providerFailure
   }
 }
 
@@ -41,7 +73,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!response.ok) {
     const problem = await response.json().catch(() => undefined)
-    throw new ApiError(response.status, problem?.title ?? 'Request failed', problem?.detail, problem?.errors)
+    throw new ApiError(
+      response.status,
+      problem?.title ?? 'Request failed',
+      problem?.detail,
+      problem?.errors,
+      problem?.providerFailure,
+    )
   }
 
   if (response.status === 204) {

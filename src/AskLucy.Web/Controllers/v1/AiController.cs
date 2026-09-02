@@ -16,8 +16,10 @@ using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Chats.Commands.RecordActiveLocation;
+using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
 using MediatR;
@@ -64,17 +66,50 @@ public sealed partial class AiController(
         Response.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
 
+        // Read before the loop rather than after it: an assistant message can now be persisted
+        // mid-stream, when a chunk asks to start a new one.
+        var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
+        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
+        var generationParametersJson = request.GenerationParameters is null
+            ? null
+            : JsonSerializer.Serialize(request.GenerationParameters);
+
         var assistantContent = new StringBuilder();
+        // The turn's first assistant message - the reply. It is the one the memory trace and the
+        // __MEMORY__ event refer to; any later message is an application-written confirmation.
+        Guid? firstAssistantMessageId = null;
         ChatUsage? finalUsage = null;
         RagRetrievalOutcome? retrievalOutcome = null;
         MemoryRetrievalOutcome? memoryOutcome = null;
         ConfirmedLocationData? confirmedLocation = null;
         ViewerZoomCommand? viewerZoom = null;
+        ConfirmedSiteBoundaryData? confirmedBoundary = null;
 
         await foreach (var chunk in mediator.CreateStream(
             new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
             cancellationToken))
         {
+            // Handled before this chunk's own content goes out, so the client closes the current
+            // bubble and opens a new one ahead of the first character that belongs in it.
+            // The break is written even when nothing is buffered — a chunk may open a
+            // message purely to say what it is waiting for. Only the persist is conditional.
+            if (chunk.StartsNewMessage)
+            {
+                if (assistantContent.Length > 0)
+                {
+                    firstAssistantMessageId ??= await PersistAssistantMessageAsync(
+                        request, assistantContent.ToString(), provider, model, generationParametersJson,
+                        finalUsage, retrievalOutcome, cancellationToken);
+                    assistantContent.Clear();
+                }
+
+                var breakPayload = chunk.PendingLabel is null
+                    ? string.Empty
+                    : JsonSerializer.Serialize(new { pendingLabel = chunk.PendingLabel });
+                await Response.WriteAsync($"data: __MESSAGE_BREAK__{breakPayload}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
             if (!string.IsNullOrEmpty(chunk.ContentDelta))
             {
                 assistantContent.Append(chunk.ContentDelta);
@@ -97,14 +132,26 @@ public sealed partial class AiController(
                 memoryOutcome = chunk.MemoryOutcome;
             }
 
+            // specs/044-location-viewer-regression FR-001a: written and flushed HERE, mid-stream,
+            // the moment the handler yields it — not after the loop drains. The handler already
+            // emits this chunk before starting the optional boundary step, but that reorder alone
+            // achieves nothing while this write waits for the whole stream: between specs/042 and
+            // this fix, a failing boundary step discarded __LOCATION__ entirely and a slow one held
+            // the viewer for up to ~90s. Both halves are required.
             if (chunk.ConfirmedLocation is not null)
             {
                 confirmedLocation = chunk.ConfirmedLocation;
+                await WriteConfirmedLocationEventAsync(request.ChatId, confirmedLocation, cancellationToken);
             }
 
             if (chunk.ViewerZoom is not null)
             {
                 viewerZoom = chunk.ViewerZoom;
+            }
+
+            if (chunk.ConfirmedBoundary is not null)
+            {
+                confirmedBoundary = chunk.ConfirmedBoundary;
             }
         }
 
@@ -136,75 +183,56 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
-        var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
-        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
-        var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, finalUsage?.InputTokenCount, finalUsage?.OutputTokenCount);
-        var generationParametersJson = request.GenerationParameters is null
-            ? null
-            : JsonSerializer.Serialize(request.GenerationParameters);
-
-        // US1: RAG-grounded citations are attached to the persisted assistant message only when
-        // retrieval actually found relevant content — NoRelevantContent/Unavailable never attach
-        // citations (research.md Decision 8).
-        var citations = retrievalOutcome?.Type == RagRetrievalOutcomeType.Grounded
-            ? retrievalOutcome.Citations
-                .Select(c => new AppendMessageCitationInput(
-                    c.DocumentTitle, null, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))
-                .ToList()
-            : null;
-
-        // Persisted — and, for memory, its trace recorded (FR-014) — before [DONE] is written, so
+        // Persisted - and, for memory, its trace recorded (FR-014) - before [DONE] is written, so
         // the trailing __MEMORY__ event below can carry the now-real message id and the client can
         // fetch its "why does Lucy know this" trace immediately, in the same session, rather than
         // only after a reload re-fetches persisted history (quickstart.md Scenario 1).
-        var assistantMessage = await mediator.Send(
-            new AppendMessageCommand(
-                request.ChatId, MessageRole.Assistant, MessageKind.Text, assistantContent.ToString(), null,
-                Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
-                InputTokenCount: finalUsage?.InputTokenCount, OutputTokenCount: finalUsage?.OutputTokenCount,
-                CachedTokenCount: finalUsage?.CachedTokenCount, ReasoningTokenCount: finalUsage?.ReasoningTokenCount,
-                LatencyMs: finalUsage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
-            cancellationToken);
-
-        if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found)
+        //
+        // Skipped when nothing is buffered, which happens when the turn's last chunk opened a new
+        // message that then produced no text: an empty bubble helps nobody.
+        if (assistantContent.Length > 0)
         {
-            await mediator.Send(new RecordMemoryReferencesCommand(assistantMessage.Id, memoryOutcome.UsedMemories), cancellationToken);
+            var persistedId = await PersistAssistantMessageAsync(
+                request, assistantContent.ToString(), provider, model, generationParametersJson,
+                finalUsage, retrievalOutcome, cancellationToken);
+            firstAssistantMessageId ??= persistedId;
+        }
+
+        // The memory trace belongs to the turn's first message - the reply itself. A later message
+        // carries only a confirmation sentence the application wrote, which no memory informed.
+        if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found && firstAssistantMessageId is { } tracedMessageId)
+        {
+            await mediator.Send(new RecordMemoryReferencesCommand(tracedMessageId, memoryOutcome.UsedMemories), cancellationToken);
         }
 
         if (memoryOutcome is not null)
         {
-            var memoryPayload = new { messageId = assistantMessage.Id, memoryOutcome = memoryOutcome.Type.ToString() };
+            var memoryPayload = new { messageId = firstAssistantMessageId, memoryOutcome = memoryOutcome.Type.ToString() };
             await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 
-        // specs/036-startup-geolocation US3: agent-confirmed location trailing event — same
-        // distinguishable-prefix pattern as __RAG__ and __MEMORY__. The payload matches the
-        // wire format aiApi.ts's streamChat parser expects exactly. Emitted only when an agent
-        // tool or response analysis produced a ConfirmedLocationData on the final chunk.
-        if (confirmedLocation is not null)
+        // specs/042-site-boundary-resolution: resolved site boundary trailing event — same
+        // distinguishable-prefix pattern as __LOCATION__. Persisted before the client is told
+        // about it (RecordActiveSiteBoundaryCommand), mirroring RecordActiveLocationCommand's
+        // ordering exactly, so a client that reloads immediately after sees consistent state.
+        if (confirmedBoundary is not null)
         {
-            // specs/037-location-query-resolution — persist the confirmed location onto UserChat
-            // so back-references in subsequent turns resolve without a new geocoding call (FR-014).
-            await mediator.Send(new RecordActiveLocationCommand(request.ChatId, confirmedLocation), cancellationToken);
+            await mediator.Send(new RecordActiveSiteBoundaryCommand(request.ChatId, confirmedBoundary), cancellationToken);
 
-            var locationPayload = new
+            var boundaryPayload = new
             {
-                latitude = confirmedLocation.Latitude,
-                longitude = confirmedLocation.Longitude,
-                locationName = confirmedLocation.LocationName,
-                confidence = confirmedLocation.Confidence,
-                source = confirmedLocation.Source,
-                locationType = confirmedLocation.LocationType,
-                viewport = confirmedLocation.Viewport is null ? null : new
-                {
-                    northeastLat = confirmedLocation.Viewport.NortheastLat,
-                    northeastLng = confirmedLocation.Viewport.NortheastLng,
-                    southwestLat = confirmedLocation.Viewport.SouthwestLat,
-                    southwestLng = confirmedLocation.Viewport.SouthwestLng,
-                },
+                siteName = confirmedBoundary.SiteName,
+                centroid = new { latitude = confirmedBoundary.CentroidLatitude, longitude = confirmedBoundary.CentroidLongitude },
+                polygon = confirmedBoundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
+                areaSquareMeters = confirmedBoundary.AreaSquareMeters,
+                confidence = confirmedBoundary.Confidence,
+                confidenceLevel = confirmedBoundary.ConfidenceLevel.ToString().ToLowerInvariant(),
+                source = confirmedBoundary.Source.ToString(),
+                sourceDetail = confirmedBoundary.SourceDetail,
+                alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
             };
-            await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+            await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 
@@ -217,6 +245,90 @@ public sealed partial class AiController(
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+    }
+
+    /// <summary>
+    /// Persists one assistant message of the current turn, carrying the turn's provider/model
+    /// attribution, token usage, estimated cost and RAG citations.
+    /// </summary>
+    /// <remarks>
+    /// A turn can produce more than one assistant message. The site-boundary confirmation reports
+    /// a second action that finishes seconds after the location did, so appending it to the reply
+    /// ran two unrelated sentences together and silently rewrote a bubble the user had already
+    /// read. The handler now marks that chunk as starting a new message, which means persistence
+    /// runs once per message rather than once per turn - hence this extraction.
+    /// </remarks>
+    private async Task<Guid> PersistAssistantMessageAsync(
+        ChatRequest request,
+        string content,
+        AIProvider? provider,
+        AIModel? model,
+        string? generationParametersJson,
+        ChatUsage? usage,
+        RagRetrievalOutcome? retrievalOutcome,
+        CancellationToken cancellationToken)
+    {
+        var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, usage?.InputTokenCount, usage?.OutputTokenCount);
+
+        // US1: RAG-grounded citations are attached to the persisted assistant message only when
+        // retrieval actually found relevant content - NoRelevantContent/Unavailable never attach
+        // citations (research.md Decision 8).
+        var citations = retrievalOutcome?.Type == RagRetrievalOutcomeType.Grounded
+            ? retrievalOutcome.Citations
+                .Select(c => new AppendMessageCitationInput(
+                    c.DocumentTitle, null, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))
+                .ToList()
+            : null;
+
+        var message = await mediator.Send(
+            new AppendMessageCommand(
+                request.ChatId, MessageRole.Assistant, MessageKind.Text, content, null,
+                Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
+                InputTokenCount: usage?.InputTokenCount, OutputTokenCount: usage?.OutputTokenCount,
+                CachedTokenCount: usage?.CachedTokenCount, ReasoningTokenCount: usage?.ReasoningTokenCount,
+                LatencyMs: usage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
+            cancellationToken);
+
+        return message.Id;
+    }
+
+    /// <summary>
+    /// specs/036-startup-geolocation US3 / specs/037-location-query-resolution FR-014 /
+    /// specs/044-location-viewer-regression FR-001a — persists the confirmed location onto
+    /// UserChat (so later back-references resolve without a new geocoding call) and writes the
+    /// <c>__LOCATION__</c> trailing event, in that order, so a client reloading immediately after
+    /// sees consistent state.
+    /// <para>
+    /// Extracted from the post-loop block it used to live in so it can be called mid-stream. The
+    /// payload shape is unchanged — <c>aiApi.ts</c>'s parser matches on the prefix per line and
+    /// has no ordering state, so moving this ahead of <c>__RAG__</c>/<c>__MEMORY__</c> is
+    /// invisible to the client.
+    /// </para>
+    /// </summary>
+    private async Task WriteConfirmedLocationEventAsync(
+        Guid chatId, ConfirmedLocationData confirmedLocation, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new RecordActiveLocationCommand(chatId, confirmedLocation), cancellationToken);
+
+        var locationPayload = new
+        {
+            latitude = confirmedLocation.Latitude,
+            longitude = confirmedLocation.Longitude,
+            locationName = confirmedLocation.LocationName,
+            confidence = confirmedLocation.Confidence,
+            source = confirmedLocation.Source,
+            locationType = confirmedLocation.LocationType,
+            viewport = confirmedLocation.Viewport is null ? null : new
+            {
+                northeastLat = confirmedLocation.Viewport.NortheastLat,
+                northeastLng = confirmedLocation.Viewport.NortheastLng,
+                southwestLat = confirmedLocation.Viewport.SouthwestLat,
+                southwestLng = confirmedLocation.Viewport.SouthwestLng,
+            },
+        };
+
+        await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
     }
 
     // [Produces("application/json")]: without it, a bare string ActionResult serializes as

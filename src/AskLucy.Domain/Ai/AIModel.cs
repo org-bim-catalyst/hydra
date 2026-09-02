@@ -35,9 +35,16 @@ public sealed class AIModel : BaseEntity
 
     public string DisplayName { get; private set; } = string.Empty;
 
-    public int ContextWindowTokens { get; private set; }
+    /// <summary>
+    /// The vendor's published context window, or <c>null</c> when the vendor publishes none
+    /// (specs/043 FR-029/FR-030). Absent is a distinct state from zero, and constrains
+    /// nothing: it is display-only metadata that no chat, context-assembly, or token-budgeting
+    /// path reads. Same rule <see cref="Pricing"/> already follows.
+    /// </summary>
+    public int? ContextWindowTokens { get; private set; }
 
-    public int MaxOutputTokens { get; private set; }
+    /// <summary>The vendor's published maximum output, or <c>null</c> when unpublished - see <see cref="ContextWindowTokens"/>.</summary>
+    public int? MaxOutputTokens { get; private set; }
 
     public bool SupportsStreaming { get; private set; }
 
@@ -73,8 +80,8 @@ public sealed class AIModel : BaseEntity
         Guid providerId,
         string modelKey,
         string displayName,
-        int contextWindowTokens,
-        int maxOutputTokens,
+        int? contextWindowTokens,
+        int? maxOutputTokens,
         AIModelCapabilities capabilities,
         DateOnly? releaseDate,
         ModelPricing? pricing,
@@ -90,14 +97,17 @@ public sealed class AIModel : BaseEntity
             throw new DomainRuleViolationException("A display name is required.");
         }
 
-        if (contextWindowTokens <= 0)
+        // specs/043 FR-029: absence is legitimate - several vendors publish no token metadata
+        // at all - so only a *supplied* figure is validated. `is <= 0` is null-safe: null does
+        // not match the pattern, while a supplied 0 or negative still fails.
+        if (contextWindowTokens is <= 0)
         {
-            throw new DomainRuleViolationException("Context window must be greater than zero.");
+            throw new DomainRuleViolationException("Context window must be greater than zero when supplied.");
         }
 
-        if (maxOutputTokens <= 0)
+        if (maxOutputTokens is <= 0)
         {
-            throw new DomainRuleViolationException("Max output tokens must be greater than zero.");
+            throw new DomainRuleViolationException("Max output tokens must be greater than zero when supplied.");
         }
 
         return new AIModel

@@ -16,8 +16,10 @@ public sealed class AIModelConfiguration : IEntityTypeConfiguration<AIModel>
 
         builder.Property(m => m.ModelKey).IsRequired().HasMaxLength(100);
         builder.Property(m => m.DisplayName).IsRequired().HasMaxLength(150);
-        builder.Property(m => m.ContextWindowTokens).IsRequired();
-        builder.Property(m => m.MaxOutputTokens).IsRequired();
+        // specs/043 FR-029/FR-030: optional, exactly like the Pricing owned type below - null
+        // means the vendor published no figure, never a fabricated 0.
+        builder.Property(m => m.ContextWindowTokens);
+        builder.Property(m => m.MaxOutputTokens);
 
         builder.Property(m => m.SupportsStreaming).IsRequired();
         builder.Property(m => m.SupportsVision).IsRequired();

@@ -162,65 +162,80 @@ public sealed class OpenRouterProvider(
     public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("OpenRouter audio transcription is not supported by this provider.");
 
-    public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var client = await CreateClientAsync(cancellationToken);
-            using var response = await client.GetAsync("models", cancellationToken);
-            return response.IsSuccessStatusCode;
-        }
-        catch (Exception ex) when (IsTransient(ex) || ex is AiProviderAuthenticationException)
-        {
-            return false;
-        }
-    }
-
-    public async Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default)
-    {
-        using var client = await CreateClientAsync(cancellationToken);
-        using var response = await client.GetAsync("models", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-        var results = new List<ProviderModelInfo>();
-        foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
-        {
-            var id = model.GetProperty("id").GetString();
-            if (string.IsNullOrEmpty(id))
+    public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.ProbeAsync(
+            async ct =>
             {
-                continue;
-            }
+                using var client = await CreateClientAsync(ct);
+                using var response = await client.GetAsync("models", ct);
+                await EnsureSuccessAsync(response, ct);
+            },
+            ProviderName,
+            logger,
+            cancellationToken);
 
-            var displayName = model.TryGetProperty("name", out var nameElement) ? nameElement.GetString() ?? id : id;
-            var contextLength = model.TryGetProperty("context_length", out var contextElement) ? contextElement.GetInt32() : 0;
+    public Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default) =>
+        AiProviderResponseClassifier.TranslateAsync<IReadOnlyList<ProviderModelInfo>>(
+            async ct =>
+            {
+                using var client = await CreateClientAsync(ct);
+                using var response = await client.GetAsync("models", ct);
+                await EnsureSuccessAsync(response, ct);
 
-            // OpenRouter's catalog carries no output-token-limit/capability metadata — a rough
-            // starting point for an administrator to review via the sync-diff flow (research.md
-            // Decision 5), matching OpenAIProvider.ListAvailableModelsAsync's same caveat.
-            results.Add(new ProviderModelInfo(
-                id, displayName, contextLength, MaxOutputTokens: 0,
-                new AIModelCapabilities(
-                    Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
-                    Reasoning: false, Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
-        }
+                using var stream = await response.Content.ReadAsStreamAsync(ct);
+                using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-        return results;
-    }
+                var results = new List<ProviderModelInfo>();
+                foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
+                {
+                    var id = model.GetProperty("id").GetString();
+                    if (string.IsNullOrEmpty(id))
+                    {
+                        continue;
+                    }
+
+                    var displayName = model.TryGetProperty("name", out var nameElement) ? nameElement.GetString() ?? id : id;
+
+                    // specs/043 FR-029: a published figure is kept, an absent one stays null
+                    // rather than becoming a 0 the catalog would reject.
+                    var contextLength = model.TryGetProperty("context_length", out var contextElement) && contextElement.ValueKind == JsonValueKind.Number
+                        ? contextElement.GetInt32() : (int?)null;
+
+                    // OpenRouter's catalog carries no output-token-limit/capability metadata - a
+                    // rough starting point for an administrator to review via the sync-diff flow
+                    // (research.md Decision 5).
+                    results.Add(new ProviderModelInfo(
+                        id, displayName, contextLength, MaxOutputTokens: null,
+                        new AIModelCapabilities(
+                            Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
+                            Reasoning: false, Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
+                }
+
+                return results;
+            },
+            ProviderName,
+            cancellationToken);
 
     private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken)
     {
         var provider = await providerRepository.GetByKeyAsync(ProviderKey, cancellationToken)
-            ?? throw new AiProviderAuthenticationException("OpenRouter is not configured in the provider catalog.");
+            ?? throw new AiProviderNotConfiguredException("OpenRouter is not configured in the provider catalog.");
 
         if (provider.CredentialCiphertext is null)
         {
-            throw new AiProviderAuthenticationException("OpenRouter has no credential configured. An administrator must set one.");
+            throw new AiProviderNotConfiguredException("OpenRouter has no credential configured. An administrator must set one.");
         }
 
-        var apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
+        // specs/043 FR-004 - see GoogleGeminiProvider.CreateClientAsync for why this matters.
+        string apiKey;
+        try
+        {
+            apiKey = credentialProtector.Unprotect(provider.CredentialCiphertext);
+        }
+        catch (System.Security.Cryptography.CryptographicException ex)
+        {
+            throw AiProviderResponseClassifier.Create(AiProviderFailureKind.CredentialUnreadable, ProviderName, retryAfter: null, ex);
+        }
 
         var client = httpClientFactory.CreateClient("OpenRouter");
         client.BaseAddress = new Uri(_options.BaseUrl);
@@ -293,31 +308,9 @@ public sealed class OpenRouterProvider(
         }
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-        {
-            throw new AiProviderAuthenticationException($"OpenRouter rejected the configured credential ({(int)response.StatusCode}).");
-        }
-
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            var retryAfter = response.Headers.RetryAfter?.Delta;
-            throw new AiProviderRateLimitedException("OpenRouter rate-limited this request.", retryAfter);
-        }
-
-        throw new HttpRequestException(
-            $"OpenRouter request failed with {(int)response.StatusCode}: {body}",
-            inner: null,
-            statusCode: response.StatusCode);
-    }
+    /// <summary>specs/043: classification is delegated to the one shared table (research.md Decision 1) rather than re-derived from the status code here.</summary>
+    private Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
+        AiProviderResponseClassifier.EnsureSuccessAsync(response, AiVendor.OpenRouter, ProviderName, logger, cancellationToken);
 
     private async Task<T> WithRetryAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken)
     {

@@ -32,14 +32,19 @@ export function MarkerStyleSelector() {
 
   return (
     <>
-      <Tooltip title={`Marker style: ${STYLE_LABELS[markerStyle]}`} placement="right">
+      <Tooltip title={`Marker style: ${STYLE_LABELS[markerStyle]}`} placement="bottom">
         <Fab
-          size="medium"
+          size="small"
           aria-label="Change POI marker style"
           aria-haspopup="true"
           aria-expanded={open}
           onClick={handleOpen}
           sx={{
+            // 40 px, the same as every other button in this cluster (CircularAction's FAB_PX).
+            // MUI's `medium` Fab is 48 px, which left this one visibly larger than its neighbours.
+            width: 40,
+            height: 40,
+            minHeight: 40,
             boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
             bgcolor: CIRCULAR_ACTION_CHROME.collapsedBg,
             color: CIRCULAR_ACTION_CHROME.icon,
@@ -49,7 +54,7 @@ export function MarkerStyleSelector() {
             transition: (t) => t.transitions.create(['transform', 'background-color']),
           }}
         >
-          <RiMapPin2Line />
+          <RiMapPin2Line size={20} />
         </Fab>
       </Tooltip>
       <Menu

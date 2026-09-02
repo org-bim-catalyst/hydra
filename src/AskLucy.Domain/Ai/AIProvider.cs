@@ -34,6 +34,17 @@ public sealed class AIProvider : BaseEntity
 
     public DateTime? HealthStatusCheckedAtUtc { get; private set; }
 
+    /// <summary>
+    /// Why the last check found this provider unhealthy (specs/043 FR-016). Non-null if and
+    /// only if <see cref="HealthStatus"/> is <see cref="ProviderHealthStatus.Unhealthy"/> -
+    /// the invariant <see cref="UpdateHealthStatus"/> enforces, so a stale reason can never
+    /// survive a recovery.
+    /// </summary>
+    public AiProviderFailureKind? HealthFailureKind { get; private set; }
+
+    /// <summary>Administrator-facing prose for <see cref="HealthFailureKind"/>. Never the raw vendor response body or the credential (constitution 14).</summary>
+    public string? HealthFailureReason { get; private set; }
+
     private AIProvider()
     {
         // Required by EF Core materialization.
@@ -118,9 +129,15 @@ public sealed class AIProvider : BaseEntity
     /// ModifiedAtUtc/ModifiedBy, which track administrator-driven configuration changes,
     /// not automated health-check pings (data-model.md).
     /// </summary>
-    public void UpdateHealthStatus(bool isHealthy, DateTime checkedAtUtc)
+    public void UpdateHealthStatus(bool isHealthy, DateTime checkedAtUtc, AiProviderFailureKind? failureKind = null, string? failureReason = null)
     {
         HealthStatus = isHealthy ? ProviderHealthStatus.Healthy : ProviderHealthStatus.Unhealthy;
         HealthStatusCheckedAtUtc = checkedAtUtc;
+
+        // specs/043 FR-016: the classification is cleared on a healthy result rather than
+        // trusted from the caller, so a reason recorded during an outage cannot outlive the
+        // recovery and keep telling an administrator to fix something already fixed.
+        HealthFailureKind = isHealthy ? null : failureKind;
+        HealthFailureReason = isHealthy ? null : failureReason;
     }
 }

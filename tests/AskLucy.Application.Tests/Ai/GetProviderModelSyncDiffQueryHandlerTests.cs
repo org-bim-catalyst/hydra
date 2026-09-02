@@ -92,4 +92,19 @@ public sealed class GetProviderModelSyncDiffQueryHandlerTests
         result.Added.Should().BeEmpty();
         result.RemovedFromVendor.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Handle_ShouldCarryAbsentTokenLimitsThrough_AsNull()
+    {
+        // specs/043 FR-029: the diff an administrator reviews must show absence as absence, so
+        // the apply step can accept it rather than rejecting a fabricated 0.
+        _models.ListByProviderIdAsync(_provider.Id, Arg.Any<CancellationToken>()).Returns([]);
+        _aiProvider.ListAvailableModelsAsync(Arg.Any<CancellationToken>())
+            .Returns([new ProviderModelInfo("gpt-4-turbo", "gpt-4-turbo", null, null, Capabilities)]);
+
+        var diff = await _handler.Handle(new GetProviderModelSyncDiffQuery(_provider.Id), CancellationToken.None);
+
+        diff.Added.Should().ContainSingle()
+            .Which.Should().Match<ProviderModelInfo>(m => m.ContextWindowTokens == null && m.MaxOutputTokens == null);
+    }
 }

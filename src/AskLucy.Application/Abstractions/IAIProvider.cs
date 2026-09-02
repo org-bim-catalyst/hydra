@@ -20,16 +20,50 @@ public sealed record ChatCompletionResult(string Content, ChatUsage Usage);
 /// <summary>One piece of a streamed response. Most chunks carry only <see cref="ContentDelta"/>; a provider's final chunk(s) may additionally carry <see cref="Usage"/> once available (FR-020).</summary>
 public sealed record StreamChunk(string? ContentDelta, ChatUsage? Usage = null);
 
-/// <summary>One model a provider currently reports via its own API — research.md Decision 5's "Model Discovery," surfaced to an admin as a diff and never applied to the catalog automatically.</summary>
-public sealed record ProviderModelInfo(string ModelKey, string DisplayName, int ContextWindowTokens, int MaxOutputTokens, AIModelCapabilities Capabilities);
+/// <summary>One model a provider currently reports via its own API - research.md Decision 5's "Model Discovery," surfaced to an admin as a diff and never applied to the catalog automatically.</summary>
+/// <remarks>
+/// specs/043 FR-029: the token-limit figures are optional because several vendors publish
+/// none at all (OpenAI's list carries no such metadata for any model; Gemini reports JSON
+/// null for its non-chat entries). Absent is <c>null</c>, never a fabricated 0 - the same
+/// rule <see cref="AIModel"/>'s optional pricing already follows.
+/// </remarks>
+public sealed record ProviderModelInfo(string ModelKey, string DisplayName, int? ContextWindowTokens, int? MaxOutputTokens, AIModelCapabilities Capabilities);
+
+/// <summary>
+/// The outcome of one provider health probe (specs/043 FR-016, research.md Decision 7).
+/// Replaces a bare <c>bool</c> so the reason a provider is unhealthy survives to the
+/// administrator instead of being discarded at the call site.
+/// </summary>
+public sealed record ProviderHealthResult(bool IsHealthy, AiProviderFailureKind? Kind, string? Reason);
+
+/// <summary>
+/// Base of every provider-originated failure (specs/043 FR-001, research.md Decision 2).
+/// <see cref="Kind"/> is the single source of classification: the Problem Details boundary
+/// switches on it rather than on the concrete type, and the health subsystem records it.
+///
+/// The four pre-existing subtypes keep their names and constructor signatures, so every
+/// existing <c>catch</c>-by-type site continues to compile and behave identically.
+/// </summary>
+public abstract class AiProviderException(
+    string message,
+    AiProviderFailureKind kind,
+    TimeSpan? retryAfter = null,
+    Exception? innerException = null)
+    : Exception(message, innerException)
+{
+    public AiProviderFailureKind Kind { get; } = kind;
+
+    /// <summary>The vendor's own retry hint when one was supplied; mapped onto the HTTP <c>Retry-After</c> header at the API boundary. Never invented when absent (FR-012).</summary>
+    public TimeSpan? RetryAfter { get; } = retryAfter;
+}
 
 /// <summary>
 /// Thrown after the single automatic retry (research.md Topic 4 / legacy FR-032) still
 /// fails. The WebAPI layer maps this to an <c>ai-provider-unavailable</c> Problem Details
-/// response — callers must never see the underlying provider exception.
+/// response - callers must never see the underlying provider exception.
 /// </summary>
 public sealed class AiProviderUnavailableException(string message, Exception? innerException = null)
-    : Exception(message, innerException);
+    : AiProviderException(message, AiProviderFailureKind.Unavailable, retryAfter: null, innerException);
 
 /// <summary>
 /// The provider rejected the request because its credential is invalid, expired, or
@@ -37,28 +71,65 @@ public sealed class AiProviderUnavailableException(string message, Exception? in
 /// administrator, not the end user, is pointed at the fix.
 /// </summary>
 public sealed class AiProviderAuthenticationException(string message, Exception? innerException = null)
-    : Exception(message, innerException);
+    : AiProviderException(message, AiProviderFailureKind.CredentialRejected, retryAfter: null, innerException);
 
 /// <summary>
-/// The provider rate-limited this request (research.md Decision 9). <see cref="RetryAfter"/>
-/// carries the vendor's own hint when one was supplied, mapped onto the HTTP `Retry-After`
-/// header at the API boundary.
+/// The provider rate-limited this request (research.md Decision 9).
+/// <see cref="AiProviderException.RetryAfter"/> carries the vendor's own hint when one was
+/// supplied, mapped onto the HTTP Retry-After header at the API boundary.
 /// </summary>
 public sealed class AiProviderRateLimitedException(string message, TimeSpan? retryAfter = null, Exception? innerException = null)
-    : Exception(message, innerException)
-{
-    public TimeSpan? RetryAfter { get; } = retryAfter;
-}
+    : AiProviderException(message, AiProviderFailureKind.RateLimited, retryAfter, innerException);
 
 /// <summary>
 /// The provider rejected this specific request as invalid or unusable (e.g. a 400 response
-/// to a transcription upload) — distinct from <see cref="AiProviderUnavailableException"/>
+/// to a transcription upload) - distinct from <see cref="AiProviderUnavailableException"/>
 /// (the provider itself is down) and <see cref="AiProviderAuthenticationException"/> (our
 /// credential is bad). Mapped to a 400 Problem Details response so the end user, not an
 /// administrator, is pointed at retrying with a different request (specs/032).
 /// </summary>
 public sealed class AiProviderRequestInvalidException(string message, Exception? innerException = null)
-    : Exception(message, innerException);
+    : AiProviderException(message, AiProviderFailureKind.RequestInvalid, retryAfter: null, innerException);
+
+/// <summary>
+/// The provider's usage allowance is exhausted (specs/043 FR-001). Deliberately distinct
+/// from <see cref="AiProviderRateLimitedException"/>: the credential is valid and the
+/// request well-formed, but waiting a few seconds will not help. Raised only on positive
+/// evidence from the vendor (a quota-failure detail, insufficient_quota, HTTP 402); an
+/// ambiguous 429 classifies as the broader rate-limited condition instead.
+/// </summary>
+public sealed class AiProviderQuotaExhaustedException(string message, TimeSpan? retryAfter = null, Exception? innerException = null)
+    : AiProviderException(message, AiProviderFailureKind.QuotaExhausted, retryAfter, innerException);
+
+/// <summary>
+/// The vendor account or project is restricted - billing disabled, or the API not enabled
+/// for the project (specs/043 FR-001). Distinct from
+/// <see cref="AiProviderAuthenticationException"/>: telling an administrator to "check the
+/// API key" here is actively misleading, because the key is fine.
+/// </summary>
+public sealed class AiProviderUsageRestrictedException(string message, Exception? innerException = null)
+    : AiProviderException(message, AiProviderFailureKind.UsageRestricted, retryAfter: null, innerException);
+
+/// <summary>
+/// The stored credential ciphertext could not be decrypted (specs/043 FR-004) - most often
+/// because the Data Protection key ring changed under a deployment. Never an internal
+/// application error: it is actionable, and the action is to re-enter the credential.
+/// </summary>
+public sealed class AiProviderCredentialUnreadableException(string message, Exception? innerException = null)
+    : AiProviderException(message, AiProviderFailureKind.CredentialUnreadable, retryAfter: null, innerException);
+
+/// <summary>No credential is configured for this provider (specs/043 FR-001) - distinct from one that was configured and rejected.</summary>
+public sealed class AiProviderNotConfiguredException(string message, Exception? innerException = null)
+    : AiProviderException(message, AiProviderFailureKind.NotConfigured, retryAfter: null, innerException);
+
+/// <summary>
+/// The provider's response could not be parsed, or did not carry the shape the adapter
+/// expects (specs/043 FR-006). A provider-side problem, never an internal application error
+/// - which is what it silently became before, via an untranslated JsonException or
+/// KeyNotFoundException.
+/// </summary>
+public sealed class AiProviderResponseInvalidException(string message, Exception? innerException = null)
+    : AiProviderException(message, AiProviderFailureKind.ResponseNotUnderstood, retryAfter: null, innerException);
 
 /// <summary>
 /// The AI-provider abstraction (docs/ARCHITECTURE.md &#167;9). One implementation per vendor
@@ -100,8 +171,14 @@ public interface IAIProvider
 
     Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default);
 
-    /// <summary>A cheap operation (e.g. a models-list call), not a full chat completion (research.md Decision 7 — used by <c>ProviderHealthCheckHostedService</c>).</summary>
-    Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// A cheap operation (e.g. a models-list call), not a full chat completion (research.md
+    /// Decision 7 - used by <c>ProviderHealthCheckHostedService</c>). Returns an unhealthy
+    /// result carrying the classification rather than throwing for a *provider* failure; it
+    /// may still throw if the check mechanism itself fails, which callers must not record as
+    /// the provider being unhealthy (specs/043 FR-023).
+    /// </summary>
+    Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Model Discovery (research.md Decision 5) — surfaces a diff for an admin to review; never applied to the catalog automatically.</summary>
     Task<IReadOnlyList<ProviderModelInfo>> ListAvailableModelsAsync(CancellationToken cancellationToken = default);

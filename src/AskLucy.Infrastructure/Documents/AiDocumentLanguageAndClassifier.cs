@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Documents;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,7 @@ internal static partial class AiDocumentLanguageAndClassifierLog
 /// classification).
 /// </summary>
 public sealed partial class AiDocumentLanguageAndClassifier(
-    DefaultProviderResolver defaultProviderResolver,
+    AiCapabilityProviderResolver capabilityProviderResolver,
     IAIProviderRepository providerRepository,
     IAIModelRepository modelRepository,
     IAIProviderResolver providerResolver,
@@ -47,7 +48,7 @@ public sealed partial class AiDocumentLanguageAndClassifier(
     public async Task<DocumentLanguageAndClassificationResult> AnalyzeAsync(
         string extractedText, IReadOnlyList<string> availableCategoryNames, CancellationToken cancellationToken = default)
     {
-        var resolved = await defaultProviderResolver.ResolveAsync(preference: null, cancellationToken);
+        var resolved = await capabilityProviderResolver.ResolveAsync(AiCapability.DocumentClassification, cancellationToken);
         var provider = await providerRepository.GetByIdAsync(resolved.ProviderId, cancellationToken)
             ?? throw new KeyNotFoundException("Provider not found.");
         var model = await modelRepository.GetByIdAsync(resolved.ModelId, cancellationToken)

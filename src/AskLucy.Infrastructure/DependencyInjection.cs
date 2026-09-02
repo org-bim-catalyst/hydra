@@ -1,8 +1,10 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
+using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Documents.Extraction;
@@ -22,6 +24,7 @@ using AskLucy.Infrastructure.Retrieval.VectorStores;
 using AskLucy.Infrastructure.Weather;
 using AskLucy.Infrastructure.Workflows;
 using Hangfire;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -126,6 +129,12 @@ public static class DependencyInjection
             .BindConfiguration(GoogleMapsGeocodingOptions.SectionName)
             .ValidateOnStart();
 
+        // specs/042-site-boundary-resolution — OSM Overpass boundary-candidate search; no
+        // ApiKey to validate (free, keyless API, same reasoning as GeocodingOptions above).
+        services.AddOptions<OverpassOptions>()
+            .BindConfiguration(OverpassOptions.SectionName)
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -153,7 +162,30 @@ public static class DependencyInjection
         services.AddScoped<McpServerHealthCheckJob>();
         services.AddScoped<McpCapabilityRefreshJob>();
 
-        services.AddDataProtection();
+        // The Data Protection key ring MUST outlive the process. With a bare
+        // AddDataProtection(), ASP.NET Core picks a repository by probing:
+        // %LOCALAPPDATA%\ASP.NET\DataProtection-Keys (needs a loaded user profile), then the
+        // HKCU registry — and when neither is available, which is the case for this app pool
+        // on site4now shared hosting, it falls back to an EPHEMERAL in-memory key ring that
+        // is regenerated on every start.
+        //
+        // Consequence, observed live in production on 2026-08-30: every AI provider
+        // credential encrypted through AiCredentialProtector became undecryptable the moment
+        // the app restarted, so AIProviders.HealthStatus read Unhealthy/CredentialUnreadable
+        // for anthropic and google-gemini. OpenAI stayed Healthy only because it reads its
+        // key from configuration (OpenAI:ApiKey) rather than the encrypted DB column, which
+        // is what made the failure look provider-specific instead of infrastructural.
+        // Since every deploy restarts the app, each one silently invalidated every stored
+        // credential, MCP credential and protected memory value.
+        //
+        // App_Data survives deploys: FTP-Deploy-Action only removes files it previously
+        // deployed (tracked in its sync state), so runtime-created content there is left
+        // alone — the same reason Serilog's App_Data/logs history accumulates across
+        // releases. SetApplicationName pins the purpose-derivation root so it stays stable
+        // if the content root path ever changes.
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(environment.ContentRootPath, "App_Data", "keys")))
+            .SetApplicationName("AskLucy");
         // Concrete IMemoryCache registration for KnowledgeBaseDashboardSummaryCache (Application) — see that DI's comment for why the registration itself lives here, not in Application.
         services.AddMemoryCache();
 
@@ -211,15 +243,59 @@ public static class DependencyInjection
         // same reasoning as the "Mcp" client above.
         services.AddHttpClient("Weather", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(15);
+            // 30s, not 15s — the same correction Overpass and Geocoding already needed on this
+            // shared host. Open-Meteo and Nominatim both answer in well under a second most of
+            // the time, but on 2026-09-01 two lookups ran past 15s, the client aborted them, and
+            // the resulting WeatherProviderUnavailableException reached the global handler as an
+            // unhandled exception — the browser saw a 502 for a widget that had nothing wrong
+            // with it. A slow upstream is not an outage; give it room to answer.
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         // specs/037-location-query-resolution: dedicated client for Google Maps Geocoding API
         // (and Nominatim, if falling back). Kept separate from "Weather" so geocoding and
         // weather timeouts/policies can diverge without coupling.
+        // 30s, not 15s: same class of bug as "Overpass" below — observed live (2026-08-27),
+        // Google's own Cloud Console Geocoding metrics showed near-zero request volume and ZERO
+        // error responses for a period where the app was reliably surfacing "I couldn't look
+        // that up right now" (LocationConfirmationTemplates.Unavailable) — i.e. requests weren't
+        // reaching Google's servers at all (ruling out the key/quota/billing/API-enablement),
+        // consistent with this client's own short timeout aborting slow-but-otherwise-fine calls
+        // from this host before Google ever responded.
         services.AddHttpClient("Geocoding", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(15);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // specs/042-site-boundary-resolution: dedicated client for the OSM Overpass API — kept
+        // separate from "Geocoding" so boundary-search and point-geocoding timeouts/policies can
+        // diverge without coupling (same reasoning as "Geocoding" itself vs. "Weather").
+        // 30s, not 15s: the query itself declares "[timeout:25]" to the Overpass server (research.md
+        // #2/#12) — a 15s client-side timeout could abort a request Overpass was still legitimately
+        // working on, turning a slow-but-successful lookup into a false "Unavailable" (observed live:
+        // Al Safa Park 2's boundary lookup failed in production despite the identical query
+        // succeeding in ~1.4s from a different network — the public instance's latency varies by
+        // caller). 30s gives Overpass's own budget room to actually finish before the client gives up.
+        services.AddHttpClient("Overpass", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // Imagery for the Gemini vision cross-check. Google Static Maps is the primary provider:
+        // it is what the viewer renders on, so a boundary read off this image is measured in the
+        // same reference frame it will be drawn in. 30s matches the vision step's own budget.
+        services.AddHttpClient("GoogleStaticMaps", client =>
+        {
+            client.BaseAddress = new Uri("https://maps.googleapis.com/maps/api/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // ESRI World Imagery, kept only as the keyless fallback for environments with no Google
+        // Maps key. Its imagery is in a different frame from the viewer's basemap, so anything
+        // measured on it can position a boundary no better than the two vendors agree.
+        services.AddHttpClient("EsriWorldImagery", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         services.AddSingleton<ITokenService, TokenService>();
@@ -232,6 +308,14 @@ public static class DependencyInjection
             services.AddScoped<IGeocodingProvider, GoogleMapsGeocodingProvider>();
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
+        services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
+        // Same key-presence rule as the geocoder above, and for the same reason: prefer Google
+        // where we can reach it, degrade to a keyless provider where we cannot.
+        if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))
+            services.AddScoped<ISatelliteImageProvider, GoogleSatelliteImageProvider>();
+        else
+            services.AddScoped<ISatelliteImageProvider, EsriSatelliteImageProvider>();
+        services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();
@@ -327,6 +411,9 @@ public static class DependencyInjection
         services.AddSingleton<WhisperLocalTranscriptionProvider>();
         services.AddSingleton<ITranscriptionProvider>(sp => sp.GetRequiredService<WhisperLocalTranscriptionProvider>());
         services.AddHostedService<WhisperWarmupHostedService>();
+        // specs/043 FR-019 - stateless, so a singleton; shares the same options instance the
+        // hosted service reads, which is what keeps the window and the interval in step.
+        services.AddSingleton<IProviderHealthFreshnessPolicy, ProviderHealthFreshnessPolicy>();
         services.AddHostedService<ProviderHealthCheckHostedService>();
 
         services.AddScoped<ITextToSpeechProvider, ElevenLabsTextToSpeechProvider>();

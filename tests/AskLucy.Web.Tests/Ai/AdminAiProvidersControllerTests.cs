@@ -81,7 +81,7 @@ public sealed class AdminAiProvidersControllerTests(CustomWebApplicationFactory 
         {
             "GET" => _client.GetAsync(path),
             "PATCH" when path.Contains("/models/") => _client.PatchAsync(path, JsonContent.Create(new UpdateAiModelStatusRequest(AIModelStatus.Deprecated))),
-            "PATCH" => _client.PatchAsync(path, JsonContent.Create(new UpdateAiProviderRequest(true, null))),
+            "PATCH" => _client.PatchAsync(path, JsonContent.Create(new UpdateAiProviderRequest(true, null, null))),
             "PUT" => _client.PutAsync(path, JsonContent.Create(new SetAiProviderCredentialRequest("test-key"))),
             "DELETE" => _client.DeleteAsync(path),
             "POST" when path.EndsWith("/apply", StringComparison.Ordinal) => _client.PostAsync(path, JsonContent.Create(new ApplyProviderModelSyncRequest([], []))),

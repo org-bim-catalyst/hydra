@@ -45,13 +45,31 @@ function conditionIcon(condition: WeatherCondition, isDaytime: boolean): ReactNo
  * hasn't resolved (FR-008), and nothing on a first-attempt failure with no prior reading —
  * `useCurrentWeather`'s `isStale` flag covers "shows a clearly indicated stale reading instead
  * of going blank" for a *later* failure once one has already loaded. */
+/** The widget's chrome, shared by the reading and the unavailable state. */
+const shellSx = {
+  position: 'absolute',
+  // Below HomeProjectCard (features/chat/components/HomeProjectCard.tsx), which already
+  // occupies top: {16, 20} / left: {16, 20} — stacking here instead of overlapping it.
+  top: { xs: 76, sm: 84 },
+  left: { xs: 16, sm: 24 },
+  pointerEvents: 'none',
+  borderRadius: 2,
+  px: 2,
+  py: 1.25,
+  bgcolor: CIRCULAR_ACTION_CHROME.expandedBg,
+  border: CIRCULAR_ACTION_CHROME.border,
+  backdropFilter: 'blur(12px)',
+  color: CIRCULAR_ACTION_CHROME.icon,
+  boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
+} as const
+
 export function LocationWeatherWidget() {
   // specs/036-startup-geolocation: reads coordinates from the shared store rather than props,
   // so both startup geolocation and agent-confirmed locations drive the same widget.
   const latitude = useActiveLocationStore((s) => s.latitude)
   const longitude = useActiveLocationStore((s) => s.longitude)
   const setLocationName = useActiveLocationStore((s) => s.setLocationName)
-  const { data, isStale } = useCurrentWeather(latitude, longitude)
+  const { data, isStale, isError } = useCurrentWeather(latitude, longitude)
 
   // FR-008/SC-005: when weather data arrives, push the resolved locationName back into the
   // shared store so that any other consumer (e.g., the agent context block) sees the same name.
@@ -68,28 +86,29 @@ export function LocationWeatherWidget() {
   // be holding onto, which exists to survive a same-location refetch *failure* (FR-011), not
   // to keep showing a reading for a location that's no longer active.
   if (latitude === null || longitude === null) return null
-  if (!data) return null
+
+  // A failed lookup used to render nothing at all, so the widget simply vanished and the user
+  // was told nothing — the constitution's no-silent-failures rule applies to a decorative widget
+  // too. On 2026-09-01 the weather endpoint 502'd twice and this was the entire visible effect.
+  // Kept deliberately quiet: a line in the widget's own place, not a toast or a banner, because
+  // the failure costs the user nothing else.
+  if (!data) {
+    if (!isError) return null
+
+    return (
+      <Box role="status" aria-label="Weather is unavailable" sx={{ ...shellSx, opacity: 0.75 }}>
+        <Typography variant="subtitle2" component="div" sx={{ lineHeight: 1.2 }}>
+          Weather unavailable
+        </Typography>
+      </Box>
+    )
+  }
 
   return (
     <Box
       role="status"
       aria-label={`Weather in ${data.locationName}: ${Math.round(data.temperatureCelsius)}°C, ${data.condition}${isStale ? ' (last known reading)' : ''}`}
-      sx={{
-        position: 'absolute',
-        // Below HomeProjectCard (features/chat/components/HomeProjectCard.tsx), which already
-        // occupies top: {16, 20} / left: {16, 20} — stacking here instead of overlapping it.
-        top: { xs: 76, sm: 84 },
-        left: { xs: 16, sm: 24 },
-        pointerEvents: 'none',
-        borderRadius: 2,
-        px: 2,
-        py: 1.25,
-        bgcolor: CIRCULAR_ACTION_CHROME.expandedBg,
-        border: CIRCULAR_ACTION_CHROME.border,
-        backdropFilter: 'blur(12px)',
-        color: CIRCULAR_ACTION_CHROME.icon,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
-      }}
+      sx={shellSx}
     >
       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
         {conditionIcon(data.condition, data.isDaytime)}

@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Memory;
 using AskLucy.Domain.Retrieval;
@@ -51,7 +52,7 @@ public sealed class AmbiguousConflictTests
         _embeddingServiceResolver.Resolve("openai").Returns(_embeddingService);
         _embeddingService.EmbedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new EmbeddingResult(new float[1536], 1536));
 
-        var defaultProviderResolver = new DefaultProviderResolver(_aiProviderRepository, _aiModelRepository);
+        var defaultProviderResolver = CapabilityResolverTestFactory.Unassigned(_aiProviderRepository, _aiModelRepository);
 
         _service = new MemoryConflictDetectionService(
             _vectorStore, _memoryRepository, _conflictRepository, _versionRepository, _auditLogRepository, _notifier,

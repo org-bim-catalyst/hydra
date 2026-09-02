@@ -644,6 +644,24 @@ if (app.Environment.IsDevelopment())
     }
 }
 
+// Which geocoding provider is live is decided silently by whether Geocoding:GoogleMapsApiKey
+// happens to be configured (Infrastructure/DependencyInjection.cs), and the two report their
+// candidate `importance` on visibly different scales — Google synthesises 0.40-0.90 from
+// location_type, Nominatim returns a real Wikipedia-linkage popularity score where an ordinary
+// local park sits near 0.08. A deployment with a key and a dev machine without one therefore
+// resolve the same place query differently, which is exactly how "show me Al Safa Park 2"
+// worked in Production and returned NotFound locally with nothing in the logs to say why.
+// Stated once at startup so that divergence can never again read as a code regression.
+var hasGeocodingKey = !string.IsNullOrWhiteSpace(app.Configuration["Geocoding:GoogleMapsApiKey"]);
+// CA1873 is a false positive here: it flags the call even after the arguments are hoisted into
+// plain locals, and this is a single startup statement, not a hot path — nothing to defer.
+#pragma warning disable CA1848, CA1873
+app.Logger.LogInformation(
+    "Geocoding provider: {Provider} (Geocoding:GoogleMapsApiKey {KeyState}).",
+    hasGeocodingKey ? "GoogleMaps" : "Nominatim",
+    hasGeocodingKey ? "configured" : "not configured");
+#pragma warning restore CA1848, CA1873
+
 app.Run();
 
 /// <summary>Entry point marker for WebApplicationFactory-based integration tests.</summary>

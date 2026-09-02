@@ -12,9 +12,12 @@ public sealed record AdminAiProviderDto(
     DateTime? CredentialLastRotatedAtUtc,
     Guid? DefaultModelId,
     ProviderHealthStatus HealthStatus,
-    DateTime? HealthStatusCheckedAtUtc)
+    DateTime? HealthStatusCheckedAtUtc,
+    AiProviderFailureKind? HealthFailureKind,
+    string? HealthFailureReason,
+    DateTime? HealthStaleAfterUtc)
 {
-    public static AdminAiProviderDto FromEntity(AIProvider provider) => new(
+    public static AdminAiProviderDto FromEntity(AIProvider provider, DateTime? staleAfterUtc) => new(
         provider.Id,
         provider.ProviderKey,
         provider.DisplayName,
@@ -23,5 +26,8 @@ public sealed record AdminAiProviderDto(
         provider.CredentialLastRotatedAtUtc,
         provider.DefaultModelId,
         provider.HealthStatus,
-        provider.HealthStatusCheckedAtUtc);
+        provider.HealthStatusCheckedAtUtc,
+        provider.HealthFailureKind,
+        provider.HealthFailureReason,
+        staleAfterUtc);
 }

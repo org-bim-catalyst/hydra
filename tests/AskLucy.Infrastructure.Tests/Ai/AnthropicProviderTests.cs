@@ -84,7 +84,7 @@ public sealed class AnthropicProviderTests
     }
 
     [Fact]
-    public async Task ChatAsync_ShouldThrowAiProviderAuthenticationException_WhenNoCredentialIsConfigured()
+    public async Task ChatAsync_ShouldThrowAiProviderNotConfiguredException_WhenNoCredentialIsConfigured()
     {
         var uncredentialedProvider = AIProvider.Create("anthropic", "Anthropic", "test");
         _providers.GetByKeyAsync("anthropic", Arg.Any<CancellationToken>()).Returns(uncredentialedProvider);
@@ -92,7 +92,9 @@ public sealed class AnthropicProviderTests
 
         var act = () => provider.ChatAsync([new ChatMessage(ChatRole.User, "Hi")], "claude-3-5-sonnet-20241022", null, CancellationToken.None);
 
-        await act.Should().ThrowAsync<AiProviderAuthenticationException>();
+        // specs/043 FR-001: "no credential was ever set" is a different administrator action
+        // from "the vendor rejected the credential we sent", so it classifies distinctly.
+        await act.Should().ThrowAsync<AiProviderNotConfiguredException>();
     }
 
     [Fact]
@@ -126,5 +128,43 @@ public sealed class AnthropicProviderTests
         var finalChunk = chunks.Should().ContainSingle(c => c.Usage != null).Subject;
         finalChunk.Usage!.InputTokenCount.Should().Be(7);
         finalChunk.Usage!.OutputTokenCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task ListAvailableModelsAsync_ShouldFollowPagination_AcrossEveryPage()
+    {
+        // specs/043 FR-028a - Anthropic pages this endpoint with has_more/after_id.
+        var callCount = 0;
+        var provider = CreateProvider(_ =>
+        {
+            callCount++;
+            var json = callCount == 1
+                ? """{"data":[{"id":"claude-a","display_name":"A"}],"has_more":true}"""
+                : """{"data":[{"id":"claude-b","display_name":"B"}],"has_more":false}""";
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            };
+        }, out _);
+
+        var models = await provider.ListAvailableModelsAsync(CancellationToken.None);
+
+        callCount.Should().Be(2);
+        models.Select(m => m.ModelKey).Should().BeEquivalentTo(["claude-a", "claude-b"]);
+    }
+
+    [Fact]
+    public async Task ListAvailableModelsAsync_ShouldReportAbsentTokenLimits_AsNull()
+    {
+        // specs/043 FR-029: Anthropic's list carries no token metadata. Substituting 0 made
+        // every one of these rows unaddable.
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"data":[{"id":"claude-a","display_name":"A"}],"has_more":false}""", Encoding.UTF8, "application/json"),
+        }, out _);
+
+        var models = await provider.ListAvailableModelsAsync(CancellationToken.None);
+
+        models.Should().ContainSingle(m => m.ContextWindowTokens == null && m.MaxOutputTokens == null);
     }
 }

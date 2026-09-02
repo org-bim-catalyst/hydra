@@ -31,8 +31,13 @@ public sealed class UpdateAiProviderCommandHandler(
         }
 
         // Only touch DefaultModelId when the caller actually supplied it — a PATCH that only
-        // sets IsEnabled must not clear an existing DefaultModelId as a side effect.
-        if (request.DefaultModelId.HasValue)
+        // sets IsEnabled must not clear an existing DefaultModelId as a side effect. Clearing
+        // is therefore a separate explicit flag rather than "pass null".
+        if (request.ClearDefaultModel)
+        {
+            provider.SetDefaultModel(null, actorUserId);
+        }
+        else if (request.DefaultModelId.HasValue)
         {
             provider.SetDefaultModel(request.DefaultModelId, actorUserId);
         }

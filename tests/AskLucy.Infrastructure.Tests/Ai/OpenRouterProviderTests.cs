@@ -67,7 +67,7 @@ public sealed class OpenRouterProviderTests
     }
 
     [Fact]
-    public async Task ChatAsync_ShouldThrowAiProviderAuthenticationException_WhenNoCredentialIsConfigured()
+    public async Task ChatAsync_ShouldThrowAiProviderNotConfiguredException_WhenNoCredentialIsConfigured()
     {
         var uncredentialedProvider = AIProvider.Create("openrouter", "OpenRouter", "test");
         _providers.GetByKeyAsync("openrouter", Arg.Any<CancellationToken>()).Returns(uncredentialedProvider);
@@ -75,7 +75,9 @@ public sealed class OpenRouterProviderTests
 
         var act = () => provider.ChatAsync([new ChatMessage(ChatRole.User, "Hi")], "openai/gpt-4o", null, CancellationToken.None);
 
-        await act.Should().ThrowAsync<AiProviderAuthenticationException>();
+        // specs/043 FR-001: "no credential was ever set" is a different administrator action
+        // from "the vendor rejected the credential we sent", so it classifies distinctly.
+        await act.Should().ThrowAsync<AiProviderNotConfiguredException>();
     }
 
     [Fact]

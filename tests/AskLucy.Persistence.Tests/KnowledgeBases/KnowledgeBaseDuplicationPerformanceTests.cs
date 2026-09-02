@@ -24,7 +24,9 @@ public sealed class KnowledgeBaseDuplicationPerformanceTests(PersistenceTestFixt
 {
     private const int DocumentCount = 1_000;
 
-    [Fact]
+    [Fact(Skip = ScalePerformanceGate.SkipReason,
+          SkipWhen = nameof(ScalePerformanceGate.NotRequested),
+          SkipType = typeof(ScalePerformanceGate))]
     public async Task Handle_ShouldDuplicateAKnowledgeBaseWith1000Documents_InUnderTenSeconds()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

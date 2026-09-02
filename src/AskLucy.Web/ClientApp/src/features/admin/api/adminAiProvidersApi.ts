@@ -1,4 +1,5 @@
 import { apiFetch } from '../../../api/httpClient'
+import type { ProviderFailureKind } from '../../../api/httpClient'
 
 /** specs/005-multi-provider-ai-engine — mirrors `AdminAiProviderDto`. Never includes the credential value itself. */
 export interface AdminAiProvider {
@@ -11,11 +12,44 @@ export interface AdminAiProvider {
   defaultModelId: string | null
   healthStatus: 'Unknown' | 'Healthy' | 'Unhealthy'
   healthStatusCheckedAtUtc: string | null
+  /** specs/043 FR-016 — why the last check failed. Non-null only while `healthStatus` is `Unhealthy`. */
+  healthFailureKind: ProviderFailureKind | null
+  /** Administrator-facing prose for `healthFailureKind`. Never a raw vendor response body. */
+  healthFailureReason: string | null
+  /**
+   * specs/043 FR-019 — the instant this result stops being trustworthy (`checkedAt + 3x the
+   * configured check interval`). A horizon rather than a boolean, so an open page turns stale
+   * on its own instead of showing a verdict frozen at render time.
+   */
+  healthStaleAfterUtc: string | null
+}
+
+/** specs/043 FR-024 — the result of an administrator-triggered probe. */
+export interface CheckProviderHealthResult {
+  healthStatus: AdminAiProvider['healthStatus']
+  healthFailureKind: ProviderFailureKind | null
+  healthFailureReason: string | null
+  checkedAtUtc: string
+  healthStaleAfterUtc: string | null
 }
 
 export const getProviders = () => apiFetch<AdminAiProvider[]>('/admin/ai/providers')
 
-export const updateProvider = (id: string, changes: { isEnabled?: boolean; defaultModelId?: string | null }) =>
+/** specs/043 FR-024. Bounded by the controller's existing `admin-endpoints` rate limit (FR-025). */
+export const checkProviderHealth = (providerId: string) =>
+  apiFetch<CheckProviderHealthResult>(`/admin/ai/providers/${providerId}/actions/check-health`, {
+    method: 'POST',
+  })
+
+/**
+ * `clearDefaultModel` rather than `defaultModelId: null`, because null already means "leave
+ * it alone" server-side — a PATCH that only flips `isEnabled` must not wipe the default as a
+ * side effect.
+ */
+export const updateProvider = (
+  id: string,
+  changes: { isEnabled?: boolean; defaultModelId?: string | null; clearDefaultModel?: boolean },
+) =>
   apiFetch<void>(`/admin/ai/providers/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
 
 export const setCredential = (id: string, apiKey: string) =>
@@ -48,8 +82,9 @@ export interface AdminAiModel {
   id: string
   modelKey: string
   displayName: string
-  contextWindowTokens: number
-  maxOutputTokens: number
+  /** specs/043 FR-029/FR-030 — `null` means the vendor published no figure. Never rendered as 0. */
+  contextWindowTokens: number | null
+  maxOutputTokens: number | null
   capabilities: AdminAiModelCapabilities
   pricing: AdminAiModelPricing | null
   releaseDate: string | null
@@ -60,8 +95,9 @@ export interface AdminAiModel {
 export interface AddedProviderModel {
   modelKey: string
   displayName: string
-  contextWindowTokens: number
-  maxOutputTokens: number
+  /** specs/043 FR-029 — `null` when the vendor publishes no token metadata (OpenAI publishes none at all). */
+  contextWindowTokens: number | null
+  maxOutputTokens: number | null
   capabilities: AdminAiModelCapabilities
 }
 
@@ -101,4 +137,35 @@ export const applyModelSync = (providerId: string, diff: ProviderModelSyncDiff) 
   apiFetch<ApplyProviderModelSyncResult>(`/admin/ai/providers/${providerId}/models/actions/sync/apply`, {
     method: 'POST',
     body: JSON.stringify(diff),
+  })
+
+/**
+ * specs: the non-chat jobs the platform asks an LLM to do. Chat is absent on purpose — the
+ * user's own Settings preference governs that, and these have no user to ask.
+ */
+export type AiCapability =
+  | 'Chat'
+  | 'LocationIntent'
+  | 'MemoryExtraction'
+  | 'MemoryConflictDetection'
+  | 'DocumentClassification'
+  | 'BoundaryVision'
+
+export interface AiCapabilityAssignment {
+  capability: AiCapability
+  /** Null when nothing is assigned — the capability then falls back to the platform default. */
+  providerId: string | null
+  /** Where the capability actually lands today, assigned or not. Resolved server-side. */
+  effectiveProviderId: string | null
+  effectiveModelId: string | null
+}
+
+export const getCapabilityAssignments = () =>
+  apiFetch<AiCapabilityAssignment[]>('/admin/ai/capabilities')
+
+/** A null `providerId` clears the assignment, returning the capability to the platform default. */
+export const setCapabilityAssignment = (capability: AiCapability, providerId: string | null) =>
+  apiFetch<void>(`/admin/ai/capabilities/${capability}`, {
+    method: 'PUT',
+    body: JSON.stringify({ providerId }),
   })

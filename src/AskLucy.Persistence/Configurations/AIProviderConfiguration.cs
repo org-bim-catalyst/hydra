@@ -27,6 +27,12 @@ public sealed class AIProviderConfiguration : IEntityTypeConfiguration<AIProvide
         builder.Property(p => p.HealthStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(p => p.HealthStatusCheckedAtUtc);
 
+        // specs/043 FR-016. Stored as a string, never an ordinal, matching the HealthStatus
+        // and AIModelStatus convention above: an ordinal silently remaps if the enum is ever
+        // reordered. Both are nullable - non-null only while HealthStatus is Unhealthy.
+        builder.Property(p => p.HealthFailureKind).HasConversion<string>().HasMaxLength(40);
+        builder.Property(p => p.HealthFailureReason).HasMaxLength(500);
+
         builder.Property(p => p.CreatedBy).IsRequired();
         builder.Property(p => p.RowVersion).IsRowVersion();
 

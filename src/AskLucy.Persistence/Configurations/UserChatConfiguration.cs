@@ -1,8 +1,11 @@
+using System.Text.Json;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Projects;
+using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AskLucy.Persistence.Configurations;
@@ -90,6 +93,35 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
             owned.Property(a => a.Longitude).HasColumnName("ActiveLocationLongitude");
             owned.Property(a => a.LocationName).HasColumnName("ActiveLocationName").HasMaxLength(500);
             owned.Property(a => a.Confidence).HasColumnName("ActiveLocationConfidence");
+        });
+
+        // specs/042-site-boundary-resolution — nullable columns on the existing UserChats table,
+        // mirroring ActiveLocation's flat-column style exactly (research.md #10); null = no
+        // boundary confirmed yet for this chat (no data backfill on migration). Only Polygon
+        // can't be a flat scalar column (variable-length vertex list) — it alone uses a
+        // HasConversion value converter (JSON string <-> IReadOnlyList<GeoPoint>), kept entirely
+        // in this Infrastructure-layer configuration so Domain stays free of any JSON reference
+        // (constitution §3 Domain purity).
+        builder.OwnsOne(c => c.ActiveBoundary, owned =>
+        {
+            owned.Property(a => a.SiteName).HasColumnName("ActiveBoundarySiteName").HasMaxLength(500);
+            owned.Property(a => a.CentroidLatitude).HasColumnName("ActiveBoundaryCentroidLatitude");
+            owned.Property(a => a.CentroidLongitude).HasColumnName("ActiveBoundaryCentroidLongitude");
+            owned.Property(a => a.AreaSquareMeters).HasColumnName("ActiveBoundaryAreaSquareMeters");
+            owned.Property(a => a.Confidence).HasColumnName("ActiveBoundaryConfidence");
+            owned.Property(a => a.ConfidenceLevel).HasColumnName("ActiveBoundaryConfidenceLevel").HasConversion<string>().HasMaxLength(10);
+            owned.Property(a => a.Source).HasColumnName("ActiveBoundarySource").HasConversion<string>().HasMaxLength(30);
+            owned.Property(a => a.SourceDetail).HasColumnName("ActiveBoundarySourceDetail").HasMaxLength(1000);
+
+            owned.Property(a => a.Polygon)
+                .HasColumnName("ActiveBoundaryPolygonJson")
+                .HasConversion(
+                    polygon => JsonSerializer.Serialize(polygon, (JsonSerializerOptions?)null),
+                    json => JsonSerializer.Deserialize<IReadOnlyList<GeoPoint>>(json, (JsonSerializerOptions?)null) ?? new List<GeoPoint>())
+                .Metadata.SetValueComparer(new ValueComparer<IReadOnlyList<GeoPoint>>(
+                    (a, b) => a!.SequenceEqual(b!),
+                    a => a.Aggregate(0, (hash, p) => HashCode.Combine(hash, p.Latitude, p.Longitude)),
+                    a => a.ToList()));
         });
     }
 }

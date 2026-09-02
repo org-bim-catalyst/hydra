@@ -14,6 +14,12 @@ public sealed class McpObservabilityTests
     public async Task ExecuteAsync_ShouldLogInformation_OnSuccess()
     {
         var logger = Substitute.For<ILogger<McpConnectionResiliencePolicy>>();
+        // Required, not incidental. The policy logs through source-generated [LoggerMessage]
+        // methods, and every one of those checks IsEnabled(level) before doing any work. A bare
+        // NSubstitute mock returns false for bool, so the log call was skipped entirely and
+        // Received().Log(...) below could never match — these three assertions had been failing
+        // since the MCP feature landed, for a reason that had nothing to do with the policy.
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         var policy = new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions()), logger);
 
         await policy.ExecuteAsync(Guid.NewGuid(), isIdempotent: true, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
@@ -34,6 +40,12 @@ public sealed class McpObservabilityTests
     public async Task ExecuteAsync_ShouldLogWarning_OnFailure()
     {
         var logger = Substitute.For<ILogger<McpConnectionResiliencePolicy>>();
+        // Required, not incidental. The policy logs through source-generated [LoggerMessage]
+        // methods, and every one of those checks IsEnabled(level) before doing any work. A bare
+        // NSubstitute mock returns false for bool, so the log call was skipped entirely and
+        // Received().Log(...) below could never match — these three assertions had been failing
+        // since the MCP feature landed, for a reason that had nothing to do with the policy.
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         var policy = new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions { MaxRetries = 0 }), logger);
 
         var act = async () => await policy.ExecuteAsync<int>(Guid.NewGuid(), isIdempotent: false, _ => throw new InvalidOperationException("boom"));
@@ -51,6 +63,12 @@ public sealed class McpObservabilityTests
     public async Task ExecuteAsync_ShouldLogWarning_WhenCircuitIsOpen()
     {
         var logger = Substitute.For<ILogger<McpConnectionResiliencePolicy>>();
+        // Required, not incidental. The policy logs through source-generated [LoggerMessage]
+        // methods, and every one of those checks IsEnabled(level) before doing any work. A bare
+        // NSubstitute mock returns false for bool, so the log call was skipped entirely and
+        // Received().Log(...) below could never match — these three assertions had been failing
+        // since the MCP feature landed, for a reason that had nothing to do with the policy.
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         var policy = new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions { CircuitBreakerFailureThreshold = 1 }), logger);
         var serverId = Guid.NewGuid();
         policy.RecordFailure(serverId);

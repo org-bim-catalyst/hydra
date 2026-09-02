@@ -45,8 +45,12 @@ public sealed class OpenAIProviderTests
 
         var act = () => TranscribeAsync(provider);
 
+        // specs/043 FR-013/SC-008: the vendor's own text must NOT reach the exception message,
+        // because that message becomes the Problem Details `detail` a client reads. This
+        // assertion previously required the leak; it now forbids it. The body is still
+        // recorded server-side, truncated, by the classifier's structured log.
         (await act.Should().ThrowAsync<AiProviderRequestInvalidException>())
-            .WithMessage("*Invalid file format*");
+            .Which.Message.Should().NotContain("Invalid file format");
     }
 
     [Fact]
@@ -225,5 +229,21 @@ public sealed class OpenAIProviderTests
 
         await act.Should().ThrowAsync<AiProviderAuthenticationException>()
             .WithMessage("*not configured with an API key*");
+    }
+
+    [Fact]
+    public async Task ListAvailableModelsAsync_ShouldReportAbsentTokenLimits_AsNull()
+    {
+        // specs/043 FR-029/SC-006. OpenAI publishes no token metadata for any model, so before
+        // this change every one of its ~97 rows failed to apply with "Context window must be
+        // greater than zero" - permanently, since no edit path for the figures exists.
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"data":[{"id":"gpt-4-turbo"}]}""", Encoding.UTF8, "application/json"),
+        }, out _);
+
+        var models = await provider.ListAvailableModelsAsync(CancellationToken.None);
+
+        models.Should().ContainSingle(m => m.ModelKey == "gpt-4-turbo" && m.ContextWindowTokens == null && m.MaxOutputTokens == null);
     }
 }

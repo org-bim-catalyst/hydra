@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Retrieval;
+using AskLucy.Infrastructure.Ai;
 using Microsoft.Extensions.Options;
 
 namespace AskLucy.Infrastructure.Retrieval.Embeddings;
@@ -18,9 +20,46 @@ namespace AskLucy.Infrastructure.Retrieval.Embeddings;
 /// exception types <see cref="AskLucy.Application.Abstractions.IAIProvider"/> implementations use
 /// (FR-009, constitution §2.VIII).
 /// </summary>
-public sealed class OpenAiEmbeddingProvider(IHttpClientFactory httpClientFactory, IOptions<OpenAiEmbeddingOptions> options) : IEmbeddingService
+public sealed class OpenAiEmbeddingProvider(
+    IHttpClientFactory httpClientFactory,
+    IOptions<OpenAiEmbeddingOptions> options,
+    IAIProviderRepository providerRepository,
+    IAiCredentialProtector credentialProtector) : IEmbeddingService
 {
     private readonly OpenAiEmbeddingOptions _options = options.Value;
+
+    /// <summary>
+    /// The key this provider authenticates with: the one an administrator configured for OpenAI
+    /// on the AI providers page, falling back to <c>OpenAiEmbedding:ApiKey</c> from configuration.
+    /// </summary>
+    /// <remarks>
+    /// It used to read configuration only. That section is set in neither appsettings.json nor
+    /// appsettings.Production.json, so in production the key was empty and every embedding call
+    /// returned 401 — memory retrieval failed silently on every single turn while chat, reading
+    /// the same vendor's credential from the database, worked fine. Configuring OpenAI in the
+    /// admin UI is the thing an administrator actually does, so that credential is what this
+    /// uses; the configuration value stays as an override for environments that set it.
+    /// </remarks>
+    private async Task<string> ResolveApiKeyAsync(CancellationToken cancellationToken)
+    {
+        var provider = await providerRepository.GetByKeyAsync("openai", cancellationToken);
+        if (provider?.CredentialCiphertext is not null)
+        {
+            try
+            {
+                return credentialProtector.Unprotect(provider.CredentialCiphertext);
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                // An unreadable credential is a real fault worth naming, not a reason to fall
+                // back to a key that is almost certainly absent.
+                throw AiProviderResponseClassifier.Create(
+                    AiProviderFailureKind.CredentialUnreadable, "OpenAI", retryAfter: null, ex);
+            }
+        }
+
+        return _options.ApiKey;
+    }
 
     public string ProviderKey => "OpenAI";
 
@@ -39,9 +78,11 @@ public sealed class OpenAiEmbeddingProvider(IHttpClientFactory httpClientFactory
             return [];
         }
 
+        var apiKey = await ResolveApiKeyAsync(cancellationToken);
+
         using var client = httpClientFactory.CreateClient("OpenAiEmbedding");
         client.BaseAddress = new Uri(_options.BaseUrl);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
         var payload = new
         {

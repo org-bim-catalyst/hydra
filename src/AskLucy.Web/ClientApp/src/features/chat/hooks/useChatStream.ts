@@ -3,7 +3,16 @@ import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
 import { generateImage, streamChat, type ChatMessage, type GenerationParameters } from '../api/aiApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
+
+/**
+ * A client-side id for a streamed assistant bubble, so it has one from the moment it exists.
+ * `crypto.randomUUID` is unavailable in some older WebViews and in jsdom without a polyfill.
+ */
+function newMessageId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 
 const TITLE_MAX_LENGTH = 60
 
@@ -38,6 +47,8 @@ export function useChatStream(
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => (initialMessages ? toChatMessages(initialMessages) : []))
   const [isStreaming, setIsStreaming] = useState(false)
+  /** What the currently-empty assistant bubble is waiting for, e.g. "Finding the site boundary". */
+  const [pendingLabel, setPendingLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const chatIdRef = useRef<string | null>(chatId)
@@ -130,10 +141,22 @@ export function useChatStream(
       setIsStreaming(true)
       setError(null)
 
+      setPendingLabel(null)
       const controller = new AbortController()
       abortRef.current = controller
 
-      let assistantContent = ''
+      // A turn can produce more than one assistant message: the site-boundary confirmation
+      // reports a second action that finishes seconds after the location did, and the server
+      // sends a `messageBreak` before it rather than appending it to a bubble the user has
+      // already read. The last entry is the one currently streaming.
+      //
+      // Each part carries its own id from the moment it exists. MessageBubble gates its replay
+      // control on `message.id`, so without one the second bubble rendered with no way to play
+      // it back. Only the first message's id is later replaced by the server's, via __MEMORY__ —
+      // that is the one the memory trace is fetched against.
+      let assistantParts = [{ id: newMessageId(), content: '' }]
+      const renderParts = (parts: { id: string; content: string }[]): ChatMessage[] =>
+        parts.map((part) => ({ id: part.id, role: 'assistant' as const, content: part.content }))
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
       let retrievalError: ChatMessage['retrievalError']
@@ -143,9 +166,22 @@ export function useChatStream(
         const activeChatId = await ensureChatId(content)
         for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
           if (event.type === 'content') {
-            assistantContent += event.delta
+            const last = assistantParts[assistantParts.length - 1]
+            assistantParts = [...assistantParts.slice(0, -1), { ...last, content: last.content + event.delta }]
             if (isActiveRef.current) {
-              setMessages([...history, { role: 'assistant', content: assistantContent }])
+              setMessages([...history, ...renderParts(assistantParts)])
+            }
+          } else if (event.type === 'messageBreak') {
+            // Close the current bubble and open a new one — and push it to the screen NOW rather
+            // than waiting for its first character. That empty trailing bubble is what renders as
+            // the thinking indicator, so the user sees the work start instead of a reply that
+            // looks finished while the server spends tens of seconds on the boundary.
+            if (assistantParts[assistantParts.length - 1].content !== '') {
+              assistantParts = [...assistantParts, { id: newMessageId(), content: '' }]
+              setPendingLabel(event.pendingLabel)
+              if (isActiveRef.current) {
+                setMessages([...history, ...renderParts(assistantParts)])
+              }
             }
           } else if (event.type === 'retrieval') {
             // specs/016-rag-semantic-search US1 — carried on the stream's trailing event so
@@ -158,7 +194,7 @@ export function useChatStream(
             // specs/018-ai-memory-system US1 — the assistant message's real persisted id only
             // exists once AppendMessageCommand has run, so this trailing event is also the
             // earliest point the "why does Lucy know this" trace becomes fetchable this session.
-            messageId = event.messageId
+            messageId = event.messageId ?? undefined
             memoryOutcome = event.outcome
           } else if (event.type === 'location') {
             // specs/036-startup-geolocation US3: agent-confirmed location overrides the startup
@@ -172,18 +208,46 @@ export function useChatStream(
               event.locationType,
               event.viewport,
             )
+
+            // specs/042-site-boundary-resolution edge case: a new, unrelated site must replace
+            // the previously displayed boundary, not leave it overlaid — cleared here so a
+            // same-turn 'siteBoundary' event (if any) still applies cleanly, and so it's also
+            // cleared correctly when boundary resolution came back Unavailable this turn (no
+            // 'siteBoundary' event follows to replace it otherwise).
+            if (useActiveSiteBoundaryStore.getState().siteName !== event.locationName) {
+              useActiveSiteBoundaryStore.getState().clearBoundary()
+            }
           } else if (event.type === 'zoom') {
             // specs/038-viewer-poi-zoom US2: explicit zoom command — only execute when an active
             // location exists (C1 fix: no zoom without a confirmed location on screen).
             if (useActiveLocationStore.getState().latitude !== null) {
               viewerEngine.zoomBy(event.direction)
             }
+          } else if (event.type === 'siteBoundary') {
+            // specs/042-site-boundary-resolution: resolved site boundary — replaces the
+            // previously active one wholesale (a new site fully supersedes the previous one).
+            useActiveSiteBoundaryStore.getState().setBoundary({
+              siteName: event.siteName,
+              centroid: event.centroid,
+              polygon: event.polygon,
+              areaSquareMeters: event.areaSquareMeters,
+              confidence: event.confidence,
+              confidenceLevel: event.confidenceLevel,
+              source: event.source as SiteBoundarySource,
+              sourceDetail: event.sourceDetail,
+              alternativeCandidateNames: event.alternativeCandidateNames,
+            })
           }
         }
         if (isActiveRef.current) {
+          // The citations, retrieval outcome, memory outcome and persisted id all belong to the
+          // reply itself — the turn's first message. Anything after it is a confirmation
+          // sentence the application wrote, which none of that metadata describes.
+          const [reply, ...rest] = assistantParts.filter((part, index) => part.content !== '' || index === 0)
           setMessages([
             ...history,
-            { id: messageId, role: 'assistant', content: assistantContent, citations, retrievalOutcome, retrievalError, memoryOutcome },
+            { id: messageId ?? reply.id, role: 'assistant', content: reply.content, citations, retrievalOutcome, retrievalError, memoryOutcome },
+            ...renderParts(rest),
           ])
         }
       } catch (err) {
@@ -191,7 +255,13 @@ export function useChatStream(
           // FR-030: keep whatever partial content already streamed in (flagged incomplete)
           // rather than discarding it — a connection drop mid-stream shouldn't erase a
           // reply the user could already see arriving.
-          setMessages([...history, { role: 'assistant', content: assistantContent, isIncomplete: true }])
+          // Every bubble already completed stays as it is; only the one that was still streaming
+          // is flagged incomplete.
+          setMessages([
+            ...history,
+            ...renderParts(assistantParts.slice(0, -1)),
+            { ...renderParts([assistantParts[assistantParts.length - 1]])[0], isIncomplete: true },
+          ])
           setError(err instanceof Error ? err.message : 'Failed to send message. Please try again.')
         }
       } finally {
@@ -225,5 +295,5 @@ export function useChatStream(
     }
   }, [send])
 
-  return { messages, isStreaming, error, clearError, send, sendImage, stop, retry, providerId, modelId, setSelection }
+  return { messages, isStreaming, pendingLabel, error, clearError, send, sendImage, stop, retry, providerId, modelId, setSelection }
 }

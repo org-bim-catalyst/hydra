@@ -18,6 +18,10 @@ public sealed class ProviderHealthCheckConfiguration : IEntityTypeConfiguration<
         builder.Property(h => h.IsHealthy).IsRequired();
         builder.Property(h => h.Detail).HasMaxLength(500);
 
+        // specs/043 FR-016 - same string-conversion rule as AIProviderConfiguration.
+        builder.Property(h => h.FailureKind).HasConversion<string>().HasMaxLength(40);
+        builder.Property(h => h.FailureReason).HasMaxLength(500);
+
         builder.Property(h => h.CreatedBy).IsRequired();
         builder.Property(h => h.RowVersion).IsRowVersion();
 

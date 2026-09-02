@@ -123,4 +123,77 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
         result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-old" && f.Reason.Contains("stale"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    // Live bug (2026-08-27): OpenAI's own ListAvailableModelsAsync always reports
+    // ContextWindowTokens: 0 (that vendor's model-list endpoint carries no such metadata at
+    // all), which AIModel.Create rejects with a DomainRuleViolationException — previously
+    // unhandled here, aborting the ENTIRE batch (including otherwise-valid rows) instead of
+    // reporting just that one row as failed, contradicting this handler's own "best-effort,
+    // per row" documentation.
+    [Fact]
+    public async Task Handle_ShouldReportAZeroContextWindowRowAsFailed_WithoutAbortingOtherValidRowsInTheSameBatch()
+    {
+        var providerId = Guid.NewGuid();
+        AIModel? created = null;
+        _models.When(m => m.Add(Arg.Any<AIModel>())).Do(call => created = call.Arg<AIModel>());
+
+        var command = new ApplyProviderModelSyncCommand(
+            providerId,
+            [
+                new ProviderModelInfo("gpt-4-turbo", "GPT-4 Turbo", ContextWindowTokens: 0, MaxOutputTokens: 0, Capabilities),
+                new ProviderModelInfo("gpt-5", "GPT-5", 200000, 32000, Capabilities),
+            ],
+            []);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-5");
+        result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-4-turbo" && f.Reason.Contains("Context window"));
+        created.Should().NotBeNull();
+        created!.ModelKey.Should().Be("gpt-5");
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ShouldApplyEveryRow_WhenTheVendorPublishedNoTokenLimits()
+    {
+        // specs/043 SC-006. This is the reported defect end to end: OpenAI's list publishes no
+        // token metadata for any model, the adapter substituted 0, and AIModel.Create rejected
+        // it - so all ~97 rows were reported as failures on every sync, forever, with no edit
+        // path to supply the figures either.
+        var providerId = Guid.NewGuid();
+        var added = new List<ProviderModelInfo>
+        {
+            new("gpt-4-turbo", "gpt-4-turbo", null, null, Capabilities),
+            new("gpt-4o", "gpt-4o", null, null, Capabilities),
+            new("gpt-4.1", "gpt-4.1", null, null, Capabilities),
+        };
+
+        var result = await _handler.Handle(new ApplyProviderModelSyncCommand(providerId, added, []), CancellationToken.None);
+
+        result.AppliedModelKeys.Should().BeEquivalentTo(["gpt-4-turbo", "gpt-4o", "gpt-4.1"]);
+        result.Failed.Should().BeEmpty();
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ShouldStillReportAGenuinelyStaleRow_WhileItsSiblingsApply()
+    {
+        // FR-031: per-row reporting survives - the change is only that an absent token limit is
+        // no longer one of the things that makes a row fail.
+        var providerId = Guid.NewGuid();
+        var existing = AIModel.Create(providerId, "gpt-4o", "GPT-4o", 128_000, 16_384, Capabilities, null, null, "test");
+        _models.ListByProviderIdAsync(providerId, Arg.Any<CancellationToken>()).Returns([existing]);
+
+        var added = new List<ProviderModelInfo>
+        {
+            new("gpt-4o", "gpt-4o", null, null, Capabilities),      // stale: already in the catalog
+            new("gpt-4-turbo", "gpt-4-turbo", null, null, Capabilities),
+        };
+
+        var result = await _handler.Handle(new ApplyProviderModelSyncCommand(providerId, added, []), CancellationToken.None);
+
+        result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-4-turbo");
+        result.Failed.Should().ContainSingle().Which.ModelKey.Should().Be("gpt-4o");
+    }
 }

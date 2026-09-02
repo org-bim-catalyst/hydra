@@ -1,6 +1,5 @@
-import { Button, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material'
-import { Link as RouterLink } from 'react-router'
-import { AppShell } from '../../../components/AppShell'
+import { Grid, Paper, Skeleton, Typography } from '@mui/material'
+import { AdminShell } from '../components/AdminShell'
 import { useAdminDashboard } from '../hooks/useAdminDashboard'
 import { NewUsersTrendChart } from '../charts/NewUsersTrendChart'
 import { RoleDistributionChart } from '../charts/RoleDistributionChart'
@@ -31,28 +30,10 @@ export function AdminDashboardPage() {
   const { data: summary, isLoading } = useAdminDashboard()
 
   return (
-    <AppShell
+    <AdminShell
       title="Admin Dashboard"
       subtitle="Platform health and usage at a glance"
-      actions={
-        <Stack direction="row" spacing={1}>
-          <Button component={RouterLink} to="/admin/users" variant="outlined" size="small">
-            Manage users
-          </Button>
-          <Button component={RouterLink} to="/admin/ai-providers" variant="outlined" size="small">
-            Manage AI providers
-          </Button>
-          <Button component={RouterLink} to="/admin/agent-policies" variant="outlined" size="small">
-            Manage agent policies
-          </Button>
-          <Button component={RouterLink} to="/admin/workflow-policies" variant="outlined" size="small">
-            Manage workflow policies
-          </Button>
-          <Button component={RouterLink} to="/admin/mcp-servers" variant="outlined" size="small">
-            Manage MCP servers
-          </Button>
-        </Stack>
-      }
+
     >
       {isLoading || !summary ? (
         <Skeleton variant="rounded" height={400} />
@@ -113,6 +94,6 @@ export function AdminDashboardPage() {
           </Grid>
         </Grid>
       )}
-    </AppShell>
+    </AdminShell>
   )
 }

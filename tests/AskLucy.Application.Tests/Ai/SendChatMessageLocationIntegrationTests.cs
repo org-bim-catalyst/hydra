@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using FluentAssertions;
@@ -28,10 +29,12 @@ public sealed class SendChatMessageLocationIntegrationTests
     private readonly IRagService _ragService = Substitute.For<IRagService>();
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
+    private readonly IBoundaryResolutionService _boundaryResolutionService = Substitute.For<IBoundaryResolutionService>();
     private readonly IViewerZoomDetector _viewerZoomDetector = Substitute.For<IViewerZoomDetector>();
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
+    private readonly BoundaryScoringOptions _boundaryScoringOptions = new();
     private readonly SendChatMessageCommandHandler _handler;
     private readonly AIProvider _openAiProvider;
     private readonly AIModel _gpt41;
@@ -60,10 +63,18 @@ public sealed class SendChatMessageLocationIntegrationTests
         _memoryService.RetrieveRelevantMemoriesAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new MemoryRetrievalOutcome(MemoryRetrievalOutcomeType.NoneRelevant, null, [], null));
 
+        // specs/042-site-boundary-resolution: benign default so the handler's new
+        // boundary-resolution branch (triggered whenever a location is Confirmed) doesn't
+        // dereference a null outcome for the existing location-only test scenarios below.
+        _boundaryResolutionService.ResolveAsync(Arg.Any<ConfirmedLocationData>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new BoundaryResolutionOutcome(BoundaryResolutionOutcomeType.Unavailable, null, BoundaryConfirmationTemplates.Unavailable));
+
         _handler = new SendChatMessageCommandHandler(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
-            _locationResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
+            _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
+            Microsoft.Extensions.Options.Options.Create(_boundaryScoringOptions),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SendChatMessageCommandHandler>.Instance,
             new SendChatMessageCommandValidator(_providers, _models));
     }
 

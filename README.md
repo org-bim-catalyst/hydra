@@ -41,6 +41,7 @@ dotnet user-secrets set "Jwt:SigningKey" "<a random 32+ character string>" --pro
 dotnet user-secrets set "OpenAI:ApiKey" "<your OpenAI API key>" --project src/AskLucy.Web
 dotnet user-secrets set "Smtp:Username" "<your SMTP username, if the host requires auth>" --project src/AskLucy.Web
 dotnet user-secrets set "Smtp:Password" "<your SMTP password, if the host requires auth>" --project src/AskLucy.Web
+dotnet user-secrets set "Geocoding:GoogleMapsApiKey" "<a server-side Google Maps key>" --project src/AskLucy.Web
 
 cd src/AskLucy.Web/ClientApp && npm install && cd ../../..   # once, before the first build/run
 dotnet build "Ask Lucy.sln"
@@ -54,6 +55,18 @@ it does not run install/ci itself, to keep every build fast.
 
 In the `Development` environment, email is never actually sent — `ConsoleEmailSender` logs it
 instead, so the `Smtp:*` secrets above are only needed once you run outside `Development`.
+
+`Geocoding:GoogleMapsApiKey` is optional but strongly recommended. Without it the app falls
+back to `NominatimGeocodingProvider`, whose candidate `importance` is a Wikipedia-popularity
+score rather than a match-quality one — an ordinary local place scores ~0.08 where Google
+reports 0.40-0.90, so `LocationResolution:MinimumImportanceFloor` behaves quite differently on
+the two. Use a **server-side** key (unrestricted or IP-restricted); the domain-restricted
+browser key in `ClientApp/.env` (`VITE_GOOGLE_MAPS_API_KEY`) is rejected by server-to-server
+calls. Which provider is live is logged once at startup:
+
+```
+Geocoding provider: GoogleMaps (Geocoding:GoogleMapsApiKey configured).
+```
 
 Never put real secrets in `appsettings.json` — see the `_comment_secrets` note in
 `src/AskLucy.Web/appsettings.json` and constitution §8.
