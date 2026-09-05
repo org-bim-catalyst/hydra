@@ -564,6 +564,26 @@ Things a reviewer should push on.
    appearing for every future successful trace — the note now checks trace adoption
    (`visionGeometry is not null`) first and only falls back to the old agreement-based wording when
    there is no trace to report on.
+
+   **Fourth update: framing the image on OSM's own ring reintroduces the exact problem this whole
+   pivot exists to avoid.** `ImageryRadiusFor` sizes the frame Gemini is shown from the winning OSM
+   candidate's own bounding box (half-diagonal × 1.35, floored at 60 m, capped at the search
+   radius). That ring is the same signal being corrected — if it undershoots the real site's
+   extent, the image is clipped to OSM's version of the boundary before Gemini ever sees it, and no
+   amount of prompt tuning recovers pixels that were never in the frame. The user supplied 6 real
+   vertices for Al Safa Park 2 (hand-picked from Google Maps' own coordinate popup) to check this
+   concretely: their bounding half-diagonal is ~126 m, which the existing formula already turns
+   into ~170 m — but Static Maps only accepts integer zoom levels, and both that and the naively
+   smaller number this doc used earlier for illustration (127 m) floor to the same zoom (18, a
+   ~346 m-wide frame), so in this specific case the frame was not what clipped the notch. The
+   general risk is still real: any OSM ring whose half-extent undershoots ~74 m for a site at this
+   latitude drops the frame to zoom 19 (~173 m wide), narrow enough to clip vertices sitting
+   110-125 m from centre, as several of the user's 6 points do. `MinimumImageryRadiusMeters` is
+   raised from 60 to 150 to guard against exactly that: every site now gets at least a ~346 m-wide
+   frame regardless of how undersized OSM's own ring might be, while the ×1.35 scaling above the
+   floor is untouched, so a genuinely large site still gets more room, not less. This does not fix
+   candidate discovery failing outright (0 candidates, or the wrong polygon at the wrong location) —
+   only the case where OSM found roughly the right place but underestimated how big it is.
 ---
 
 ## 10. Where to look in the code

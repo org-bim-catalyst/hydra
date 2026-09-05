@@ -263,8 +263,16 @@ public sealed class BoundaryResolutionService(
         return new FinalSelection(aiCandidate, Math.Round(overrideScore, 3), "ai_override");
     }
 
-    /// <summary>Smallest frame the analyzer is asked for: below this a small site fills the image with no surrounding context to place it against.</summary>
-    private const double MinimumImageryRadiusMeters = 60;
+    /// <summary>
+    /// Smallest frame the analyzer is asked for, regardless of how small <paramref name="candidate"/>'s
+    /// own OSM ring measures. That ring is the same signal the vision cross-check exists to correct
+    /// when it is wrong — if it also undershoots the real site's extent, a floor sized only to "a
+    /// small site fills the frame" would hand Gemini an image already clipped to OSM's version of
+    /// the boundary, unable to show the very extent OSM got wrong. 150 m keeps the frame at Static
+    /// Maps' zoom 18 (~346 m across) for any site whose true extent is under roughly 250 m, well
+    /// past what a plausible OSM undershoot looks like in practice.
+    /// </summary>
+    private const double MinimumImageryRadiusMeters = 150;
 
     /// <summary>Margin around the candidate, so its corners are never on the frame's edge.</summary>
     private const double ImageryFramingMargin = 1.35;

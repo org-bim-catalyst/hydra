@@ -317,11 +317,14 @@ public sealed class BoundaryResolutionServiceTests
 
         await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
-        // SamplePolygon spans roughly 100 x 110 m, so its framing radius is well under the 500 m
-        // search radius and comfortably above the 60 m floor.
+        // SamplePolygon's own extent (half-diagonal * 1.35) works out to ~101 m, below the 150 m
+        // floor - so this specific candidate is framed by the floor itself, not its own shape. That
+        // floor exists precisely because a candidate's mapped ring is the same signal being
+        // corrected and can undershoot the real site; either way this is still well under the 500 m
+        // search radius.
         await _satelliteImageProvider.Received(1).FetchAsync(
             Arg.Any<GeoPoint>(),
-            Arg.Is<int>(radius => radius > 60 && radius < 200),
+            Arg.Is<int>(radius => radius >= 150 && radius < 200),
             Arg.Any<CancellationToken>());
     }
 
