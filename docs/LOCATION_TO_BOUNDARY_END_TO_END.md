@@ -513,6 +513,21 @@ Things a reviewer should push on.
    is the whole point of using it. Whether that theory survives contact with a live boundary turn,
    the way "Kept" did not for the translate-only approach, is not yet known — this shipped without
    one.
+
+   **Update, post-deployment: the offset is fixed, vertex fidelity was not.** The user's live test
+   of Al Safa Park 2 confirmed the offset problem is gone — `AiInterpretation` traced a boundary
+   20 m from the OSM-mapped position and it matched Google's own rendering on screen, the first
+   time any vision-based correction actually agreed with the basemap. But the traced ring itself
+   was a plain rectangle where the site's real drawn outline has a small notch (a path/building cut
+   into one corner) — Gemini simplified rather than followed the edge, despite the prompt already
+   asking for "any notch or step in its edge, exactly as rendered." There is no code path that could
+   have substituted OSM's vertex count here: `TryBuildVisionTracedGeometry` returns the observed
+   ring verbatim, and the candidate description sent to Gemini carries no OSM coordinates for it to
+   echo back (id/name/area/distance/tags only) — the under-tracing is Gemini's own approximation,
+   not a blending bug. The prompt now says explicitly not to report a simplified rectangle when the
+   drawn shape has more corners than that, to examine each edge individually for a bend, step, or
+   cut before treating it as straight, and raises the point ceiling from 12 to 20. Not yet confirmed
+   against a second live turn.
 ---
 
 ## 10. Where to look in the code
