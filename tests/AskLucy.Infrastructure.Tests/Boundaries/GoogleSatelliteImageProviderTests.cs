@@ -57,7 +57,7 @@ public sealed class GoogleSatelliteImageProviderTests
         int.Parse(HttpUtility.ParseQueryString(uri.Query)["zoom"]!, CultureInfo.InvariantCulture);
 
     [Fact]
-    public async Task FetchAsync_ShouldRequestSatelliteImageryFromGoogle_AtDoubleResolution()
+    public async Task FetchAsync_ShouldRequestRoadmapImageryFromGoogle_AtDoubleResolution()
     {
         var provider = CreateProvider(out var requested);
 
@@ -65,7 +65,10 @@ public sealed class GoogleSatelliteImageProviderTests
 
         image.Should().NotBeNull();
         var query = requested.Single().ToString();
-        query.Should().Contain("maptype=satellite");
+        // Roadmap, not satellite: Gemini traces the polygon Google's own map rendering already
+        // drew for the site, rather than inferring a fence line from photography — see
+        // GoogleSatelliteImageProvider's remarks.
+        query.Should().Contain("maptype=roadmap");
         // scale=2 returns 1280 px for the same ground as 640 — the difference between a fence
         // being a pixel wide and being several.
         query.Should().Contain("scale=2");

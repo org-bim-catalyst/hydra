@@ -33,12 +33,13 @@ internal static partial class BoundaryResolutionServiceLog
 /// </summary>
 /// <remarks>
 /// The AI vision cross-check (<see cref="IBoundaryVisionAnalyzer"/>) sees two kinds of imagery for
-/// the winning candidate: an overhead satellite frame from <see cref="ISatelliteImageProvider"/>,
-/// and up to a handful of ground-level photos from <see cref="IStreetViewImageProvider"/>, sampled
-/// around the candidate's own mapped perimeter and aimed back at it. Satellite alone cannot tell a
-/// wall or fence from a tree canopy that spills past it; the ground-level photos exist to settle
-/// that where the satellite image leaves it ambiguous. See
-/// <c>docs/LOCATION_TO_BOUNDARY_END_TO_END.md</c> §9.6.
+/// the winning candidate: an overhead rendered-map frame from <see cref="ISatelliteImageProvider"/>
+/// (Google's roadmap layer, not satellite photography — a real-world fence trace against satellite
+/// or street-level imagery was tried and measurably failed four times, see
+/// <c>docs/LOCATION_TO_BOUNDARY_END_TO_END.md</c> §9.6), and up to a handful of ground-level photos
+/// from <see cref="IStreetViewImageProvider"/>, sampled around the candidate's own mapped perimeter
+/// and aimed back at it, kept only as secondary context for telling one shaded shape on the map
+/// from another. See §9.7 for the roadmap-tracing approach itself.
 /// </remarks>
 public sealed class BoundaryResolutionService(
     IBoundaryCandidateProvider candidateProvider,
@@ -96,19 +97,23 @@ public sealed class BoundaryResolutionService(
             .Distinct()
             .ToList();
 
-        // OSM supplies the shape; vision supplies the position.
-        //
-        // The mapped ring is the geometry — it is surveyed, and it carries whatever detail the
-        // mappers put in. What it does not guarantee is that it sits exactly on the fence. So the
-        // only thing taken from Gemini's read is the translation between where OSM puts the site
-        // and where the image shows it, applied to every mapped vertex unchanged.
+        // Gemini traces the shape Google's own roadmap tiles already drew for the named site —
+        // a rendered vector polygon, not a real-world property line inferred from ambiguous
+        // photography. That distinction is why this now trusts the traced shape outright rather
+        // than only ever translating OSM's ring by a centroid offset: translating repeatedly
+        // failed to fix a real offset (16/33/21/35 m, always the same direction) because the
+        // signal it was translating by came from photography that does not show the boundary
+        // clearly enough to correct against. A traced vector polygon is a different, much
+        // lower-noise signal — see §9.7. TryBuildVisionTracedGeometry still gates on plausibility
+        // (area ratio, distance from center) before trusting it over the mapped OSM ring, and the
+        // mapped ring is still the fallback whenever that gate fails.
         //
         // Basemap alignment, which used to run ahead of this, is gone for good: it snapped the
         // ring's centroid onto the geocoded point, and for a park Google returns an establishment
         // POI (location_type ROOFTOP, bounds null) — a marker inside the polygon, not its centre.
         // That dragged a correct ring 24 m north-west.
         var mappedSourceDetail = DescribeSource(winner.Candidate);
-        var visionGeometry = TryBuildVisionCorrectedGeometry(winner, visionAnalysis, center, opts, mappedSourceDetail);
+        var visionGeometry = TryBuildVisionTracedGeometry(winner, visionAnalysis, center, opts, mappedSourceDetail);
         if (visionAnalysis.ObservedBoundary is not null && visionGeometry is null)
         {
             BoundaryResolutionServiceLog.VisionCorrectionRejected(logger, userChatId);
@@ -134,7 +139,7 @@ public sealed class BoundaryResolutionService(
         // silent failures).
         var aiNote = visionAnalysis.AiUsed
             ? DescribeAiVerification(selection.Agreement)
-            : "Note: I couldn't cross-check this against satellite imagery just now, so the outline is straight from map data and may sit slightly off the fence.";
+            : "Note: I couldn't cross-check this against Google's map rendering just now, so the outline is straight from map data and may sit slightly off the fence.";
         var confirmationText = BoundaryConfirmationTemplates.WithAiVerificationNote(
             BoundaryConfirmationTemplates.WithAlternatives(
                 BoundaryConfirmationTemplates.Confirmed(confirmedLocation.LocationName, confidenceLevel, sourceDetail),
@@ -172,20 +177,21 @@ public sealed class BoundaryResolutionService(
         try
         {
             // Framed on the best-ranked candidate rather than on the search radius. At the search
-            // radius a 90 x 166 m park sat inside a 1 km frame, a few pixels across, with no fence
-            // resolvable at any resolution — the analyzer was being asked to trace something the
-            // image did not contain. ImageryRadiusFor gives it the site, filling the frame.
+            // radius a 90 x 166 m park sat inside a 1 km frame, a few pixels across, with its
+            // rendered polygon and label barely legible — the analyzer was being asked to trace
+            // something the image did not show clearly. ImageryRadiusFor gives it the site,
+            // filling the frame.
             var imageryRadius = ImageryRadiusFor(ranked[0].Candidate, opts);
             var image = await satelliteImageProvider.FetchAsync(center, imageryRadius, cancellationToken);
             if (image is null)
             {
-                return BoundaryVisionAnalysis.NotConfigured("No satellite image available to analyze this run.");
+                return BoundaryVisionAnalysis.NotConfigured("No map image available to analyze this run.");
             }
 
-            // Ground-level cross-check for what a satellite view alone leaves ambiguous — whether
-            // a wall/fence genuinely runs along a mapped edge, or a positional read is following
-            // tree canopy that spills past it. Sampled around the winning candidate's own mapped
-            // ring, not the search radius: viewpoints belong on the site being verified.
+            // Secondary context only, for telling one shaded shape on the map from another when
+            // the map alone is ambiguous about which one is the named site. Sampled around the
+            // winning candidate's own mapped ring, not the search radius: viewpoints belong on the
+            // site being verified.
             var viewpoints = PerimeterViewpointsFor(ranked[0].Candidate.Polygon.ExteriorRing);
             var lookAt = viewpoints.Count > 0 ? GeometryMath.Centroid(ranked[0].Candidate.Polygon.ExteriorRing) : center;
             var streetViews = await streetViewImageProvider.FetchAsync(viewpoints, lookAt, cancellationToken)
@@ -329,40 +335,39 @@ public sealed class BoundaryResolutionService(
     private const double VisionCorrectionMaxAreaRatio = 3.0;
 
     /// <summary>
-    /// How far the mapped geometry may be nudged. A shift larger than this is not an alignment
-    /// error — it means the read is describing something else, and translating onto it would move
-    /// the boundary off the site entirely.
-    /// </summary>
-    private const double MaxVisionCorrectionMeters = 80;
-
-    /// <summary>
-    /// Corrects the mapped geometry's <b>position</b> using Gemini's visual read, and nothing
-    /// else.
+    /// Replaces the mapped geometry outright with Gemini's traced shape, once it clears two
+    /// plausibility gates.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This used to replace the mapped polygon with the observed one outright, which was wrong:
-    /// the observed outline is a four- or five-point approximation traced by a model, and
-    /// substituting it discards whatever detail the mappers surveyed. So the read contributes one
-    /// thing — the translation between the two centroids — and every mapped vertex is carried
-    /// along unchanged.
+    /// This used to only translate: extract the offset between the mapped and observed centroids
+    /// and carry every mapped vertex along by that offset, never touching the shape itself. That
+    /// was deliberate — the observed outline used to come from a model reading real-world
+    /// photography (satellite, cross-checked against Street View), an approximate and sometimes
+    /// wrong read of an ambiguous scene, so only its position was trusted, never its shape. It was
+    /// also wrong in practice: translate-only correction moved the boundary further from the real
+    /// park on every one of four separate live measurements (16 m, 33 m, 21 m, 35 m — always
+    /// west), because the read it was translating by was never reliable enough to correct against
+    /// in the first place.
     /// </para>
     /// <para>
-    /// It is worth being precise about what this can and cannot fix. It fixes <i>position</i>. It
-    /// cannot add detail the mapped ring does not have: translating a rectangle yields a
-    /// rectangle. Al Safa Park 2's OSM way, for instance, has seven points but only four corners —
-    /// the other three sit on straight edges, 0.05 m, 0.00 m and 0.32 m off the line. If the real
-    /// fence steps in and out, no offset will reproduce that; moving individual vertices would be
-    /// a separate change.
+    /// The input changed, so the right thing to trust from it changed too. Gemini is no longer
+    /// reading a photograph of an invisible property line — it is tracing a polygon Google's own
+    /// roadmap renderer already drew, flat-coloured with a crisp edge. That is what the boundary
+    /// actually is, not evidence pointing at it, so the traced shape becomes the final polygon
+    /// directly rather than only steering a translation. See
+    /// <c>docs/LOCATION_TO_BOUNDARY_END_TO_END.md</c> §9.7.
     /// </para>
     /// <para>
-    /// Three gates, all of which must hold: the observed area is within
+    /// Two gates, both of which must hold: the observed area is within
     /// <see cref="VisionCorrectionMinAreaRatio"/>x-<see cref="VisionCorrectionMaxAreaRatio"/>x of
-    /// the mapped area (it is looking at the same site), the observed centroid is inside the
-    /// search radius, and the resulting shift is under <see cref="MaxVisionCorrectionMeters"/>.
+    /// the mapped area (it is looking at the same site, not some other shaded shape on the map),
+    /// and the observed centroid is inside the search radius (it did not trace something far
+    /// away). There is no separate cap on how far the traced shape sits from the mapped one — a
+    /// large shift is exactly what this exists to apply when OSM's ring is the one that is wrong.
     /// </para>
     /// </remarks>
-    private static VisionCorrectedGeometry? TryBuildVisionCorrectedGeometry(
+    private static VisionCorrectedGeometry? TryBuildVisionTracedGeometry(
         ScoredBoundaryCandidate winner, BoundaryVisionAnalysis vision, GeoPoint center, BoundaryScoringOptions opts, string mappedSourceDetail)
     {
         if (vision.ObservedBoundary is not { Count: >= 3 } observed)
@@ -400,30 +405,12 @@ public sealed class BoundaryResolutionService(
 
         var mappedCentroid = GeometryMath.Centroid(mapped);
         var shiftMeters = GeometryMath.DistanceMeters(mappedCentroid, observedCentroid);
-        if (shiftMeters > MaxVisionCorrectionMeters)
-        {
-            return null;
-        }
-
-        // Nothing to gain from a sub-metre nudge, and reporting a correction that moved nothing
-        // would overstate what happened.
-        if (shiftMeters < 1)
-        {
-            return null;
-        }
-
-        var deltaLat = observedCentroid.Latitude - mappedCentroid.Latitude;
-        var deltaLon = observedCentroid.Longitude - mappedCentroid.Longitude;
-        var corrected = mapped
-            .Select(p => new GeoPoint(p.Latitude + deltaLat, p.Longitude + deltaLon))
-            .ToList();
 
         return new VisionCorrectedGeometry(
-            corrected,
-            // The shape is unchanged, so the mapped area still describes it exactly.
-            mappedArea > 0 ? mappedArea : GeometryMath.AreaSquareMeters(corrected),
-            winner.Candidate.Source,
-            $"{mappedSourceDetail}, shifted {shiftMeters:F0} m onto the boundary visible in Google's satellite imagery");
+            observed,
+            observedArea,
+            SiteBoundarySource.AiInterpretation,
+            $"traced from Google's own map rendering of the site, {shiftMeters:F0} m from the OpenStreetMap-mapped position ({mappedSourceDetail})");
     }
 
     private sealed record VisionCorrectedGeometry(
@@ -431,8 +418,8 @@ public sealed class BoundaryResolutionService(
 
     private static string? DescribeAiVerification(string agreement) => agreement switch
     {
-        "agree" => "This was cross-checked against satellite imagery by Gemini vision analysis, which confirmed the same boundary.",
-        "ai_override" => "Note: satellite-image analysis by Gemini pointed to a different boundary than map-data scoring alone suggested, and I went with Gemini's pick since it has direct visual evidence.",
+        "agree" => "This was cross-checked against Google's own map rendering by Gemini vision analysis, which confirmed the same boundary.",
+        "ai_override" => "Note: Gemini's map analysis pointed to a different boundary than map-data scoring alone suggested, and I went with Gemini's pick since it has direct visual evidence.",
         _ => null,
     };
 

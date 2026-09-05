@@ -238,17 +238,13 @@ public sealed class BoundaryResolutionServiceTests
         Reasoning: ["Matches visible fence line."], Issues: [], RequiresRefinement: false, ObservedBoundary: observedBoundary);
 
     /// <summary>
-    /// OSM supplies the shape, Gemini supplies the position.
-    ///
-    /// <para>
-    /// The read contributes exactly one thing — the translation between where OSM puts the site
-    /// and where the image shows it. Every mapped vertex is carried along unchanged, because the
-    /// observed outline is a model's traced approximation and substituting it discards whatever
-    /// detail the mappers surveyed.
-    /// </para>
+    /// Gemini traces the polygon Google's own roadmap tiles already drew for the site — a
+    /// rendered vector shape, not a real-world fence inferred from photography — so once it clears
+    /// the plausibility gates it becomes the final polygon directly, replacing OSM's mapped ring
+    /// rather than only steering a translation of it.
     /// </summary>
     [Fact]
-    public async Task ResolveAsync_ShouldTranslateTheMappedRing_OntoTheBoundaryGeminiSees()
+    public async Task ResolveAsync_ShouldAdoptTheTracedBoundary_OntoTheBoundaryGeminiSees()
     {
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new List<BoundaryCandidate> { Candidate() });
@@ -261,12 +257,11 @@ public sealed class BoundaryResolutionServiceTests
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
-        // The observed ring is the mapped one under the same shift, so a correct translation
-        // lands exactly on it — but it got there by moving OSM's vertices, not by adopting the trace.
         outcome.ConfirmedBoundary!.Polygon.Should().BeEquivalentTo(
             observed, opts => opts.WithStrictOrdering().Using<double>(
                 ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
-        outcome.ConfirmedBoundary.SourceDetail.Should().Contain("shifted");
+        outcome.ConfirmedBoundary.Source.Should().Be(SiteBoundarySource.AiInterpretation);
+        outcome.ConfirmedBoundary.SourceDetail.Should().Contain("traced from Google's own map rendering");
     }
 
     /// <summary>
@@ -424,11 +419,15 @@ public sealed class BoundaryResolutionServiceTests
     }
 
     [Fact]
-    public async Task ResolveAsync_ShouldPreserveEveryMappedVertex_WhenGeminiTracesACruderOutline()
+    public async Task ResolveAsync_ShouldAdoptTheTrace_EvenWhenItHasFewerVerticesThanTheMappedRing()
     {
-        // The live failure this replaced: OSM's way for Al Safa Park 2 carries seven distinct
-        // corners including a stepped notch on one side, and Gemini traces it as a four-point
-        // approximation. Substituting the trace fixed the offset and destroyed the shape.
+        // The live failure this fixes: OSM's way for Al Safa Park 2 carries seven distinct
+        // corners including a stepped notch on one side, but the mapped ring sat measurably off
+        // the real park (16/33/21/35 m, always west) across four separate live corrections that
+        // only ever translated it. Gemini is now tracing the polygon Google's own roadmap tiles
+        // drew for the site — a different, trustworthy signal — so its trace becomes the final
+        // boundary outright, vertex count and all, rather than being reduced to an offset applied
+        // to OSM's ring.
         var mapped = new List<GeoPoint>
         {
             new(25.1548445, 55.2218037),
@@ -440,7 +439,7 @@ public sealed class BoundaryResolutionServiceTests
             new(25.1551806, 55.2220769),
             new(25.1548445, 55.2218037),
         };
-        var crudeTrace = new List<GeoPoint>
+        var trace = new List<GeoPoint>
         {
             new(25.1550, 55.2213), new(25.1565, 55.2222), new(25.1560, 55.2229), new(25.1550, 55.2213),
         };
@@ -456,19 +455,14 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(SampleImage);
         _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
-            .Returns(VisionWithObservedBoundary(crudeTrace));
+            .Returns(VisionWithObservedBoundary(trace));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
-        var result = outcome.ConfirmedBoundary!.Polygon;
-        result.Should().HaveCount(mapped.Count, "every mapped vertex survives a repositioning");
-
-        // Rigid translation: every edge keeps its length, so the notch is still a notch.
-        for (var i = 1; i < mapped.Count; i++)
-        {
-            GeometryMath.DistanceMeters(result[i - 1], result[i])
-                .Should().BeApproximately(GeometryMath.DistanceMeters(mapped[i - 1], mapped[i]), 0.5);
-        }
+        outcome.ConfirmedBoundary!.Polygon.Should().BeEquivalentTo(
+            trace, opts => opts.WithStrictOrdering().Using<double>(
+                ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
+        outcome.ConfirmedBoundary.Source.Should().Be(SiteBoundarySource.AiInterpretation);
     }
 
     [Fact]
@@ -642,11 +636,11 @@ public sealed class BoundaryResolutionServiceTests
 
     /// <summary>
     /// specs/044 T022 (FR-008, SC-005) — the guard that vision must still DO its job. A plausible
-    /// observed boundary repositions the mapped ring; a fix that quietly disabled this would pass
+    /// observed boundary replaces the mapped ring; a fix that quietly disabled this would pass
     /// every other test in this file.
     /// </summary>
     [Fact]
-    public async Task ResolveAsync_ShouldApplyTheVisionOffset_WhenTheObservedBoundaryIsPlausible()
+    public async Task ResolveAsync_ShouldAdoptTheTracedBoundary_WhenTheObservedBoundaryIsPlausible()
     {
         _options.EnableAiVisionVerification = true;
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
@@ -673,7 +667,7 @@ public sealed class BoundaryResolutionServiceTests
         outcome.ConfirmedBoundary!.Polygon.Should().BeEquivalentTo(
             observed, opts => opts.WithStrictOrdering().Using<double>(
                 ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
-        outcome.ConfirmationText.Should().Contain("shifted");
+        outcome.ConfirmationText.Should().Contain("traced from Google's own map rendering");
     }
 
     /// <summary>

@@ -403,8 +403,9 @@ Things a reviewer should push on.
    | Step | What it did | Verdict |
    |---|---|---|
    | Basemap alignment | Snapped the ring's centroid onto the geocoded point | **Removed.** For a park Google returns an establishment POI (`location_type` ROOFTOP, `bounds` null) — a marker placed *inside* the polygon, not its centre. It dragged a correct ring 24 m north-west. |
-   | Vision replaces geometry | Substituted Gemini's traced outline for the mapped one | **Removed.** The trace is a four- or five-point approximation; substituting it discards whatever detail the mappers surveyed. |
-   | Vision repositions geometry | Translates the mapped ring by the offset between its centroid and the observed one | **Kept.** Every mapped vertex is carried along unchanged. |
+   | Vision replaces geometry (satellite input) | Substituted Gemini's traced outline, read from satellite photography, for the mapped one | **Removed.** The trace is a four- or five-point approximation of an ambiguous real-world scene; substituting it discards whatever detail the mappers surveyed. |
+   | Vision repositions geometry | Translates the mapped ring by the offset between its centroid and the observed one | **Removed**, after shipping. See the "Update, post-deployment" note below — four separate live measurements, all worse. |
+   | Vision replaces geometry (roadmap input) | Substituted Gemini's traced outline, read from a rendered roadmap image, for the mapped one | **Current approach, unproven.** See §9.7 — this is the same move as the row above it, revived on the theory that the input, not the idea, was the problem. |
 
    The third was briefly removed too, on the evidence that OSM's ring already matched Google's
    *drawn* park polygon. That comparison was between two vendors' opinions, neither of which is
@@ -426,12 +427,16 @@ Things a reviewer should push on.
    **The lesson worth keeping:** a geometric correction is a measurement. Compare against ground
    truth — imagery — not against another vendor's drawing.
 
-   **Update, post-deployment:** this "Kept" verdict has not held up. Three live boundary turns
-   after this shipped, each measured against the raw OSM ring on satellite imagery, all shifted
-   the ring *west* — 16 m, 33 m, then 21 m — and all landed it visibly worse: edges out on the
-   road, a corner off the park entirely. The correction has not yet been reverted or capped; §9.6
-   below is the attempt to give it real ground-level evidence instead of trusting a satellite-only
-   read, before deciding whether "Kept" still deserves the word.
+   **Update, post-deployment:** this "Kept" verdict did not hold up, across two separate attempts
+   to save it. First measured plain (no ground-level check): three live boundary turns, each
+   against the raw OSM ring on satellite imagery, all shifted the ring *west* — 16 m, 33 m, then
+   21 m — all visibly worse. §9.6 added a Street View ground-level cross-check on the theory that
+   satellite alone was reading tree canopy as a fence line; measured live a fourth time, it shifted
+   the ring *west* again — 35 m, the worst of the four — because Street View coverage for this
+   specific park turned out to be too sparse (2 of 4 sampled viewpoints came back
+   `ZERO_RESULTS`, the other 2 resolved to the same panorama) to add anything. Translate-based
+   correction is now removed rather than capped: §9.7 replaces it with a different approach to the
+   same problem.
 
 6. **Ground-level cross-check, added because satellite imagery alone cannot settle a real
    ambiguity.** A user request from early in this feature's life: satellite imagery cannot tell a
@@ -460,11 +465,54 @@ Things a reviewer should push on.
    closes it in code regardless, matching the closed-ring convention every other polygon in this
    codebase already uses.
 
-   **Unproven, unlike the correction it's meant to fix.** The satellite-only correction above has
-   three real, measured failures against it. This has none yet — it shipped without a live
-   boundary turn to check it against. Whether ground-level photos actually stop the westward drift,
-   or just add latency and a second Google bill for the same wrong answer, is still an open
-   question.
+   **Verified working as designed, and it still didn't help.** Measured against the live server
+   log for the turn the user actually tested: all 4 metadata calls and both image calls ran exactly
+   as this section describes, for the exact chat and the exact "shifted 35 m" detail text the user
+   reported seeing. The gap was coverage, not implementation — 2 of 4 sampled viewpoints had
+   `ZERO_RESULTS`, the other 2 collapsed to the same `pano_id` because they were close enough
+   together to see the same panorama. One side of this park simply has no Street View. See §9.7 for
+   what replaced this.
+
+7. **Roadmap-vector tracing, because the whole "read a real-world scene" premise was the problem,
+   not any particular implementation of it.** After four straight measured failures — plain
+   satellite, then satellite-plus-Street-View, both drifting the ring further west every time — the
+   user pointed out the actual difference between what had been tried here and a manual experiment
+   they had already run successfully in ChatGPT: screenshot Google's *roadmap* tiles (not
+   satellite), which draw many named places as a solid-coloured polygon with a crisp edge and a
+   label, and ask the model to trace *that* — an ordinary image-segmentation task, not an inference
+   about where an invisible property line probably runs through a photograph.
+
+   Three things changed together:
+
+   - `GoogleSatelliteImageProvider` now requests `maptype=roadmap` instead of `maptype=satellite`.
+     The type and interface names are unchanged (`ISatelliteImageProvider`, `SatelliteImage`) to
+     avoid a wide rename for what is, underneath, still "fetch an overhead Google Static Maps
+     image at a given center and radius" — see the class's own remarks for the full reasoning.
+   - The Gemini prompt no longer asks about "walls, fences, vegetation edges" — visible physical
+     features that make sense on a photograph and not on a map rendering. It now asks the model to
+     find the shaded/labelled polygon Google has already drawn for the named site and trace its
+     outline "corner for corner, including any notch or step in its edge, exactly as rendered."
+   - `BoundaryResolutionService` no longer translates. `TryBuildVisionTracedGeometry` (previously
+     `TryBuildVisionCorrectedGeometry`) now adopts the traced ring as the final polygon outright,
+     tagged `SiteBoundarySource.AiInterpretation`, once it clears two plausibility gates (area
+     ratio 0.3x-3.0x of the mapped candidate, centroid within the search radius). The 80 m
+     maximum-shift gate from the translate-only design is gone: a large shift is exactly what this
+     exists to apply when OSM's ring is the one that's wrong, so capping it would have quietly
+     reintroduced the same failure mode this change is meant to fix.
+
+   Street View is kept, downgraded to optional secondary context ("use them only... when the map
+   itself is ambiguous about which shape is the named site") rather than removed outright — the
+   user's instruction named satellite specifically, not Street View, and a roadmap image can still
+   be ambiguous about which of several nearby shaded shapes is the right one.
+
+   **This is the "Vision replaces geometry" row from the table above, revived.** The first time
+   this idea was tried, it was removed because the traced shape was a crude approximation of
+   real-world photography and substituting it threw away surveyed detail. Nothing about that
+   argument was wrong — it just assumed the input would always be a noisy photograph. A rendered
+   vector polygon is a categorically different, much lower-noise signal, and trusting it outright
+   is the whole point of using it. Whether that theory survives contact with a live boundary turn,
+   the way "Kept" did not for the translate-only approach, is not yet known — this shipped without
+   one.
 ---
 
 ## 10. Where to look in the code
