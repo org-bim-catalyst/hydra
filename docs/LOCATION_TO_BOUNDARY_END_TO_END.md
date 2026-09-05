@@ -541,6 +541,29 @@ Things a reviewer should push on.
    only at sharp corners, and to use anywhere from 4 points for a truly rectangular site to several
    dozen for an irregular or curved one — never a "round or convenient number" chosen in advance.
    Still unconfirmed against a live turn.
+
+   **Third update: the prompt was still showing Gemini the OSM candidate list, and that itself was
+   the objection.** The user pointed at the exact prompt text: a "Candidate boundary polygons
+   already found from OpenStreetMap" block plus an "IMPORTANT RULES for selected_candidate_id"
+   section asking the model to pick among OSM's candidate IDs, with the trace instruction worded as
+   secondary to it ("this is independent of which candidate you picked above, and matters most when
+   a candidate's mapped shape does not line up..."). Even though that block never fed the model any
+   OSM *coordinates* (id/name/area/distance/tags only — see the first update above), its presence,
+   and the "trace is secondary" framing, is precisely what a "rely on Gemini only" instruction rules
+   out. That whole task is now gone: no candidate list, no candidate IDs, no `selected_candidate_id`
+   field in the requested JSON. Tracing the boundary is the model's only job.
+
+   This did not require touching `BoundaryVisionAnalysis.SelectedCandidateId` or
+   `BoundaryResolutionService`'s candidate-override logic (`SelectFinalCandidate`,
+   `"ai_override"`/`"agree"`) — that remains real, independently-tested application-layer behaviour
+   for *any* `IBoundaryVisionAnalyzer` that chooses to populate it; the shipped Gemini
+   implementation now simply never does. It did surface one real bug worth fixing on the same pass:
+   the "this was cross-checked" confirmation note was wired to `selection.Agreement`
+   (candidate-ID agreement), not to whether the trace was actually adopted. With
+   `SelectedCandidateId` now always null in production, that note would have silently stopped
+   appearing for every future successful trace — the note now checks trace adoption
+   (`visionGeometry is not null`) first and only falls back to the old agreement-based wording when
+   there is no trace to report on.
 ---
 
 ## 10. Where to look in the code

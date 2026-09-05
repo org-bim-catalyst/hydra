@@ -137,9 +137,21 @@ public sealed class BoundaryResolutionService(
         // which on 2026-08-31 meant every boundary went uncorrected for hours behind a run of
         // Gemini 503s with nothing on screen to suggest anything was missing (constitution: no
         // silent failures).
-        var aiNote = visionAnalysis.AiUsed
-            ? DescribeAiVerification(selection.Agreement)
-            : "Note: I couldn't cross-check this against Google's map rendering just now, so the outline is straight from map data and may sit slightly off the fence.";
+        //
+        // Checked against trace adoption first, selection.Agreement second: the shipped Gemini
+        // prompt no longer shows the model any OSM candidates to pick from (§9.7 update), so
+        // SelectedCandidateId — and therefore selection.Agreement — is always "ai_not_used" in
+        // production now. Gating this note on Agreement alone would silently stop reporting a
+        // successful cross-check the moment the trace itself is what actually got adopted, which
+        // is exactly the scenario this whole feature exists to confirm.
+        var aiNote = !visionAnalysis.AiUsed
+            ? "Note: I couldn't cross-check this against Google's map rendering just now, so the outline is straight from map data and may sit slightly off the fence."
+            : visionGeometry is not null
+                ? "This was cross-checked against Google's own map rendering by Gemini vision analysis, which traced the site's boundary directly."
+                : DescribeAiVerification(selection.Agreement)
+                    ?? (visionAnalysis.ObservedBoundary is not null
+                        ? "Note: Gemini traced a boundary from Google's map rendering, but it didn't look like a plausible match for this site, so I kept the map-data outline instead."
+                        : null);
         var confirmationText = BoundaryConfirmationTemplates.WithAiVerificationNote(
             BoundaryConfirmationTemplates.WithAlternatives(
                 BoundaryConfirmationTemplates.Confirmed(confirmedLocation.LocationName, confidenceLevel, sourceDetail),
