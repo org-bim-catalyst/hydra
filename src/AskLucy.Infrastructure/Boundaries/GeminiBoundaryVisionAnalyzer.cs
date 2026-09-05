@@ -30,8 +30,10 @@ internal static partial class GeminiBoundaryVisionAnalyzerLog
 /// <summary>
 /// specs/042-site-boundary-resolution — a direct port of the reference notebook's
 /// <c>ai_boundary_analysis()</c>, using Gemini's multimodal <c>generateContent</c> endpoint to
-/// choose among (never invent) the deterministically-ranked OSM candidates by inspecting
-/// satellite imagery. Same credential-sourcing rule as <see cref="GoogleGeminiProvider"/> — reads
+/// choose among (never invent) the deterministically-ranked OSM candidates by inspecting a
+/// rendered street-map image (Google's own drawn polygon for the site, not a satellite photo —
+/// see <see cref="GoogleSatelliteImageProvider"/>'s remarks for why). Same credential-sourcing
+/// rule as <see cref="GoogleGeminiProvider"/> — reads
 /// the admin-managed, encrypted credential via <see cref="IAIProviderRepository"/> +
 /// <see cref="IAiCredentialProtector"/>, never a plain appsettings API key. Never throws
 /// (constitution §VIII): every failure path returns <see cref="BoundaryVisionAnalysis.NotConfigured"/>.
@@ -183,11 +185,11 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
     }
 
     /// <summary>
-    /// The satellite image is always parts[0]/[1] (prompt text, then the image) so
+    /// The rendered map image is always parts[0]/[1] (prompt text, then the image) so
     /// <c>observed_boundary_normalized</c>'s frame of reference is unambiguous. Street views, if
     /// any, follow as their own text-then-image pairs — labelled with heading and approximate
     /// position so the model can relate what it sees on the ground back to a specific edge of the
-    /// satellite view, without ever being asked to produce coordinates from them.
+    /// map, without ever being asked to produce coordinates from them.
     /// </summary>
     private static Dictionary<string, object?> BuildPayload(
         SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews,
@@ -205,10 +207,11 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             {
                 text = "The following images are ground-level Street View photos, each taken near the " +
                        "site's perimeter and aimed back toward it at the stated compass heading (0=north, " +
-                       "90=east, 180=south, 270=west). Use them only to confirm what the satellite image " +
-                       "above shows — whether a wall or fence genuinely runs where you think one does, and " +
-                       "which side of it something sits on. Never report coordinates from these photos: " +
-                       "observed_boundary_normalized is always relative to the satellite image only.",
+                       "90=east, 180=south, 270=west). Use them only as extra context, if useful — they show " +
+                       "what is actually on the ground, which can help you tell which shaded shape on the map " +
+                       "is really the named site when the map is ambiguous. Never report coordinates from " +
+                       "these photos: observed_boundary_normalized is always relative to the rendered map " +
+                       "image only.",
             });
 
             foreach (var streetView in streetViews)
@@ -246,11 +249,14 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
         }));
 
         var streetViewNote = streetViews.Count > 0
-            ? $"\n{streetViews.Count} ground-level Street View photo(s) of this site's surroundings follow the satellite image below - use them to confirm what the satellite view leaves ambiguous.\n"
+            ? $"\n{streetViews.Count} ground-level Street View photo(s) near this site follow the map image below - use them only as extra context if the map itself is ambiguous about which shape is the named site.\n"
             : "";
 
         return $$"""
-            You are analyzing a satellite image to help identify the boundary of a named site.
+            You are looking at a rendered street map image (a screenshot of Google Maps, NOT a
+            satellite photo) to help identify the boundary of a named site. Google draws many
+            places of interest — parks, complexes, campuses — as a solid shaded polygon with a
+            crisp edge and its own label, directly on the map. Your job has two independent parts.
             {{streetViewNote}}
             Site name:
             {{siteName}}
@@ -270,32 +276,29 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             1. DO NOT invent new coordinates for this field.
             2. ONLY choose among the candidate IDs provided above.
             3. If none of the candidates reasonably represents the site, return null.
-            4. Base your decision on visible physical features such as:
-               - walls
-               - fences
-               - paths
-               - vegetation edges
-               - parking areas
-               - land-use transitions
-               - buildings
-               - roads
-               - other visible site boundaries
+            4. Base your decision on what the map itself shows:
+               - a shaded/coloured area whose label matches the site name
+               - paths, parking areas, and buildings drawn inside or around it
+               - roads that run along its edges
+               - sub-markers or labels for facilities that belong to the site
             5. Prefer an existing candidate over saying none fit when there is reasonable
                visual evidence supporting that candidate.
 
-            SEPARATELY, also report where YOU visually see the site's actual boundary in the
-            SATELLITE image (not the ground-level photos, if any are included below), in
-            observed_boundary_normalized — this is independent of which candidate you picked
-            above, and matters most when a candidate's mapped shape looks shifted from where the
-            real walls/fences/tree line actually are in the image. If ground-level photos are
-            included, use them first to decide whether a wall/fence genuinely exists at an edge you
-            are unsure about in the satellite image, then report that edge's position in the
-            satellite image's own frame. Report it as a list of [x, y] pairs, each a fraction from
-            0.0 to 1.0 of the satellite image's width/height, with (0,0) at its top-left corner
-            (x=0 is the west edge, x=1 is the east edge; y=0 is the north edge, y=1 is the south
-            edge). List each corner once, in order around the perimeter (3 to 12 points) — do not
-            repeat the first point at the end, the loop is closed automatically. Set this to null
-            if you cannot clearly identify the boundary in the image — do not guess.
+            SEPARATELY, also trace the actual shape Google has drawn on the map for this named
+            site, in observed_boundary_normalized — this is independent of which candidate you
+            picked above, and matters most when a candidate's mapped shape does not line up with
+            the shaded area or label the map itself shows. Find the shaded polygon (or, if the site
+            has no shaded fill, the shape most clearly implied by its label, paths, and
+            surroundings) and trace its outline as drawn — corner for corner, including any notch
+            or step in its edge, exactly as rendered. Ground-level photos, if included below, are
+            only for resolving which shape on the map is the right one when that is unclear; report
+            the traced shape's position in the map image's own frame regardless. Report it as a
+            list of [x, y] pairs, each a fraction from 0.0 to 1.0 of the map image's width/height,
+            with (0,0) at its top-left corner (x=0 is the west edge, x=1 is the east edge; y=0 is
+            the north edge, y=1 is the south edge). List each corner once, in order around the
+            perimeter (3 to 12 points) — do not repeat the first point at the end, the loop is
+            closed automatically. Set this to null if you cannot clearly identify a drawn shape for
+            this site — do not guess.
 
             Determine which candidate ID most likely represents the actual site boundary.
 
@@ -362,12 +365,12 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
     }
 
     /// <summary>
-    /// Converts Gemini's own image-relative read of the boundary (<c>observed_boundary_normalized</c>,
+    /// Converts Gemini's own image-relative trace of the boundary (<c>observed_boundary_normalized</c>,
     /// [0,1] fractions of image width/height, origin top-left) back to real WGS84 coordinates using
-    /// the satellite image's known geographic bounds — the same bounds given to Gemini in the
-    /// prompt. This is the model's honest visual estimate, not an invented shape: it can only ever
-    /// land somewhere inside the image it was shown. <see cref="BoundaryResolutionService"/> still
-    /// runs a plausibility check before trusting it over mapped OSM geometry.
+    /// the map image's known geographic bounds — the same bounds given to Gemini in the prompt.
+    /// This is a trace of a shape Google itself already drew, not an invented one: it can only
+    /// ever land somewhere inside the image it was shown. <see cref="BoundaryResolutionService"/>
+    /// still runs a plausibility check before trusting it over mapped OSM geometry.
     /// </summary>
     /// <remarks>
     /// The returned ring is always explicitly closed (first point repeated as the last), matching

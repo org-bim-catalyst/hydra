@@ -40,7 +40,10 @@
 >    (`IBoundaryVisionAnalyzer`/`GeminiBoundaryVisionAnalyzer`, `ISatelliteImageProvider`/
 >    `GoogleSatelliteImageProvider`, reconciliation logic in `BoundaryResolutionService`; later joined
 >    by `IStreetViewImageProvider`/`GoogleStreetViewImageProvider` for a ground-level cross-check —
->    see `LOCATION_TO_BOUNDARY_END_TO_END.md` §9.6), but defaults
+>    see `LOCATION_TO_BOUNDARY_END_TO_END.md` §9.6. `ISatelliteImageProvider`'s implementation now
+>    renders Google's roadmap layer, not satellite photography, and Gemini's traced outline is
+>    adopted as the final polygon outright rather than only steering a translation — see §9.7), but
+>    defaults
 >    to **enabled** (`BoundaryScoring:EnableAiVisionVerification`), not disabled — a live bug (Al Safa
 >    Park 2 resolving to a small sub-feature inside the park instead of the park itself) showed that
 >    deterministic tag/geometry scoring alone isn't always enough to disambiguate similarly-plausible

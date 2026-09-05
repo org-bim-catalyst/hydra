@@ -21,34 +21,36 @@ internal static partial class GoogleSatelliteImageProviderLog
 
 /// <summary>
 /// Fetches the vision cross-check's imagery from Google Static Maps — the same provider the
-/// viewer renders on.
+/// viewer renders on. <b>Renders the roadmap layer, not satellite photography</b>, despite the
+/// type's name (kept to avoid a wide rename; see the remarks below for why).
 /// </summary>
 /// <remarks>
 /// <para>
-/// This replaced an ESRI World Imagery provider, for two reasons that both showed up in a live
-/// boundary.
+/// <b>Why roadmap, not satellite.</b> Four measured live boundary corrections against satellite
+/// imagery — with and without a Street View ground-truth cross-check — all drifted the same
+/// direction (west, 16-35 m) and all made the outline worse. Satellite asks the model to find an
+/// invisible property line in a noisy real-world photograph: ambiguous where a fence sits in
+/// shadow or under a tree, and there is no way to tell "the model is unsure" from "the model is
+/// confidently wrong." Google's roadmap tiles draw the park as a single flat-colour polygon with a
+/// hard, anti-aliased edge and its own name label — tracing that edge is ordinary image
+/// segmentation, the same class of task any vision model is reliably good at, because the boundary
+/// is not being inferred, it is already drawn. Confirmed by hand first: the same experiment run
+/// against a general-purpose vision model on this exact park's roadmap tile reproduced the
+/// polygon, notch included, closely enough to be usable.
 /// </para>
 /// <para>
-/// <b>Reference frame.</b> Whatever the analyzer reads off this image is used to reposition a
-/// mapped outline that is then drawn on Google's basemap. Read off a different vendor's imagery,
-/// even a perfect trace lands wherever the two vendors disagree — which is not a correction, it
-/// is a frame swap. Same provider in and out means the offset we measure is the offset we want.
+/// <b>Reference frame.</b> Still Google in and Google out: the polygon this reads off is Google's
+/// own rendering, on the same basemap the viewer draws on, so there is no vendor-to-vendor frame
+/// mismatch to correct for.
 /// </para>
 /// <para>
-/// <b>Resolution.</b> The old provider took a fixed search radius, so a 90 x 166 m park occupied a
-/// small part of a 1 km frame and no fence was more than a pixel or two wide. Nothing could be
-/// traced from that image however good the model. This one frames the requested extent and picks
-/// the closest zoom that still contains it, then renders at <c>scale=2</c> so the returned image
-/// is 1280 px across for the same ground — roughly 0.25 m/px at park scale, where a wall is
-/// several pixels wide and a corner is unambiguous.
+/// <b>Resolution.</b> Framed on the requested extent at the closest zoom that still contains it,
+/// then rendered at <c>scale=2</c> — 1280 px across for the same ground, so the label and every
+/// corner of the polygon stay legible rather than being crushed into a corner of a wide frame.
 /// </para>
 /// <para>
-/// <b>Encoding.</b> JPEG, not PNG. The bytes are uploaded to the vision model inside the
-/// request body, so their size is part of the vision budget: the same 1280 px frame is
-/// 1.13 MB as PNG and 337 KB as JPEG — 1.51 MB versus 449 KB once base64-encoded. Requests
-/// carrying the PNG were still in flight when the 30 s budget expired. Lossy compression
-/// costs nothing that matters here; the model is looking for walls and tree lines, not
-/// pixel-exact colour.
+/// <b>Encoding.</b> JPEG, not PNG — smaller upload, and a rendered map has none of the compression
+/// artefacts that would matter for a photograph.
 /// </para>
 /// <para>
 /// Keeps <see cref="ISatelliteImageProvider"/>'s never-throws contract: a failed fetch returns
@@ -63,7 +65,7 @@ internal sealed class GoogleSatelliteImageProvider(
     /// <summary>Ground coverage of the request, in Static Maps' scale-1 pixels. <c>scale=2</c> returns twice this many pixels for the same ground.</summary>
     private const int ImageSizePixels = 640;
 
-    /// <summary>Static Maps rejects a larger zoom; satellite coverage thins out well before it anyway.</summary>
+    /// <summary>Static Maps rejects a larger zoom than this.</summary>
     private const int MaxZoom = 20;
 
     /// <summary>Below this the image is too coarse to be worth analysing at all.</summary>
@@ -101,7 +103,7 @@ internal sealed class GoogleSatelliteImageProvider(
                 + $"?center={center.Latitude.ToString("R", CultureInfo.InvariantCulture)},{center.Longitude.ToString("R", CultureInfo.InvariantCulture)}"
                 + $"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}"
                 + $"&size={ImageSizePixels}x{ImageSizePixels}"
-                + "&scale=2&maptype=satellite&format=jpg"
+                + "&scale=2&maptype=roadmap&format=jpg"
                 + $"&key={Uri.EscapeDataString(apiKey)}";
 
             // Not disposed: the client comes from the factory, whose handler lifetime it manages.
