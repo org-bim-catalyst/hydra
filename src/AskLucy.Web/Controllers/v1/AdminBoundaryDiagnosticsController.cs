@@ -28,8 +28,14 @@ public sealed class AdminBoundaryDiagnosticsController(ISender mediator) : Contr
             new DrawSiteBoundaryDiagnosticQuery(siteName, lat, lon, radiusMeters == 0 ? 150 : radiusMeters),
             cancellationToken);
 
-        return result.ImageBytes is { } bytes
-            ? File(bytes, result.ContentType ?? "image/png")
-            : Ok(new { note = result.Note ?? "No image returned." });
+        return Ok(new
+        {
+            imageDataUrl = result.ImageBytes is { } bytes
+                ? $"data:{result.ContentType ?? "image/png"};base64,{Convert.ToBase64String(bytes)}"
+                : null,
+            vertices = result.Vertices?.Select(v => new[] { v.Latitude, v.Longitude }),
+            vertexSource = result.VertexSource,
+            note = result.Note,
+        });
     }
 }
