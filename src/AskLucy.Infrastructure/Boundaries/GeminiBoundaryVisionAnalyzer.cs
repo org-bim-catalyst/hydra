@@ -291,22 +291,27 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             has no shaded fill, the shape most clearly implied by its label, paths, and
             surroundings) and trace its outline as drawn.
 
-            Do this corner by corner, not as a rough bounding shape. Most real sites are NOT a
-            clean rectangle: walk the edge you see and place a vertex at every place it bends,
-            steps in, steps out, or is cut by an adjoining path, road, or building — however small.
-            A single straight-looking edge in a rendered map can still have a small notch or jog
-            where another feature meets it; look closely at each edge and each corner individually
-            before deciding it is straight. Reporting a simplified rectangle for a site whose drawn
-            outline actually has more corners than that is wrong, even if the rectangle is roughly
-            the right size and position. Ground-level photos, if included below, are only for
-            resolving which shape on the map is the right one when that is unclear; report the
-            traced shape's position in the map image's own frame regardless. Report it as a list of
-            [x, y] pairs, each a fraction from 0.0 to 1.0 of the map image's width/height, with
-            (0,0) at its top-left corner (x=0 is the west edge, x=1 is the east edge; y=0 is the
-            north edge, y=1 is the south edge). List each corner once, in order around the
-            perimeter (3 to 20 points, as many as the shape actually drawn needs) — do not repeat
-            the first point at the end, the loop is closed automatically. Set this to null if you
-            cannot clearly identify a drawn shape for this site — do not guess.
+            Do this by walking the actual edge, not by drawing a rough bounding shape around it.
+            Real sites are very often NOT simple rectangles or straight-sided polygons — the true
+            boundary can bend sharply, step in or out where another feature meets it, or curve or
+            wander in an organic, irregular line with no straight segments at all. You are not
+            limited to placing points only at sharp corners: wherever the edge curves or bends
+            gradually rather than at a single corner, lay down enough points along that curve to
+            follow it closely, the way you would trace it by hand with a fine pencil rather than a
+            ruler. Treat every part of the boundary as a place that might curve or step until you
+            have actually looked at it — do not assume straight lines or a small, tidy number of
+            corners by default. There is no limit on how many points you use: a genuinely
+            rectangular site needs only 4, a site with one notch might need 6-8, and a site with a
+            long curved or irregular edge could reasonably need several dozen — use however many
+            it actually takes to match what is drawn, not a round or convenient number. Ground-level
+            photos, if included below, are only for resolving which shape on the map is the right
+            one when that is unclear; report the traced shape's position in the map image's own
+            frame regardless. Report it as a list of [x, y] pairs, each a fraction from 0.0 to 1.0
+            of the map image's width/height, with (0,0) at its top-left corner (x=0 is the west
+            edge, x=1 is the east edge; y=0 is the north edge, y=1 is the south edge). List each
+            point once, in order around the perimeter — do not repeat the first point at the end,
+            the loop is closed automatically. Set this to null if you cannot clearly identify a
+            drawn shape for this site — do not guess.
 
             Determine which candidate ID most likely represents the actual site boundary.
 
