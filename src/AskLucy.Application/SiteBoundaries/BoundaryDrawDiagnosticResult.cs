@@ -1,3 +1,5 @@
+using AskLucy.Domain.SiteBoundaries;
+
 namespace AskLucy.Application.SiteBoundaries;
 
 /// <summary>
@@ -7,4 +9,15 @@ namespace AskLucy.Application.SiteBoundaries;
 /// populate <see cref="ImageBytes"/>; a text/vision-only model assigned to the same capability can
 /// only ever fill <see cref="Note"/> with whatever it said instead.
 /// </summary>
-public sealed record BoundaryDrawDiagnosticResult(byte[]? ImageBytes, string? ContentType, string? Note);
+/// <param name="Vertices">
+/// The drawn outline, converted to real coordinates. Populated by the Infrastructure
+/// implementation's deterministic pixel extraction (a connected-component + edge-trace over the
+/// drawn red pixels) when it finds a plausible outline (<see cref="VertexSource"/> =
+/// "pixel-extraction"); if that finds nothing plausible, by a second, separate AI call asking the
+/// model to report the already-drawn line's own path instead of inferring a boundary
+/// (<see cref="VertexSource"/> = "ai-line-read") — a mechanically easier task than the original
+/// coordinate-tracing prompt this diagnostic exists to route around. Null if neither succeeded.
+/// </param>
+public sealed record BoundaryDrawDiagnosticResult(
+    byte[]? ImageBytes, string? ContentType, string? Note,
+    IReadOnlyList<GeoPoint>? Vertices = null, string? VertexSource = null);
