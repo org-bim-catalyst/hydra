@@ -28,12 +28,17 @@ internal static partial class GeminiBoundaryVisionAnalyzerLog
 }
 
 /// <summary>
-/// specs/042-site-boundary-resolution — a direct port of the reference notebook's
-/// <c>ai_boundary_analysis()</c>, using Gemini's multimodal <c>generateContent</c> endpoint to
-/// choose among (never invent) the deterministically-ranked OSM candidates by inspecting a
-/// rendered street-map image (Google's own drawn polygon for the site, not a satellite photo —
-/// see <see cref="GoogleSatelliteImageProvider"/>'s remarks for why). Same credential-sourcing
-/// rule as <see cref="GoogleGeminiProvider"/> — reads
+/// specs/042-site-boundary-resolution — originally a port of the reference notebook's
+/// <c>ai_boundary_analysis()</c>, which asked Gemini to choose among the deterministically-ranked
+/// OSM candidates. That candidate list is no longer part of the request at all (§9.7 update): no
+/// OSM data of any kind — not an id, not a coordinate — goes into the prompt any more. Gemini's
+/// only job now is to trace the boundary it sees drawn on a rendered street-map image (Google's own
+/// drawn polygon for the site, not a satellite photo — see <see cref="GoogleSatelliteImageProvider"/>'s
+/// remarks for why), by inspecting the image and the site's name alone.
+/// <see cref="BoundaryVisionAnalysis.SelectedCandidateId"/> remains part of the contract — the
+/// application layer's candidate-override logic is real, independently-tested behaviour — but this
+/// implementation never populates it, since it never shows Gemini anything to select from. Same
+/// credential-sourcing rule as <see cref="GoogleGeminiProvider"/> — reads
 /// the admin-managed, encrypted credential via <see cref="IAIProviderRepository"/> +
 /// <see cref="IAiCredentialProtector"/>, never a plain appsettings API key. Never throws
 /// (constitution §VIII): every failure path returns <see cref="BoundaryVisionAnalysis.NotConfigured"/>.
@@ -106,7 +111,7 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             var visionToken = budget.Token;
             var deadline = DateTimeOffset.UtcNow.AddSeconds(boundaryOptions.Value.VisionTimeoutSeconds);
 
-            var payload = BuildPayload(image, streetViews, rankedCandidates, siteName, center);
+            var payload = BuildPayload(image, streetViews, siteName, center);
 
             // Retried, because the failure that actually happens here is transient. Every boundary
             // request on 2026-08-31 came back 503 UNAVAILABLE — "This model is currently
@@ -192,12 +197,11 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
     /// map, without ever being asked to produce coordinates from them.
     /// </summary>
     private static Dictionary<string, object?> BuildPayload(
-        SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews,
-        IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center)
+        SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews, string siteName, GeoPoint center)
     {
         var parts = new List<object>
         {
-            new { text = BuildPrompt(image, streetViews, rankedCandidates, siteName, center) },
+            new { text = BuildPrompt(image, streetViews, siteName, center) },
             new { inlineData = new { mimeType = image.ContentType, data = Convert.ToBase64String(image.ImageBytes) } },
         };
 
@@ -235,28 +239,26 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
         };
     }
 
-    /// <summary>Ported near-verbatim from the reference notebook's own prompt text.</summary>
-    private static string BuildPrompt(
-        SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews,
-        IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center)
+    /// <summary>
+    /// No OpenStreetMap data of any kind is given to the model — no candidate list, no candidate
+    /// IDs, no OSM-derived coordinates. Earlier versions of this prompt asked Gemini to also pick
+    /// among OSM's pre-ranked candidates alongside tracing the boundary, and worded the trace
+    /// instruction as secondary to that ("this is independent of which candidate you picked
+    /// above..."). That framing, and the surrounding "pick an ID from this list" task, is exactly
+    /// what a user's live test called out as still leaning on OSM after being told twice not to:
+    /// tracing is now the model's only job, with nothing OSM-derived anywhere in its input to
+    /// anchor on.
+    /// </summary>
+    private static string BuildPrompt(SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews, string siteName, GeoPoint center)
     {
-        var candidatesDescription = string.Join('\n', rankedCandidates.Take(8).Select(c =>
-        {
-            var tagPreview = string.Join(", ", c.Candidate.Tags.Take(5).Select(t => $"{t.Key}={t.Value}"));
-            var name = string.IsNullOrWhiteSpace(c.Candidate.Name) ? "unnamed" : c.Candidate.Name;
-            return $"- id={c.Candidate.Id}, name='{name}', area={c.Candidate.AreaSquareMeters:F0} m2, " +
-                   $"distance_from_center={c.Candidate.DistanceToCenterMeters:F0} m, tags={{{tagPreview}}}";
-        }));
-
         var streetViewNote = streetViews.Count > 0
             ? $"\n{streetViews.Count} ground-level Street View photo(s) near this site follow the map image below - use them only as extra context if the map itself is ambiguous about which shape is the named site.\n"
             : "";
 
         return $$"""
             You are looking at a rendered street map image (a screenshot of Google Maps, NOT a
-            satellite photo) to help identify the boundary of a named site. Google draws many
-            places of interest — parks, complexes, campuses — as a solid shaded polygon with a
-            crisp edge and its own label, directly on the map. Your job has two independent parts.
+            satellite photo). Google draws many places of interest — parks, complexes, campuses —
+            as a solid shaded polygon with a crisp edge and its own label, directly on the map.
             {{streetViewNote}}
             Site name:
             {{siteName}}
@@ -267,29 +269,10 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             Image covers:
             west={{image.West:F6}}, south={{image.South:F6}}, east={{image.East:F6}}, north={{image.North:F6}}
 
-            Candidate boundary polygons already found from OpenStreetMap:
-
-            {{candidatesDescription}}
-
-            IMPORTANT RULES for selected_candidate_id:
-
-            1. DO NOT invent new coordinates for this field.
-            2. ONLY choose among the candidate IDs provided above.
-            3. If none of the candidates reasonably represents the site, return null.
-            4. Base your decision on what the map itself shows:
-               - a shaded/coloured area whose label matches the site name
-               - paths, parking areas, and buildings drawn inside or around it
-               - roads that run along its edges
-               - sub-markers or labels for facilities that belong to the site
-            5. Prefer an existing candidate over saying none fit when there is reasonable
-               visual evidence supporting that candidate.
-
-            SEPARATELY, also trace the actual shape Google has drawn on the map for this named
-            site, in observed_boundary_normalized — this is independent of which candidate you
-            picked above, and matters most when a candidate's mapped shape does not line up with
-            the shaded area or label the map itself shows. Find the shaded polygon (or, if the site
-            has no shaded fill, the shape most clearly implied by its label, paths, and
-            surroundings) and trace its outline as drawn.
+            Trace the actual shape Google has drawn on the map for this named site, in
+            observed_boundary_normalized. Find the shaded polygon whose label matches the site name
+            (or, if the site has no shaded fill, the shape most clearly implied by its label, paths,
+            and surroundings) and trace its outline as drawn.
 
             Do this by walking the actual edge, not by drawing a rough bounding shape around it.
             Real sites are very often NOT simple rectangles or straight-sided polygons — the true
@@ -313,12 +296,9 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             the loop is closed automatically. Set this to null if you cannot clearly identify a
             drawn shape for this site — do not guess.
 
-            Determine which candidate ID most likely represents the actual site boundary.
-
             Return ONLY a JSON object with exactly these fields:
 
             {
-                "selected_candidate_id": "<id or null>",
                 "confidence": <number between 0.0 and 1.0>,
                 "boundary_quality": "<high|medium|low>",
                 "reasoning": ["<short reason>", "..."],

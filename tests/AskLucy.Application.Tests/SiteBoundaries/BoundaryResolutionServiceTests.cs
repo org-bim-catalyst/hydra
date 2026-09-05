@@ -265,6 +265,33 @@ public sealed class BoundaryResolutionServiceTests
     }
 
     /// <summary>
+    /// The shipped Gemini prompt no longer shows the model any OSM candidates to pick from (§9.7
+    /// update) — every real request now has <c>SelectedCandidateId: null</c>, meaning
+    /// <c>selection.Agreement</c> is always "ai_not_used". The "this was cross-checked" note must
+    /// still appear whenever the trace itself was adopted; gating it on candidate-id agreement
+    /// alone would silently stop reporting a successful cross-check for every real boundary from
+    /// here on, which is the one thing this note exists to guarantee is never silent.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldReportTheCrossCheck_WhenTheTraceIsAdoptedWithoutAnyCandidateSelection()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        var observed = ShiftedSamplePolygon(0.0002, 0.0002);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(new BoundaryVisionAnalysis(
+                AiUsed: true, SelectedCandidateId: null, Confidence: 0.85, BoundaryQuality: "high",
+                Reasoning: [], Issues: [], RequiresRefinement: false, ObservedBoundary: observed));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.AiInterpretation);
+        outcome.ConfirmationText.Should().Contain("cross-checked");
+    }
+
+    /// <summary>
     /// The image is framed on the site, not on the search radius.
     ///
     /// <para>
