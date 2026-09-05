@@ -526,8 +526,21 @@ Things a reviewer should push on.
    echo back (id/name/area/distance/tags only) — the under-tracing is Gemini's own approximation,
    not a blending bug. The prompt now says explicitly not to report a simplified rectangle when the
    drawn shape has more corners than that, to examine each edge individually for a bend, step, or
-   cut before treating it as straight, and raises the point ceiling from 12 to 20. Not yet confirmed
-   against a second live turn.
+   cut before treating it as straight, and raises the point ceiling from 12 to 20.
+
+   **Second update: still the same rectangle at 20 points — the ceiling itself was the mistake.**
+   A second live test came back with the identical shape; raising 12 to 20 changed nothing, because
+   naming any number in the prompt (even as an upper bound) anchors the model toward a small, round
+   count instead of "however many the true shape needs." It also only ever asked for points at
+   corners, notches, and steps — nothing told it a boundary could curve or wander with no straight
+   segments at all. There is no vertex cap anywhere in code (`ReadObservedBoundary` parses whatever
+   length array comes back, and the payload sets no `responseSchema` or `maxOutputTokens` that could
+   silently truncate one), so every constraint on point count was coming from the prompt text alone.
+   The point-count language is gone entirely: the prompt now says to walk the edge like tracing it by
+   hand with a pencil rather than a ruler, to lay down points along any curve or gradual bend and not
+   only at sharp corners, and to use anywhere from 4 points for a truly rectangular site to several
+   dozen for an irregular or curved one — never a "round or convenient number" chosen in advance.
+   Still unconfirmed against a live turn.
 ---
 
 ## 10. Where to look in the code
