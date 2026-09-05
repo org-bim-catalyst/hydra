@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.SiteBoundaries;
@@ -116,7 +117,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
                 : GeminiTextResponse("""{"selected_candidate_id":"osm_1","confidence":0.9,"boundary_quality":"high","reasoning":[],"issues":[],"requires_refinement":false}""");
         });
 
-        var analysis = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+        var analysis = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
 
         attempts.Should().Be(3);
         analysis.AiUsed.Should().BeTrue();
@@ -133,7 +134,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             return ServiceUnavailable();
         });
 
-        var analysis = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+        var analysis = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
 
         attempts.Should().Be(3, "three attempts including the first, not an unbounded loop");
         analysis.AiUsed.Should().BeFalse();
@@ -156,10 +157,75 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             };
         });
 
-        var analysis = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+        var analysis = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
 
         attempts.Should().Be(1);
         analysis.AiUsed.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Street views arrive as the request's own separate parts, never smuggled into the satellite
+    /// image's own coordinate frame — <c>observed_boundary_normalized</c> is only ever meaningful
+    /// relative to the satellite image, so the prompt and payload keep them clearly apart.
+    /// </summary>
+    [Fact]
+    public async Task AnalyzeAsync_ShouldSendEachStreetViewImage_AsItsOwnLabelledPart()
+    {
+        string? capturedBody = null;
+        var analyzer = CreateAnalyzer(request =>
+        {
+            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return GeminiTextResponse("""{"selected_candidate_id":"osm_1","confidence":0.9,"boundary_quality":"high","reasoning":[],"issues":[],"requires_refinement":false}""");
+        });
+        IReadOnlyList<StreetViewImage> streetViews =
+        [
+            new StreetViewImage([10, 10], "image/jpeg", 25.1550, 55.2218, 0.0),
+            new StreetViewImage([20, 20], "image/jpeg", 25.1558, 55.2210, 90.0),
+        ];
+
+        await analyzer.AnalyzeAsync(Image, streetViews, Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+
+        capturedBody.Should().NotBeNull();
+        using var document = JsonDocument.Parse(capturedBody!);
+        var parts = document.RootElement.GetProperty("contents")[0].GetProperty("parts");
+
+        // [0] prompt text, [1] satellite image, [2] street-view intro text, then one
+        // (label, image) pair per street view — 2 + 1 + (2 * 2) = 7.
+        parts.GetArrayLength().Should().Be(7);
+
+        var promptText = parts[0].GetProperty("text").GetString();
+        promptText.Should().Contain("2 ground-level Street View photo(s)");
+
+        var satelliteData = parts[1].GetProperty("inlineData").GetProperty("data").GetString();
+        satelliteData.Should().Be(Convert.ToBase64String(Image.ImageBytes));
+
+        var streetViewData = new[] { parts[4], parts[6] }
+            .Select(p => p.GetProperty("inlineData").GetProperty("data").GetString())
+            .ToList();
+        streetViewData.Should().Contain(Convert.ToBase64String(streetViews[0].ImageBytes));
+        streetViewData.Should().Contain(Convert.ToBase64String(streetViews[1].ImageBytes));
+
+        var headingLabel = parts[3].GetProperty("text").GetString();
+        headingLabel.Should().Contain("heading 0 degrees");
+    }
+
+    /// <summary>Regression guard for the payload shape when there is nothing to cross-check with — the pre-existing, no-street-view request must stay exactly as it was.</summary>
+    [Fact]
+    public async Task AnalyzeAsync_ShouldSendOnlyThePromptAndSatelliteImage_WhenNoStreetViewsAreProvided()
+    {
+        string? capturedBody = null;
+        var analyzer = CreateAnalyzer(request =>
+        {
+            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return GeminiTextResponse("""{"selected_candidate_id":"osm_1","confidence":0.9,"boundary_quality":"high","reasoning":[],"issues":[],"requires_refinement":false}""");
+        });
+
+        await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(capturedBody!);
+        var parts = document.RootElement.GetProperty("contents")[0].GetProperty("parts");
+        parts.GetArrayLength().Should().Be(2);
+        parts[0].GetProperty("text").GetString().Should().NotContain("Street View");
     }
 
     private static HttpResponseMessage GeminiTextResponse(string innerJsonText)
@@ -186,14 +252,47 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             """;
         var analyzer = CreateAnalyzer(_ => GeminiTextResponse(innerJson));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeTrue();
         result.SelectedCandidateId.Should().Be("osm_1");
         result.ObservedBoundary.Should().NotBeNull();
-        result.ObservedBoundary.Should().HaveCount(4);
+        // 5, not the 4 points Gemini reported: the ring is closed automatically (see the
+        // dedicated closure tests below), so the first point is repeated as the last.
+        result.ObservedBoundary.Should().HaveCount(5);
         result.ObservedBoundary![0].Should().Be(new GeoPoint(Image.North, Image.West));
         result.ObservedBoundary![2].Should().Be(new GeoPoint(Image.South, Image.East));
+    }
+
+    /// <summary>
+    /// The ring is always explicitly closed (first point repeated as the last), matching every
+    /// other polygon ring in this codebase (OSM candidate rings, ConfirmedSiteBoundaryData.Polygon)
+    /// — regardless of whether Gemini closed it itself. The prompt asks it not to, but nothing
+    /// stops a model doing so anyway or leaving a ring open; both must produce the same guarantee.
+    /// </summary>
+    [Theory]
+    [InlineData("[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]")]        // open ring, as instructed
+    [InlineData("[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]")] // already closed anyway
+    public async Task AnalyzeAsync_ShouldAlwaysReturnAClosedRing_WhetherOrNotGeminiClosedItItself(string observedBoundaryJson)
+    {
+        var innerJson = $$"""
+            {
+                "selected_candidate_id": "osm_1",
+                "confidence": 0.85,
+                "boundary_quality": "high",
+                "reasoning": [],
+                "issues": [],
+                "requires_refinement": false,
+                "observed_boundary_normalized": {{observedBoundaryJson}}
+            }
+            """;
+        var analyzer = CreateAnalyzer(_ => GeminiTextResponse(innerJson));
+
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+
+        result.ObservedBoundary.Should().NotBeNull();
+        result.ObservedBoundary.Should().HaveCount(5, "the ring must be closed exactly once, never left open and never double-closed");
+        result.ObservedBoundary![0].Should().Be(result.ObservedBoundary[^1], "the first point must be repeated as the last");
     }
 
     [Fact]
@@ -212,7 +311,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             """;
         var analyzer = CreateAnalyzer(_ => GeminiTextResponse(innerJson));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.ObservedBoundary.Should().BeNull();
     }
@@ -233,7 +332,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             """;
         var analyzer = CreateAnalyzer(_ => GeminiTextResponse(innerJson));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.ObservedBoundary.Should().BeNull();
     }
@@ -245,7 +344,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         UseProvider(uncredentialed);
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
         result.SelectedCandidateId.Should().BeNull();
@@ -256,7 +355,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
     {
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
     }
@@ -266,7 +365,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
     {
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-        var result = await analyzer.AnalyzeAsync(Image, [], "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], [], "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
     }
@@ -296,7 +395,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         });
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
         result.Reasoning.Should().NotBeEmpty("the workflow must be told why AI verification was unavailable");
@@ -308,7 +407,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         _credentialProtector.Unprotect("ciphertext").Returns(_ => throw new System.Security.Cryptography.CryptographicException("key ring changed"));
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
     }
@@ -320,7 +419,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         UseProvider(uncredentialed);
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
         result.Reasoning.Should().NotBeEmpty("the workflow must be told why AI verification was unavailable");
@@ -334,7 +433,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             Content = new StringContent("not json at all", Encoding.UTF8, "application/json"),
         });
 
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
 
         result.AiUsed.Should().BeFalse();
     }
@@ -356,7 +455,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
             visionTimeoutSeconds: 1);
 
         var started = DateTime.UtcNow;
-        var result = await analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, CancellationToken.None);
         var elapsed = DateTime.UtcNow - started;
 
         result.AiUsed.Should().BeFalse();
@@ -372,7 +471,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         cts.Cancel();
         var analyzer = CreateAnalyzer(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-        var act = () => analyzer.AnalyzeAsync(Image, Candidates, "Al Safa Park 2", Center, cts.Token);
+        var act = () => analyzer.AnalyzeAsync(Image, [], Candidates, "Al Safa Park 2", Center, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }

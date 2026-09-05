@@ -48,9 +48,10 @@ That fork at `C` is the whole point of spec 044. Before it, `D` was a prerequisi
 | `BoundaryResolutionService` | Application | Overpass search → deterministic scoring → optional vision → final polygon. |
 | `OverpassBoundaryCandidateProvider` | Infrastructure | OSM Overpass query, tag-scoped to curated `leisure`/`amenity` values. |
 | `BoundaryCandidateScorer` | Application | Weighted score: source 0.35, name 0.20, geometry 0.15, proximity 0.20, land-use 0.10. |
-| `GoogleSatelliteImageProvider` | Infrastructure | Google Static Maps satellite PNG, framed on the candidate at `scale=2` (~0.27 m/px at park scale). Returns `null` on failure. |
+| `GoogleSatelliteImageProvider` | Infrastructure | Google Static Maps satellite JPEG, framed on the candidate at `scale=2` (~0.27 m/px at park scale). Returns `null` on failure. |
 | `EsriSatelliteImageProvider` | Infrastructure | Keyless fallback, registered only when no Google Maps key is configured. Different reference frame from the viewer — see §9.5. |
-| `GeminiBoundaryVisionAnalyzer` | Infrastructure | Multimodal `generateContent`. Picks a candidate **and** reports what it visually sees. |
+| `GoogleStreetViewImageProvider` | Infrastructure | Ground-level cross-check: up to 4 photos sampled around the winning candidate's own mapped ring, each aimed back at its centroid. Metadata-checked first (§9.6) — Google-only, no keyless fallback. |
+| `GeminiBoundaryVisionAnalyzer` | Infrastructure | Multimodal `generateContent`. Picks a candidate **and** reports what it visually sees, now cross-checking satellite against ground-level photos where any are available. |
 | `RecordActiveLocationCommand` | Application | Persists `ActiveLocation` **and** clears a stale `ActiveBoundary`, atomically. |
 | `RecordActiveSiteBoundaryCommand` | Application | Persists `ActiveBoundary`. |
 | `UserChat` | Domain | Owns `ActiveLocation` + `ActiveBoundary` and their invariants. |
@@ -350,6 +351,7 @@ If a place query works deployed and not locally, read the startup line
 | Location wait after text ends | ~0 s | **30 s** | `LocationResolution:ResolutionCeilingSeconds` |
 | Overpass | 2–10 s | 30 s client | `"Overpass"` HttpClient |
 | Google satellite imagery | 1–3 s | 30 s client | `"GoogleStaticMaps"` HttpClient |
+| Street View (up to 4, concurrent) | 0.5–2 s | 30 s client | same `"GoogleStaticMaps"` HttpClient — metadata then image, per viewpoint |
 | Gemini vision | 5–20 s | **30 s** | `BoundaryScoring:VisionTimeoutSeconds` |
 | **Whole boundary step** | **10–30 s** | **45 s** | `BoundaryScoring:BoundaryTimeoutSeconds` |
 
@@ -423,6 +425,46 @@ Things a reviewer should push on.
 
    **The lesson worth keeping:** a geometric correction is a measurement. Compare against ground
    truth — imagery — not against another vendor's drawing.
+
+   **Update, post-deployment:** this "Kept" verdict has not held up. Three live boundary turns
+   after this shipped, each measured against the raw OSM ring on satellite imagery, all shifted
+   the ring *west* — 16 m, 33 m, then 21 m — and all landed it visibly worse: edges out on the
+   road, a corner off the park entirely. The correction has not yet been reverted or capped; §9.6
+   below is the attempt to give it real ground-level evidence instead of trusting a satellite-only
+   read, before deciding whether "Kept" still deserves the word.
+
+6. **Ground-level cross-check, added because satellite imagery alone cannot settle a real
+   ambiguity.** A user request from early in this feature's life: satellite imagery cannot tell a
+   wall/fence from a tree canopy that spills past it, and the westward drift documented above is
+   consistent with the vision correction reading canopy, not the fence line. Requested twice
+   before it was actually built — the first pass restated the requirement back correctly and then
+   only ever implemented the satellite half, which the user caught.
+
+   `GoogleStreetViewImageProvider` samples up to 4 points around the *winning candidate's own
+   mapped ring* (one per edge, downsampled if there are more), aims each back at the ring's
+   centroid, and hands the resulting photos to Gemini as extra, clearly-labelled parts alongside
+   the satellite image — never as a source of coordinates. `observed_boundary_normalized` stays
+   relative to the satellite frame only; the photos exist to raise or lower confidence in what the
+   satellite image already shows.
+
+   **The gotcha that shaped the implementation.** The Street View Static API does not 404 for "no
+   coverage near this point" — it returns 200 OK with a generic gray placeholder image,
+   indistinguishable from a real photo by status code or content-type. Silently feeding that to
+   the vision analyzer as ground truth would be worse than not calling it at all. The free
+   `streetview/metadata` endpoint is checked first, and its `pano_id` — not a second
+   location+radius lookup — is what the image request uses, so the two calls cannot disagree about
+   which panorama was actually inspected.
+
+   **The ring is now always explicitly closed.** `observed_boundary_normalized` is asked not to
+   repeat its first point, but nothing enforces that a model actually complies — `ReadObservedBoundary`
+   closes it in code regardless, matching the closed-ring convention every other polygon in this
+   codebase already uses.
+
+   **Unproven, unlike the correction it's meant to fix.** The satellite-only correction above has
+   three real, measured failures against it. This has none yet — it shipped without a live
+   boundary turn to check it against. Whether ground-level photos actually stop the westward drift,
+   or just add latency and a second Google bill for the same wrong answer, is still an open
+   question.
 ---
 
 ## 10. Where to look in the code
@@ -434,7 +476,9 @@ Things a reviewer should push on.
 | SSE wire + mid-stream flush | `src/AskLucy.Web/Controllers/v1/AiController.cs` → `WriteConfirmedLocationEventAsync` |
 | Intent + geocoding | `src/AskLucy.Application/Locations/LocationResolutionService.cs` |
 | Scoring + vision | `src/AskLucy.Application/SiteBoundaries/BoundaryResolutionService.cs` |
-| Vision prompt + geo-referencing | `src/AskLucy.Infrastructure/Boundaries/GeminiBoundaryVisionAnalyzer.cs` |
+| Street View viewpoint sampling | ↳ `PerimeterViewpointsFor` |
+| Vision prompt + geo-referencing + ring closure | `src/AskLucy.Infrastructure/Boundaries/GeminiBoundaryVisionAnalyzer.cs` |
+| Ground-level imagery, metadata-first | `src/AskLucy.Infrastructure/Boundaries/GoogleStreetViewImageProvider.cs` |
 | Stored-state invariant | `src/AskLucy.Domain/Chats/UserChat.cs` + `…/RecordActiveLocation/RecordActiveLocationCommandHandler.cs` |
 | SSE parsing | `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts` |
 | Store updates | `src/AskLucy.Web/ClientApp/src/features/chat/hooks/useChatStream.ts` |

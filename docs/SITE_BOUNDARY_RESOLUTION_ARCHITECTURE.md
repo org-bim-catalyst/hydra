@@ -38,7 +38,9 @@
 > 4. **§2's "AI vision step is pluggable and optional, off by default" needs a footnote.** It's
 >    implemented almost verbatim from the notebook's `ai_boundary_analysis`/`select_final_candidate`
 >    (`IBoundaryVisionAnalyzer`/`GeminiBoundaryVisionAnalyzer`, `ISatelliteImageProvider`/
->    `GoogleSatelliteImageProvider`, reconciliation logic in `BoundaryResolutionService`), but defaults
+>    `GoogleSatelliteImageProvider`, reconciliation logic in `BoundaryResolutionService`; later joined
+>    by `IStreetViewImageProvider`/`GoogleStreetViewImageProvider` for a ground-level cross-check —
+>    see `LOCATION_TO_BOUNDARY_END_TO_END.md` §9.6), but defaults
 >    to **enabled** (`BoundaryScoring:EnableAiVisionVerification`), not disabled — a live bug (Al Safa
 >    Park 2 resolving to a small sub-feature inside the park instead of the park itself) showed that
 >    deterministic tag/geometry scoring alone isn't always enough to disambiguate similarly-plausible

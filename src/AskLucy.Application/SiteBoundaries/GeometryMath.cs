@@ -60,6 +60,18 @@ public static class GeometryMath
         return Math.Sqrt((x * x) + (y * y));
     }
 
+    /// <summary>
+    /// Compass bearing in degrees (0 = north, 90 = east, ...) from <paramref name="from"/> toward
+    /// <paramref name="to"/>. Used to aim a Street View request from a perimeter viewpoint back at
+    /// the site, so the fetched frame actually faces the boundary instead of pointing arbitrarily.
+    /// </summary>
+    public static double BearingDegrees(GeoPoint from, GeoPoint to)
+    {
+        var (east, north) = ToLocalMeters(to, from);
+        var degrees = Math.Atan2(east, north) * 180.0 / Math.PI;
+        return (degrees + 360.0) % 360.0;
+    }
+
     /// <summary>(minLat, minLon, maxLat, maxLon) bounding box of a ring.</summary>
     public static (double MinLat, double MinLon, double MaxLat, double MaxLon) BoundingBox(IReadOnlyList<GeoPoint> ring) =>
         (ring.Min(p => p.Latitude), ring.Min(p => p.Longitude), ring.Max(p => p.Latitude), ring.Max(p => p.Longitude));

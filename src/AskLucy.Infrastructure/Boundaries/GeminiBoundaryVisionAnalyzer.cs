@@ -51,6 +51,7 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
 
     public async Task<BoundaryVisionAnalysis> AnalyzeAsync(
         SatelliteImage image,
+        IReadOnlyList<StreetViewImage> streetViews,
         IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates,
         string siteName,
         GeoPoint center,
@@ -103,7 +104,7 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             var visionToken = budget.Token;
             var deadline = DateTimeOffset.UtcNow.AddSeconds(boundaryOptions.Value.VisionTimeoutSeconds);
 
-            var payload = BuildPayload(image, rankedCandidates, siteName, center);
+            var payload = BuildPayload(image, streetViews, rankedCandidates, siteName, center);
 
             // Retried, because the failure that actually happens here is transient. Every boundary
             // request on 2026-08-31 came back 503 UNAVAILABLE — "This model is currently
@@ -181,27 +182,60 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
         }
     }
 
+    /// <summary>
+    /// The satellite image is always parts[0]/[1] (prompt text, then the image) so
+    /// <c>observed_boundary_normalized</c>'s frame of reference is unambiguous. Street views, if
+    /// any, follow as their own text-then-image pairs — labelled with heading and approximate
+    /// position so the model can relate what it sees on the ground back to a specific edge of the
+    /// satellite view, without ever being asked to produce coordinates from them.
+    /// </summary>
     private static Dictionary<string, object?> BuildPayload(
-        SatelliteImage image, IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center) => new()
+        SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews,
+        IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center)
+    {
+        var parts = new List<object>
+        {
+            new { text = BuildPrompt(image, streetViews, rankedCandidates, siteName, center) },
+            new { inlineData = new { mimeType = image.ContentType, data = Convert.ToBase64String(image.ImageBytes) } },
+        };
+
+        if (streetViews.Count > 0)
+        {
+            parts.Add(new
+            {
+                text = "The following images are ground-level Street View photos, each taken near the " +
+                       "site's perimeter and aimed back toward it at the stated compass heading (0=north, " +
+                       "90=east, 180=south, 270=west). Use them only to confirm what the satellite image " +
+                       "above shows — whether a wall or fence genuinely runs where you think one does, and " +
+                       "which side of it something sits on. Never report coordinates from these photos: " +
+                       "observed_boundary_normalized is always relative to the satellite image only.",
+            });
+
+            foreach (var streetView in streetViews)
+            {
+                parts.Add(new
+                {
+                    text = $"Ground-level photo, heading {streetView.HeadingDegrees:F0} degrees, " +
+                           $"taken near ({streetView.ViewpointLatitude:F6}, {streetView.ViewpointLongitude:F6}):",
+                });
+                parts.Add(new { inlineData = new { mimeType = streetView.ContentType, data = Convert.ToBase64String(streetView.ImageBytes) } });
+            }
+        }
+
+        return new()
         {
             ["contents"] = new object[]
-        {
-            new
             {
-                role = "user",
-                parts = new object[]
-                {
-                    new { text = BuildPrompt(image, rankedCandidates, siteName, center) },
-                    new { inlineData = new { mimeType = image.ContentType, data = Convert.ToBase64String(image.ImageBytes) } },
-                },
+                new { role = "user", parts = parts.ToArray() },
             },
-        },
             ["generationConfig"] = new { responseMimeType = "application/json" },
         };
+    }
 
     /// <summary>Ported near-verbatim from the reference notebook's own prompt text.</summary>
     private static string BuildPrompt(
-        SatelliteImage image, IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center)
+        SatelliteImage image, IReadOnlyList<StreetViewImage> streetViews,
+        IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates, string siteName, GeoPoint center)
     {
         var candidatesDescription = string.Join('\n', rankedCandidates.Take(8).Select(c =>
         {
@@ -211,9 +245,13 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
                    $"distance_from_center={c.Candidate.DistanceToCenterMeters:F0} m, tags={{{tagPreview}}}";
         }));
 
+        var streetViewNote = streetViews.Count > 0
+            ? $"\n{streetViews.Count} ground-level Street View photo(s) of this site's surroundings follow the satellite image below - use them to confirm what the satellite view leaves ambiguous.\n"
+            : "";
+
         return $$"""
             You are analyzing a satellite image to help identify the boundary of a named site.
-
+            {{streetViewNote}}
             Site name:
             {{siteName}}
 
@@ -245,15 +283,19 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             5. Prefer an existing candidate over saying none fit when there is reasonable
                visual evidence supporting that candidate.
 
-            SEPARATELY, also report where YOU visually see the site's actual boundary in this
-            image, in observed_boundary_normalized — this is independent of which candidate you
-            picked above, and matters most when a candidate's mapped shape looks shifted from
-            where the real walls/fences/tree line actually are in the image. Report it as a list
-            of [x, y] pairs, each a fraction from 0.0 to 1.0 of this image's width/height, with
-            (0,0) at the image's top-left corner (x=0 is the west edge, x=1 is the east edge; y=0
-            is the north edge, y=1 is the south edge). Trace the corners of the boundary you can
-            actually see, in order around the perimeter (3 to 12 points). Set this to null if you
-            cannot clearly identify the boundary in the image — do not guess.
+            SEPARATELY, also report where YOU visually see the site's actual boundary in the
+            SATELLITE image (not the ground-level photos, if any are included below), in
+            observed_boundary_normalized — this is independent of which candidate you picked
+            above, and matters most when a candidate's mapped shape looks shifted from where the
+            real walls/fences/tree line actually are in the image. If ground-level photos are
+            included, use them first to decide whether a wall/fence genuinely exists at an edge you
+            are unsure about in the satellite image, then report that edge's position in the
+            satellite image's own frame. Report it as a list of [x, y] pairs, each a fraction from
+            0.0 to 1.0 of the satellite image's width/height, with (0,0) at its top-left corner
+            (x=0 is the west edge, x=1 is the east edge; y=0 is the north edge, y=1 is the south
+            edge). List each corner once, in order around the perimeter (3 to 12 points) — do not
+            repeat the first point at the end, the loop is closed automatically. Set this to null
+            if you cannot clearly identify the boundary in the image — do not guess.
 
             Determine which candidate ID most likely represents the actual site boundary.
 
@@ -327,6 +369,13 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
     /// land somewhere inside the image it was shown. <see cref="BoundaryResolutionService"/> still
     /// runs a plausibility check before trusting it over mapped OSM geometry.
     /// </summary>
+    /// <remarks>
+    /// The returned ring is always explicitly closed (first point repeated as the last), matching
+    /// the convention every other polygon in this codebase already uses (OSM candidate rings,
+    /// <c>ConfirmedSiteBoundaryData.Polygon</c>). The prompt asks the model not to repeat the first
+    /// point itself, but nothing stops it doing so anyway or leaving the ring open — closing it
+    /// here, once, is cheaper than trusting either behaviour from a model response.
+    /// </remarks>
     private static List<GeoPoint>? ReadObservedBoundary(JsonElement root, SatelliteImage image)
     {
         if (!root.TryGetProperty("observed_boundary_normalized", out var element) || element.ValueKind != JsonValueKind.Array)
@@ -354,7 +403,21 @@ internal sealed class GeminiBoundaryVisionAnalyzer(
             points.Add(new GeoPoint(latitude, longitude));
         }
 
-        return points.Count >= 3 ? points : null;
+        if (points.Count < 3)
+        {
+            return null;
+        }
+
+        const double ClosureToleranceDegrees = 1e-9;
+        var first = points[0];
+        var last = points[^1];
+        if (Math.Abs(first.Latitude - last.Latitude) > ClosureToleranceDegrees
+            || Math.Abs(first.Longitude - last.Longitude) > ClosureToleranceDegrees)
+        {
+            points.Add(first);
+        }
+
+        return points;
     }
 
     private static List<string> ReadStringArray(JsonElement root, string propertyName) =>

@@ -18,6 +18,7 @@ public sealed class BoundaryResolutionServiceTests
 {
     private readonly IBoundaryCandidateProvider _candidateProvider = Substitute.For<IBoundaryCandidateProvider>();
     private readonly ISatelliteImageProvider _satelliteImageProvider = Substitute.For<ISatelliteImageProvider>();
+    private readonly IStreetViewImageProvider _streetViewImageProvider = Substitute.For<IStreetViewImageProvider>();
     private readonly IBoundaryVisionAnalyzer _visionAnalyzer = Substitute.For<IBoundaryVisionAnalyzer>();
     private readonly BoundaryScoringOptions _options = new();
     private readonly BoundaryResolutionService _service;
@@ -37,10 +38,12 @@ public sealed class BoundaryResolutionServiceTests
         // AI vision verification is off by default in these tests unless a test explicitly wires
         // up _satelliteImageProvider/_visionAnalyzer — an unconfigured NSubstitute returns null
         // for FetchAsync, which degrades to "ai_not_used" exactly like the feature being disabled,
-        // so every pre-existing deterministic-only test keeps passing unchanged.
+        // so every pre-existing deterministic-only test keeps passing unchanged. Same for
+        // _streetViewImageProvider: unconfigured, it returns null, which BoundaryResolutionService
+        // treats as no ground-level imagery this run — never a reason to fail the turn.
         var scorer = new BoundaryCandidateScorer(Microsoft.Extensions.Options.Options.Create(_options));
         _service = new BoundaryResolutionService(
-            _candidateProvider, scorer, _satelliteImageProvider, _visionAnalyzer,
+            _candidateProvider, scorer, _satelliteImageProvider, _streetViewImageProvider, _visionAnalyzer,
             Microsoft.Extensions.Options.Options.Create(_options), Substitute.For<ILogger<BoundaryResolutionService>>());
     }
 
@@ -176,7 +179,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(new List<BoundaryCandidate> { winner });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryVisionAnalysis(AiUsed: true, "osm_1", 0.9, "high", ["Matches visible park boundary."], [], false));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
@@ -200,7 +203,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(new List<BoundaryCandidate> { topRanked, aiPick });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryVisionAnalysis(AiUsed: true, "osm_ai_pick", 0.88, "high", ["Visible fence line matches this candidate."], [], false));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
@@ -224,7 +227,7 @@ public sealed class BoundaryResolutionServiceTests
         outcome.ConfirmedBoundary!.ConfidenceLevel.Should().Be(BoundaryConfidenceLevel.High);
         outcome.ConfirmationText.Should().NotContain("Gemini");
         _ = _visionAnalyzer.DidNotReceive().AnalyzeAsync(
-            Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
+            Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
     }
 
     private static List<GeoPoint> ShiftedSamplePolygon(double latOffsetDegrees, double lonOffsetDegrees) =>
@@ -252,7 +255,7 @@ public sealed class BoundaryResolutionServiceTests
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
         var observed = ShiftedSamplePolygon(0.0002, 0.0002); // ~20-30 m off — same shape, different position
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary(observed));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
@@ -286,7 +289,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(SampleImage);
         // No observed boundary: this test is about the image that gets requested, not what the
         // analyzer then makes of it.
-        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary([]) with { ObservedBoundary = null });
 
@@ -298,6 +301,82 @@ public sealed class BoundaryResolutionServiceTests
             Arg.Any<GeoPoint>(),
             Arg.Is<int>(radius => radius > 60 && radius < 200),
             Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The ground-level cross-check is sampled from the winning candidate's own mapped ring, not
+    /// invented independently — SamplePolygon is a 4-sided rectangle, so it should produce exactly
+    /// 4 viewpoints, one per edge, aimed back at the ring's centroid.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldRequestStreetViewsAroundTheWinningCandidatesPerimeter()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary([]) with { ObservedBoundary = null });
+
+        await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        await _streetViewImageProvider.Received(1).FetchAsync(
+            Arg.Is<IReadOnlyList<GeoPoint>>(viewpoints => viewpoints.Count == 4),
+            Arg.Is<GeoPoint>(lookAt => GeometryMath.DistanceMeters(lookAt, GeometryMath.Centroid(SamplePolygon.ExteriorRing)) < 0.01),
+            Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Regression guard for the ring-closure duplicate: a source that repeats its first point as
+    /// its last must not have that duplicate consumed as a spurious extra "edge" — a triangle
+    /// (3 real edges) must produce exactly 3 viewpoints, not 4 with one degenerate.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldNotCountTheClosingDuplicate_AsAnEdgeOfItsOwn()
+    {
+        var triangle = new List<GeoPoint>
+        {
+            new(25.1560, 55.2210), new(25.1560, 55.2220), new(25.1550, 55.2215), new(25.1560, 55.2210),
+        };
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate>
+            {
+                new("osm_1", new SiteBoundaryPolygon(triangle), SiteBoundarySource.OsmBoundary, "Al Safa Park 2",
+                    new Dictionary<string, string> { ["leisure"] = "park" }, 5, GeometryMath.AreaSquareMeters(triangle)),
+            });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary([]) with { ObservedBoundary = null });
+
+        await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        await _streetViewImageProvider.Received(1).FetchAsync(
+            Arg.Is<IReadOnlyList<GeoPoint>>(viewpoints => viewpoints.Count == 3),
+            Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>A street view fetch failure (or, per contract, an unconfigured provider returning
+    /// null) must never take down the whole boundary turn — vision still runs on the satellite
+    /// image alone.</summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldStillResolve_WhenStreetViewProviderReturnsNothing()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        _streetViewImageProvider.FetchAsync(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<StreetViewImage>?)null!);
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+                Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary([]) with { ObservedBoundary = null });
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
     }
 
     /// <summary>
@@ -375,7 +454,7 @@ public sealed class BoundaryResolutionServiceTests
             });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary(crudeTrace));
 
@@ -404,7 +483,7 @@ public sealed class BoundaryResolutionServiceTests
         {
             new(25.1560, 55.2218), new(25.15601, 55.2218), new(25.15601, 55.22181), new(25.1560, 55.22181),
         };
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary(tinyObserved));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
@@ -423,7 +502,7 @@ public sealed class BoundaryResolutionServiceTests
         // Same shape/area as the mapped candidate, but shifted ~2 degrees (~200km) away — far
         // outside SearchRadiusMeters (500m default), so this can't plausibly be the same feature.
         var farAwayObserved = ShiftedSamplePolygon(2.0, 2.0);
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(VisionWithObservedBoundary(farAwayObserved));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
@@ -447,7 +526,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(new List<BoundaryCandidate> { winner });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(BoundaryVisionAnalysis.NotConfigured(reason));
 
         var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
@@ -500,7 +579,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(new List<BoundaryCandidate> { Candidate() });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns<BoundaryVisionAnalysis>(_ => throw failure);
 
@@ -523,7 +602,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(new List<BoundaryCandidate> { Candidate() });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns<BoundaryVisionAnalysis>(_ => throw new OperationCanceledException());
 
@@ -548,7 +627,7 @@ public sealed class BoundaryResolutionServiceTests
             .Returns(new List<BoundaryCandidate> { Candidate() });
         _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(SampleImage);
-        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(BoundaryVisionAnalysis.NotConfigured("Gemini vision request failed (503)."));
 
@@ -582,7 +661,7 @@ public sealed class BoundaryResolutionServiceTests
             new(25.1551, 55.2221), new(25.1551, 55.2211), new(25.1561, 55.2211),
         };
 
-        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryVisionAnalysis(
                 AiUsed: true, SelectedCandidateId: "osm_1", Confidence: 0.9, BoundaryQuality: "high",
@@ -617,7 +696,7 @@ public sealed class BoundaryResolutionServiceTests
             new(25.0000, 55.4000), new(25.0000, 55.1000), new(25.2000, 55.1000),
         };
 
-        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+        _visionAnalyzer.AnalyzeAsync(Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
                 Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryVisionAnalysis(
                 AiUsed: true, SelectedCandidateId: "osm_1", Confidence: 0.9, BoundaryQuality: "low",
