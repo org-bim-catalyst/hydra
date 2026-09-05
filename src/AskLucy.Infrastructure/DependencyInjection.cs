@@ -315,6 +315,10 @@ public static class DependencyInjection
             services.AddScoped<ISatelliteImageProvider, GoogleSatelliteImageProvider>();
         else
             services.AddScoped<ISatelliteImageProvider, EsriSatelliteImageProvider>();
+        // Ground-level cross-check, Google-only — there is no keyless fallback for Street View.
+        // It simply returns no images without a key, the same "enhancement quietly off" behaviour
+        // EsriSatelliteImageProvider exists to give the satellite half.
+        services.AddScoped<IStreetViewImageProvider, GoogleStreetViewImageProvider>();
         services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();

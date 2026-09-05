@@ -15,6 +15,7 @@ public interface IBoundaryVisionAnalyzer
 {
     Task<BoundaryVisionAnalysis> AnalyzeAsync(
         SatelliteImage image,
+        IReadOnlyList<StreetViewImage> streetViews,
         IReadOnlyList<ScoredBoundaryCandidate> rankedCandidates,
         string siteName,
         GeoPoint center,

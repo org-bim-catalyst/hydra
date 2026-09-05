@@ -31,10 +31,20 @@ internal static partial class BoundaryResolutionServiceLog
 /// calling chat turn (constitution §VIII); every failure path is an explicit, user-facing
 /// outcome.
 /// </summary>
+/// <remarks>
+/// The AI vision cross-check (<see cref="IBoundaryVisionAnalyzer"/>) sees two kinds of imagery for
+/// the winning candidate: an overhead satellite frame from <see cref="ISatelliteImageProvider"/>,
+/// and up to a handful of ground-level photos from <see cref="IStreetViewImageProvider"/>, sampled
+/// around the candidate's own mapped perimeter and aimed back at it. Satellite alone cannot tell a
+/// wall or fence from a tree canopy that spills past it; the ground-level photos exist to settle
+/// that where the satellite image leaves it ambiguous. See
+/// <c>docs/LOCATION_TO_BOUNDARY_END_TO_END.md</c> §9.6.
+/// </remarks>
 public sealed class BoundaryResolutionService(
     IBoundaryCandidateProvider candidateProvider,
     BoundaryCandidateScorer scorer,
     ISatelliteImageProvider satelliteImageProvider,
+    IStreetViewImageProvider streetViewImageProvider,
     IBoundaryVisionAnalyzer visionAnalyzer,
     IOptions<BoundaryScoringOptions> options,
     ILogger<BoundaryResolutionService> logger) : IBoundaryResolutionService
@@ -172,7 +182,16 @@ public sealed class BoundaryResolutionService(
                 return BoundaryVisionAnalysis.NotConfigured("No satellite image available to analyze this run.");
             }
 
-            return await visionAnalyzer.AnalyzeAsync(image, ranked, siteName, center, cancellationToken);
+            // Ground-level cross-check for what a satellite view alone leaves ambiguous — whether
+            // a wall/fence genuinely runs along a mapped edge, or a positional read is following
+            // tree canopy that spills past it. Sampled around the winning candidate's own mapped
+            // ring, not the search radius: viewpoints belong on the site being verified.
+            var viewpoints = PerimeterViewpointsFor(ranked[0].Candidate.Polygon.ExteriorRing);
+            var lookAt = viewpoints.Count > 0 ? GeometryMath.Centroid(ranked[0].Candidate.Polygon.ExteriorRing) : center;
+            var streetViews = await streetViewImageProvider.FetchAsync(viewpoints, lookAt, cancellationToken)
+                ?? []; // Defensive only: the real provider never returns null, but nothing here should assume every implementation keeps that promise.
+
+            return await visionAnalyzer.AnalyzeAsync(image, streetViews, ranked, siteName, center, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -248,6 +267,60 @@ public sealed class BoundaryResolutionService(
         var halfExtent = GeometryMath.DistanceMeters(new GeoPoint(minLat, minLon), new GeoPoint(maxLat, maxLon)) / 2;
 
         return (int)Math.Clamp(halfExtent * ImageryFramingMargin, MinimumImageryRadiusMeters, opts.SearchRadiusMeters);
+    }
+
+    /// <summary>Ground-level viewpoints requested per boundary. Each costs two Google calls (metadata, then the image); kept small enough to bound both latency and Gemini's payload size.</summary>
+    private const int MaxStreetViewViewpoints = 4;
+
+    /// <summary>
+    /// The midpoint of each edge of <paramref name="ring"/>, evenly downsampled to at most
+    /// <see cref="MaxStreetViewViewpoints"/> if the ring has more edges than that.
+    /// </summary>
+    /// <remarks>
+    /// Edges are walked with wraparound (<c>(i + 1) % ring.Count</c>) rather than assuming the
+    /// ring is explicitly closed — <see cref="SiteBoundaryPolygon.ExteriorRing"/>'s own contract
+    /// says it may or may not repeat its first point as its last, and a candidate source that
+    /// omits the closing point must not silently lose its final edge.
+    /// </remarks>
+    private static IReadOnlyList<GeoPoint> PerimeterViewpointsFor(IReadOnlyList<GeoPoint> ring)
+    {
+        if (ring.Count < 3)
+        {
+            return [];
+        }
+
+        var midpoints = new List<GeoPoint>(ring.Count);
+        for (var i = 0; i < ring.Count; i++)
+        {
+            var a = ring[i];
+            var b = ring[(i + 1) % ring.Count];
+
+            // A ring that repeats its first point as its last produces exactly one zero-length
+            // "edge" here (the last point back to the first, both the same point). Its "midpoint"
+            // would just be that vertex again — not a real edge to view from, and for a small
+            // polygon (a triangle, say) it would occupy one of only a handful of viewpoint slots
+            // for nothing. Skipped, not merely tolerated.
+            if (a.Latitude == b.Latitude && a.Longitude == b.Longitude)
+            {
+                continue;
+            }
+
+            midpoints.Add(new GeoPoint((a.Latitude + b.Latitude) / 2, (a.Longitude + b.Longitude) / 2));
+        }
+
+        if (midpoints.Count <= MaxStreetViewViewpoints)
+        {
+            return midpoints;
+        }
+
+        var stride = (double)midpoints.Count / MaxStreetViewViewpoints;
+        var sampled = new List<GeoPoint>(MaxStreetViewViewpoints);
+        for (var i = 0; i < MaxStreetViewViewpoints; i++)
+        {
+            sampled.Add(midpoints[(int)(i * stride)]);
+        }
+
+        return sampled;
     }
 
     /// <summary>Plausibility gate for <see cref="BoundaryVisionAnalysis.ObservedBoundary"/> — the area and position must be broadly consistent with the mapped candidate it is meant to be describing, or it is discarded as an unreliable read rather than trusted at face value.</summary>
