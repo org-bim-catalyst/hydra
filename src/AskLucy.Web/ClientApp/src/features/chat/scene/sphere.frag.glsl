@@ -1,35 +1,40 @@
-// Fresnel-lit shading for the noise-displaced organic sphere (live user review, 2026-09-06 —
-// pivoted from a particle-cloud + additive-blending technique to this continuous, opaque
-// surface after repeated GPU-specific breakage: a NaN vertex discarded every point on one
-// machine, and — once patched — additive overlap of thousands of points saturated into a
-// solid blob on another. An opaque surface has no equivalent failure mode; there's nothing to
-// discard or oversaturate. Rim-lighting look inspired by organic-sphere.vercel.app.
+// Fragment-stage version of the reference's lighting/fresnel math (Bruno Simon's "Organic
+// Sphere", user-supplied source, 2026-09-07) — moved here from the vertex shader (see
+// sphere.vert.glsl's header for why) so it interpolates smoothly at this app's lower
+// subdivision count instead of faceting like per-vertex (Gouraud) shading would.
 //
-// Colors mix from uColorIdle toward uColorReactive as vDisplacement (from sphere.vert.glsl)
-// grows — the same "lights up while deforming" behavior the particle-cloud version had —
-// theme-driven via dotMeshTheme.ts.
+// Two colored "lights" (idle/reactive theme colors, dotMeshTheme.ts) are combined via a
+// fresnel term into a black base, then mixed toward white at the sphere's brightest
+// silhouette highlight — the reference's exact formula, unchanged.
 
-uniform vec3 uColorIdle;
-uniform vec3 uColorReactive;
-uniform float uIntensity;
+uniform vec3 uLightAColor;
+uniform vec3 uLightAPosition;
+uniform float uLightAIntensity;
+uniform vec3 uLightBColor;
+uniform vec3 uLightBPosition;
+uniform float uLightBIntensity;
 
-varying float vDisplacement;
-varying vec3 vViewNormal;
-varying vec3 vViewDir;
+uniform float uFresnelOffset;
+uniform float uFresnelMultiplier;
+uniform float uFresnelPower;
+
+varying vec3 vNormal;
+varying vec3 vViewDirection;
 
 void main() {
-  vec3 normal = normalize(vViewNormal);
-  vec3 viewDir = normalize(vViewDir);
+  vec3 normal = normalize(vNormal);
+  vec3 viewDirection = normalize(vViewDirection);
 
-  // Near 0 facing the camera head-on, near 1 at the sphere's silhouette edge — dims the core
-  // and brightens the rim so the surface reads as a lit, three-dimensional orb rather than a
-  // flat-shaded disc.
-  float fresnel = pow(1.0 - clamp(dot(normal, viewDir), 0.0, 1.0), 2.0);
+  float fresnel = uFresnelOffset + (1.0 + dot(viewDirection, normal)) * uFresnelMultiplier;
+  fresnel = pow(max(0.0, fresnel), uFresnelPower);
 
-  float reactiveMix = smoothstep(0.0, 0.35, abs(vDisplacement));
-  vec3 baseColor = mix(uColorIdle, uColorReactive, reactiveMix);
+  float lightAIntensity = max(0.0, -dot(normal, normalize(-uLightAPosition))) * uLightAIntensity;
+  float lightBIntensity = max(0.0, -dot(normal, normalize(-uLightBPosition))) * uLightBIntensity;
 
-  vec3 color = baseColor * (0.3 + fresnel * 1.4) * uIntensity;
+  vec3 color = vec3(0.0);
+  color = mix(color, uLightAColor, lightAIntensity * fresnel);
+  color = mix(color, uLightBColor, lightBIntensity * fresnel);
+  color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.8), 3.0), 0.0, 1.0));
 
   gl_FragColor = vec4(color, 1.0);
 }
