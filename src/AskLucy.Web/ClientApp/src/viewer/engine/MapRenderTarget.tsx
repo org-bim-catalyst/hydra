@@ -35,9 +35,16 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
   // google.maps.Map. Reading the mode via the hook (not a one-off `getState()` inside the
   // effect) makes it part of the effect's own dependency array, below.
   const themeMode = useThemeStore((state) => state.mode)
-  // Carries the last-known pan/zoom across a theme-triggered remount so toggling the theme
-  // doesn't snap the camera back to this component's original mount-time `center`/`zoom` props.
-  const lastCameraRef = useRef<{ latitude: number; longitude: number; zoom?: number } | null>(null)
+  // Carries the last-known pan/zoom/heading/tilt across a theme-triggered remount so toggling
+  // the theme doesn't snap the camera back to this component's original mount-time `center`/
+  // `zoom` props, or reset rotation/tilt to the north-up isometric default.
+  const lastCameraRef = useRef<{
+    latitude: number
+    longitude: number
+    zoom?: number
+    heading?: number
+    tilt?: number
+  } | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
@@ -76,6 +83,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           container,
           center: lastCameraRef.current ?? center,
           zoom: lastCameraRef.current?.zoom ?? zoom,
+          heading: lastCameraRef.current?.heading,
+          tilt: lastCameraRef.current?.tilt,
           reducedQuality,
           colorScheme: themeMode,
           onLoaded: () => viewerEngine.notifyContentLoaded(layerId),
@@ -98,7 +107,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // call setSiteBoundary() without knowing about MapRenderTarget's internals.
       useGoogleMapsStore.getState().setHandle(handle)
 
-      rotationDriver = new RotationDriver({ setHeading: handle.setHeading })
+      rotationDriver = new RotationDriver({ setHeading: handle.setHeading }, lastCameraRef.current?.heading)
 
       // US5 (FR-018): the marker becomes selectable only once it actually exists on the map.
       const unregisterSelectable = viewerEngine.registerSelectableElement(layerId, handle.currentLocationMarkerId)
@@ -140,13 +149,22 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
 
     return () => {
       cancelled = true
-      // Remember the live pan/zoom before tearing down — read here (not from the closed-over
-      // `center`/`zoom` props) so a theme-toggle-triggered remount reopens where the user left
-      // off rather than snapping back to this component's original mount position.
+      // Remember the live pan/zoom/heading/tilt before tearing down — read here (not from the
+      // closed-over `center`/`zoom` props) so a theme-toggle-triggered remount reopens where the
+      // user left off rather than snapping back to this component's original mount position and
+      // the north-up isometric default.
       const currentCenter = handle?.map.getCenter?.()
       const currentZoom = handle?.map.getZoom?.()
+      const currentHeading = handle?.map.getHeading?.()
+      const currentTilt = handle?.map.getTilt?.()
       if (currentCenter) {
-        lastCameraRef.current = { latitude: currentCenter.lat(), longitude: currentCenter.lng(), zoom: currentZoom }
+        lastCameraRef.current = {
+          latitude: currentCenter.lat(),
+          longitude: currentCenter.lng(),
+          zoom: currentZoom,
+          heading: currentHeading,
+          tilt: currentTilt,
+        }
       }
       unsubscribeStore?.()
       unregister?.()
