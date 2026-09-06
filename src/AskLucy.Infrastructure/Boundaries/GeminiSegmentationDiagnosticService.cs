@@ -140,7 +140,12 @@ internal sealed class GeminiSegmentationDiagnosticService(
                 },
             },
         },
-        ["generationConfig"] = new { responseMimeType = "application/json" },
+        // A segmentation mask embedded as base64 PNG inside the JSON response is far larger than a
+        // handful of coordinates - a live test failed to decode the mask at all, and the default
+        // output-token budget is the prime suspect (a response cut off mid-base64-string decodes
+        // to garbage rather than throwing a clean "invalid JSON" error, which matches what was
+        // actually observed: valid JSON, valid base64, an unrecognisable image).
+        ["generationConfig"] = new { responseMimeType = "application/json", maxOutputTokens = 32768 },
     };
 
     private static string BuildPrompt(string siteName) => $"""
@@ -214,11 +219,27 @@ internal sealed class GeminiSegmentationDiagnosticService(
         }
         catch (FormatException)
         {
-            return new BoundaryDrawDiagnosticResult(null, null, $"Model '{modelKey}' returned an unparseable mask.");
+            return new BoundaryDrawDiagnosticResult(null, null,
+                $"Model '{modelKey}' returned unparseable base64 for the mask ({maskBase64.Length} chars — a length not a " +
+                "multiple of 4 after padding usually means the response was cut off mid-string by the output-token budget).");
         }
 
         using var originalImage = Image.Load<Rgba32>(image.ImageBytes);
-        var fullMask = BuildFullImageMask(maskBytes, box2d, originalImage.Width, originalImage.Height);
+        bool[,] fullMask;
+        try
+        {
+            fullMask = BuildFullImageMask(maskBytes, box2d, originalImage.Width, originalImage.Height);
+        }
+        catch (Exception ex) when (ex.GetType().Name is "InvalidImageContentException" or "UnknownImageFormatException" or "NotSupportedException")
+        {
+            // Diagnostic-only detail, not a constitution violation of "no silent failures" - this
+            // note IS the surfaced failure, just with enough detail (length + leading bytes) to
+            // tell truncation apart from a genuinely wrong format without needing server log access.
+            var headBytes = maskBytes.Length >= 8 ? Convert.ToHexString(maskBytes[..8]) : Convert.ToHexString(maskBytes);
+            return new BoundaryDrawDiagnosticResult(null, null,
+                $"Model '{modelKey}' returned a mask that decoded from base64 ({maskBytes.Length} bytes) but isn't a " +
+                $"recognisable image (first bytes: {headBytes}; PNG should start with 89504E470D0A1A0A) — {ex.GetType().Name}.");
+        }
 
         var pixelRing = MaskContourVectorizer.TryExtractPixelRing(fullMask, originalImage.Width, originalImage.Height);
         if (pixelRing is null)
