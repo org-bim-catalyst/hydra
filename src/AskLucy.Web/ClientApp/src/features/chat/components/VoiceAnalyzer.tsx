@@ -10,29 +10,34 @@ export interface VoiceAnalyzerProps {
   /** Ref-based, read every animation frame — never drives React state per frame
    * (specs/026-floating-chat-assistant research.md #3). */
   getIntensity: () => number
+  /** 'horizontal' (default): bars side-by-side, each pulsing in height — used by the
+   * Expanded panel's ChatComposer (Push-to-Talk review and Continuous mode). 'vertical':
+   * bars stacked top-to-bottom, each pulsing in length — used by the narrow Collapsed
+   * widget, where a horizontal bar-stack wouldn't fit its width. */
+  orientation?: 'horizontal' | 'vertical'
 }
 
 const BAR_COUNT = 5
 const MIN_SCALE = 0.14
 
-/** FR-004: the Collapsed-state vertical analyzer — a small bar-stack, stacked top-to-bottom
- * (matching the narrow vertical collapsed control it lives in), whose animation pattern and
- * color distinguish Idle, Processing (synthetic pulse — nothing to measure yet), and
- * Speaking/Listening (driven by real `getIntensity()` amplitude), polled via
- * `requestAnimationFrame` and applied directly to bar `transform`s (never React state)
- * to stay cheap at 60fps (constitution §15). `getIntensity` always reflects the user's own
- * microphone input — never Lucy's spoken-reply output — so the bars are a "you're being
- * heard" indicator, not a shared conversation-activity meter. */
-export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
+/** A small bar-stack analyzer whose animation pattern and color distinguish Idle,
+ * Processing (synthetic pulse — nothing to measure yet), and Speaking/Listening (driven by
+ * real `getIntensity()` amplitude), polled via `requestAnimationFrame` and applied directly
+ * to bar `transform`s (never React state) to stay cheap at 60fps (constitution §15).
+ * `getIntensity` always reflects the user's own microphone input — never Lucy's spoken-reply
+ * output — so the bars are a "you're being heard" indicator, not a shared
+ * conversation-activity meter. */
+export function VoiceAnalyzer({ state, getIntensity, orientation = 'horizontal' }: VoiceAnalyzerProps) {
   const barRefs = useRef<(HTMLDivElement | null)[]>([])
   const prefersReducedMotion = usePrefersReducedMotion()
+  const scaleProperty = orientation === 'vertical' ? 'scaleX' : 'scaleY'
 
   useEffect(() => {
     if (prefersReducedMotion) {
       // Reduced motion: a single static baseline scale per state, no per-frame animation.
       const staticScale = state === 'idle' ? MIN_SCALE : 0.6
       barRefs.current.forEach((bar) => {
-        if (bar) bar.style.transform = `scaleX(${staticScale})`
+        if (bar) bar.style.transform = `${scaleProperty}(${staticScale})`
       })
       return
     }
@@ -55,13 +60,13 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
         } else {
           scale = MIN_SCALE
         }
-        bar.style.transform = `scaleX(${scale})`
+        bar.style.transform = `${scaleProperty}(${scale})`
       })
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [state, getIntensity, prefersReducedMotion])
+  }, [state, getIntensity, prefersReducedMotion, scaleProperty])
 
   const activeColor =
     state === 'listening'
@@ -76,8 +81,8 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
       aria-label={`Voice status: ${state}`}
       sx={{
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
+        flexDirection: orientation === 'vertical' ? 'column' : 'row',
+        alignItems: orientation === 'vertical' ? 'stretch' : 'center',
         justifyContent: 'center',
         gap: 0.5,
         height: 56,
@@ -91,12 +96,12 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
             barRefs.current[index] = el
           }}
           sx={{
-            width: '100%',
-            height: 3,
+            width: orientation === 'vertical' ? '100%' : 3,
+            height: orientation === 'vertical' ? 3 : '100%',
             borderRadius: 999,
             bgcolor: activeColor,
             opacity: state === 'idle' ? 0.35 : 0.9,
-            transform: `scaleX(${MIN_SCALE})`,
+            transform: `${scaleProperty}(${MIN_SCALE})`,
             transformOrigin: 'center',
             transition: (t) => (state === 'idle' ? t.transitions.create(['opacity']) : 'none'),
           }}
