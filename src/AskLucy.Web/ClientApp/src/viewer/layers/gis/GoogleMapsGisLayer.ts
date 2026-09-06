@@ -225,7 +225,13 @@ export async function createGoogleMapsGisLayer(
       // google.maps.WebGLOverlayView appears to swallow exceptions thrown from onDraw silently
       // (no console error, nothing rendered) — wrapped so a real bug here becomes visible
       // instead of looking identical to "nothing to render".
-      siteBoundaryRenderer.update(siteBoundaryClock.getDelta())
+      // The border ring's on-screen width is kept constant across zoom via the standard Web
+      // Mercator ground-resolution formula (same "meters per pixel at this zoom/latitude" figure
+      // used to size map tiles themselves) — a fixed real-world half-width, even one scaled to
+      // the boundary's own size, still only reads correctly at one particular zoom.
+      const zoom = map.getZoom() ?? options.zoom ?? 15
+      const metersPerPixel = (156_543.03392 * Math.cos((sceneAnchor.latitude * Math.PI) / 180)) / 2 ** zoom
+      siteBoundaryRenderer.update(siteBoundaryClock.getDelta(), metersPerPixel)
       overlay.requestRedraw()
       renderer?.render(scene, camera)
       renderer?.resetState()
