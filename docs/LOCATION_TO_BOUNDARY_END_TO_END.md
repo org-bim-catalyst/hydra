@@ -639,6 +639,25 @@ Things a reviewer should push on.
    fetches is never shown to any user — it exists only for this server-side extraction, entirely
    separate from the Maps JavaScript API instance the viewer renders client-side, so forcing a
    feature's colour here has zero visible effect on what anyone sees.
+
+   **Update, post-deployment: a real gap-detection bug, found immediately on the first live test.**
+   The traced boundary was visibly better but excluded several real slivers of the park — a
+   footpath or small building's outline cuts all the way through the green fill at those points,
+   splitting what is really one site into multiple disconnected pixel blobs. `LargestComponent`
+   only ever keeps the single biggest one, silently dropping the rest as if that ground were never
+   part of the site. Fixed with a standard morphological closing pass (dilate outward, then erode
+   back in by the same radius) applied to the mask before component selection, bridging any gap up
+   to twice the radius (4px, chosen to bridge an ordinary footpath at this module's ~0.27 m/px
+   resolution without merging genuinely separate features some real distance apart) — implemented
+   as two separable axis passes rather than a square kernel scan, since the naive version costs
+   O(w·h·r²) against O(w·h·r) for a 1280×1280 working image. Fixing this surfaced a second, entirely
+   independent bug in the same code: erosion's out-of-bounds handling treated "off the edge of the
+   frame" as background, which erases a full radius-wide strip of genuine shape anywhere it happens
+   to touch the image border — backwards for closing, whose whole point is to recover shape, not
+   punish it for being near the frame edge it was photographed in. Both are covered by dedicated
+   tests (`MaskContourVectorizerTests`): a thin cut gets bridged, a real 20px gap between two
+   features does not get merged, and a shape split by a path traces back to its full original
+   extent end-to-end.
 ---
 
 ## 10. Where to look in the code

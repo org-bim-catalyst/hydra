@@ -148,4 +148,99 @@ public sealed class MaskContourVectorizerTests
         simplified.Should().HaveCount(4);
         simplified.Should().Contain((0, 0)).And.Contain((4, 0)).And.Contain((4, 4)).And.Contain((0, 4));
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Morphological closing. Confirmed live against Al Safa Park 2: the rendered-fill trace
+    // excluded several real park slivers that a footpath/small building had cut off from the main
+    // green blob, because LargestComponent picks exactly one connected piece and silently drops
+    // the rest. Closing must bridge a thin cut so the real full shape survives, without merging
+    // features that are genuinely, separately far apart.
+    // -------------------------------------------------------------------------------------------
+
+    private static bool[,] BoolMask(int width, int height, IEnumerable<(int X, int Y)> cells)
+    {
+        var mask = new bool[width, height];
+        foreach (var (x, y) in cells)
+        {
+            mask[x, y] = true;
+        }
+        return mask;
+    }
+
+    [Fact]
+    public void Close_ShouldBridgeAThinGap_BetweenTwoPiecesOfWhatIsReallyOneShape()
+    {
+        const int width = 40; const int height = 20;
+        var cells = new HashSet<(int X, int Y)>();
+        // A 30x20 rectangle with a 3px-wide vertical cut straight through it at x=14..16 - the
+        // same shape as a footpath slicing across a park's rendered fill.
+        for (var x = 0; x < 30; x++)
+        {
+            if (x is >= 14 and <= 16) continue;
+            for (var y = 0; y < height; y++)
+            {
+                cells.Add((x, y));
+            }
+        }
+        var mask = BoolMask(width, height, cells);
+
+        // Uncut: LargestComponent only recovers whichever side of the cut happens to be bigger.
+        var beforeClosing = MaskContourVectorizer.LargestComponent(mask, width, height);
+        beforeClosing!.Count.Should().BeLessThan(30 * height, "the cut splits the shape before closing");
+
+        var closed = MaskContourVectorizer.Close(mask, width, height, radius: 4);
+        var afterClosing = MaskContourVectorizer.LargestComponent(closed, width, height);
+
+        afterClosing.Should().NotBeNull();
+        // Closing can grow the shape slightly at its true outer edges too (dilate then erode isn't
+        // perfectly lossless at the boundary), so check it recovered the union, not exact equality.
+        afterClosing!.Count.Should().BeGreaterThan(28 * height, "closing should bridge the thin cut and recover essentially the whole original rectangle");
+    }
+
+    [Fact]
+    public void Close_ShouldNotMerge_TwoFeaturesSeparatedByAGenuinelyLargeGap()
+    {
+        const int width = 60; const int height = 20;
+        var cells = new HashSet<(int X, int Y)>();
+        foreach (var (x, y) in Rectangle(20, 20)) cells.Add((x, y));           // left block, x: 0-19
+        foreach (var (x, y) in Rectangle(20, 20)) cells.Add((x + 40, y));      // right block, x: 40-59 (20px gap)
+
+        var mask = BoolMask(width, height, cells);
+
+        var closed = MaskContourVectorizer.Close(mask, width, height, radius: 4);
+        var largest = MaskContourVectorizer.LargestComponent(closed, width, height);
+
+        largest.Should().NotBeNull();
+        // A 20px gap is far past 2x the 4px closing radius (8px) - the two blocks must stay
+        // separate, and the "largest" component must be just one of the two 20x20 blocks, not both.
+        largest!.Count.Should().BeLessThan(2 * 20 * 20, "two features 20px apart must not be merged by an 8px-reach closing operation");
+    }
+
+    [Fact]
+    public void TryExtractPixelRing_ShouldRecoverTheFullShape_WhenAThinPathCutsThroughIt()
+    {
+        // End-to-end reproduction of the live Al Safa Park 2 bug: a park-sized rectangle bisected
+        // by a thin path, traced from a raw (not pre-closed) mask.
+        const int width = 60; const int height = 30;
+        var cells = new HashSet<(int X, int Y)>();
+        for (var x = 5; x < 55; x++)
+        {
+            if (x is >= 28 and <= 30) continue; // the "path"
+            for (var y = 5; y < 25; y++)
+            {
+                cells.Add((x, y));
+            }
+        }
+        var mask = BoolMask(width, height, cells);
+
+        var pixelRing = MaskContourVectorizer.TryExtractPixelRing(mask, width, height);
+
+        pixelRing.Should().NotBeNull();
+        var xs = pixelRing!.Select(p => p.X).ToList();
+        var ys = pixelRing.Select(p => p.Y).ToList();
+        // The recovered outline should span the full original rectangle's extent (x: 5-55,
+        // y: 5-25), not just one side of the cut.
+        (xs.Max() - xs.Min()).Should().BeGreaterThan(45, "the traced outline must span both sides of the path, not just the larger half");
+        (ys.Max() - ys.Min()).Should().BeGreaterThan(15);
+    }
 }
