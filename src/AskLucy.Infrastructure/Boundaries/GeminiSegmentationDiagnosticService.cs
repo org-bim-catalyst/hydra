@@ -52,7 +52,13 @@ internal sealed class GeminiSegmentationDiagnosticService(
     ILogger<GeminiSegmentationDiagnosticService> logger) : IBoundarySegmentationDiagnosticService
 {
     private const string ProviderKey = "google-gemini";
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(60);
+    /// <summary>
+    /// A live test hit <see cref="TaskCanceledException"/> at 60s: computing a genuine per-pixel
+    /// segmentation mask takes noticeably longer than drawing an image did. Set just under the
+    /// "GoogleGemini" client's own 120s timeout so this budget is the one that actually governs,
+    /// rather than silently losing time to a shorter cap than intended.
+    /// </summary>
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(110);
     private static readonly Rgba32 OutlineColor = new(255, 0, 0);
     private readonly GoogleGeminiOptions _options = options.Value;
 
