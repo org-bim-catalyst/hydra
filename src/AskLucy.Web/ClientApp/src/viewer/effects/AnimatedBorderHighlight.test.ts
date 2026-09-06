@@ -95,6 +95,34 @@ describe('createAnimatedBorderHighlight', () => {
     expect(material.uniforms.uRotation.value).not.toBe(rotationBefore)
   })
 
+  it('update() recomputes the border ring half-width from live metersPerPixel, so it reads a constant screen width across zoom', () => {
+    // Regression coverage: a fixed real-world half-width (even one scaled to the boundary's own
+    // size) only looks right at one particular zoom — live-verified on an actual park, where the
+    // ring was only visible zoomed in. uHalfWidth must track metersPerPixel every frame instead.
+    const highlight = createAnimatedBorderHighlight(squareRing, 'high')
+    const material = (findBorderRing(highlight) as THREE.Mesh).material as THREE.ShaderMaterial
+
+    highlight.update(0, 2) // zoomed out: 2 metres per screen pixel
+    const halfWidthZoomedOut = material.uniforms.uHalfWidth.value
+
+    highlight.update(0, 0.1) // zoomed in: 0.1 metres per screen pixel
+    const halfWidthZoomedIn = material.uniforms.uHalfWidth.value
+
+    expect(halfWidthZoomedOut).toBeGreaterThan(halfWidthZoomedIn)
+    // Targets a fixed screen-pixel width: half-width scales linearly with metersPerPixel.
+    expect(halfWidthZoomedOut / halfWidthZoomedIn).toBeCloseTo(2 / 0.1, 5)
+  })
+
+  it('update() without metersPerPixel leaves the half-width at its fallback value (tests, pre-camera frames)', () => {
+    const highlight = createAnimatedBorderHighlight(squareRing, 'high')
+    const material = (findBorderRing(highlight) as THREE.Mesh).material as THREE.ShaderMaterial
+    const halfWidthBefore = material.uniforms.uHalfWidth.value
+
+    highlight.update(0.5)
+
+    expect(material.uniforms.uHalfWidth.value).toBe(halfWidthBefore)
+  })
+
   it('dispose() removes all children and does not throw', () => {
     const highlight = createAnimatedBorderHighlight(squareRing, 'high')
     expect(() => highlight.dispose()).not.toThrow()

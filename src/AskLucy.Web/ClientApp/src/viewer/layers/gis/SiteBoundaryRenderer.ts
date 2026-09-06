@@ -11,8 +11,10 @@ export interface SiteBoundaryRenderer {
   object3D: THREE.Object3D
   /** Replaces the rendered boundary. Pass `null` to clear it (edge case: a new, unrelated site was referenced). */
   setPolygon(ring: LocalPoint[] | null, confidenceLevel: BorderConfidenceLevel): void
-  /** Call once per frame (from the owning layer's `onDraw`) to advance the comet animation. */
-  update(deltaSeconds: number): void
+  /** Call once per frame (from the owning layer's `onDraw`) to advance the border animation.
+   * `metersPerPixel` (see `AnimatedBorderHighlight.update`) keeps the border ring's on-screen
+   * width constant across zoom levels. */
+  update(deltaSeconds: number, metersPerPixel?: number): void
   dispose(): void
 }
 
@@ -53,8 +55,8 @@ export function createSiteBoundaryRenderer(): SiteBoundaryRenderer {
       highlight = createAnimatedBorderHighlight(closed, confidenceLevel)
       group.add(highlight.object3D)
     },
-    update(deltaSeconds) {
-      highlight?.update(deltaSeconds)
+    update(deltaSeconds, metersPerPixel) {
+      highlight?.update(deltaSeconds, metersPerPixel)
     },
     dispose() {
       if (highlight) {

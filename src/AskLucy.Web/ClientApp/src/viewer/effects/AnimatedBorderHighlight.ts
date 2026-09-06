@@ -5,8 +5,11 @@ export type BorderConfidenceLevel = 'low' | 'medium' | 'high'
 export interface AnimatedBorderHighlight {
   /** Add this to the scene/group that owns the boundary. */
   object3D: THREE.Object3D
-  /** Advances the border rotation and checkpoint activation — call once per frame with the elapsed seconds. */
-  update(deltaSeconds: number): void
+  /** Advances the border rotation and checkpoint activation — call once per frame with the elapsed
+   * seconds. `metersPerPixel` (from the live map camera, e.g. `156543.03392 * cos(lat) / 2^zoom`)
+   * keeps the border ring's on-screen width constant across zoom levels — omit it (tests, or before
+   * the first real camera frame) to fall back to the boundary-proportional initial width. */
+  update(deltaSeconds: number, metersPerPixel?: number): void
   /** Rebuilds the border/activation behavior for a new confidence level — no geometry rebuild needed for the static perimeter. */
   setConfidenceLevel(level: BorderConfidenceLevel): void
   dispose(): void
@@ -37,14 +40,20 @@ const BORDER_ROTATION_SECONDS_HIGH = 3 // matches the CSS reference's "3s spin l
 const BORDER_ROTATION_SECONDS_MEDIUM = 6 // slower — FR-006's medium/high visual distinction
 const BORDER_OPACITY_MEDIUM = 0.75
 // The ring's width is real geometry (a THREE.Mesh), unlike a THREE.Line's constant ~1px screen
-// width regardless of scale — a fixed metre value tuned against a small demo shape (a few metres
-// across) is imperceptible around an actual, real-world-scale park (hundreds of metres across):
-// this was live-verified as a bug — the ring never became visible on a real boundary, only the
-// checkpoint shockwave (a Line) did. Scaling the half-width to a fraction of the boundary's own
-// bounding-box diagonal keeps it reading equally thin whether the parcel is 50m or 500m across,
-// with a floor so a tiny lot doesn't get an imperceptibly thin ring either.
+// width regardless of scale. A fixed metre half-width — even one scaled to the boundary's own
+// size — still only looks right at one particular zoom: live-verified twice now, first as
+// "invisible entirely" (a value tuned against a small demo shape) and then as "only visible when
+// zoomed in" (a boundary-proportional value that, being a fixed real-world distance, still covers
+// fewer screen pixels the further out you zoom, the same way a fixed-metre object always does).
+// The actual fix is the same trick that keeps a native map polygon's stroke a constant screen
+// width regardless of zoom: recompute the half-width every frame from live meters-per-pixel (see
+// `update`'s `metersPerPixel` param) targeting a fixed PIXEL width, not a fixed metre one.
+// `BORDER_WIDTH_RATIO`/`BORDER_INITIAL_HALF_WIDTH_METERS` below are only the fallback used before
+// the first real camera frame arrives (or in tests, which don't pass zoom info).
+const TARGET_BORDER_PIXEL_WIDTH = 4 // slightly wider than the native polygon's strokeWeight: 3,
+// so the ring reads as sitting visually on top of — not competing with — that always-on fallback.
+const BORDER_MIN_HALF_WIDTH_METERS = 0.02
 const BORDER_WIDTH_RATIO = 0.002
-const BORDER_MIN_HALF_WIDTH_METERS = 0.15
 const BORDER_CORNER_SEGMENTS = 12
 
 const CONIC_GRADIENT_GLSL = `
@@ -98,7 +107,7 @@ export function createAnimatedBorderHighlight(
   const points = ring.map((p) => new THREE.Vector3(p.x, p.y, 0))
   const centroid = points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(points.length)
   const bounds = new THREE.Box3().setFromPoints(points)
-  const borderHalfWidth = Math.max(bounds.min.distanceTo(bounds.max) * BORDER_WIDTH_RATIO, BORDER_MIN_HALF_WIDTH_METERS)
+  const borderInitialHalfWidth = Math.max(bounds.min.distanceTo(bounds.max) * BORDER_WIDTH_RATIO, BORDER_MIN_HALF_WIDTH_METERS)
 
   function angleFromCentroid(p: THREE.Vector3): number {
     return (Math.atan2(p.y - centroid.y, p.x - centroid.x) / (Math.PI * 2) + 1) % 1
@@ -129,18 +138,26 @@ export function createAnimatedBorderHighlight(
   // shared vertex-averaged normal, which produces a sharp miter spike at corners) plus a filled
   // disc at every vertex for a proper round join.
   // ============================================================
-  function createBorderMaterial(opacity: number): THREE.ShaderMaterial {
+  function createBorderMaterial(opacity: number, initialHalfWidth: number): THREE.ShaderMaterial {
     return new THREE.ShaderMaterial({
-      uniforms: { uRotation: { value: 0 }, uOpacity: { value: opacity }, uIntro: { value: 0 } },
+      uniforms: {
+        uRotation: { value: 0 },
+        uOpacity: { value: opacity },
+        uIntro: { value: 0 },
+        uHalfWidth: { value: initialHalfWidth },
+      },
       vertexShader: `
         attribute float aAngle;
         attribute float aEdge;
+        attribute vec2 aOffsetDir;
+        uniform float uHalfWidth;
         varying float vAngle;
         varying float vEdge;
         void main() {
           vAngle = aAngle;
           vEdge = aEdge;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec3 offsetPosition = position + vec3(aOffsetDir * uHalfWidth, 0.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(offsetPosition, 1.0);
         }
       `,
       fragmentShader: `
@@ -163,17 +180,22 @@ export function createAnimatedBorderHighlight(
     })
   }
 
-  function buildBorderRingGeometry(halfWidth: number): THREE.BufferGeometry {
+  // Vertices store the boundary's true position plus a unit outward direction (zero for a corner
+  // disc's own centre) — NOT a pre-baked offset — so the vertex shader can scale that direction by
+  // a per-frame `uHalfWidth` uniform instead of needing the whole geometry rebuilt to change width.
+  function buildBorderRingGeometry(): THREE.BufferGeometry {
     const n = points.length - 1 // ring closes with points[n] === points[0]
     const positions: number[] = []
     const angles: number[] = []
     const edges: number[] = []
+    const offsetDirs: number[] = []
     const indices: number[] = []
 
-    function pushVertex(x: number, y: number, angle: number, edge: number): number {
-      positions.push(x, y, 0.01)
+    function pushVertex(x: number, y: number, z: number, angle: number, edge: number, dirX: number, dirY: number): number {
+      positions.push(x, y, z)
       angles.push(angle)
       edges.push(edge)
+      offsetDirs.push(dirX, dirY)
       return positions.length / 3 - 1
     }
 
@@ -185,23 +207,23 @@ export function createAnimatedBorderHighlight(
       const len = Math.hypot(tx, ty) || 1
       tx /= len
       ty /= len
-      const px = -ty * halfWidth
-      const py = tx * halfWidth
-      const i0 = pushVertex(a.x + px, a.y + py, angleFromCentroid(a), 1)
-      const i1 = pushVertex(a.x - px, a.y - py, angleFromCentroid(a), -1)
-      const i2 = pushVertex(b.x + px, b.y + py, angleFromCentroid(b), 1)
-      const i3 = pushVertex(b.x - px, b.y - py, angleFromCentroid(b), -1)
+      const nx = -ty
+      const ny = tx
+      const i0 = pushVertex(a.x, a.y, 0.01, angleFromCentroid(a), 1, nx, ny)
+      const i1 = pushVertex(a.x, a.y, 0.01, angleFromCentroid(a), -1, -nx, -ny)
+      const i2 = pushVertex(b.x, b.y, 0.01, angleFromCentroid(b), 1, nx, ny)
+      const i3 = pushVertex(b.x, b.y, 0.01, angleFromCentroid(b), -1, -nx, -ny)
       indices.push(i0, i1, i2, i1, i3, i2)
     }
 
     for (let i = 0; i < n; i++) {
       const p = points[i]
       const angle = angleFromCentroid(p)
-      const centerIdx = pushVertex(p.x, p.y, angle, 0)
+      const centerIdx = pushVertex(p.x, p.y, 0.012, angle, 0, 0, 0)
       const ringStart = positions.length / 3
       for (let s = 0; s <= BORDER_CORNER_SEGMENTS; s++) {
         const theta = (s / BORDER_CORNER_SEGMENTS) * Math.PI * 2
-        pushVertex(p.x + Math.cos(theta) * halfWidth, p.y + Math.sin(theta) * halfWidth, angle, 1)
+        pushVertex(p.x, p.y, 0.012, angle, 1, Math.cos(theta), Math.sin(theta))
       }
       for (let s = 0; s < BORDER_CORNER_SEGMENTS; s++) {
         indices.push(centerIdx, ringStart + s, ringStart + s + 1)
@@ -212,6 +234,7 @@ export function createAnimatedBorderHighlight(
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
     geometry.setAttribute('aAngle', new THREE.BufferAttribute(new Float32Array(angles), 1))
     geometry.setAttribute('aEdge', new THREE.BufferAttribute(new Float32Array(edges), 1))
+    geometry.setAttribute('aOffsetDir', new THREE.BufferAttribute(new Float32Array(offsetDirs), 2))
     geometry.setIndex(indices)
     return geometry
   }
@@ -227,8 +250,8 @@ export function createAnimatedBorderHighlight(
   let elapsedSeconds = 0
 
   function buildBorderRing(rotationSeconds: number, targetOpacity: number) {
-    const geometry = buildBorderRingGeometry(borderHalfWidth)
-    const material = createBorderMaterial(targetOpacity)
+    const geometry = buildBorderRingGeometry()
+    const material = createBorderMaterial(targetOpacity, borderInitialHalfWidth)
     const mesh = new THREE.Mesh(geometry, material)
     group.add(mesh)
     borderRing = { mesh, geometry, material, rotationSeconds }
@@ -382,10 +405,16 @@ export function createAnimatedBorderHighlight(
 
   return {
     object3D: group,
-    update(deltaSeconds) {
+    update(deltaSeconds, metersPerPixel) {
       elapsedSeconds += deltaSeconds
       if (borderRing) {
         borderRing.material.uniforms.uRotation.value = (elapsedSeconds / borderRing.rotationSeconds) % 1
+        if (metersPerPixel !== undefined) {
+          borderRing.material.uniforms.uHalfWidth.value = Math.max(
+            (TARGET_BORDER_PIXEL_WIDTH / 2) * metersPerPixel,
+            BORDER_MIN_HALF_WIDTH_METERS,
+          )
+        }
       }
       advanceActivation(deltaSeconds)
     },
