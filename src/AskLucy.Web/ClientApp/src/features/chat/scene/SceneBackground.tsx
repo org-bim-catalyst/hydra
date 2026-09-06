@@ -5,7 +5,6 @@ import { Component, type ReactNode, useRef, useState } from 'react'
 import type { Group } from 'three'
 import { ParticleSphereBloom } from './ParticleSphereBloom'
 import { ReactiveSphere } from './ReactiveSphere'
-import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
 interface SceneBackgroundProps {
@@ -80,16 +79,12 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
     return <StaticFallback />
   }
 
-  // FR-004/FR-010: bloom is part of the "full" tier's richer technique only — the "reduced"
-  // tier's simpler technique (sphereRenderTechnique.ts) never mounts the bloom pass.
-  const { bloomEnabled } = getSphereRenderTechnique(tier)
-  // Temporarily disabled at the call site (live user review): SelectiveBloom's
-  // `luminanceSmoothing` filter made the sphere visibly "ramp up" from crisp individual
-  // dots into a blurred glow over the first couple of seconds after mount — a real bug in
-  // the effect's adaptive convergence, not just an intensity/threshold tuning problem — and
-  // the reference image/implementation this feature is meant to match has no glow at all.
-  // The plumbing (ParticleSphereBloom, bloomEnabled) stays in place and unit-tested for
-  // later opt-in polish; it's just not wired into the live scene right now.
+  // Temporarily disabled at the call site (live user review, predates the 2026-09-06 pivot to
+  // a mesh-based sphere): SelectiveBloom's `luminanceSmoothing` filter made the previous
+  // particle-cloud sphere visibly "ramp up" into a blurred glow over the first couple of
+  // seconds after mount — a real bug in the effect's adaptive convergence, not just an
+  // intensity/threshold tuning problem. The plumbing (ParticleSphereBloom) stays in place and
+  // unit-tested for later opt-in polish; it's just not wired into the live scene right now.
   const BLOOM_TEMPORARILY_DISABLED = true
 
   return (
@@ -129,10 +124,10 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
               frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI).
-              Disabled while BLOOM_TEMPORARILY_DISABLED is true: the only visible
-              difference between tiers is additive vs normal blending, which only
-              matters when bloom is active. Monitoring without bloom causes the sphere
-              to permanently downgrade its blending for no user benefit. */}
+              Disabled while BLOOM_TEMPORARILY_DISABLED is true, left over from when tiers only
+              differed by blending mode (which mattered only with bloom active); now that tiers
+              differ by icosahedron subdivision (ReactiveSphere.tsx), re-enabling this needs its
+              own re-evaluation of what "decline" should mean for a mesh instead of points. */}
           {!BLOOM_TEMPORARILY_DISABLED && (
             <PerformanceMonitor onDecline={reportPerformanceRegression} />
           )}
@@ -143,9 +138,7 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
             reducedMotion={prefersReducedMotion}
             groupRef={sphereGroupRef}
           />
-          {bloomEnabled && !BLOOM_TEMPORARILY_DISABLED && (
-            <ParticleSphereBloom sphereRef={sphereGroupRef} />
-          )}
+          {!BLOOM_TEMPORARILY_DISABLED && <ParticleSphereBloom sphereRef={sphereGroupRef} />}
           <OrbitControls
             enablePan
             enableZoom

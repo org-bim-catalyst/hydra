@@ -1,11 +1,17 @@
-// Displaces each point's radial position using 3D simplex noise, driven by uTime (idle
-// drift) and uAmplitude/uFrequency (idle vs. voice-reactive — ReactiveSphere.tsx animates
-// these; see research.md §1/§2/§3). Point positions themselves are pre-sampled on a
-// ring-based sphere lattice in ReactiveSphere.tsx (spec 010-lucy-brand-refresh FR-006) —
-// this shader only moves them, it doesn't generate them. `normalize(position)` stands in
-// for a per-vertex normal (a point cloud has none): valid here because every point starts
-// exactly on the unit sphere, so its own direction from the origin *is* its outward
-// normal.
+// Displaces the sphere's *surface* using 3D simplex noise, driven by uTime (idle drift) and
+// uAmplitude/uFrequency (idle vs. voice-reactive — ReactiveSphere.tsx animates these; see
+// research.md §1/§2/§3). Pivoted 2026-09-06 (live user review) from a particle-cloud
+// (THREE.Points) technique to a continuous displaced mesh, after that technique proved
+// fragile across GPUs in production: a NaN from this same noise function discarded every
+// point on one machine, and — once that was patched — additive-blend overlap of thousands of
+// points saturated into a solid blob on another. A single opaque, normally-shaded surface has
+// neither failure mode: there's nothing to discard or oversaturate.
+//
+// Because a single scalar displacement function has no analytic derivative to hand-differentiate
+// for a normal, each vertex's normal is instead estimated numerically: sample the same
+// displacement function at two nearby points on the sphere's local tangent plane, and take the
+// cross product of the resulting displaced-surface offsets (Bruno Simon's "organic sphere"
+// technique — see organic-sphere.vercel.app, the reference this pivot drew from).
 
 uniform float uTime;
 uniform float uAmplitude;
@@ -15,13 +21,8 @@ uniform float uFrequency;
 // reactive displacement so breathing, idle wobble, and voice-reactive deformation all layer
 // additively rather than needing separate branching logic.
 uniform float uBreath;
-uniform float uBasePointSize;
 
 varying float vDisplacement;
-// Rim-lighting inputs for sphere.frag.glsl's fresnel term (live user feedback, 2026-09-06):
-// each point's outward normal and view direction, both in view space so the fresnel term
-// stays correct as the sphere rotates. `normalMatrix` is a uniform Three.js injects
-// automatically for every ShaderMaterial — not declared here.
 varying vec3 vViewNormal;
 varying vec3 vViewDir;
 
@@ -92,28 +93,49 @@ float snoise(vec3 v) {
   return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
 }
 
-void main() {
-  vec3 direction = normalize(position);
-  float displacement = snoise(position * uFrequency + vec3(0.0, 0.0, uTime * 0.15)) * uAmplitude + uBreath;
-  // Diagnosed on an NVIDIA RTX 3080 (ANGLE D3D11 backend): the third-party simplex noise
-  // above (Ashima Arts) evaluated to NaN on that GPU/driver even though the identical GLSL
-  // runs correctly elsewhere. A single NaN vertex position sends gl_Position non-finite,
-  // which makes the GPU discard every point in the draw call — the whole sphere renders as
-  // zero pixels (verified via gl.readPixels), leaving only the card's background visible.
-  // Guarded here rather than inside snoise() itself since that function isn't ours to patch.
-  if (isnan(displacement)) {
-    displacement = 0.0;
-  }
-  vec3 displaced = position + direction * displacement;
-  vDisplacement = displacement;
+// Diagnosed on an NVIDIA RTX 3080 (ANGLE D3D11 backend): the noise function above evaluated to
+// NaN on that GPU/driver even though the identical GLSL runs correctly elsewhere. Guarded here
+// (rather than inside snoise() itself, which is third-party) so a single bad sample can't send
+// gl_Position non-finite for either the "here" sample or either of the two neighbor samples
+// used for normal estimation below.
+float displacementAt(vec3 p) {
+  float n = snoise(p * uFrequency + vec3(0.0, 0.0, uTime * 0.15)) * uAmplitude + uBreath;
+  return isnan(n) ? 0.0 : n;
+}
 
-  vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
+void main() {
+  vec3 normalDir = normalize(position);
+
+  // A local tangent-plane basis at this vertex, used only to sample two nearby points for the
+  // numerical normal estimate below — not a true per-vertex tangent attribute (the geometry
+  // doesn't need UVs for this). Falls back to a different "up" reference near the poles, where
+  // cross(normalDir, vec3(0,1,0)) would otherwise degenerate toward zero length.
+  vec3 referenceUp = abs(normalDir.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+  vec3 tangent = normalize(cross(normalDir, referenceUp));
+  vec3 bitangent = normalize(cross(normalDir, tangent));
+
+  float eps = 0.01;
+  vec3 neighborTangentPos = position + tangent * eps;
+  vec3 neighborBitangentPos = position + bitangent * eps;
+
+  float dHere = displacementAt(position);
+  float dTangent = displacementAt(neighborTangentPos);
+  float dBitangent = displacementAt(neighborBitangentPos);
+
+  vec3 displacedHere = position + normalDir * dHere;
+  vec3 displacedTangent = neighborTangentPos + normalize(neighborTangentPos) * dTangent;
+  vec3 displacedBitangent = neighborBitangentPos + normalize(neighborBitangentPos) * dBitangent;
+
+  // cross(T, B) recovers the outward normal direction for an orthonormal (T, B, N) basis where
+  // B = cross(N, T) — same relationship applied here to the *displaced* offsets, so the result
+  // tilts to reflect the noise surface's actual slope instead of just the base sphere's normal.
+  vec3 computedNormal = normalize(cross(displacedTangent - displacedHere, displacedBitangent - displacedHere));
+
+  vDisplacement = dHere;
+
+  vec4 mvPosition = modelViewMatrix * vec4(displacedHere, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  vViewNormal = normalize(normalMatrix * direction);
+  vViewNormal = normalize(normalMatrix * computedNormal);
   vViewDir = normalize(-mvPosition.xyz);
-
-  // Standard point-sprite size attenuation so dots stay a consistent visual size
-  // regardless of camera distance/zoom (research.md §1).
-  gl_PointSize = uBasePointSize * (300.0 / -mvPosition.z);
 }
