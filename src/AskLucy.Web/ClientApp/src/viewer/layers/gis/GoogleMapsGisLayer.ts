@@ -266,13 +266,12 @@ export async function createGoogleMapsGisLayer(
   // target — it only clears when something forces the browser to fully reallocate/repaint that
   // surface (observed: opening DevTools, which resizes the map's container). WebGLOverlayView's
   // own requestRedraw() (already called every frame in onDraw) does not fix this — it only
-  // re-invokes *our* draw callback, not Google's own base-map compositor. A zero-op zoom
-  // "nudge" is the standard, low-disruption trick to make Google Maps re-evaluate/redraw its own
-  // tiles without an actual viewport size change; google.maps.event.trigger(map, 'resize') is a
-  // stronger fallback if this alone doesn't clear the ghost in testing.
+  // re-invokes *our* draw callback, not Google's own base-map compositor. A zero-op zoom nudge
+  // (map.setZoom(map.getZoom())) was tried first as the weaker, less disruptive option — tested
+  // live and confirmed NOT sufficient to clear the ghost, so escalated to firing a synthetic
+  // 'resize' event, the same thing that happens (and does clear it) when DevTools opens/closes.
   function nudgeMapRepaint() {
-    const zoom = map.getZoom()
-    if (zoom !== undefined) map.setZoom(zoom)
+    google.maps.event.trigger(map, 'resize')
   }
 
   // Built here (not module scope) — `google.maps.MapTypeId` only exists once the Maps script
