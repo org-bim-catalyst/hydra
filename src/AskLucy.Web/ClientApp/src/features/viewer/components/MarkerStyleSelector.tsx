@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Fab, Menu, MenuItem, ListItemIcon, ListItemText, Tooltip } from '@mui/material'
 import { RiMapPin2Line } from '@remixicon/react'
 import { useMarkerStyleStore, type MarkerStyle } from '../../../store/markerStyleStore'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 
 const STYLE_LABELS: Record<MarkerStyle, string> = {
   'pulsing-ring': 'Pulsing Ring',

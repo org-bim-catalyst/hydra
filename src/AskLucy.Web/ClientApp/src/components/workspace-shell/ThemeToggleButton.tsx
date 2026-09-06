@@ -1,7 +1,7 @@
 import { RiMoonLine, RiSunLine } from '@remixicon/react'
 import { Fab } from '@mui/material'
 import { useThemeStore } from '../../store/themeStore'
-import { CIRCULAR_ACTION_CHROME } from './CircularAction'
+import { CIRCULAR_ACTION_CHROME } from './circularActionChrome'
 
 /** A direct-action circular button (readdy.ai reference: the sun/moon icon beside the
  * account avatar) — toggles immediately on click, no expand/collapse state, so it isn't
