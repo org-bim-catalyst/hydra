@@ -20,8 +20,17 @@ export interface GoogleMapsGisLayerOptions {
   /** FR-005a/SC-004a (research.md Decision, T032a): starts with reduced overlay complexity
    * and auto-rotation paused on detected low-end/mobile devices. */
   reducedQuality: boolean
+  /** Initial base-map color scheme (Google's `colorScheme` API — light/dark road, water, and
+   * label colors on the Maps tiles themselves), matching the app's own light/dark theme.
+   * Only has a visible effect on a vector map (i.e. when `mapId` is set to a Map ID that isn't
+   * pinned to a custom JSON style in Cloud Console) — silently ignored on a raster map. */
+  colorScheme?: MapColorScheme
   onLoaded?: () => void
 }
+
+/** Mirrors `store/themeStore.ts`'s `ThemeMode` — kept as a separate type (not imported) so this
+ * viewer/ layer stays decoupled from the app-level theme store's module. */
+export type MapColorScheme = 'light' | 'dark'
 
 export interface GoogleMapsGisLayerHandle {
   map: google.maps.Map
@@ -37,6 +46,9 @@ export interface GoogleMapsGisLayerHandle {
   setTilt(tilt: number): void
   /** Switches the map's base rendering style — `map.setMapTypeId(google.maps.MapTypeId.*)`. */
   setMapTypeId(mapStyle: MapStyleId): void
+  /** Switches the base-map tiles' light/dark color scheme to match the app theme — a vector-map
+   * Map ID only (see `GoogleMapsGisLayerOptions.colorScheme`). */
+  setColorScheme(colorScheme: MapColorScheme): void
   /** US5 (FR-018): the current-location marker's `elementId`, for `viewerEngine.registerSelectableElement`. */
   currentLocationMarkerId: string
   /** US5 (FR-018): visually distinguishes the marker as selected/unselected. */
@@ -104,6 +116,8 @@ export async function createGoogleMapsGisLayer(
     zoom: options.zoom ?? 15,
     tilt: 45,
     ...(options.mapId ? { mapId: options.mapId } : {}),
+    colorScheme:
+      options.colorScheme === 'dark' ? google.maps.ColorScheme.DARK : google.maps.ColorScheme.LIGHT,
     disableDefaultUI: true,
     gestureHandling: 'greedy',
   })
@@ -259,6 +273,10 @@ export async function createGoogleMapsGisLayer(
     setHeading: (heading) => { desiredHeading = heading },
     setTilt: (tilt) => map.moveCamera({ tilt }),
     setMapTypeId: (mapStyle) => map.setMapTypeId(MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle]),
+    setColorScheme: (colorScheme) =>
+      map.setOptions({
+        colorScheme: colorScheme === 'dark' ? google.maps.ColorScheme.DARK : google.maps.ColorScheme.LIGHT,
+      }),
     setMarkerHighlighted: (highlighted) => {
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1

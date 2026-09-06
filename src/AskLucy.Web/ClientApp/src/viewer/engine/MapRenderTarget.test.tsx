@@ -14,6 +14,7 @@ const { createGoogleMapsGisLayerMock, shouldReduceMapQualityMock, fakeHandle } =
     setTilt: vi.fn(),
     setMarkerHighlighted: vi.fn(),
     setMapTypeId: vi.fn(),
+    setColorScheme: vi.fn(),
     dispose: vi.fn(),
   }
   return {
