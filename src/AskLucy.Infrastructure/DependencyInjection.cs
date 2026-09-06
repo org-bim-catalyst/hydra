@@ -321,6 +321,7 @@ public static class DependencyInjection
         services.AddScoped<IStreetViewImageProvider, GoogleStreetViewImageProvider>();
         services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
         services.AddScoped<IBoundaryDrawDiagnosticService, GeminiBoundaryDrawDiagnosticService>();
+        services.AddScoped<IBoundarySegmentationDiagnosticService, GeminiSegmentationDiagnosticService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IDocumentContentValidator, DocumentContentValidator>();
         services.AddSingleton<IDocumentPageCountExtractor, DocumentPageCountExtractor>();
