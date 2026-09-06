@@ -5,11 +5,14 @@ using Xunit;
 namespace AskLucy.Infrastructure.Tests.Boundaries;
 
 /// <summary>
-/// Exercises <see cref="RedOutlineVectorizer"/>'s pixel-space algorithms directly against
+/// Exercises <see cref="MaskContourVectorizer"/>'s pixel-space algorithms directly against
 /// hand-built boolean grids — no image encoding/decoding involved, so a failure here points
-/// straight at the tracing/simplification logic rather than at image I/O.
+/// straight at the tracing/simplification logic rather than at image I/O. Shared by every mask
+/// producer (<see cref="RedOutlineVectorizer"/>'s colour thresholding,
+/// <see cref="GeminiSegmentationDiagnosticService"/>'s native segmentation mask), so these cases
+/// matter regardless of which one is in use.
 /// </summary>
-public sealed class RedOutlineVectorizerTests
+public sealed class MaskContourVectorizerTests
 {
     /// <summary>A filled 10x6 rectangle: cells (0..9, 0..5).</summary>
     private static HashSet<(int X, int Y)> Rectangle(int width = 10, int height = 6)
@@ -43,7 +46,7 @@ public sealed class RedOutlineVectorizerTests
             }
         }
 
-        var component = RedOutlineVectorizer.LargestComponent(mask, 50, 50);
+        var component = MaskContourVectorizer.LargestComponent(mask, 50, 50);
 
         component.Should().NotBeNull();
         component!.Count.Should().Be(30 * 20);
@@ -61,7 +64,7 @@ public sealed class RedOutlineVectorizerTests
             }
         }
 
-        var component = RedOutlineVectorizer.LargestComponent(mask, 50, 50);
+        var component = MaskContourVectorizer.LargestComponent(mask, 50, 50);
 
         component.Should().BeNull("a 3x3 speck is far below the boundary-plausible size floor");
     }
@@ -71,12 +74,12 @@ public sealed class RedOutlineVectorizerTests
     {
         var cells = Rectangle(10, 6);
 
-        var ring = RedOutlineVectorizer.TraceOuterRing(cells, 12, 8);
+        var ring = MaskContourVectorizer.TraceOuterRing(cells, 12, 8);
 
         ring.Should().NotBeNull();
         // A rectangle's grid-edge trace has exactly 4 direction changes -> 4 corners before
         // simplification collapses collinear points; verify via simplification directly.
-        var simplified = RedOutlineVectorizer.DouglasPeucker(ring!, epsilon: 0.5);
+        var simplified = MaskContourVectorizer.DouglasPeucker(ring!, epsilon: 0.5);
         simplified.Should().HaveCount(4, "a plain rectangle should never gain spurious corners");
     }
 
@@ -91,10 +94,10 @@ public sealed class RedOutlineVectorizerTests
         cells.Remove((0, 1)); cells.Remove((1, 1));
         cells.Remove((0, 2));
 
-        var ring = RedOutlineVectorizer.TraceOuterRing(cells, 22, 14);
+        var ring = MaskContourVectorizer.TraceOuterRing(cells, 22, 14);
         ring.Should().NotBeNull();
 
-        var simplified = RedOutlineVectorizer.DouglasPeucker(ring!, epsilon: 0.5);
+        var simplified = MaskContourVectorizer.DouglasPeucker(ring!, epsilon: 0.5);
 
         // A plain rectangle simplifies to 4 corners; the chamfer must add at least one more
         // vertex that survives simplification.
@@ -115,10 +118,10 @@ public sealed class RedOutlineVectorizerTests
             }
         }
 
-        var ring = RedOutlineVectorizer.TraceOuterRing(cells, 22, 22);
+        var ring = MaskContourVectorizer.TraceOuterRing(cells, 22, 22);
 
         ring.Should().NotBeNull();
-        var simplified = RedOutlineVectorizer.DouglasPeucker(ring!, epsilon: 0.5);
+        var simplified = MaskContourVectorizer.DouglasPeucker(ring!, epsilon: 0.5);
         // The outer loop (20x20) encloses far more area than the inner loop (8x8) - confirm the
         // outer one won by checking the simplified ring's bounding span, not just count.
         var xs = simplified.Select(p => p.X).ToList();
@@ -140,7 +143,7 @@ public sealed class RedOutlineVectorizerTests
             (0, 3), (0, 2), (0, 1),
         };
 
-        var simplified = RedOutlineVectorizer.DouglasPeucker(ring, epsilon: 0.5);
+        var simplified = MaskContourVectorizer.DouglasPeucker(ring, epsilon: 0.5);
 
         simplified.Should().HaveCount(4);
         simplified.Should().Contain((0, 0)).And.Contain((4, 0)).And.Contain((4, 4)).And.Contain((0, 4));
