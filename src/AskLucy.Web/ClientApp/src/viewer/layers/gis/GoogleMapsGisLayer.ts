@@ -167,14 +167,20 @@ export async function createGoogleMapsGisLayer(
 
   // specs/042-site-boundary-resolution: a plain google.maps.Polygon is the RELIABLE boundary
   // shape — native Maps JS rendering, no dependency on the WebGLOverlayView/Three.js bridge
-  // (whose "not runtime-verified" status is documented on this function). The animated comet
-  // effect (siteBoundaryRenderer above) still layers on top when the bridge is working; if it
-  // isn't, the user still sees a clearly recognizable boundary via this polygon alone (FR-002).
+  // (whose "not runtime-verified" status is documented on this function). The animated highlight
+  // (siteBoundaryRenderer above) still layers on top when the bridge is working; if it isn't, the
+  // user still sees a clearly recognizable boundary via this polygon alone (FR-002).
   let boundaryPolygon: google.maps.Polygon | undefined
-  const BOUNDARY_STYLE: Record<BorderConfidenceLevel, { color: string; fillOpacity: number; strokeOpacity: number }> = {
-    high: { color: '#9C62DE', fillOpacity: 0.18, strokeOpacity: 0.95 },
-    medium: { color: '#9C62DE', fillOpacity: 0.14, strokeOpacity: 0.85 },
-    low: { color: '#757575', fillOpacity: 0.08, strokeOpacity: 0.7 },
+  const BOUNDARY_STYLE: Record<BorderConfidenceLevel, { color: string; fillOpacity: number; strokeOpacity: number; strokeWeight: number }> = {
+    // medium/high: a native vector overlay like this Polygon composites above the
+    // WebGLOverlayView canvas the rotating border ring draws into, so a bold native stroke here
+    // visually competes with (and can mostly hide) that ring rather than sitting under it. Thinned
+    // to a faint fallback line — still enough to mark the boundary if the WebGL bridge ever fails
+    // to render, but no longer the dominant visual once the ring does render.
+    high: { color: '#9C62DE', fillOpacity: 0.18, strokeOpacity: 0.35, strokeWeight: 1 },
+    medium: { color: '#9C62DE', fillOpacity: 0.14, strokeOpacity: 0.35, strokeWeight: 1 },
+    // low has no WebGL ring to defer to — this IS the primary boundary indicator, full strength.
+    low: { color: '#757575', fillOpacity: 0.08, strokeOpacity: 0.7, strokeWeight: 3 },
   }
 
   // Heading state managed as a simple closure variable — setHeading (called from
@@ -312,7 +318,7 @@ export async function createGoogleMapsGisLayer(
           paths: path,
           strokeColor: style.color,
           strokeOpacity: style.strokeOpacity,
-          strokeWeight: 3,
+          strokeWeight: style.strokeWeight,
           fillColor: style.color,
           fillOpacity: style.fillOpacity,
           clickable: false,
@@ -323,6 +329,7 @@ export async function createGoogleMapsGisLayer(
         boundaryPolygon.setOptions({
           strokeColor: style.color,
           strokeOpacity: style.strokeOpacity,
+          strokeWeight: style.strokeWeight,
           fillColor: style.color,
           fillOpacity: style.fillOpacity,
         })
