@@ -1,7 +1,9 @@
 import type { PropsWithChildren } from 'react'
 import { Navigate } from 'react-router'
-import { useIsAdmin } from '../hooks/useIsAdmin'
-import { useAuthStore } from '../store/authStore'
+import { ApiError } from '../api/httpClient'
+import { useSession } from '../features/auth/hooks/useSession'
+import { ADMIN_ROLES } from '../hooks/useIsAdmin'
+import { RouteLoading } from './RouteLoading'
 
 /**
  * UX affordance only, not the security boundary (FR-017, User Story 4) — the server
@@ -10,12 +12,20 @@ import { useAuthStore } from '../store/authStore'
  * non-admin a page that would immediately 403.
  */
 export function AdminRoute({ children }: PropsWithChildren) {
-  const accessToken = useAuthStore((s) => s.accessToken)
-  const isAdmin = useIsAdmin()
+  const { data, isPending, error } = useSession()
 
-  if (!accessToken) {
+  if (isPending) {
+    return <RouteLoading />
+  }
+
+  if (error && !(error instanceof ApiError && error.status === 401)) {
+    throw error
+  }
+
+  if (!data?.authenticated) {
     return <Navigate to="/login" replace />
   }
 
+  const isAdmin = data.roles.some((role) => ADMIN_ROLES.includes(role))
   return isAdmin ? <>{children}</> : <Navigate to="/studio" replace />
 }

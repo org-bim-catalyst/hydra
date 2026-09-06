@@ -1,17 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as authApi from '../api/authApi'
 import { useAuthStore } from '../../../store/authStore'
+import { SESSION_QUERY_KEY } from './useSession'
 
 const EXTERNAL_LOGINS_QUERY_KEY = ['auth', 'external-logins']
 
 export function useLogin() {
   const setSession = useAuthStore((s) => s.setSession)
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) => authApi.login(email, password),
     onSuccess: (result) => {
-      if (!result.requiresTwoFactor && result.accessToken && result.refreshToken && result.userId) {
-        setSession(result.accessToken, result.refreshToken, result.userId)
+      if (!result.requiresTwoFactor && result.accessToken && result.userId) {
+        setSession(result.accessToken, result.userId)
+        void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
       }
     },
   })
@@ -19,19 +22,23 @@ export function useLogin() {
 
 export function useLoginTwoFactor() {
   const setSession = useAuthStore((s) => s.setSession)
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ userId, code, isRecoveryCode }: { userId: string; code: string; isRecoveryCode: boolean }) =>
       authApi.loginTwoFactor(userId, code, isRecoveryCode),
     onSuccess: (result) => {
-      if (result.accessToken && result.refreshToken && result.userId) {
-        setSession(result.accessToken, result.refreshToken, result.userId)
+      if (result.accessToken && result.userId) {
+        setSession(result.accessToken, result.userId)
+        void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
       }
     },
   })
 }
 
 export function useRegister() {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: ({
       email,
@@ -44,15 +51,20 @@ export function useRegister() {
       firstName?: string
       lastName?: string
     }) => authApi.register(email, password, firstName, lastName),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY }),
   })
 }
 
 export function useLogout() {
-  const { refreshToken, clear } = useAuthStore()
+  const clear = useAuthStore((s) => s.clear)
+  const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: () => authApi.logout(refreshToken ?? ''),
-    onSettled: () => clear(),
+    mutationFn: () => authApi.logout(),
+    onSettled: () => {
+      clear()
+      void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
+    },
   })
 }
 
@@ -88,12 +100,14 @@ export function useExternalLogins() {
 
 export function useCompleteExternalLogin() {
   const setSession = useAuthStore((s) => s.setSession)
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (code: string) => authApi.completeExternalLogin(code),
     onSuccess: (result) => {
-      if (result.accessToken && result.refreshToken && result.userId) {
-        setSession(result.accessToken, result.refreshToken, result.userId)
+      if (result.accessToken && result.userId) {
+        setSession(result.accessToken, result.userId)
+        void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
       }
     },
   })

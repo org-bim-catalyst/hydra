@@ -18,7 +18,7 @@ const server = setupServer(
 beforeAll(() => server.listen())
 afterEach(() => {
   server.resetHandlers()
-  useAuthStore.setState({ accessToken: null, refreshToken: null, userId: null })
+  useAuthStore.setState({ accessToken: null, userId: null })
 })
 afterAll(() => server.close())
 
@@ -48,7 +48,7 @@ describe('LandingCtaBar "Start Designing" (spec.md FR-006, US3 Scenarios 2-3)', 
   })
 
   it('routes an already-authenticated visitor directly into the workspace', async () => {
-    useAuthStore.setState({ accessToken: 'token-123', refreshToken: 'refresh-123', userId: 'user-1' })
+    useAuthStore.setState({ accessToken: 'token-123', userId: 'user-1' })
     const user = userEvent.setup()
     renderCtaBar()
 

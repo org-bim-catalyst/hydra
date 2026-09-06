@@ -12,6 +12,8 @@ using AskLucy.Application.Authentication.Commands.Register;
 using AskLucy.Application.Authentication.Commands.RemoveExternalLogin;
 using AskLucy.Application.Authentication.Commands.TwoFactor;
 using AskLucy.Application.Authentication.Queries.GetExternalLogins;
+using AskLucy.Application.Authentication.Queries.GetSession;
+using AskLucy.Infrastructure.Auth;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
 using MediatR;
@@ -20,6 +22,7 @@ using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -27,7 +30,10 @@ namespace AskLucy.Web.Controllers.v1;
 [ApiController]
 [Route("api/v1/auth")]
 public sealed class AuthController(
-    ISender mediator, IExternalLoginCodeStore externalLoginCodeStore, IAuthenticationSchemeProvider schemeProvider)
+    ISender mediator,
+    IExternalLoginCodeStore externalLoginCodeStore,
+    IAuthenticationSchemeProvider schemeProvider,
+    IOptions<JwtOptions> jwtOptions)
     : ControllerBase
 {
     [HttpPost("register")]
@@ -58,18 +64,53 @@ public sealed class AuthController(
 
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public async Task<ActionResult<AuthResponse>> Refresh(RefreshRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AuthResponse>> Refresh(CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new RefreshCommand(request.RefreshToken), cancellationToken);
+        if (!Request.Cookies.TryGetValue(RefreshTokenCookie.Name, out var refreshToken) || string.IsNullOrEmpty(refreshToken))
+        {
+            return Problem(title: "No refresh token present", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var result = await mediator.Send(new RefreshCommand(refreshToken), cancellationToken);
+        if (result.Outcome != AuthOutcome.Success)
+        {
+            ClearRefreshTokenCookie();
+        }
+
         return ToActionResult(result);
     }
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout(LogoutRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
-        await mediator.Send(new LogoutCommand(request.RefreshToken), cancellationToken);
+        if (Request.Cookies.TryGetValue(RefreshTokenCookie.Name, out var refreshToken) && !string.IsNullOrEmpty(refreshToken))
+        {
+            await mediator.Send(new LogoutCommand(refreshToken), cancellationToken);
+        }
+
+        ClearRefreshTokenCookie();
         return NoContent();
+    }
+
+    /// <summary>
+    /// Lightweight session check backing the frontend's route guards (specs — cookie-based
+    /// session), decoupled from the 15-minute access token so navigation doesn't bounce a
+    /// user to /login while their 14-day refresh token is still valid.
+    /// </summary>
+    [HttpGet("session")]
+    [AllowAnonymous]
+    public async Task<ActionResult<SessionResponse>> GetSession(CancellationToken cancellationToken)
+    {
+        if (!Request.Cookies.TryGetValue(RefreshTokenCookie.Name, out var refreshToken) || string.IsNullOrEmpty(refreshToken))
+        {
+            return Problem(title: "No active session", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var session = await mediator.Send(new GetSessionQuery(refreshToken), cancellationToken);
+        return session.Authenticated
+            ? Ok(new SessionResponse(true, session.UserId, session.Roles))
+            : Problem(title: "Session expired", statusCode: StatusCodes.Status401Unauthorized);
     }
 
     /// <summary>
@@ -254,12 +295,29 @@ public sealed class AuthController(
     private ActionResult<AuthResponse> ToActionResult(AuthResult result) => result.Outcome switch
     {
         AuthOutcome.Success => Ok(ToResponse(result)),
-        AuthOutcome.RequiresTwoFactor => Ok(new AuthResponse(result.UserId, null, null, null, RequiresTwoFactor: true)),
+        AuthOutcome.RequiresTwoFactor => Ok(new AuthResponse(result.UserId, null, null, RequiresTwoFactor: true)),
         AuthOutcome.EmailNotConfirmed => Problem(title: "Email not confirmed", statusCode: StatusCodes.Status403Forbidden),
         AuthOutcome.LockedOut => Problem(title: "Account locked out", statusCode: StatusCodes.Status423Locked),
         _ => Problem(title: "Invalid credentials", statusCode: StatusCodes.Status401Unauthorized),
     };
 
-    private static AuthResponse ToResponse(AuthResult result) =>
-        new(result.UserId, result.AccessToken, result.AccessTokenExpiresAtUtc, result.RefreshToken, RequiresTwoFactor: false);
+    /// <summary>
+    /// Single choke point for every successful auth outcome (Register, Login, LoginTwoFactor,
+    /// CompleteExternalLogin, and Refresh via <see cref="ToActionResult(AuthResult)"/>) — sets
+    /// the httpOnly refresh-token cookie here once rather than duplicating it per action.
+    /// </summary>
+    private AuthResponse ToResponse(AuthResult result)
+    {
+        if (result.RefreshToken is not null)
+        {
+            Response.Cookies.Append(
+                RefreshTokenCookie.Name,
+                result.RefreshToken,
+                RefreshTokenCookie.BuildOptions(TimeSpan.FromDays(jwtOptions.Value.RefreshTokenLifetimeDays)));
+        }
+
+        return new(result.UserId, result.AccessToken, result.AccessTokenExpiresAtUtc, RequiresTwoFactor: false);
+    }
+
+    private void ClearRefreshTokenCookie() => Response.Cookies.Delete(RefreshTokenCookie.Name, RefreshTokenCookie.DeleteOptions);
 }

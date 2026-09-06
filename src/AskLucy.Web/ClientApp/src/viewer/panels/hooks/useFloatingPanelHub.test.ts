@@ -45,7 +45,7 @@ vi.mock('@microsoft/signalr', () => {
 
 describe('useFloatingPanelHub', () => {
   beforeEach(() => {
-    useAuthStore.setState({ accessToken: 'test-token', refreshToken: null, userId: 'u1' })
+    useAuthStore.setState({ accessToken: 'test-token', userId: 'u1' })
     startResult = Promise.resolve()
     onreconnected = undefined
     onreconnecting = undefined
@@ -67,7 +67,7 @@ describe('useFloatingPanelHub', () => {
   })
 
   it('does not connect when there is no access token', () => {
-    useAuthStore.setState({ accessToken: null, refreshToken: null, userId: null })
+    useAuthStore.setState({ accessToken: null, userId: null })
     delete handlers['PanelRequested']
 
     renderHook(() => useFloatingPanelHub())

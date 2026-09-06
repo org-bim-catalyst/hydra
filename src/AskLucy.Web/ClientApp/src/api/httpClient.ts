@@ -49,28 +49,15 @@ export class ApiError extends Error {
 }
 
 /**
- * JWT-aware fetch wrapper. Attaches the access token, and on a 401 redirects to login
- * (FR-015/User Story 2) rather than retrying silently, since refresh-token rotation is
- * handled explicitly by the auth feature, not implicitly here.
+ * `isAuthFlow` marks calls whose own 401 is a normal outcome for the caller to handle (wrong
+ * password on login, an anonymous visitor's session check) rather than the global "kick the
+ * user out" behavior below.
  */
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const accessToken = useAuthStore.getState().accessToken
+export interface ApiFetchInit extends RequestInit {
+  isAuthFlow?: boolean
+}
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...init.headers,
-    },
-  })
-
-  if (response.status === 401) {
-    useAuthStore.getState().clear()
-    window.location.assign('/login')
-    throw new ApiError(401, 'Authentication required')
-  }
-
+async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const problem = await response.json().catch(() => undefined)
     throw new ApiError(
@@ -91,4 +78,73 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   // throws a SyntaxError on an empty string rather than returning something falsy.
   const text = await response.text()
   return (text ? JSON.parse(text) : undefined) as T
+}
+
+function performFetch(path: string, init: ApiFetchInit): Promise<Response> {
+  const accessToken = useAuthStore.getState().accessToken
+
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...init.headers,
+    },
+  })
+}
+
+/** Shared across concurrent 401s so they trigger exactly one `/auth/refresh` call, not one each. */
+let refreshPromise: Promise<boolean> | null = null
+
+async function attemptSilentRefresh(): Promise<boolean> {
+  refreshPromise ??= (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!response.ok) {
+        return false
+      }
+
+      const result = await parseResponse<{ userId: string | null; accessToken: string | null }>(response)
+      if (!result.accessToken || !result.userId) {
+        return false
+      }
+
+      useAuthStore.getState().setSession(result.accessToken, result.userId)
+      return true
+    } catch {
+      return false
+    }
+  })()
+
+  try {
+    return await refreshPromise
+  } finally {
+    refreshPromise = null
+  }
+}
+
+/**
+ * JWT-aware fetch wrapper. Attaches the access token and sends/receives the httpOnly
+ * refresh-token cookie. On a 401 from a normal (non-auth-flow) call, attempts one silent
+ * refresh before giving up and redirecting to login (FR-015/User Story 2).
+ */
+export async function apiFetch<T>(path: string, init: ApiFetchInit = {}): Promise<T> {
+  const response = await performFetch(path, init)
+
+  if (response.status === 401 && !init.isAuthFlow) {
+    if (await attemptSilentRefresh()) {
+      return parseResponse<T>(await performFetch(path, init))
+    }
+
+    useAuthStore.getState().clear()
+    window.location.assign('/login')
+    throw new ApiError(401, 'Authentication required')
+  }
+
+  return parseResponse<T>(response)
 }

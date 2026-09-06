@@ -82,7 +82,7 @@ describe('LoginPage (spec.md FR-007/FR-009/FR-017/FR-021)', () => {
   it('still shows the two-factor step when the backend requires it — no regression (FR-009)', async () => {
     server.use(
       http.post('*/api/v1/auth/login', () =>
-        HttpResponse.json({ userId: 'user-1', accessToken: null, expiresAtUtc: null, refreshToken: null, requiresTwoFactor: true }),
+        HttpResponse.json({ userId: 'user-1', accessToken: null, expiresAtUtc: null, requiresTwoFactor: true }),
       ),
     )
     const user = userEvent.setup()
@@ -103,7 +103,6 @@ describe('LoginPage (spec.md FR-007/FR-009/FR-017/FR-021)', () => {
           userId: 'user-1',
           accessToken: 'token',
           expiresAtUtc: '2026-08-17T00:00:00Z',
-          refreshToken: 'refresh',
           requiresTwoFactor: false,
         }),
       ),

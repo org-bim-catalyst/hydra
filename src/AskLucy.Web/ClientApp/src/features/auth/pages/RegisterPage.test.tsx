@@ -19,7 +19,7 @@ const server = setupServer(
     return new HttpResponse(null, { status: 202 })
   }),
   http.post('*/api/v1/auth/register', () =>
-    HttpResponse.json({ userId: 'user-1', accessToken: null, expiresAtUtc: null, refreshToken: null, requiresTwoFactor: false }),
+    HttpResponse.json({ userId: 'user-1', accessToken: null, expiresAtUtc: null, requiresTwoFactor: false }),
   ),
 )
 
