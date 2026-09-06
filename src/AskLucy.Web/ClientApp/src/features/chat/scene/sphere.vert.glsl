@@ -18,6 +18,12 @@ uniform float uBreath;
 uniform float uBasePointSize;
 
 varying float vDisplacement;
+// Rim-lighting inputs for sphere.frag.glsl's fresnel term (live user feedback, 2026-09-06):
+// each point's outward normal and view direction, both in view space so the fresnel term
+// stays correct as the sphere rotates. `normalMatrix` is a uniform Three.js injects
+// automatically for every ShaderMaterial — not declared here.
+varying vec3 vViewNormal;
+varying vec3 vViewDir;
 
 // Ashima Arts 3D simplex noise (webgl-noise, MIT license) — the standard inline GLSL
 // noise function; no CPU/JS noise library can run inside a vertex shader.
@@ -103,6 +109,9 @@ void main() {
 
   vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
   gl_Position = projectionMatrix * mvPosition;
+
+  vViewNormal = normalize(normalMatrix * direction);
+  vViewDir = normalize(-mvPosition.xyz);
 
   // Standard point-sprite size attenuation so dots stay a consistent visual size
   // regardless of camera distance/zoom (research.md §1).
