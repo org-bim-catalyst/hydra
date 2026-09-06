@@ -78,7 +78,8 @@
       "Bash(grep -rln '\\\\$\"owner-\\\\|\\\\$\"user-\\\\|Guid.NewGuid\\(\\):N}\"' tests/AskLucy.Persistence.Tests/)",
       "Bash(export PERSISTENCE_TESTS_CONNECTION_STRING=\"Data Source=SQL5111.site4now.net;Initial Catalog=db_a15752_asklucytest;User Id=db_a15752_asklucytest_admin;Password=Ms@191981;Encrypt=True;TrustServerCertificate=True;\")",
       "Bash(dotnet test *)",
-      "Bash(dotnet format *)"
+      "Bash(dotnet format *)",
+      "Bash(export PERSISTENCE_TESTS_CONNECTION_STRING=\"Data Source=SQL8012.site4now.net;Initial Catalog=db_a15752_asklucytest;User Id=db_a15752_asklucytest_admin;Password=Ms@191981;Encrypt=True;TrustServerCertificate=True;\")"
     ]
   },
   "enabledPlugins": {
