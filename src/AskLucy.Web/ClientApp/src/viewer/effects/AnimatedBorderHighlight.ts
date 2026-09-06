@@ -5,9 +5,9 @@ export type BorderConfidenceLevel = 'low' | 'medium' | 'high'
 export interface AnimatedBorderHighlight {
   /** Add this to the scene/group that owns the boundary. */
   object3D: THREE.Object3D
-  /** Advances the comet animation(s) — call once per frame with the elapsed seconds. */
+  /** Advances the border rotation and checkpoint activation — call once per frame with the elapsed seconds. */
   update(deltaSeconds: number): void
-  /** Rebuilds the glow/comet behavior for a new confidence level — no geometry rebuild needed for the static perimeter. */
+  /** Rebuilds the border/activation behavior for a new confidence level — no geometry rebuild needed for the static perimeter. */
   setConfidenceLevel(level: BorderConfidenceLevel): void
   dispose(): void
 }
@@ -18,42 +18,69 @@ export interface LocalPoint {
   y: number
 }
 
-const COMET_TAIL_LENGTH = 1.7
-const COMET_SEGMENTS = 60
-const COMET_SPEED_HIGH = 1.15
-const COMET_SPEED_MEDIUM = 0.5
+/** How long the one-time "checkpoint reached" activation plays before settling into the ambient loop. */
+const ACTIVATION_DURATION_SECONDS = 0.9
 
-// specs/042-site-boundary-resolution — corrected after a live production check: the reference
-// file's AdditiveBlending glow only reads against a near-black canvas (its own background is
-// #02050a). Google's default roadmap basemap is light, and additive blending of any dim/mid-tone
-// color onto already-bright pixels is visually imperceptible — the comets rendered but were
-// invisible. Switched to normal alpha blending (below) with bold, opaque colors that read
-// against light AND dark basemaps (roadmap/satellite/hybrid). The brand accent (#9C62DE) anchors
-// medium/high confidence for visual continuity with SiteBoundaryConfidenceBadge.
-const COLOR_HIGH_1 = 0x9c62de // brand accent — matches SiteBoundaryConfidenceBadge
-const COLOR_HIGH_2 = 0x22d3ee // complementary cyan — second comet, high confidence only
-const COLOR_MEDIUM = 0x9c62de
+// A shader translation of a CSS conic-gradient spinning-border technique
+// (coding2go.com/tutorials/border-animation): a rainbow ring rotates around the shape via an
+// animated `--angle` custom property, drawn crisp with no blur/glow (an earlier stacked-band
+// glow attempt read as concentric squares — flat per-layer opacity has a hard step at every
+// layer's own edge; this was dropped rather than fixed, since the confirmed direction is a thin,
+// crisp, glowless ring). Same four colour stops as the reference, same colour-ramp technique
+// (four mix() segments picked by step(), which avoids dynamic array indexing for GPU/driver
+// compatibility) — computed per-fragment from the angle around the shape's own centroid instead
+// of a CSS custom property, traced along the boundary's real perimeter with round corner joins
+// (the reference's card has a CSS border-radius; a naive shared-vertex miter join here produced
+// visible spikes at sharp corners, replaced with per-edge-independent rectangles plus a filled
+// disc at every vertex).
+const BORDER_ROTATION_SECONDS_HIGH = 3 // matches the CSS reference's "3s spin linear infinite"
+const BORDER_ROTATION_SECONDS_MEDIUM = 6 // slower — FR-006's medium/high visual distinction
+const BORDER_OPACITY_MEDIUM = 0.75
+const BORDER_HALF_WIDTH = 0.022 // thin, no glow — confirmed via live preview iteration
+const BORDER_CORNER_SEGMENTS = 12
+
+const CONIC_GRADIENT_GLSL = `
+  vec3 conicGradient(float t) {
+    t = fract(t) * 4.0;
+    vec3 c0 = vec3(1.0, 0.2706, 0.2706); // #ff4545
+    vec3 c1 = vec3(0.0, 1.0, 0.6);       // #00ff99
+    vec3 c2 = vec3(0.0, 0.4157, 1.0);    // #006aff
+    vec3 c3 = vec3(1.0, 0.0, 0.5843);    // #ff0095
+    vec3 result = mix(c0, c1, clamp(t, 0.0, 1.0));
+    result = mix(result, mix(c1, c2, clamp(t - 1.0, 0.0, 1.0)), step(1.0, t));
+    result = mix(result, mix(c2, c3, clamp(t - 2.0, 0.0, 1.0)), step(2.0, t));
+    result = mix(result, mix(c3, c0, clamp(t - 3.0, 0.0, 1.0)), step(3.0, t));
+    return result;
+  }
+`
+
 const COLOR_LOW_STATIC = 0x757575
-const COLOR_STATIC_DEFAULT = 0x6a3fa0 // deeper violet — bold enough to read as a solid outline on any basemap
+const COLOR_STATIC_DEFAULT = 0x6a3fa0 // unused once the border ring replaces the flat perimeter, kept for `low`
+// The one-time "checkpoint reached" shockwave ring's own gradient (independent of the border
+// ring's rotating rainbow) — brand purple fading to complementary cyan.
+const SHOCKWAVE_COLOR_START = 0x9c62de
+const SHOCKWAVE_COLOR_END = 0x22d3ee
+const SHOCKWAVE_HALO_SCALES = [1.05, 1.1]
+const SHOCKWAVE_HALO_PEAK_OPACITIES = [0.5, 0.25]
 
 /**
- * specs/042-site-boundary-resolution — generalized, confidence-aware adaptation of
- * `docs/BORDER_HIGHLIGHT.html`'s technique: a dim static perimeter line plus animated
- * arc-length-parameterized "comet" segments with a head-brightening intensity curve. Unlike the
- * reference file, this uses normal (alpha) blending, not `AdditiveBlending` — additive only glows
- * against a near-black background, and the viewer's basemap is not reliably dark. Deliberately
- * still **not** using `UnrealBloomPass`/`EffectComposer` (research.md #9, viewer's GIS render path
- * runs no post-processing pipeline) — the "hot head, fading tail" character comes from ramping
- * alpha and mixing the head toward white, not from a bloom pass or from over-driving color values
- * past 1.0 (which would just clip to white under normal blending, losing the hue entirely).
+ * specs/042-site-boundary-resolution — the confirmed boundary's border, for medium/high
+ * confidence: a rotating rainbow ring translated from a CSS `conic-gradient` spinning-border
+ * technique (see `CONIC_GRADIENT_GLSL` above), replacing an earlier animated-comet design.
+ * `low` confidence is unaffected — a plain dashed, muted perimeter, no ring, no activation; an
+ * uncertain/approximate result shouldn't get a celebratory arrival (FR-006).
  *
  * Takes any ordered, closed ring of points (not hardcoded to a rectangle) — the point of
  * "keep it modular so it can be reused for other projects."
  *
- * Confidence modulates the effect (FR-006 — visual, not just textual, distinction):
- * - `high`: full two-comet animation, brightest additive glow, solid perimeter.
- * - `medium`: one slower/dimmer comet, solid perimeter.
- * - `low`: static dashed perimeter only — no comets (this IS the approximation/uncertainty cue).
+ * 2026-09-06: added a one-time "checkpoint reached" activation for medium/high — every
+ * `setPolygon` call rebuilds this from scratch (see `SiteBoundaryRenderer`), so every boundary
+ * confirmation gets the flourish, not just the first ever. A ring the same shape as the boundary
+ * itself scales in from the centroid (starting collapsed, expanding to full size) while fading
+ * out, and the border ring fades in underneath it over the same window, so the ambient rotation
+ * is already settled by the time the activation ring finishes — a brief "arrival" moment rather
+ * than the boundary just appearing. The border ring then keeps rotating indefinitely afterward
+ * (an ambient "confirmed and energized" state), matching the CSS reference's own infinite loop.
  */
 export function createAnimatedBorderHighlight(
   ring: LocalPoint[],
@@ -61,12 +88,17 @@ export function createAnimatedBorderHighlight(
 ): AnimatedBorderHighlight {
   const group = new THREE.Group()
   const points = ring.map((p) => new THREE.Vector3(p.x, p.y, 0))
+  const centroid = points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(points.length)
+
+  function angleFromCentroid(p: THREE.Vector3): number {
+    return (Math.atan2(p.y - centroid.y, p.x - centroid.x) / (Math.PI * 2) + 1) % 1
+  }
 
   // ============================================================
-  // Static perimeter line — always present; genuinely dashed for `low` (previously used
-  // LineBasicMaterial with computeLineDistances() called but never applied — dashing needs
-  // LineDashedMaterial specifically, or the dash/gap sizes are silently ignored and the line
-  // always renders solid regardless of confidence level).
+  // Static perimeter line — `low` confidence only now. Genuinely dashed (LineBasicMaterial with
+  // computeLineDistances() called but never applied wouldn't dash — LineDashedMaterial is
+  // required, or the dash/gap sizes are silently ignored and the line always renders solid).
+  // Hidden (not disposed — cheap to keep around) once medium/high replaces it with the border ring.
   // ============================================================
   const staticGeometry = new THREE.BufferGeometry().setFromPoints(points)
   const staticMaterial = new THREE.LineDashedMaterial({
@@ -74,110 +106,248 @@ export function createAnimatedBorderHighlight(
     transparent: true,
     opacity: 0.9,
     dashSize: 1_000,
-    gapSize: 0, // effectively solid for medium/high; overridden to a real dash pattern for `low`
+    gapSize: 0,
   })
   const staticLine = new THREE.Line(staticGeometry, staticMaterial)
   staticLine.computeLineDistances()
   group.add(staticLine)
 
   // ============================================================
-  // Perimeter distance table — shared by every comet.
+  // Border ring — medium/high confidence. A closed ribbon traced along the boundary's own
+  // perimeter, coloured by a rotating conic gradient. Built once per confidence level (geometry
+  // is static; only the rotation uniform animates), independent per-edge rectangles (not a
+  // shared vertex-averaged normal, which produces a sharp miter spike at corners) plus a filled
+  // disc at every vertex for a proper round join.
   // ============================================================
-  const distances: number[] = [0]
-  let totalLength = 0
-  for (let i = 0; i < points.length - 1; i++) {
-    totalLength += points[i].distanceTo(points[i + 1])
-    distances.push(totalLength)
-  }
-
-  function getPointAtDistance(distance: number): THREE.Vector3 {
-    if (totalLength === 0) return points[0]?.clone() ?? new THREE.Vector3()
-    const wrapped = ((distance % totalLength) + totalLength) % totalLength
-    for (let i = 0; i < distances.length - 1; i++) {
-      const start = distances[i]
-      const end = distances[i + 1]
-      if (wrapped >= start && wrapped <= end) {
-        const t = end === start ? 0 : (wrapped - start) / (end - start)
-        return points[i].clone().lerp(points[i + 1], t)
-      }
-    }
-    return points[0].clone()
-  }
-
-  // ============================================================
-  // Comet shader material — normal (alpha) blending, so it reads against any basemap brightness.
-  // The reference file's fragment shader over-drove color up to 6x, relying on AdditiveBlending
-  // to turn that into an on-top glow against a black canvas; under normal blending, multiplying
-  // a color that far past 1.0 just clips to flat white, losing the hue entirely. Here the "hot
-  // head, fading tail" character comes from alpha (near-opaque at the head, fading out along the
-  // tail) and a mild mix-toward-white at the head, not from over-driving the raw color values.
-  // ============================================================
-  function createCometMaterial(color: number): THREE.ShaderMaterial {
+  function createBorderMaterial(opacity: number): THREE.ShaderMaterial {
     return new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color(color) } },
+      uniforms: { uRotation: { value: 0 }, uOpacity: { value: opacity }, uIntro: { value: 0 } },
       vertexShader: `
-        attribute float aProgress;
-        varying float vProgress;
+        attribute float aAngle;
+        attribute float aEdge;
+        varying float vAngle;
+        varying float vEdge;
         void main() {
-          vProgress = aProgress;
+          vAngle = aAngle;
+          vEdge = aEdge;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
-        uniform vec3 uColor;
-        varying float vProgress;
+        uniform float uRotation;
+        uniform float uOpacity;
+        uniform float uIntro;
+        varying float vAngle;
+        varying float vEdge;
+        ${CONIC_GRADIENT_GLSL}
         void main() {
-          float tailFade = smoothstep(0.0, 0.18, vProgress);
-          float head = smoothstep(0.55, 1.0, vProgress);
-          float alpha = pow(vProgress, 1.6) * tailFade;
-          alpha = clamp(alpha * (0.55 + head * 0.55), 0.0, 1.0);
-          vec3 color = mix(uColor, vec3(1.0), head * 0.5);
-          gl_FragColor = vec4(color, alpha);
+          float d = abs(vEdge); // 0 at the centreline, 1 at the ribbon's outer edge
+          float alpha = 1.0 - smoothstep(0.82, 1.0, d); // crisp edge, just enough softness for AA
+          vec3 color = conicGradient(vAngle - uRotation);
+          gl_FragColor = vec4(color, alpha * uOpacity * uIntro);
         }
       `,
       transparent: true,
       depthWrite: false,
+      side: THREE.DoubleSide,
     })
   }
 
-  interface Comet {
+  function buildBorderRingGeometry(halfWidth: number): THREE.BufferGeometry {
+    const n = points.length - 1 // ring closes with points[n] === points[0]
+    const positions: number[] = []
+    const angles: number[] = []
+    const edges: number[] = []
+    const indices: number[] = []
+
+    function pushVertex(x: number, y: number, angle: number, edge: number): number {
+      positions.push(x, y, 0.01)
+      angles.push(angle)
+      edges.push(edge)
+      return positions.length / 3 - 1
+    }
+
+    for (let i = 0; i < n; i++) {
+      const a = points[i]
+      const b = points[(i + 1) % n]
+      let tx = b.x - a.x
+      let ty = b.y - a.y
+      const len = Math.hypot(tx, ty) || 1
+      tx /= len
+      ty /= len
+      const px = -ty * halfWidth
+      const py = tx * halfWidth
+      const i0 = pushVertex(a.x + px, a.y + py, angleFromCentroid(a), 1)
+      const i1 = pushVertex(a.x - px, a.y - py, angleFromCentroid(a), -1)
+      const i2 = pushVertex(b.x + px, b.y + py, angleFromCentroid(b), 1)
+      const i3 = pushVertex(b.x - px, b.y - py, angleFromCentroid(b), -1)
+      indices.push(i0, i1, i2, i1, i3, i2)
+    }
+
+    for (let i = 0; i < n; i++) {
+      const p = points[i]
+      const angle = angleFromCentroid(p)
+      const centerIdx = pushVertex(p.x, p.y, angle, 0)
+      const ringStart = positions.length / 3
+      for (let s = 0; s <= BORDER_CORNER_SEGMENTS; s++) {
+        const theta = (s / BORDER_CORNER_SEGMENTS) * Math.PI * 2
+        pushVertex(p.x + Math.cos(theta) * halfWidth, p.y + Math.sin(theta) * halfWidth, angle, 1)
+      }
+      for (let s = 0; s < BORDER_CORNER_SEGMENTS; s++) {
+        indices.push(centerIdx, ringStart + s, ringStart + s + 1)
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
+    geometry.setAttribute('aAngle', new THREE.BufferAttribute(new Float32Array(angles), 1))
+    geometry.setAttribute('aEdge', new THREE.BufferAttribute(new Float32Array(edges), 1))
+    geometry.setIndex(indices)
+    return geometry
+  }
+
+  interface BorderRing {
+    mesh: THREE.Mesh
+    geometry: THREE.BufferGeometry
+    material: THREE.ShaderMaterial
+    rotationSeconds: number
+  }
+
+  let borderRing: BorderRing | null = null
+  let elapsedSeconds = 0
+
+  function buildBorderRing(rotationSeconds: number, targetOpacity: number) {
+    const geometry = buildBorderRingGeometry(BORDER_HALF_WIDTH)
+    const material = createBorderMaterial(targetOpacity)
+    const mesh = new THREE.Mesh(geometry, material)
+    group.add(mesh)
+    borderRing = { mesh, geometry, material, rotationSeconds }
+  }
+
+  function disposeBorderRing() {
+    if (!borderRing) return
+    group.remove(borderRing.mesh)
+    borderRing.geometry.dispose()
+    borderRing.material.dispose()
+    borderRing = null
+  }
+
+  // ============================================================
+  // Checkpoint activation — a copy of the boundary's own shape, scaled in from its centroid, in
+  // its own purple-to-cyan gradient (independent of the border ring's rotating rainbow) with two
+  // additive "halo" copies for a soft glow. Built fresh by buildForConfidence() below whenever
+  // it's called with medium/high, i.e. on every real confirmation (SiteBoundaryRenderer.setPolygon
+  // always rebuilds from scratch).
+  // ============================================================
+  interface ShockwaveHalo {
     line: THREE.Line
     geometry: THREE.BufferGeometry
-    position: number
-    speed: number
+    material: THREE.LineBasicMaterial
+    scaleMultiplier: number
+    peakOpacity: number
   }
 
-  const comets: Comet[] = []
+  let shockwave: {
+    coreLine: THREE.Line
+    coreGeometry: THREE.BufferGeometry
+    coreMaterial: THREE.LineBasicMaterial
+    halos: ShockwaveHalo[]
+  } | null = null
+  let activationElapsedSeconds = 0
+  let activationActive = false
 
-  function clearComets() {
-    for (const comet of comets) {
-      group.remove(comet.line)
-      comet.geometry.dispose()
-      ;(comet.line.material as THREE.Material).dispose()
+  function buildShockwaveRingGeometry(centeredPoints: THREE.Vector3[]): THREE.BufferGeometry {
+    const geometry = new THREE.BufferGeometry().setFromPoints(centeredPoints)
+    const start = new THREE.Color(SHOCKWAVE_COLOR_START)
+    const end = new THREE.Color(SHOCKWAVE_COLOR_END)
+    const colors = new Float32Array(centeredPoints.length * 3)
+    for (let i = 0; i < centeredPoints.length; i++) {
+      const t = i / (centeredPoints.length - 1)
+      const c = start.clone().lerp(end, t)
+      colors[i * 3] = c.r
+      colors[i * 3 + 1] = c.g
+      colors[i * 3 + 2] = c.b
     }
-    comets.length = 0
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    return geometry
   }
 
-  function updateCometGeometry(comet: Comet) {
-    const positions = new Float32Array(COMET_SEGMENTS * 3)
-    const progress = new Float32Array(COMET_SEGMENTS)
-    for (let i = 0; i < COMET_SEGMENTS; i++) {
-      const t = i / (COMET_SEGMENTS - 1)
-      const distance = comet.position - COMET_TAIL_LENGTH + COMET_TAIL_LENGTH * t
-      const point = getPointAtDistance(distance)
-      positions[i * 3] = point.x
-      positions[i * 3 + 1] = point.y
-      positions[i * 3 + 2] = 0.01
-      progress[i] = t
+  function buildShockwave() {
+    const centeredPoints = points.map((p) => p.clone().sub(centroid))
+
+    const coreGeometry = buildShockwaveRingGeometry(centeredPoints)
+    const coreMaterial = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 1 })
+    const coreLine = new THREE.Line(coreGeometry, coreMaterial)
+    coreLine.position.copy(centroid)
+    coreLine.scale.setScalar(0.01)
+    group.add(coreLine)
+
+    const halos: ShockwaveHalo[] = SHOCKWAVE_HALO_SCALES.map((scaleMultiplier, i) => {
+      const geometry = buildShockwaveRingGeometry(centeredPoints)
+      const material = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      const line = new THREE.Line(geometry, material)
+      line.position.copy(centroid)
+      line.scale.setScalar(0.01)
+      group.add(line)
+      return { line, geometry, material, scaleMultiplier, peakOpacity: SHOCKWAVE_HALO_PEAK_OPACITIES[i] }
+    })
+
+    shockwave = { coreLine, coreGeometry, coreMaterial, halos }
+    activationElapsedSeconds = 0
+    activationActive = true
+    if (borderRing) borderRing.material.uniforms.uIntro.value = 0
+  }
+
+  function disposeShockwave() {
+    activationActive = false
+    if (!shockwave) return
+    group.remove(shockwave.coreLine)
+    shockwave.coreGeometry.dispose()
+    shockwave.coreMaterial.dispose()
+    for (const halo of shockwave.halos) {
+      group.remove(halo.line)
+      halo.geometry.dispose()
+      halo.material.dispose()
     }
-    comet.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    comet.geometry.setAttribute('aProgress', new THREE.BufferAttribute(progress, 1))
+    shockwave = null
+  }
+
+  function advanceActivation(deltaSeconds: number) {
+    if (!activationActive || !shockwave) return
+
+    activationElapsedSeconds += deltaSeconds
+    const t = Math.min(1, activationElapsedSeconds / ACTIVATION_DURATION_SECONDS)
+    const eased = 1 - (1 - t) ** 3 // ease-out cubic — fast start, gentle settle
+    const scale = 0.01 + eased * 0.99
+    const fade = 1 - eased
+
+    shockwave.coreLine.scale.setScalar(scale)
+    shockwave.coreMaterial.opacity = fade
+    for (const halo of shockwave.halos) {
+      halo.line.scale.setScalar(scale * halo.scaleMultiplier)
+      halo.material.opacity = fade * halo.peakOpacity
+    }
+
+    if (borderRing) borderRing.material.uniforms.uIntro.value = eased
+
+    if (t >= 1) {
+      disposeShockwave()
+      if (borderRing) borderRing.material.uniforms.uIntro.value = 1
+    }
   }
 
   function buildForConfidence(level: BorderConfidenceLevel) {
-    clearComets()
+    disposeBorderRing()
+    disposeShockwave()
 
     if (level === 'low') {
+      staticLine.visible = true
       staticMaterial.color.setHex(COLOR_LOW_STATIC)
       staticMaterial.opacity = 0.8
       // A real dash pattern (see the LineDashedMaterial note above) — this IS the
@@ -187,28 +357,15 @@ export function createAnimatedBorderHighlight(
       return
     }
 
-    staticMaterial.color.setHex(COLOR_STATIC_DEFAULT)
-    staticMaterial.opacity = 0.9
-    staticMaterial.dashSize = 1_000
-    staticMaterial.gapSize = 0
+    // The rotating border ring below replaces the flat perimeter for medium/high.
+    staticLine.visible = false
 
-    const specs: { color: number; startFraction: number; speed: number }[] =
-      level === 'high'
-        ? [
-            { color: COLOR_HIGH_1, startFraction: 0, speed: COMET_SPEED_HIGH },
-            { color: COLOR_HIGH_2, startFraction: 0.5, speed: COMET_SPEED_HIGH },
-          ]
-        : [{ color: COLOR_MEDIUM, startFraction: 0, speed: COMET_SPEED_MEDIUM }]
+    const rotationSeconds = level === 'high' ? BORDER_ROTATION_SECONDS_HIGH : BORDER_ROTATION_SECONDS_MEDIUM
+    const targetOpacity = level === 'high' ? 1 : BORDER_OPACITY_MEDIUM
+    buildBorderRing(rotationSeconds, targetOpacity)
 
-    for (const spec of specs) {
-      const geometry = new THREE.BufferGeometry()
-      const material = createCometMaterial(spec.color)
-      const line = new THREE.Line(geometry, material)
-      group.add(line)
-      const comet: Comet = { line, geometry, position: totalLength * spec.startFraction, speed: spec.speed }
-      updateCometGeometry(comet)
-      comets.push(comet)
-    }
+    // Medium/high only — a low-confidence, approximate result doesn't get a celebratory arrival.
+    buildShockwave()
   }
 
   buildForConfidence(initialConfidenceLevel)
@@ -216,16 +373,18 @@ export function createAnimatedBorderHighlight(
   return {
     object3D: group,
     update(deltaSeconds) {
-      for (const comet of comets) {
-        comet.position += comet.speed * deltaSeconds
-        updateCometGeometry(comet)
+      elapsedSeconds += deltaSeconds
+      if (borderRing) {
+        borderRing.material.uniforms.uRotation.value = (elapsedSeconds / borderRing.rotationSeconds) % 1
       }
+      advanceActivation(deltaSeconds)
     },
     setConfidenceLevel(level) {
       buildForConfidence(level)
     },
     dispose() {
-      clearComets()
+      disposeBorderRing()
+      disposeShockwave()
       group.remove(staticLine)
       staticGeometry.dispose()
       staticMaterial.dispose()
