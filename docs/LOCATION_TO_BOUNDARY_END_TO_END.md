@@ -701,6 +701,42 @@ Things a reviewer should push on.
    turns up on some other site, it is a distinguishable, separate problem worth solving deliberately
    then, not a reason to keep an operation running everywhere today that measurably cost real corner
    accuracy for a benefit that was never actually needed here.
+
+   **Fourth update: vertex precision itself, and why the cheap fixes made it worse.** With gaps and
+   labels solved, the shape was "almost 99% right" but vertices still sat within a metre or two of
+   their true position — invisible at normal zoom, visible once a user zoomed the viewer in far
+   enough that a handful of source pixels filled the screen. The root cause: Static Maps always
+   returns a fixed 1280x1280px (scale=2) frame no matter how much ground it covers, so at this site's
+   ~345m frame that is ~0.27 m/px — a hard resolution ceiling. Two cheap tweaks were tried first
+   (lowering the Douglas-Peucker epsilon from 3.0 to 1.5px, tightening the imagery framing margin
+   from 1.35x to 1.1x) and made the result *worse*: the outline came back visibly jagged, because
+   3.0px of tolerance was smoothing real anti-aliasing/JPEG noise, not just being overly cautious.
+   Reverted immediately (commit `ba217c9`, undoing `4a5f9d4`) once the live result made that clear.
+
+   The actual fix that worked: tile-stitching. A single request is capped at 1280x1280px regardless
+   of ground covered, but nothing stops fetching *several* requests and combining them. This fetches
+   a 2x2 grid of four tiles one zoom level above the original single-tile fit zoom and stitches them
+   into one canvas covering the same ground at roughly double the linear resolution (~0.135 m/px) —
+   for the cost of four Static Maps requests instead of one, run in parallel. The four tile centres
+   are computed via `StaticMapFraming.OffsetByPixels` (added for this), working directly in the same
+   Web Mercator pixel space Static Maps itself renders in rather than a lat/lng-metres approximation,
+   specifically so adjacent tiles share an edge with zero gap or overlap — validated both
+   mathematically (a Python prototype found exactly 0.0 difference between adjacent tile edges) and
+   against real fetched tiles (stitched real Al Safa Park 2 imagery came back as a single contour,
+   solidity 0.9965, area within 0.1% of the expected 4x pixel count for 2x linear resolution, same
+   genuine notch preserved).
+
+   One live-confirmed caveat, not fixable from this side: each Static Maps tile carries Google's own
+   mandatory attribution watermark (a "Google" logotype plus "Map data" text) that cannot be turned
+   off via any `style` parameter, unlike ordinary map labels — it is a compliance requirement, not a
+   stylistic choice. Stitching four tiles means four copies of that watermark scattered through the
+   frame instead of one at its edge. In the live test, the watermark landed well inside the shape,
+   where it became an interior hole invisible to outer-contour tracing (the same reason the earlier
+   toilet-block hole never affected the traced boundary) — harmless in practice so far, but a
+   watermark landing exactly on a site's true edge could in principle distort that one corner on some
+   other site. If the fit zoom is already at Static Maps' ceiling, or if any of the four tile fetches
+   fails, this falls back to the original single-tile fetch rather than losing the rendered-fill path
+   entirely over one flaky sub-request or an already-maxed-out zoom level.
 ---
 
 ## 10. Where to look in the code
