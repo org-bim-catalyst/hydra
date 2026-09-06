@@ -4,14 +4,20 @@ export interface AuthResponse {
   userId: string | null
   accessToken: string | null
   expiresAtUtc: string | null
-  refreshToken: string | null
   requiresTwoFactor: boolean
+}
+
+export interface SessionResponse {
+  authenticated: boolean
+  userId: string | null
+  roles: string[]
 }
 
 export function login(email: string, password: string) {
   return apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
+    isAuthFlow: true,
   })
 }
 
@@ -19,6 +25,7 @@ export function loginTwoFactor(userId: string, code: string, isRecoveryCode: boo
   return apiFetch<AuthResponse>('/auth/login/2fa', {
     method: 'POST',
     body: JSON.stringify({ userId, code, isRecoveryCode }),
+    isAuthFlow: true,
   })
 }
 
@@ -26,25 +33,28 @@ export function register(email: string, password: string, firstName?: string, la
   return apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ email, password, firstName, lastName }),
+    isAuthFlow: true,
   })
 }
 
-export function refresh(refreshToken: string) {
-  return apiFetch<AuthResponse>('/auth/refresh', {
-    method: 'POST',
-    body: JSON.stringify({ refreshToken }),
-  })
+export function refresh() {
+  return apiFetch<AuthResponse>('/auth/refresh', { method: 'POST', isAuthFlow: true })
 }
 
-export function logout(refreshToken: string) {
-  return apiFetch<void>('/auth/logout', {
-    method: 'POST',
-    body: JSON.stringify({ refreshToken }),
-  })
+export function logout() {
+  return apiFetch<void>('/auth/logout', { method: 'POST' })
+}
+
+export function getSession() {
+  return apiFetch<SessionResponse>('/auth/session', { isAuthFlow: true })
 }
 
 export function confirmEmail(userId: string, token: string) {
-  return apiFetch<void>('/auth/confirm-email', { method: 'POST', body: JSON.stringify({ userId, token }) })
+  return apiFetch<void>('/auth/confirm-email', {
+    method: 'POST',
+    body: JSON.stringify({ userId, token }),
+    isAuthFlow: true,
+  })
 }
 
 export function changePassword(currentPassword: string, newPassword: string) {
@@ -80,6 +90,7 @@ export function completeExternalLogin(code: string) {
   return apiFetch<AuthResponse>('/auth/external/complete', {
     method: 'POST',
     body: JSON.stringify({ code }),
+    isAuthFlow: true,
   })
 }
 

@@ -5,7 +5,7 @@ interface DecodedAccessToken {
   role?: string | string[]
 }
 
-const ADMIN_ROLES = ['Administrator', 'Super User']
+export const ADMIN_ROLES = ['Administrator', 'Super User']
 
 /** UX affordance only — see AdminRoute for the equivalent, server-enforced check. */
 export function useIsAdmin(): boolean {

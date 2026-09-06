@@ -6,13 +6,11 @@ public sealed record LoginRequest(string Email, string Password);
 
 public sealed record LoginTwoFactorRequest(string UserId, string Code, bool IsRecoveryCode);
 
-public sealed record RefreshRequest(string RefreshToken);
-
-public sealed record LogoutRequest(string RefreshToken);
-
 public sealed record ExternalLoginCompleteRequest(string Code);
 
-public sealed record AuthResponse(string? UserId, string? AccessToken, DateTime? ExpiresAtUtc, string? RefreshToken, bool RequiresTwoFactor);
+public sealed record AuthResponse(string? UserId, string? AccessToken, DateTime? ExpiresAtUtc, bool RequiresTwoFactor);
+
+public sealed record SessionResponse(bool Authenticated, string? UserId, IReadOnlyList<string> Roles);
 
 public sealed record ConfirmEmailRequest(string UserId, string Token);
 

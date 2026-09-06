@@ -51,7 +51,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('useNotificationHub', () => {
   beforeEach(() => {
-    useAuthStore.setState({ accessToken: 'test-token', refreshToken: null, userId: 'u1' })
+    useAuthStore.setState({ accessToken: 'test-token', userId: 'u1' })
     startResult = Promise.resolve()
     onreconnected = undefined
     onreconnecting = undefined

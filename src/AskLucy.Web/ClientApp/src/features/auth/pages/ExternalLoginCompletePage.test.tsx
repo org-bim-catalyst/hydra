@@ -17,7 +17,7 @@ const server = setupServer(
     return new HttpResponse(null, { status: 202 })
   }),
   http.post('*/api/v1/auth/external/complete', () =>
-    HttpResponse.json({ userId: 'user-1', accessToken: 'token', expiresAtUtc: '2026-08-17T00:00:00Z', refreshToken: 'refresh', requiresTwoFactor: false }),
+    HttpResponse.json({ userId: 'user-1', accessToken: 'token', expiresAtUtc: '2026-08-17T00:00:00Z', requiresTwoFactor: false }),
   ),
 )
 
