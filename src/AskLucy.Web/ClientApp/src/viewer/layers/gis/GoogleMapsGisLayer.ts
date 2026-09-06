@@ -260,6 +260,21 @@ export async function createGoogleMapsGisLayer(
     return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.log2(ALTITUDE_ZOOM_CONSTANT / clamped)))
   }
 
+  // Diagnostic workaround: on at least one GPU/driver combination (reported on an RTX 4060,
+  // not reproduced on an RTX 3080), updating/removing boundaryPolygon can leave a stale,
+  // larger "ghost" of an earlier polygon fill composited into Google's own vector-map render
+  // target — it only clears when something forces the browser to fully reallocate/repaint that
+  // surface (observed: opening DevTools, which resizes the map's container). WebGLOverlayView's
+  // own requestRedraw() (already called every frame in onDraw) does not fix this — it only
+  // re-invokes *our* draw callback, not Google's own base-map compositor. A zero-op zoom
+  // "nudge" is the standard, low-disruption trick to make Google Maps re-evaluate/redraw its own
+  // tiles without an actual viewport size change; google.maps.event.trigger(map, 'resize') is a
+  // stronger fallback if this alone doesn't clear the ghost in testing.
+  function nudgeMapRepaint() {
+    const zoom = map.getZoom()
+    if (zoom !== undefined) map.setZoom(zoom)
+  }
+
   // Built here (not module scope) — `google.maps.MapTypeId` only exists once the Maps script
   // has loaded, which `loader.importLibrary` above has already awaited by this point.
   const MAP_STYLE_TO_GOOGLE_TYPE_ID: Record<MapStyleId, google.maps.MapTypeId> = {
@@ -301,6 +316,7 @@ export async function createGoogleMapsGisLayer(
       if (!input) {
         boundaryPolygon?.setMap(null)
         boundaryPolygon = undefined
+        nudgeMapRepaint()
         try {
           siteBoundaryRenderer.setPolygon(null, 'low')
         } catch (error) {
@@ -335,6 +351,7 @@ export async function createGoogleMapsGisLayer(
         })
         boundaryPolygon.setMap(map)
       }
+      nudgeMapRepaint()
 
       // The bonus path — best-effort animated highlight via the Three.js bridge. Wrapped so a
       // failure here never affects the reliable google.maps.Polygon above (see this function's
