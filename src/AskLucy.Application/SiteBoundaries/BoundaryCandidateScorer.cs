@@ -16,6 +16,7 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
     {
         [SiteBoundarySource.GovernmentCadastral] = 1.00,
         [SiteBoundarySource.UploadedBoundary] = 0.90,
+        [SiteBoundarySource.RenderedMapExtraction] = 0.85,
         [SiteBoundarySource.OsmBoundary] = 0.80,
         [SiteBoundarySource.AiInterpretation] = 0.55,
         [SiteBoundarySource.ManualFallback] = 0.30,

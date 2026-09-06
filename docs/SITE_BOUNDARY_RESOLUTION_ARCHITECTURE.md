@@ -42,7 +42,12 @@
 >    by `IStreetViewImageProvider`/`GoogleStreetViewImageProvider` for a ground-level cross-check —
 >    see `LOCATION_TO_BOUNDARY_END_TO_END.md` §9.6. `ISatelliteImageProvider`'s implementation now
 >    renders Google's roadmap layer, not satellite photography, and Gemini's traced outline is
->    adopted as the final polygon outright rather than only steering a translation — see §9.7), but
+>    adopted as the final polygon outright rather than only steering a translation — see §9.7. For a
+>    park-like top candidate specifically, none of this AI vision step runs at all any more:
+>    `GoogleRenderedFillBoundaryExtractor` traces the boundary deterministically by forcing Google's
+>    own map rendering to a known fill colour and thresholding it — no AI model, no coordinates for
+>    anything to be imprecise about — before `BoundaryResolutionService` ever calls the vision flow;
+>    see §9.8. Everything else still goes through the AI vision flow described here unchanged), but
 >    defaults
 >    to **enabled** (`BoundaryScoring:EnableAiVisionVerification`), not disabled — a live bug (Al Safa
 >    Park 2 resolving to a small sub-feature inside the park instead of the park itself) showed that

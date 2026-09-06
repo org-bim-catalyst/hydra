@@ -320,6 +320,7 @@ public static class DependencyInjection
         // EsriSatelliteImageProvider exists to give the satellite half.
         services.AddScoped<IStreetViewImageProvider, GoogleStreetViewImageProvider>();
         services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
+        services.AddScoped<IRenderedFillBoundaryExtractor, GoogleRenderedFillBoundaryExtractor>();
         services.AddScoped<IBoundaryDrawDiagnosticService, GeminiBoundaryDrawDiagnosticService>();
         services.AddScoped<IBoundarySegmentationDiagnosticService, GeminiSegmentationDiagnosticService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();

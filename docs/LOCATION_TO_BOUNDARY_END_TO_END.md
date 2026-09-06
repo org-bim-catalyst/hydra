@@ -584,6 +584,61 @@ Things a reviewer should push on.
    floor is untouched, so a genuinely large site still gets more room, not less. This does not fix
    candidate discovery failing outright (0 candidates, or the wrong polygon at the wrong location) —
    only the case where OSM found roughly the right place but underestimated how big it is.
+
+8. **The premise itself was wrong: this never needed an AI model at all.** Everything from item 7
+   onward — coordinate-JSON tracing, then two diagnostic alternatives — assumed a vision model had
+   to be involved somewhere. Three variations of that assumption were tried and measured live:
+
+   - **Coordinate-JSON tracing** (item 7, shipped): consistently under-traced real detail. A
+     confirmed real chamfered corner on Al Safa Park 2's actual boundary was flattened to a plain
+     4-corner rectangle across every prompt fix tried — removing the OSM candidate list, removing
+     the point ceiling, widening the imagery frame. None of it moved the traced shape.
+   - **Draw-and-vectorize** (a diagnostic, `IBoundaryDrawDiagnosticService`): ask an image-generation
+     model (Nano Banana Pro) to draw the boundary directly on the map image, then extract the drawn
+     line deterministically (`RedOutlineVectorizer` → `MaskContourVectorizer`, exact pixel-grid edge
+     tracing + Douglas-Peucker). The first live run matched 5 of 6 independently hand-picked
+     ground-truth vertices within ~1 m — clearly better than coordinate-JSON. The second live run,
+     same input image, added a small hallucinated notch the first run didn't draw. Image generation
+     is still generation, with the sampling variance that implies — not safe to ship without a
+     consensus/retry strategy that doubles the AI cost of every boundary lookup.
+   - **Native segmentation mask** (a diagnostic, `IBoundarySegmentationDiagnosticService`): ask
+     Gemini for its documented per-pixel segmentation-mask output instead of a drawn image. Tried
+     against two different models (Gemini 3.7 Flash, then Gemini Pro Latest) — both returned a
+     mask that decoded from valid base64 to a tiny, structurally corrupt "PNG" (a correct signature,
+     invalid body, nowhere near truncation-sized). Dead end: neither model appears to run a
+     genuine segmentation head through this API surface, at least not reliably enough to trust.
+
+   The actual answer came from outside the AI-vision framing entirely, prompted by two independent
+   observations converging: the user's own experiment with ChatGPT's `image_gen` tool came back
+   with an explicit caveat that a generated image is "not survey-grade" and that direct pixel
+   extraction from the *original* image would be "a much more appropriate workflow" — and
+   separately, the realization that Google's roadmap tiles are not photographs at all. They are a
+   **deterministic renderer**: a park is drawn as one flat, crisply-edged fill colour, every time,
+   with no ambiguity for a vision model to resolve in the first place. Google Static Maps' `style`
+   parameter (`style=feature:poi.park|element:geometry.fill|color:0x00FF00`, confirmed against the
+   Maps Static API's cloud-customization docs — the classic inline parameter, not a registered Map
+   ID, is still fully supported) can force that fill to an exact, self-chosen colour with zero
+   ambiguity: nothing else a roadmap tile renders (roads, buildings, water) comes remotely close to
+   a saturated pure green. Threshold for that one colour, trace it with the same
+   `MaskContourVectorizer` pipeline already built and tested for the drawn-outline diagnostic, and
+   the model is out of the loop entirely — no generation, no coordinates for anything to be
+   imprecise about, nothing to hallucinate. Live-measured against the same 6 ground-truth vertices:
+   **all 6 matched within 0.6 m** — tighter than the best AI-based run by roughly an order of
+   magnitude, for free, and deterministic by construction (same input, same output, always).
+
+   This ships as `GoogleRenderedFillBoundaryExtractor` /
+   `SiteBoundarySource.RenderedMapExtraction`, tried by `BoundaryResolutionService` **before** any
+   AI call, and only for a top-ranked candidate whose OSM tags look park-like
+   (`leisure=park`/`garden`/`recreation_ground`, `landuse=recreation_ground` — see `IsParkLike`).
+   Scoped narrowly on purpose: the live measurement validates parks specifically, and Google's style
+   feature-category schema doesn't map cleanly onto every other OSM tag combination a candidate
+   might carry. Everything else still falls through to the AI vision flow, byte-for-byte unchanged.
+   The same two plausibility gates the AI-traced path uses (area ratio 0.3x-3.0x of the mapped
+   candidate, centroid within the search radius) apply here too, so a wrong or ambiguous frame still
+   degrades to the mapped OSM ring rather than adopting a bad extraction. The styled tile this
+   fetches is never shown to any user — it exists only for this server-side extraction, entirely
+   separate from the Maps JavaScript API instance the viewer renders client-side, so forcing a
+   feature's colour here has zero visible effect on what anyone sees.
 ---
 
 ## 10. Where to look in the code
@@ -598,6 +653,10 @@ Things a reviewer should push on.
 | Street View viewpoint sampling | ↳ `PerimeterViewpointsFor` |
 | Vision prompt + geo-referencing + ring closure | `src/AskLucy.Infrastructure/Boundaries/GeminiBoundaryVisionAnalyzer.cs` |
 | Ground-level imagery, metadata-first | `src/AskLucy.Infrastructure/Boundaries/GoogleStreetViewImageProvider.cs` |
+| Deterministic rendered-fill extraction (§9.8), tried before any AI call | `src/AskLucy.Application/SiteBoundaries/BoundaryResolutionService.cs` → `TryResolveViaRenderedFillAsync` |
+| Styled Static Maps fetch + colour threshold + tracing | `src/AskLucy.Infrastructure/Boundaries/GoogleRenderedFillBoundaryExtractor.cs` |
+| Shared zoom/bounds math (both satellite + rendered-fill fetches) | `src/AskLucy.Infrastructure/Boundaries/StaticMapFraming.cs` |
+| Shared mask → ring pipeline (connected components, edge tracing, simplification) | `src/AskLucy.Infrastructure/Boundaries/MaskContourVectorizer.cs` |
 | Stored-state invariant | `src/AskLucy.Domain/Chats/UserChat.cs` + `…/RecordActiveLocation/RecordActiveLocationCommandHandler.cs` |
 | SSE parsing | `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts` |
 | Store updates | `src/AskLucy.Web/ClientApp/src/features/chat/hooks/useChatStream.ts` |

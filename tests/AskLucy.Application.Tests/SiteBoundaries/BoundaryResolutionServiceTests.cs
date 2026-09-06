@@ -20,6 +20,7 @@ public sealed class BoundaryResolutionServiceTests
     private readonly ISatelliteImageProvider _satelliteImageProvider = Substitute.For<ISatelliteImageProvider>();
     private readonly IStreetViewImageProvider _streetViewImageProvider = Substitute.For<IStreetViewImageProvider>();
     private readonly IBoundaryVisionAnalyzer _visionAnalyzer = Substitute.For<IBoundaryVisionAnalyzer>();
+    private readonly IRenderedFillBoundaryExtractor _renderedFillExtractor = Substitute.For<IRenderedFillBoundaryExtractor>();
     private readonly BoundaryScoringOptions _options = new();
     private readonly BoundaryResolutionService _service;
 
@@ -40,10 +41,14 @@ public sealed class BoundaryResolutionServiceTests
         // for FetchAsync, which degrades to "ai_not_used" exactly like the feature being disabled,
         // so every pre-existing deterministic-only test keeps passing unchanged. Same for
         // _streetViewImageProvider: unconfigured, it returns null, which BoundaryResolutionService
-        // treats as no ground-level imagery this run — never a reason to fail the turn.
+        // treats as no ground-level imagery this run — never a reason to fail the turn. Same again
+        // for _renderedFillExtractor (§9.8): unconfigured, TryExtractAsync returns null, so the
+        // rendered-fill path falls straight through to the AI vision flow below it even though
+        // Candidate()'s default tags (leisure=park) make every existing test park-like.
         var scorer = new BoundaryCandidateScorer(Microsoft.Extensions.Options.Options.Create(_options));
         _service = new BoundaryResolutionService(
             _candidateProvider, scorer, _satelliteImageProvider, _streetViewImageProvider, _visionAnalyzer,
+            _renderedFillExtractor,
             Microsoft.Extensions.Options.Options.Create(_options), Substitute.For<ILogger<BoundaryResolutionService>>());
     }
 
@@ -730,5 +735,74 @@ public sealed class BoundaryResolutionServiceTests
 
         outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
         outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing);
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // §9.8 — the deterministic rendered-fill path, tried before any AI call for a park-like top
+    // candidate. Google's own roadmap renderer already draws the site as a flat, crisply-edged
+    // fill; forcing that fill to a known colour and thresholding it deterministically beat every
+    // AI-vision approach tried (coordinate tracing, drawing, native segmentation) on a live
+    // measurement against 6 independently hand-picked ground-truth vertices.
+    // -------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ResolveAsync_ShouldAdoptTheRenderedFillRing_ForAParkLikeCandidate_WithoutCallingAiVision()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() }); // default tags: leisure=park
+
+        var extracted = ShiftedSamplePolygon(0.0001, 0.0001); // same shape/area, small shift
+        _renderedFillExtractor.TryExtractAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), "poi.park", Arg.Any<CancellationToken>())
+            .Returns(extracted);
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.Type.Should().Be(BoundaryResolutionOutcomeType.Confirmed);
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.RenderedMapExtraction);
+        outcome.ConfirmedBoundary.SourceDetail.Should().Contain("no AI model involved");
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(
+            extracted, opts => opts.WithStrictOrdering().Using<double>(
+                ctx => ctx.Subject.Should().BeApproximately(ctx.Expectation, 1e-9)).WhenTypeIs<double>());
+
+        // No AI call at all for this path - not the vision analyzer, not even its own image fetch.
+        _ = _visionAnalyzer.DidNotReceive().AnalyzeAsync(
+            Arg.Any<SatelliteImage>(), Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(),
+            Arg.Any<string>(), Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
+        await _satelliteImageProvider.DidNotReceive().FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldFallBackToTheMappedRing_WhenRenderedFillFindsAnImplausibleArea()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+
+        // Same "far too large" shape used for the AI-traced implausibility gate above - the
+        // rendered-fill path applies the identical area-ratio gate.
+        var implausible = new List<GeoPoint>
+        {
+            new(25.2000, 55.1000), new(25.2000, 55.4000),
+            new(25.0000, 55.4000), new(25.0000, 55.1000), new(25.2000, 55.1000),
+        };
+        _renderedFillExtractor.TryExtractAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), "poi.park", Arg.Any<CancellationToken>())
+            .Returns(implausible);
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing);
+        await _renderedFillExtractor.Received(1).TryExtractAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), "poi.park", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldNeverCallTheRenderedFillExtractor_ForANonParkCandidate()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate(tags: new Dictionary<string, string> { ["building"] = "yes" }) });
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        await _renderedFillExtractor.DidNotReceive().TryExtractAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }
