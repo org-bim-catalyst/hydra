@@ -66,7 +66,7 @@ export function CollapsedChatControl({
         </IconButton>
       </Tooltip>
 
-      <VoiceAnalyzer state={analyzerState} getIntensity={getIntensity} />
+      <VoiceAnalyzer state={analyzerState} getIntensity={getIntensity} orientation="vertical" />
 
       <CollapsedVoiceControls {...voiceControls} />
 
