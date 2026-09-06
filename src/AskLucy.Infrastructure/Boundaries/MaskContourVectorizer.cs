@@ -12,6 +12,15 @@ namespace AskLucy.Infrastructure.Boundaries;
 /// hands over "these pixels belong to the site," turning that into a ring is the same problem
 /// regardless of where the pixels came from.
 /// </summary>
+/// <remarks>
+/// Briefly included a morphological closing pass (dilate then erode) ahead of component selection,
+/// to bridge label/marker holes and thin gaps. Removed once <c>maptype=terrain</c> turned out to
+/// remove the actual cause (Google simply doesn't render building footprints on terrain tiles, at
+/// any size) rather than needing a post-hoc gap-bridging fix — and closing had its own real cost:
+/// a square structuring element chamfers any corner that isn't aligned with the pixel grid, which
+/// silently rounded off every real corner of a site whose shape (like nearly every real property)
+/// isn't grid-aligned in the source image. See docs/LOCATION_TO_BOUNDARY_END_TO_END.md §9.8.
+/// </remarks>
 internal static class MaskContourVectorizer
 {
     /// <summary>Below this fraction of the image's own diagonal, a mask blob is treated as noise, not a boundary.</summary>
@@ -19,21 +28,6 @@ internal static class MaskContourVectorizer
 
     /// <summary>Douglas-Peucker tolerance, in source pixels.</summary>
     private const double SimplifyEpsilonPixels = 3.0;
-
-    /// <summary>
-    /// Morphological closing radius, in source pixels. A thin path, a small building footprint, or
-    /// even a seam between two adjacent same-type OSM landuse polygons can cut all the way through a
-    /// filled colour region, splitting what is really one site into several disconnected components
-    /// — <see cref="LargestComponent"/> then keeps only the biggest piece and silently drops the
-    /// rest as if that ground were never part of the site at all (confirmed live: Al Safa Park 2's
-    /// rendered-fill trace excluded several real park slivers cut off by exactly this). Closing
-    /// (dilate outward, then erode back in by the same amount) bridges any gap up to twice this
-    /// radius without otherwise changing the shape. 4px is a deliberate compromise: wide enough to
-    /// bridge an ordinary footpath or thin building outline (a few pixels at this module's ~0.27
-    /// m/px working resolution), narrow enough that two genuinely separate features some real
-    /// distance apart still don't get merged into one.
-    /// </summary>
-    private const int ClosingRadiusPixels = 4;
 
     public static IReadOnlyList<GeoPoint>? TryExtractRing(bool[,] mask, int width, int height, SatelliteImage bounds)
     {
@@ -49,8 +43,7 @@ internal static class MaskContourVectorizer
     /// </summary>
     internal static List<(int X, int Y)>? TryExtractPixelRing(bool[,] mask, int width, int height)
     {
-        var closed = Close(mask, width, height, ClosingRadiusPixels);
-        var component = LargestComponent(closed, width, height);
+        var component = LargestComponent(mask, width, height);
         if (component is null)
         {
             return null;
@@ -64,105 +57,6 @@ internal static class MaskContourVectorizer
 
         var simplified = DouglasPeucker(ring, SimplifyEpsilonPixels);
         return simplified.Count < 3 ? null : simplified;
-    }
-
-    /// <summary>Morphological closing: dilate then erode by the same radius, bridging gaps up to twice it without otherwise changing the shape.</summary>
-    internal static bool[,] Close(bool[,] mask, int width, int height, int radius) =>
-        Erode(Dilate(mask, width, height, radius), width, height, radius);
-
-    /// <summary>
-    /// Separable dilation (a pixel becomes foreground if any pixel within <paramref name="radius"/>
-    /// already is): one pass along each axis, O(width*height*radius) rather than the
-    /// O(width*height*radius²) a naive square-kernel scan would cost — the difference between this
-    /// running in milliseconds and materially adding to a chat turn's latency at this module's
-    /// 1280x1280 working resolution.
-    /// </summary>
-    private static bool[,] Dilate(bool[,] mask, int width, int height, int radius)
-    {
-        var horizontal = new bool[width, height];
-        for (var y = 0; y < height; y++)
-        {
-            for (var x = 0; x < width; x++)
-            {
-                var found = false;
-                for (var dx = -radius; dx <= radius && !found; dx++)
-                {
-                    var nx = x + dx;
-                    if (nx >= 0 && nx < width && mask[nx, y])
-                    {
-                        found = true;
-                    }
-                }
-                horizontal[x, y] = found;
-            }
-        }
-
-        var result = new bool[width, height];
-        for (var x = 0; x < width; x++)
-        {
-            for (var y = 0; y < height; y++)
-            {
-                var found = false;
-                for (var dy = -radius; dy <= radius && !found; dy++)
-                {
-                    var ny = y + dy;
-                    if (ny >= 0 && ny < height && horizontal[x, ny])
-                    {
-                        found = true;
-                    }
-                }
-                result[x, y] = found;
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Separable erosion (a pixel stays foreground only if every pixel within <paramref name="radius"/>
-    /// also is) — the inverse of <see cref="Dilate"/>, same separable-axis technique.
-    /// </summary>
-    /// <remarks>
-    /// Out-of-bounds neighbours count as foreground here, not background — the opposite convention
-    /// from <see cref="Dilate"/>'s, and deliberately so. Erosion treating "off the edge of the
-    /// image" as background would erase a full <paramref name="radius"/>-wide strip of genuine
-    /// shape anywhere it happens to touch the frame border, which is exactly backwards for closing:
-    /// the whole point is to recover shape that dilation only just bridged, not to punish a shape
-    /// for being near the edge of the frame it happened to be photographed in.
-    /// </remarks>
-    private static bool[,] Erode(bool[,] mask, int width, int height, int radius)
-    {
-        var horizontal = new bool[width, height];
-        for (var y = 0; y < height; y++)
-        {
-            for (var x = 0; x < width; x++)
-            {
-                var allSet = true;
-                for (var dx = -radius; dx <= radius && allSet; dx++)
-                {
-                    var nx = x + dx;
-                    allSet = nx < 0 || nx >= width || mask[nx, y];
-                }
-                horizontal[x, y] = allSet;
-            }
-        }
-
-        var result = new bool[width, height];
-        for (var x = 0; x < width; x++)
-        {
-            for (var y = 0; y < height; y++)
-            {
-                var allSet = true;
-                for (var dy = -radius; dy <= radius && allSet; dy++)
-                {
-                    var ny = y + dy;
-                    allSet = ny < 0 || ny >= height || horizontal[x, ny];
-                }
-                result[x, y] = allSet;
-            }
-        }
-
-        return result;
     }
 
     /// <summary>
