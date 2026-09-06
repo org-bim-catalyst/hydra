@@ -356,7 +356,12 @@ export function ConversationView({
   // check of its own.
   const toggleWorkspaceControl = useWorkspaceOverlayStore((s) => s.toggle)
   const markUnread = useWorkspaceOverlayStore((s) => s.markUnread)
-  const wasStreamingRef = useRef(false)
+  // Gates auto-speak to replies from a turn actually streamed live in this mount — without
+  // it, reopening/reloading a conversation whose last turn already has a persisted reply
+  // makes this effect treat that history as a freshly "completed" reply the moment it loads,
+  // and Lucy reads the entire restored conversation aloud. Only flips true once a real
+  // streaming turn is observed, and never resets, so every later reply keeps auto-speaking.
+  const hasStreamedThisSessionRef = useRef(false)
 
   // specs/039-composer-interaction-states-redesign T030/T031 (analysis remediation F1) —
   // tracks which reply's audio `tts` is currently voicing and whether that playback was
@@ -392,11 +397,20 @@ export function ConversationView({
     // the whole turn ended.
     const replies = messages.slice(turnStart + 1).filter((m) => m.role === 'assistant')
 
+    // Flip the gate as soon as a live turn is actually observed streaming — before scanning
+    // replies below, so a reply that completes within this same tick (isStreaming just went
+    // true and false again) still counts as live rather than being mistaken for restored
+    // history.
+    if (isStreaming) hasStreamedThisSessionRef.current = true
+
     replies.forEach((reply, index) => {
       const isComplete = index < replies.length - 1 || !isStreaming
       if (!reply.content || !isComplete || spokenRepliesRef.current.has(reply.content)) return
 
       spokenRepliesRef.current.add(reply.content)
+      // Never speak conversation history restored on mount/reload — only replies from a turn
+      // streamed live in this session.
+      if (!hasStreamedThisSessionRef.current) return
       tts.speak(reply.content, language)
       setPlayingMessageId(reply.id ?? null)
       setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
@@ -406,8 +420,6 @@ export function ConversationView({
       // separate `isPanelOpen` store read this effect used to compute independently.
       if (!expanded) markUnread('chat')
     })
-
-    wasStreamingRef.current = isStreaming
   }, [isStreaming, messages, language, tts, expanded, markUnread])
 
   // T030 (analysis remediation F1) — a user-initiated replay of a specific reply. Always
