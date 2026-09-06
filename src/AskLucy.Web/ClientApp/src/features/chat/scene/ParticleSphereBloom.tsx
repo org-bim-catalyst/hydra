@@ -21,9 +21,9 @@ interface ParticleSphereBloomProps {
   sphereRef: RefObject<Group | null>
 }
 
-/** Scoped neon glow for the particle sphere (spec 011-particle-sphere-engine FR-004). Mounted
- * by `SceneBackground.tsx` only for the "full" quality tier (`sphereRenderTechnique.ts`) — the
- * "reduced" tier's simpler technique never mounts this. */
+/** Scoped neon glow for the sphere (spec 011-particle-sphere-engine FR-004). Currently kept
+ * as unused, unit-tested plumbing — `SceneBackground.tsx`'s `BLOOM_TEMPORARILY_DISABLED`
+ * flag never mounts this in the live scene (see that file's history for why). */
 export function ParticleSphereBloom({ sphereRef }: ParticleSphereBloomProps) {
   return (
     <EffectComposer>
