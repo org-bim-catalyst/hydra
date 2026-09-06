@@ -29,6 +29,15 @@ export interface MapRenderTargetProps {
  * is true and the device isn't flagged for reduced quality (T032a). */
 export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }: MapRenderTargetProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  // Google's `colorScheme` MapOption "can only be set when the map is initialized"
+  // (@types/google.maps) — there is no live `map.setOptions({colorScheme})` path, so the only
+  // way to reflect a theme toggle on the map tiles is to recreate the underlying
+  // google.maps.Map. Reading the mode via the hook (not a one-off `getState()` inside the
+  // effect) makes it part of the effect's own dependency array, below.
+  const themeMode = useThemeStore((state) => state.mode)
+  // Carries the last-known pan/zoom across a theme-triggered remount so toggling the theme
+  // doesn't snap the camera back to this component's original mount-time `center`/`zoom` props.
+  const lastCameraRef = useRef<{ latitude: number; longitude: number; zoom?: number } | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
@@ -65,10 +74,10 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           apiKey,
           mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID,
           container,
-          center,
-          zoom,
+          center: lastCameraRef.current ?? center,
+          zoom: lastCameraRef.current?.zoom ?? zoom,
           reducedQuality,
-          colorScheme: useThemeStore.getState().mode,
+          colorScheme: themeMode,
           onLoaded: () => viewerEngine.notifyContentLoaded(layerId),
         })
       } catch (error) {
@@ -105,16 +114,10 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           selection.selectedLayerId === layerId && selection.selectedElementId === handle.currentLocationMarkerId,
         )
         handle.setMapTypeId(mapStyle)
-        handle.setColorScheme(useThemeStore.getState().mode)
       }
 
       applyStoreState()
-      const unsubscribeViewerEngine = useViewerEngineStore.subscribe(applyStoreState)
-      const unsubscribeTheme = useThemeStore.subscribe(applyStoreState)
-      unsubscribeStore = () => {
-        unsubscribeViewerEngine()
-        unsubscribeTheme()
-      }
+      unsubscribeStore = useViewerEngineStore.subscribe(applyStoreState)
 
       unregister = viewerEngine.registerRenderTarget({
         panTo: handle.panTo,
@@ -137,6 +140,14 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
 
     return () => {
       cancelled = true
+      // Remember the live pan/zoom before tearing down — read here (not from the closed-over
+      // `center`/`zoom` props) so a theme-toggle-triggered remount reopens where the user left
+      // off rather than snapping back to this component's original mount position.
+      const currentCenter = handle?.map.getCenter?.()
+      const currentZoom = handle?.map.getZoom?.()
+      if (currentCenter) {
+        lastCameraRef.current = { latitude: currentCenter.lat(), longitude: currentCenter.lng(), zoom: currentZoom }
+      }
       unsubscribeStore?.()
       unregister?.()
       rotationDriver?.dispose()
@@ -145,7 +156,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       useGoogleMapsStore.getState().setHandle(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layerId])
+  }, [layerId, themeMode])
 
   return <Box ref={containerRef} data-testid="viewer-map" sx={{ position: 'absolute', inset: 0 }} />
 }
