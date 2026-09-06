@@ -25,15 +25,25 @@ uniform vec3 uColorReactive;
 uniform float uIntensity;
 
 varying float vDisplacement;
+varying vec3 vViewNormal;
+varying vec3 vViewDir;
 
 void main() {
   vec2 fromCenter = gl_PointCoord - vec2(0.5);
   float dist = length(fromCenter);
   if (dist > 0.5) discard;
 
-  float alpha = smoothstep(0.5, 0.0, dist) * uIntensity;
+  // Fresnel rim term (live user feedback, 2026-09-06, inspired by organic-sphere.vercel.app's
+  // rim-lit shading): near 0 for points facing the camera head-on, near 1 for points at the
+  // sphere's silhouette edge. Used two ways below — together they cut how much the additive
+  // blending pass sums per pixel (research.md §2's flagged saturation risk, which this
+  // rim-weighting is what actually keeps in check now, not uIntensity alone) while giving the
+  // sphere a lit, three-dimensional rim instead of a flat wash of identical dots.
+  float fresnel = pow(1.0 - clamp(dot(normalize(vViewNormal), normalize(vViewDir)), 0.0, 1.0), 2.0);
+
+  float alpha = smoothstep(0.5, 0.0, dist) * uIntensity * mix(0.25, 1.0, fresnel);
   float reactiveMix = smoothstep(0.0, 0.35, abs(vDisplacement));
-  vec3 color = mix(uColorIdle, uColorReactive, reactiveMix);
+  vec3 color = mix(uColorIdle, uColorReactive, reactiveMix) * (1.0 + fresnel * 0.8);
 
   gl_FragColor = vec4(color, alpha);
 }

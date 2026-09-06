@@ -50,10 +50,15 @@ const POINT_COUNT_BY_TIER = { full: 8000, reduced: 500 } as const
 // hydra.bimcatalyst.com incident 2026-08-02). Re-tuned in isolation the same way 'full'
 // was: verified via screenshot that individual dots stay visually distinct at this size.
 const BASE_POINT_SIZE_BY_TIER = { full: 0.12, reduced: 0.3 } as const
-// With points no longer overlapping heavily, intensity can go back up near 1 — each dot
-// should read as a fully visible, saturated color, not a faint speck. 'reduced' stays at
-// 1.0 (unchanged from 010 — normal blending never needed this lever).
-const INTENSITY_BY_TIER = { full: 0.95, reduced: 1 } as const
+// 'full' lowered from 0.95 (live user report, 2026-09-06): on some GPU/driver combinations
+// (confirmed NVIDIA RTX 3080) the additive-blended overlap of 8,000 points at that intensity
+// saturated into a single solid-colored blob with no visible individual dots — the same
+// failure mode as 'reduced's 2026-08-02 incident above, just triggered by a different GPU's
+// overlap behavior instead of point size. Now paired with fragment-shader rim shading
+// (sphere.frag.glsl's fresnel term) that concentrates brightness at each point's silhouette
+// edge instead of uniformly, so overlapping centers contribute much less to the additive
+// sum. 'reduced' stays at 1.0 (unchanged from 010 — normal blending never needed this lever).
+const INTENSITY_BY_TIER = { full: 0.55, reduced: 1 } as const
 
 interface ReactiveSphereProps {
   /** Ref-based getter for the 0 (silent) – 1 (loud) damped TTS envelope (useTextToSpeech's
