@@ -641,15 +641,14 @@ export function ConversationView({
       : isPushToTalkRecording || isContinuousEngaged
         ? 'listening'
         : 'idle'
-  const analyzerIntensity = tts.isSpeaking
-    ? tts.getIntensity
-    : isContinuousSpeaking
-      ? conversationAudio.getReactiveIntensity
-      : isContinuousEngaged
-        ? conversationAudio.getMicIntensity
-        : isPushToTalkRecording
-          ? recorder.getIntensity
-          : () => 0
+  // Both the Collapsed widget's analyzer and the Expanded panel's Continuous-mode waveform
+  // are "you're being heard" mic meters, not a shared conversation-activity meter — they must
+  // never react to Lucy's own TTS/reply-audio output, only to the user's own microphone input.
+  const userVoiceIntensity = isContinuousEngaged
+    ? conversationAudio.getMicIntensity
+    : isPushToTalkRecording
+      ? recorder.getIntensity
+      : () => 0
 
   // specs/029-fix-chat-widget-bugs research.md Decision 5a — merges the former separate
   // "mute Lucy's speaker output" and "stop the reply she's currently speaking" actions into
@@ -723,7 +722,7 @@ export function ConversationView({
           <CollapsedChatControl
             onExpand={handleToggleExpanded}
             analyzerState={analyzerState}
-            getIntensity={analyzerIntensity}
+            getIntensity={userVoiceIntensity}
             voiceControls={voiceControlsProps}
             triggerRef={handleRef}
             contentId={CHAT_CONTENT_ID}
@@ -907,7 +906,7 @@ export function ConversationView({
             voicePreferencesUnavailable={voicePreferencesQuery.isError}
             continuousAnalyzer={
               conversationMode === 'Continuous'
-                ? { state: analyzerState, getIntensity: analyzerIntensity }
+                ? { state: analyzerState, getIntensity: userVoiceIntensity }
                 : undefined
             }
           />

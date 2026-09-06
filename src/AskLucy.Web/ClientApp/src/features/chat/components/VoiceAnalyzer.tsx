@@ -15,11 +15,14 @@ export interface VoiceAnalyzerProps {
 const BAR_COUNT = 5
 const MIN_SCALE = 0.14
 
-/** FR-004: the Collapsed-state vertical analyzer — a small bar-stack whose animation
- * pattern and color distinguish Idle, Processing (synthetic pulse — nothing to measure
- * yet), and Speaking/Listening (driven by real `getIntensity()` amplitude), polled via
+/** FR-004: the Collapsed-state vertical analyzer — a small bar-stack, stacked top-to-bottom
+ * (matching the narrow vertical collapsed control it lives in), whose animation pattern and
+ * color distinguish Idle, Processing (synthetic pulse — nothing to measure yet), and
+ * Speaking/Listening (driven by real `getIntensity()` amplitude), polled via
  * `requestAnimationFrame` and applied directly to bar `transform`s (never React state)
- * to stay cheap at 60fps (constitution §15). */
+ * to stay cheap at 60fps (constitution §15). `getIntensity` always reflects the user's own
+ * microphone input — never Lucy's spoken-reply output — so the bars are a "you're being
+ * heard" indicator, not a shared conversation-activity meter. */
 export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
   const barRefs = useRef<(HTMLDivElement | null)[]>([])
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -29,7 +32,7 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
       // Reduced motion: a single static baseline scale per state, no per-frame animation.
       const staticScale = state === 'idle' ? MIN_SCALE : 0.6
       barRefs.current.forEach((bar) => {
-        if (bar) bar.style.transform = `scaleY(${staticScale})`
+        if (bar) bar.style.transform = `scaleX(${staticScale})`
       })
       return
     }
@@ -52,7 +55,7 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
         } else {
           scale = MIN_SCALE
         }
-        bar.style.transform = `scaleY(${scale})`
+        bar.style.transform = `scaleX(${scale})`
       })
       frame = requestAnimationFrame(tick)
     }
@@ -73,7 +76,8 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
       aria-label={`Voice status: ${state}`}
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
+        alignItems: 'stretch',
         justifyContent: 'center',
         gap: 0.5,
         height: 56,
@@ -87,12 +91,12 @@ export function VoiceAnalyzer({ state, getIntensity }: VoiceAnalyzerProps) {
             barRefs.current[index] = el
           }}
           sx={{
-            width: 3,
-            height: '100%',
+            width: '100%',
+            height: 3,
             borderRadius: 999,
             bgcolor: activeColor,
             opacity: state === 'idle' ? 0.35 : 0.9,
-            transform: `scaleY(${MIN_SCALE})`,
+            transform: `scaleX(${MIN_SCALE})`,
             transformOrigin: 'center',
             transition: (t) => (state === 'idle' ? t.transitions.create(['opacity']) : 'none'),
           }}
