@@ -379,15 +379,8 @@ public sealed class BoundaryResolutionService(
     /// </summary>
     private const double MinimumImageryRadiusMeters = 150;
 
-    /// <summary>
-    /// Margin around the candidate, so its corners are never on the frame's edge. Lowered from 1.35
-    /// to 1.1 (2026-09-06): every metre of unused margin is resolution left on the table — Static
-    /// Maps only ever returns a fixed 1280x1280px image regardless of how much ground it covers, so
-    /// a tighter frame directly means finer metres-per-pixel for the same site. <c>ChooseZoomToFit</c>
-    /// already rounds the chosen zoom up to guarantee full coverage even at integer zoom levels, so
-    /// 1.1 still keeps real headroom rather than trusting the margin alone to prevent clipping.
-    /// </summary>
-    private const double ImageryFramingMargin = 1.1;
+    /// <summary>Margin around the candidate, so its corners are never on the frame's edge.</summary>
+    private const double ImageryFramingMargin = 1.35;
 
     /// <summary>
     /// How much ground the vision cross-check's image should cover: the candidate's own extent
