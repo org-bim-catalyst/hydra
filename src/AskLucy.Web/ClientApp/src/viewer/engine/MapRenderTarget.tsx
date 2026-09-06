@@ -5,6 +5,7 @@ import { applyCameraViewMode } from '../camera/cameraViewMode'
 import { RotationDriver } from '../camera/rotationDriver'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
+import { useThemeStore } from '../../store/themeStore'
 import type { ViewerEngine } from './ViewerEngine'
 
 export interface MapRenderTargetProps {
@@ -67,6 +68,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           center,
           zoom,
           reducedQuality,
+          colorScheme: useThemeStore.getState().mode,
           onLoaded: () => viewerEngine.notifyContentLoaded(layerId),
         })
       } catch (error) {
@@ -103,10 +105,16 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           selection.selectedLayerId === layerId && selection.selectedElementId === handle.currentLocationMarkerId,
         )
         handle.setMapTypeId(mapStyle)
+        handle.setColorScheme(useThemeStore.getState().mode)
       }
 
       applyStoreState()
-      unsubscribeStore = useViewerEngineStore.subscribe(applyStoreState)
+      const unsubscribeViewerEngine = useViewerEngineStore.subscribe(applyStoreState)
+      const unsubscribeTheme = useThemeStore.subscribe(applyStoreState)
+      unsubscribeStore = () => {
+        unsubscribeViewerEngine()
+        unsubscribeTheme()
+      }
 
       unregister = viewerEngine.registerRenderTarget({
         panTo: handle.panTo,

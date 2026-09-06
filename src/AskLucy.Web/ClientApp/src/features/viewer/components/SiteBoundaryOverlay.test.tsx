@@ -17,6 +17,7 @@ function fakeHandle(): GoogleMapsGisLayerHandle {
     setHeading: vi.fn(),
     setTilt: vi.fn(),
     setMapTypeId: vi.fn(),
+    setColorScheme: vi.fn(),
     setMarkerHighlighted: vi.fn(),
     setSiteBoundary: vi.fn(),
     dispose: vi.fn(),
