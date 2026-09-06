@@ -57,13 +57,23 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
             var zoom = StaticMapFraming.ChooseZoomToFit(center.Latitude, radiusMeters);
             var (west, south, east, north) = StaticMapFraming.CoveredBounds(center, zoom);
 
-            var style = $"feature:{googleMapsFeatureType}|element:geometry.fill|color:0x{ForcedColorHex}";
+            var fillStyle = $"feature:{googleMapsFeatureType}|element:geometry.fill|color:0x{ForcedColorHex}";
+            // Confirmed live: every label and marker icon Google draws directly on the map (the
+            // site's own name label + pin, a POI marker sitting inside it) punches a small
+            // non-green hole through the fill exactly where it sits — indistinguishable, to a pixel
+            // threshold, from a real gap in the boundary. This image is never shown to anyone and
+            // exists purely for colour thresholding, so there is no reason to render any label at
+            // all: turning them off site-wide removes the cause rather than papering over its
+            // symptom with a larger closing radius (which would also risk merging unrelated nearby
+            // features together).
+            var noLabelsStyle = "feature:all|element:labels|visibility:off";
             var url = "staticmap"
                 + $"?center={center.Latitude.ToString("R", CultureInfo.InvariantCulture)},{center.Longitude.ToString("R", CultureInfo.InvariantCulture)}"
                 + $"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}"
                 + $"&size={StaticMapFraming.ImageSizePixels}x{StaticMapFraming.ImageSizePixels}"
                 + "&scale=2&maptype=roadmap&format=jpg"
-                + $"&style={Uri.EscapeDataString(style)}"
+                + $"&style={Uri.EscapeDataString(fillStyle)}"
+                + $"&style={Uri.EscapeDataString(noLabelsStyle)}"
                 + $"&key={Uri.EscapeDataString(apiKey)}";
 
             var httpClient = httpClientFactory.CreateClient("GoogleStaticMaps");

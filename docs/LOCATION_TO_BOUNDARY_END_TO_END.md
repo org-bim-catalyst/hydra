@@ -658,6 +658,22 @@ Things a reviewer should push on.
    tests (`MaskContourVectorizerTests`): a thin cut gets bridged, a real 20px gap between two
    features does not get merged, and a shape split by a path traces back to its full original
    extent end-to-end.
+
+   **Second update: the remaining notches were labels, not gaps.** Closing fixed the small isolated
+   slivers (individual building footprints fully enclosed by green) but two larger notches
+   persisted. The user checked the real Google Maps page directly and spotted it: every remaining
+   notch lined up exactly with a label or marker icon Google draws directly on top of the fill — the
+   site's own name label plus its pin, a POI marker sitting inside the park. Each one punches a
+   small non-green hole through the polygon exactly where it sits, wide enough in the site's own
+   label's case that the 4px closing radius didn't bridge it — and indistinguishable, to a pixel
+   threshold, from a real gap in the boundary. Widening the radius further to force these closed
+   would have been the wrong fix (more risk of merging unrelated nearby features for a problem that
+   was never really about gap width). The actual fix: this styled tile is never shown to anyone and
+   exists purely for colour thresholding, so there is no reason to render any label on it at all.
+   Added a second Static Maps `style` parameter turning off every label site-wide
+   (`feature:all|element:labels|visibility:off`, combined with the existing fill-colour override —
+   Static Maps accepts multiple `style` parameters in one request), removing the cause instead of
+   compensating for its symptom.
 ---
 
 ## 10. Where to look in the code

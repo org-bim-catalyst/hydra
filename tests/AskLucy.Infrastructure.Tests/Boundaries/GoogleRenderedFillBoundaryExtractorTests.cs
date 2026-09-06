@@ -56,12 +56,27 @@ public sealed class GoogleRenderedFillBoundaryExtractorTests
         await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
 
         var query = HttpUtility.ParseQueryString(requested.Single().Query);
-        var style = query["style"];
-        style.Should().NotBeNull();
+        var styles = query.GetValues("style");
+        styles.Should().NotBeNull();
         // Pure green: nothing else Static Maps' roadmap style renders is a saturated green, so
         // thresholding for it later has no ambiguity to resolve.
-        style.Should().Be("feature:poi.park|element:geometry.fill|color:0x00FF00");
+        styles.Should().Contain("feature:poi.park|element:geometry.fill|color:0x00FF00");
         query["maptype"].Should().Be("roadmap");
+    }
+
+    [Fact]
+    public async Task TryExtractAsync_ShouldTurnOffAllLabels()
+    {
+        // Confirmed live: a label or marker icon drawn on top of the fill (the site's own name
+        // label + pin, a POI marker sitting inside it) punches a non-green hole through it,
+        // indistinguishable from a real gap in the boundary to a pixel threshold.
+        var extractor = CreateExtractor(out var requested);
+
+        await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
+
+        var query = HttpUtility.ParseQueryString(requested.Single().Query);
+        var styles = query.GetValues("style");
+        styles.Should().Contain("feature:all|element:labels|visibility:off");
     }
 
     [Fact]
