@@ -62,17 +62,6 @@ internal sealed class GoogleSatelliteImageProvider(
     IOptions<GoogleMapsGeocodingOptions> options,
     ILogger<GoogleSatelliteImageProvider> logger) : ISatelliteImageProvider
 {
-    /// <summary>Ground coverage of the request, in Static Maps' scale-1 pixels. <c>scale=2</c> returns twice this many pixels for the same ground.</summary>
-    private const int ImageSizePixels = 640;
-
-    /// <summary>Static Maps rejects a larger zoom than this.</summary>
-    private const int MaxZoom = 20;
-
-    /// <summary>Below this the image is too coarse to be worth analysing at all.</summary>
-    private const int MinZoom = 14;
-
-    private const double EarthCircumferenceMeters = 40_075_016.686;
-
     public async Task<SatelliteImage?> FetchAsync(GeoPoint center, int radiusMeters, CancellationToken cancellationToken = default)
     {
         var apiKey = options.Value.GoogleMapsApiKey;
@@ -86,23 +75,23 @@ internal sealed class GoogleSatelliteImageProvider(
 
         try
         {
-            var zoom = ChooseZoomToFit(center.Latitude, radiusMeters);
-            var (west, south, east, north) = CoveredBounds(center, zoom);
+            var zoom = StaticMapFraming.ChooseZoomToFit(center.Latitude, radiusMeters);
+            var (west, south, east, north) = StaticMapFraming.CoveredBounds(center, zoom);
 
             // CA1873: the "expensive" argument is Math.Round on a double, on a path that is about
             // to make an HTTP request — deferring it saves nothing. An IsEnabled guard does not
             // silence the rule either, because it cannot see through the [LoggerMessage] partial.
-            var metersPerPixel = MetersPerPixel(center.Latitude, zoom);
+            var metersPerPixel = StaticMapFraming.MetersPerPixel(center.Latitude, zoom);
 #pragma warning disable CA1873
             GoogleSatelliteImageProviderLog.Framed(
                 logger, center.Latitude, center.Longitude, radiusMeters, zoom,
-                (int)(metersPerPixel * ImageSizePixels), Math.Round(metersPerPixel / 2, 3));
+                (int)(metersPerPixel * StaticMapFraming.ImageSizePixels), Math.Round(metersPerPixel / 2, 3));
 #pragma warning restore CA1873
 
             var url = "staticmap"
                 + $"?center={center.Latitude.ToString("R", CultureInfo.InvariantCulture)},{center.Longitude.ToString("R", CultureInfo.InvariantCulture)}"
                 + $"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}"
-                + $"&size={ImageSizePixels}x{ImageSizePixels}"
+                + $"&size={StaticMapFraming.ImageSizePixels}x{StaticMapFraming.ImageSizePixels}"
                 + "&scale=2&maptype=roadmap&format=jpg"
                 + $"&key={Uri.EscapeDataString(apiKey)}";
 
@@ -127,64 +116,5 @@ internal sealed class GoogleSatelliteImageProvider(
             GoogleSatelliteImageProviderLog.FetchException(logger, ex, center.Latitude, center.Longitude);
             return null;
         }
-    }
-
-    /// <summary>
-    /// The largest zoom whose frame still contains <paramref name="radiusMeters"/> in every
-    /// direction — "zoom to fit", so the site fills as much of the image as it can without being
-    /// clipped.
-    /// </summary>
-    /// <remarks>
-    /// Static Maps only accepts integer zoom, so the chosen level almost always covers somewhat
-    /// more ground than asked for. Erring outwards is deliberate: a clipped site loses the very
-    /// corners the analyzer is meant to be reading.
-    /// </remarks>
-    private static int ChooseZoomToFit(double latitude, int radiusMeters)
-    {
-        var requiredMetersPerPixel = Math.Max(radiusMeters, 1) * 2.0 / ImageSizePixels;
-        var scale = EarthCircumferenceMeters * Math.Abs(Math.Cos(latitude * Math.PI / 180.0)) / 256.0;
-        var zoom = (int)Math.Floor(Math.Log2(scale / requiredMetersPerPixel));
-        return Math.Clamp(zoom, MinZoom, MaxZoom);
-    }
-
-    private static double MetersPerPixel(double latitude, int zoom) =>
-        EarthCircumferenceMeters * Math.Abs(Math.Cos(latitude * Math.PI / 180.0)) / (256.0 * Math.Pow(2, zoom));
-
-    /// <summary>
-    /// The exact ground rectangle the returned image covers, in Web Mercator — the projection
-    /// Static Maps renders in.
-    /// </summary>
-    /// <remarks>
-    /// Computed rather than assumed, because the analyzer maps the model's normalised [0,1] pixel
-    /// coordinates back to latitude/longitude by interpolating linearly between these edges. Over
-    /// a few hundred metres Mercator's latitude curvature costs well under a metre; over a frame
-    /// sized from a guess, being wrong about the edges costs the whole correction.
-    /// </remarks>
-    private static (double West, double South, double East, double North) CoveredBounds(GeoPoint center, int zoom)
-    {
-        var worldSize = 256.0 * Math.Pow(2, zoom);
-        var half = ImageSizePixels / 2.0;
-
-        var centerX = (center.Longitude + 180.0) / 360.0 * worldSize;
-        var centerY = MercatorY(center.Latitude) * worldSize;
-
-        var west = ((centerX - half) / worldSize * 360.0) - 180.0;
-        var east = ((centerX + half) / worldSize * 360.0) - 180.0;
-        var north = InverseMercatorY((centerY - half) / worldSize);
-        var south = InverseMercatorY((centerY + half) / worldSize);
-
-        return (west, south, east, north);
-    }
-
-    private static double MercatorY(double latitude)
-    {
-        var sin = Math.Sin(latitude * Math.PI / 180.0);
-        return 0.5 - (Math.Log((1 + sin) / (1 - sin)) / (4 * Math.PI));
-    }
-
-    private static double InverseMercatorY(double y)
-    {
-        var n = Math.PI - (2.0 * Math.PI * y);
-        return 180.0 / Math.PI * Math.Atan(0.5 * (Math.Exp(n) - Math.Exp(-n)));
     }
 }
