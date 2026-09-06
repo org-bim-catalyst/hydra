@@ -36,7 +36,15 @@ const ACTIVATION_DURATION_SECONDS = 0.9
 const BORDER_ROTATION_SECONDS_HIGH = 3 // matches the CSS reference's "3s spin linear infinite"
 const BORDER_ROTATION_SECONDS_MEDIUM = 6 // slower — FR-006's medium/high visual distinction
 const BORDER_OPACITY_MEDIUM = 0.75
-const BORDER_HALF_WIDTH = 0.022 // thin, no glow — confirmed via live preview iteration
+// The ring's width is real geometry (a THREE.Mesh), unlike a THREE.Line's constant ~1px screen
+// width regardless of scale — a fixed metre value tuned against a small demo shape (a few metres
+// across) is imperceptible around an actual, real-world-scale park (hundreds of metres across):
+// this was live-verified as a bug — the ring never became visible on a real boundary, only the
+// checkpoint shockwave (a Line) did. Scaling the half-width to a fraction of the boundary's own
+// bounding-box diagonal keeps it reading equally thin whether the parcel is 50m or 500m across,
+// with a floor so a tiny lot doesn't get an imperceptibly thin ring either.
+const BORDER_WIDTH_RATIO = 0.002
+const BORDER_MIN_HALF_WIDTH_METERS = 0.15
 const BORDER_CORNER_SEGMENTS = 12
 
 const CONIC_GRADIENT_GLSL = `
@@ -89,6 +97,8 @@ export function createAnimatedBorderHighlight(
   const group = new THREE.Group()
   const points = ring.map((p) => new THREE.Vector3(p.x, p.y, 0))
   const centroid = points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(points.length)
+  const bounds = new THREE.Box3().setFromPoints(points)
+  const borderHalfWidth = Math.max(bounds.min.distanceTo(bounds.max) * BORDER_WIDTH_RATIO, BORDER_MIN_HALF_WIDTH_METERS)
 
   function angleFromCentroid(p: THREE.Vector3): number {
     return (Math.atan2(p.y - centroid.y, p.x - centroid.x) / (Math.PI * 2) + 1) % 1
@@ -217,7 +227,7 @@ export function createAnimatedBorderHighlight(
   let elapsedSeconds = 0
 
   function buildBorderRing(rotationSeconds: number, targetOpacity: number) {
-    const geometry = buildBorderRingGeometry(BORDER_HALF_WIDTH)
+    const geometry = buildBorderRingGeometry(borderHalfWidth)
     const material = createBorderMaterial(targetOpacity)
     const mesh = new THREE.Mesh(geometry, material)
     group.add(mesh)
