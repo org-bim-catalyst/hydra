@@ -89,6 +89,15 @@ float snoise(vec3 v) {
 void main() {
   vec3 direction = normalize(position);
   float displacement = snoise(position * uFrequency + vec3(0.0, 0.0, uTime * 0.15)) * uAmplitude + uBreath;
+  // Diagnosed on an NVIDIA RTX 3080 (ANGLE D3D11 backend): the third-party simplex noise
+  // above (Ashima Arts) evaluated to NaN on that GPU/driver even though the identical GLSL
+  // runs correctly elsewhere. A single NaN vertex position sends gl_Position non-finite,
+  // which makes the GPU discard every point in the draw call — the whole sphere renders as
+  // zero pixels (verified via gl.readPixels), leaving only the card's background visible.
+  // Guarded here rather than inside snoise() itself since that function isn't ours to patch.
+  if (isnan(displacement)) {
+    displacement = 0.0;
+  }
   vec3 displaced = position + direction * displacement;
   vDisplacement = displacement;
 
