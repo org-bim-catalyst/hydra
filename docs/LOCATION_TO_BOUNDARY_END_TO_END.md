@@ -674,6 +674,33 @@ Things a reviewer should push on.
    (`feature:all|element:labels|visibility:off`, combined with the existing fill-colour override —
    Static Maps accepts multiple `style` parameters in one request), removing the cause instead of
    compensating for its symptom.
+
+   **Third update: closing itself was the wrong tool, and terrain removed the need for it entirely.**
+   Turning off labels fixed those two notches, but the user noticed something else: several real
+   corners of the traced shape had turned into small diagonal chamfers instead of staying sharp, and
+   a toilet block fully inside the park was still excluded — a building, not a label. Both had the
+   same root cause. Morphological closing (dilate then erode with a square kernel) preserves right
+   angles only when they're aligned with the image's own pixel axes; this site's real shape is a
+   rotated parallelogram following the actual street grid, so none of its corners are grid-aligned,
+   and closing was chamfering every one of them as a side effect of the 4px radius chosen to bridge
+   label holes. Separately, a real building 8-10 m across was never going to be fixed by widening
+   that radius anyway — closing only bridges gaps up to roughly `2 x radius`; a hole that size needs
+   an entirely different technique (interior-hole filling), and even that would only help if the
+   building were confirmed fully enclosed by green rather than touching the site's true outer edge
+   (the user zoomed into Google Maps directly to confirm it was fully enclosed, not just adjacent).
+
+   Before building hole-filling, the user tried switching Static Maps' `maptype` from `roadmap` to
+   `terrain` and found something simpler: terrain does not render building footprints at all, at any
+   size. A live test came back as a single contour, zero holes, solidity 0.994 (1.0 = perfectly
+   convex) — the toilet block gone as a problem entirely, not patched around. `GoogleRenderedFillBoundaryExtractor`
+   now requests `maptype=terrain` instead of `maptype=roadmap`, and morphological closing was removed
+   from `MaskContourVectorizer` outright rather than kept at a smaller radius: there is no live
+   evidence, for this site or any tested so far, of a gap that is genuinely thin *and* connected to
+   the outside (a real access road cutting in from a public street, say) rather than a label or a
+   building — both of which terrain plus label-suppression now avoid at the source. If that case
+   turns up on some other site, it is a distinguishable, separate problem worth solving deliberately
+   then, not a reason to keep an operation running everywhere today that measurably cost real corner
+   accuracy for a benefit that was never actually needed here.
 ---
 
 ## 10. Where to look in the code

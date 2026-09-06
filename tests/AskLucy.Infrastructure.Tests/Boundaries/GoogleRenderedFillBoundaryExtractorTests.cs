@@ -58,10 +58,12 @@ public sealed class GoogleRenderedFillBoundaryExtractorTests
         var query = HttpUtility.ParseQueryString(requested.Single().Query);
         var styles = query.GetValues("style");
         styles.Should().NotBeNull();
-        // Pure green: nothing else Static Maps' roadmap style renders is a saturated green, so
-        // thresholding for it later has no ambiguity to resolve.
+        // Pure green: nothing else this renders is a saturated green, so thresholding for it later
+        // has no ambiguity to resolve.
         styles.Should().Contain("feature:poi.park|element:geometry.fill|color:0x00FF00");
-        query["maptype"].Should().Be("roadmap");
+        // terrain, not roadmap: confirmed live that terrain doesn't render building footprints at
+        // all, which was the actual cause of a real building punching a hole through the fill.
+        query["maptype"].Should().Be("terrain");
     }
 
     [Fact]

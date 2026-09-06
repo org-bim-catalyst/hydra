@@ -24,10 +24,10 @@ internal static partial class GoogleRenderedFillBoundaryExtractorLog
 /// <summary>
 /// See <see cref="IRenderedFillBoundaryExtractor"/>'s remarks for why this exists and what it
 /// replaces. Forces the requested Static Maps feature category's fill to a single, maximally
-/// distinct colour (pure green, <c>0x00FF00</c> — nothing else on a roadmap tile is a saturated
-/// green: roads are blue-grey, water is blue, buildings are near-white), fetches that styled tile,
-/// thresholds for the forced colour, and runs the result through the same
-/// <see cref="MaskContourVectorizer"/> pipeline the drawn-outline diagnostic already uses.
+/// distinct colour (pure green, <c>0x00FF00</c> — nothing else this renders is a saturated green:
+/// roads are blue-grey, water is blue), fetches that styled tile, thresholds for the forced colour,
+/// and runs the result through the same <see cref="MaskContourVectorizer"/> pipeline the
+/// drawn-outline diagnostic already uses.
 /// </summary>
 /// <remarks>
 /// The rendered tile is never shown to any user — this is a server-side-only fetch purely for
@@ -63,15 +63,21 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
             // non-green hole through the fill exactly where it sits — indistinguishable, to a pixel
             // threshold, from a real gap in the boundary. This image is never shown to anyone and
             // exists purely for colour thresholding, so there is no reason to render any label at
-            // all: turning them off site-wide removes the cause rather than papering over its
-            // symptom with a larger closing radius (which would also risk merging unrelated nearby
-            // features together).
+            // all: turning them off site-wide removes the cause.
             var noLabelsStyle = "feature:all|element:labels|visibility:off";
+            // maptype=terrain, not roadmap: confirmed live that terrain simply does not render
+            // building footprints at all, at any size — a building fully inside the site (Al Safa
+            // Park 2's toilet block) punched exactly the same kind of hole through the fill as a
+            // label did on roadmap, and no amount of gap-bridging fixes a hole the size of an actual
+            // building without also distorting the shape's real corners. Terrain removes the cause
+            // instead: one live measurement came back as a single contour, zero holes, matching the
+            // real chamfered corner already confirmed against Google Maps directly, everything else
+            // a clean straight edge. See docs/LOCATION_TO_BOUNDARY_END_TO_END.md §9.8.
             var url = "staticmap"
                 + $"?center={center.Latitude.ToString("R", CultureInfo.InvariantCulture)},{center.Longitude.ToString("R", CultureInfo.InvariantCulture)}"
                 + $"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}"
                 + $"&size={StaticMapFraming.ImageSizePixels}x{StaticMapFraming.ImageSizePixels}"
-                + "&scale=2&maptype=roadmap&format=jpg"
+                + "&scale=2&maptype=terrain&format=jpg"
                 + $"&style={Uri.EscapeDataString(fillStyle)}"
                 + $"&style={Uri.EscapeDataString(noLabelsStyle)}"
                 + $"&key={Uri.EscapeDataString(apiKey)}";
@@ -111,9 +117,9 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
 
     /// <summary>
     /// Thresholds tuned generously around pure green to absorb JPEG compression artefacts at the
-    /// fill's edge, while nothing else on a roadmap tile (roads, buildings, water, other POI fills)
-    /// is remotely close to a saturated green — no ambiguity to resolve the way an AI-drawn red
-    /// line's exact shade was never fully known in advance.
+    /// fill's edge, while nothing else this renders (roads, water, other POI fills) is remotely
+    /// close to a saturated green — no ambiguity to resolve the way an AI-drawn red line's exact
+    /// shade was never fully known in advance.
     /// </summary>
     private static IReadOnlyList<GeoPoint>? ExtractForcedColorRing(byte[] imageBytes, SatelliteImage bounds)
     {
