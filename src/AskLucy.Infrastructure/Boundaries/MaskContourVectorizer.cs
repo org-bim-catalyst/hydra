@@ -26,8 +26,15 @@ internal static class MaskContourVectorizer
     /// <summary>Below this fraction of the image's own diagonal, a mask blob is treated as noise, not a boundary.</summary>
     private const double MinComponentDiagonalFraction = 0.15;
 
-    /// <summary>Douglas-Peucker tolerance, in source pixels.</summary>
-    private const double SimplifyEpsilonPixels = 3.0;
+    /// <summary>
+    /// Douglas-Peucker tolerance, in source pixels. Lowered from 3.0 (2026-09-06): at this module's
+    /// ~0.27 m/px working resolution, 3px let a real corner drift up to ~0.8m from its true position
+    /// in exchange for smoothing anti-aliasing jitter — invisible at normal zoom, visibly off once a
+    /// user zooms the viewer in far enough that a handful of source pixels fill the screen. 1.5px
+    /// keeps enough smoothing to avoid re-introducing staircase noise while roughly halving how far
+    /// a genuine corner can be pulled from its true position.
+    /// </summary>
+    private const double SimplifyEpsilonPixels = 1.5;
 
     public static IReadOnlyList<GeoPoint>? TryExtractRing(bool[,] mask, int width, int height, SatelliteImage bounds)
     {
