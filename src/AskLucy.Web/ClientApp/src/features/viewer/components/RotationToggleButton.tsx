@@ -2,7 +2,7 @@ import { RiPauseLine, RiRefreshLine } from '@remixicon/react'
 import { Fab } from '@mui/material'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 
 /** FR-014: an instant on/off toggle for the viewer's automatic rotation, independent of the
  * view-mode control. Styled like `ThemeToggleButton.tsx` (research.md Decision 5) — a direct

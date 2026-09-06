@@ -352,8 +352,8 @@ public sealed class BoundaryResolutionServiceTests
         await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         await _streetViewImageProvider.Received(1).FetchAsync(
-            Arg.Is<IReadOnlyList<GeoPoint>>(viewpoints => viewpoints.Count == 4),
-            Arg.Is<GeoPoint>(lookAt => GeometryMath.DistanceMeters(lookAt, GeometryMath.Centroid(SamplePolygon.ExteriorRing)) < 0.01),
+            Arg.Is<IReadOnlyList<GeoPoint>>(viewpoints => viewpoints!.Count == 4),
+            Arg.Is<GeoPoint>(lookAt => GeometryMath.DistanceMeters(lookAt!, GeometryMath.Centroid(SamplePolygon.ExteriorRing)) < 0.01),
             Arg.Any<CancellationToken>());
     }
 
@@ -384,7 +384,7 @@ public sealed class BoundaryResolutionServiceTests
         await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
 
         await _streetViewImageProvider.Received(1).FetchAsync(
-            Arg.Is<IReadOnlyList<GeoPoint>>(viewpoints => viewpoints.Count == 3),
+            Arg.Is<IReadOnlyList<GeoPoint>>(viewpoints => viewpoints!.Count == 3),
             Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>());
     }
 

@@ -13,7 +13,7 @@ import {
 } from '@remixicon/react'
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 import { useCurrentWeather } from '../hooks/useCurrentWeather'
 import type { WeatherCondition } from '../api/weatherApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'

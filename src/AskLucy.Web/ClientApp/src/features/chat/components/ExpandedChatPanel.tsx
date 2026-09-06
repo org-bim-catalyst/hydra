@@ -8,7 +8,7 @@ import {
 } from '@remixicon/react'
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material'
 import { useEffect, useRef, type ReactNode } from 'react'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 import { radius } from '../../../theme'
 import { LucyPortrait } from '../branding/LucyPortrait'
 import { ActiveLanguageFlag } from './ActiveLanguageFlag'

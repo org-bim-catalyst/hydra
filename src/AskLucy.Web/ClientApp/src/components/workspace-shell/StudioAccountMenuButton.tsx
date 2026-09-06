@@ -1,7 +1,7 @@
 import { RiUserSettingsLine } from '@remixicon/react'
 import { Fab } from '@mui/material'
 import { UserMenu } from '../UserMenu'
-import { CIRCULAR_ACTION_CHROME } from './CircularAction'
+import { CIRCULAR_ACTION_CHROME } from './circularActionChrome'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
 
 /**

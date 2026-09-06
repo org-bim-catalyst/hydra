@@ -7,7 +7,7 @@ import {
   RiVolumeUpLine,
 } from '@remixicon/react'
 import { IconButton, Stack, Tooltip } from '@mui/material'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 import type { MicrophonePermissionState } from '../voice/useSpeechRecognition'
 import type { RecordingPhase } from '../voice/useVoiceRecorder'
 import { RecordingReviewControls } from './RecordingReviewControls'

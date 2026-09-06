@@ -19,6 +19,18 @@ import { SiteBoundaryConfidenceBadge } from './SiteBoundaryConfidenceBadge'
 const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
 
+// specs/038-viewer-poi-zoom: fallback altitude table when viewport is absent. Module-level (not
+// recreated in the component body) so the useEffect below that reads it doesn't need it in its
+// dependency array — a fresh object literal every render would otherwise either be a missing-dep
+// lint warning or, if added, re-run the effect on every render.
+const LOCATION_TYPE_ALTITUDE: Record<string, number> = {
+  ROOFTOP: 200,
+  RANGE_INTERPOLATED: 200,
+  GEOMETRIC_CENTER: 800,
+  APPROXIMATE: 8000,
+}
+const DEFAULT_ALTITUDE = 2000
+
 declare global {
   interface Window {
     __askLucyFloatingPanelStore?: typeof useFloatingPanelStore
@@ -60,15 +72,6 @@ export function ViewerSurface() {
   // specs/038-viewer-poi-zoom: viewport and locationType drive altitude-accurate zoom.
   const viewport = useActiveLocationStore((s) => s.viewport)
   const locationType = useActiveLocationStore((s) => s.locationType)
-
-  // specs/038-viewer-poi-zoom: fallback altitude table when viewport is absent.
-  const LOCATION_TYPE_ALTITUDE: Record<string, number> = {
-    ROOFTOP: 200,
-    RANGE_INTERPOLATED: 200,
-    GEOMETRIC_CENTER: 800,
-    APPROXIMATE: 8000,
-  }
-  const DEFAULT_ALTITUDE = 2000
 
   useEffect(() => {
     const store = useViewerEngineStore.getState()

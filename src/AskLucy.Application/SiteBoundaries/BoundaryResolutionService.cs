@@ -413,7 +413,7 @@ public sealed class BoundaryResolutionService(
     /// says it may or may not repeat its first point as its last, and a candidate source that
     /// omits the closing point must not silently lose its final edge.
     /// </remarks>
-    private static IReadOnlyList<GeoPoint> PerimeterViewpointsFor(IReadOnlyList<GeoPoint> ring)
+    private static List<GeoPoint> PerimeterViewpointsFor(IReadOnlyList<GeoPoint> ring)
     {
         if (ring.Count < 3)
         {

@@ -1,6 +1,6 @@
 import { RiDraggable } from '@remixicon/react'
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 import { radius } from '../../../theme'
 import { VoiceAnalyzer, type VoiceAnalyzerState } from './VoiceAnalyzer'
 import { CollapsedVoiceControls, type VoiceControlsProps } from './CollapsedVoiceControls'

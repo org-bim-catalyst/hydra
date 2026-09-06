@@ -1,7 +1,7 @@
 import { Box } from '@mui/material'
 import { useEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/CircularAction'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
 
 export type VoiceAnalyzerState = 'idle' | 'processing' | 'speaking' | 'listening'
 

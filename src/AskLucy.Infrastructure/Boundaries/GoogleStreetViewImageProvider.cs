@@ -13,6 +13,13 @@ internal static partial class GoogleStreetViewImageProviderLog
     [LoggerMessage(Level = LogLevel.Debug, Message = "No Street View coverage near ({Latitude}, {Longitude}): {Status}")]
     public static partial void NoCoverage(ILogger logger, double latitude, double longitude, string status);
 
+    // Distinct from NoCoverage(string) so an HTTP failure's status code can be passed as its own
+    // structured parameter rather than pre-formatted into a string at the call site — building
+    // that string (a cast plus interpolation) happened unconditionally even when Debug logging
+    // was disabled (CA1873); a raw int argument costs nothing to pass either way.
+    [LoggerMessage(Level = LogLevel.Debug, Message = "No Street View coverage near ({Latitude}, {Longitude}): {Context} HTTP {StatusCode}")]
+    public static partial void NoCoverageHttpFailure(ILogger logger, double latitude, double longitude, string context, int statusCode);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Street View fetch threw for ({Latitude}, {Longitude})")]
     public static partial void FetchException(ILogger logger, Exception exception, double latitude, double longitude);
 }
@@ -90,7 +97,7 @@ internal sealed class GoogleStreetViewImageProvider(
             using var metadataResponse = await httpClient.GetAsync(metadataUrl, cancellationToken);
             if (!metadataResponse.IsSuccessStatusCode)
             {
-                GoogleStreetViewImageProviderLog.NoCoverage(logger, viewpoint.Latitude, viewpoint.Longitude, $"HTTP {(int)metadataResponse.StatusCode}");
+                GoogleStreetViewImageProviderLog.NoCoverageHttpFailure(logger, viewpoint.Latitude, viewpoint.Longitude, "metadata request", (int)metadataResponse.StatusCode);
                 return null;
             }
 
@@ -146,7 +153,7 @@ internal sealed class GoogleStreetViewImageProvider(
             var contentType = imageResponse.Content.Headers.ContentType?.MediaType;
             if (!imageResponse.IsSuccessStatusCode || contentType is null || !contentType.StartsWith("image", StringComparison.OrdinalIgnoreCase))
             {
-                GoogleStreetViewImageProviderLog.NoCoverage(logger, viewpoint.Latitude, viewpoint.Longitude, $"image request HTTP {(int)imageResponse.StatusCode}");
+                GoogleStreetViewImageProviderLog.NoCoverageHttpFailure(logger, viewpoint.Latitude, viewpoint.Longitude, "image request", (int)imageResponse.StatusCode);
                 return null;
             }
 
