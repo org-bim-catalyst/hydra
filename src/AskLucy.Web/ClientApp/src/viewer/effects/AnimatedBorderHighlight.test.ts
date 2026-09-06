@@ -164,6 +164,24 @@ describe('createAnimatedBorderHighlight', () => {
       expect((ring.material as THREE.ShaderMaterial).uniforms.uIntro.value).toBe(1)
     })
 
+    it('repeats the shockwave as an ambient heartbeat, without re-fading the already-lit border ring', () => {
+      const highlight = createAnimatedBorderHighlight(squareRing, 'high')
+      const ring = findBorderRing(highlight) as THREE.Mesh
+      const material = ring.material as THREE.ShaderMaterial
+
+      highlight.update(2) // finishes the first pulse — uIntro settles to 1 (existing behaviour)
+      expect(findShockwaveLines(highlight)).toHaveLength(0)
+      expect(material.uniforms.uIntro.value).toBe(1)
+
+      highlight.update(1.4) // time since last pulse: 3.4s, just under the 3.5s repeat interval
+      expect(findShockwaveLines(highlight)).toHaveLength(0)
+
+      highlight.update(0.2) // crosses the repeat interval — a second pulse fires, still mid-flight
+      expect(findShockwaveLines(highlight)).toHaveLength(3)
+      // The repeat pulse must not have dimmed the already-lit border ring back down.
+      expect(material.uniforms.uIntro.value).toBe(1)
+    })
+
     it('never builds a shockwave for low confidence', () => {
       const highlight = createAnimatedBorderHighlight(squareRing, 'low')
       highlight.update(0.1)

@@ -50,8 +50,10 @@ const BORDER_OPACITY_MEDIUM = 0.75
 // `update`'s `metersPerPixel` param) targeting a fixed PIXEL width, not a fixed metre one.
 // `BORDER_WIDTH_RATIO`/`BORDER_INITIAL_HALF_WIDTH_METERS` below are only the fallback used before
 // the first real camera frame arrives (or in tests, which don't pass zoom info).
-const TARGET_BORDER_PIXEL_WIDTH = 4 // slightly wider than the native polygon's strokeWeight: 3,
-// so the ring reads as sitting visually on top of — not competing with — that always-on fallback.
+// The native google.maps.Polygon fallback stroke is thinned to strokeWeight: 1 for medium/high
+// (see GoogleMapsGisLayer's BOUNDARY_STYLE) specifically so this ring reads as the dominant
+// boundary indicator rather than competing with an equally bold native line.
+const TARGET_BORDER_PIXEL_WIDTH = 6
 const BORDER_MIN_HALF_WIDTH_METERS = 0.02
 const BORDER_WIDTH_RATIO = 0.002
 const BORDER_CORNER_SEGMENTS = 12
@@ -79,6 +81,9 @@ const SHOCKWAVE_COLOR_START = 0x9c62de
 const SHOCKWAVE_COLOR_END = 0x22d3ee
 const SHOCKWAVE_HALO_SCALES = [1.05, 1.1]
 const SHOCKWAVE_HALO_PEAK_OPACITIES = [0.5, 0.25]
+/** Time between the start of one "checkpoint reached" pulse and the next — an ambient heartbeat
+ * for as long as the boundary stays confirmed, not a one-off. */
+const SHOCKWAVE_REPEAT_INTERVAL_SECONDS = 3.5
 
 /**
  * specs/042-site-boundary-resolution — the confirmed boundary's border, for medium/high
@@ -285,9 +290,16 @@ export function createAnimatedBorderHighlight(
     coreGeometry: THREE.BufferGeometry
     coreMaterial: THREE.LineBasicMaterial
     halos: ShockwaveHalo[]
+    /** Only the very first pulse fades the border ring in from nothing; repeat pulses replay just
+     * the ripple on top of an already-lit ring, so it doesn't dim and re-fade every cycle. */
+    drivesBorderIntro: boolean
   } | null = null
   let activationElapsedSeconds = 0
   let activationActive = false
+  /** Time since the current pulse started — once it passes SHOCKWAVE_REPEAT_INTERVAL_SECONDS,
+   * `update()` fires another pulse. The "checkpoint reached" moment repeats as an ambient
+   * heartbeat for as long as the boundary stays confirmed, not just once. */
+  let timeSinceLastShockwave = 0
 
   function buildShockwaveRingGeometry(centeredPoints: THREE.Vector3[]): THREE.BufferGeometry {
     const geometry = new THREE.BufferGeometry().setFromPoints(centeredPoints)
@@ -305,7 +317,9 @@ export function createAnimatedBorderHighlight(
     return geometry
   }
 
-  function buildShockwave() {
+  function buildShockwave(drivesBorderIntro: boolean) {
+    disposeShockwave() // idempotent — safe to call while a pulse is still mid-flight
+
     const centeredPoints = points.map((p) => p.clone().sub(centroid))
 
     const coreGeometry = buildShockwaveRingGeometry(centeredPoints)
@@ -331,10 +345,10 @@ export function createAnimatedBorderHighlight(
       return { line, geometry, material, scaleMultiplier, peakOpacity: SHOCKWAVE_HALO_PEAK_OPACITIES[i] }
     })
 
-    shockwave = { coreLine, coreGeometry, coreMaterial, halos }
+    shockwave = { coreLine, coreGeometry, coreMaterial, halos, drivesBorderIntro }
     activationElapsedSeconds = 0
     activationActive = true
-    if (borderRing) borderRing.material.uniforms.uIntro.value = 0
+    if (drivesBorderIntro && borderRing) borderRing.material.uniforms.uIntro.value = 0
   }
 
   function disposeShockwave() {
@@ -367,11 +381,12 @@ export function createAnimatedBorderHighlight(
       halo.material.opacity = fade * halo.peakOpacity
     }
 
-    if (borderRing) borderRing.material.uniforms.uIntro.value = eased
+    const drivesBorderIntro = shockwave.drivesBorderIntro
+    if (drivesBorderIntro && borderRing) borderRing.material.uniforms.uIntro.value = eased
 
     if (t >= 1) {
       disposeShockwave()
-      if (borderRing) borderRing.material.uniforms.uIntro.value = 1
+      if (drivesBorderIntro && borderRing) borderRing.material.uniforms.uIntro.value = 1
     }
   }
 
@@ -398,7 +413,8 @@ export function createAnimatedBorderHighlight(
     buildBorderRing(rotationSeconds, targetOpacity)
 
     // Medium/high only — a low-confidence, approximate result doesn't get a celebratory arrival.
-    buildShockwave()
+    timeSinceLastShockwave = 0
+    buildShockwave(true)
   }
 
   buildForConfidence(initialConfidenceLevel)
@@ -414,6 +430,12 @@ export function createAnimatedBorderHighlight(
             (TARGET_BORDER_PIXEL_WIDTH / 2) * metersPerPixel,
             BORDER_MIN_HALF_WIDTH_METERS,
           )
+        }
+
+        timeSinceLastShockwave += deltaSeconds
+        if (timeSinceLastShockwave >= SHOCKWAVE_REPEAT_INTERVAL_SECONDS) {
+          timeSinceLastShockwave = 0
+          buildShockwave(false)
         }
       }
       advanceActivation(deltaSeconds)
