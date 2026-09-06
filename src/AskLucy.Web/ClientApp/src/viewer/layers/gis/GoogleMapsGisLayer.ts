@@ -29,6 +29,12 @@ export interface GoogleMapsGisLayerOptions {
    * `MapRenderTarget` reacts to a theme toggle by recreating this whole layer rather than by
    * calling a setter here. */
   colorScheme?: MapColorScheme
+  /** Initial camera heading/tilt in degrees (defaults: heading 0 = north-up, tilt 45 = the
+   * isometric default — `CAMERA_VIEW_MODE_TILT.isometric`). `MapRenderTarget` passes the
+   * previous map's live values here across a theme-toggle-triggered recreation, so the camera
+   * angle the user was looking from survives instead of resetting on every toggle. */
+  heading?: number
+  tilt?: number
   onLoaded?: () => void
 }
 
@@ -115,7 +121,8 @@ export async function createGoogleMapsGisLayer(
   const map = new Map(options.container, {
     center: { lat: options.center.latitude, lng: options.center.longitude },
     zoom: options.zoom ?? 15,
-    tilt: 45,
+    tilt: options.tilt ?? 45,
+    heading: options.heading ?? 0,
     ...(options.mapId ? { mapId: options.mapId } : {}),
     colorScheme:
       options.colorScheme === 'dark' ? google.maps.ColorScheme.DARK : google.maps.ColorScheme.LIGHT,

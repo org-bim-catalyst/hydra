@@ -10,13 +10,17 @@ export interface RotationTarget {
  * "resumes from a smooth, natural starting point rather than jumping abruptly" (US3-AC4). */
 export class RotationDriver {
   private frameId: number | null = null
-  private heading = 0
+  private heading: number
   private lastTimestamp: number | null = null
   private enabled = false
   private readonly target: RotationTarget
 
-  constructor(target: RotationTarget) {
+  /** `initialHeading` — lets a caller that recreates its render target (e.g. `MapRenderTarget`
+   * remounting the map on a theme toggle) seed the driver with the heading the old target was
+   * last showing, so resuming rotation continues from there instead of snapping to north. */
+  constructor(target: RotationTarget, initialHeading = 0) {
     this.target = target
+    this.heading = initialHeading
   }
 
   setEnabled(enabled: boolean): void {
