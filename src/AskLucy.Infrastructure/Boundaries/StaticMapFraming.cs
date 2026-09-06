@@ -17,7 +17,7 @@ internal static class StaticMapFraming
     public const int ImageSizePixels = 640;
 
     /// <summary>Static Maps rejects a larger zoom than this.</summary>
-    private const int MaxZoom = 20;
+    public const int MaxZoom = 20;
 
     /// <summary>Below this the image is too coarse to be worth analysing at all.</summary>
     private const int MinZoom = 14;
@@ -69,6 +69,30 @@ internal static class StaticMapFraming
         var south = InverseMercatorY((centerY + half) / worldSize);
 
         return (west, south, east, north);
+    }
+
+    /// <summary>
+    /// The point <paramref name="dxPixels"/>/<paramref name="dyPixels"/> scale-1 pixels away from
+    /// <paramref name="center"/> at <paramref name="zoom"/>, in the exact same Web Mercator pixel
+    /// space <see cref="CoveredBounds"/> already uses. Exists for tiling: a caller fetching several
+    /// adjacent Static Maps frames to stitch into one larger, higher-resolution image needs their
+    /// centres to land exactly edge-to-edge with zero gap or overlap, which only pixel-space offsets
+    /// (not a separate lat/lng-metres approximation) guarantee — confirmed live: four tiles offset
+    /// by ±<see cref="ImageSizePixels"/>/2 this way produced a stitched frame whose overall bounds
+    /// matched a single lower-zoom tile's bounds to full floating-point precision, no seam.
+    /// </summary>
+    public static GeoPoint OffsetByPixels(GeoPoint center, int zoom, double dxPixels, double dyPixels)
+    {
+        var worldSize = 256.0 * Math.Pow(2, zoom);
+        var centerX = (center.Longitude + 180.0) / 360.0 * worldSize;
+        var centerY = MercatorY(center.Latitude) * worldSize;
+
+        var newX = centerX + dxPixels;
+        var newY = centerY + dyPixels;
+
+        var newLongitude = (newX / worldSize * 360.0) - 180.0;
+        var newLatitude = InverseMercatorY(newY / worldSize);
+        return new GeoPoint(newLatitude, newLongitude);
     }
 
     private static double MercatorY(double latitude)

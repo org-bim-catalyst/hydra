@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Web;
@@ -51,19 +52,26 @@ public sealed class GoogleRenderedFillBoundaryExtractorTests
     [Fact]
     public async Task TryExtractAsync_ShouldForceTheRequestedFeatureToAKnownDistinctColour()
     {
+        // A live-image radius of 150 leaves headroom under Static Maps' zoom ceiling, so this
+        // exercises the tiled (four-request) path, not a single request - every one of those
+        // requests must carry the same style overrides.
         var extractor = CreateExtractor(out var requested);
 
         await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
 
-        var query = HttpUtility.ParseQueryString(requested.Single().Query);
-        var styles = query.GetValues("style");
-        styles.Should().NotBeNull();
-        // Pure green: nothing else this renders is a saturated green, so thresholding for it later
-        // has no ambiguity to resolve.
-        styles.Should().Contain("feature:poi.park|element:geometry.fill|color:0x00FF00");
-        // terrain, not roadmap: confirmed live that terrain doesn't render building footprints at
-        // all, which was the actual cause of a real building punching a hole through the fill.
-        query["maptype"].Should().Be("terrain");
+        requested.Should().NotBeEmpty();
+        foreach (var uri in requested)
+        {
+            var query = HttpUtility.ParseQueryString(uri.Query);
+            var styles = query.GetValues("style");
+            styles.Should().NotBeNull();
+            // Pure green: nothing else this renders is a saturated green, so thresholding for it
+            // later has no ambiguity to resolve.
+            styles.Should().Contain("feature:poi.park|element:geometry.fill|color:0x00FF00");
+            // terrain, not roadmap: confirmed live that terrain doesn't render building footprints
+            // at all, which was the actual cause of a real building punching a hole through the fill.
+            query["maptype"].Should().Be("terrain");
+        }
     }
 
     [Fact]
@@ -76,9 +84,29 @@ public sealed class GoogleRenderedFillBoundaryExtractorTests
 
         await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
 
-        var query = HttpUtility.ParseQueryString(requested.Single().Query);
-        var styles = query.GetValues("style");
-        styles.Should().Contain("feature:all|element:labels|visibility:off");
+        requested.Should().NotBeEmpty();
+        foreach (var uri in requested)
+        {
+            var query = HttpUtility.ParseQueryString(uri.Query);
+            query.GetValues("style").Should().Contain("feature:all|element:labels|visibility:off");
+        }
+    }
+
+    [Fact]
+    public async Task TryExtractAsync_ShouldRequestFourTiles_WhenTheFitZoomHasRoomToGoHigher()
+    {
+        // §9.8 tiling: at a comfortable radius, the extractor should fetch a 2x2 grid one zoom
+        // level above the single-tile fit zoom rather than a single frame.
+        var extractor = CreateExtractor(out var requested);
+
+        await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
+
+        requested.Should().HaveCount(4);
+        var zooms = requested
+            .Select(u => int.Parse(HttpUtility.ParseQueryString(u.Query)["zoom"]!, CultureInfo.InvariantCulture))
+            .Distinct()
+            .ToList();
+        zooms.Should().ContainSingle("all four tiles must be fetched at the same zoom level to stitch cleanly");
     }
 
     [Fact]
