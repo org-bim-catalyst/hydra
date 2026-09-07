@@ -27,14 +27,13 @@ uniform float uFresnelOffset;
 uniform float uFresnelMultiplier;
 uniform float uFresnelPower;
 
-// Blinn-Phong specular highlights, tinted by each light's own color rather than white — a
-// dielectric (plastic, skin) reflects specular highlights in the light's color regardless of
-// the surface's own hue; a metal tints its specular by the *surface* color instead, but since
-// this sphere's own "surface color" already comes from these same two lights (there's no
-// separate base albedo to tint by), tinting by light color reads the same way and is what
-// actually gives the "polished metal catching a colored light" look requested (live user
-// review, 2026-09-07) — small, tight, view-angle-dependent glints on top of the existing
-// diffuse+fresnel shading, rather than changing that shading itself.
+// Blinn-Phong specular highlights. Switched from light-tinted to white (live user review,
+// 2026-09-07 — "instead of metal make it glass"): a metal tints its specular by the surface's
+// own color; a dielectric (glass, plastic) reflects specular in the *light's* color regardless
+// of the surface's own hue — since these lights are effectively white-balanced highlights on a
+// colored surface here, white specular is what actually reads as glass/dielectric rather than
+// polished metal. Shininess raised and tightened for small, crisp, bright glass-like glints
+// rather than the softer metallic sheen the previous (colored, lower-shininess) version had.
 uniform float uSpecularShininess;
 uniform float uSpecularStrength;
 
@@ -65,7 +64,7 @@ void main() {
   vec3 halfwayB = normalize(lightBDir + toCamera);
   float specularA = pow(max(0.0, dot(normal, halfwayA)), uSpecularShininess);
   float specularB = pow(max(0.0, dot(normal, halfwayB)), uSpecularShininess);
-  color += (uLightAColor * specularA + uLightBColor * specularB) * uSpecularStrength;
+  color += vec3(1.0) * (specularA + specularB) * uSpecularStrength;
 
   gl_FragColor = vec4(color, 1.0);
 }
