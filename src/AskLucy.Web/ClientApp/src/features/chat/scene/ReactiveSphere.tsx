@@ -74,10 +74,10 @@ const NOISE_FREQUENCY = 2.12
 // at rest; uAudioLevel/uDisplacementScale below add the louder, more energetic "voltviz when
 // speaking" reactivity on top of it.
 const IDLE_DISPLACEMENT = 0.15
-// Raised to 0.9 for a punchier "voltviz when speaking" reaction, then brought back down to 0.5
-// (live user feedback: 0.9 was too strong). audioLevel(0..1) times this is the sphere's
-// *additional* displacement at full volume, on top of IDLE_DISPLACEMENT above.
-const DISPLACEMENT_SCALE = 0.5
+// Raised to 0.9 for a punchier "voltviz when speaking" reaction, brought down to 0.5, then 0.2
+// (live user feedback: both prior values were too strong). audioLevel(0..1) times this is the
+// sphere's *additional* displacement at full volume, on top of IDLE_DISPLACEMENT above.
+const DISPLACEMENT_SCALE = 0.2
 // How fast the noise pattern itself evolves over time, independent of audio — voltviz's
 // equivalent is `elapsed * settings.speed`.
 const TIME_SPEED = 0.3
@@ -199,6 +199,12 @@ export function ReactiveSphere({
           fragmentShader={fragmentShader}
           uniforms={uniforms}
           defines={TANGENT_DEFINES}
+          // Real glass-like transparency (sphere.frag.glsl's GLASS_ALPHA_CENTER/EDGE, live user
+          // review 2026-09-07) — depthWrite off is standard practice for transparent materials
+          // so this sphere never occludes anything behind it in the depth buffer, even though
+          // nothing else currently shares this scene.
+          transparent
+          depthWrite={false}
         />
       </mesh>
     </group>
