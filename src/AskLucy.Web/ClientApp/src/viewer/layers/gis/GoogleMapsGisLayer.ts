@@ -209,13 +209,18 @@ export async function createGoogleMapsGisLayer(
     // cheap, broadly effective way to reduce GPU load for a bridged external renderer we
     // don't otherwise control the render loop of.
     //
-    // TEMPORARY DIAGNOSTIC TEST (live user request, 2026-09-07): forced to 1 unconditionally,
-    // ignoring reducedQuality/devicePixelRatio, to test whether this concurrent WebGLOverlayView
-    // Three.js bridge is the real shared-GPU cost behind AiPresenceCard's sphere (scene/) losing
-    // sustained fps on an RTX 4060 -- a hypothesis, not yet confirmed. shouldReduceMapQuality()
-    // only checks viewport width, never GPU capability, so on a desktop-width window this
-    // renderer always ran at full min(devicePixelRatio, 2) regardless of actual GPU tier. Revert
-    // to the line above once the test result is in, whichever way it points.
+    // Always 1, not conditional on reducedQuality/devicePixelRatio (confirmed via a live A/B
+    // test, 2026-09-07: forcing 1 unconditionally took AiPresenceCard's sphere -- a separate
+    // component sharing this page's GPU -- from a sustained 28-36fps to a steady 64fps on an
+    // RTX 4060, with no visible quality loss on either that machine or an RTX 3080; the prior
+    // min(devicePixelRatio, 2) upper bound was the actual dominant GPU cost on this page, not
+    // the sphere's own rendering, which had already been cut twice with no measurable effect).
+    // shouldReduceMapQuality() only checks viewport width, never GPU capability, so on any
+    // desktop-width window this renderer previously always ran at that full, uncapped
+    // resolution regardless of the GPU's real capability. What this renders -- the animated
+    // site-boundary highlight ring (siteBoundaryRenderer below), not the map's own basemap
+    // tiles, which Google's native renderer draws separately at full quality -- doesn't need
+    // more than 1x to read clearly, so there's no real quality/cost tradeoff being made here.
     renderer.setPixelRatio(1)
   }
 
