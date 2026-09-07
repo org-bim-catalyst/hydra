@@ -31,6 +31,12 @@ const DISTORTION_FREQUENCY = 1.5
 const DISPLACEMENT_FREQUENCY = 2.12
 const FRESNEL_OFFSET = -0.8
 const FRESNEL_POWER = 1.793
+// Blinn-Phong specular tuning (live user review, 2026-09-07 — "more metallic") — see
+// sphere.frag.glsl's header for why these are tinted by light color rather than white.
+// Shininess this high keeps the highlight small and tight (polished metal), not a soft plastic
+// sheen; strength is deliberately modest so it reads as a glint, not a wash.
+const SPECULAR_SHININESS = 48
+const SPECULAR_STRENGTH = 0.6
 
 // Hue-cycling palette (live user review, 2026-09-07) — inspired by vizz.fm's "Polar Curves"
 // visualizer, which cycles through a handful of preset hues rather than sitting on one fixed
@@ -198,6 +204,8 @@ export function ReactiveSphere({
       uFresnelOffset: { value: FRESNEL_OFFSET },
       uFresnelMultiplier: { value: MEDIUM_LEVEL_DEFAULT },
       uFresnelPower: { value: FRESNEL_POWER },
+      uSpecularShininess: { value: SPECULAR_SHININESS },
+      uSpecularStrength: { value: SPECULAR_STRENGTH },
       uTime: { value: 0 },
     }),
     // Initial values only — colors/theme mode are applied to the existing uniforms in

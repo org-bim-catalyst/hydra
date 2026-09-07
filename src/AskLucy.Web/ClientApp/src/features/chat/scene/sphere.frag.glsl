@@ -27,23 +27,45 @@ uniform float uFresnelOffset;
 uniform float uFresnelMultiplier;
 uniform float uFresnelPower;
 
+// Blinn-Phong specular highlights, tinted by each light's own color rather than white — a
+// dielectric (plastic, skin) reflects specular highlights in the light's color regardless of
+// the surface's own hue; a metal tints its specular by the *surface* color instead, but since
+// this sphere's own "surface color" already comes from these same two lights (there's no
+// separate base albedo to tint by), tinting by light color reads the same way and is what
+// actually gives the "polished metal catching a colored light" look requested (live user
+// review, 2026-09-07) — small, tight, view-angle-dependent glints on top of the existing
+// diffuse+fresnel shading, rather than changing that shading itself.
+uniform float uSpecularShininess;
+uniform float uSpecularStrength;
+
 varying vec3 vNormal;
 varying vec3 vViewDirection;
 
 void main() {
   vec3 normal = normalize(vNormal);
   vec3 viewDirection = normalize(vViewDirection);
+  // Toward the camera, for specular — vViewDirection itself points the other way (surface to
+  // camera is what's needed to reflect off, not camera to surface).
+  vec3 toCamera = -viewDirection;
 
   float fresnel = uFresnelOffset + (1.0 + dot(viewDirection, normal)) * uFresnelMultiplier;
   fresnel = pow(max(0.0, fresnel), uFresnelPower);
 
-  float lightAIntensity = max(0.0, -dot(normal, normalize(-uLightAPosition))) * uLightAIntensity;
-  float lightBIntensity = max(0.0, -dot(normal, normalize(-uLightBPosition))) * uLightBIntensity;
+  vec3 lightADir = normalize(uLightAPosition);
+  vec3 lightBDir = normalize(uLightBPosition);
+  float lightAIntensity = max(0.0, dot(normal, lightADir)) * uLightAIntensity;
+  float lightBIntensity = max(0.0, dot(normal, lightBDir)) * uLightBIntensity;
 
   vec3 color = mix(uLightAColor, uLightBColor, 0.5) * AMBIENT_STRENGTH;
   color = mix(color, uLightAColor, lightAIntensity * fresnel);
   color = mix(color, uLightBColor, lightBIntensity * fresnel);
   color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.8), 3.0), 0.0, 1.0));
+
+  vec3 halfwayA = normalize(lightADir + toCamera);
+  vec3 halfwayB = normalize(lightBDir + toCamera);
+  float specularA = pow(max(0.0, dot(normal, halfwayA)), uSpecularShininess);
+  float specularB = pow(max(0.0, dot(normal, halfwayB)), uSpecularShininess);
+  color += (uLightAColor * specularA + uLightBColor * specularB) * uSpecularStrength;
 
   gl_FragColor = vec4(color, 1.0);
 }

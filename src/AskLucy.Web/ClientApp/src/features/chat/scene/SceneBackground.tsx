@@ -72,8 +72,8 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
   // `isReady` flag just cross-fades the canvas in on top of it once R3F's `onCreated`
   // signals the WebGL context actually exists, instead of popping in abruptly.
   const [isReady, setIsReady] = useState(false)
-  // FR-004/research.md §3: shared with ParticleSphereBloom's `selection` so the scoped bloom
-  // pass targets exactly this object, not the rest of the scene.
+  // FR-004/research.md §3: shared with SphereBloom's `selection` so the scoped bloom pass
+  // targets exactly this object, not the rest of the scene.
   const sphereGroupRef = useRef<Group>(null)
 
   if (tier === 'static-fallback') {
@@ -97,6 +97,18 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           // Belt and braces: a background on the canvas or its wrapper would hide the
           // renderer's alpha just as effectively as clearing opaque.
           '& canvas': { outline: 'none', background: 'transparent' },
+          // Live user review, 2026-09-07: bloom alone (SphereBloom.tsx) only separates the
+          // sphere from a *dark* card — brightening pixels against a light-mode card just
+          // blends into it. CSS `filter: drop-shadow()` (unlike `box-shadow`, which is
+          // rectangular) reads the canvas's own alpha channel — opaque where the sphere is
+          // drawn, fully transparent everywhere else (the `gl.setClearAlpha(0)` above) — so
+          // the shadow hugs the sphere's actual silhouette, the same way a Photoshop layer
+          // style's Drop Shadow/Outer Glow follows a layer's alpha rather than its bounding
+          // box. Darker/stronger in light mode, where separation is otherwise hardest.
+          filter: (t) =>
+            t.palette.mode === 'dark'
+              ? 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45))'
+              : 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.4))',
         }}
       >
         <Canvas
