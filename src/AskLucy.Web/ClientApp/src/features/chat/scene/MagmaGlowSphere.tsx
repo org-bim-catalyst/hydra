@@ -49,6 +49,29 @@ const GROUP_BREATH_SCALE = 0.5
 const scratchIdleColor = new THREE.Color()
 const scratchReactiveColor = new THREE.Color()
 
+// THREE.AdditiveBlending's preset also blends the ALPHA channel additively (blendEquationAlpha:
+// AddEquation, blendSrcAlpha: SrcAlphaFactor, blendDstAlpha: OneFactor), not just RGB - each of
+// these 3 large, overlapping additive layers therefore ADDS to the canvas's alpha channel
+// wherever they overlap, and that sum saturates to fully opaque well before the visible RGB
+// brightness would suggest it should. Confirmed live, 2026-09-07: a solid black square (matching
+// OutGlow's own sprite geometry) appeared once zoomed out far enough to see past the sphere's own
+// silhouette, and persisted even after scoping SphereBloom's selection away from these layers
+// entirely - ruling out bloom/postprocessing as the cause and pointing at this blending default
+// instead. CustomBlending here keeps the exact same additive RGB look (blendSrc: SrcAlphaFactor,
+// blendDst: OneFactor, matching AdditiveBlending's own RGB factors) but zeroes the alpha
+// channel's own source contribution (blendSrcAlpha: ZeroFactor, blendDstAlpha: OneFactor), so
+// these layers can never push the canvas's destination alpha away from whatever the base scene
+// already established.
+const ADDITIVE_RGB_ONLY_BLENDING = {
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation,
+  blendSrc: THREE.SrcAlphaFactor,
+  blendDst: THREE.OneFactor,
+  blendEquationAlpha: THREE.AddEquation,
+  blendSrcAlpha: THREE.ZeroFactor,
+  blendDstAlpha: THREE.OneFactor,
+} as const
+
 interface MagmaGlowSphereProps {
   /** Same real per-band FFT getter ReactiveSphere/SphereBloom already read every frame - see
    * ReactiveSphere.tsx's own doc comment for why this is a ref-based getter, not a prop value. */
@@ -155,7 +178,7 @@ export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowS
         <meshBasicMaterial
           ref={auraMaterialRef}
           map={auraMap}
-          blending={THREE.AdditiveBlending}
+          {...ADDITIVE_RGB_ONLY_BLENDING}
           transparent
           depthWrite={false}
         />
@@ -167,7 +190,7 @@ export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowS
           vertexShader={vertexShader}
           fragmentShader={fragmentShader}
           uniforms={inGlowUniforms}
-          blending={THREE.AdditiveBlending}
+          {...ADDITIVE_RGB_ONLY_BLENDING}
           transparent
           depthWrite={false}
           side={THREE.FrontSide}
@@ -177,7 +200,7 @@ export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowS
         <spriteMaterial
           ref={outGlowMaterialRef}
           map={outGlowMap}
-          blending={THREE.AdditiveBlending}
+          {...ADDITIVE_RGB_ONLY_BLENDING}
           transparent
           depthWrite={false}
         />
