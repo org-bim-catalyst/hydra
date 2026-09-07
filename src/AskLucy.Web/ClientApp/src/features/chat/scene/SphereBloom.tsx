@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { EffectComposer, SelectiveBloom } from '@react-three/postprocessing'
 import { KernelSize, type SelectiveBloomEffect } from 'postprocessing'
-import { type RefObject, useRef } from 'react'
+import { memo, type RefObject, useRef } from 'react'
 import type { Group, Object3D } from 'three'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 
@@ -56,8 +56,24 @@ interface SphereBloomProps {
 /** Scoped glow around the sphere's brightest pixels (its fresnel rim highlight) — faint at
  * rest, just enough to separate the sphere from the card background in both light and dark
  * theme, brightening with real speech volume rather than a dramatic constant halo
- * (spec 011-particle-sphere-engine FR-004). */
-export function SphereBloom({ sphereRef, getFrequencyBands }: SphereBloomProps) {
+ * (spec 011-particle-sphere-engine FR-004).
+ *
+ * `memo`'d deliberately, not just as a habit: `@react-three/postprocessing`'s own
+ * `SelectiveBloom` rebuilds its whole `SelectiveBloomEffect` (new WebGL render targets, mipmap
+ * chain, shader compile) from scratch on every render, because its internal `useMemo` depends on
+ * a rest-spread `props` object that JSX gives a fresh identity every render regardless of
+ * whether any actual value changed — and the underlying `<primitive dispose={null}>` never frees
+ * the replaced instance's GPU resources. `ChatPage` (this component's distant ancestor) re-renders
+ * very often during an active conversation — streamed tokens, voice state — and without this
+ * memo, every one of those cascaded down and silently rebuilt+leaked a new bloom effect. Live
+ * evidence, 2026-09-07 (RTX 3080): a session stable at fps=148/factor=1.00 for 10+ minutes
+ * collapsed to fps=78 after several TTS speech turns, with "SelectiveBloom requires lights to
+ * work" (fired once per effect construction) logged dozens of times over that session, plus a
+ * "Layer out of range, resetting to 2" three.js warning consistent with each new effect
+ * instance claiming another of the 32 available render layers. `sphereRef`/`getFrequencyBands`
+ * are both referentially stable for the component's lifetime (a plain ref and a `useCallback(
+ * ..., [])`), so this memo now makes SphereBloom mount its effect exactly once per session. */
+export const SphereBloom = memo(function SphereBloom({ sphereRef, getFrequencyBands }: SphereBloomProps) {
   const bloomRef = useRef<SelectiveBloomEffect>(null)
   const volume = useRef(0)
 
@@ -95,4 +111,4 @@ export function SphereBloom({ sphereRef, getFrequencyBands }: SphereBloomProps) 
       />
     </EffectComposer>
   )
-}
+})
