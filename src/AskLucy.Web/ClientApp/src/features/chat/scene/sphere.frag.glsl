@@ -15,6 +15,14 @@
 // ambient base tint (so the whole surface reads as colored, not just the rim) and a softened
 // fresnel offset (so more of the surface — not only the grazing edge — picks up light).
 const float AMBIENT_STRENGTH = 0.16;
+// Sharper, wider white rim highlight (live user review, 2026-09-07 — pushing further on
+// "glass" after real transparency turned out not to work with the current bloom pipeline;
+// see below). Lower threshold = the highlight starts kicking in earlier across the fresnel
+// falloff, reading as a broader glassy edge-glow rather than a thin line right at the
+// silhouette; lower exponent softens/widens that glow instead of a hard cutoff. Paired with
+// FRESNEL_POWER raised in ReactiveSphere.tsx for a steeper overall falloff.
+const RIM_HIGHLIGHT_THRESHOLD = 0.55;
+const RIM_HIGHLIGHT_EXPONENT = 2.5;
 
 // Real see-through transparency (fresnel-driven alpha) was tried here and reverted (live user
 // review, 2026-09-07): with SphereBloom.tsx's SelectiveBloom/EffectComposer pipeline active,
@@ -65,7 +73,7 @@ void main() {
   vec3 color = mix(uLightAColor, uLightBColor, 0.5) * AMBIENT_STRENGTH;
   color = mix(color, uLightAColor, lightAIntensity * fresnel);
   color = mix(color, uLightBColor, lightBIntensity * fresnel);
-  color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.8), 3.0), 0.0, 1.0));
+  color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - RIM_HIGHLIGHT_THRESHOLD), RIM_HIGHLIGHT_EXPONENT), 0.0, 1.0));
 
   vec3 halfwayA = normalize(lightADir + toCamera);
   vec3 halfwayB = normalize(lightBDir + toCamera);
