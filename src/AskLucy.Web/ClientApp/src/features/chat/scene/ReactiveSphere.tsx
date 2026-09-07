@@ -1,108 +1,64 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useMemo, useRef } from 'react'
+import { createNoise2D } from 'simplex-noise'
 import * as THREE from 'three'
 import { useThemeStore } from '../../../store/themeStore'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
+import { getDotMeshColors } from './dotMeshTheme'
+import { generateFibonacciSpherePositions } from './generateFibonacciSpherePositions'
+import { computeBreathValue } from './sphereBreath'
+import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import fragmentShader from './sphere.frag.glsl?raw'
 import vertexShader from './sphere.vert.glsl?raw'
 
+const IDLE_AMPLITUDE = 0.06
+const IDLE_FREQUENCY = 1.4
+const REACTIVE_AMPLITUDE_MAX = 0.35
+const REACTIVE_FREQUENCY_MAX = 2.2
+const IDLE_ROTATION_SPEED = 0.08 // rad/s
 const SPHERE_RADIUS = 1.4
+const BREATH_FREQUENCY = 0.6 // rad/s - slower than IDLE_FREQUENCY's noise wobble
+const BREATH_AMPLITUDE = 0.035 // subtle relative to REACTIVE_AMPLITUDE_MAX's 0.35
 
-// SphereGeometry subdivision per quality tier — the reference project (organic-sphere,
-// user-supplied source, 2026-09-07) uses 512x512 for a full-viewport hero demo; this sphere
-// lives in a ~278px card, so both tiers are cut down heavily for cost with no visible loss of
-// smoothness at that size. 'reduced' stays coarser for the mobile breakpoint.
-const SEGMENTS_BY_TIER = { full: 128, reduced: 48 } as const
-
-const TANGENT_DEFINES = { USE_TANGENT: '' } as const
-
-// Static light directions/intensities/fresnel tuning, ported from the reference's Sphere.js
-// `setMaterial()`. FRESNEL_OFFSET is one deliberate deviation (see sphere.frag.glsl's header,
-// live user review 2026-09-07): the reference's -1.609 clamps every near-head-on fragment to
-// pure black, which reads as "no color" in this app's small card even though it's dramatic in
-// the reference's full-viewport hero demo. The two light *colors* are a second deviation — see
-// the hue-cycling block below — everything else here shapes the sphere's form and was tuned by
-// the reference's author, not something this app has an opinion on.
-const LIGHT_A_SPHERICAL = new THREE.Spherical(1, 0.615, 2.049)
-const LIGHT_B_SPHERICAL = new THREE.Spherical(1, 2.561, -1.844)
-const LIGHT_A_INTENSITY = 1.85
-const LIGHT_B_INTENSITY = 1.4
-const FRESNEL_OFFSET = -0.8
-const FRESNEL_POWER = 1.793
-// Blinn-Phong specular tuning ("silver metal", live user review, 2026-09-07 — see
-// sphere.frag.glsl's header for the brief "glass" experiment reverted here). Shininess this
-// high keeps the highlight small and tight (polished metal), not a soft plastic sheen; strength
-// is deliberately modest so it reads as a glint, not a wash.
-const SPECULAR_SHININESS = 48
-const SPECULAR_STRENGTH = 0.6
-
-// Continuous full-spectrum hue rotation ("rotating RGB", live user request 2026-09-07) —
-// replaces an earlier version that crossfaded between four hand-picked preset hues (vizz.fm's
-// "Polar Curves"-inspired look) with a smooth, unbroken cycle through the entire color wheel
-// instead of stepping between a handful of chosen colors.
-const HUE_ROTATION_PERIOD_SECONDS = 45 // one full 360° loop
-const SATURATION = 0.85
-// Per-mode base lightness for the two lights — dark mode can run lighter/more vivid; light
-// mode needs to stay darker for contrast against a light card background (same reasoning
-// dotMeshTheme.ts used before this hue-cycling system replaced it). Light B stays the
-// brighter "highlight" of the pair, same relationship the old idle/reactive colors had.
-const LIGHT_A_LIGHTNESS_BY_MODE = { dark: 0.55, light: 0.32 } as const
-const LIGHT_B_LIGHTNESS_BY_MODE = { dark: 0.8, light: 0.5 } as const
-// How much louder speech brightens both lights on top of their theme-mode base lightness —
-// reads the same overall loudness (max of the three bands) as the displacement/fresnel
-// reactivity below.
-const VOLUME_LIGHTNESS_GAIN = 0.6
-
-function currentHueDegrees(elapsedSeconds: number): number {
-  return ((elapsedSeconds / HUE_ROTATION_PERIOD_SECONDS) % 1) * 360
-}
-
-// Redesigned 2026-09-07 (after a full day of live-tested lessons — see sphere.vert.glsl's
-// header for the fuller history) to combine what actually worked: the reference's two-stage
-// noise (distortion pre-pass, then displacement — richer/more organic than a single noise call
-// scaled by one number, confirmed by direct A/B comparison) driven by real, *separate* FFT
-// bands (useVoiceAnalyzer.ts) rather than one collapsed scalar or a four-variable
-// independently-eased system. No extra JS-side smoothing beyond the AnalyserNode's own default
-// smoothingTimeConstant (0.8) — kept simple on purpose.
-const DISTORTION_FREQUENCY = 1.5
-const DISPLACEMENT_FREQUENCY = 2.12
-// Permanent baselines, independent of audio — live user feedback: a sphere that goes fully
-// flat/smooth at silence reads as "dead" rather than "calm". These keep a gentle, continuous
-// wobble at rest; the *_GAIN constants below add louder, more energetic reactivity on top.
-const IDLE_DISTORTION = 0.3
-const IDLE_DISPLACEMENT = 0.15
-// First-pass tuning guesses for the redesign, deliberately modest given how many rounds of
-// "too strong" earlier displacement values took to walk back — start conservative and let live
-// testing say whether either needs raising.
-const DISTORTION_GAIN = 0.6 // bands.low * this, added to IDLE_DISTORTION
-const DISPLACEMENT_GAIN = 0.3 // bands.high * this, added to IDLE_DISPLACEMENT
-const FRESNEL_MULTIPLIER_BASE = 3.587 // reference's own default
-const FRESNEL_MULTIPLIER_GAIN = 1.5 // bands.mid * this, brightens the rim with mid-range speech
-// How fast the noise pattern itself evolves over time, independent of audio.
-const TIME_SPEED = 0.3
+// Restored 2026-09-07 to the spec 011-particle-sphere-engine design (a uniform
+// Fibonacci-distributed particle sphere), after a full day exploring an alternative
+// continuous-mesh technique - explicit live user preference: "I liked the specs version
+// more." Point count/size/intensity tuning below is the state this project's particle sphere
+// had already reached through real production incidents before that detour (an RTX 3080 NaN
+// bug, two separate additive-blending saturation incidents) - kept as-is, since those fixes
+// remain correct regardless of which technique the app ultimately uses.
+const POINT_COUNT_BY_TIER = { full: 8000, reduced: 500 } as const
+const BASE_POINT_SIZE_BY_TIER = { full: 0.12, reduced: 0.3 } as const
+const INTENSITY_BY_TIER = { full: 0.55, reduced: 1 } as const
 
 interface ReactiveSphereProps {
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
-   * `getFrequencyBands`, FR-018, research.md §3) — read every frame here rather than passed
-   * as plain number props, so the assistant's voice doesn't force a React re-render per frame. */
+   * `getFrequencyBands`) - read every frame here rather than passed as plain number props, so
+   * the assistant's voice doesn't force a React re-render per frame. Replaces this component's
+   * previous single damped-TTS-envelope approximation (`getReactiveIntensity`) with the same
+   * real Web Audio `AnalyserNode` data the rest of the scene already uses - a data-quality
+   * upgrade with no change to the reactive *behavior* below (still one combined intensity
+   * value driving amplitude/frequency, matching spec 011's original design), just a better
+   * source for it. */
   getFrequencyBands: () => FrequencyBands
-  /** research.md §4/§5 — 'full' uses a finer SphereGeometry subdivision (SEGMENTS_BY_TIER);
-   * 'reduced' uses a coarser one; 'static-fallback' never mounts this component. */
+  /** 'full' uses a denser dot lattice and additive-blended glow rendering technique; 'reduced'
+   * uses a lower count and simpler normal-blended technique (sphereRenderTechnique.ts);
+   * 'static-fallback' never mounts this component. */
   qualityTier: 'full' | 'reduced'
-  /** FR-011: freezes the noise-space evolution and reactive levels when the user prefers reduced motion. */
+  /** Freezes idle rotation/breathing and caps reactive amplitude when the user prefers reduced motion. */
   reducedMotion: boolean
-  /** Optional external ref to the sphere's outer `<group>` — SceneBackground.tsx passes this
-   * through to `SphereBloom`'s `selection` so only this object blooms (FR-004,
-   * research.md §3). Falls back to an internal ref when omitted so this component still works
-   * standalone (e.g. in isolation, without a bloom pass mounted). */
+  /** Optional external ref to the sphere's outer `<group>` - SceneBackground.tsx passes this
+   * through to `SphereBloom`'s `selection` so only this object blooms. Falls back to an
+   * internal ref when omitted so this component still works standalone (e.g. in isolation,
+   * without a bloom pass mounted). */
   groupRef?: RefObject<THREE.Group | null>
 }
 
-/** The workspace's abstract, audio-reactive organic sphere (spec.md Clarifications — not a
- * geographic globe). A continuous two-stage noise-displaced mesh with twin-light fresnel
- * shading, redesigned 2026-09-07 to drive distortion/displacement/fresnel from real, separate
- * low/mid/high FFT bands (see the const block above); light colors continuously cycle through
- * the full hue spectrum with lightness tuned per theme mode and boosted by overall speech volume. */
+/** The workspace's abstract, audio-reactive dot-mesh sphere (spec.md Clarifications - not a
+ * geographic globe; spec 011-particle-sphere-engine FR-001 - a uniform Fibonacci-distributed
+ * mesh of dots, not concentric rings or a solid shaded surface). Idles via a slow noise-driven
+ * wobble/rotation plus a breathing pulse (FR-006, sphereBreath.ts); deforms further while the
+ * assistant is speaking; dot colors follow the current theme (FR-008, dotMeshTheme.ts). */
 export function ReactiveSphere({
   getFrequencyBands,
   qualityTier,
@@ -112,90 +68,93 @@ export function ReactiveSphere({
   const materialRef = useRef<THREE.ShaderMaterial>(null)
   const internalGroupRef = useRef<THREE.Group>(null)
   const groupRef = externalGroupRef ?? internalGroupRef
+  const wobbleNoise = useMemo(() => createNoise2D(), [])
+  const elapsed = useRef(0)
   const mode = useThemeStore((s) => s.mode)
 
-  const segments = SEGMENTS_BY_TIER[qualityTier]
-  const geometry = useMemo(() => {
-    const geo = new THREE.SphereGeometry(SPHERE_RADIUS, segments, segments)
-    // The vertex shader estimates normals from `tangent`-offset neighbor samples (see
-    // sphere.vert.glsl) rather than using the geometry's own interpolated normal, since the
-    // noise displacement invalidates the undisplaced sphere's normals.
-    geo.computeTangents()
-    return geo
-  }, [segments])
+  const positions = useMemo(
+    () => generateFibonacciSpherePositions(POINT_COUNT_BY_TIER[qualityTier], SPHERE_RADIUS),
+    [qualityTier],
+  )
 
-  // Overall loudness (max of the three bands), used for the lights' lightness boost below —
-  // kept as a ref (not a local variable) so it holds its last value across frames while
-  // reducedMotion is true, the same way the reactive uniforms below do.
-  const overallLevel = useRef(0)
-  const elapsedSeconds = useRef(0)
+  const { blending } = getSphereRenderTechnique(qualityTier)
+
+  const dotColors = getDotMeshColors(mode)
 
   const uniforms = useMemo(
     () => ({
-      uLightAColor: { value: new THREE.Color() },
-      uLightAPosition: { value: new THREE.Vector3().setFromSpherical(LIGHT_A_SPHERICAL) },
-      uLightAIntensity: { value: LIGHT_A_INTENSITY },
-      uLightBColor: { value: new THREE.Color() },
-      uLightBPosition: { value: new THREE.Vector3().setFromSpherical(LIGHT_B_SPHERICAL) },
-      uLightBIntensity: { value: LIGHT_B_INTENSITY },
-      uSubdivision: { value: new THREE.Vector2(segments, segments) },
-      uDistortionFrequency: { value: DISTORTION_FREQUENCY },
-      uDistortionLevel: { value: IDLE_DISTORTION },
-      uDisplacementFrequency: { value: DISPLACEMENT_FREQUENCY },
-      uDisplacementLevel: { value: IDLE_DISPLACEMENT },
-      uFresnelOffset: { value: FRESNEL_OFFSET },
-      uFresnelMultiplier: { value: FRESNEL_MULTIPLIER_BASE },
-      uFresnelPower: { value: FRESNEL_POWER },
-      uSpecularShininess: { value: SPECULAR_SHININESS },
-      uSpecularStrength: { value: SPECULAR_STRENGTH },
       uTime: { value: 0 },
+      uAmplitude: { value: IDLE_AMPLITUDE },
+      uFrequency: { value: IDLE_FREQUENCY },
+      uBreath: { value: 0 },
+      uBasePointSize: { value: BASE_POINT_SIZE_BY_TIER[qualityTier] },
+      uIntensity: { value: INTENSITY_BY_TIER[qualityTier] },
+      uColorIdle: { value: new THREE.Color(dotColors.idle) },
+      uColorReactive: { value: new THREE.Color(dotColors.reactive) },
     }),
-    // Initial values only — colors/theme mode are applied to the existing uniforms in
-    // useFrame below instead of recreating the material every frame/toggle.
-    [segments],
+    // Initial values only - mode changes are applied to the existing uniforms in useFrame
+    // below instead of recreating the material on every theme toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   )
 
   useFrame((_, delta) => {
     const material = materialRef.current
-    if (!material) return
-    const u = material.uniforms as typeof uniforms
+    if (material) {
+      const u = material.uniforms as typeof uniforms
+      if (!reducedMotion) {
+        elapsed.current += delta
+        u.uTime.value = elapsed.current
+        const bands = getFrequencyBands()
+        const reactiveIntensity = Math.max(bands.low, bands.mid, bands.high)
+        u.uAmplitude.value = IDLE_AMPLITUDE + reactiveIntensity * REACTIVE_AMPLITUDE_MAX
+        u.uFrequency.value =
+          IDLE_FREQUENCY + reactiveIntensity * (REACTIVE_FREQUENCY_MAX - IDLE_FREQUENCY)
+        // A slow idle breathing pulse, additive with the noise/reactive displacement above
+        // (sphere.vert.glsl) so it layers with voice reactivity rather than competing with it.
+        u.uBreath.value = computeBreathValue(elapsed.current, BREATH_FREQUENCY, BREATH_AMPLITUDE)
+      } else {
+        // Reduced motion freezes continuous rotation, breathing, and reactive growth - the
+        // noise pattern holds still rather than continuing to animate.
+        u.uAmplitude.value = IDLE_AMPLITUDE
+        u.uFrequency.value = IDLE_FREQUENCY
+        u.uBreath.value = 0
+      }
 
-    if (!reducedMotion) {
-      const bands = getFrequencyBands()
-      overallLevel.current = Math.max(bands.low, bands.mid, bands.high)
-
-      u.uDistortionLevel.value = IDLE_DISTORTION + bands.low * DISTORTION_GAIN
-      u.uDisplacementLevel.value = IDLE_DISPLACEMENT + bands.high * DISPLACEMENT_GAIN
-      u.uFresnelMultiplier.value = FRESNEL_MULTIPLIER_BASE + bands.mid * FRESNEL_MULTIPLIER_GAIN
-
-      elapsedSeconds.current += delta
-      u.uTime.value = elapsedSeconds.current * TIME_SPEED
+      // Write the current theme's colors into the uniforms in place every frame (cheap - two
+      // Color.set calls) rather than recreating the material on theme toggle, so the switch
+      // applies with no perceptible delay/flash.
+      u.uColorIdle.value.set(dotColors.idle)
+      u.uColorReactive.value.set(dotColors.reactive)
+      // Same rationale as above, for the tier-derived point size/intensity - a
+      // performance-regression downgrade to 'reduced' must pick up its own, non-saturating
+      // values immediately, not keep 'full's settings from before the downgrade.
+      u.uBasePointSize.value = BASE_POINT_SIZE_BY_TIER[qualityTier]
+      u.uIntensity.value = INTENSITY_BY_TIER[qualityTier]
     }
 
-    // Runs every frame regardless of reducedMotion (unlike the block above) so the lights are
-    // always set to a real color — reducedMotion only stops elapsedSeconds from advancing, it
-    // doesn't skip color assignment, which would otherwise leave both lights at their
-    // THREE.Color() default (black) for a user with reduced motion enabled.
-    const hueDegrees = currentHueDegrees(elapsedSeconds.current)
-    const hue01 = hueDegrees / 360
-    const lightnessBoost = overallLevel.current * VOLUME_LIGHTNESS_GAIN
-    const lightnessA = THREE.MathUtils.clamp(LIGHT_A_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
-    const lightnessB = THREE.MathUtils.clamp(LIGHT_B_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
-    u.uLightAColor.value.setHSL(hue01, SATURATION, lightnessA)
-    u.uLightBColor.value.setHSL(hue01, SATURATION, lightnessB)
+    if (groupRef.current && !reducedMotion) {
+      const wobble = wobbleNoise(elapsed.current * 0.05, 0)
+      groupRef.current.rotation.y += (IDLE_ROTATION_SPEED + wobble * 0.02) * delta
+    }
   })
 
   return (
     <group ref={groupRef}>
-      <mesh geometry={geometry}>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
         <shaderMaterial
           ref={materialRef}
           vertexShader={vertexShader}
           fragmentShader={fragmentShader}
           uniforms={uniforms}
-          defines={TANGENT_DEFINES}
+          transparent
+          depthWrite={false}
+          blending={blending}
         />
-      </mesh>
+      </points>
     </group>
   )
 }

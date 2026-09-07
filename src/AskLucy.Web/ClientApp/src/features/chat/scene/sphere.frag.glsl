@@ -1,87 +1,45 @@
-// Fragment-stage version of the reference's lighting/fresnel math (Bruno Simon's "Organic
-// Sphere", user-supplied source, 2026-09-07) - moved here from the vertex shader (see
-// sphere.vert.glsl's header for why) so it interpolates smoothly at this app's lower
-// subdivision count instead of faceting like per-vertex (Gouraud) shading would.
+// Restored 2026-09-07 to the spec 011-particle-sphere-engine design (see sphere.vert.glsl's
+// header for the full context of this restore).
 //
-// Two colored "lights" (a hue-cycling palette, ReactiveSphere.tsx) are combined via a
-// fresnel term, then mixed toward white at the sphere's brightest silhouette highlight - the
-// reference's formula, with one deliberate tuning change (live user review, 2026-09-07):
+// Draws each point as a soft, glowing circular sprite - discarding fragments outside a
+// UV-space radius in `gl_PointCoord` - so the sphere reads as a mesh of individual dots with a
+// smooth, glow-like edge falloff rather than a hard-edged disc. The full center-to-edge
+// gradient (rather than a flat opaque core with only a thin soft rim) is what gives each
+// particle a diffuse "glow" look, and is what makes overlapping particles visibly brighten
+// under additive blending (set on the material in ReactiveSphere.tsx, not here) instead of
+// just occluding. Colors mix from uColorIdle toward uColorReactive as vDisplacement (from
+// sphere.vert.glsl) grows - uColorIdle/uColorReactive are theme-driven (dotMeshTheme.ts).
 //
-// The reference starts from a pure black base and uses uFresnelOffset = -1.609, which makes
-// any fragment facing the camera close to head-on (dot(viewDirection, normal) ~= -1) clamp to
-// fresnel = 0 - i.e. pure black - lighting only the silhouette rim. That reads as a dramatic
-// "glowing orb in a black void" in the reference's full-viewport hero demo, but in this app's
-// small card it just looks like a black blob with a thin colored edge. Fixed here with an
-// ambient base tint (so the whole surface reads as colored, not just the rim) and a softened
-// fresnel offset (so more of the surface - not only the grazing edge - picks up light).
-const float AMBIENT_STRENGTH = 0.16;
-const float RIM_HIGHLIGHT_THRESHOLD = 0.8;
-const float RIM_HIGHLIGHT_EXPONENT = 3.0;
+// uIntensity scales the final alpha: under additive blending, thousands of overlapping
+// particles sum their alpha*color contributions per pixel with no upper bound until the
+// framebuffer clamps to white - a point tuned for a sparse, few-hundred-particle sphere
+// saturates solid white once reused at "full" tier's much higher count (confirmed live,
+// NVIDIA RTX 3080). ReactiveSphere.tsx sets uIntensity low for the additive "full" tier and
+// 1.0 for "reduced" (normal blending, where overlap doesn't compound).
 
-// Real see-through transparency (fresnel-driven alpha) was tried here and reverted (live user
-// review, 2026-09-07): with SphereBloom.tsx's SelectiveBloom/EffectComposer pipeline active,
-// the sphere rendered fully invisible rather than partially transparent. Back to a flat,
-// opaque alpha (below).
-//
-// A separate "glass" pass (white specular + sharper fresnel rim) was also tried and reverted
-// to "silver metal" (light-tinted specular, this file's current values) per live user
-// preference - but the sphere going blank right after that change was actually caused by a
-// real GLSL bug introduced in the same edit: RIM_HIGHLIGHT_THRESHOLD/EXPONENT above were first
-// declared as `const RIM_HIGHLIGHT_THRESHOLD = 0.8;` with no type - invalid GLSL (unlike
-// TS/JS, `const` alone never infers a type here; every declaration needs one, e.g. `const
-// float ...`). That shader failed to compile at all, which is why reverting the specular
-// *color* didn't fix the "not showing" symptom - the actual syntax error carried through the
-// revert untouched until this comment's own fix (`const float ...` above).
+uniform vec3 uColorIdle;
+uniform vec3 uColorReactive;
+uniform float uIntensity;
 
-uniform vec3 uLightAColor;
-uniform vec3 uLightAPosition;
-uniform float uLightAIntensity;
-uniform vec3 uLightBColor;
-uniform vec3 uLightBPosition;
-uniform float uLightBIntensity;
-
-uniform float uFresnelOffset;
-// Redesigned 2026-09-07: driven every frame by the real mid-frequency FFT band
-// (ReactiveSphere.tsx), not a fixed constant - the sphere's rim brightens with the mid range
-// of whatever is being said, alongside sphere.vert.glsl's low/high-band-driven displacement.
-uniform float uFresnelMultiplier;
-uniform float uFresnelPower;
-
-// Blinn-Phong specular highlights, tinted by each light's own color rather than white - "silver
-// metal" (live user review, 2026-09-07, reverting a brief "glass" experiment with white
-// specular - see this file's header) - small, tight, view-angle-dependent glints on top of the
-// existing diffuse+fresnel shading.
-uniform float uSpecularShininess;
-uniform float uSpecularStrength;
-
-varying vec3 vNormal;
-varying vec3 vViewDirection;
+varying float vDisplacement;
+varying vec3 vViewNormal;
+varying vec3 vViewDir;
 
 void main() {
-  vec3 normal = normalize(vNormal);
-  vec3 viewDirection = normalize(vViewDirection);
-  // Toward the camera, for specular - vViewDirection itself points the other way (surface to
-  // camera is what's needed to reflect off, not camera to surface).
-  vec3 toCamera = -viewDirection;
+  vec2 fromCenter = gl_PointCoord - vec2(0.5);
+  float dist = length(fromCenter);
+  if (dist > 0.5) discard;
 
-  float fresnel = uFresnelOffset + (1.0 + dot(viewDirection, normal)) * uFresnelMultiplier;
-  fresnel = pow(max(0.0, fresnel), uFresnelPower);
+  // Fresnel rim term: near 0 for points facing the camera head-on, near 1 for points at the
+  // sphere's silhouette edge. Used two ways below - together they cut how much the additive
+  // blending pass sums per pixel (the saturation risk noted above, which this rim-weighting
+  // is what actually keeps in check, not uIntensity alone) while giving the sphere a lit,
+  // three-dimensional rim instead of a flat wash of identical dots.
+  float fresnel = pow(1.0 - clamp(dot(normalize(vViewNormal), normalize(vViewDir)), 0.0, 1.0), 2.0);
 
-  vec3 lightADir = normalize(uLightAPosition);
-  vec3 lightBDir = normalize(uLightBPosition);
-  float lightAIntensity = max(0.0, dot(normal, lightADir)) * uLightAIntensity;
-  float lightBIntensity = max(0.0, dot(normal, lightBDir)) * uLightBIntensity;
+  float alpha = smoothstep(0.5, 0.0, dist) * uIntensity * mix(0.25, 1.0, fresnel);
+  float reactiveMix = smoothstep(0.0, 0.35, abs(vDisplacement));
+  vec3 color = mix(uColorIdle, uColorReactive, reactiveMix) * (1.0 + fresnel * 0.8);
 
-  vec3 color = mix(uLightAColor, uLightBColor, 0.5) * AMBIENT_STRENGTH;
-  color = mix(color, uLightAColor, lightAIntensity * fresnel);
-  color = mix(color, uLightBColor, lightBIntensity * fresnel);
-  color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - RIM_HIGHLIGHT_THRESHOLD), RIM_HIGHLIGHT_EXPONENT), 0.0, 1.0));
-
-  vec3 halfwayA = normalize(lightADir + toCamera);
-  vec3 halfwayB = normalize(lightBDir + toCamera);
-  float specularA = pow(max(0.0, dot(normal, halfwayA)), uSpecularShininess);
-  float specularB = pow(max(0.0, dot(normal, halfwayB)), uSpecularShininess);
-  color += (uLightAColor * specularA + uLightBColor * specularB) * uSpecularStrength;
-
-  gl_FragColor = vec4(color, 1.0);
+  gl_FragColor = vec4(color, alpha);
 }
