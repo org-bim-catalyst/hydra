@@ -8,6 +8,8 @@ import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { getDotMeshColors } from './dotMeshTheme'
 import { computeBreathValue } from './sphereBreath'
 import { SPHERE_RADIUS } from './sphereConstants'
+import auraFragmentShader from './magmaAura.frag.glsl?raw'
+import auraVertexShader from './magmaAura.vert.glsl?raw'
 import fragmentShader from './magmaGlow.frag.glsl?raw'
 import vertexShader from './magmaGlow.vert.glsl?raw'
 
@@ -24,6 +26,11 @@ const OUT_GLOW_SCALE = 6 * RADIUS_SCALE
 const AURA_SCROLL_SPEED = 0.25 // matches the demo's own -performance.now() / 1000 / 4
 const AURA_OPACITY_IDLE = 0.6
 const AURA_OPACITY_REACTIVE_MAX = 1.0
+// Live user request, 2026-09-07: reuse the confirmed site boundary ring's own rotating RGB
+// gradient (viewer/effects/AnimatedBorderHighlight.ts) on this layer - same rotation period as
+// that ring's own 'high' confidence speed (BORDER_ROTATION_SECONDS_HIGH), for direct visual
+// consistency between the two rather than an independently-tuned speed.
+const AURA_RGB_ROTATION_SECONDS = 3
 
 // The demo's InGlow used a fixed 0.55 alpha strength; idle/reactive range here instead so
 // speaking reads as a brighter rim, matching how the rest of this sphere reacts to volume.
@@ -93,12 +100,14 @@ interface MagmaGlowSphereProps {
  * WebGPU/TSL, these 3 layers are simple enough to be plain THREE.Mesh/Sprite + GLSL - see
  * magmaGlow.frag.glsl for the InGlow port. Mounted as a child of ReactiveSphere's own `<group>`
  * so it inherits that group's rotation/position for free and reads as one object, not two
- * independently-animating overlays. Colors come from the same theme-driven getDotMeshColors
- * ReactiveSphere/sphere.frag.glsl already use (not the demo's own hardcoded blue), so this layer
- * doesn't clash with the particle sphere's own palette. */
+ * independently-animating overlays. Glow Inside/Outside colors come from the same theme-driven
+ * getDotMeshColors ReactiveSphere/sphere.frag.glsl already use (not the demo's own hardcoded
+ * blue), so those two don't clash with the particle sphere's own palette. Aura instead cycles
+ * through the confirmed site boundary ring's own rotating RGB gradient (live user request,
+ * 2026-09-07) - see magmaAura.frag.glsl. */
 export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowSphereProps) {
   const groupRef = useRef<THREE.Group>(null)
-  const auraMaterialRef = useRef<THREE.MeshBasicMaterial>(null)
+  const auraMaterialRef = useRef<THREE.ShaderMaterial>(null)
   const inGlowMaterialRef = useRef<THREE.ShaderMaterial>(null)
   const outGlowMaterialRef = useRef<THREE.SpriteMaterial>(null)
   const elapsed = useRef(0)
@@ -121,6 +130,18 @@ export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowS
     return texture
   }, [])
 
+  const auraUniforms = useMemo(
+    () => ({
+      uMap: { value: auraMap },
+      uRotation: { value: 0 },
+      uOpacity: { value: AURA_OPACITY_IDLE },
+    }),
+    // auraMap's own identity never changes after mount (see the useMemo(..., []) above) - initial
+    // value only, matching this file's inGlowUniforms/ReactiveSphere.tsx's own uniforms pattern.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
+
   const inGlowUniforms = useMemo(
     () => ({
       uColor: { value: new THREE.Color() },
@@ -140,16 +161,17 @@ export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowS
     const mixedColor = scratchIdleColor.set(colors.idle).lerp(scratchReactiveColor.set(colors.reactive), reactiveIntensity)
 
     if (auraMaterialRef.current) {
-      // Routed through the material ref's own `.map` (not the closed-over `auraMap` variable
-      // useMemo returned) - matches this file's ReactiveSphere.tsx sibling's own pattern for
-      // mutating a memoized value from inside useFrame (there: `material.uniforms`, here:
-      // `material.map`), which this project's react-hooks/immutability lint rule accepts.
-      const map = auraMaterialRef.current.map as THREE.Texture
+      // Routed through the material ref's own `.uniforms` (not the closed-over `auraUniforms`/
+      // `auraMap` variables useMemo returned) - matches this file's InGlow block below and
+      // ReactiveSphere.tsx's own pattern for mutating a memoized value from inside useFrame,
+      // which this project's react-hooks/immutability lint rule accepts.
+      const u = auraMaterialRef.current.uniforms as typeof auraUniforms
+      const map = u.uMap.value as THREE.Texture
       map.offset.x = -elapsed.current * AURA_SCROLL_SPEED
       map.offset.y = -elapsed.current * AURA_SCROLL_SPEED
-      auraMaterialRef.current.opacity =
+      u.uRotation.value = (elapsed.current / AURA_RGB_ROTATION_SECONDS) % 1
+      u.uOpacity.value =
         AURA_OPACITY_IDLE + reactiveIntensity * (AURA_OPACITY_REACTIVE_MAX - AURA_OPACITY_IDLE)
-      auraMaterialRef.current.color.copy(mixedColor)
     }
 
     if (inGlowMaterialRef.current) {
@@ -175,9 +197,11 @@ export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowS
     <group ref={groupRef}>
       <mesh>
         <sphereGeometry args={[AURA_RADIUS, 40, 40]} />
-        <meshBasicMaterial
+        <shaderMaterial
           ref={auraMaterialRef}
-          map={auraMap}
+          vertexShader={auraVertexShader}
+          fragmentShader={auraFragmentShader}
+          uniforms={auraUniforms}
           {...ADDITIVE_RGB_ONLY_BLENDING}
           transparent
           depthWrite={false}
