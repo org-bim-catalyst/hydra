@@ -199,12 +199,6 @@ export function ReactiveSphere({
           fragmentShader={fragmentShader}
           uniforms={uniforms}
           defines={TANGENT_DEFINES}
-          // Real glass-like transparency (sphere.frag.glsl's GLASS_ALPHA_CENTER/EDGE, live user
-          // review 2026-09-07) — depthWrite off is standard practice for transparent materials
-          // so this sphere never occludes anything behind it in the depth buffer, even though
-          // nothing else currently shares this scene.
-          transparent
-          depthWrite={false}
         />
       </mesh>
     </group>
