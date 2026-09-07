@@ -8,6 +8,7 @@ import { getDotMeshColors } from './dotMeshTheme'
 import { generateFibonacciSpherePositions } from './generateFibonacciSpherePositions'
 import { MagmaGlowSphere } from './MagmaGlowSphere'
 import { computeBreathValue } from './sphereBreath'
+import { SPHERE_RADIUS } from './sphereConstants'
 import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import fragmentShader from './sphere.frag.glsl?raw'
 import vertexShader from './sphere.vert.glsl?raw'
@@ -17,9 +18,6 @@ const IDLE_FREQUENCY = 1.4
 const REACTIVE_AMPLITUDE_MAX = 0.35
 const REACTIVE_FREQUENCY_MAX = 2.2
 const IDLE_ROTATION_SPEED = 0.08 // rad/s
-// Exported so MagmaGlowSphere.tsx can size its own layers relative to this same sphere without
-// a second, independently-tunable radius constant that could silently drift out of sync.
-export const SPHERE_RADIUS = 1.4
 const BREATH_FREQUENCY = 0.6 // rad/s - slower than IDLE_FREQUENCY's noise wobble
 const BREATH_AMPLITUDE = 0.035 // subtle relative to REACTIVE_AMPLITUDE_MAX's 0.35
 
