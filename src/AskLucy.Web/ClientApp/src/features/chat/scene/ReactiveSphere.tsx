@@ -6,6 +6,7 @@ import { useThemeStore } from '../../../store/themeStore'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { getDotMeshColors } from './dotMeshTheme'
 import { generateFibonacciSpherePositions } from './generateFibonacciSpherePositions'
+import { MagmaGlowSphere } from './MagmaGlowSphere'
 import { computeBreathValue } from './sphereBreath'
 import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import fragmentShader from './sphere.frag.glsl?raw'
@@ -16,7 +17,9 @@ const IDLE_FREQUENCY = 1.4
 const REACTIVE_AMPLITUDE_MAX = 0.35
 const REACTIVE_FREQUENCY_MAX = 2.2
 const IDLE_ROTATION_SPEED = 0.08 // rad/s
-const SPHERE_RADIUS = 1.4
+// Exported so MagmaGlowSphere.tsx can size its own layers relative to this same sphere without
+// a second, independently-tunable radius constant that could silently drift out of sync.
+export const SPHERE_RADIUS = 1.4
 const BREATH_FREQUENCY = 0.6 // rad/s - slower than IDLE_FREQUENCY's noise wobble
 const BREATH_AMPLITUDE = 0.035 // subtle relative to REACTIVE_AMPLITUDE_MAX's 0.35
 
@@ -171,6 +174,12 @@ export function ReactiveSphere({
           blending={blending}
         />
       </points>
+      {/* 'full' tier only, mirroring bloom's own tier gating (sphereRenderTechnique.ts) - keeps
+          'reduced' tier's GPU/texture-load budget untouched. See MagmaGlowSphere.tsx's own doc
+          comment for what this layers on and why. */}
+      {qualityTier === 'full' && (
+        <MagmaGlowSphere getFrequencyBands={getFrequencyBands} reducedMotion={reducedMotion} />
+      )}
     </group>
   )
 }
