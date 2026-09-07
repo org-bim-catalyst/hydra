@@ -132,7 +132,7 @@ interface ReactiveSphereProps {
   /** FR-011: freezes the noise-space drift and reactive easing when the user prefers reduced motion. */
   reducedMotion: boolean
   /** Optional external ref to the sphere's outer `<group>` — SceneBackground.tsx passes this
-   * through to `ParticleSphereBloom`'s `selection` so only this object blooms (FR-004,
+   * through to `SphereBloom`'s `selection` so only this object blooms (FR-004,
    * research.md §3). Falls back to an internal ref when omitted so this component still works
    * standalone (e.g. in isolation, without a bloom pass mounted). */
   groupRef?: RefObject<THREE.Group | null>
