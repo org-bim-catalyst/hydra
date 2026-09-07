@@ -4,8 +4,8 @@ import { Box } from '@mui/material'
 import { Component, type ReactNode, useRef, useState } from 'react'
 import type { Group } from 'three'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
-import { ParticleSphereBloom } from './ParticleSphereBloom'
 import { ReactiveSphere } from './ReactiveSphere'
+import { SphereBloom } from './SphereBloom'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
 interface SceneBackgroundProps {
@@ -80,14 +80,6 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
     return <StaticFallback />
   }
 
-  // Temporarily disabled at the call site (live user review, predates the 2026-09-06 pivot to
-  // a mesh-based sphere): SelectiveBloom's `luminanceSmoothing` filter made the previous
-  // particle-cloud sphere visibly "ramp up" into a blurred glow over the first couple of
-  // seconds after mount — a real bug in the effect's adaptive convergence, not just an
-  // intensity/threshold tuning problem. The plumbing (ParticleSphereBloom) stays in place and
-  // unit-tested for later opt-in polish; it's just not wired into the live scene right now.
-  const BLOOM_TEMPORARILY_DISABLED = true
-
   return (
     <SceneErrorBoundary fallback={<StaticFallback />}>
       {/* Fades out as the canvas fades in, so what sits behind this card shows through the
@@ -124,14 +116,10 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           }}
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
-              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI).
-              Disabled while BLOOM_TEMPORARILY_DISABLED is true, left over from when tiers only
-              differed by blending mode (which mattered only with bloom active); now that tiers
-              differ by icosahedron subdivision (ReactiveSphere.tsx), re-enabling this needs its
-              own re-evaluation of what "decline" should mean for a mesh instead of points. */}
-          {!BLOOM_TEMPORARILY_DISABLED && (
-            <PerformanceMonitor onDecline={reportPerformanceRegression} />
-          )}
+              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI). 'reduced'
+              now means a coarser SphereGeometry subdivision (ReactiveSphere.tsx's
+              SEGMENTS_BY_TIER) rather than a different blending mode. */}
+          <PerformanceMonitor onDecline={reportPerformanceRegression} />
           <ambientLight intensity={0.6} />
           <ReactiveSphere
             getFrequencyBands={getFrequencyBands}
@@ -139,7 +127,7 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             reducedMotion={prefersReducedMotion}
             groupRef={sphereGroupRef}
           />
-          {!BLOOM_TEMPORARILY_DISABLED && <ParticleSphereBloom sphereRef={sphereGroupRef} />}
+          <SphereBloom sphereRef={sphereGroupRef} />
           <OrbitControls
             enablePan
             enableZoom
