@@ -3,13 +3,14 @@ import { Canvas } from '@react-three/fiber'
 import { Box } from '@mui/material'
 import { Component, type ReactNode, useRef, useState } from 'react'
 import type { Group } from 'three'
+import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { ParticleSphereBloom } from './ParticleSphereBloom'
 import { ReactiveSphere } from './ReactiveSphere'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
 interface SceneBackgroundProps {
   /** Forwarded to the sphere unchanged (FR-018) — see ReactiveSphere's own doc comment. */
-  getReactiveIntensity: () => number
+  getFrequencyBands: () => FrequencyBands
 }
 
 class SceneErrorBoundary extends Component<
@@ -64,7 +65,7 @@ function StaticFallback({ visible = true }: { visible?: boolean }) {
 /** FR-001/FR-003: the full-viewport 3D scene layer behind the assistant panel. Renders
  * the static fallback instead of mounting a `<Canvas>` at all when WebGL2 is unavailable
  * (useSceneQualityTier), and falls back the same way if the scene throws while rendering. */
-export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) {
+export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
   const { tier, prefersReducedMotion, reportPerformanceRegression } = useSceneQualityTier()
   // FR-021/SC-011: the placeholder is already visible synchronously (it's what the
   // Suspense boundary in ChatPage.tsx shows while this chunk loads); this local
@@ -133,7 +134,7 @@ export function SceneBackground({ getReactiveIntensity }: SceneBackgroundProps) 
           )}
           <ambientLight intensity={0.6} />
           <ReactiveSphere
-            getReactiveIntensity={getReactiveIntensity}
+            getFrequencyBands={getFrequencyBands}
             qualityTier={tier}
             reducedMotion={prefersReducedMotion}
             groupRef={sphereGroupRef}

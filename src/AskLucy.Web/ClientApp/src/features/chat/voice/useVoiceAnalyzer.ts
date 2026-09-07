@@ -2,6 +2,12 @@ import { useCallback, useRef } from 'react'
 
 const FFT_SIZE = 256
 
+export interface FrequencyBands {
+  low: number
+  mid: number
+  high: number
+}
+
 /**
  * Owns one shared `AudioContext`/`AnalyserNode` per voice session (research.md Decision 6) —
  * the same audio graph feeds both the sphere's `getReactiveIntensity()` and the speaker
@@ -247,6 +253,33 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     return Math.min(1, sum / data.length / 255)
   }, [])
 
+  /** Real per-band levels from the same analyser `getReactiveIntensity` reads, split into
+   * three equal ranges spanning the full spectrum (low/mid/high) — unlike the organic-sphere
+   * reference's own `Microphone.js` (which buckets into 8 groups and only ever reads the
+   * lowest 3), this covers the whole spectrum rather than just its bottom 3/8. Feeds
+   * `ReactiveSphere.tsx`'s per-channel reactivity (research.md, live user review 2026-09-07)
+   * so distortion/displacement/fresnel react to genuinely different parts of the sound
+   * instead of one collapsed average. */
+  const getFrequencyBands = useCallback((): FrequencyBands => {
+    const analyser = analyserRef.current
+    const data = frequencyDataRef.current
+    if (!analyser || !data) return { low: 0, mid: 0, high: 0 }
+
+    analyser.getByteFrequencyData(data)
+    const bandSize = Math.floor(data.length / 3)
+    const average = (start: number, end: number) => {
+      let sum = 0
+      for (let i = start; i < end; i++) sum += data[i]
+      return sum / (end - start) / 255
+    }
+
+    return {
+      low: average(0, bandSize),
+      mid: average(bandSize, bandSize * 2),
+      high: average(bandSize * 2, data.length),
+    }
+  }, [])
+
   const setMuted = useCallback((muted: boolean) => {
     isMutedRef.current = muted
     if (gainRef.current) {
@@ -273,5 +306,13 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     frequencyDataRef.current = null
   }, [])
 
-  return { playAudioChunk, endStream, waitForPlaybackComplete, getReactiveIntensity, setMuted, reset }
+  return {
+    playAudioChunk,
+    endStream,
+    waitForPlaybackComplete,
+    getReactiveIntensity,
+    getFrequencyBands,
+    setMuted,
+    reset,
+  }
 }

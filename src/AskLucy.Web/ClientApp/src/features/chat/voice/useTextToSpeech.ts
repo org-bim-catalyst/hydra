@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { FrequencyBands } from './useVoiceAnalyzer'
 import { selectPersonaVoice } from './selectPersonaVoice'
 
 const DECAY_PER_SECOND = 3.2 // envelope drops from 1 to 0 in ~0.3s of silence between words
@@ -92,6 +93,16 @@ export function useTextToSpeech() {
 
   const getIntensity = useCallback(() => intensityRef.current, [])
 
+  /** `window.speechSynthesis` exposes no analyzable audio stream (see this hook's own doc
+   * comment), so unlike `useVoiceAnalyzer`'s real per-band FFT there is no genuine spectral
+   * data here — all three bands mirror the same synthesized envelope rather than fabricating
+   * variety that doesn't exist in the signal. `useVoiceOutput.ts` swaps this in only when the
+   * ElevenLabs analyzer isn't the active provider. */
+  const getFrequencyBands = useCallback((): FrequencyBands => {
+    const value = intensityRef.current
+    return { low: value, mid: value, high: value }
+  }, [])
+
   const clearError = useCallback(() => setError(null), [])
 
   const speak = useCallback(
@@ -156,5 +167,5 @@ export function useTextToSpeech() {
     stopDecayLoop()
   }, [isSupported, stopDecayLoop])
 
-  return { isSupported, speak, stop, isSpeaking, getIntensity, error, clearError }
+  return { isSupported, speak, stop, isSpeaking, getIntensity, getFrequencyBands, error, clearError }
 }
