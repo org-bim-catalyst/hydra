@@ -28,21 +28,17 @@ const LIGHT_B_SPHERICAL = new THREE.Spherical(1, 2.561, -1.844)
 const LIGHT_A_INTENSITY = 1.85
 const LIGHT_B_INTENSITY = 1.4
 const FRESNEL_OFFSET = -0.8
-// Raised for a steeper falloff (live user review, 2026-09-07 — pushing further on "glass"
-// after real transparency didn't pan out; pairs with sphere.frag.glsl's
-// RIM_HIGHLIGHT_THRESHOLD/EXPONENT for a sharper, more defined edge glow).
-const FRESNEL_POWER = 2.4
+const FRESNEL_POWER = 1.793
 // No longer audio-reactive (see the displacement-simplification block below) — voltviz's own
 // fragment shader has no lighting/fresnel concept at all to react in the first place, so a
 // fixed value here matches the reference at least as closely as the previous audio-driven one.
 const FRESNEL_MULTIPLIER = 3.587
-// Blinn-Phong specular tuning (live user review, 2026-09-07 — "instead of metal make it
-// glass") — see sphere.frag.glsl's header for why these are now white rather than light-tinted.
-// Shininess raised further and strength boosted from the earlier "metallic" pass for small,
-// crisp, bright glints — a glass surface's specular reads as sharper and more intense than a
-// brushed-metal one.
-const SPECULAR_SHININESS = 90
-const SPECULAR_STRENGTH = 0.9
+// Blinn-Phong specular tuning ("silver metal", live user review, 2026-09-07 — see
+// sphere.frag.glsl's header for the brief "glass" experiment reverted here). Shininess this
+// high keeps the highlight small and tight (polished metal), not a soft plastic sheen; strength
+// is deliberately modest so it reads as a glint, not a wash.
+const SPECULAR_SHININESS = 48
+const SPECULAR_STRENGTH = 0.6
 
 // Continuous full-spectrum hue rotation ("rotating RGB", live user request 2026-09-07) —
 // replaces an earlier version that crossfaded between four hand-picked preset hues (vizz.fm's

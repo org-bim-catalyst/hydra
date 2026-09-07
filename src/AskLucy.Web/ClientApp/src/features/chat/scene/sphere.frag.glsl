@@ -15,21 +15,17 @@
 // ambient base tint (so the whole surface reads as colored, not just the rim) and a softened
 // fresnel offset (so more of the surface — not only the grazing edge — picks up light).
 const float AMBIENT_STRENGTH = 0.16;
-// Sharper, wider white rim highlight (live user review, 2026-09-07 — pushing further on
-// "glass" after real transparency turned out not to work with the current bloom pipeline;
-// see below). Lower threshold = the highlight starts kicking in earlier across the fresnel
-// falloff, reading as a broader glassy edge-glow rather than a thin line right at the
-// silhouette; lower exponent softens/widens that glow instead of a hard cutoff. Paired with
-// FRESNEL_POWER raised in ReactiveSphere.tsx for a steeper overall falloff.
-const RIM_HIGHLIGHT_THRESHOLD = 0.55;
-const RIM_HIGHLIGHT_EXPONENT = 2.5;
+const RIM_HIGHLIGHT_THRESHOLD = 0.8;
+const RIM_HIGHLIGHT_EXPONENT = 3.0;
 
-// Real see-through transparency (fresnel-driven alpha) was tried here and reverted (live user
-// review, 2026-09-07): with SphereBloom.tsx's SelectiveBloom/EffectComposer pipeline active,
-// the sphere rendered fully invisible rather than partially transparent — exactly the
-// alpha-not-carried-through-postprocessing risk flagged when it was added, confirmed instead of
-// theoretical. Back to a flat, opaque alpha; revisit only alongside changes to the bloom
-// pipeline itself, not as a shader-only tweak.
+// Two experiments were tried here and reverted (live user review, 2026-09-07):
+// 1. Real see-through transparency (fresnel-driven alpha) — with SphereBloom.tsx's
+//    SelectiveBloom/EffectComposer pipeline active, the sphere rendered fully invisible rather
+//    than partially transparent. Back to a flat, opaque alpha (below).
+// 2. A "glass" pass (white specular + sharper fresnel rim, RIM_HIGHLIGHT_THRESHOLD/EXPONENT
+//    above raised/lowered from these current values) — the sphere stopped rendering again
+//    after that change; reverted back to "silver metal" (light-tinted specular, this file's
+//    prior values) rather than chase why, since a known-working state was the priority.
 
 uniform vec3 uLightAColor;
 uniform vec3 uLightAPosition;
@@ -42,13 +38,10 @@ uniform float uFresnelOffset;
 uniform float uFresnelMultiplier;
 uniform float uFresnelPower;
 
-// Blinn-Phong specular highlights. Switched from light-tinted to white (live user review,
-// 2026-09-07 — "instead of metal make it glass"): a metal tints its specular by the surface's
-// own color; a dielectric (glass, plastic) reflects specular in the *light's* color regardless
-// of the surface's own hue — since these lights are effectively white-balanced highlights on a
-// colored surface here, white specular is what actually reads as glass/dielectric rather than
-// polished metal. Shininess raised and tightened for small, crisp, bright glass-like glints
-// rather than the softer metallic sheen the previous (colored, lower-shininess) version had.
+// Blinn-Phong specular highlights, tinted by each light's own color rather than white — "silver
+// metal" (live user review, 2026-09-07, reverting a brief "glass" experiment with white
+// specular — see this file's header) — small, tight, view-angle-dependent glints on top of the
+// existing diffuse+fresnel shading.
 uniform float uSpecularShininess;
 uniform float uSpecularStrength;
 
@@ -79,7 +72,7 @@ void main() {
   vec3 halfwayB = normalize(lightBDir + toCamera);
   float specularA = pow(max(0.0, dot(normal, halfwayA)), uSpecularShininess);
   float specularB = pow(max(0.0, dot(normal, halfwayB)), uSpecularShininess);
-  color += vec3(1.0) * (specularA + specularB) * uSpecularStrength;
+  color += (uLightAColor * specularA + uLightBColor * specularB) * uSpecularStrength;
 
   gl_FragColor = vec4(color, 1.0);
 }
