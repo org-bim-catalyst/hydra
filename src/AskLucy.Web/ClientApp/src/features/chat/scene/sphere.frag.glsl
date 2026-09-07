@@ -16,18 +16,12 @@
 // fresnel offset (so more of the surface — not only the grazing edge — picks up light).
 const float AMBIENT_STRENGTH = 0.16;
 
-// Real see-through transparency (live user review, 2026-09-07 — white specular alone still
-// didn't read as "glass enough"). The card behind the canvas shows through more at the center
-// (facing the camera head-on) and less at the silhouette edge, the way a glass sphere looks
-// clearer through its middle and more reflective/solid at a grazing angle — driven by the same
-// `fresnel` term already used for lighting, not a second effect. This only works because the
-// canvas clears to alpha 0 (SceneBackground.tsx's gl.setClearAlpha(0)) and the material is set
-// `transparent` (ReactiveSphere.tsx) — if the postprocessing bloom pass doesn't carry alpha
-// through to the final composite correctly, this will silently look identical to fully opaque
-// instead of failing loudly; that's a real, untested risk of this specific technique, not a
-// bug to chase blindly if it doesn't show up.
-const GLASS_ALPHA_CENTER = 0.5;
-const GLASS_ALPHA_EDGE = 1.0;
+// Real see-through transparency (fresnel-driven alpha) was tried here and reverted (live user
+// review, 2026-09-07): with SphereBloom.tsx's SelectiveBloom/EffectComposer pipeline active,
+// the sphere rendered fully invisible rather than partially transparent — exactly the
+// alpha-not-carried-through-postprocessing risk flagged when it was added, confirmed instead of
+// theoretical. Back to a flat, opaque alpha; revisit only alongside changes to the bloom
+// pipeline itself, not as a shader-only tweak.
 
 uniform vec3 uLightAColor;
 uniform vec3 uLightAPosition;
@@ -79,6 +73,5 @@ void main() {
   float specularB = pow(max(0.0, dot(normal, halfwayB)), uSpecularShininess);
   color += vec3(1.0) * (specularA + specularB) * uSpecularStrength;
 
-  float alpha = mix(GLASS_ALPHA_CENTER, GLASS_ALPHA_EDGE, fresnel);
-  gl_FragColor = vec4(color, alpha);
+  gl_FragColor = vec4(color, 1.0);
 }
