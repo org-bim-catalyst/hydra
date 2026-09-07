@@ -1,24 +1,24 @@
 // Displacement simplified 2026-09-07 (live user review, A/B test against voltviz's GlowSphere
-// reference — see git history for the two-stage distortion+displacement version this replaces,
+// reference - see git history for the two-stage distortion+displacement version this replaces,
 // ported from Bruno Simon's "Organic Sphere"). voltviz's own vertex shader is one noise call,
 // one scale factor: `displacement = (u_frequency / 30.0) * (pnoise(position + u_time, ...) /
-// 10.0)`, where u_frequency is a single averaged 0–255 loudness value (no band split, no
-// separate distortion pass). This mirrors that structure — one noise sample, one audio-driven
-// scale — reusing this file's own already-proven, NaN-guarded 4D Perlin noise (`perlin4d`
+// 10.0)`, where u_frequency is a single averaged 0-255 loudness value (no band split, no
+// separate distortion pass). This mirrors that structure - one noise sample, one audio-driven
+// scale - reusing this file's own already-proven, NaN-guarded 4D Perlin noise (`perlin4d`
 // below) rather than porting voltviz's separate 3D periodic `pnoise`, since introducing a
 // second, untested noise implementation into a sphere that has already broken twice on GPU
 // noise-precision edge cases is not a risk worth taking for what both functions produce anyway.
 //
 // Live user feedback, 2026-09-07: a flat/smooth sphere at true silence (matching voltviz's own
-// zero-average behavior) read as "dead" rather than "calm" — an idle sphere should still look
+// zero-average behavior) read as "dead" rather than "calm" - an idle sphere should still look
 // alive. uIdleDisplacement restores a permanent noise-driven baseline (independent of audio)
 // underneath uAudioLevel's reactive contribution, so the sphere keeps a gentle, continuous
-// wobble at rest and gets visibly more energetic/organic on top of that once Lucy speaks —
+// wobble at rest and gets visibly more energetic/organic on top of that once Lucy speaks -
 // "more like voltviz when speaking" without going fully still in between.
 //
 // Still estimates each vertex's post-displacement normal from two neighboring tangent-plane
-// samples (unchanged from before) — there's no analytic derivative of the noise function to
-// differentiate for a normal. Still shades per-fragment, not per-vertex (sphere.frag.glsl) —
+// samples (unchanged from before) - there's no analytic derivative of the noise function to
+// differentiate for a normal. Still shades per-fragment, not per-vertex (sphere.frag.glsl) -
 // this app uses far fewer subdivisions than voltviz's IcosahedronGeometry(4, 30), where
 // per-vertex lighting would visibly facet.
 
@@ -34,7 +34,7 @@ uniform float uTime;
 varying vec3 vNormal;
 varying vec3 vViewDirection;
 
-// Classic Perlin 4D Noise by Stefan Gustavson (webgl-noise, MIT license) — inlined here since
+// Classic Perlin 4D Noise by Stefan Gustavson (webgl-noise, MIT license) - inlined here since
 // this project's Vite build has no glslify loader (the reference source uses one to pull this
 // in as a separate partial).
 vec4 permute(vec4 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
@@ -185,7 +185,7 @@ float safePerlin4d(vec4 p) {
 
 // voltviz's single-formula structure: one noise sample at this vertex's position (offset by
 // the running clock so the pattern keeps evolving even at a held audio level), scaled by both
-// a fixed displacement budget and the current audio level — silence (uAudioLevel 0) means zero
+// a fixed displacement budget and the current audio level - silence (uAudioLevel 0) means zero
 // displacement, exactly like the reference.
 vec3 getDisplacedPosition(vec3 _position) {
   float noise = safePerlin4d(vec4(_position * uFrequency + uTime, uTime));
@@ -202,7 +202,7 @@ void main() {
 
   // Two neighboring samples along this vertex's tangent/bitangent directions (`tangent` comes
   // from geometry.computeTangents() in ReactiveSphere.tsx, enabled via the material's
-  // USE_TANGENT define) — used only to numerically estimate the post-displacement normal below.
+  // USE_TANGENT define) - used only to numerically estimate the post-displacement normal below.
   float distanceA = (M_PI * 2.0) / uSubdivision.x;
   float distanceB = M_PI / uSubdivision.x;
 
