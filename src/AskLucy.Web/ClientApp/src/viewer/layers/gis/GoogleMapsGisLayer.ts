@@ -208,7 +208,15 @@ export async function createGoogleMapsGisLayer(
     // T032a (FR-005a/SC-004a): a lower pixel ratio on detected low-end/mobile devices is a
     // cheap, broadly effective way to reduce GPU load for a bridged external renderer we
     // don't otherwise control the render loop of.
-    renderer.setPixelRatio(options.reducedQuality ? 1 : Math.min(window.devicePixelRatio, 2))
+    //
+    // TEMPORARY DIAGNOSTIC TEST (live user request, 2026-09-07): forced to 1 unconditionally,
+    // ignoring reducedQuality/devicePixelRatio, to test whether this concurrent WebGLOverlayView
+    // Three.js bridge is the real shared-GPU cost behind AiPresenceCard's sphere (scene/) losing
+    // sustained fps on an RTX 4060 -- a hypothesis, not yet confirmed. shouldReduceMapQuality()
+    // only checks viewport width, never GPU capability, so on a desktop-width window this
+    // renderer always ran at full min(devicePixelRatio, 2) regardless of actual GPU tier. Revert
+    // to the line above once the test result is in, whichever way it points.
+    renderer.setPixelRatio(1)
   }
 
   overlay.onDraw = ({ transformer }) => {
