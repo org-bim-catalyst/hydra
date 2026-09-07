@@ -73,8 +73,21 @@ export function useSceneQualityTier() {
     mountedAt.current = performance.now()
   }, [])
 
+  // Temporary diagnostic instrumentation (live user report, 2026-09-07: three targeted fixes
+  // in a row produced "no difference," so the next step is real data instead of another guess).
+  // Remove once the actual mechanism behind the sphere's post-mount quality drop is confirmed.
+  useEffect(() => {
+    console.debug(`[SceneQualityTier] tier=${tier} at t=${performance.now().toFixed(0)}ms`)
+  }, [tier])
+
   const reportPerformanceRegression = useCallback(() => {
-    if (mountedAt.current === null || performance.now() - mountedAt.current < 20_000) return
+    const elapsed = mountedAt.current === null ? null : performance.now() - mountedAt.current
+    const withinGuard = elapsed === null || elapsed < 20_000
+    console.debug(
+      `[SceneQualityTier] reportPerformanceRegression called at elapsed=${elapsed?.toFixed(0)}ms ` +
+        `(guard=20000ms) -> ${withinGuard ? 'IGNORED (within guard)' : 'ACCEPTED (demoting to reduced)'}`,
+    )
+    if (withinGuard) return
     setTier((current) => (current === 'full' ? 'reduced' : current))
   }, [])
 
