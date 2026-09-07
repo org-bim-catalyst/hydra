@@ -3,7 +3,7 @@
 // sphere.vert.glsl's header for why) so it interpolates smoothly at this app's lower
 // subdivision count instead of faceting like per-vertex (Gouraud) shading would.
 //
-// Two colored "lights" (idle/reactive theme colors, dotMeshTheme.ts) are combined via a
+// Two colored "lights" (a hue-cycling palette, ReactiveSphere.tsx) are combined via a
 // fresnel term, then mixed toward white at the sphere's brightest silhouette highlight — the
 // reference's formula, with one deliberate tuning change (live user review, 2026-09-07):
 //
