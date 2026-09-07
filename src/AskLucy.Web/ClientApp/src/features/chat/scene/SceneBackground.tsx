@@ -5,6 +5,7 @@ import { Component, type ReactNode, useRef, useState } from 'react'
 import type { Group } from 'three'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { ReactiveSphere } from './ReactiveSphere'
+import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import { SphereBloom } from './SphereBloom'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
@@ -80,6 +81,11 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
     return <StaticFallback />
   }
 
+  // FR-004/FR-010: bloom is part of the "full" tier's richer technique only - "reduced" keeps
+  // a simpler, non-glow technique (sphereRenderTechnique.ts), prioritizing performance/battery
+  // life over full visual parity with "full".
+  const { bloomEnabled } = getSphereRenderTechnique(tier)
+
   return (
     <SceneErrorBoundary fallback={<StaticFallback />}>
       {/* Fades out as the canvas fades in, so what sits behind this card shows through the
@@ -130,9 +136,7 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           }}
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
-              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI). 'reduced'
-              now means a coarser SphereGeometry subdivision (ReactiveSphere.tsx's
-              SEGMENTS_BY_TIER) rather than a different blending mode. */}
+              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI). */}
           <PerformanceMonitor onDecline={reportPerformanceRegression} />
           <ambientLight intensity={0.6} />
           <ReactiveSphere
@@ -141,7 +145,9 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             reducedMotion={prefersReducedMotion}
             groupRef={sphereGroupRef}
           />
-          <SphereBloom sphereRef={sphereGroupRef} getFrequencyBands={getFrequencyBands} />
+          {bloomEnabled && (
+            <SphereBloom sphereRef={sphereGroupRef} getFrequencyBands={getFrequencyBands} />
+          )}
           <OrbitControls
             enablePan
             enableZoom
