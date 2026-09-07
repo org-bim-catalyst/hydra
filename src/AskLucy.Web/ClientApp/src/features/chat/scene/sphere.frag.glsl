@@ -15,17 +15,23 @@
 // ambient base tint (so the whole surface reads as colored, not just the rim) and a softened
 // fresnel offset (so more of the surface - not only the grazing edge - picks up light).
 const float AMBIENT_STRENGTH = 0.16;
-const RIM_HIGHLIGHT_THRESHOLD = 0.8;
-const RIM_HIGHLIGHT_EXPONENT = 3.0;
+const float RIM_HIGHLIGHT_THRESHOLD = 0.8;
+const float RIM_HIGHLIGHT_EXPONENT = 3.0;
 
-// Two experiments were tried here and reverted (live user review, 2026-09-07):
-// 1. Real see-through transparency (fresnel-driven alpha) - with SphereBloom.tsx's
-//    SelectiveBloom/EffectComposer pipeline active, the sphere rendered fully invisible rather
-//    than partially transparent. Back to a flat, opaque alpha (below).
-// 2. A "glass" pass (white specular + sharper fresnel rim, RIM_HIGHLIGHT_THRESHOLD/EXPONENT
-//    above raised/lowered from these current values) - the sphere stopped rendering again
-//    after that change; reverted back to "silver metal" (light-tinted specular, this file's
-//    prior values) rather than chase why, since a known-working state was the priority.
+// Real see-through transparency (fresnel-driven alpha) was tried here and reverted (live user
+// review, 2026-09-07): with SphereBloom.tsx's SelectiveBloom/EffectComposer pipeline active,
+// the sphere rendered fully invisible rather than partially transparent. Back to a flat,
+// opaque alpha (below).
+//
+// A separate "glass" pass (white specular + sharper fresnel rim) was also tried and reverted
+// to "silver metal" (light-tinted specular, this file's current values) per live user
+// preference - but the sphere going blank right after that change was actually caused by a
+// real GLSL bug introduced in the same edit: RIM_HIGHLIGHT_THRESHOLD/EXPONENT above were first
+// declared as `const RIM_HIGHLIGHT_THRESHOLD = 0.8;` with no type - invalid GLSL (unlike
+// TS/JS, `const` alone never infers a type here; every declaration needs one, e.g. `const
+// float ...`). That shader failed to compile at all, which is why reverting the specular
+// *color* didn't fix the "not showing" symptom - the actual syntax error carried through the
+// revert untouched until this comment's own fix (`const float ...` above).
 
 uniform vec3 uLightAColor;
 uniform vec3 uLightAPosition;
