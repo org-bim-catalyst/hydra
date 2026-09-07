@@ -4,8 +4,17 @@
 // subdivision count instead of faceting like per-vertex (Gouraud) shading would.
 //
 // Two colored "lights" (idle/reactive theme colors, dotMeshTheme.ts) are combined via a
-// fresnel term into a black base, then mixed toward white at the sphere's brightest
-// silhouette highlight — the reference's exact formula, unchanged.
+// fresnel term, then mixed toward white at the sphere's brightest silhouette highlight — the
+// reference's formula, with one deliberate tuning change (live user review, 2026-09-07):
+//
+// The reference starts from a pure black base and uses uFresnelOffset = -1.609, which makes
+// any fragment facing the camera close to head-on (dot(viewDirection, normal) ≈ -1) clamp to
+// fresnel = 0 — i.e. pure black — lighting only the silhouette rim. That reads as a dramatic
+// "glowing orb in a black void" in the reference's full-viewport hero demo, but in this app's
+// small card it just looks like a black blob with a thin colored edge. Fixed here with an
+// ambient base tint (so the whole surface reads as colored, not just the rim) and a softened
+// fresnel offset (so more of the surface — not only the grazing edge — picks up light).
+const float AMBIENT_STRENGTH = 0.16;
 
 uniform vec3 uLightAColor;
 uniform vec3 uLightAPosition;
@@ -31,7 +40,7 @@ void main() {
   float lightAIntensity = max(0.0, -dot(normal, normalize(-uLightAPosition))) * uLightAIntensity;
   float lightBIntensity = max(0.0, -dot(normal, normalize(-uLightBPosition))) * uLightBIntensity;
 
-  vec3 color = vec3(0.0);
+  vec3 color = mix(uLightAColor, uLightBColor, 0.5) * AMBIENT_STRENGTH;
   color = mix(color, uLightAColor, lightAIntensity * fresnel);
   color = mix(color, uLightBColor, lightBIntensity * fresnel);
   color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.8), 3.0), 0.0, 1.0));

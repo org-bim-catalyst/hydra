@@ -16,17 +16,21 @@ const SEGMENTS_BY_TIER = { full: 128, reduced: 48 } as const
 
 const TANGENT_DEFINES = { USE_TANGENT: '' } as const
 
-// Static light directions/intensities/fresnel tuning, ported as-is from the reference's
-// Sphere.js `setMaterial()` — only the two light *colors* are theme-driven (dotMeshTheme.ts)
-// instead of the reference's fixed orange/blue, everything else here shapes the sphere's form
-// and was tuned by the reference's author, not something this app has an opinion on.
+// Static light directions/intensities/fresnel tuning, ported from the reference's Sphere.js
+// `setMaterial()` — only the two light *colors* are theme-driven (dotMeshTheme.ts) instead of
+// the reference's fixed orange/blue. FRESNEL_OFFSET is the one other deliberate deviation (see
+// sphere.frag.glsl's header, live user review 2026-09-07): the reference's -1.609 clamps
+// every near-head-on fragment to pure black, which reads as "no color" in this app's small
+// card even though it's dramatic in the reference's full-viewport hero demo. Everything else
+// here shapes the sphere's form and was tuned by the reference's author, not something this
+// app has an opinion on.
 const LIGHT_A_SPHERICAL = new THREE.Spherical(1, 0.615, 2.049)
 const LIGHT_B_SPHERICAL = new THREE.Spherical(1, 2.561, -1.844)
 const LIGHT_A_INTENSITY = 1.85
 const LIGHT_B_INTENSITY = 1.4
 const DISTORTION_FREQUENCY = 1.5
 const DISPLACEMENT_FREQUENCY = 2.12
-const FRESNEL_OFFSET = -1.609
+const FRESNEL_OFFSET = -0.8
 const FRESNEL_POWER = 1.793
 
 interface Variation {
