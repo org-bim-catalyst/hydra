@@ -40,13 +40,11 @@ const FRESNEL_MULTIPLIER = 3.587
 const SPECULAR_SHININESS = 48
 const SPECULAR_STRENGTH = 0.6
 
-// Hue-cycling palette (live user review, 2026-09-07) — inspired by vizz.fm's "Polar Curves"
-// visualizer, which cycles through a handful of preset hues rather than sitting on one fixed
-// color (vizz.fm is closed-source with no published shaders; this is an independent
-// implementation of that general technique, not their actual code). The sphere slowly
-// crossfades through these hues in order rather than jumping between them.
-const HUE_CYCLE_DEGREES = [190, 250, 165, 45] // cyan, blue-violet, teal-green, gold
-const SECONDS_PER_HUE = 14
+// Continuous full-spectrum hue rotation ("rotating RGB", live user request 2026-09-07) —
+// replaces an earlier version that crossfaded between four hand-picked preset hues (vizz.fm's
+// "Polar Curves"-inspired look) with a smooth, unbroken cycle through the entire color wheel
+// instead of stepping between a handful of chosen colors.
+const HUE_ROTATION_PERIOD_SECONDS = 45 // one full 360° loop
 const SATURATION = 0.85
 // Per-mode base lightness for the two lights — dark mode can run lighter/more vivid; light
 // mode needs to stay darker for contrast against a light card background (same reasoning
@@ -55,26 +53,13 @@ const SATURATION = 0.85
 const LIGHT_A_LIGHTNESS_BY_MODE = { dark: 0.55, light: 0.32 } as const
 const LIGHT_B_LIGHTNESS_BY_MODE = { dark: 0.8, light: 0.5 } as const
 // VOLUME_LIGHTNESS_GAIN lives in the displacement-simplification const block below — it ties
-// this hue-cycling system to the same single audio scalar that drives the sphere's shape.
-
-/** Shortest-path hue interpolation in degrees (handles the 360°→0° wraparound) — a naive
- * `mix(a, b, t)` would occasionally spin the long way around the color wheel instead of
- * crossfading directly. */
-function lerpHueDegrees(from: number, to: number, t: number): number {
-  const delta = (((to - from + 180) % 360) + 360) % 360 - 180
-  return (from + delta * t + 360) % 360
-}
+// this hue-rotation system to the same single audio scalar that drives the sphere's shape.
 
 function currentHueDegrees(elapsedSeconds: number): number {
-  const cyclePosition = (elapsedSeconds / SECONDS_PER_HUE) % HUE_CYCLE_DEGREES.length
-  const index = Math.floor(cyclePosition)
-  const t = cyclePosition - index
-  const from = HUE_CYCLE_DEGREES[index]
-  const to = HUE_CYCLE_DEGREES[(index + 1) % HUE_CYCLE_DEGREES.length]
-  return lerpHueDegrees(from, to, t)
+  return ((elapsedSeconds / HUE_ROTATION_PERIOD_SECONDS) % 1) * 360
 }
 
-// Single-formula displacement (live user review, 2026-09-07 — A/B test against the previous
+// Single-formula displacement (live user review, 2026-09-07 — A/B test against an earlier
 // 4-independently-eased-variation version, ported from Bruno Simon's "Organic Sphere"; see git
 // history for that version and sphere.vert.glsl's header for the reasoning). Mirrors voltviz's
 // GlowSphere structure: one averaged loudness value, no extra JS-side smoothing beyond the
@@ -82,10 +67,17 @@ function currentHueDegrees(elapsedSeconds: number): number {
 // useVoiceAnalyzer.ts already uses the Web Audio default of the same value, so no change was
 // needed there), one noise call, one scale factor.
 const NOISE_FREQUENCY = 2.12
-// First-pass tuning guess, not derived from voltviz's own constants (their sphere's radius,
-// noise function, and audio scale are all different from this one's) — audioLevel(0..1) times
-// this is the sphere's maximum displacement at full volume.
-const DISPLACEMENT_SCALE = 0.6
+// A permanent noise-driven baseline, independent of audio — live user feedback: a sphere that
+// goes fully flat/smooth at silence (voltviz's own zero-average behavior, and this file's
+// previous version) reads as "dead" rather than "calm". This keeps a gentle, continuous wobble
+// at rest; uAudioLevel/uDisplacementScale below add the louder, more energetic "voltviz when
+// speaking" reactivity on top of it.
+const IDLE_DISPLACEMENT = 0.15
+// Raised from an earlier, more conservative first pass — "more like voltviz when speaking"
+// (live user request) meant a punchier, more visibly energetic reaction, not a subtle one.
+// audioLevel(0..1) times this is the sphere's *additional* displacement at full volume, on top
+// of IDLE_DISPLACEMENT above.
+const DISPLACEMENT_SCALE = 0.9
 // How fast the noise pattern itself evolves over time, independent of audio — voltviz's
 // equivalent is `elapsed * settings.speed`.
 const TIME_SPEED = 0.3
@@ -158,6 +150,7 @@ export function ReactiveSphere({
       uFrequency: { value: NOISE_FREQUENCY },
       uAudioLevel: { value: 0 },
       uDisplacementScale: { value: DISPLACEMENT_SCALE },
+      uIdleDisplacement: { value: IDLE_DISPLACEMENT },
       uFresnelOffset: { value: FRESNEL_OFFSET },
       uFresnelMultiplier: { value: FRESNEL_MULTIPLIER },
       uFresnelPower: { value: FRESNEL_POWER },
