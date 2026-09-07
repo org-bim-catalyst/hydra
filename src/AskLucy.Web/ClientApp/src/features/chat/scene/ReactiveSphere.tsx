@@ -33,12 +33,13 @@ const FRESNEL_POWER = 1.793
 // fragment shader has no lighting/fresnel concept at all to react in the first place, so a
 // fixed value here matches the reference at least as closely as the previous audio-driven one.
 const FRESNEL_MULTIPLIER = 3.587
-// Blinn-Phong specular tuning (live user review, 2026-09-07 — "more metallic") — see
-// sphere.frag.glsl's header for why these are tinted by light color rather than white.
-// Shininess this high keeps the highlight small and tight (polished metal), not a soft plastic
-// sheen; strength is deliberately modest so it reads as a glint, not a wash.
-const SPECULAR_SHININESS = 48
-const SPECULAR_STRENGTH = 0.6
+// Blinn-Phong specular tuning (live user review, 2026-09-07 — "instead of metal make it
+// glass") — see sphere.frag.glsl's header for why these are now white rather than light-tinted.
+// Shininess raised further and strength boosted from the earlier "metallic" pass for small,
+// crisp, bright glints — a glass surface's specular reads as sharper and more intense than a
+// brushed-metal one.
+const SPECULAR_SHININESS = 90
+const SPECULAR_STRENGTH = 0.9
 
 // Continuous full-spectrum hue rotation ("rotating RGB", live user request 2026-09-07) —
 // replaces an earlier version that crossfaded between four hand-picked preset hues (vizz.fm's
@@ -73,11 +74,10 @@ const NOISE_FREQUENCY = 2.12
 // at rest; uAudioLevel/uDisplacementScale below add the louder, more energetic "voltviz when
 // speaking" reactivity on top of it.
 const IDLE_DISPLACEMENT = 0.15
-// Raised from an earlier, more conservative first pass — "more like voltviz when speaking"
-// (live user request) meant a punchier, more visibly energetic reaction, not a subtle one.
-// audioLevel(0..1) times this is the sphere's *additional* displacement at full volume, on top
-// of IDLE_DISPLACEMENT above.
-const DISPLACEMENT_SCALE = 0.9
+// Raised to 0.9 for a punchier "voltviz when speaking" reaction, then brought back down to 0.5
+// (live user feedback: 0.9 was too strong). audioLevel(0..1) times this is the sphere's
+// *additional* displacement at full volume, on top of IDLE_DISPLACEMENT above.
+const DISPLACEMENT_SCALE = 0.5
 // How fast the noise pattern itself evolves over time, independent of audio — voltviz's
 // equivalent is `elapsed * settings.speed`.
 const TIME_SPEED = 0.3
