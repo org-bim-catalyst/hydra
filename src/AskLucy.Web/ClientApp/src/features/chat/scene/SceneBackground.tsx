@@ -144,7 +144,7 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             setIsReady(true)
             // Temporary diagnostic instrumentation (see useSceneQualityTier.ts) — confirms the
             // fixed dpr above actually reached the renderer, rather than assuming it did.
-            console.debug(
+            console.info(
               `[SceneBackground] gl.getPixelRatio()=${gl.getPixelRatio()} ` +
                 `window.devicePixelRatio=${typeof window !== 'undefined' ? window.devicePixelRatio : 'n/a'} ` +
                 `tier=${tier} bloomEnabled=${bloomEnabled}`,
@@ -159,7 +159,7 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             // fps/factor stream this component's own decisions are based on, so the next round
             // of live feedback carries real numbers instead of another guess.
             onChange={(api) =>
-              console.debug(
+              console.info(
                 `[PerformanceMonitor] t=${performance.now().toFixed(0)}ms fps=${api.fps} ` +
                   `factor=${api.factor.toFixed(2)} refreshrate=${api.refreshrate}`,
               )
