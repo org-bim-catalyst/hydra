@@ -104,11 +104,13 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           // drawn, fully transparent everywhere else (the `gl.setClearAlpha(0)` above) — so
           // the shadow hugs the sphere's actual silhouette, the same way a Photoshop layer
           // style's Drop Shadow/Outer Glow follows a layer's alpha rather than its bounding
-          // box. Darker/stronger in light mode, where separation is otherwise hardest.
+          // box. Darkened further and re-tuned per mode (light mode needs the strongest
+          // shadow, since a light card gives the least natural contrast) after live feedback
+          // that the first pass wasn't dark enough.
           filter: (t) =>
             t.palette.mode === 'dark'
-              ? 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45))'
-              : 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.4))',
+              ? 'drop-shadow(0 6px 18px rgba(0, 0, 0, 0.65))'
+              : 'drop-shadow(0 6px 20px rgba(0, 0, 0, 0.6))',
         }}
       >
         <Canvas
@@ -139,7 +141,7 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             reducedMotion={prefersReducedMotion}
             groupRef={sphereGroupRef}
           />
-          <SphereBloom sphereRef={sphereGroupRef} />
+          <SphereBloom sphereRef={sphereGroupRef} getFrequencyBands={getFrequencyBands} />
           <OrbitControls
             enablePan
             enableZoom
