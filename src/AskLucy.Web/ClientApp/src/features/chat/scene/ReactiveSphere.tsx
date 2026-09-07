@@ -64,11 +64,20 @@ interface ReactiveSphereProps {
   qualityTier: 'full' | 'reduced'
   /** Freezes idle rotation/breathing and caps reactive amplitude when the user prefers reduced motion. */
   reducedMotion: boolean
-  /** Optional external ref to the sphere's outer `<group>` - SceneBackground.tsx passes this
-   * through to `SphereBloom`'s `selection` so only this object blooms. Falls back to an
-   * internal ref when omitted so this component still works standalone (e.g. in isolation,
-   * without a bloom pass mounted). */
+  /** Optional external ref to the sphere's outer `<group>` - shared with MagmaGlowSphere so both
+   * layers rotate/breathe together. Falls back to an internal ref when omitted so this component
+   * still works standalone. */
   groupRef?: RefObject<THREE.Group | null>
+  /** Optional external ref to the `<points>` object specifically (not the outer group) -
+   * SceneBackground.tsx passes this through to `SphereBloom`'s `selection`, so bloom stays
+   * scoped to exactly the particle points (spec 011-particle-sphere-engine FR-004's original
+   * intent) rather than growing to cover whatever else later gets added to the shared group -
+   * MagmaGlowSphere's own layers are already additively glowing on their own and don't need a
+   * second bloom halo stacked on top (confirmed live, 2026-09-07: including them in bloom's
+   * selection produced a visibly non-transparent canvas margin once zoomed out past the sphere's
+   * own silhouette - the enlarged glowing surface fed a proportionally larger blur footprint into
+   * the composite pass). Falls back to an internal ref when omitted. */
+  pointsRef?: RefObject<THREE.Points | null>
 }
 
 /** The workspace's abstract, audio-reactive dot-mesh sphere (spec.md Clarifications - not a
@@ -81,10 +90,13 @@ export function ReactiveSphere({
   qualityTier,
   reducedMotion,
   groupRef: externalGroupRef,
+  pointsRef: externalPointsRef,
 }: ReactiveSphereProps) {
   const materialRef = useRef<THREE.ShaderMaterial>(null)
   const internalGroupRef = useRef<THREE.Group>(null)
   const groupRef = externalGroupRef ?? internalGroupRef
+  const internalPointsRef = useRef<THREE.Points>(null)
+  const pointsRef = externalPointsRef ?? internalPointsRef
   const wobbleNoise = useMemo(() => createNoise2D(), [])
   const elapsed = useRef(0)
   const mode = useThemeStore((s) => s.mode)
@@ -158,7 +170,7 @@ export function ReactiveSphere({
 
   return (
     <group ref={groupRef}>
-      <points>
+      <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         </bufferGeometry>

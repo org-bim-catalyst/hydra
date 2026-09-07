@@ -16,7 +16,10 @@ import vertexShader from './magmaGlow.vert.glsl?raw'
 const RADIUS_SCALE = SPHERE_RADIUS / 2
 const AURA_RADIUS = 2.02 * RADIUS_SCALE
 const IN_GLOW_RADIUS = 2.03 * RADIUS_SCALE
-const OUT_GLOW_SCALE = 11 * RADIUS_SCALE
+// The demo's own OutGlow sprite scale ratio was 11x (5.5x the sphere's own radius) - live
+// feedback, 2026-09-07: too strong once actually seen rendering. Cut roughly in half; a starting
+// point for further live tuning, not a final value.
+const OUT_GLOW_SCALE = 6 * RADIUS_SCALE
 
 const AURA_SCROLL_SPEED = 0.25 // matches the demo's own -performance.now() / 1000 / 4
 const AURA_OPACITY_IDLE = 0.6
@@ -27,8 +30,9 @@ const AURA_OPACITY_REACTIVE_MAX = 1.0
 const IN_GLOW_STRENGTH_IDLE = 0.4
 const IN_GLOW_STRENGTH_REACTIVE_MAX = 0.7
 
-const OUT_GLOW_OPACITY_IDLE = 0.5
-const OUT_GLOW_OPACITY_REACTIVE_MAX = 0.9
+// Same live-feedback reasoning as OUT_GLOW_SCALE above - roughly halved from an initial 0.5/0.9.
+const OUT_GLOW_OPACITY_IDLE = 0.25
+const OUT_GLOW_OPACITY_REACTIVE_MAX = 0.45
 
 // Same constants ReactiveSphere.tsx uses for its own idle breathing pulse. Both components start
 // their own local `elapsed` clock at 0 on mount and advance it by the same per-frame delta, so
@@ -60,13 +64,15 @@ interface MagmaGlowSphereProps {
  * 2026-09-07, from a customized version of that demo with only these 3 of its 6 layers enabled
  * (the Magma lava texture, the Flare rings, and the 500-sprite Spark emitter are intentionally
  * not ported here - not part of what was asked for, and real added GPU cost on hardware this
- * session already spent hours getting stable). Despite the demo itself running on WebGPU/TSL,
- * these 3 layers are simple enough to be plain THREE.Mesh/Sprite + GLSL - see magmaGlow.frag.glsl
- * for the InGlow port. Mounted as a child of ReactiveSphere's own `<group>` so it inherits that
- * group's rotation/position for free and reads as one object, not two independently-animating
- * overlays. Colors come from the same theme-driven getDotMeshColors ReactiveSphere/sphere.frag.glsl
- * already use (not the demo's own hardcoded blue), so this layer doesn't clash with the particle
- * sphere's own palette. */
+ * session already spent hours getting stable). Glow Outside's scale/opacity were cut roughly in
+ * half from the demo's own values after live feedback that it read too strong once actually
+ * seen rendering (OUT_GLOW_SCALE/OUT_GLOW_OPACITY_* above). Despite the demo itself running on
+ * WebGPU/TSL, these 3 layers are simple enough to be plain THREE.Mesh/Sprite + GLSL - see
+ * magmaGlow.frag.glsl for the InGlow port. Mounted as a child of ReactiveSphere's own `<group>`
+ * so it inherits that group's rotation/position for free and reads as one object, not two
+ * independently-animating overlays. Colors come from the same theme-driven getDotMeshColors
+ * ReactiveSphere/sphere.frag.glsl already use (not the demo's own hardcoded blue), so this layer
+ * doesn't clash with the particle sphere's own palette. */
 export function MagmaGlowSphere({ getFrequencyBands, reducedMotion }: MagmaGlowSphereProps) {
   const groupRef = useRef<THREE.Group>(null)
   const auraMaterialRef = useRef<THREE.MeshBasicMaterial>(null)
