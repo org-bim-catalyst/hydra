@@ -3,7 +3,6 @@ import { type RefObject, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useThemeStore } from '../../../store/themeStore'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
-import { getDotMeshColors } from './dotMeshTheme'
 import fragmentShader from './sphere.frag.glsl?raw'
 import vertexShader from './sphere.vert.glsl?raw'
 
@@ -18,13 +17,12 @@ const SEGMENTS_BY_TIER = { full: 128, reduced: 48 } as const
 const TANGENT_DEFINES = { USE_TANGENT: '' } as const
 
 // Static light directions/intensities/fresnel tuning, ported from the reference's Sphere.js
-// `setMaterial()` — only the two light *colors* are theme-driven (dotMeshTheme.ts) instead of
-// the reference's fixed orange/blue. FRESNEL_OFFSET is the one other deliberate deviation (see
-// sphere.frag.glsl's header, live user review 2026-09-07): the reference's -1.609 clamps
-// every near-head-on fragment to pure black, which reads as "no color" in this app's small
-// card even though it's dramatic in the reference's full-viewport hero demo. Everything else
-// here shapes the sphere's form and was tuned by the reference's author, not something this
-// app has an opinion on.
+// `setMaterial()`. FRESNEL_OFFSET is one deliberate deviation (see sphere.frag.glsl's header,
+// live user review 2026-09-07): the reference's -1.609 clamps every near-head-on fragment to
+// pure black, which reads as "no color" in this app's small card even though it's dramatic in
+// the reference's full-viewport hero demo. The two light *colors* are a second deviation — see
+// the hue-cycling block below — everything else here shapes the sphere's form and was tuned by
+// the reference's author, not something this app has an opinion on.
 const LIGHT_A_SPHERICAL = new THREE.Spherical(1, 0.615, 2.049)
 const LIGHT_B_SPHERICAL = new THREE.Spherical(1, 2.561, -1.844)
 const LIGHT_A_INTENSITY = 1.85
@@ -33,6 +31,41 @@ const DISTORTION_FREQUENCY = 1.5
 const DISPLACEMENT_FREQUENCY = 2.12
 const FRESNEL_OFFSET = -0.8
 const FRESNEL_POWER = 1.793
+
+// Hue-cycling palette (live user review, 2026-09-07) — inspired by vizz.fm's "Polar Curves"
+// visualizer, which cycles through a handful of preset hues rather than sitting on one fixed
+// color (vizz.fm is closed-source with no published shaders; this is an independent
+// implementation of that general technique, not their actual code). The sphere slowly
+// crossfades through these hues in order rather than jumping between them.
+const HUE_CYCLE_DEGREES = [190, 250, 165, 45] // cyan, blue-violet, teal-green, gold
+const SECONDS_PER_HUE = 14
+const SATURATION = 0.85
+// Per-mode base lightness for the two lights — dark mode can run lighter/more vivid; light
+// mode needs to stay darker for contrast against a light card background (same reasoning
+// dotMeshTheme.ts used before this hue-cycling system replaced it). Light B stays the
+// brighter "highlight" of the pair, same relationship the old idle/reactive colors had.
+const LIGHT_A_LIGHTNESS_BY_MODE = { dark: 0.55, light: 0.32 } as const
+const LIGHT_B_LIGHTNESS_BY_MODE = { dark: 0.8, light: 0.5 } as const
+// How much louder speech brightens both lights on top of their base lightness — ties the
+// hue-cycling system to the same real FFT volume variation as the sphere's shape reactivity.
+const VOLUME_LIGHTNESS_GAIN = 0.6
+
+/** Shortest-path hue interpolation in degrees (handles the 360°→0° wraparound) — a naive
+ * `mix(a, b, t)` would occasionally spin the long way around the color wheel instead of
+ * crossfading directly. */
+function lerpHueDegrees(from: number, to: number, t: number): number {
+  const delta = (((to - from + 180) % 360) + 360) % 360 - 180
+  return (from + delta * t + 360) % 360
+}
+
+function currentHueDegrees(elapsedSeconds: number): number {
+  const cyclePosition = (elapsedSeconds / SECONDS_PER_HUE) % HUE_CYCLE_DEGREES.length
+  const index = Math.floor(cyclePosition)
+  const t = cyclePosition - index
+  const from = HUE_CYCLE_DEGREES[index]
+  const to = HUE_CYCLE_DEGREES[(index + 1) % HUE_CYCLE_DEGREES.length]
+  return lerpHueDegrees(from, to, t)
+}
 
 interface Variation {
   current: number
@@ -109,7 +142,9 @@ interface ReactiveSphereProps {
  * geographic globe). Ported from Bruno Simon's "Organic Sphere" reference project (2026-09-07,
  * live user review, option 2 — see sphere.vert.glsl's header for the full history of why a
  * from-scratch particle-cloud technique was replaced). A continuous noise-displaced mesh with
- * twin-light fresnel shading; surface colors follow the current theme (FR-008, dotMeshTheme.ts). */
+ * twin-light fresnel shading; light colors slowly cycle through a preset hue palette
+ * (HUE_CYCLE_DEGREES above, vizz.fm-inspired, live user review 2026-09-07) with lightness
+ * tuned per theme mode and boosted by real speech volume. */
 export function ReactiveSphere({
   getFrequencyBands,
   qualityTier,
@@ -141,15 +176,17 @@ export function ReactiveSphere({
   // direction the drift starts from, not the drift itself.
   const offsetSpherical = useRef(new THREE.Spherical(1, Math.PI / 3, (Math.PI * 4) / 5))
   const offsetDirection = useRef(new THREE.Vector3())
-
-  const dotColors = getDotMeshColors(mode)
+  // Real elapsed seconds, decoupled from `uTime`'s noise-space accumulator above (which is
+  // scaled by the tiny, audio-driven `timeFrequency` and isn't a usable wall-clock) — this is
+  // what currentHueDegrees() cycles against.
+  const hueElapsedSeconds = useRef(0)
 
   const uniforms = useMemo(
     () => ({
-      uLightAColor: { value: new THREE.Color(dotColors.idle) },
+      uLightAColor: { value: new THREE.Color() },
       uLightAPosition: { value: new THREE.Vector3().setFromSpherical(LIGHT_A_SPHERICAL) },
       uLightAIntensity: { value: LIGHT_A_INTENSITY },
-      uLightBColor: { value: new THREE.Color(dotColors.reactive) },
+      uLightBColor: { value: new THREE.Color() },
       uLightBPosition: { value: new THREE.Vector3().setFromSpherical(LIGHT_B_SPHERICAL) },
       uLightBIntensity: { value: LIGHT_B_INTENSITY },
       uSubdivision: { value: new THREE.Vector2(segments, segments) },
@@ -163,9 +200,8 @@ export function ReactiveSphere({
       uFresnelPower: { value: FRESNEL_POWER },
       uTime: { value: 0 },
     }),
-    // Initial values only — mode changes are applied to the existing uniforms in useFrame
-    // below instead of recreating the material on every theme toggle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Initial values only — colors/theme mode are applied to the existing uniforms in
+    // useFrame below instead of recreating the material every frame/toggle.
     [segments],
   )
 
@@ -204,13 +240,26 @@ export function ReactiveSphere({
       u.uOffset.value.add(offsetDirection.current)
 
       u.uTime.value += elapsedTime
+
+      // Real seconds, not deltaMs — HUE_CYCLE_DEGREES/SECONDS_PER_HUE above are tuned in
+      // real-world time, independent of the noise-space accumulator's audio-scaled speed.
+      hueElapsedSeconds.current += delta
     }
 
-    // FR-008/SC-004: write the current theme's colors into the uniforms in place every
-    // frame (cheap — two Color.set calls) rather than recreating the material on theme
-    // toggle, so the switch applies with no perceptible delay/flash.
-    u.uLightAColor.value.set(dotColors.idle)
-    u.uLightBColor.value.set(dotColors.reactive)
+    // Runs every frame regardless of reducedMotion (unlike the block above) so the lights are
+    // always set to a real color — reducedMotion only stops hueElapsedSeconds from advancing
+    // (see above), it doesn't skip color assignment, which would otherwise leave both lights
+    // at their THREE.Color() default (black) for a user with reduced motion enabled.
+    const hueDegrees = currentHueDegrees(hueElapsedSeconds.current)
+    const hue01 = hueDegrees / 360
+    // Real speech volume (useVoiceAnalyzer's FFT, via the `volume` variation above) brightens
+    // both lights on top of their theme-mode base lightness — ties this hue-cycling system to
+    // the same audio reactivity driving the sphere's shape.
+    const lightnessBoost = (variations.current.volume.current - VOLUME_DEFAULT) * VOLUME_LIGHTNESS_GAIN
+    const lightnessA = THREE.MathUtils.clamp(LIGHT_A_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
+    const lightnessB = THREE.MathUtils.clamp(LIGHT_B_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
+    u.uLightAColor.value.setHSL(hue01, SATURATION, lightnessA)
+    u.uLightBColor.value.setHSL(hue01, SATURATION, lightnessB)
   })
 
   return (
