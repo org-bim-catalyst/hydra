@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { EffectComposer, SelectiveBloom } from '@react-three/postprocessing'
 import { KernelSize, type SelectiveBloomEffect } from 'postprocessing'
 import { memo, type RefObject, useRef } from 'react'
-import type { Group, Object3D } from 'three'
+import type { Object3D } from 'three'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 
 // Re-enabled 2026-09-07 (live user review — voltviz's GlowSphere reference, an open-source
@@ -42,11 +42,14 @@ const VOLUME_UP_EASING = 0.03
 const VOLUME_DOWN_EASING = 0.002
 
 interface SphereBloomProps {
-  /** The sphere's outer `<group>` ref (`ReactiveSphere.tsx`). `SelectiveBloom`'s `selection`
-   * prop restricts the bloom pass to this object via a dedicated render layer, so nothing else
-   * sharing the scene (ambient light, `OrbitControls`, anything added later) is affected
-   * (spec 011-particle-sphere-engine FR-004, Clarification Q2, research.md §3). */
-  sphereRef: RefObject<Group | null>
+  /** The sphere's `<points>` ref specifically (`ReactiveSphere.tsx`'s `pointsRef`), not its
+   * outer group - `SelectiveBloom`'s `selection` prop restricts the bloom pass to exactly this
+   * object via a dedicated render layer (spec 011-particle-sphere-engine FR-004, Clarification
+   * Q2, research.md §3). Deliberately narrower than the group: MagmaGlowSphere's layers share
+   * that same group for rotation/breathing but are already additively glowing on their own and
+   * don't need bloom's halo too - see ReactiveSphere.tsx's pointsRef doc comment for the live
+   * transparency bug this scoping fixed. */
+  sphereRef: RefObject<Object3D | null>
   /** Same real per-band FFT getter passed to `ReactiveSphere` — read every frame here (not a
    * React prop/state) for the same reason ReactiveSphere reads it that way: 60fps updates would
    * far exceed a sane React re-render rate. */

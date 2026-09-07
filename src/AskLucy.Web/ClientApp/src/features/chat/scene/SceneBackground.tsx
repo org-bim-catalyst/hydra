@@ -2,7 +2,7 @@ import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Box } from '@mui/material'
 import { Component, type ReactNode, useRef, useState } from 'react'
-import type { Group } from 'three'
+import type { Group, Points } from 'three'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { ReactiveSphere } from './ReactiveSphere'
 import { getSphereRenderTechnique } from './sphereRenderTechnique'
@@ -73,9 +73,13 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
   // `isReady` flag just cross-fades the canvas in on top of it once R3F's `onCreated`
   // signals the WebGL context actually exists, instead of popping in abruptly.
   const [isReady, setIsReady] = useState(false)
-  // FR-004/research.md §3: shared with SphereBloom's `selection` so the scoped bloom pass
-  // targets exactly this object, not the rest of the scene.
+  // Shared with MagmaGlowSphere (via ReactiveSphere's own groupRef prop) so both layers rotate
+  // and breathe together.
   const sphereGroupRef = useRef<Group>(null)
+  // FR-004/research.md §3: shared with SphereBloom's `selection` so the scoped bloom pass
+  // targets exactly the particle points, not the whole group - see ReactiveSphere.tsx's
+  // pointsRef prop doc comment for why this is scoped narrower than sphereGroupRef above.
+  const spherePointsRef = useRef<Points>(null)
 
   if (tier === 'static-fallback') {
     return <StaticFallback />
@@ -160,9 +164,10 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             qualityTier={tier}
             reducedMotion={prefersReducedMotion}
             groupRef={sphereGroupRef}
+            pointsRef={spherePointsRef}
           />
           {bloomEnabled && (
-            <SphereBloom sphereRef={sphereGroupRef} getFrequencyBands={getFrequencyBands} />
+            <SphereBloom sphereRef={spherePointsRef} getFrequencyBands={getFrequencyBands} />
           )}
           <OrbitControls
             enablePan
