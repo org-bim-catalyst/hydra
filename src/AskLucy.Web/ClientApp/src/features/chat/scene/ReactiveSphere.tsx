@@ -28,7 +28,17 @@ const BREATH_AMPLITUDE = 0.035 // subtle relative to REACTIVE_AMPLITUDE_MAX's 0.
 // separate additive-blending saturation incidents) - kept as-is, since those fixes remain
 // correct regardless of which technique the app ultimately uses.
 const POINT_COUNT_BY_TIER = { full: 8000, reduced: 500 } as const
-const BASE_POINT_SIZE_BY_TIER = { full: 0.12, reduced: 0.3 } as const
+// 'full' lowered further from that restored 0.12 (live diagnostic data, 2026-09-07, RTX 4060:
+// real sampled fps of 30-41 against this card's 40fps lower bound — a genuine sustained
+// fragment-shader cost problem, confirmed via console.info instrumentation, not a false
+// positive). Each point sprite's fragment shader (sphere.frag.glsl) runs across every pixel its
+// radius covers, and under additive blending, overlapping sprites compound that cost per pixel
+// rather than just occluding — smaller sprites mean less overlap and less total fragment work
+// for the same 8,000-point count, without touching the point density the live 4060 report said
+// it liked. This also directly targets the separate live RTX 3080 complaint ("points not
+// clear... too much glow") — less inter-point overlap reads as crisper individual dots instead
+// of a blurred glowing mass.
+const BASE_POINT_SIZE_BY_TIER = { full: 0.09, reduced: 0.3 } as const
 // 'full' lowered further from that restored 0.55 (live user report, 2026-09-07, RTX 3080:
 // "points not clear... too much glow and brightness" - the same additive-oversaturation
 // symptom those prior incidents describe). 0.55 was tuned back when SphereBloom.tsx's bloom
