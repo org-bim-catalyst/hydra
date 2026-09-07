@@ -15,14 +15,24 @@ import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 // non-adaptive behavior) rather than working around it with intensity/threshold tuning alone.
 // Kept deliberately faint at rest — "distinguish the sphere from the card background," not
 // voltviz's own much bigger reference glow — via low base intensity and a small blur kernel.
-const BLOOM_INTENSITY_BASE = 0.15
-// voltviz's GlowSphere itself keeps bloom *strength* fixed (only vertex displacement reacts to
-// its `u_frequency` uniform) — glow brightening with the sound is an intentional enhancement
-// here (live user review, 2026-09-07), reusing the same real FFT bands (useVoiceAnalyzer.ts)
-// that drive the sphere's shape reactivity in ReactiveSphere.tsx, not voltviz's literal code.
-const BLOOM_INTENSITY_GAIN = 0.55
-const BLOOM_LUMINANCE_THRESHOLD = 0.6
+// Lowered further (live user report, 2026-09-07): at the original values the halo read as
+// visually too strong, and — on both an RTX 3080 and an RTX 4060 — was expensive enough to
+// trip the scene's own one-way performance-regression downgrade (useSceneQualityTier.ts)
+// about 10 seconds after mount, silently dropping the sphere from 'full' to 'reduced' tier
+// (fewer points, bloom disabled entirely) for the rest of the session. RADIUS/LEVELS below are
+// the actual cost levers (fewer mipmap samples, smaller blur spread) — INTENSITY/GAIN are pure
+// visual strength and don't affect render cost on their own.
+const BLOOM_INTENSITY_BASE = 0.06
+const BLOOM_INTENSITY_GAIN = 0.25
+// Raised so fewer, only the very brightest pixels qualify for bloom at all — both a tighter
+// visual glow and less work per frame (fewer pixels enter the blur passes).
+const BLOOM_LUMINANCE_THRESHOLD = 0.75
 const BLOOM_LUMINANCE_SMOOTHING = 0
+// mipmapBlur's actual GPU cost knobs (defaults are radius 0.85, levels 8 — full-viewport hero
+// demo values, not tuned for a small card). Smaller radius = tighter halo *and* less blur work;
+// fewer levels = fewer mipmap samples per pixel.
+const BLOOM_RADIUS = 0.35
+const BLOOM_LEVELS = 4
 // Same asymmetric attack/release shape as ReactiveSphere.tsx's `volume` variation (fast
 // brighten, slow fade) so the glow's pulse reads as synced to the sphere's own reactivity
 // rather than a second, independently-timed animation.
@@ -77,6 +87,8 @@ export function SphereBloom({ sphereRef, getFrequencyBands }: SphereBloomProps) 
         luminanceThreshold={BLOOM_LUMINANCE_THRESHOLD}
         luminanceSmoothing={BLOOM_LUMINANCE_SMOOTHING}
         kernelSize={KernelSize.SMALL}
+        radius={BLOOM_RADIUS}
+        levels={BLOOM_LEVELS}
         mipmapBlur
       />
     </EffectComposer>
