@@ -74,7 +74,7 @@ public sealed class AuthController(
         var result = await mediator.Send(new RefreshCommand(refreshToken), cancellationToken);
         if (result.Outcome != AuthOutcome.Success)
         {
-            ClearRefreshTokenCookie();
+            ClearAuthCookies();
         }
 
         return ToActionResult(result);
@@ -89,7 +89,7 @@ public sealed class AuthController(
             await mediator.Send(new LogoutCommand(refreshToken), cancellationToken);
         }
 
-        ClearRefreshTokenCookie();
+        ClearAuthCookies();
         return NoContent();
     }
 
@@ -304,7 +304,10 @@ public sealed class AuthController(
     /// <summary>
     /// Single choke point for every successful auth outcome (Register, Login, LoginTwoFactor,
     /// CompleteExternalLogin, and Refresh via <see cref="ToActionResult(AuthResult)"/>) — sets
-    /// the httpOnly refresh-token cookie here once rather than duplicating it per action.
+    /// both httpOnly cookies here once rather than duplicating it per action. The access-token
+    /// cookie exists solely so SignalR hub connections can authenticate without a JS-managed
+    /// `accessTokenFactory` (see <see cref="AccessTokenCookie"/>) — REST calls keep using the
+    /// `Authorization: Bearer` header from the response body, unchanged.
     /// </summary>
     private AuthResponse ToResponse(AuthResult result)
     {
@@ -316,8 +319,20 @@ public sealed class AuthController(
                 RefreshTokenCookie.BuildOptions(TimeSpan.FromDays(jwtOptions.Value.RefreshTokenLifetimeDays)));
         }
 
+        if (result.AccessToken is not null)
+        {
+            Response.Cookies.Append(
+                AccessTokenCookie.Name,
+                result.AccessToken,
+                AccessTokenCookie.BuildOptions(TimeSpan.FromMinutes(jwtOptions.Value.AccessTokenLifetimeMinutes)));
+        }
+
         return new(result.UserId, result.AccessToken, result.AccessTokenExpiresAtUtc, RequiresTwoFactor: false);
     }
 
-    private void ClearRefreshTokenCookie() => Response.Cookies.Delete(RefreshTokenCookie.Name, RefreshTokenCookie.DeleteOptions);
+    private void ClearAuthCookies()
+    {
+        Response.Cookies.Delete(RefreshTokenCookie.Name, RefreshTokenCookie.DeleteOptions);
+        Response.Cookies.Delete(AccessTokenCookie.Name, AccessTokenCookie.DeleteOptions);
+    }
 }

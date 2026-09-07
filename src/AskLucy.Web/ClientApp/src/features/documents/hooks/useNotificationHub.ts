@@ -44,7 +44,7 @@ export function useNotificationHub(): { latest: IncomingNotification | null; dis
 
     const hubUrl = `${API_BASE_URL.replace(/\/api\/v1$/, '')}/hubs/document-processing`
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl, { accessTokenFactory: () => accessToken })
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build()
