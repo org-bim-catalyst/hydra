@@ -9,10 +9,12 @@
 // second, untested noise implementation into a sphere that has already broken twice on GPU
 // noise-precision edge cases is not a risk worth taking for what both functions produce anyway.
 //
-// Real behavior change from the previous version, worth knowing before judging this by eye:
-// this sphere goes flat/smooth at true silence (uAudioLevel === 0, same as voltviz's own
-// zero-average behavior) — there is no idle baseline bumpiness anymore. It only becomes organic
-// once actual sound plays.
+// Live user feedback, 2026-09-07: a flat/smooth sphere at true silence (matching voltviz's own
+// zero-average behavior) read as "dead" rather than "calm" — an idle sphere should still look
+// alive. uIdleDisplacement restores a permanent noise-driven baseline (independent of audio)
+// underneath uAudioLevel's reactive contribution, so the sphere keeps a gentle, continuous
+// wobble at rest and gets visibly more energetic/organic on top of that once Lucy speaks —
+// "more like voltviz when speaking" without going fully still in between.
 //
 // Still estimates each vertex's post-displacement normal from two neighboring tangent-plane
 // samples (unchanged from before) — there's no analytic derivative of the noise function to
@@ -26,6 +28,7 @@ uniform vec2 uSubdivision;
 uniform float uFrequency;
 uniform float uAudioLevel;
 uniform float uDisplacementScale;
+uniform float uIdleDisplacement;
 uniform float uTime;
 
 varying vec3 vNormal;
@@ -186,7 +189,7 @@ float safePerlin4d(vec4 p) {
 // displacement, exactly like the reference.
 vec3 getDisplacedPosition(vec3 _position) {
   float noise = safePerlin4d(vec4(_position * uFrequency + uTime, uTime));
-  float displacement = uAudioLevel * uDisplacementScale * noise;
+  float displacement = (uIdleDisplacement + uAudioLevel * uDisplacementScale) * noise;
   return _position + normalize(_position) * displacement;
 }
 
