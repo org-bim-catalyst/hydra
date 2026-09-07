@@ -28,7 +28,10 @@ const LIGHT_B_SPHERICAL = new THREE.Spherical(1, 2.561, -1.844)
 const LIGHT_A_INTENSITY = 1.85
 const LIGHT_B_INTENSITY = 1.4
 const FRESNEL_OFFSET = -0.8
-const FRESNEL_POWER = 1.793
+// Raised for a steeper falloff (live user review, 2026-09-07 — pushing further on "glass"
+// after real transparency didn't pan out; pairs with sphere.frag.glsl's
+// RIM_HIGHLIGHT_THRESHOLD/EXPONENT for a sharper, more defined edge glow).
+const FRESNEL_POWER = 2.4
 // No longer audio-reactive (see the displacement-simplification block below) — voltviz's own
 // fragment shader has no lighting/fresnel concept at all to react in the first place, so a
 // fixed value here matches the reference at least as closely as the previous audio-driven one.
@@ -74,10 +77,10 @@ const NOISE_FREQUENCY = 2.12
 // at rest; uAudioLevel/uDisplacementScale below add the louder, more energetic "voltviz when
 // speaking" reactivity on top of it.
 const IDLE_DISPLACEMENT = 0.15
-// Raised to 0.9 for a punchier "voltviz when speaking" reaction, brought down to 0.5, then 0.2
-// (live user feedback: both prior values were too strong). audioLevel(0..1) times this is the
-// sphere's *additional* displacement at full volume, on top of IDLE_DISPLACEMENT above.
-const DISPLACEMENT_SCALE = 0.2
+// Raised to 0.9 for a punchier "voltviz when speaking" reaction, then walked back down through
+// 0.5 and 0.2 (live user feedback: each was still too strong). audioLevel(0..1) times this is
+// the sphere's *additional* displacement at full volume, on top of IDLE_DISPLACEMENT above.
+const DISPLACEMENT_SCALE = 0.1
 // How fast the noise pattern itself evolves over time, independent of audio — voltviz's
 // equivalent is `elapsed * settings.speed`.
 const TIME_SPEED = 0.3
