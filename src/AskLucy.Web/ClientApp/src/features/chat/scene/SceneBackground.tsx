@@ -142,11 +142,29 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             // A scene background would paint over the cleared buffer and undo the above.
             scene.background = null
             setIsReady(true)
+            // Temporary diagnostic instrumentation (see useSceneQualityTier.ts) — confirms the
+            // fixed dpr above actually reached the renderer, rather than assuming it did.
+            console.debug(
+              `[SceneBackground] gl.getPixelRatio()=${gl.getPixelRatio()} ` +
+                `window.devicePixelRatio=${typeof window !== 'undefined' ? window.devicePixelRatio : 'n/a'} ` +
+                `tier=${tier} bloomEnabled=${bloomEnabled}`,
+            )
           }}
         >
           {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
               frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI). */}
-          <PerformanceMonitor onDecline={reportPerformanceRegression} />
+          <PerformanceMonitor
+            onDecline={reportPerformanceRegression}
+            // Temporary diagnostic instrumentation (see useSceneQualityTier.ts) — the raw
+            // fps/factor stream this component's own decisions are based on, so the next round
+            // of live feedback carries real numbers instead of another guess.
+            onChange={(api) =>
+              console.debug(
+                `[PerformanceMonitor] t=${performance.now().toFixed(0)}ms fps=${api.fps} ` +
+                  `factor=${api.factor.toFixed(2)} refreshrate=${api.refreshrate}`,
+              )
+            }
+          />
           <ambientLight intensity={0.6} />
           <ReactiveSphere
             getFrequencyBands={getFrequencyBands}
