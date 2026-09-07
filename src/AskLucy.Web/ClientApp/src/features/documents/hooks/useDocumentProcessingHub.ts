@@ -2,7 +2,6 @@ import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/s
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE_URL } from '../../../api/httpClient'
-import { useAuthStore } from '../../../store/authStore'
 import { DOCUMENTS_QUERY_KEY } from './useDocuments'
 
 /**
@@ -24,11 +23,10 @@ export function useDocumentProcessingHub(documentId: string | null): { isLive: b
       return
     }
 
-    const accessToken = useAuthStore.getState().accessToken
     const hubUrl = `${API_BASE_URL.replace(/\/api\/v1$/, '')}/hubs/document-processing`
 
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl, { accessTokenFactory: () => accessToken ?? '' })
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build()

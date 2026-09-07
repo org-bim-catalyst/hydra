@@ -32,7 +32,7 @@ export function useFloatingPanelHub(): { isLive: boolean } {
     const hubUrl = `${API_BASE_URL.replace(/\/api\/v1$/, '')}/hubs/panels`
 
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl, { accessTokenFactory: () => accessToken })
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build()

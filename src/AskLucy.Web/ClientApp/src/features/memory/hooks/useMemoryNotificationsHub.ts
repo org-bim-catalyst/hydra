@@ -35,7 +35,7 @@ export function useMemoryNotificationsHub(): { latest: MemoryNotification | null
 
     const hubUrl = `${API_BASE_URL.replace(/\/api\/v1$/, '')}/hubs/memory`
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl, { accessTokenFactory: () => accessToken })
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build()

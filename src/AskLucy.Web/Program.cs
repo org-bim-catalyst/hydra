@@ -81,12 +81,29 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         // JwtBearerHandler only reads here, not from the header, and only for hub paths.
         bearerOptions.Events = new JwtBearerEvents
         {
+            // Browsers can't set the Authorization header on a WebSocket/SSE handshake, so hub
+            // connections deliver the token another way. The query string is kept for any
+            // client that still uses accessTokenFactory; the cookie is what SignalR clients
+            // actually rely on now (AccessTokenCookie.cs) — it's attached fresh by the browser
+            // on every negotiate/reconnect, unlike a JS-managed factory closure that goes stale
+            // once the token it captured expires and is never re-read.
             OnMessageReceived = context =>
             {
+                if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    return Task.CompletedTask;
+                }
+
                 var accessToken = context.Request.Query["access_token"];
-                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                if (!string.IsNullOrEmpty(accessToken))
                 {
                     context.Token = accessToken;
+                    return Task.CompletedTask;
+                }
+
+                if (context.Request.Cookies.TryGetValue(AccessTokenCookie.Name, out var cookieToken) && !string.IsNullOrEmpty(cookieToken))
+                {
+                    context.Token = cookieToken;
                 }
 
                 return Task.CompletedTask;
