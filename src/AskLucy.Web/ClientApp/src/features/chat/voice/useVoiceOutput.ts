@@ -141,6 +141,8 @@ export function useVoiceOutput() {
     stop,
     isSpeaking: combinedIsSpeaking,
     getIntensity: provider === 'fallback' ? fallback.getIntensity : analyzer.getReactiveIntensity,
+    getFrequencyBands:
+      provider === 'fallback' ? fallback.getFrequencyBands : analyzer.getFrequencyBands,
     error: error ?? fallback.error,
     clearError,
     isMuted,

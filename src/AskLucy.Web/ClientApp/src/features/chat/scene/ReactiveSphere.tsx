@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { type RefObject, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useThemeStore } from '../../../store/themeStore'
+import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { getDotMeshColors } from './dotMeshTheme'
 import fragmentShader from './sphere.frag.glsl?raw'
 import vertexShader from './sphere.vert.glsl?raw'
@@ -37,7 +38,7 @@ interface Variation {
   current: number
   upEasing: number
   downEasing: number
-  getTarget: (reactiveIntensity: number) => number
+  getTarget: (bands: FrequencyBands) => number
 }
 
 type VariationName = 'volume' | 'lowLevel' | 'mediumLevel' | 'highLevel'
@@ -52,40 +53,46 @@ const HIGH_LEVEL_DEFAULT = 0.65
 /** Ported from the reference's `Sphere.js` `setVariations()`: four independently-eased values
  * (fast attack, slow release, each at its own speed) rather than one raw value driving
  * everything 1:1 — that per-channel lag is what gives the reference's motion its organic,
- * non-mechanical feel. The reference derives these from three live microphone FFT bands
- * (`Microphone.js`); this app only has a single 0–1 damped TTS envelope
- * (`getReactiveIntensity`, not a live mic), so all four read that same source at their own
- * eased rate instead of three independent bands — close in feel, not identical in origin.
- * Numeric constants (defaults, easings, target scale factors) are the reference's own tuning. */
+ * non-mechanical feel. Each reads its own real frequency band from `getFrequencyBands`
+ * (`useVoiceAnalyzer.ts`'s Web Audio `AnalyserNode`, matching the reference's own
+ * `Microphone.js`-derived bands 1:1) rather than one collapsed scalar — live user review,
+ * 2026-09-07, replacing an earlier version where all four read the same single damped TTS
+ * envelope. Numeric constants (defaults, easings, target scale factors) are the reference's
+ * own tuning. */
 function createVariations(): Record<VariationName, Variation> {
   return {
-    volume: { current: VOLUME_DEFAULT, upEasing: 0.03, downEasing: 0.002, getTarget: (r) => VOLUME_DEFAULT + r * 0.35 },
+    volume: {
+      current: VOLUME_DEFAULT,
+      upEasing: 0.03,
+      downEasing: 0.002,
+      getTarget: (b) => VOLUME_DEFAULT + Math.max(b.low, b.mid, b.high) * 0.3,
+    },
     lowLevel: {
       current: LOW_LEVEL_DEFAULT,
       upEasing: 0.005,
       downEasing: 0.002,
-      getTarget: (r) => LOW_LEVEL_DEFAULT + r * 0.003,
+      getTarget: (b) => LOW_LEVEL_DEFAULT + b.low * 0.003,
     },
     mediumLevel: {
       current: MEDIUM_LEVEL_DEFAULT,
       upEasing: 0.008,
       downEasing: 0.004,
-      getTarget: (r) => MEDIUM_LEVEL_DEFAULT + r * 2,
+      getTarget: (b) => MEDIUM_LEVEL_DEFAULT + b.mid * 2,
     },
     highLevel: {
       current: HIGH_LEVEL_DEFAULT,
       upEasing: 0.02,
       downEasing: 0.001,
-      getTarget: (r) => HIGH_LEVEL_DEFAULT + r * 5,
+      getTarget: (b) => HIGH_LEVEL_DEFAULT + b.high * 5,
     },
   }
 }
 
 interface ReactiveSphereProps {
-  /** Ref-based getter for the 0 (silent) – 1 (loud) damped TTS envelope (useTextToSpeech's
-   * `getIntensity`, FR-018, research.md §3) — read every frame here rather than passed as
-   * a plain number prop, so the assistant's voice doesn't force a React re-render per frame. */
-  getReactiveIntensity: () => number
+  /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
+   * `getFrequencyBands`, FR-018, research.md §3) — read every frame here rather than passed
+   * as plain number props, so the assistant's voice doesn't force a React re-render per frame. */
+  getFrequencyBands: () => FrequencyBands
   /** research.md §4/§5 — 'full' uses a finer SphereGeometry subdivision (SEGMENTS_BY_TIER);
    * 'reduced' uses a coarser one; 'static-fallback' never mounts this component. */
   qualityTier: 'full' | 'reduced'
@@ -104,7 +111,7 @@ interface ReactiveSphereProps {
  * from-scratch particle-cloud technique was replaced). A continuous noise-displaced mesh with
  * twin-light fresnel shading; surface colors follow the current theme (FR-008, dotMeshTheme.ts). */
 export function ReactiveSphere({
-  getReactiveIntensity,
+  getFrequencyBands,
   qualityTier,
   reducedMotion,
   groupRef: externalGroupRef,
@@ -172,12 +179,12 @@ export function ReactiveSphere({
       // were tuned against that; R3F's `delta` is in seconds, so convert to keep the exact
       // same tuning.
       const deltaMs = delta * 1000
-      const reactiveIntensity = getReactiveIntensity()
+      const bands = getFrequencyBands()
 
       const v = variations.current
       for (const key of Object.keys(v) as VariationName[]) {
         const variation = v[key]
-        const target = variation.getTarget(reactiveIntensity)
+        const target = variation.getTarget(bands)
         const easing = target > variation.current ? variation.upEasing : variation.downEasing
         variation.current += (target - variation.current) * easing * deltaMs
       }

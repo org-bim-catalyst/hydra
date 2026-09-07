@@ -1,6 +1,7 @@
 import { Box, alpha } from '@mui/material'
 import type { Theme } from '@mui/material'
 import { lazy, Suspense } from 'react'
+import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 
 /**
  * The readdy.ai reference's presence-preview card: `w-[25vh] h-[25vh] rounded-lg
@@ -22,8 +23,11 @@ interface AiPresenceCardProps {
   /** Passed through from the single `useVoiceOutput()` instance `ChatPage` already owns
    * and shares with `ConversationView` — NOT a second hook instance here, which would
    * desync the sphere's reaction from actual speech playback (ChatPage.tsx's own
-   * existing "lifted above ConversationView" comment explains why). */
-  getReactiveIntensity: () => number
+   * existing "lifted above ConversationView" comment explains why). Real per-band FFT data
+   * when ElevenLabs is the active provider (useVoiceAnalyzer.ts), or three equal synthesized
+   * values from the browser-fallback path (useTextToSpeech.ts) — see either hook's own doc
+   * comment. */
+  getFrequencyBands: () => FrequencyBands
 }
 
 /** FR-023: the existing AI particle-sphere visualization, relocated into its own
@@ -38,7 +42,7 @@ interface AiPresenceCardProps {
  * satisfied without rebuilding that logic. While the scene's own code chunk is still
  * loading, this card shows Lucy's static portrait instead of an empty box (spec.md Edge
  * Cases), matching `AssistantToggleFab`'s prior collapsed-state presentation. */
-export function AiPresenceCard({ getReactiveIntensity }: AiPresenceCardProps) {
+export function AiPresenceCard({ getFrequencyBands }: AiPresenceCardProps) {
   return (
     <Box
       data-testid="ai-presence-card"
@@ -65,7 +69,7 @@ export function AiPresenceCard({ getReactiveIntensity }: AiPresenceCardProps) {
           <Box sx={{ position: 'absolute', inset: 0, bgcolor: cardBg }} />
         }
       >
-        <SceneBackground getReactiveIntensity={getReactiveIntensity} />
+        <SceneBackground getFrequencyBands={getFrequencyBands} />
       </Suspense>
     </Box>
   )

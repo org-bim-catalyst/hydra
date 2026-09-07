@@ -227,7 +227,7 @@ export function ChatPage() {
         }
       >
         <HomeProjectCard />
-        <AiPresenceCard getReactiveIntensity={tts.getIntensity} />
+        <AiPresenceCard getFrequencyBands={tts.getFrequencyBands} />
         <ChatAssistantWidget>
           <ConversationView
             key={viewKey}
