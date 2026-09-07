@@ -27,10 +27,12 @@ const LIGHT_A_SPHERICAL = new THREE.Spherical(1, 0.615, 2.049)
 const LIGHT_B_SPHERICAL = new THREE.Spherical(1, 2.561, -1.844)
 const LIGHT_A_INTENSITY = 1.85
 const LIGHT_B_INTENSITY = 1.4
-const DISTORTION_FREQUENCY = 1.5
-const DISPLACEMENT_FREQUENCY = 2.12
 const FRESNEL_OFFSET = -0.8
 const FRESNEL_POWER = 1.793
+// No longer audio-reactive (see the displacement-simplification block below) — voltviz's own
+// fragment shader has no lighting/fresnel concept at all to react in the first place, so a
+// fixed value here matches the reference at least as closely as the previous audio-driven one.
+const FRESNEL_MULTIPLIER = 3.587
 // Blinn-Phong specular tuning (live user review, 2026-09-07 — "more metallic") — see
 // sphere.frag.glsl's header for why these are tinted by light color rather than white.
 // Shininess this high keeps the highlight small and tight (polished metal), not a soft plastic
@@ -52,9 +54,8 @@ const SATURATION = 0.85
 // brighter "highlight" of the pair, same relationship the old idle/reactive colors had.
 const LIGHT_A_LIGHTNESS_BY_MODE = { dark: 0.55, light: 0.32 } as const
 const LIGHT_B_LIGHTNESS_BY_MODE = { dark: 0.8, light: 0.5 } as const
-// How much louder speech brightens both lights on top of their base lightness — ties the
-// hue-cycling system to the same real FFT volume variation as the sphere's shape reactivity.
-const VOLUME_LIGHTNESS_GAIN = 0.6
+// VOLUME_LIGHTNESS_GAIN lives in the displacement-simplification const block below — it ties
+// this hue-cycling system to the same single audio scalar that drives the sphere's shape.
 
 /** Shortest-path hue interpolation in degrees (handles the 360°→0° wraparound) — a naive
  * `mix(a, b, t)` would occasionally spin the long way around the color wheel instead of
@@ -73,59 +74,25 @@ function currentHueDegrees(elapsedSeconds: number): number {
   return lerpHueDegrees(from, to, t)
 }
 
-interface Variation {
-  current: number
-  upEasing: number
-  downEasing: number
-  getTarget: (bands: FrequencyBands) => number
-}
-
-type VariationName = 'volume' | 'lowLevel' | 'mediumLevel' | 'highLevel'
-
-// Idle defaults for each variation, also used directly as the shader's initial uniform
-// values below (so both stay in sync without reading a ref during render).
-const VOLUME_DEFAULT = 0.152
-const LOW_LEVEL_DEFAULT = 0.0003
-const MEDIUM_LEVEL_DEFAULT = 3.587
-const HIGH_LEVEL_DEFAULT = 0.65
-
-/** Ported from the reference's `Sphere.js` `setVariations()`: four independently-eased values
- * (fast attack, slow release, each at its own speed) rather than one raw value driving
- * everything 1:1 — that per-channel lag is what gives the reference's motion its organic,
- * non-mechanical feel. Each reads its own real frequency band from `getFrequencyBands`
- * (`useVoiceAnalyzer.ts`'s Web Audio `AnalyserNode`, matching the reference's own
- * `Microphone.js`-derived bands 1:1) rather than one collapsed scalar — live user review,
- * 2026-09-07, replacing an earlier version where all four read the same single damped TTS
- * envelope. Numeric constants (defaults, easings, target scale factors) are the reference's
- * own tuning. */
-function createVariations(): Record<VariationName, Variation> {
-  return {
-    volume: {
-      current: VOLUME_DEFAULT,
-      upEasing: 0.03,
-      downEasing: 0.002,
-      getTarget: (b) => VOLUME_DEFAULT + Math.max(b.low, b.mid, b.high) * 0.3,
-    },
-    lowLevel: {
-      current: LOW_LEVEL_DEFAULT,
-      upEasing: 0.005,
-      downEasing: 0.002,
-      getTarget: (b) => LOW_LEVEL_DEFAULT + b.low * 0.003,
-    },
-    mediumLevel: {
-      current: MEDIUM_LEVEL_DEFAULT,
-      upEasing: 0.008,
-      downEasing: 0.004,
-      getTarget: (b) => MEDIUM_LEVEL_DEFAULT + b.mid * 2,
-    },
-    highLevel: {
-      current: HIGH_LEVEL_DEFAULT,
-      upEasing: 0.02,
-      downEasing: 0.001,
-      getTarget: (b) => HIGH_LEVEL_DEFAULT + b.high * 5,
-    },
-  }
-}
+// Single-formula displacement (live user review, 2026-09-07 — A/B test against the previous
+// 4-independently-eased-variation version, ported from Bruno Simon's "Organic Sphere"; see git
+// history for that version and sphere.vert.glsl's header for the reasoning). Mirrors voltviz's
+// GlowSphere structure: one averaged loudness value, no extra JS-side smoothing beyond the
+// AnalyserNode's own default `smoothingTimeConstant` (0.8 — voltviz sets this explicitly;
+// useVoiceAnalyzer.ts already uses the Web Audio default of the same value, so no change was
+// needed there), one noise call, one scale factor.
+const NOISE_FREQUENCY = 2.12
+// First-pass tuning guess, not derived from voltviz's own constants (their sphere's radius,
+// noise function, and audio scale are all different from this one's) — audioLevel(0..1) times
+// this is the sphere's maximum displacement at full volume.
+const DISPLACEMENT_SCALE = 0.6
+// How fast the noise pattern itself evolves over time, independent of audio — voltviz's
+// equivalent is `elapsed * settings.speed`.
+const TIME_SPEED = 0.3
+// How much louder speech brightens both lights (HSL lightness) on top of their theme-mode base
+// — unchanged in spirit from the previous version, just reading the same single audioLevel now
+// instead of a separately-eased `volume` variation.
+const VOLUME_LIGHTNESS_GAIN = 0.6
 
 interface ReactiveSphereProps {
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
@@ -172,20 +139,12 @@ export function ReactiveSphere({
     return geo
   }, [segments])
 
-  const variations = useRef(createVariations())
-  // A slowly, near-linearly drifting 3D "location" in the noise field (reference's `uOffset`)
-  // — recomputed every frame from a spherical direction that itself barely changes per tick,
-  // so the sphere's displacement pattern evolves continuously instead of repeating or holding
-  // still. Ported as-is; see the reference's Sphere.js `update()` for the exact derivation.
-  // The starting direction is an arbitrary fixed constant, not randomized (React's
-  // render-purity rules disallow Math.random() during render) — it only affects which
-  // direction the drift starts from, not the drift itself.
-  const offsetSpherical = useRef(new THREE.Spherical(1, Math.PI / 3, (Math.PI * 4) / 5))
-  const offsetDirection = useRef(new THREE.Vector3())
-  // Real elapsed seconds, decoupled from `uTime`'s noise-space accumulator above (which is
-  // scaled by the tiny, audio-driven `timeFrequency` and isn't a usable wall-clock) — this is
-  // what currentHueDegrees() cycles against.
-  const hueElapsedSeconds = useRef(0)
+  // Single audio-reactive scalar (0 silent – 1 loud), set directly from the loudest real FFT
+  // band each frame with no extra JS-side easing — see the const block above for why.
+  const audioLevel = useRef(0)
+  // Real elapsed seconds — both uTime's noise evolution and currentHueDegrees() cycle against
+  // this same wall-clock now that there's no separate audio-scaled "noise time" concept.
+  const elapsedSeconds = useRef(0)
 
   const uniforms = useMemo(
     () => ({
@@ -196,13 +155,11 @@ export function ReactiveSphere({
       uLightBPosition: { value: new THREE.Vector3().setFromSpherical(LIGHT_B_SPHERICAL) },
       uLightBIntensity: { value: LIGHT_B_INTENSITY },
       uSubdivision: { value: new THREE.Vector2(segments, segments) },
-      uOffset: { value: new THREE.Vector3() },
-      uDistortionFrequency: { value: DISTORTION_FREQUENCY },
-      uDistortionStrength: { value: HIGH_LEVEL_DEFAULT },
-      uDisplacementFrequency: { value: DISPLACEMENT_FREQUENCY },
-      uDisplacementStrength: { value: VOLUME_DEFAULT },
+      uFrequency: { value: NOISE_FREQUENCY },
+      uAudioLevel: { value: 0 },
+      uDisplacementScale: { value: DISPLACEMENT_SCALE },
       uFresnelOffset: { value: FRESNEL_OFFSET },
-      uFresnelMultiplier: { value: MEDIUM_LEVEL_DEFAULT },
+      uFresnelMultiplier: { value: FRESNEL_MULTIPLIER },
       uFresnelPower: { value: FRESNEL_POWER },
       uSpecularShininess: { value: SPECULAR_SHININESS },
       uSpecularStrength: { value: SPECULAR_STRENGTH },
@@ -219,51 +176,21 @@ export function ReactiveSphere({
     const u = material.uniforms as typeof uniforms
 
     if (!reducedMotion) {
-      // Reference's Time.js reports delta in milliseconds and its easing/frequency constants
-      // were tuned against that; R3F's `delta` is in seconds, so convert to keep the exact
-      // same tuning.
-      const deltaMs = delta * 1000
       const bands = getFrequencyBands()
+      audioLevel.current = Math.max(bands.low, bands.mid, bands.high)
+      u.uAudioLevel.value = audioLevel.current
 
-      const v = variations.current
-      for (const key of Object.keys(v) as VariationName[]) {
-        const variation = v[key]
-        const target = variation.getTarget(bands)
-        const easing = target > variation.current ? variation.upEasing : variation.downEasing
-        variation.current += (target - variation.current) * easing * deltaMs
-      }
-
-      const timeFrequency = v.lowLevel.current
-      const elapsedTime = deltaMs * timeFrequency
-
-      u.uDisplacementStrength.value = v.volume.current
-      u.uDistortionStrength.value = v.highLevel.current
-      u.uFresnelMultiplier.value = v.mediumLevel.current
-
-      const offsetTime = elapsedTime * 0.3
-      const spherical = offsetSpherical.current
-      spherical.phi = ((Math.sin(offsetTime * 0.001) * Math.sin(offsetTime * 0.00321)) * 0.5 + 0.5) * Math.PI
-      spherical.theta = ((Math.sin(offsetTime * 0.0001) * Math.sin(offsetTime * 0.000321)) * 0.5 + 0.5) * Math.PI * 2
-      offsetDirection.current.setFromSpherical(spherical).multiplyScalar(timeFrequency * 2)
-      u.uOffset.value.add(offsetDirection.current)
-
-      u.uTime.value += elapsedTime
-
-      // Real seconds, not deltaMs — HUE_CYCLE_DEGREES/SECONDS_PER_HUE above are tuned in
-      // real-world time, independent of the noise-space accumulator's audio-scaled speed.
-      hueElapsedSeconds.current += delta
+      elapsedSeconds.current += delta
+      u.uTime.value = elapsedSeconds.current * TIME_SPEED
     }
 
     // Runs every frame regardless of reducedMotion (unlike the block above) so the lights are
-    // always set to a real color — reducedMotion only stops hueElapsedSeconds from advancing
-    // (see above), it doesn't skip color assignment, which would otherwise leave both lights
-    // at their THREE.Color() default (black) for a user with reduced motion enabled.
-    const hueDegrees = currentHueDegrees(hueElapsedSeconds.current)
+    // always set to a real color — reducedMotion only stops elapsedSeconds from advancing, it
+    // doesn't skip color assignment, which would otherwise leave both lights at their
+    // THREE.Color() default (black) for a user with reduced motion enabled.
+    const hueDegrees = currentHueDegrees(elapsedSeconds.current)
     const hue01 = hueDegrees / 360
-    // Real speech volume (useVoiceAnalyzer's FFT, via the `volume` variation above) brightens
-    // both lights on top of their theme-mode base lightness — ties this hue-cycling system to
-    // the same audio reactivity driving the sphere's shape.
-    const lightnessBoost = (variations.current.volume.current - VOLUME_DEFAULT) * VOLUME_LIGHTNESS_GAIN
+    const lightnessBoost = audioLevel.current * VOLUME_LIGHTNESS_GAIN
     const lightnessA = THREE.MathUtils.clamp(LIGHT_A_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
     const lightnessB = THREE.MathUtils.clamp(LIGHT_B_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
     u.uLightAColor.value.setHSL(hue01, SATURATION, lightnessA)
