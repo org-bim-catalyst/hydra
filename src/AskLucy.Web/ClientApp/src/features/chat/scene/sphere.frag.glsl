@@ -41,6 +41,9 @@ uniform vec3 uLightBPosition;
 uniform float uLightBIntensity;
 
 uniform float uFresnelOffset;
+// Redesigned 2026-09-07: driven every frame by the real mid-frequency FFT band
+// (ReactiveSphere.tsx), not a fixed constant - the sphere's rim brightens with the mid range
+// of whatever is being said, alongside sphere.vert.glsl's low/high-band-driven displacement.
 uniform float uFresnelMultiplier;
 uniform float uFresnelPower;
 
