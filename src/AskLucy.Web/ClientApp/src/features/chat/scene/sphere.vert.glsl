@@ -1,42 +1,53 @@
-// Displacement simplified 2026-09-07 (live user review, A/B test against voltviz's GlowSphere
-// reference - see git history for the two-stage distortion+displacement version this replaces,
-// ported from Bruno Simon's "Organic Sphere"). voltviz's own vertex shader is one noise call,
-// one scale factor: `displacement = (u_frequency / 30.0) * (pnoise(position + u_time, ...) /
-// 10.0)`, where u_frequency is a single averaged 0-255 loudness value (no band split, no
-// separate distortion pass). This mirrors that structure - one noise sample, one audio-driven
-// scale - reusing this file's own already-proven, NaN-guarded 4D Perlin noise (`perlin4d`
-// below) rather than porting voltviz's separate 3D periodic `pnoise`, since introducing a
-// second, untested noise implementation into a sphere that has already broken twice on GPU
-// noise-precision edge cases is not a risk worth taking for what both functions produce anyway.
+// Redesigned 2026-09-07 after a full day of live-tested lessons on this exact sphere (see git
+// history on this file and sphere.frag.glsl for the incidents themselves). This version
+// combines the two things that turned out to matter most:
 //
-// Live user feedback, 2026-09-07: a flat/smooth sphere at true silence (matching voltviz's own
-// zero-average behavior) read as "dead" rather than "calm" - an idle sphere should still look
-// alive. uIdleDisplacement restores a permanent noise-driven baseline (independent of audio)
-// underneath uAudioLevel's reactive contribution, so the sphere keeps a gentle, continuous
-// wobble at rest and gets visibly more energetic/organic on top of that once Lucy speaks -
-// "more like voltviz when speaking" without going fully still in between.
+// 1. Two-stage noise (a distortion pre-pass that warps the sample point, then a displacement
+//    pass sampled at that warped point) reads as noticeably more organic than a single noise
+//    call scaled by one number - this is Bruno Simon's "Organic Sphere" reference technique,
+//    and the version of this file that flattened it down to one call (voltviz's simpler
+//    GlowSphere structure, tried as an explicit A/B test) read as visually flatter/more
+//    mechanical once compared side by side.
+// 2. Real, separate per-band audio data (useVoiceAnalyzer.ts's Web Audio AnalyserNode) drives
+//    the two stages independently - low frequencies feed the distortion pass, high frequencies
+//    feed the displacement pass - rather than collapsing everything into one scalar (this
+//    file's immediately preceding version) or a four-variable independently-eased system with
+//    its own state machine (an earlier version, harder to reason about for the size of benefit
+//    it gave). No extra JS-side smoothing beyond the AnalyserNode's own built-in
+//    smoothingTimeConstant (0.8, the Web Audio default) - kept simple deliberately.
+//
+// A permanent idle baseline is added to both passes so the sphere never goes fully flat/smooth
+// at silence (confirmed live: that reads as "dead" rather than "calm").
+//
+// Two hard lessons from today are non-negotiable going forward, called out explicitly because
+// nothing in this project's build (tsc/eslint) checks GLSL syntax - errors here only surface at
+// runtime, in a browser's WebGL console, on whatever machine happens to load it:
+// - GLSL has no type inference. Every `const` needs an explicit type (`const float x = ...;`,
+//   never bare `const x = ...;`) - a missing type here silently fails shader compilation with
+//   no visual clue beyond "the sphere stopped rendering".
+// - Only ASCII characters in this file. A non-ASCII character (em dash, curly quote, degree
+//   sign) risks silent mojibake if whatever serves the built JS bundle doesn't declare
+//   charset=utf-8 correctly - confirmed happening on this project's production host.
 //
 // Still estimates each vertex's post-displacement normal from two neighboring tangent-plane
-// samples (unchanged from before) - there's no analytic derivative of the noise function to
-// differentiate for a normal. Still shades per-fragment, not per-vertex (sphere.frag.glsl) -
-// this app uses far fewer subdivisions than voltviz's IcosahedronGeometry(4, 30), where
-// per-vertex lighting would visibly facet.
+// samples - there's no analytic derivative of the noise function to differentiate for a normal.
+// Still shades per-fragment, not per-vertex (sphere.frag.glsl) - this app uses far fewer
+// subdivisions than a full-viewport hero demo would, where per-vertex lighting would visibly facet.
 
 #define M_PI 3.1415926535897932384626433832795
 
 uniform vec2 uSubdivision;
-uniform float uFrequency;
-uniform float uAudioLevel;
-uniform float uDisplacementScale;
-uniform float uIdleDisplacement;
+uniform float uDistortionFrequency;
+uniform float uDistortionLevel;
+uniform float uDisplacementFrequency;
+uniform float uDisplacementLevel;
 uniform float uTime;
 
 varying vec3 vNormal;
 varying vec3 vViewDirection;
 
 // Classic Perlin 4D Noise by Stefan Gustavson (webgl-noise, MIT license) - inlined here since
-// this project's Vite build has no glslify loader (the reference source uses one to pull this
-// in as a separate partial).
+// this project's Vite build has no glslify loader (the reference source uses one).
 vec4 permute(vec4 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
 vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
 vec4 fade(vec4 t) { return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
@@ -174,23 +185,30 @@ float perlin4d(vec4 P) {
   return 2.2 * n_xyzw;
 }
 
-// Diagnosed on an NVIDIA RTX 3080 (ANGLE D3D11 backend) with this project's *previous* noise
-// function: a noise call evaluated to NaN on that GPU/driver even though the identical GLSL
-// ran correctly elsewhere, which silently broke the whole sphere. Kept as cheap insurance here
-// even though this is a different, better-established noise implementation.
+// Diagnosed on an NVIDIA RTX 3080 (ANGLE D3D11 backend): this noise function can evaluate to
+// NaN on some GPU/driver combinations even though the identical GLSL runs correctly elsewhere.
+// Guarded at the call site rather than inside perlin4d() itself, since that function is
+// third-party and used at two different call sites below.
 float safePerlin4d(vec4 p) {
   float n = perlin4d(p);
   return isnan(n) ? 0.0 : n;
 }
 
-// voltviz's single-formula structure: one noise sample at this vertex's position (offset by
-// the running clock so the pattern keeps evolving even at a held audio level), scaled by both
-// a fixed displacement budget and the current audio level - silence (uAudioLevel 0) means zero
-// displacement, exactly like the reference.
+// Two-stage displacement: the distortion pass warps _position before the displacement pass
+// samples noise there, which is what gives this technique its layered, organic look rather
+// than a single flat bump field. uDistortionLevel/uDisplacementLevel are set every frame from
+// real, separate FFT bands (ReactiveSphere.tsx) - low frequencies warp the sample point, high
+// frequencies scale the final radial bump - rather than one collapsed loudness number.
 vec3 getDisplacedPosition(vec3 _position) {
-  float noise = safePerlin4d(vec4(_position * uFrequency + uTime, uTime));
-  float displacement = (uIdleDisplacement + uAudioLevel * uDisplacementScale) * noise;
-  return _position + normalize(_position) * displacement;
+  vec3 distortedPosition = _position;
+  distortedPosition += safePerlin4d(vec4(distortedPosition * uDistortionFrequency + uTime, uTime)) * uDistortionLevel;
+
+  float displacementNoise = safePerlin4d(vec4(distortedPosition * uDisplacementFrequency + uTime, uTime));
+
+  vec3 displacedPosition = _position;
+  displacedPosition += normalize(_position) * displacementNoise * uDisplacementLevel;
+
+  return displacedPosition;
 }
 
 void main() {

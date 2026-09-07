@@ -29,10 +29,6 @@ const LIGHT_A_INTENSITY = 1.85
 const LIGHT_B_INTENSITY = 1.4
 const FRESNEL_OFFSET = -0.8
 const FRESNEL_POWER = 1.793
-// No longer audio-reactive (see the displacement-simplification block below) — voltviz's own
-// fragment shader has no lighting/fresnel concept at all to react in the first place, so a
-// fixed value here matches the reference at least as closely as the previous audio-driven one.
-const FRESNEL_MULTIPLIER = 3.587
 // Blinn-Phong specular tuning ("silver metal", live user review, 2026-09-07 — see
 // sphere.frag.glsl's header for the brief "glass" experiment reverted here). Shininess this
 // high keeps the highlight small and tight (polished metal), not a soft plastic sheen; strength
@@ -52,38 +48,38 @@ const SATURATION = 0.85
 // brighter "highlight" of the pair, same relationship the old idle/reactive colors had.
 const LIGHT_A_LIGHTNESS_BY_MODE = { dark: 0.55, light: 0.32 } as const
 const LIGHT_B_LIGHTNESS_BY_MODE = { dark: 0.8, light: 0.5 } as const
-// VOLUME_LIGHTNESS_GAIN lives in the displacement-simplification const block below — it ties
-// this hue-rotation system to the same single audio scalar that drives the sphere's shape.
+// How much louder speech brightens both lights on top of their theme-mode base lightness —
+// reads the same overall loudness (max of the three bands) as the displacement/fresnel
+// reactivity below.
+const VOLUME_LIGHTNESS_GAIN = 0.6
 
 function currentHueDegrees(elapsedSeconds: number): number {
   return ((elapsedSeconds / HUE_ROTATION_PERIOD_SECONDS) % 1) * 360
 }
 
-// Single-formula displacement (live user review, 2026-09-07 — A/B test against an earlier
-// 4-independently-eased-variation version, ported from Bruno Simon's "Organic Sphere"; see git
-// history for that version and sphere.vert.glsl's header for the reasoning). Mirrors voltviz's
-// GlowSphere structure: one averaged loudness value, no extra JS-side smoothing beyond the
-// AnalyserNode's own default `smoothingTimeConstant` (0.8 — voltviz sets this explicitly;
-// useVoiceAnalyzer.ts already uses the Web Audio default of the same value, so no change was
-// needed there), one noise call, one scale factor.
-const NOISE_FREQUENCY = 2.12
-// A permanent noise-driven baseline, independent of audio — live user feedback: a sphere that
-// goes fully flat/smooth at silence (voltviz's own zero-average behavior, and this file's
-// previous version) reads as "dead" rather than "calm". This keeps a gentle, continuous wobble
-// at rest; uAudioLevel/uDisplacementScale below add the louder, more energetic "voltviz when
-// speaking" reactivity on top of it.
+// Redesigned 2026-09-07 (after a full day of live-tested lessons — see sphere.vert.glsl's
+// header for the fuller history) to combine what actually worked: the reference's two-stage
+// noise (distortion pre-pass, then displacement — richer/more organic than a single noise call
+// scaled by one number, confirmed by direct A/B comparison) driven by real, *separate* FFT
+// bands (useVoiceAnalyzer.ts) rather than one collapsed scalar or a four-variable
+// independently-eased system. No extra JS-side smoothing beyond the AnalyserNode's own default
+// smoothingTimeConstant (0.8) — kept simple on purpose.
+const DISTORTION_FREQUENCY = 1.5
+const DISPLACEMENT_FREQUENCY = 2.12
+// Permanent baselines, independent of audio — live user feedback: a sphere that goes fully
+// flat/smooth at silence reads as "dead" rather than "calm". These keep a gentle, continuous
+// wobble at rest; the *_GAIN constants below add louder, more energetic reactivity on top.
+const IDLE_DISTORTION = 0.3
 const IDLE_DISPLACEMENT = 0.15
-// Raised to 0.9 for a punchier "voltviz when speaking" reaction, then walked back down through
-// 0.5 and 0.2 (live user feedback: each was still too strong). audioLevel(0..1) times this is
-// the sphere's *additional* displacement at full volume, on top of IDLE_DISPLACEMENT above.
-const DISPLACEMENT_SCALE = 0.1
-// How fast the noise pattern itself evolves over time, independent of audio — voltviz's
-// equivalent is `elapsed * settings.speed`.
+// First-pass tuning guesses for the redesign, deliberately modest given how many rounds of
+// "too strong" earlier displacement values took to walk back — start conservative and let live
+// testing say whether either needs raising.
+const DISTORTION_GAIN = 0.6 // bands.low * this, added to IDLE_DISTORTION
+const DISPLACEMENT_GAIN = 0.3 // bands.high * this, added to IDLE_DISPLACEMENT
+const FRESNEL_MULTIPLIER_BASE = 3.587 // reference's own default
+const FRESNEL_MULTIPLIER_GAIN = 1.5 // bands.mid * this, brightens the rim with mid-range speech
+// How fast the noise pattern itself evolves over time, independent of audio.
 const TIME_SPEED = 0.3
-// How much louder speech brightens both lights (HSL lightness) on top of their theme-mode base
-// — unchanged in spirit from the previous version, just reading the same single audioLevel now
-// instead of a separately-eased `volume` variation.
-const VOLUME_LIGHTNESS_GAIN = 0.6
 
 interface ReactiveSphereProps {
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
@@ -93,7 +89,7 @@ interface ReactiveSphereProps {
   /** research.md §4/§5 — 'full' uses a finer SphereGeometry subdivision (SEGMENTS_BY_TIER);
    * 'reduced' uses a coarser one; 'static-fallback' never mounts this component. */
   qualityTier: 'full' | 'reduced'
-  /** FR-011: freezes the noise-space drift and reactive easing when the user prefers reduced motion. */
+  /** FR-011: freezes the noise-space evolution and reactive levels when the user prefers reduced motion. */
   reducedMotion: boolean
   /** Optional external ref to the sphere's outer `<group>` — SceneBackground.tsx passes this
    * through to `SphereBloom`'s `selection` so only this object blooms (FR-004,
@@ -103,12 +99,10 @@ interface ReactiveSphereProps {
 }
 
 /** The workspace's abstract, audio-reactive organic sphere (spec.md Clarifications — not a
- * geographic globe). Ported from Bruno Simon's "Organic Sphere" reference project (2026-09-07,
- * live user review, option 2 — see sphere.vert.glsl's header for the full history of why a
- * from-scratch particle-cloud technique was replaced). A continuous noise-displaced mesh with
- * twin-light fresnel shading; light colors slowly cycle through a preset hue palette
- * (HUE_CYCLE_DEGREES above, vizz.fm-inspired, live user review 2026-09-07) with lightness
- * tuned per theme mode and boosted by real speech volume. */
+ * geographic globe). A continuous two-stage noise-displaced mesh with twin-light fresnel
+ * shading, redesigned 2026-09-07 to drive distortion/displacement/fresnel from real, separate
+ * low/mid/high FFT bands (see the const block above); light colors continuously cycle through
+ * the full hue spectrum with lightness tuned per theme mode and boosted by overall speech volume. */
 export function ReactiveSphere({
   getFrequencyBands,
   qualityTier,
@@ -130,11 +124,10 @@ export function ReactiveSphere({
     return geo
   }, [segments])
 
-  // Single audio-reactive scalar (0 silent – 1 loud), set directly from the loudest real FFT
-  // band each frame with no extra JS-side easing — see the const block above for why.
-  const audioLevel = useRef(0)
-  // Real elapsed seconds — both uTime's noise evolution and currentHueDegrees() cycle against
-  // this same wall-clock now that there's no separate audio-scaled "noise time" concept.
+  // Overall loudness (max of the three bands), used for the lights' lightness boost below —
+  // kept as a ref (not a local variable) so it holds its last value across frames while
+  // reducedMotion is true, the same way the reactive uniforms below do.
+  const overallLevel = useRef(0)
   const elapsedSeconds = useRef(0)
 
   const uniforms = useMemo(
@@ -146,12 +139,12 @@ export function ReactiveSphere({
       uLightBPosition: { value: new THREE.Vector3().setFromSpherical(LIGHT_B_SPHERICAL) },
       uLightBIntensity: { value: LIGHT_B_INTENSITY },
       uSubdivision: { value: new THREE.Vector2(segments, segments) },
-      uFrequency: { value: NOISE_FREQUENCY },
-      uAudioLevel: { value: 0 },
-      uDisplacementScale: { value: DISPLACEMENT_SCALE },
-      uIdleDisplacement: { value: IDLE_DISPLACEMENT },
+      uDistortionFrequency: { value: DISTORTION_FREQUENCY },
+      uDistortionLevel: { value: IDLE_DISTORTION },
+      uDisplacementFrequency: { value: DISPLACEMENT_FREQUENCY },
+      uDisplacementLevel: { value: IDLE_DISPLACEMENT },
       uFresnelOffset: { value: FRESNEL_OFFSET },
-      uFresnelMultiplier: { value: FRESNEL_MULTIPLIER },
+      uFresnelMultiplier: { value: FRESNEL_MULTIPLIER_BASE },
       uFresnelPower: { value: FRESNEL_POWER },
       uSpecularShininess: { value: SPECULAR_SHININESS },
       uSpecularStrength: { value: SPECULAR_STRENGTH },
@@ -169,8 +162,11 @@ export function ReactiveSphere({
 
     if (!reducedMotion) {
       const bands = getFrequencyBands()
-      audioLevel.current = Math.max(bands.low, bands.mid, bands.high)
-      u.uAudioLevel.value = audioLevel.current
+      overallLevel.current = Math.max(bands.low, bands.mid, bands.high)
+
+      u.uDistortionLevel.value = IDLE_DISTORTION + bands.low * DISTORTION_GAIN
+      u.uDisplacementLevel.value = IDLE_DISPLACEMENT + bands.high * DISPLACEMENT_GAIN
+      u.uFresnelMultiplier.value = FRESNEL_MULTIPLIER_BASE + bands.mid * FRESNEL_MULTIPLIER_GAIN
 
       elapsedSeconds.current += delta
       u.uTime.value = elapsedSeconds.current * TIME_SPEED
@@ -182,7 +178,7 @@ export function ReactiveSphere({
     // THREE.Color() default (black) for a user with reduced motion enabled.
     const hueDegrees = currentHueDegrees(elapsedSeconds.current)
     const hue01 = hueDegrees / 360
-    const lightnessBoost = audioLevel.current * VOLUME_LIGHTNESS_GAIN
+    const lightnessBoost = overallLevel.current * VOLUME_LIGHTNESS_GAIN
     const lightnessA = THREE.MathUtils.clamp(LIGHT_A_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
     const lightnessB = THREE.MathUtils.clamp(LIGHT_B_LIGHTNESS_BY_MODE[mode] + lightnessBoost, 0, 1)
     u.uLightAColor.value.setHSL(hue01, SATURATION, lightnessA)
