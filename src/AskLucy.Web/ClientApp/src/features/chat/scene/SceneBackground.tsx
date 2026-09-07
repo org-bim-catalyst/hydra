@@ -123,13 +123,20 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           // A *range* here (e.g. [1, 2]) opts into React Three Fiber's own built-in adaptive
           // resolution system — silently lowering the canvas's device-pixel-ratio on sustained
           // frame drops, via its own internal timing, completely independent of and not gated
-          // by useSceneQualityTier's deliberate 20s mount guard above. Live user reports (RTX
-          // 4060, 2026-09-07): the sphere still visibly "degraded" ~10s after mount even after
-          // that guard was confirmed live and working — this second, competing regression path
-          // is almost certainly why. A fixed number here disables it entirely, leaving this
-          // app's own explicit quality-tier system (PerformanceMonitor below) as the only
-          // thing that ever changes render quality.
-          dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1}
+          // by useSceneQualityTier's deliberate 20s mount guard above. A fixed number here
+          // disables it entirely, leaving this app's own explicit quality-tier system
+          // (PerformanceMonitor below) as the only thing that ever changes render quality.
+          //
+          // Capped at 1.5, not 2 (live diagnostic data, 2026-09-07, RTX 4060: real sampled fps
+          // of 30-41 against this card's 40fps lower bound at its 65Hz refresh rate — a genuine,
+          // sustained fragment-shader cost problem, not a threshold/guard-timing bug; both of
+          // those were separately confirmed already fixed and correctly working via the same
+          // log). This card is a ~278px decorative element — 2x devicePixelRatio (556x556
+          // physical px) buys negligible visible sharpness over 1.5x (417x417) here, but every
+          // fragment-heavy pass this scene runs (8,000 additively-blended point sprites, the
+          // 3-level mipmap bloom in SphereBloom.tsx) scales directly with total pixel count, so
+          // this one number is the actual GPU-cost lever, not point count or bloom levels.
+          dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 1.5) : 1}
           camera={{ position: [0, 0, 8], fov: 45 }}
           // `alpha: true` is what lets the canvas composite over the page at all; without it
           // WebGL clears to an opaque buffer no matter what clear colour is set.
