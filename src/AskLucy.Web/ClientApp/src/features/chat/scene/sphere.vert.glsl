@@ -1,26 +1,31 @@
-// Ported from Bruno Simon's "Organic Sphere" reference project (user-supplied source archive,
-// 2026-09-07), after two from-scratch particle-cloud/mesh techniques each broke or looked
-// wrong across GPUs and live review. This is the reference's actual vertex shader, adapted
-// only where our integration genuinely differs (noted inline) — not a reimplementation from
-// description.
+// Displacement simplified 2026-09-07 (live user review, A/B test against voltviz's GlowSphere
+// reference — see git history for the two-stage distortion+displacement version this replaces,
+// ported from Bruno Simon's "Organic Sphere"). voltviz's own vertex shader is one noise call,
+// one scale factor: `displacement = (u_frequency / 30.0) * (pnoise(position + u_time, ...) /
+// 10.0)`, where u_frequency is a single averaged 0–255 loudness value (no band split, no
+// separate distortion pass). This mirrors that structure — one noise sample, one audio-driven
+// scale — reusing this file's own already-proven, NaN-guarded 4D Perlin noise (`perlin4d`
+// below) rather than porting voltviz's separate 3D periodic `pnoise`, since introducing a
+// second, untested noise implementation into a sphere that has already broken twice on GPU
+// noise-precision edge cases is not a risk worth taking for what both functions produce anyway.
 //
-// Displaces the sphere along its normal using 4D Perlin noise (uOffset supplies a slowly
-// drifting 3D "location" in noise-space, uTime the 4th/"time" dimension), then numerically
-// estimates each vertex's post-displacement normal from two neighboring tangent-plane samples
-// — there's no analytic derivative of the noise function to differentiate for a normal.
-// Unlike the reference (which computes final per-vertex lighting/color here, Gouraud-style,
-// for its very dense 512x512 sphere), this port passes the normal/view-direction to
-// sphere.frag.glsl and shades per-fragment instead — this app uses far fewer subdivisions
-// (ReactiveSphere.tsx's SEGMENTS_BY_TIER), where per-vertex lighting would visibly facet.
+// Real behavior change from the previous version, worth knowing before judging this by eye:
+// this sphere goes flat/smooth at true silence (uAudioLevel === 0, same as voltviz's own
+// zero-average behavior) — there is no idle baseline bumpiness anymore. It only becomes organic
+// once actual sound plays.
+//
+// Still estimates each vertex's post-displacement normal from two neighboring tangent-plane
+// samples (unchanged from before) — there's no analytic derivative of the noise function to
+// differentiate for a normal. Still shades per-fragment, not per-vertex (sphere.frag.glsl) —
+// this app uses far fewer subdivisions than voltviz's IcosahedronGeometry(4, 30), where
+// per-vertex lighting would visibly facet.
 
 #define M_PI 3.1415926535897932384626433832795
 
 uniform vec2 uSubdivision;
-uniform vec3 uOffset;
-uniform float uDistortionFrequency;
-uniform float uDistortionStrength;
-uniform float uDisplacementFrequency;
-uniform float uDisplacementStrength;
+uniform float uFrequency;
+uniform float uAudioLevel;
+uniform float uDisplacementScale;
 uniform float uTime;
 
 varying vec3 vNormal;
@@ -175,16 +180,14 @@ float safePerlin4d(vec4 p) {
   return isnan(n) ? 0.0 : n;
 }
 
+// voltviz's single-formula structure: one noise sample at this vertex's position (offset by
+// the running clock so the pattern keeps evolving even at a held audio level), scaled by both
+// a fixed displacement budget and the current audio level — silence (uAudioLevel 0) means zero
+// displacement, exactly like the reference.
 vec3 getDisplacedPosition(vec3 _position) {
-  vec3 distortedPosition = _position;
-  distortedPosition += safePerlin4d(vec4(distortedPosition * uDistortionFrequency + uOffset, uTime)) * uDistortionStrength;
-
-  float perlinStrength = safePerlin4d(vec4(distortedPosition * uDisplacementFrequency + uOffset, uTime));
-
-  vec3 displacedPosition = _position;
-  displacedPosition += normalize(_position) * perlinStrength * uDisplacementStrength;
-
-  return displacedPosition;
+  float noise = safePerlin4d(vec4(_position * uFrequency + uTime, uTime));
+  float displacement = uAudioLevel * uDisplacementScale * noise;
+  return _position + normalize(_position) * displacement;
 }
 
 void main() {
