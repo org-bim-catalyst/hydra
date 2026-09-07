@@ -23,13 +23,19 @@ const BREATH_AMPLITUDE = 0.035 // subtle relative to REACTIVE_AMPLITUDE_MAX's 0.
 // Restored 2026-09-07 to the spec 011-particle-sphere-engine design (a uniform
 // Fibonacci-distributed particle sphere), after a full day exploring an alternative
 // continuous-mesh technique - explicit live user preference: "I liked the specs version
-// more." Point count/size/intensity tuning below is the state this project's particle sphere
-// had already reached through real production incidents before that detour (an RTX 3080 NaN
-// bug, two separate additive-blending saturation incidents) - kept as-is, since those fixes
-// remain correct regardless of which technique the app ultimately uses.
+// more." Point count/size tuning below is the state this project's particle sphere had already
+// reached through real production incidents before that detour (an RTX 3080 NaN bug, two
+// separate additive-blending saturation incidents) - kept as-is, since those fixes remain
+// correct regardless of which technique the app ultimately uses.
 const POINT_COUNT_BY_TIER = { full: 8000, reduced: 500 } as const
 const BASE_POINT_SIZE_BY_TIER = { full: 0.12, reduced: 0.3 } as const
-const INTENSITY_BY_TIER = { full: 0.55, reduced: 1 } as const
+// 'full' lowered further from that restored 0.55 (live user report, 2026-09-07, RTX 3080:
+// "points not clear... too much glow and brightness" - the same additive-oversaturation
+// symptom those prior incidents describe). 0.55 was tuned back when SphereBloom.tsx's bloom
+// pass was permanently disabled; now that it genuinely renders on top of this same additive
+// particle brightness, the combined result reads as oversaturated again on some GPUs even
+// though neither piece alone regressed.
+const INTENSITY_BY_TIER = { full: 0.4, reduced: 1 } as const
 
 interface ReactiveSphereProps {
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's

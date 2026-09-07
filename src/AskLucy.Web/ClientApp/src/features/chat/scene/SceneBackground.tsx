@@ -120,7 +120,16 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
         }}
       >
         <Canvas
-          dpr={[1, 2]}
+          // A *range* here (e.g. [1, 2]) opts into React Three Fiber's own built-in adaptive
+          // resolution system — silently lowering the canvas's device-pixel-ratio on sustained
+          // frame drops, via its own internal timing, completely independent of and not gated
+          // by useSceneQualityTier's deliberate 20s mount guard above. Live user reports (RTX
+          // 4060, 2026-09-07): the sphere still visibly "degraded" ~10s after mount even after
+          // that guard was confirmed live and working — this second, competing regression path
+          // is almost certainly why. A fixed number here disables it entirely, leaving this
+          // app's own explicit quality-tier system (PerformanceMonitor below) as the only
+          // thing that ever changes render quality.
+          dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1}
           camera={{ position: [0, 0, 8], fov: 45 }}
           // `alpha: true` is what lets the canvas composite over the page at all; without it
           // WebGL clears to an opaque buffer no matter what clear colour is set.
