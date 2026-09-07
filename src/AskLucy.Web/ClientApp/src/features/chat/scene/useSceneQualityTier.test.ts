@@ -87,13 +87,14 @@ describe('useSceneQualityTier', () => {
     installWebGL2(true)
     installMatchMedia({ [MOBILE_QUERY]: false, [REDUCED_MOTION_QUERY]: false })
 
-    // Pin mount time at 0, then advance past the 10-second guard before triggering
-    // the ratchet — mirrors how the guard ignores the transient Google Maps load spike.
+    // Pin mount time at 0, then advance past the 20-second guard before triggering
+    // the ratchet — mirrors how the guard ignores the transient Google Maps load spike
+    // (and, since SphereBloom.tsx started rendering for real, bloom's own warm-up cost).
     vi.spyOn(performance, 'now').mockReturnValue(0)
     const { result } = renderHook(() => useSceneQualityTier())
     expect(result.current.tier).toBe('full')
 
-    vi.spyOn(performance, 'now').mockReturnValue(11_000)
+    vi.spyOn(performance, 'now').mockReturnValue(21_000)
     act(() => result.current.reportPerformanceRegression())
     expect(result.current.tier).toBe('reduced')
 

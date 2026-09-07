@@ -59,18 +59,22 @@ export function useSceneQualityTier() {
   }, [])
 
   // Timestamp captured once the hook is mounted. Null until the first effect fires;
-  // declines that arrive before it (or within the first 10 seconds) are silently
-  // dropped — the one-time GPU spike from Google Maps WebGL Overlay initialization
-  // is indistinguishable from a real device-level regression by frame-time alone, and
-  // 10 s comfortably outlasts map-tile loading on slow connections without masking
-  // genuine sustained regressions that occur later.
+  // declines that arrive before it (or within the guard window) are silently dropped —
+  // the one-time GPU spike from Google Maps WebGL Overlay initialization is
+  // indistinguishable from a real device-level regression by frame-time alone. Widened
+  // from 10s to 20s (live user report, 2026-09-07, on an RTX 4060): once the sphere's
+  // bloom pass (SphereBloom.tsx) actually started rendering for the first time, its own
+  // shader-compile/render-target warm-up cost combined with the map's own init spike to
+  // still exceed the original 10s window, so a decline reported right as the guard lifted
+  // read as "real" and permanently demoted the sphere even though both spikes were
+  // transient startup cost, not a sustained regression.
   const mountedAt = useRef<number | null>(null)
   useEffect(() => {
     mountedAt.current = performance.now()
   }, [])
 
   const reportPerformanceRegression = useCallback(() => {
-    if (mountedAt.current === null || performance.now() - mountedAt.current < 10_000) return
+    if (mountedAt.current === null || performance.now() - mountedAt.current < 20_000) return
     setTier((current) => (current === 'full' ? 'reduced' : current))
   }, [])
 
