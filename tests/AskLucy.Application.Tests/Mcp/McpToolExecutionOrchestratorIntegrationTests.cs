@@ -93,8 +93,8 @@ public sealed class McpToolExecutionOrchestratorIntegrationTests
 
         _executionRepository.GetByIdAsync(execution.Id, Arg.Any<CancellationToken>()).Returns(execution);
         _agentRepository.GetVersionByIdAsync(version.Id, Arg.Any<CancellationToken>()).Returns(version);
-        _providerRepository.GetByIdAsync(version.ModelProviderId, Arg.Any<CancellationToken>()).Returns(provider);
-        _modelRepository.GetByIdAsync(version.ModelId, Arg.Any<CancellationToken>()).Returns(model);
+        _providerRepository.GetByIdAsync(version.ModelProviderId!.Value, Arg.Any<CancellationToken>()).Returns(provider);
+        _modelRepository.GetByIdAsync(version.ModelId!.Value, Arg.Any<CancellationToken>()).Returns(model);
         _executionRepository.ListToolCallsByStepIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new List<AgentToolCall>());
 

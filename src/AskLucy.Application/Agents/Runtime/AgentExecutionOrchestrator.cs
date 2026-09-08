@@ -95,9 +95,22 @@ public sealed class AgentExecutionOrchestrator(
                     cancellationToken);
             }
 
-            var provider = await providerRepository.GetByIdAsync(agentVersion.ModelProviderId, cancellationToken)
+            // specs/045 research.md D9 widened these to nullable so a platform-provisioned agent
+            // can bind its model by capability at run time instead of pinning one that may not
+            // exist yet. This background runtime has no such resolution step and is not meant to
+            // run those agents, so it refuses loudly rather than dereferencing: an unexplained
+            // NullReferenceException here would be far harder to diagnose than a named failure,
+            // and the whole point of the widening was to make the "resolve later" state honest.
+            if (agentVersion.ModelProviderId is not { } versionProviderId || agentVersion.ModelId is not { } versionModelId)
+            {
+                throw new InvalidOperationException(
+                    "This agent version binds its model by capability rather than by id, which only the conversational " +
+                    "runtime resolves. The background agent runtime cannot execute it.");
+            }
+
+            var provider = await providerRepository.GetByIdAsync(versionProviderId, cancellationToken)
                 ?? throw new InvalidOperationException("The agent's configured AI provider no longer exists.");
-            var model = await modelRepository.GetByIdAsync(agentVersion.ModelId, cancellationToken)
+            var model = await modelRepository.GetByIdAsync(versionModelId, cancellationToken)
                 ?? throw new InvalidOperationException("The agent's configured AI model no longer exists.");
             var aiProvider = providerResolver.Resolve(provider.ProviderKey);
 

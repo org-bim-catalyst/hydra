@@ -93,6 +93,36 @@ public sealed class Agent : BaseEntity
 
     public AgentMemoryPolicy? MemoryPolicy { get; private set; }
 
+    /// <summary>
+    /// specs/045-conversational-agent-runtime FR-033 — stable identity of a platform-provisioned
+    /// agent (<c>lucy.orchestrator</c>, <c>lucy.site</c>, …). Null for every user-created agent,
+    /// and unique among those that are not, so provisioning can upsert by it and two instances
+    /// starting at once cannot create duplicates.
+    /// </summary>
+    public string? SystemKey { get; private set; }
+
+    /// <summary>
+    /// FR-034 — true blocks every user mutation path. Read access stays open: "which agent did
+    /// this?" must have an answer, and the executions view is what makes a conversation turn
+    /// inspectable (FR-038).
+    /// </summary>
+    public bool IsSystemOwned { get; private set; }
+
+    /// <summary>
+    /// FR-037 — the capability a null model binding resolves through at run time.
+    /// <para>
+    /// System agents cannot pin a provider at provisioning time: the AI catalog is
+    /// administrator-configured and may legitimately be empty on a fresh deployment, and a
+    /// snapshot of whatever happened to be default would become false the moment the
+    /// administrator reassigns the capability. Resolving late is the honest option
+    /// (research.md D9).
+    /// </para>
+    /// </summary>
+    public Domain.Ai.AiCapability? ModelCapability { get; private set; }
+
+    /// <summary>The owner recorded for platform-provisioned agents; matches the existing <c>system:*</c> actor convention.</summary>
+    public const string SystemOwnerId = "system";
+
     public IReadOnlyCollection<AgentTool> Tools => _tools;
 
     public IReadOnlyCollection<AgentKnowledgeBase> KnowledgeBases => _knowledgeBases;
@@ -296,5 +326,81 @@ public sealed class Agent : BaseEntity
     {
         DeletedAtUtc = DateTime.UtcNow;
         DeletedBy = actor;
+    }
+    /// <summary>
+    /// specs/045 FR-033 — creates a platform-provisioned agent. Separate from
+    /// <see cref="Create"/> because the invariants genuinely differ: this one is owned by the
+    /// system, published immediately rather than starting as a draft, carries a
+    /// <see cref="SystemKey"/>, and binds its model by capability instead of by id. Overloading
+    /// the user-facing factory with four more optional parameters would have made every call site
+    /// read as though those were choices an ordinary caller could make.
+    /// </summary>
+    public static Agent CreateSystemProvisioned(
+        string systemKey,
+        string name,
+        string? description,
+        AgentType agentType,
+        AgentInstructions instructions,
+        Domain.Ai.AiCapability modelCapability,
+        AgentExecutionPolicy executionPolicy,
+        string actor)
+    {
+        if (string.IsNullOrWhiteSpace(systemKey))
+        {
+            throw new DomainRuleViolationException("A system-provisioned agent must have a system key.");
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DomainRuleViolationException("An agent name is required.");
+        }
+
+        return new Agent
+        {
+            Id = Guid.CreateVersion7(),
+            OwnerId = SystemOwnerId,
+            Name = name.Trim(),
+            Description = description,
+            AgentType = agentType,
+            Status = AgentStatus.Published,
+            Instructions = instructions,
+            ModelProviderId = null,
+            ModelId = null,
+            ModelCapability = modelCapability,
+            OutputFormat = AgentOutputFormat.Markdown,
+            ExecutionPolicy = executionPolicy,
+            SystemKey = systemKey,
+            IsSystemOwned = true,
+            CreatedAtUtc = DateTime.UtcNow,
+            CreatedBy = actor,
+        };
+    }
+
+    /// <summary>
+    /// FR-035 — replaces the instructions a release ships, without touching anything a user
+    /// could have set (there is nothing: this agent is not user-editable). Publishing the new
+    /// version is the caller's next step; history against earlier versions is untouched, because
+    /// <see cref="AgentVersion"/> is append-only.
+    /// </summary>
+    public void UpdateSystemDefinition(
+        string name,
+        string? description,
+        AgentInstructions instructions,
+        Domain.Ai.AiCapability modelCapability,
+        AgentExecutionPolicy executionPolicy,
+        string actor)
+    {
+        if (!IsSystemOwned)
+        {
+            throw new DomainRuleViolationException("Only a system-provisioned agent can be updated from a platform definition.");
+        }
+
+        Name = name.Trim();
+        Description = description;
+        Instructions = instructions;
+        ModelCapability = modelCapability;
+        ExecutionPolicy = executionPolicy;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
     }
 }
