@@ -1,35 +1,42 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Agents.Runtime;
+using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 
 namespace AskLucy.Application.Tests.Ai;
 
 /// <summary>
 /// Builds a <see cref="SendChatMessageCommandHandler"/> wired to a real
-/// <see cref="ConversationTurnOrchestrator"/> over the caller's substitutes.
+/// <see cref="ConversationTurnOrchestrator"/> over the caller's substitutes, with an
+/// <b>empty capability catalog</b> by default.
 ///
 /// <para>
-/// <b>Why a factory rather than updating each test to build the orchestrator directly.</b> The
-/// specs/045 T007–T010 extraction moved the turn body out of the handler, which changed the
-/// handler's constructor and broke nine test files that had built it by hand. The tempting fix is
-/// to point those tests at the orchestrator instead — but most of them exist to characterise
-/// behaviour <i>through the handler</i>, and a characterisation test that changes its entry point
-/// during the refactor it is meant to guard has stopped guarding anything. Routing construction
-/// through here keeps every test calling <c>_handler.Handle(...)</c> with the same substitutes and
-/// the same assertions, so a behaviour change during the extraction still fails them.
+/// <b>Why empty is the right default for these fixtures.</b> The pre-existing
+/// <c>SendChatMessage*</c> test files exercise the fast path — RAG, memory, the standing
+/// system-prompt stack — none of which changed shape when the orchestrator gained a decide
+/// step. With zero registered capabilities, <c>ConversationCapabilityCatalog.BuildIndexAsync</c>
+/// returns an empty index, and <c>TurnDecider.DecideAsync</c> short-circuits on that before
+/// touching any of its own dependencies (specs/045 FR-006) — so the decide step costs these
+/// fixtures nothing and never turns their fast-path scenarios into act-path ones. The decider,
+/// executor and their dependencies below exist only to satisfy the constructor; none is called
+/// in this configuration.
 /// </para>
 ///
 /// <para>
-/// The parameter list is deliberately the handler's <i>old</i> one, in the old order, so each call
-/// site changed by exactly one token — the <c>new SendChatMessageCommandHandler(</c> call became
-/// <c>SendChatMessageHandlerFactory.Create(</c> — and the diff stays reviewable as a mechanical
-/// substitution rather than a rewrite.
+/// Tests that need the act path — beats, narration, capability dispatch — register real
+/// capabilities via <see cref="Create"/>'s <paramref name="capabilities"/> parameter instead of
+/// using this default.
 /// </para>
 /// </summary>
 internal static class SendChatMessageHandlerFactory
@@ -43,20 +50,55 @@ internal static class SendChatMessageHandlerFactory
         IMemoryService memoryService,
         ILocationResolutionService locationResolutionService,
         IBoundaryResolutionService boundaryResolutionService,
-        IViewerZoomDetector viewerZoomDetector,
         IUserChatRepository userChatRepository,
         ICurrentUserAccessor currentUser,
         IBackgroundJobClient backgroundJobClient,
         IOptions<LocationResolutionOptions> locationResolutionOptions,
         IOptions<BoundaryScoringOptions> boundaryScoringOptions,
         ILogger logger,
-        SendChatMessageCommandValidator validator)
+        SendChatMessageCommandValidator validator,
+        IEnumerable<IAgentTool>? capabilities = null)
     {
-        // The orchestrator owns every log message the handler used to emit, so a test that
-        // asserts on logging must see its own logger arrive here. Substitutes are declared as
-        // ILogger<SendChatMessageCommandHandler> in the existing fixtures; the orchestrator wants
-        // ILogger<ConversationTurnOrchestrator>. Adapting rather than re-typing every fixture
-        // keeps those assertions working against the same substitute instance.
+        // The four parameters above that the new orchestrator no longer takes
+        // (locationResolutionService, boundaryResolutionService, locationResolutionOptions,
+        // boundaryScoringOptions) are kept on this factory's own
+        // signature rather than removed, so every existing call site — written when the
+        // orchestrator still took them — keeps compiling unchanged. They are simply unused here;
+        // that behaviour now lives inside ResolveLocationCapability/ResolveSiteBoundaryCapability/
+        // AdjustViewerFocusCapability, which a test opts into via `capabilities` when it actually
+        // wants the act path. ViewerZoomDetector itself was deleted outright (T037): it was a
+        // pure keyword matcher with no external dependency and no unresolved design question
+        // blocking its removal, unlike the location classifier this factory still accepts.
+        _ = locationResolutionService;
+        _ = boundaryResolutionService;
+        _ = locationResolutionOptions;
+        _ = boundaryScoringOptions;
+
+        var toolCatalog = new AgentToolCatalog(capabilities ?? [], new EmptyMcpToolRegistry());
+        var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions());
+
+        var embeddingService = Substitute.For<IEmbeddingService>();
+        var indexRetriever = new CapabilityIndexRetriever(
+            embeddingService, runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance);
+        var capabilityCatalog = new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions);
+
+        var decisionParser = new TurnDecisionParser(runtimeOptions);
+        // Real dependencies, but unreachable whenever the index is empty (the default here) —
+        // TurnDecider checks that before touching any of them. A test that registers capabilities
+        // and therefore exercises the decide call for real should build its own TurnDecider
+        // against providers/models it actually configured.
+        var turnDecider = new TurnDecider(
+            new AiCapabilityProviderResolver(
+                Substitute.For<IAiCapabilityAssignmentRepository>(), providers, models,
+                new DefaultProviderResolver(Substitute.For<IAIProviderRepository>(), Substitute.For<IAIModelRepository>()),
+                NullLogger<AiCapabilityProviderResolver>.Instance),
+            providers, models, resolver, decisionParser, NullLogger<TurnDecider>.Instance);
+
+        var capabilityExecutor = new CapabilityExecutor(
+            new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
+            Substitute.For<IJsonSchemaValidator>(),
+            NullLogger<CapabilityExecutor>.Instance);
+
         var orchestratorLogger = logger as ILogger<ConversationTurnOrchestrator>
             ?? new CategoryAdapter(logger);
 
@@ -64,26 +106,18 @@ internal static class SendChatMessageHandlerFactory
             conversationKnowledgeBases,
             ragService,
             memoryService,
-            locationResolutionService,
-            boundaryResolutionService,
-            viewerZoomDetector,
             userChatRepository,
             currentUser,
             backgroundJobClient,
-            locationResolutionOptions,
-            boundaryScoringOptions,
+            capabilityCatalog,
+            turnDecider,
+            capabilityExecutor,
             orchestratorLogger);
 
         return new SendChatMessageCommandHandler(resolver, providers, models, orchestrator, validator);
     }
 
-    /// <summary>
-    /// Forwards every call to the test's own <see cref="ILogger"/> substitute, so
-    /// <c>Received().Log(...)</c> assertions written against the handler's logger still observe
-    /// the orchestrator's messages. Note that assertions using <c>[LoggerMessage]</c>-generated
-    /// methods never match through NSubstitute anyway (a known trap in this repository); the
-    /// working assertions go through <see cref="ILogger.Log"/> directly, which this preserves.
-    /// </summary>
+    /// <summary>Forwards every call to the test's own <see cref="ILogger"/> substitute, so <c>Received().Log(...)</c> assertions keep observing the orchestrator's messages.</summary>
     private sealed class CategoryAdapter(ILogger inner) : ILogger<ConversationTurnOrchestrator>
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => inner.BeginScope(state);
@@ -94,6 +128,13 @@ internal static class SendChatMessageHandlerFactory
             inner.Log(logLevel, eventId, state, exception, formatter);
     }
 
-    /// <summary>Convenience for fixtures that never assert on logging.</summary>
+    /// <summary>No MCP servers in any of these fixtures — a real empty implementation rather than a substitute, since nothing here needs to configure its behaviour.</summary>
+    private sealed class EmptyMcpToolRegistry : IMcpToolRegistry
+    {
+        public IReadOnlyCollection<IAgentTool> ActiveTools => [];
+
+        public Task InvalidateAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
     public static ILogger NullLogger => NullLogger<ConversationTurnOrchestrator>.Instance;
 }

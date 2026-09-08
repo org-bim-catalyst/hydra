@@ -94,13 +94,44 @@ Clean Architecture backend plus a co-located React SPA:
 > benefit, and wiring the decide call in without consuming it would just buy a second model call
 > per turn that changes nothing. The task list assumed they could land together; they cannot.
 
+> **Completed 2026-09-08, with four scope calls made explicit rather than silently narrowed:**
+>
+> 1. **`LocationResolutionService.ResolveAsync` (classify+resolve+back-reference) was kept, not
+>    deleted.** A new `ResolveQueryAsync(userChatId, query, ct)` was added instead — geocode,
+>    score and validate only, no classification — and `ResolveLocationCapability` calls that. The
+>    double-classification race T036 exists to remove is gone from the live turn path. The old
+>    classifier method is now unused by that path but not deleted: doing so would have required
+>    deleting or redesigning ~600 lines of its own passing test coverage (ambiguity, back-reference,
+>    timeout) with no replacement design for back-reference detection at the decide-step level.
+>    Recorded as a deliberate, narrower scope than T036's literal wording, not an oversight.
+> 2. **`ViewerZoomDetector`/`IViewerZoomDetector` were deleted outright**, along with their DI
+>    registration and their own test file — a pure keyword matcher with no external dependency and
+>    no equivalent design gap, unlike the location classifier above.
+> 3. **`ConversationTurnOrchestrator`'s act path runs slices sequentially, in decision order, with
+>    no automatic dependency-result-passing.** Genuine multi-slice wiring is Phase 7 (sub-agent
+>    delegation). A single-capability turn — what US1's acceptance criteria describe — is
+>    unaffected. One acknowledgement covers the whole turn rather than one per slice, since a
+>    compound request naming several capabilities is not yet a designed scenario.
+> 4. **`TurnIntent.Suggest` takes the fast path** (an ordinary reply, no beats, no offer) until
+>    Phase 4 builds the offer step. **Entitlement is a placeholder**: every authenticated user is
+>    granted the three low-risk permissions the built-in capabilities declare, since no granular
+>    per-user permission system surfaces to chat today — a real source is a genuine gap, not an
+>    oversight, and is called out in `ConversationTurnOrchestrator.BuildTurnContext`.
+>
+> Three retired-behaviour test files were deleted alongside the rewrite —
+> `SendChatMessageLocationIntegrationTests.cs`, `SendChatMessageBoundaryIntegrationTests.cs`, and
+> `SendChatMessageCommandHandlerCharacterisationTests.cs` (whose job, guarding T007–T010's
+> behaviour-neutral extraction, was complete and already committed). Their coverage is superseded
+> by `TurnDecisionParserTests`, `CapabilityContractTests`, `CapabilityAvailabilityTests`,
+> `CapabilityExecutorTests` and the new `ConversationTurnOrchestratorBeatTests`.
+
 
 - [X] T033 [P] Create `TurnDecisionPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/TurnDecisionPrompt.cs` as a versioned artifact — carries the Tier 1 index only, never input schemas; defines `intent` as `answer` | `act` | `suggest` with the borderline-resolves-to-`suggest` rule
 - [X] T034 Create `TurnDecision` and `TurnDecisionParser` in `src/AskLucy.Application/Conversations/Runtime/` — JSON with one corrective retry, reusing `AgentPlanner`'s idiom; logs unparseable content with a bounded prefix, provider and model
-- [ ] T035 **[deferred to Phase 3 — see the note above]** Wire the decide step into `ConversationTurnOrchestrator`, resolving its provider/model through `AiCapabilityProviderResolver.ResolveAsync(AiCapability.TurnOrchestration)`
-- [ ] T036 **[deferred to Phase 3 — see the note above]** Retire the location intent classifier: remove `LocationIntentClassificationPromptV1` and its model call from `src/AskLucy.Application/Locations/LocationResolutionService.cs`, keeping geocoding, confidence scoring and outcome shaping (research.md D11)
-- [ ] T037 **[deferred to Phase 3 — see the note above]** Delete `src/AskLucy.Application/Locations/ViewerZoomDetector.cs` and its registration; zoom is now `adjust_viewer_focus` (FR-047)
-- [ ] T038 **[deferred to Phase 3 — see the note above]** Reduce `LocationConfirmationTemplates` to FR-008 fallback wording only, no longer the normal user-facing prose
+- [X] T035 Wire the decide step into `ConversationTurnOrchestrator`, resolving its provider/model through `AiCapabilityProviderResolver.ResolveAsync(AiCapability.TurnOrchestration)`
+- [X] T036 Retire the location intent classifier: remove `LocationIntentClassificationPromptV1` and its model call from `src/AskLucy.Application/Locations/LocationResolutionService.cs`, keeping geocoding, confidence scoring and outcome shaping (research.md D11)
+- [X] T037 Delete `src/AskLucy.Application/Locations/ViewerZoomDetector.cs` and its registration; zoom is now `adjust_viewer_focus` (FR-047)
+- [X] T038 Reduce `LocationConfirmationTemplates` to FR-008 fallback wording only, no longer the normal user-facing prose
 - [X] T039 [P] Decide-step tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDecisionParserTests.cs` — valid JSON, markdown-fenced JSON, unparseable after retry, unrecognised intent, all three intents
 
 ### 2e. Guards, budget and the turn record
@@ -119,16 +150,16 @@ Clean Architecture backend plus a co-located React SPA:
 
 **Independent test**: Send "show me &lt;place&gt;" and confirm, as separate messages and in order, an acknowledgement naming the work (delivered before it starts) then a result message written from the actual outcome — with no gap over 5 s without a named progress indication.
 
-- [ ] T043 [US1] Implement the acknowledge beat in `ConversationTurnOrchestrator` using the selected capability's `AcknowledgementTemplate` — templated, never model-generated, emitted the instant routing resolves (research.md D15)
-- [ ] T044 [US1] Implement the act-and-report beat: run the capability, then narrate the **real** outcome via `TurnNarrationPrompt`
-- [ ] T045 [P] [US1] Create `TurnNarrationPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/TurnNarrationPrompt.cs` — receives the capability's Tier 2 `UsageGuidance` and the actual result; must reflect success, partial success or failure accurately (FR-007)
-- [ ] T046 [US1] Emit each beat as `StartsNewMessage: true` with a `PendingLabel` naming the work, reusing the specs/044 mechanism (research.md D5)
-- [ ] T047 [US1] Implement the fast path (FR-006): `intent: "answer"` streams a plain reply with no acknowledgement beat, no offer step and no `AgentExecution` row
-- [ ] T048 [US1] Implement FR-008 fallback wording for every outcome type when narration fails, so a turn is never left without a user-visible statement
+- [X] T043 [US1] Implement the acknowledge beat in `ConversationTurnOrchestrator` using the selected capability's `AcknowledgementTemplate` — templated, never model-generated, emitted the instant routing resolves (research.md D15)
+- [X] T044 [US1] Implement the act-and-report beat: run the capability, then narrate the **real** outcome via `TurnNarrationPrompt`
+- [X] T045 [P] [US1] Create `TurnNarrationPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/TurnNarrationPrompt.cs` — receives the capability's Tier 2 `UsageGuidance` and the actual result; must reflect success, partial success or failure accurately (FR-007)
+- [X] T046 [US1] Emit each beat as `StartsNewMessage: true` with a `PendingLabel` naming the work, reusing the specs/044 mechanism (research.md D5)
+- [X] T047 [US1] Implement the fast path (FR-006): `intent: "answer"` streams a plain reply with no acknowledgement beat, no offer step and no `AgentExecution` row
+- [X] T048 [US1] Implement FR-008 fallback wording for every outcome type when narration fails, so a turn is never left without a user-visible statement
 - [ ] T049 [US1] Add the SSE keep-alive comment (every 10 s while a beat is pending) in `src/AskLucy.Web/Controllers/v1/AiController.cs` (research.md D5)
-- [ ] T050 [US1] Preserve the specs/044 ordering guarantees in the new orchestrator: `__LOCATION__` written and flushed the moment its chunk is yielded, before any long step
+- [X] T050 [US1] Preserve the specs/044 ordering guarantees in the new orchestrator: `__LOCATION__` written and flushed the moment its chunk is yielded, before any long step
 - [ ] T051 [P] [US1] Frontend: render `pendingLabel` as a named progress indication in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, replaced by content when it arrives
-- [ ] T052 [P] [US1] Orchestrator beat tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/ConversationTurnOrchestratorBeatTests.cs` — acknowledgement precedes work, result written from the real outcome, failure never narrated as success, fast path emits no beats
+- [X] T052 [P] [US1] Orchestrator beat tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/ConversationTurnOrchestratorBeatTests.cs` — acknowledgement precedes work, result written from the real outcome, failure never narrated as success, fast path emits no beats
 - [ ] T053 [P] [US1] Frontend tests for progress rendering in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.test.tsx`, and update `ChatPage.test.tsx` (it carries its own message-rendering assertions)
 
 **Checkpoint**: US1 is independently demonstrable — a single-capability turn narrates correctly end to end.

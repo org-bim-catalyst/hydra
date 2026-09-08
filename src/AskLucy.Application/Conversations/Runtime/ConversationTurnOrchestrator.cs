@@ -1,8 +1,12 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
+using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Prompts;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Domain.SiteBoundaries;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,65 +23,45 @@ internal static partial class ConversationTurnOrchestratorLog
         Message = "Site-boundary resolution for chat {UserChatId} failed; the turn continued without a boundary")]
     public static partial void BoundaryFailed(ILogger logger, Guid userChatId, Exception exception);
 
-    // These three paths all surface LocationConfirmationTemplates.Unavailable — the same
-    // "I couldn't look that up right now" the user sees when intent classification or
-    // geocoding fails inside LocationResolutionService. Until specs/044 they logged nothing at
-    // all, so three of the eleven ways that sentence can be produced were invisible in the
-    // console and indistinguishable from the eight that do log (constitution: no silent
-    // failures). Each records the budget and how much of it the model's own stream spent,
-    // because that is the part that is not obvious from the ceiling value alone.
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Location resolution for chat {UserChatId} was abandoned: the {CeilingSeconds}s ceiling was already spent ({ElapsedSeconds:F1}s elapsed) before the model's stream ended, and geocoding had not finished")]
-    public static partial void LocationBudgetExhausted(ILogger logger, Guid userChatId, int ceilingSeconds, double elapsedSeconds);
+        Message = "Narration for capability {CapabilityKey} in chat {UserChatId} failed; falling back to template wording")]
+    public static partial void NarrationFailed(ILogger logger, string capabilityKey, Guid userChatId, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Location resolution for chat {UserChatId} timed out with {RemainingSeconds:F1}s left of its {CeilingSeconds}s ceiling ({ElapsedSeconds:F1}s already spent streaming)")]
-    public static partial void LocationTimedOut(ILogger logger, Guid userChatId, double remainingSeconds, int ceilingSeconds, double elapsedSeconds);
-
-    [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Location resolution for chat {UserChatId} was cancelled internally (not by the caller); the turn continued without a location")]
-    public static partial void LocationCancelled(ILogger logger, Guid userChatId, Exception exception);
+        Message = "Decided slice named capability {CapabilityKey} for chat {UserChatId}, but it was not found in the catalog at dispatch time")]
+    public static partial void SliceCapabilityMissingAtDispatch(ILogger logger, string capabilityKey, Guid userChatId);
 }
 
 /// <summary>
 /// <inheritdoc cref="IConversationTurnOrchestrator"/>
 ///
-/// <para><b>Provenance.</b> This body was extracted verbatim from
-/// <c>SendChatMessageCommandHandler.Handle</c> (specs/045 T007–T010), which had accumulated six
-/// concerns in one 356-line method: retrieval, memory, location, zoom, boundary and transport.
-/// The extraction was deliberately behaviour-neutral — <c>SendChatMessageCommandHandlerCharacterisationTests</c>
-/// pins the emitted chunk sequence and passed unchanged before and after — so that the agentic
-/// turn is built by <i>replacing</i> this pipeline rather than by layering a second orchestrator
-/// on top of it. Every comment below came with the code and records why a line is the way it is;
-/// none of it is decoration.</para>
+/// <para><b>Two paths.</b> The <b>fast path</b> (specs/045 FR-006) is what today's ordinary chat
+/// already does: build RAG/memory-augmented context, stream the model's own reply, done. It runs
+/// for every turn the decide step judges answerable in words — the large majority of traffic —
+/// and costs no more than it did before this feature existed. The <b>act path</b> runs when the
+/// decide step names capabilities: it replaces the model's own reply entirely with a sequence of
+/// beats — an acknowledgement, then one announce/execute/narrate cycle per capability — because
+/// specs/045's whole point is that Lucy's account of what she did should be written from what
+/// actually happened, not stitched onto a reply that was already finished.</para>
 ///
-/// <para><b>US1 (specs/016-rag-semantic-search, research.md Decision 8)</b>: retrieves context
-/// before building the message list, but only when the conversation has one or more attached
-/// knowledge bases — a conversation with none attached is completely unaffected (US1 AC2/AC3).
-/// <see cref="IRagService"/> never throws; its result rides the final <see cref="ChatStreamChunk"/>
-/// so the controller can attach citations to the persisted assistant message and surface a
-/// non-silent retrieval-unavailable warning without blocking the chat response (FR-037a).</para>
-///
-/// <para><b>AI Memory System (specs/018-ai-memory-system, research.md Decisions 2/3/9)</b>:
-/// retrieves relevant memories and, when found, inserts their own <c>ChatRole.System</c> message
-/// via a second <c>Insert(0, ...)</c> call made *after* RAG's — placing the memory context ahead
-/// of RAG's in the final message list (research.md Decision 2). <see cref="IMemoryService"/>
-/// never throws (constitution §2.VIII); its outcome rides the final <see cref="ChatStreamChunk"/>
-/// exactly like <see cref="IRagService"/>'s, so a memory-subsystem outage degrades the response
-/// gracefully rather than blocking it (spec.md FR-014a).</para>
+/// <para><b>Provenance.</b> The fast-path body — RAG retrieval, memory retrieval, the standing
+/// system-message stack, streaming the reply — is what <c>SendChatMessageCommandHandler</c>'s
+/// original 356-line method did for every turn (specs/045 T007-T010 extracted it verbatim). The
+/// location-intent classifier, the keyword zoom detector and the automatic boundary trigger that
+/// used to run alongside it are retired here (T035-T038): resolving a location, adjusting the
+/// viewer and outlining a boundary are now capabilities the decide step chooses explicitly,
+/// never side effects of a pipeline stage.</para>
 /// </summary>
 public sealed class ConversationTurnOrchestrator(
     IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository,
     IRagService ragService,
     IMemoryService memoryService,
-    ILocationResolutionService locationResolutionService,
-    IBoundaryResolutionService boundaryResolutionService,
-    IViewerZoomDetector viewerZoomDetector,
     IUserChatRepository userChatRepository,
     ICurrentUserAccessor currentUser,
     IBackgroundJobClient backgroundJobClient,
-    IOptions<LocationResolutionOptions> locationResolutionOptions,
-    IOptions<BoundaryScoringOptions> boundaryScoringOptions,
+    ConversationCapabilityCatalog capabilityCatalog,
+    ITurnDecider turnDecider,
+    CapabilityExecutor capabilityExecutor,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
@@ -92,6 +76,54 @@ public sealed class ConversationTurnOrchestrator(
             .Select(l => l.KnowledgeBaseId)
             .ToList();
 
+        var userId = currentUser.UserId;
+        var chat = await userChatRepository.GetByIdAsync(request.ChatId, cancellationToken);
+        var latestUserMessage = request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty;
+
+        var turnContext = BuildTurnContext(userId, request.ChatId, chat, knowledgeBaseIds);
+
+        // The Tier 1 index and the decision are built even on a turn that turns out to need no
+        // action — the decider itself is what skips its own model call when the index is empty
+        // or the message is blank (FR-006), so an ordinary reply is not charged for asking.
+        var index = await capabilityCatalog.BuildIndexAsync(turnContext, latestUserMessage, cancellationToken);
+        var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, cancellationToken);
+
+        if (decision.IsFastPath)
+        {
+            // "suggest" also lands here for now: the offer step that would follow it (US2) does
+            // not exist yet, so it degrades to answering in words rather than silently doing
+            // nothing extra. Recorded as an explicit, temporary narrowing rather than an
+            // unexplained gap — see specs/045 tasks.md Phase 4.
+            await foreach (var chunk in RunFastPathAsync(request, messages, chat, knowledgeBaseIds, cancellationToken))
+            {
+                yield return chunk;
+            }
+        }
+        else
+        {
+            await foreach (var chunk in RunActPathAsync(request, decision, turnContext, cancellationToken))
+            {
+                yield return chunk;
+            }
+        }
+
+        // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this
+        // turn for new candidate memories, unchanged by which path the turn took.
+        backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Today's ordinary chat reply: RAG/memory-augmented context, the standing system-prompt
+    /// stack, one streamed completion. Unchanged in shape from before this feature — the whole
+    /// point of the fast path is that this is not where anything got more expensive.
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> RunFastPathAsync(
+        ConversationTurnRequest request,
+        List<ChatMessage> messages,
+        Domain.Chats.UserChat? chat,
+        IReadOnlyList<Guid> knowledgeBaseIds,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         RagRetrievalOutcome? retrievalOutcome = null;
         if (knowledgeBaseIds.Count > 0 && request.Messages.Count > 0)
         {
@@ -106,7 +138,6 @@ public sealed class ConversationTurnOrchestrator(
 
         MemoryRetrievalOutcome? memoryOutcome = null;
         var userId = currentUser.UserId;
-        var chat = await userChatRepository.GetByIdAsync(request.ChatId, cancellationToken);
         if (userId is not null && request.Messages.Count > 0)
         {
             memoryOutcome = await memoryService.RetrieveRelevantMemoriesAsync(
@@ -118,32 +149,10 @@ public sealed class ConversationTurnOrchestrator(
             }
         }
 
-        // specs/037-location-query-resolution FR-008: launch location resolution concurrently
-        // with the model's text stream — never blocking first byte.
-        var turnStartUtc = DateTime.UtcNow;
-        var activeLocation = chat?.ActiveLocation;
-        var latestUserMessage = request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty;
-        var locationTask = locationResolutionService.ResolveAsync(
-            userId, request.ChatId, latestUserMessage, activeLocation, cancellationToken);
-
-        // specs/038-viewer-poi-zoom US2 T028: detect zoom intent before the AI call so we can
-        // inject a guidance system message — the keyword check is synchronous/pure, zero latency.
-        var zoomCommand = viewerZoomDetector.Detect(latestUserMessage);
-        if (zoomCommand is not null && activeLocation is not null)
-        {
-            messages.Insert(0, new ChatMessage(ChatRole.System,
-                "You are controlling a 3D geospatial viewer. When the user asks you to zoom in " +
-                "or out, confirm confidently that you are doing so — never say you are unable to " +
-                "zoom or that you cannot control the viewer. The viewer zoom is performed " +
-                "automatically; your role is only to provide a natural, brief confirmation."));
-        }
-
-        // specs/042-site-boundary-resolution research.md #11: injected before streaming, using
-        // the turn-start value of ActiveBoundary, regardless of what this turn's location
-        // resolution ends up doing — lets the model answer a bare follow-up ("how sure are you
-        // about that?") or a correction request from context alone (FR-009/FR-010), with no new
-        // tool call or resolution. Inserting this AFTER streaming starts would have no effect,
-        // since StreamChatAsync below already consumes this exact `messages` list.
+        // specs/042-site-boundary-resolution research.md #11 — lets the model answer a bare
+        // follow-up ("how sure are you about that?") from context alone, with no new capability
+        // call. Unaffected by the decide step retiring the automatic boundary trigger: this is
+        // about ANSWERING about an already-drawn boundary, not drawing a new one.
         var activeBoundary = chat?.ActiveBoundary;
         if (activeBoundary is not null)
         {
@@ -155,9 +164,7 @@ public sealed class ConversationTurnOrchestrator(
         }
 
         // Inserted last and therefore first in the list: every preceding block also uses
-        // Insert(0, ...), so adding this earlier would have left it buried under them. It leads,
-        // so everything after it refines a reply already scoped to what was actually asked.
-        // See ReplyScopePromptFraming for why it is standing rather than location-triggered.
+        // Insert(0, ...), so adding this earlier would have left it buried under them.
         messages.Insert(0, new ChatMessage(ChatRole.System, ReplyScopePromptFraming.BuildSystemMessage()));
 
         await foreach (var chunk in request.Provider.StreamChatAsync(messages, request.ModelKey, request.GenerationParameters, cancellationToken))
@@ -165,171 +172,204 @@ public sealed class ConversationTurnOrchestrator(
             yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
         }
 
-        // Await the location task with the remaining budget from ResolutionCeilingSeconds (FR-013).
-        var ceiling = locationResolutionOptions.Value.ResolutionCeilingSeconds;
-        var elapsed = DateTime.UtcNow - turnStartUtc;
-        var remaining = TimeSpan.FromSeconds(ceiling) - elapsed;
-        LocationResolutionOutcome locationOutcome;
-        if (remaining <= TimeSpan.Zero && !locationTask.IsCompletedSuccessfully)
+        if (retrievalOutcome is not null || memoryOutcome is not null)
         {
-            // Budget already elapsed and task hasn't finished — treat as Unavailable immediately.
-            ConversationTurnOrchestratorLog.LocationBudgetExhausted(logger, request.ChatId, ceiling, elapsed.TotalSeconds);
-            locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
-                LocationConfirmationTemplates.Unavailable);
+            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome);
         }
-        else
-        {
-            try
-            {
-                locationOutcome = remaining > TimeSpan.Zero
-                    ? await locationTask.WaitAsync(remaining, CancellationToken.None)
-                    : await locationTask; // Task already completed successfully — retrieve result.
-            }
-            catch (TimeoutException)
-            {
-                ConversationTurnOrchestratorLog.LocationTimedOut(logger, request.ChatId, remaining.TotalSeconds, ceiling, elapsed.TotalSeconds);
-                locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
-                    LocationConfirmationTemplates.Unavailable);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                // Client disconnected — re-throw so the iterator terminates cleanly (I2).
-                throw;
-            }
-            catch (OperationCanceledException ex)
-            {
-                // Internal task cancellation (not client disconnect) → Unavailable.
-                ConversationTurnOrchestratorLog.LocationCancelled(logger, request.ChatId, ex);
-                locationOutcome = new LocationResolutionOutcome(LocationResolutionOutcomeType.Unavailable, null,
-                    LocationConfirmationTemplates.Unavailable);
-            }
-        }
-
-        // Append the deterministic confirmation/explanation sentence if the intent was non-NoIntent.
-        if (locationOutcome.Type != LocationResolutionOutcomeType.NoIntent && locationOutcome.ConfirmationText is not null)
-        {
-            yield return new ChatStreamChunk(locationOutcome.ConfirmationText, null);
-        }
-
-        // specs/038-viewer-poi-zoom US2: reuse the zoom command detected before streaming (T028).
-        // C1 fix: only emit ViewerZoom when there is an active location (either confirmed this turn
-        // or previously stored on this chat) — prevents zoom-without-location split-brain when the
-        // user says "zoom in" with no map context at all.
-        var confirmedLocation = locationOutcome.ConfirmedLocation;
-        var hasAnyActiveLocation = confirmedLocation is not null || activeLocation is not null;
-        var viewerZoom = hasAnyActiveLocation ? zoomCommand : null;
-
-        // specs/044-location-viewer-regression FR-001a: the viewer update is emitted BEFORE the
-        // boundary step runs. Between specs/042 and this fix it was emitted after, which made an
-        // optional enhancement a hard prerequisite for a mandatory outcome — a boundary failure
-        // took __LOCATION__, assistant-message persistence and [DONE] down with it, and a slow one
-        // held the viewer for up to ~90s. Restores the pre-88b631a property: no network call sits
-        // between resolving a location and delivering it. AiController flushes this chunk's
-        // __LOCATION__ event immediately rather than after the stream drains — both halves are
-        // required, since the controller's drain-then-write would otherwise nullify this reorder.
-        if (retrievalOutcome is not null || memoryOutcome is not null || confirmedLocation is not null || viewerZoom is not null)
-        {
-            yield return new ChatStreamChunk(null, null, retrievalOutcome, memoryOutcome, confirmedLocation, viewerZoom);
-        }
-
-        // specs/042-site-boundary-resolution research.md #11: only resolves a boundary when this
-        // turn's confirmed site differs from the one already active — a repeated reference to the
-        // same site reuses ActiveBoundary as-is (FR-009), never re-triggering Overpass/scoring.
-        // Piggybacks entirely on locationOutcome — no separate intent-classification call.
-        if (confirmedLocation is not null &&
-            !string.Equals(confirmedLocation.LocationName, activeBoundary?.SiteName, StringComparison.OrdinalIgnoreCase))
-        {
-            // specs/044 FR-002/FR-003: isolated and bounded (see ResolveBoundarySafelyAsync). The
-            // call cannot live inline here — C# forbids `yield return` inside a try/catch — which
-            // is precisely why the original code had no protection around it at all.
-            // The break is announced BEFORE the boundary work, not after it. Everything the
-            // reply has to say is complete at this point, so closing its message here lets the
-            // client render it as finished and speak it immediately, and show this label while
-            // the boundary resolves — which can take tens of seconds. Announced afterwards, the
-            // reply looked finished but stayed silent until the whole turn ended.
-            yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: "Finding the site boundary");
-
-            var boundaryOutcome = await ResolveBoundarySafelyAsync(confirmedLocation, request.ChatId, cancellationToken);
-
-            if (boundaryOutcome.ConfirmationText is not null)
-            {
-                // Streams into the message opened above. Its own message, not more text on the
-                // end of the reply: the boundary reports a separate action that finished seconds
-                // later, and appending it edits a bubble the user has most likely already read.
-                yield return new ChatStreamChunk(boundaryOutcome.ConfirmationText, null);
-            }
-
-            // specs/044 FR-001b: the boundary is its own later delivery, never bundled with the
-            // location chunk above. Omitted entirely when no boundary was produced.
-            if (boundaryOutcome.ConfirmedBoundary is not null)
-            {
-                yield return new ChatStreamChunk(null, null, ConfirmedBoundary: boundaryOutcome.ConfirmedBoundary);
-            }
-        }
-
-        // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this
-        // turn for new candidate memories. Enqueued against the interface, never the concrete
-        // type, so Hangfire resolves it through the container (same idiom DocumentProcessingPipeline
-        // already uses); never awaited/blocking, and its own failures never surface here — retried
-        // by its own [AutomaticRetry] attribute, with MemoryExtractionSweepJob as the safety net if
-        // even the enqueue itself fails.
-        backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
     }
 
     /// <summary>
-    /// specs/044-location-viewer-regression FR-002/FR-003/FR-007 — runs the optional boundary step
-    /// so that neither its failure nor its latency can damage the chat turn.
+    /// The agentic path (specs/045 FR-001-FR-009): one acknowledgement, then an
+    /// announce/execute/narrate cycle per decided slice.
+    ///
     /// <para>
-    /// <b>Isolation (FR-002).</b> <see cref="IBoundaryResolutionService"/> documents a "never throws"
-    /// contract, but turn integrity must not depend on another type keeping its promise: this
-    /// catch-all also covers faults outside the vision path the service itself guards (an
-    /// unexpected exception type from candidate search, a scoring fault, an empty-collection
-    /// index). Per constitution §VIII this is isolation, not suppression — every branch logs its
-    /// cause and returns a user-visible outcome.
-    /// </para>
-    /// <para>
-    /// <b>Budget (FR-003).</b> A linked token, not <c>Task.WaitAsync</c>: the latter abandons the
-    /// await while Overpass/ESRI/Gemini keep consuming connections on a shared host. Per-dependency
-    /// timeouts sum to ~90s, so only an aggregate cap actually bounds the step.
-    /// </para>
-    /// <para>
-    /// <b>Cancellation (FR-007).</b> The two causes are told apart against the ORIGINAL request
-    /// token, never the linked one. Once a linked token goes down, <c>GeminiBoundaryVisionAnalyzer</c>'s
-    /// own identically-shaped guard sees it as "the caller cancelled" and rethrows on budget expiry;
-    /// that is correct only because this method re-adjudicates here. Reversing these two catches
-    /// would report every user cancellation as a boundary timeout.
+    /// Slices run <b>sequentially, in decision order</b>. Genuine dependency wiring — passing one
+    /// slice's result into another, running independent slices concurrently — is specs/045's
+    /// sub-agent delegation (Phase 7, not yet built); a single-capability turn, which is what
+    /// US1's acceptance criteria describe, is unaffected by that simplification. One
+    /// acknowledgement covers the whole turn rather than one per slice, since a compound request
+    /// naming several capabilities is not yet a designed conversational scenario.
     /// </para>
     /// </summary>
-    private async Task<BoundaryResolutionOutcome> ResolveBoundarySafelyAsync(
-        ConfirmedLocationData confirmedLocation, Guid userChatId, CancellationToken cancellationToken)
+    private async IAsyncEnumerable<ChatStreamChunk> RunActPathAsync(
+        ConversationTurnRequest request,
+        TurnDecision decision,
+        TurnContext turnContext,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var budgetSeconds = boundaryScoringOptions.Value.BoundaryTimeoutSeconds;
+        var firstCapability = capabilityCatalog.Find(decision.Slices[0].CapabilityKey);
+        if (firstCapability is null)
+        {
+            // The parser already checked this slice's key against the index built moments
+            // earlier; finding it gone now means the catalog changed mid-turn (an MCP server
+            // deactivating). Degrading to silence would violate constitution §2.VIII, so the
+            // turn says plainly that it could not proceed.
+            ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, decision.Slices[0].CapabilityKey, request.ChatId);
+            yield return new ChatStreamChunk("I was about to do something, but it's no longer available — could you try again?", null);
+            yield break;
+        }
 
-        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        budget.CancelAfter(TimeSpan.FromSeconds(budgetSeconds));
+        // Beat 1: the acknowledgement. Templated, not model-generated (research.md D15) — it is
+        // emitted the instant routing resolves, so the first thing the user sees never depends on
+        // a network round trip and is never lost to a narration failure later in the turn.
+        yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+        yield return new ChatStreamChunk(firstCapability.AcknowledgementTemplate, null);
 
+        foreach (var slice in decision.Slices)
+        {
+            var capability = capabilityCatalog.Find(slice.CapabilityKey);
+            if (capability is null)
+            {
+                ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, slice.CapabilityKey, request.ChatId);
+                continue;
+            }
+
+            // Beat 2: announce-and-work. Opened with a pending label naming the work (FR-005),
+            // which stays visible for the whole capability call and is only replaced once the
+            // narration below actually has something to say (FR-005a).
+            yield return new ChatStreamChunk(null, null, StartsNewMessage: true,
+                PendingLabel: slice.PendingLabel ?? capability.Label);
+
+            var result = await capabilityExecutor.ExecuteAsync(capability, turnContext, slice.ArgumentsJson, cancellationToken);
+
+            var narration = await NarrateAsync(request, capability, result, cancellationToken);
+            yield return new ChatStreamChunk(narration, null);
+
+            if (result.Succeeded)
+            {
+                var structured = TryExtractStructuredPayload(capability.Name, result.ResultJson);
+                if (structured is not null)
+                {
+                    // specs/044 FR-001a — flushed as its own chunk immediately, never delayed
+                    // behind a later, optional step. There is no automatic boundary chaining
+                    // here (FR-046): resolve_site_boundary only runs when the decide step (or,
+                    // once Phase 6 ships, a flow) names it explicitly.
+                    yield return structured;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Turns one capability's real result into the sentence the user reads (FR-007). Falls back
+    /// to a fixed, honest template on any failure of the narration call itself (FR-008) — the
+    /// user must never be left without a statement of what happened just because the model that
+    /// would have phrased it nicely was unavailable.
+    /// </summary>
+    private async Task<string> NarrateAsync(
+        ConversationTurnRequest request,
+        IConversationCapability capability,
+        CapabilityExecutionResult result,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            return await boundaryResolutionService.ResolveAsync(confirmedLocation, userChatId, budget.Token);
+            var narrationMessages = new List<ChatMessage>
+            {
+                new(ChatRole.System, TurnNarrationPrompt.Build(
+                    capability.Label, capability.UsageGuidance, result.Succeeded, result.ResultJson, nextStepLabel: null)),
+                new(ChatRole.User, "Report this to the user now."),
+            };
+
+            var completion = await request.Provider.ChatAsync(narrationMessages, request.ModelKey, parameters: null, cancellationToken);
+            return string.IsNullOrWhiteSpace(completion.Content) ? FallbackNarration(capability, result) : completion.Content;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // The caller cancelled (client disconnected). A user action, not a boundary failure —
-            // it must propagate and must never be recorded as the boundary having failed.
             throw;
-        }
-        catch (OperationCanceledException)
-        {
-            ConversationTurnOrchestratorLog.BoundaryTimedOut(logger, userChatId, budgetSeconds);
-            return new BoundaryResolutionOutcome(
-                BoundaryResolutionOutcomeType.Unavailable, null, BoundaryConfirmationTemplates.Unavailable);
         }
         catch (Exception ex)
         {
-            ConversationTurnOrchestratorLog.BoundaryFailed(logger, userChatId, ex);
-            return new BoundaryResolutionOutcome(
-                BoundaryResolutionOutcomeType.Unavailable, null, BoundaryConfirmationTemplates.Unavailable);
+            ConversationTurnOrchestratorLog.NarrationFailed(logger, capability.Name, request.ChatId, ex);
+            return FallbackNarration(capability, result);
         }
+    }
+
+    /// <summary>FR-008's fixed fallback wording — used only when the narration model call itself fails, never as the normal path.</summary>
+    private static string FallbackNarration(IConversationCapability capability, CapabilityExecutionResult result) =>
+        result.Succeeded
+            ? $"{capability.Label}: done."
+            : $"{capability.Label} didn't work — {result.ResultJson}";
+
+    /// <summary>
+    /// Recovers the frozen viewer payloads (FR-048) from a capability's own JSON output. Kept as
+    /// one small adapter rather than having each capability emit these directly: capabilities
+    /// speak <see cref="AgentToolResult"/> JSON so they stay usable by the background agent
+    /// runtime too, and only the conversational turn needs to know these specific shapes exist.
+    /// </summary>
+    private static ChatStreamChunk? TryExtractStructuredPayload(string capabilityKey, string resultJson)
+    {
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(resultJson);
+            var root = document.RootElement;
+
+            switch (capabilityKey)
+            {
+                case Capabilities.ResolveLocationCapability.CapabilityKey
+                    when root.TryGetProperty("locationName", out var nameEl):
+                    return new ChatStreamChunk(null, null, ConfirmedLocation: new ConfirmedLocationData(
+                        root.GetProperty("latitude").GetDouble(),
+                        root.GetProperty("longitude").GetDouble(),
+                        nameEl.GetString() ?? string.Empty,
+                        root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 1d));
+
+                case Capabilities.ResolveSiteBoundaryCapability.CapabilityKey
+                    when root.TryGetProperty("siteName", out var siteEl):
+                    // The capability's own JSON carries only the summary fields a narration needs;
+                    // the polygon itself lives in ActiveSiteBoundary on the chat aggregate, updated
+                    // by IBoundaryResolutionService as a side effect the capability already
+                    // triggered. Full ConfirmedSiteBoundaryData reconstruction for the SSE payload
+                    // is Phase 6 work (the locate_a_place flow owns this end-to-end); for a
+                    // standalone invocation the narration alone still tells the user what happened.
+                    _ = siteEl;
+                    return null;
+
+                case Capabilities.AdjustViewerFocusCapability.CapabilityKey
+                    when root.TryGetProperty("direction", out var directionEl):
+                    return new ChatStreamChunk(null, null,
+                        ViewerZoom: new ViewerZoomCommand(directionEl.GetString() ?? "in"));
+
+                default:
+                    return null;
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static TurnContext BuildTurnContext(
+        string? userId, Guid userChatId, Domain.Chats.UserChat? chat, IReadOnlyList<Guid> knowledgeBaseIds)
+    {
+        // specs/045 FR-011 rule 3 — entitlement is meant to be enforced centrally, against a real
+        // per-user grant. No granular permission system surfaces to chat today (the pre-existing
+        // pipeline ran retrieval/location/memory for any authenticated user unconditionally), so
+        // every authenticated user is granted the low-risk permissions the built-in capabilities
+        // declare — Low risk is exactly the tier none of them exceed. An unauthenticated turn
+        // (userId null) is granted none, which is the safer default. Documented here rather than
+        // silently assumed: a real entitlement source is a genuine gap, not an oversight.
+        var granted = userId is null
+            ? new HashSet<AgentToolPermission>()
+            : new HashSet<AgentToolPermission>
+            {
+                AgentToolPermission.ExternalNetwork,
+                AgentToolPermission.ReadKnowledge,
+                AgentToolPermission.ReadMemory,
+            };
+
+        return new TurnContext(
+            userId,
+            userChatId,
+            chat?.ActiveLocation,
+            chat?.ActiveBoundary,
+            knowledgeBaseIds,
+            HasAttachedDocuments: false,
+            IsMemoryAvailable: userId is not null,
+            OpenPanelTypeKeys: [],
+            granted,
+            SubscriptionTier: null);
     }
 
     private static ChatRole ParseRole(string role) => role.ToLowerInvariant() switch
