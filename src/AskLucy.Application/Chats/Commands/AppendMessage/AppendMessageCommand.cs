@@ -46,4 +46,7 @@ public sealed record AppendMessageCommand(
     int? LatencyMs = null,
     decimal? EstimatedCostUsd = null,
     IReadOnlyList<AppendMessageAttachmentInput>? Attachments = null,
-    IReadOnlyList<AppendMessageCitationInput>? Citations = null) : IRequest<MessageDto>;
+    IReadOnlyList<AppendMessageCitationInput>? Citations = null,
+    // specs/045-conversational-agent-runtime FR-026 — set only on the assistant message that
+    // closes a turn with an offer (Web/Controllers/v1/AiController.cs, after grounding).
+    string? SuggestedActionsJson = null) : IRequest<MessageDto>;

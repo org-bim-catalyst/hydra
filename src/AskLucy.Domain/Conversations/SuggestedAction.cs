@@ -92,3 +92,19 @@ public sealed record SuggestedAction(
             _ => false,
         };
 }
+
+/// <summary>
+/// One completed offer (specs/045 FR-021, contracts/turn-stream.md §2) — the question the offer
+/// step composed plus its grounded rows, always ending with the server-appended decline (FR-022).
+/// <para>
+/// Persisted as a whole onto <see cref="Chats.Message.SuggestedActionsJson"/> rather than the bare
+/// row array data-model.md §1 describes: <see cref="Question"/> is itself composed per turn (it is
+/// not a fixed string — "What would you like to do next?" versus a clarifying question read
+/// differently), and SC-009 requires a reopened conversation to reproduce the exact offer that was
+/// shown live. No column exists for the question text alone, and this is a strict superset of "a
+/// JSON array of rows" rather than a competing shape, so storing the envelope is the smaller change.
+/// </para>
+/// </summary>
+/// <param name="Question">What Lucy asked before the rows — spoken aloud alongside the labels (FR-044).</param>
+/// <param name="Actions">Substantive rows in offer order, with the decline row always last.</param>
+public sealed record SuggestedActionOffer(string Question, IReadOnlyList<SuggestedAction> Actions);

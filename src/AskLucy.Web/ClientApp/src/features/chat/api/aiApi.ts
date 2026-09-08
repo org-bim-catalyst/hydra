@@ -23,6 +23,23 @@ export type RagRetrievalOutcome = 'Grounded' | 'NoRelevantContent' | 'Unavailabl
 /** specs/018-ai-memory-system, research.md Decision 3. */
 export type MemoryRetrievalOutcome = 'Found' | 'NoneRelevant' | 'Unavailable'
 
+/**
+ * specs/045-conversational-agent-runtime FR-021a — one row of an offer. `capabilityKey` is set
+ * for `capability`/`flowVariant` rows and null for `followUp`/`decline`; `text` is the composed
+ * instruction for a `followUp` row only. Selecting a row never invokes a capability directly —
+ * dispatch (specs/045 Phase 5) is what turns a selection into a request; this shape only
+ * describes what the card renders and echoes back.
+ */
+export interface SuggestedAction {
+  kind: 'flowVariant' | 'capability' | 'followUp' | 'decline'
+  capabilityKey: string | null
+  text: string | null
+  label: string
+  description: string
+  arguments: unknown
+  isDecline: boolean
+}
+
 export interface ChatMessage {
   /** The persisted `Message.Id` (specs/002-chat-history-management) — undefined only for the brief window between a live send and the trailing `__MEMORY__`/history-refetch event resolving it. */
   id?: string
@@ -41,6 +58,10 @@ export interface ChatMessage {
   retrievalError?: string | null
   /** specs/018-ai-memory-system US1 (FR-014) — undefined when memory is disabled/not yet evaluated for this turn ("not applicable"); `'Found'` means the "why does Lucy know this" trace has at least one entry. */
   memoryOutcome?: MemoryRetrievalOutcome
+  /** specs/045-conversational-agent-runtime FR-021/FR-026 — the offer this assistant message made, or undefined when it offered nothing (the common case). */
+  suggestedActions?: SuggestedAction[]
+  /** What Lucy asked before the rows in {@link suggestedActions}. Undefined exactly when that is. */
+  question?: string
 }
 
 /** specs/005-multi-provider-ai-engine contracts/chat.md — mirrors `GenerationParametersDto`. Every field optional; an unset field falls back through the server-side inheritance chain. */
@@ -107,12 +128,20 @@ export type ChatStreamEvent =
       sourceDetail: string
       alternativeCandidateNames: string[]
     }
+  /** specs/045-conversational-agent-runtime FR-021 — the offer closing a turn; last before `[DONE]`, and often absent (FR-025). */
+  | {
+      type: 'actions'
+      offeredByMessageId: string
+      question: string
+      actions: SuggestedAction[]
+    }
 
 const RAG_EVENT_PREFIX = '__RAG__'
 const MEMORY_EVENT_PREFIX = '__MEMORY__'
 const LOCATION_EVENT_PREFIX = '__LOCATION__'
 const ZOOM_EVENT_PREFIX = '__ZOOM__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
+const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
 
 /**
@@ -265,6 +294,38 @@ export async function* streamChat(
           source: payload.source,
           sourceDetail: payload.sourceDetail,
           alternativeCandidateNames: payload.alternativeCandidateNames,
+        }
+        continue
+      }
+
+      // specs/045-conversational-agent-runtime FR-021 — the offer closing a turn.
+      if (data.startsWith(ACTIONS_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(ACTIONS_EVENT_PREFIX.length)) as {
+          offeredByMessageId: string
+          question: string | null
+          actions: {
+            kind: string
+            capabilityKey: string | null
+            text: string | null
+            label: string
+            description: string
+            arguments: unknown
+            isDecline: boolean
+          }[]
+        }
+        yield {
+          type: 'actions',
+          offeredByMessageId: payload.offeredByMessageId,
+          question: payload.question ?? '',
+          actions: payload.actions.map((a) => ({
+            kind: a.kind as SuggestedAction['kind'],
+            capabilityKey: a.capabilityKey,
+            text: a.text,
+            label: a.label,
+            description: a.description,
+            arguments: a.arguments,
+            isDecline: a.isDecline,
+          })),
         }
         continue
       }

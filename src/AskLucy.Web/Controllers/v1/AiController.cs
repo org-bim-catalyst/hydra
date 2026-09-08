@@ -22,6 +22,7 @@ using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Conversations;
 using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -87,6 +88,8 @@ public sealed partial class AiController(
         ConfirmedLocationData? confirmedLocation = null;
         ViewerZoomCommand? viewerZoom = null;
         ConfirmedSiteBoundaryData? confirmedBoundary = null;
+        IReadOnlyList<SuggestedAction>? suggestedActions = null;
+        string? suggestedActionsQuestion = null;
 
         // specs/045-conversational-agent-runtime research.md D5 — a beat can now sit
         // "pending" for tens of seconds (site-boundary resolution). Without a keep-alive, an
@@ -112,7 +115,7 @@ public sealed partial class AiController(
                 {
                     firstAssistantMessageId ??= await PersistAssistantMessageAsync(
                         request, assistantContent.ToString(), provider, model, generationParametersJson,
-                        finalUsage, retrievalOutcome, cancellationToken);
+                        finalUsage, retrievalOutcome, null, cancellationToken);
                     assistantContent.Clear();
                 }
 
@@ -166,6 +169,15 @@ public sealed partial class AiController(
             {
                 confirmedBoundary = chunk.ConfirmedBoundary;
             }
+
+            // specs/045-conversational-agent-runtime FR-021 — rides its own chunk, with no
+            // ContentDelta/StartsNewMessage of its own; it never opens a bubble, only marks the
+            // offer that belongs to whichever one is open when the turn ends.
+            if (chunk.SuggestedActions is not null)
+            {
+                suggestedActions = chunk.SuggestedActions;
+                suggestedActionsQuestion = chunk.SuggestedActionsQuestion;
+            }
         }
 
         // US1 (specs/016-rag-semantic-search) — a distinguishable trailing JSON event, never
@@ -203,12 +215,21 @@ public sealed partial class AiController(
         //
         // Skipped when nothing is buffered, which happens when the turn's last chunk opened a new
         // message that then produced no text: an empty bubble helps nobody.
+        Guid? offeringMessageId = null;
         if (assistantContent.Length > 0)
         {
+            // specs/045-conversational-agent-runtime FR-026 — the offer, if any, always belongs to
+            // this final message: it rides its own trailing chunk with no ContentDelta, so it is
+            // never captured mid-stream by the StartsNewMessage branch above.
+            var suggestedActionsJson = suggestedActions is { Count: > 0 }
+                ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions })
+                : null;
+
             var persistedId = await PersistAssistantMessageAsync(
                 request, assistantContent.ToString(), provider, model, generationParametersJson,
-                finalUsage, retrievalOutcome, cancellationToken);
+                finalUsage, retrievalOutcome, suggestedActionsJson, cancellationToken);
             firstAssistantMessageId ??= persistedId;
+            offeringMessageId = persistedId;
         }
 
         // The memory trace belongs to the turn's first message - the reply itself. A later message
@@ -257,6 +278,31 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
+        // specs/045-conversational-agent-runtime FR-021/contracts/turn-stream.md §4 — last before
+        // [DONE], and only once the offering message is a real persisted id (an offer with no
+        // message to attach to — e.g. the turn's only chunk somehow carried no text — is not
+        // emitted at all rather than sent with a fabricated id).
+        if (suggestedActions is { Count: > 0 } actions && offeringMessageId is { } offeredByMessageId)
+        {
+            var actionsPayload = new
+            {
+                offeredByMessageId,
+                question = suggestedActionsQuestion,
+                actions = actions.Select(a => new
+                {
+                    kind = a.Kind.ToString(),
+                    capabilityKey = a.Key,
+                    text = a.Text,
+                    label = a.Label,
+                    description = a.Description,
+                    arguments = string.IsNullOrEmpty(a.ArgumentsJson) ? (object?)null : JsonSerializer.Deserialize<JsonElement>(a.ArgumentsJson),
+                    isDecline = a.IsDecline,
+                }),
+            };
+            await Response.WriteAsync($"data: __ACTIONS__{JsonSerializer.Serialize(actionsPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     }
 
@@ -279,6 +325,7 @@ public sealed partial class AiController(
         string? generationParametersJson,
         ChatUsage? usage,
         RagRetrievalOutcome? retrievalOutcome,
+        string? suggestedActionsJson,
         CancellationToken cancellationToken)
     {
         var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, usage?.InputTokenCount, usage?.OutputTokenCount);
@@ -299,7 +346,8 @@ public sealed partial class AiController(
                 Provider: provider?.DisplayName, Model: model?.ModelKey, GenerationParametersJson: generationParametersJson,
                 InputTokenCount: usage?.InputTokenCount, OutputTokenCount: usage?.OutputTokenCount,
                 CachedTokenCount: usage?.CachedTokenCount, ReasoningTokenCount: usage?.ReasoningTokenCount,
-                LatencyMs: usage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations),
+                LatencyMs: usage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations,
+                SuggestedActionsJson: suggestedActionsJson),
             cancellationToken);
 
         return message.Id;

@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Domain.Conversations;
 using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Ai.Commands.SendChatMessage;
@@ -60,7 +61,19 @@ public sealed record ChatStreamChunk(
     /// nothing to say anything was still happening, and the reply was not spoken until it was
     /// over.
     /// </remarks>
-    string? PendingLabel = null);
+    string? PendingLabel = null,
+
+    /// <summary>
+    /// specs/045 FR-021 — the offer closing this turn, already grounded (<see cref="AskLucy.Application.Conversations.Runtime.SuggestedActionGrounder"/>).
+    /// Rides the final chunk exactly as <see cref="RetrievalOutcome"/>/<see cref="MemoryOutcome"/>/
+    /// <see cref="ConfirmedLocation"/> do. Null when the turn offered nothing (FR-025) — the common
+    /// case. Carries no <see cref="StartsNewMessage"/>/<see cref="ContentDelta"/> of its own: it is
+    /// metadata riding after the turn's last real content, not a bubble of its own.
+    /// </summary>
+    IReadOnlyList<SuggestedAction>? SuggestedActions = null,
+
+    /// <summary>What Lucy asked before the rows (contracts/turn-stream.md §2). Non-null exactly when <see cref="SuggestedActions"/> is.</summary>
+    string? SuggestedActionsQuestion = null);
 
 /// <summary>
 /// specs/042-site-boundary-resolution — the resolved site boundary carried on the final

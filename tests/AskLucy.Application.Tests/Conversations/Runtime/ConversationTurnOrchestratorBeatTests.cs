@@ -40,6 +40,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly ITurnDecider _decider = Substitute.For<ITurnDecider>();
+    private readonly ISuggestedActionOfferGenerator _offerGenerator = Substitute.For<ISuggestedActionOfferGenerator>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
     private readonly Guid _chatId = Guid.NewGuid();
 
@@ -72,7 +73,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, _decider, capabilityExecutor,
+            _backgroundJobClient, capabilityCatalog, _decider, capabilityExecutor, _offerGenerator,
             NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 

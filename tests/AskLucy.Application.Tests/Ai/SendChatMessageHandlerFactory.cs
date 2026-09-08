@@ -99,6 +99,20 @@ internal static class SendChatMessageHandlerFactory
             Substitute.For<IJsonSchemaValidator>(),
             NullLogger<CapabilityExecutor>.Instance);
 
+        // specs/045 US2 — same "unreachable when nothing is offerable" story as turnDecider above:
+        // with the default empty catalog every intent either answers (suppressed outright) or has
+        // nothing offerable, so OfferSuppressionRules never lets this run. A test that registers
+        // capabilities and wants the offer step for real builds its own against providers/models
+        // it actually configured, same convention as turnDecider.
+        var offerGenerator = new SuggestedActionOfferGenerator(
+            new AiCapabilityProviderResolver(
+                Substitute.For<IAiCapabilityAssignmentRepository>(), providers, models,
+                new DefaultProviderResolver(Substitute.For<IAIProviderRepository>(), Substitute.For<IAIModelRepository>()),
+                NullLogger<AiCapabilityProviderResolver>.Instance),
+            providers, models, resolver, capabilityCatalog,
+            new SuggestedActionGrounder(Substitute.For<IJsonSchemaValidator>()),
+            runtimeOptions, NullLogger<SuggestedActionOfferGenerator>.Instance);
+
         var orchestratorLogger = logger as ILogger<ConversationTurnOrchestrator>
             ?? new CategoryAdapter(logger);
 
@@ -112,6 +126,7 @@ internal static class SendChatMessageHandlerFactory
             capabilityCatalog,
             turnDecider,
             capabilityExecutor,
+            offerGenerator,
             orchestratorLogger);
 
         return new SendChatMessageCommandHandler(resolver, providers, models, orchestrator, validator);

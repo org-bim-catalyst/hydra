@@ -229,6 +229,11 @@ public static class DependencyInjection
         services.AddScoped<ITurnDecider, TurnDecider>();
         services.AddScoped<CapabilityExecutor>();
 
+        // The offer step (specs/045 US2) — same AiCapability assignment as the decide step
+        // (AiCapability.TurnOrchestration's own doc comment covers both jobs).
+        services.AddScoped<SuggestedActionGrounder>();
+        services.AddScoped<ISuggestedActionOfferGenerator, SuggestedActionOfferGenerator>();
+
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
         // McpToolAdapter instances must never hold a Scoped dependency (constitution §3), and the

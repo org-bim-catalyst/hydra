@@ -49,8 +49,9 @@ public sealed class Message : BaseEntity
 
     /// <summary>
     /// specs/045-conversational-agent-runtime FR-026 — the offer this <b>assistant</b> message
-    /// made, as a serialized <c>SuggestedAction[]</c>. Null on user messages and on assistant
-    /// messages that offered nothing, which is the common case (FR-025a).
+    /// made, as a serialized <see cref="AskLucy.Domain.Conversations.SuggestedActionOffer"/> (question + rows).
+    /// Null on user messages and on assistant messages that offered nothing, which is the common
+    /// case (FR-025a).
     /// </summary>
     public string? SuggestedActionsJson { get; private set; }
 

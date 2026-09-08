@@ -62,6 +62,7 @@ public sealed class ConversationTurnOrchestrator(
     ConversationCapabilityCatalog capabilityCatalog,
     ITurnDecider turnDecider,
     CapabilityExecutor capabilityExecutor,
+    ISuggestedActionOfferGenerator offerGenerator,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
@@ -88,14 +89,21 @@ public sealed class ConversationTurnOrchestrator(
         var index = await capabilityCatalog.BuildIndexAsync(turnContext, latestUserMessage, cancellationToken);
         var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, cancellationToken);
 
+        MemoryRetrievalOutcome? memoryOutcome = null;
+        var confirmedLocationThisTurn = false;
+
         if (decision.IsFastPath)
         {
-            // "suggest" also lands here for now: the offer step that would follow it (US2) does
-            // not exist yet, so it degrades to answering in words rather than silently doing
-            // nothing extra. Recorded as an explicit, temporary narrowing rather than an
-            // unexplained gap — see specs/045 tasks.md Phase 4.
+            // TurnIntent.Suggest takes this same words-only mechanics as Answer (TurnDecision.
+            // IsFastPath is true for both) — the distinction that matters for the offer step below
+            // is the intent itself, not which mechanics ran (research.md D18).
             await foreach (var chunk in RunFastPathAsync(request, messages, chat, knowledgeBaseIds, cancellationToken))
             {
+                if (chunk.MemoryOutcome is not null)
+                {
+                    memoryOutcome = chunk.MemoryOutcome;
+                }
+
                 yield return chunk;
             }
         }
@@ -103,14 +111,93 @@ public sealed class ConversationTurnOrchestrator(
         {
             await foreach (var chunk in RunActPathAsync(request, decision, turnContext, cancellationToken))
             {
+                if (chunk.ConfirmedLocation is not null)
+                {
+                    confirmedLocationThisTurn = true;
+                }
+
                 yield return chunk;
             }
+        }
+
+        await foreach (var chunk in RunOfferStepAsync(request, decision, turnContext, memoryOutcome, confirmedLocationThisTurn, chat, cancellationToken))
+        {
+            yield return chunk;
         }
 
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this
         // turn for new candidate memories, unchanged by which path the turn took.
         backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
     }
+
+    /// <summary>
+    /// specs/045 US2 — evaluated after the turn's real content is already on its way out, and only
+    /// runs the offer step at all when none of FR-025a's five suppression conditions apply. A
+    /// suppressed turn costs no model call and yields nothing (SC-008).
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> RunOfferStepAsync(
+        ConversationTurnRequest request,
+        TurnDecision decision,
+        TurnContext turnContext,
+        MemoryRetrievalOutcome? memoryOutcome,
+        bool confirmedLocationThisTurn,
+        Domain.Chats.UserChat? chat,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var outcome = new TurnOutcome(
+            decision.Intent == TurnIntent.Act ? [.. decision.Slices.Select(s => s.CapabilityKey).Distinct(StringComparer.Ordinal)] : [],
+            confirmedLocationThisTurn,
+            // FR-025a.4 — "previously offered and ignored" needs the last offer read back from
+            // history, which needs a real offer to have existed first. Left at its safe default
+            // until specs/045 Phase 5's selection dispatch (tasks.md T068+) gives a persisted
+            // offer something to be ignored against — the same documented-placeholder pattern as
+            // BuildTurnContext's entitlement rule below.
+            [],
+            UserDeclinedLastOffer: false);
+
+        // FR-032 placeholder, same pattern as the entitlement rule in BuildTurnContext: no
+        // per-user preference exists yet (tasks.md T121 adds the real GET/PUT endpoints and
+        // repository). Everyone is treated as opted in, the safe default while there is no toggle
+        // to have turned off.
+        const bool suggestedActionsEnabled = true;
+
+        var suppression = OfferSuppressionRules.Evaluate(decision.Intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled);
+        if (suppression != OfferSuppressionReason.None)
+        {
+            yield break;
+        }
+
+        var memoryContext = memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found ? memoryOutcome.ContextText : null;
+        if (memoryContext is null && turnContext.UserId is not null)
+        {
+            // The fast path already retrieves memory for its own reply; the act path does not, so
+            // this is the first and only memory call on that path — made only here, after
+            // suppression already ruled out the common case of no offer running at all.
+            var freshMemory = await memoryService.RetrieveRelevantMemoriesAsync(
+                turnContext.UserId, request.ChatId, chat?.ProjectId, request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty,
+                cancellationToken);
+            if (freshMemory.Type == MemoryRetrievalOutcomeType.Found)
+            {
+                memoryContext = freshMemory.ContextText;
+            }
+        }
+
+        var justHappened = DescribeWhatJustHappened(decision, request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty);
+        var offer = await offerGenerator.GenerateAsync(turnContext, outcome, justHappened, memoryContext, cancellationToken);
+
+        if (offer is not null)
+        {
+            yield return new ChatStreamChunk(null, null, SuggestedActions: offer.Actions, SuggestedActionsQuestion: offer.Question);
+        }
+    }
+
+    /// <summary>A short, factual account of the turn for the offer prompt (FR-021b) — not narration a user reads, only context an LLM composes against.</summary>
+    private static string DescribeWhatJustHappened(TurnDecision decision, string userMessage) =>
+        decision.Intent switch
+        {
+            TurnIntent.Act => $"The user asked: \"{userMessage}\". Lucy ran: {string.Join(", ", decision.Slices.Select(s => s.CapabilityKey))}.",
+            _ => $"The user asked: \"{userMessage}\". Lucy answered in words; nothing was run.",
+        };
 
     /// <summary>
     /// Today's ordinary chat reply: RAG/memory-augmented context, the standing system-prompt
@@ -121,7 +208,7 @@ public sealed class ConversationTurnOrchestrator(
         ConversationTurnRequest request,
         List<ChatMessage> messages,
         Domain.Chats.UserChat? chat,
-        IReadOnlyList<Guid> knowledgeBaseIds,
+        List<Guid> knowledgeBaseIds,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         RagRetrievalOutcome? retrievalOutcome = null;
