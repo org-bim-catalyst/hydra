@@ -69,7 +69,7 @@ public sealed class SendChatMessageLocationIntegrationTests
         _boundaryResolutionService.ResolveAsync(Arg.Any<ConfirmedLocationData>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryResolutionOutcome(BoundaryResolutionOutcomeType.Unavailable, null, BoundaryConfirmationTemplates.Unavailable));
 
-        _handler = new SendChatMessageCommandHandler(
+        _handler = SendChatMessageHandlerFactory.Create(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
             _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),

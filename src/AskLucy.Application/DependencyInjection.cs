@@ -5,6 +5,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
+using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Processing;
 using AskLucy.Application.Documents.Processing.Stages;
@@ -189,6 +190,18 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(WorkflowRuntimeOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // specs/045-conversational-agent-runtime — per-turn bounds for the conversational runtime.
+        services.AddOptions<ConversationRuntimeOptions>()
+            .Bind(configuration.GetSection(ConversationRuntimeOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // Scoped, not singleton: the turn reads repositories bound to the request's DbContext.
+        // Concurrent sub-agent slices (research.md D12) must therefore resolve their OWN scope
+        // rather than sharing this one — a shared request DbContext has already caused hard 500s
+        // in this codebase once, on DB-credential providers only.
+        services.AddScoped<IConversationTurnOrchestrator, ConversationTurnOrchestrator>();
 
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
