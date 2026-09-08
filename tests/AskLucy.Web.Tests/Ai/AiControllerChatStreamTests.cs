@@ -5,6 +5,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Options;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
 using AskLucy.Web.Controllers.v1;
@@ -48,7 +49,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
                 Guid.NewGuid(), "assistant", "text", "Here you go.", null, DateTime.UtcNow,
                 null, null, null, null, null, null, null, null, null, [], []));
 
-        _controller = new AiController(_mediator, _providers, _models)
+        _controller = new AiController(_mediator, _providers, _models, Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()))
         {
             ControllerContext = new ControllerContext
             {
@@ -262,5 +263,113 @@ public sealed class AiControllerChatStreamTests : IDisposable
 
         assistantContents.Should().Equal("I have outlined the site boundary.");
         ResponseText().Should().Contain("__MESSAGE_BREAK__");
+    }
+}
+
+/// <summary>
+/// specs/045-conversational-agent-runtime research.md D5 (T049) — the keep-alive comment written
+/// while a beat sits pending. A separate fixture from <see cref="AiControllerChatStreamTests"/>
+/// because it needs a short interval to keep the test fast; the shared fixture's default
+/// (production) interval would make every test in this file wait on it for nothing.
+/// </summary>
+public sealed class AiControllerKeepAliveTests : IDisposable
+{
+    private readonly ISender _mediator = Substitute.For<ISender>();
+    private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
+    private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
+    private readonly MemoryStream _responseBody = new();
+    private readonly AiController _controller;
+    private readonly Guid _chatId = Guid.NewGuid();
+
+    public AiControllerKeepAliveTests()
+    {
+        _mediator.Send(Arg.Any<AppendMessageCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new MessageDto(
+                Guid.NewGuid(), "assistant", "text", "Here you go.", null, DateTime.UtcNow,
+                null, null, null, null, null, null, null, null, null, [], []));
+
+        // The minimum the [Range] on ConversationRuntimeOptions allows — short enough to keep
+        // this test under two seconds while still exercising the real Task.Delay race rather than
+        // a mocked clock, which is what actually proves the wire format (a comment line, invisible
+        // to aiApi.ts's parser) is correct.
+        _controller = new AiController(_mediator, _providers, _models,
+            Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }))
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { Response = { Body = _responseBody } },
+            },
+        };
+    }
+
+    public void Dispose() => _responseBody.Dispose();
+
+    private string ResponseText() => Encoding.UTF8.GetString(_responseBody.ToArray());
+
+    [Fact]
+    public async Task Chat_ShouldWriteAKeepAliveComment_WhileABeatSitsPendingLongerThanTheInterval()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: "Highlighting the boundary");
+
+            // Longer than the 1s interval configured above, so at least one keep-alive must be
+            // written before this chunk is even produced.
+            await Task.Delay(TimeSpan.FromSeconds(1.5));
+
+            yield return new ChatStreamChunk("Done.", null);
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "outline the site")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        ResponseText().Should().Contain(": keep-alive\n\n");
+    }
+
+    [Fact]
+    public async Task Chat_ShouldNotWriteAKeepAliveComment_WhenChunksArriveFasterThanTheInterval()
+    {
+        // The other half of the guarantee: a keep-alive is written only when nothing else already
+        // reset the connection's idle clock. A chatty stream must not be padded with noise.
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("One.", null);
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+            yield return new ChatStreamChunk(" Two.", null);
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "hello")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        ResponseText().Should().NotContain(": keep-alive");
+    }
+
+    [Fact]
+    public async Task Chat_ShouldNotDisturbTheRealChunkSequence_WhenAKeepAliveWasWritten()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: "Working on it");
+            await Task.Delay(TimeSpan.FromSeconds(1.5));
+            yield return new ChatStreamChunk("The real content, unaffected by the wait.", null);
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "do the thing")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var text = ResponseText();
+        text.Should().Contain("data: The real content, unaffected by the wait.\n\n");
+        text.IndexOf(": keep-alive", StringComparison.Ordinal)
+            .Should().BeLessThan(text.IndexOf("The real content", StringComparison.Ordinal),
+                "the keep-alive must appear while the beat is still pending, before its real content");
     }
 }

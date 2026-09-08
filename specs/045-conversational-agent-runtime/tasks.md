@@ -156,11 +156,11 @@ Clean Architecture backend plus a co-located React SPA:
 - [X] T046 [US1] Emit each beat as `StartsNewMessage: true` with a `PendingLabel` naming the work, reusing the specs/044 mechanism (research.md D5)
 - [X] T047 [US1] Implement the fast path (FR-006): `intent: "answer"` streams a plain reply with no acknowledgement beat, no offer step and no `AgentExecution` row
 - [X] T048 [US1] Implement FR-008 fallback wording for every outcome type when narration fails, so a turn is never left without a user-visible statement
-- [ ] T049 [US1] Add the SSE keep-alive comment (every 10 s while a beat is pending) in `src/AskLucy.Web/Controllers/v1/AiController.cs` (research.md D5)
+- [X] T049 [US1] Add the SSE keep-alive comment (every 10 s while a beat is pending) in `src/AskLucy.Web/Controllers/v1/AiController.cs` (research.md D5)
 - [X] T050 [US1] Preserve the specs/044 ordering guarantees in the new orchestrator: `__LOCATION__` written and flushed the moment its chunk is yielded, before any long step
-- [ ] T051 [P] [US1] Frontend: render `pendingLabel` as a named progress indication in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, replaced by content when it arrives
+- [X] T051 [P] [US1] Frontend: render `pendingLabel` as a named progress indication in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, replaced by content when it arrives — **already satisfied**: `useChatStream.ts`/`ChatPage.tsx` built this generically for specs/044 (a `messageBreak` opens an empty bubble immediately, rendered as `ThinkingIndicator` with the pending label until content arrives). The new orchestrator's beats reuse the identical wire shape, so no frontend code changed; T053 adds the test proving it.
 - [X] T052 [P] [US1] Orchestrator beat tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/ConversationTurnOrchestratorBeatTests.cs` — acknowledgement precedes work, result written from the real outcome, failure never narrated as success, fast path emits no beats
-- [ ] T053 [P] [US1] Frontend tests for progress rendering in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.test.tsx`, and update `ChatPage.test.tsx` (it carries its own message-rendering assertions)
+- [X] T053 [P] [US1] Frontend tests for progress rendering in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.test.tsx`, and update `ChatPage.test.tsx` (it carries its own message-rendering assertions)
 
 **Checkpoint**: US1 is independently demonstrable — a single-capability turn narrates correctly end to end.
 

@@ -1557,6 +1557,68 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(spoken[1]).toContain("I've outlined the site boundary.")
   })
 
+  /**
+   * specs/045-conversational-agent-runtime US1 — the turn shape this whole feature exists to
+   * produce: an acknowledgement, delivered before the work, in its own bubble; then a named
+   * pending indication while a capability actually runs; then a result written from what it
+   * found. Unlike the specs/042 boundary tests above (canned confirmation text, no
+   * acknowledgement beat at all), this is the new backend's actual output shape — proving the
+   * pre-existing messageBreak/pendingLabel mechanism renders it correctly needed no frontend
+   * changes of its own (T051), only this test to confirm it (T053).
+   */
+  it('renders the acknowledgement before the work, then the named-pending capability, then its real result', async () => {
+    let releaseCapability: () => void = () => {}
+    const capabilityDone = new Promise<void>((resolve) => {
+      releaseCapability = resolve
+    })
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            // FR-003: the acknowledgement's own messageBreak carries no pendingLabel — it is
+            // templated and known instantly, so there is nothing to name while it is pending.
+            controller.enqueue(encoder.encode('data: __MESSAGE_BREAK__\n\n'))
+            controller.enqueue(encoder.encode('data: OK, let me find it first.\n\n'))
+            controller.enqueue(
+              encoder.encode('data: __MESSAGE_BREAK__{"pendingLabel":"Finding Al Safa Park 2"}\n\n'),
+            )
+            await capabilityDone
+            controller.enqueue(encoder.encode('data: I found Al Safa Park 2.\n\n'))
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            controller.close()
+          },
+        })
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    // Beat 1: the acknowledgement is on screen — before the capability has produced anything.
+    expect(await screen.findByText('OK, let me find it first.')).toBeInTheDocument()
+
+    // Beat 2, still pending: named progress, not a generic spinner (FR-005).
+    expect(await screen.findByRole('status', { name: 'Finding Al Safa Park 2' })).toBeInTheDocument()
+    expect(screen.queryByText('I found Al Safa Park 2.')).not.toBeInTheDocument()
+
+    act(() => releaseCapability())
+
+    // Beat 2, resolved: the named-pending indication is replaced by the real result.
+    expect(await screen.findByText('I found Al Safa Park 2.')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Finding Al Safa Park 2' })).not.toBeInTheDocument()
+
+    // Both beats survive as separate bubbles — the acknowledgement was never overwritten by the
+    // capability's result once the turn moved on to reporting it.
+    expect(screen.getByText('OK, let me find it first.')).toBeInTheDocument()
+  })
+
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
