@@ -224,6 +224,12 @@ public static class DependencyInjection
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();
 
+        // The decide step. Its model is an AiCapability assignment, never a hardcoded string —
+        // an administrator picks something fast and cheap for it exactly as they already do for
+        // location-intent classification (constitution §9).
+        services.AddScoped<TurnDecisionParser>();
+        services.AddScoped<ITurnDecider, TurnDecider>();
+
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
         // McpToolAdapter instances must never hold a Scoped dependency (constitution §3), and the
