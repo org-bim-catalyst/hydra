@@ -34,4 +34,17 @@ public enum AiCapability
 
     /// <summary>Cross-checks a candidate site boundary against satellite imagery.</summary>
     BoundaryVision,
+
+    /// <summary>
+    /// Decides what a chat turn needs — whether to act at all, which capability or flow, and
+    /// whether to run it or offer it (specs/045-conversational-agent-runtime, FR-037).
+    /// <para>
+    /// Appended last so no persisted <c>AiCapabilityAssignment</c> integer shifts. Supersedes
+    /// <see cref="LocationIntent"/> for chat turns: the decide step answers the same question and
+    /// more, so running both would classify the same message twice (research.md D11). It is short,
+    /// structured and on the critical path, so an administrator will usually want it on a fast,
+    /// cheap model — which is exactly what a per-capability assignment is for.
+    /// </para>
+    /// </summary>
+    TurnOrchestration,
 }

@@ -76,7 +76,7 @@ public sealed class SendChatMessageBoundaryIntegrationTests
         _memoryService.RetrieveRelevantMemoriesAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new MemoryRetrievalOutcome(MemoryRetrievalOutcomeType.NoneRelevant, null, [], null));
 
-        _handler = new SendChatMessageCommandHandler(
+        _handler = SendChatMessageHandlerFactory.Create(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
             _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
