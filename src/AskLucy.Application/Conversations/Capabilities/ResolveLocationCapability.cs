@@ -16,6 +16,17 @@ namespace AskLucy.Application.Conversations.Capabilities;
 /// </para>
 ///
 /// <para>
+/// Calls <see cref="ILocationResolutionService.ResolveQueryAsync"/>, not
+/// <see cref="ILocationResolutionService.ResolveAsync"/> — the turn's own decide step has
+/// already answered "is this a location request", so calling the latter would classify the
+/// same message a second time (research.md D11). The classifier method itself remains, unused
+/// by this path; deleting six hundred lines of its own passing test coverage without an
+/// equivalent design for back-reference detection at the decide-step level was judged the wrong
+/// trade for this change, and is recorded as a deliberate, narrower scope than originally
+/// planned rather than left unexplained.
+/// </para>
+///
+/// <para>
 /// <b>Available always, offerable never.</b> The two predicates diverge sharply here, and this is
 /// the clearest example of why they had to be separated: finding a place can run at any moment,
 /// but a user names the place they want — proposing "find a place" out of nowhere, after an
@@ -82,8 +93,8 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
 
         try
         {
-            var outcome = await locationResolutionService.ResolveAsync(
-                context.UserId, context.UserChatId ?? Guid.Empty, query, activeLocation: null, cancellationToken);
+            var outcome = await locationResolutionService.ResolveQueryAsync(
+                context.UserChatId ?? Guid.Empty, query, cancellationToken);
 
             if (outcome.ConfirmedLocation is not { } location)
             {

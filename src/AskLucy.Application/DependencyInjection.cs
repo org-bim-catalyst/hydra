@@ -67,8 +67,6 @@ public static class DependencyInjection
         // request DbContext with the reply stream (see that class for the production race).
         services.AddScoped<LocationResolutionService>();
         services.AddScoped<ILocationResolutionService, ScopeIsolatedLocationResolutionService>();
-        // specs/038-viewer-poi-zoom US2: pure keyword matcher — no infrastructure deps → Application.
-        services.AddTransient<IViewerZoomDetector, ViewerZoomDetector>();
         services.AddOptions<LocationResolutionOptions>()
             .BindConfiguration(LocationResolutionOptions.SectionName)
             .ValidateOnStart();
@@ -229,6 +227,7 @@ public static class DependencyInjection
         // location-intent classification (constitution §9).
         services.AddScoped<TurnDecisionParser>();
         services.AddScoped<ITurnDecider, TurnDecider>();
+        services.AddScoped<CapabilityExecutor>();
 
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached

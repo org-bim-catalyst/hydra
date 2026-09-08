@@ -16,4 +16,19 @@ public interface ILocationResolutionService
         string latestUserMessage,
         ActiveSiteLocation? activeLocation,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// specs/045-conversational-agent-runtime research.md D11 — geocodes and scores one place
+    /// name that intent has ALREADY been decided for; performs no classification of its own.
+    /// <para>
+    /// <c>ResolveLocationCapability</c> is the sole caller. The conversational turn's own decide
+    /// step now answers "is this a location request" — the question <see cref="ResolveAsync"/>'s
+    /// classifier used to answer — so calling <see cref="ResolveAsync"/> from that path would
+    /// classify the same message twice. This method is the same geocoding, confidence scoring
+    /// and WGS-84 validation <see cref="ResolveAsync"/> uses after its own classifier runs,
+    /// reachable directly.
+    /// </para>
+    /// </summary>
+    Task<LocationResolutionOutcome> ResolveQueryAsync(
+        Guid userChatId, string query, CancellationToken cancellationToken = default);
 }

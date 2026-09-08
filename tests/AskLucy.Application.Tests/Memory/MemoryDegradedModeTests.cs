@@ -27,7 +27,6 @@ public sealed class MemoryDegradedModeTests
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly ILocationResolutionService _locationResolutionService = Substitute.For<ILocationResolutionService>();
     private readonly IBoundaryResolutionService _boundaryResolutionService = Substitute.For<IBoundaryResolutionService>();
-    private readonly IViewerZoomDetector _viewerZoomDetector = Substitute.For<IViewerZoomDetector>();
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
@@ -70,7 +69,7 @@ public sealed class MemoryDegradedModeTests
 
         _handler = SendChatMessageHandlerFactory.Create(
             _resolver, _providers, _models, _conversationKnowledgeBases, _ragService, _memoryService,
-            _locationResolutionService, _boundaryResolutionService, _viewerZoomDetector, _userChatRepository, _currentUser, _backgroundJobClient,
+            _locationResolutionService, _boundaryResolutionService, _userChatRepository, _currentUser, _backgroundJobClient,
             Microsoft.Extensions.Options.Options.Create(new LocationResolutionOptions()),
             Microsoft.Extensions.Options.Options.Create(_boundaryScoringOptions),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<SendChatMessageCommandHandler>.Instance,

@@ -195,7 +195,13 @@ public sealed class LocationResolutionService(
                 LocationConfirmationTemplates.NotFound);
         }
 
-        var query = payload.PlaceQueries[0];
+        return await ResolveQueryAsync(userChatId, payload.PlaceQueries[0], cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<LocationResolutionOutcome> ResolveQueryAsync(
+        Guid userChatId, string query, CancellationToken cancellationToken = default)
+    {
         IReadOnlyList<GeocodingCandidate> candidates;
         try
         {

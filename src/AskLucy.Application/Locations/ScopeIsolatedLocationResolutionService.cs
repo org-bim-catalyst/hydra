@@ -47,4 +47,21 @@ public sealed class ScopeIsolatedLocationResolutionService(IServiceScopeFactory 
         var inner = scope.ServiceProvider.GetRequiredService<LocationResolutionService>();
         return await inner.ResolveAsync(userId, userChatId, latestUserMessage, activeLocation, cancellationToken);
     }
+
+    /// <summary>
+    /// The race this decorator exists to prevent (two concurrent tasks sharing one DbContext)
+    /// cannot occur here: <see cref="LocationResolutionService.ResolveQueryAsync"/> only calls
+    /// <see cref="IGeocodingProvider"/>, plain outbound HTTP that touches no DbContext, and this
+    /// method runs synchronously inside the orchestrator's own await chain rather than
+    /// concurrently with a model stream. A fresh scope is still used, matching the method above,
+    /// for the same reason a service is normally scoped rather than reasoned about instance by
+    /// instance — not because this specific call needs isolating.
+    /// </summary>
+    public Task<LocationResolutionOutcome> ResolveQueryAsync(
+        Guid userChatId, string query, CancellationToken cancellationToken = default)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var inner = scope.ServiceProvider.GetRequiredService<LocationResolutionService>();
+        return inner.ResolveQueryAsync(userChatId, query, cancellationToken);
+    }
 }
