@@ -17,9 +17,19 @@ public sealed class AgentVersion : BaseEntity
 
     public AgentInstructions Instructions { get; private set; } = AgentInstructions.Empty;
 
-    public Guid ModelProviderId { get; private set; }
+    /// <summary>
+    /// specs/045 research.md D9 — nullable since the conversational runtime. Null means "resolve
+    /// at run time from the owning agent's <c>ModelCapability</c>", which is the only honest state
+    /// for a platform-provisioned agent: the AI catalog is administrator-configured and may be
+    /// empty on a fresh deployment, and pinning whatever was default at provisioning time records
+    /// a fact that goes stale the moment the assignment changes. Both are null together or both
+    /// non-null; <c>Agent.Publish</c> still requires both for user agents, so nothing about the
+    /// existing flow changed.
+    /// </summary>
+    public Guid? ModelProviderId { get; private set; }
 
-    public Guid ModelId { get; private set; }
+    /// <inheritdoc cref="ModelProviderId"/>
+    public Guid? ModelId { get; private set; }
 
     public AgentExecutionPolicy ExecutionPolicy { get; private set; } = AgentExecutionPolicy.Empty;
 
@@ -33,6 +43,14 @@ public sealed class AgentVersion : BaseEntity
 
     public string? ChangeDescription { get; private set; }
 
+    /// <summary>
+    /// specs/045 FR-035 — SHA-256 of the <c>SystemAgentDefinition</c> that produced this version.
+    /// Null for user-published versions. Provisioning compares it against the newest version's
+    /// hash and publishes only on a difference, which is what makes restarts idempotent and an
+    /// upgrade a single new version rather than one per boot.
+    /// </summary>
+    public string? DefinitionHash { get; private set; }
+
     private AgentVersion()
     {
         // Required by EF Core materialization.
@@ -42,15 +60,16 @@ public sealed class AgentVersion : BaseEntity
         Guid agentId,
         int versionNumber,
         AgentInstructions instructions,
-        Guid modelProviderId,
-        Guid modelId,
+        Guid? modelProviderId,
+        Guid? modelId,
         AgentExecutionPolicy executionPolicy,
         AgentOutputFormat outputFormat,
         string toolsSnapshotJson,
         string knowledgeBasesSnapshotJson,
         string? memoryPolicySnapshotJson,
         string? changeDescription,
-        string actor) => new()
+        string actor,
+        string? definitionHash = null) => new()
         {
             Id = Guid.CreateVersion7(),
             AgentId = agentId,
@@ -64,6 +83,7 @@ public sealed class AgentVersion : BaseEntity
             KnowledgeBasesSnapshotJson = knowledgeBasesSnapshotJson,
             MemoryPolicySnapshotJson = memoryPolicySnapshotJson,
             ChangeDescription = changeDescription,
+            DefinitionHash = definitionHash,
             CreatedAtUtc = DateTime.UtcNow,
             CreatedBy = actor,
         };

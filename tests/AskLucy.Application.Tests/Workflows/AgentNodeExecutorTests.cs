@@ -88,8 +88,8 @@ public sealed class AgentNodeExecutorTests
         _agentRepository.GetByIdForOwnerAsync(agent.Id, OwnerId, Arg.Any<CancellationToken>()).Returns(agent);
         _agentRepository.GetVersionAsync(agent.Id, version.VersionNumber, Arg.Any<CancellationToken>()).Returns(version);
         _agentRepository.GetVersionByIdAsync(version.Id, Arg.Any<CancellationToken>()).Returns(version);
-        _providerRepository.GetByIdAsync(version.ModelProviderId, Arg.Any<CancellationToken>()).Returns(provider);
-        _modelRepository.GetByIdAsync(version.ModelId, Arg.Any<CancellationToken>()).Returns(model);
+        _providerRepository.GetByIdAsync(version.ModelProviderId!.Value, Arg.Any<CancellationToken>()).Returns(provider);
+        _modelRepository.GetByIdAsync(version.ModelId!.Value, Arg.Any<CancellationToken>()).Returns(model);
         _agentExecutionRepository.ListToolCallsByStepIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new List<AgentToolCall>());
         _agentExecutionRepository.CountActiveByUserAsync(OwnerId, Arg.Any<CancellationToken>()).Returns(0);

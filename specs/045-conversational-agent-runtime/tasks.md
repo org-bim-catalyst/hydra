@@ -58,13 +58,13 @@ Clean Architecture backend plus a co-located React SPA:
 
 ### 2b. Domain and persistence (data-model.md)
 
-- [ ] T011 [P] Create `SuggestedAction` value object in `src/AskLucy.Domain/Conversations/SuggestedAction.cs` — `Kind`, `Key`, `Text`, `Label`, `Description`, `ArgumentsJson`, `IsDecline` (data-model.md §1)
-- [ ] T012 [P] Add `SuggestedActionsJson`, `SelectedActionKind`, `SelectedActionKey`, `SelectedActionArgumentsJson` (all nullable) to `src/AskLucy.Domain/Chats/Message.cs`, set at creation only — the aggregate stays append-only
-- [ ] T013 [P] Add `SystemKey`, `IsSystemOwned`, `ModelCapability` to `src/AskLucy.Domain/Agents/Agent.cs`
-- [ ] T014 [P] Make `ModelProviderId`/`ModelId` nullable and add `DefinitionHash` to `src/AskLucy.Domain/Agents/AgentVersion.cs`; keep `Agent.Publish` requiring both for user agents
-- [ ] T015 [P] Create `UserConversationPreference` in `src/AskLucy.Domain/Chats/UserConversationPreference.cs`, mirroring `UserPanelPreference`
-- [ ] T016 Update EF configurations in `src/AskLucy.Persistence/Configurations/` for Message, Agent, AgentVersion; add the unique filtered index `IX_Agents_SystemKey` and the `UserConversationPreferences` table with a unique index on `UserId`
-- [ ] T017 Generate the `AddConversationalAgentRuntime` migration in `src/AskLucy.Persistence/Migrations/`; check the generated file for a BOM and `System.*` usings ordered first before commit (repo CI convention)
+- [X] T011 [P] Create `SuggestedAction` value object in `src/AskLucy.Domain/Conversations/SuggestedAction.cs` — `Kind`, `Key`, `Text`, `Label`, `Description`, `ArgumentsJson`, `IsDecline` (data-model.md §1)
+- [X] T012 [P] Add `SuggestedActionsJson`, `SelectedActionKind`, `SelectedActionKey`, `SelectedActionArgumentsJson` (all nullable) to `src/AskLucy.Domain/Chats/Message.cs`, set at creation only — the aggregate stays append-only
+- [X] T013 [P] Add `SystemKey`, `IsSystemOwned`, `ModelCapability` to `src/AskLucy.Domain/Agents/Agent.cs`
+- [X] T014 [P] Make `ModelProviderId`/`ModelId` nullable and add `DefinitionHash` to `src/AskLucy.Domain/Agents/AgentVersion.cs`; keep `Agent.Publish` requiring both for user agents
+- [X] T015 [P] Create `UserConversationPreference` in `src/AskLucy.Domain/Chats/UserConversationPreference.cs`, mirroring `UserPanelPreference`
+- [X] T016 Update EF configurations in `src/AskLucy.Persistence/Configurations/` for Message, Agent, AgentVersion; add the unique filtered index `IX_Agents_SystemKey` and the `UserConversationPreferences` table with a unique index on `UserId`
+- [X] T017 Generate the `AddConversationalAgentRuntime` migration in `src/AskLucy.Persistence/Migrations/`; check the generated file for a BOM and `System.*` usings ordered first before commit (repo CI convention)
 - [ ] T018 [P] Persistence tests for the new columns and the filtered index in `tests/AskLucy.Persistence.Tests/ConversationalAgentRuntimeSchemaTests.cs`
 
 ### 2c. Capability abstraction (contracts/conversation-capability.md)

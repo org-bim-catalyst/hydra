@@ -52,6 +52,9 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<UserPanelPreference> UserPanelPreferences => Set<UserPanelPreference>();
 
+    /// <summary>specs/045-conversational-agent-runtime FR-032 — absent row means defaults.</summary>
+    public DbSet<UserConversationPreference> UserConversationPreferences => Set<UserConversationPreference>();
+
     public DbSet<VoiceProviderFailoverEvent> VoiceProviderFailoverEvents => Set<VoiceProviderFailoverEvent>();
 
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();

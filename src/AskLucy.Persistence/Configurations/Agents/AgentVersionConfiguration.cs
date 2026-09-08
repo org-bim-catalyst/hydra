@@ -15,8 +15,12 @@ public sealed class AgentVersionConfiguration : IEntityTypeConfiguration<AgentVe
         builder.Property(v => v.Id).ValueGeneratedNever();
 
         builder.Property(v => v.VersionNumber).IsRequired();
-        builder.Property(v => v.ModelProviderId).IsRequired();
-        builder.Property(v => v.ModelId).IsRequired();
+        // specs/045 research.md D9 — no longer required. Null means "resolve at run time by the
+        // owning agent's ModelCapability", the only honest binding for a platform-provisioned
+        // agent on an environment whose AI catalog may still be empty.
+        builder.Property(v => v.ModelProviderId);
+        builder.Property(v => v.ModelId);
+        builder.Property(v => v.DefinitionHash).HasMaxLength(64);
         builder.Property(v => v.OutputFormat).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(v => v.ToolsSnapshotJson).IsRequired();
         builder.Property(v => v.KnowledgeBasesSnapshotJson).IsRequired();

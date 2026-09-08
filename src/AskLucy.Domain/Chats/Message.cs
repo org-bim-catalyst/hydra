@@ -47,6 +47,32 @@ public sealed class Message : BaseEntity
     /// <summary>The original prompt behind an Image/Translation-kind assistant message; null for plain Text messages.</summary>
     public string? SourceText { get; private set; }
 
+    /// <summary>
+    /// specs/045-conversational-agent-runtime FR-026 — the offer this <b>assistant</b> message
+    /// made, as a serialized <c>SuggestedAction[]</c>. Null on user messages and on assistant
+    /// messages that offered nothing, which is the common case (FR-025a).
+    /// </summary>
+    public string? SuggestedActionsJson { get; private set; }
+
+    /// <summary>
+    /// specs/045 — on a <b>user</b> message created by selecting an offered row: which kind was
+    /// chosen. Null for a typed message.
+    /// <para>
+    /// The selection is recorded here, on the message the choice produced, rather than on the
+    /// assistant message that offered it. This aggregate is append-only — "no rename, no edit" —
+    /// so writing back to a persisted message to mark it answered would break the invariant the
+    /// rest of the type depends on. Recording it forward also keeps the transcript strictly
+    /// chronological, which is what makes replay (SC-009) a straight read with no join.
+    /// </para>
+    /// </summary>
+    public string? SelectedActionKind { get; private set; }
+
+    /// <summary>The flow-variant or capability key chosen; null for a follow-up or decline, which resolve nothing.</summary>
+    public string? SelectedActionKey { get; private set; }
+
+    /// <summary>Arguments bound to the selection. Non-null exactly when <see cref="SelectedActionKey"/> is.</summary>
+    public string? SelectedActionArgumentsJson { get; private set; }
+
     /// <summary>The AI provider that produced this message (assistant messages only); null for user messages.</summary>
     public string? Provider { get; private set; }
 
@@ -108,7 +134,11 @@ public sealed class Message : BaseEntity
         int? latencyMs = null,
         decimal? estimatedCostUsd = null,
         Guid? comparisonGroupId = null,
-        bool isIncludedInContext = true)
+        bool isIncludedInContext = true,
+        string? suggestedActionsJson = null,
+        string? selectedActionKind = null,
+        string? selectedActionKey = null,
+        string? selectedActionArgumentsJson = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -134,6 +164,12 @@ public sealed class Message : BaseEntity
             EstimatedCostUsd = estimatedCostUsd,
             ComparisonGroupId = comparisonGroupId,
             IsIncludedInContext = isIncludedInContext,
+            // specs/045 — set here and never again. Both halves of the offer/selection record are
+            // creation-time facts, so the aggregate stays append-only (see the property comments).
+            SuggestedActionsJson = suggestedActionsJson,
+            SelectedActionKind = selectedActionKind,
+            SelectedActionKey = selectedActionKey,
+            SelectedActionArgumentsJson = selectedActionArgumentsJson,
             CreatedAtUtc = DateTime.UtcNow,
             CreatedBy = actor,
         };

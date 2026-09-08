@@ -56,6 +56,19 @@ public sealed class AgentConfiguration : IEntityTypeConfiguration<Agent>
         builder.HasIndex(a => a.Status);
         builder.HasIndex(a => a.AgentType);
 
+        // specs/045-conversational-agent-runtime FR-033/FR-034.
+        builder.Property(a => a.SystemKey).HasMaxLength(64);
+        builder.Property(a => a.IsSystemOwned).IsRequired().HasDefaultValue(false);
+        builder.Property(a => a.ModelCapability).HasConversion<string>().HasMaxLength(40);
+
+        // Filtered unique index, not a plain one: every user-created agent has a null SystemKey,
+        // and SQL Server treats nulls as equal in a unique index — so without the filter the
+        // second user agent ever created would violate it. This is also what makes concurrent
+        // provisioners safe: the loser catches the uniqueness violation and re-reads.
+        builder.HasIndex(a => a.SystemKey)
+            .IsUnique()
+            .HasFilter("[SystemKey] IS NOT NULL");
+
         builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(a => a.OwnerId)

@@ -18,6 +18,14 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(m => m.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(m => m.Content).IsRequired();
         builder.Property(m => m.SourceText);
+
+        // specs/045-conversational-agent-runtime — the offer this assistant message made, and the
+        // selection a user message recorded. All nullable and creation-only; no index, because the
+        // live offer is found in the page of messages already loaded for the conversation.
+        builder.Property(m => m.SuggestedActionsJson);
+        builder.Property(m => m.SelectedActionKind).HasMaxLength(20);
+        builder.Property(m => m.SelectedActionKey).HasMaxLength(120);
+        builder.Property(m => m.SelectedActionArgumentsJson);
         builder.Property(m => m.Provider).HasMaxLength(50);
         builder.Property(m => m.Model).HasMaxLength(100);
         builder.Property(m => m.GenerationParametersJson);

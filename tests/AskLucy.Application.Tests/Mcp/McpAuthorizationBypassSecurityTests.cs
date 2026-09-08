@@ -75,8 +75,8 @@ public sealed class McpAuthorizationBypassSecurityTests
         var model = AIModel.Create(provider.Id, "gpt-5", "GPT-5", 128_000, 4096, NoCapabilities, null, null, "system");
         executionRepository.GetByIdAsync(execution.Id, Arg.Any<CancellationToken>()).Returns(execution);
         agentRepository.GetVersionByIdAsync(version.Id, Arg.Any<CancellationToken>()).Returns(version);
-        providerRepository.GetByIdAsync(version.ModelProviderId, Arg.Any<CancellationToken>()).Returns(provider);
-        modelRepository.GetByIdAsync(version.ModelId, Arg.Any<CancellationToken>()).Returns(model);
+        providerRepository.GetByIdAsync(version.ModelProviderId!.Value, Arg.Any<CancellationToken>()).Returns(provider);
+        modelRepository.GetByIdAsync(version.ModelId!.Value, Arg.Any<CancellationToken>()).Returns(model);
         executionRepository.ListToolCallsByStepIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(new List<AgentToolCall>());
         providerResolver.Resolve(Arg.Any<string>()).Returns(Substitute.For<IAIProvider>());
 
