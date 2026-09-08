@@ -72,7 +72,7 @@ The decline option is appended server-side, never requested from the model, so F
 
 ---
 
-## 3. `ChatStreamChunk` — one new field
+## 3. `ChatStreamChunk` — two new fields
 
 ```csharp
 public sealed record ChatStreamChunk(
@@ -91,7 +91,10 @@ public sealed record ChatStreamChunk(
     /// chunk exactly as RetrievalOutcome/MemoryOutcome/ConfirmedLocation do. Null when the
     /// turn offered nothing (FR-025).
     /// </summary>
-    IReadOnlyList<SuggestedAction>? SuggestedActions = null);
+    IReadOnlyList<SuggestedAction>? SuggestedActions = null,
+
+    /// <summary>What Lucy asked before the rows. Non-null exactly when SuggestedActions is — this section's own JSON shape needs a "question" alongside "actions", and this record is where the controller reads it from to build the __ACTIONS__ payload.</summary>
+    string? SuggestedActionsQuestion = null);
 ```
 
 `ConfirmedLocationData` and `ConfirmedSiteBoundaryData` are **unchanged** (FR-048).

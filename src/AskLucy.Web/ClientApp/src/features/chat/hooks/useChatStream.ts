@@ -162,6 +162,8 @@ export function useChatStream(
       let retrievalError: ChatMessage['retrievalError']
       let messageId: ChatMessage['id']
       let memoryOutcome: ChatMessage['memoryOutcome']
+      let suggestedActions: ChatMessage['suggestedActions']
+      let offerQuestion: ChatMessage['question']
       try {
         const activeChatId = await ensureChatId(content)
         for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
@@ -237,6 +239,12 @@ export function useChatStream(
               sourceDetail: event.sourceDetail,
               alternativeCandidateNames: event.alternativeCandidateNames,
             })
+          } else if (event.type === 'actions') {
+            // specs/045-conversational-agent-runtime FR-021 — belongs to whichever assistant
+            // message is open when the turn ends; attached to the final rendered part below,
+            // once the loop has finished and that part is known.
+            suggestedActions = event.actions
+            offerQuestion = event.question
           }
         }
         if (isActiveRef.current) {
@@ -244,10 +252,30 @@ export function useChatStream(
           // reply itself — the turn's first message. Anything after it is a confirmation
           // sentence the application wrote, which none of that metadata describes.
           const [reply, ...rest] = assistantParts.filter((part, index) => part.content !== '' || index === 0)
+          const restRendered = renderParts(rest)
+          // specs/045-conversational-agent-runtime FR-021/FR-026 — the offer belongs to whichever
+          // bubble was open when the turn ended: the reply itself when the turn produced only one
+          // message, or the last of the later ones otherwise.
+          if (suggestedActions) {
+            const target = restRendered.length > 0 ? restRendered[restRendered.length - 1] : undefined
+            if (target) {
+              target.suggestedActions = suggestedActions
+              target.question = offerQuestion
+            }
+          }
           setMessages([
             ...history,
-            { id: messageId ?? reply.id, role: 'assistant', content: reply.content, citations, retrievalOutcome, retrievalError, memoryOutcome },
-            ...renderParts(rest),
+            {
+              id: messageId ?? reply.id,
+              role: 'assistant',
+              content: reply.content,
+              citations,
+              retrievalOutcome,
+              retrievalError,
+              memoryOutcome,
+              ...(suggestedActions && restRendered.length === 0 ? { suggestedActions, question: offerQuestion } : {}),
+            },
+            ...restRendered,
           ])
         }
       } catch (err) {

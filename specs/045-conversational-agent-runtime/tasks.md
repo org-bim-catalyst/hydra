@@ -172,20 +172,22 @@ Clean Architecture backend plus a co-located React SPA:
 
 **Independent test**: Complete an action in two different conversation states and confirm the offered sets differ, that every action row maps to a registered available capability or flow variant, and that a fast-path turn produces no offer and no offer model call.
 
-- [ ] T054 [P] [US2] Create `SuggestedActionPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/SuggestedActionPrompt.cs` — receives the capability index (FR-024a), relevant memories and the turn outcome; may legitimately return no actions (FR-025c)
-- [ ] T055 [US2] Implement the offer step in `ConversationTurnOrchestrator`, invoked only when no suppression rule applies
-- [ ] T056 [US2] Implement the five suppression rules (FR-025a) — fast-path turn, nothing offerable, user just declined, same options ignored last turn, feature disabled — each skipping the step entirely with no model call
-- [ ] T057 [US2] Create `SuggestedActionGrounder` in `src/AskLucy.Application/Conversations/Runtime/SuggestedActionGrounder.cs` implementing FR-024 per kind: absolute registry + schema check for `flowVariant`/`capability`; best-effort doing-phrasing check for `followUp`; every discard logged with the proposed key or text and the reason
-- [ ] T058 [US2] Append the decline row server-side (FR-022); enforce the `MaxSuggestedActions` cap; drop the whole offer rather than showing a partial one that fails validation
-- [ ] T059 [US2] Feed relevant memories into the offer step so follow-ups draw on comparable situations (FR-021b.1)
-- [ ] T060 [US2] Add `SuggestedActions` to `ChatStreamChunk` in `src/AskLucy.Application/Ai/Commands/SendChatMessage/ChatStreamChunk.cs`
-- [ ] T061 [US2] Emit the `__ACTIONS__` SSE event in `src/AskLucy.Web/Controllers/v1/AiController.cs`, written **after** the offering assistant message is persisted so `offeredByMessageId` is real
-- [ ] T062 [US2] Persist `SuggestedActionsJson` on the offering assistant message (FR-026)
-- [ ] T063 [P] [US2] Add the `actions` variant to `ChatStreamEvent` and `suggestedActions`/`question` to `ChatMessage` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts`; parse `__ACTIONS__` in `streamChat`
-- [ ] T064 [P] [US2] Carry actions through `src/AskLucy.Web/ClientApp/src/features/chat/hooks/useChatStream.ts` onto the message
-- [ ] T065 [P] [US2] Grounder tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/SuggestedActionGrounderTests.cs` — unregistered capability key discarded and logged; arguments failing the schema discarded; a `followUp` promising platform work discarded; a valid mixed offer passes intact
-- [ ] T066 [P] [US2] Suppression tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/OfferSuppressionTests.cs` — one test per FR-025a rule asserting **no model call is made**
-- [ ] T067 [P] [US2] `aiApi` parsing tests for `__ACTIONS__` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.test.ts`
+> **Phase 4 scope decisions.** (1) The offer step and grounder support all four row kinds structurally, but `flowVariant` rows are always ungrounded for now — no flow registry exists until Phase 6 (T081-T093), so the prompt only offers `capability`/`followUp` and the grounder discards any `flowVariant` a model names anyway, logged the same as a hallucinated key. (2) FR-025a.3 (`UserDeclinedLastOffer`) and the "previously offered" half of FR-025a.4 are wired into `TurnOutcome` and `OfferSuppressionRules` but always evaluate to their safe defaults (never declined, nothing previously offered) — reading the real values back needs a persisted offer to have existed and been acted on, which is exactly what Phase 5's selection dispatch (T068+) adds; same documented-placeholder pattern as `BuildTurnContext`'s FR-011 rule 3 entitlement check. (3) `Message.SuggestedActionsJson` persists the whole `SuggestedActionOffer` (question + rows), not the bare `SuggestedAction[]` data-model.md §1 describes — the question is itself composed per turn and SC-009 requires a reopened conversation to reproduce it exactly, and no separate column exists for it; the envelope is a strict superset of the array, so no migration was needed. (4) FR-032's per-user toggle always evaluates to enabled — the real preference read/write is T121 (Phase 11).
+
+- [X] T054 [P] [US2] Create `SuggestedActionPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/SuggestedActionPrompt.cs` — receives the capability index (FR-024a), relevant memories and the turn outcome; may legitimately return no actions (FR-025c)
+- [X] T055 [US2] Implement the offer step in `ConversationTurnOrchestrator`, invoked only when no suppression rule applies
+- [X] T056 [US2] Implement the five suppression rules (FR-025a) — fast-path turn, nothing offerable, user just declined, same options ignored last turn, feature disabled — each skipping the step entirely with no model call
+- [X] T057 [US2] Create `SuggestedActionGrounder` in `src/AskLucy.Application/Conversations/Runtime/SuggestedActionGrounder.cs` implementing FR-024 per kind: absolute registry + schema check for `flowVariant`/`capability`; best-effort doing-phrasing check for `followUp`; every discard logged with the proposed key or text and the reason
+- [X] T058 [US2] Append the decline row server-side (FR-022); enforce the `MaxSuggestedActions` cap; drop the whole offer rather than showing a partial one that fails validation
+- [X] T059 [US2] Feed relevant memories into the offer step so follow-ups draw on comparable situations (FR-021b.1)
+- [X] T060 [US2] Add `SuggestedActions` to `ChatStreamChunk` in `src/AskLucy.Application/Ai/Commands/SendChatMessage/ChatStreamChunk.cs`
+- [X] T061 [US2] Emit the `__ACTIONS__` SSE event in `src/AskLucy.Web/Controllers/v1/AiController.cs`, written **after** the offering assistant message is persisted so `offeredByMessageId` is real
+- [X] T062 [US2] Persist `SuggestedActionsJson` on the offering assistant message (FR-026)
+- [X] T063 [P] [US2] Add the `actions` variant to `ChatStreamEvent` and `suggestedActions`/`question` to `ChatMessage` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts`; parse `__ACTIONS__` in `streamChat`
+- [X] T064 [P] [US2] Carry actions through `src/AskLucy.Web/ClientApp/src/features/chat/hooks/useChatStream.ts` onto the message
+- [X] T065 [P] [US2] Grounder tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/SuggestedActionGrounderTests.cs` — unregistered capability key discarded and logged; arguments failing the schema discarded; a `followUp` promising platform work discarded; a valid mixed offer passes intact
+- [X] T066 [P] [US2] Suppression tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/OfferSuppressionTests.cs` — one test per FR-025a rule asserting **no model call is made**
+- [X] T067 [P] [US2] `aiApi` parsing tests for `__ACTIONS__` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.test.ts`
 
 **Checkpoint**: offers appear when useful, are grounded per kind, and are absent otherwise.
 

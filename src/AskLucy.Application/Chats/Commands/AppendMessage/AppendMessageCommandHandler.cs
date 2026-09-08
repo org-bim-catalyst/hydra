@@ -38,7 +38,8 @@ public sealed class AppendMessageCommandHandler(
             request.ChatId, request.Role, request.Kind, request.Content, request.SourceText, userId,
             provider, model, request.GenerationParametersJson,
             request.InputTokenCount, request.OutputTokenCount,
-            request.CachedTokenCount, request.ReasoningTokenCount, request.LatencyMs, request.EstimatedCostUsd);
+            request.CachedTokenCount, request.ReasoningTokenCount, request.LatencyMs, request.EstimatedCostUsd,
+            suggestedActionsJson: request.SuggestedActionsJson);
 
         foreach (var attachment in request.Attachments ?? [])
         {
@@ -93,5 +94,6 @@ public sealed class AppendMessageCommandHandler(
         message.EstimatedCostUsd,
         [.. message.Attachments.Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.AccessLocation))],
         [.. message.Citations.Select(c => new CitationDto(
-            c.Id, c.SourceLabel, c.SourceReference, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))]);
+            c.Id, c.SourceLabel, c.SourceReference, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))],
+        message.SuggestedActionsJson);
 }

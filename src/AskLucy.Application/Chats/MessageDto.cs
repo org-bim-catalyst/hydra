@@ -27,4 +27,7 @@ public sealed record MessageDto(
     int? LatencyMs,
     decimal? EstimatedCostUsd,
     IReadOnlyList<AttachmentDto> Attachments,
-    IReadOnlyList<CitationDto> Citations);
+    IReadOnlyList<CitationDto> Citations,
+    // specs/045-conversational-agent-runtime FR-026 — the serialized SuggestedActionOffer this
+    // assistant message offered, or null. Null on user messages and on turns that offered nothing.
+    string? SuggestedActionsJson = null);

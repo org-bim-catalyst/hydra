@@ -117,6 +117,71 @@ describe('streamChat', () => {
     expect(events).toEqual([{ type: 'content', delta: '__MESSAGE_BREAK__ is the marker' }])
   })
 
+  // specs/045-conversational-agent-runtime FR-021 — the offer closing a turn, last before [DONE].
+  it('parses a __ACTIONS__ trailing event and yields an actions event', async () => {
+    const actionsPayload = {
+      offeredByMessageId: 'msg-1',
+      question: 'What would you like to do next?',
+      actions: [
+        {
+          kind: 'capability',
+          capabilityKey: 'search_knowledge_base',
+          text: null,
+          label: 'Search my knowledge bases',
+          description: 'Look for this site in your attached documents.',
+          arguments: { query: 'Al Safa Park 2' },
+          isDecline: false,
+        },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'Nothing for now',
+          description: '',
+          arguments: null,
+          isDecline: true,
+        },
+      ],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Yes — it is a public park.\n\n',
+          `data: __ACTIONS__${JSON.stringify(actionsPayload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toHaveLength(2)
+    expect(events[1]).toEqual({ type: 'actions', ...actionsPayload })
+  })
+
+  it('defaults the question to an empty string when the offer omits it', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: __ACTIONS__{"offeredByMessageId":"msg-1","question":null,"actions":[]}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([{ type: 'actions', offeredByMessageId: 'msg-1', question: '', actions: [] }])
+  })
+
   // specs/042-site-boundary-resolution T031: __SITE_BOUNDARY__ trailing SSE event
   it('parses a __SITE_BOUNDARY__ trailing event and yields a siteBoundary event', async () => {
     const boundaryPayload = {
