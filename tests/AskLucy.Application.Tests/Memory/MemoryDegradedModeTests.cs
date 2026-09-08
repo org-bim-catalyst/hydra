@@ -3,6 +3,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.Ai;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Retrieval;
@@ -11,7 +12,6 @@ using Hangfire;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
-using AskLucy.Application.Tests.Ai;
 
 namespace AskLucy.Application.Tests.Memory;
 
