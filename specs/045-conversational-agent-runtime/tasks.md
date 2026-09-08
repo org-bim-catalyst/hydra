@@ -86,13 +86,22 @@ Clean Architecture backend plus a co-located React SPA:
 
 ### 2d. The decide step (contracts/turn-stream.md §1)
 
-- [ ] T033 [P] Create `TurnDecisionPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/TurnDecisionPrompt.cs` as a versioned artifact — carries the Tier 1 index only, never input schemas; defines `intent` as `answer` | `act` | `suggest` with the borderline-resolves-to-`suggest` rule
-- [ ] T034 Create `TurnDecision` and `TurnDecisionParser` in `src/AskLucy.Application/Conversations/Runtime/` — JSON with one corrective retry, reusing `AgentPlanner`'s idiom; logs unparseable content with a bounded prefix, provider and model
-- [ ] T035 Wire the decide step into `ConversationTurnOrchestrator`, resolving its provider/model through `AiCapabilityProviderResolver.ResolveAsync(AiCapability.TurnOrchestration)`
-- [ ] T036 Retire the location intent classifier: remove `LocationIntentClassificationPromptV1` and its model call from `src/AskLucy.Application/Locations/LocationResolutionService.cs`, keeping geocoding, confidence scoring and outcome shaping (research.md D11)
-- [ ] T037 Delete `src/AskLucy.Application/Locations/ViewerZoomDetector.cs` and its registration; zoom is now `adjust_viewer_focus` (FR-047)
-- [ ] T038 Reduce `LocationConfirmationTemplates` to FR-008 fallback wording only, no longer the normal user-facing prose
-- [ ] T039 [P] Decide-step tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDecisionParserTests.cs` — valid JSON, markdown-fenced JSON, unparseable after retry, unrecognised intent, all three intents
+> **Resequenced during implementation (2026-09-08).** T033/T034/T039 — the prompt, the parser and
+> their tests — are additive and are done. **T035–T038 moved to Phase 3 (US1).** They remove the
+> location intent classifier, `ViewerZoomDetector` and the confirmation templates, but the decide
+> step only *replaces* those once the orchestrator consumes its verdict and emits beats, which is
+> US1's work. Deleting them here would leave location resolution broken between phases for no
+> benefit, and wiring the decide call in without consuming it would just buy a second model call
+> per turn that changes nothing. The task list assumed they could land together; they cannot.
+
+
+- [X] T033 [P] Create `TurnDecisionPrompt` (v1) in `src/AskLucy.Application/Conversations/Prompts/TurnDecisionPrompt.cs` as a versioned artifact — carries the Tier 1 index only, never input schemas; defines `intent` as `answer` | `act` | `suggest` with the borderline-resolves-to-`suggest` rule
+- [X] T034 Create `TurnDecision` and `TurnDecisionParser` in `src/AskLucy.Application/Conversations/Runtime/` — JSON with one corrective retry, reusing `AgentPlanner`'s idiom; logs unparseable content with a bounded prefix, provider and model
+- [ ] T035 **[deferred to Phase 3 — see the note above]** Wire the decide step into `ConversationTurnOrchestrator`, resolving its provider/model through `AiCapabilityProviderResolver.ResolveAsync(AiCapability.TurnOrchestration)`
+- [ ] T036 **[deferred to Phase 3 — see the note above]** Retire the location intent classifier: remove `LocationIntentClassificationPromptV1` and its model call from `src/AskLucy.Application/Locations/LocationResolutionService.cs`, keeping geocoding, confidence scoring and outcome shaping (research.md D11)
+- [ ] T037 **[deferred to Phase 3 — see the note above]** Delete `src/AskLucy.Application/Locations/ViewerZoomDetector.cs` and its registration; zoom is now `adjust_viewer_focus` (FR-047)
+- [ ] T038 **[deferred to Phase 3 — see the note above]** Reduce `LocationConfirmationTemplates` to FR-008 fallback wording only, no longer the normal user-facing prose
+- [X] T039 [P] Decide-step tests in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDecisionParserTests.cs` — valid JSON, markdown-fenced JSON, unparseable after retry, unrecognised intent, all three intents
 
 ### 2e. Guards, budget and the turn record
 
