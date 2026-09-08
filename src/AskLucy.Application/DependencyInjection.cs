@@ -5,6 +5,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
+using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Processing;
@@ -202,6 +203,26 @@ public static class DependencyInjection
         // rather than sharing this one — a shared request DbContext has already caused hard 500s
         // in this codebase once, on DB-credential providers only.
         services.AddScoped<IConversationTurnOrchestrator, ConversationTurnOrchestrator>();
+
+        // Conversation capabilities (specs/045 FR-012/FR-013). Registered as IAgentTool as well as
+        // themselves so AgentToolCatalog — the single discovery point the whole agent runtime
+        // already uses — sees them without a second catalog existing. Adding a capability is these
+        // two lines and nothing else; the orchestrator never learns its name.
+        services.AddScoped<ResolveLocationCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<ResolveLocationCapability>());
+        services.AddScoped<ResolveSiteBoundaryCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<ResolveSiteBoundaryCapability>());
+        services.AddScoped<AdjustViewerFocusCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<AdjustViewerFocusCapability>());
+        services.AddScoped<SearchKnowledgeBaseCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<SearchKnowledgeBaseCapability>());
+        services.AddScoped<SearchMemoryCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<SearchMemoryCapability>());
+        services.AddScoped<OpenVisualPanelCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenVisualPanelCapability>());
+
+        services.AddScoped<CapabilityIndexRetriever>();
+        services.AddScoped<ConversationCapabilityCatalog>();
 
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
