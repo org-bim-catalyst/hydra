@@ -19,6 +19,7 @@ using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
+using AskLucy.Application.Options;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Web.Contracts;
@@ -26,6 +27,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -53,7 +55,8 @@ namespace AskLucy.Web.Controllers.v1;
 [EnableRateLimiting("ai-endpoints")]
 [Route("api/v1/ai")]
 public sealed partial class AiController(
-    ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository) : ControllerBase
+    ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository,
+    IOptions<ConversationRuntimeOptions> conversationRuntimeOptions) : ControllerBase
 {
     [HttpPost("chat")]
     public async Task Chat(ChatRequest request, CancellationToken cancellationToken)
@@ -85,8 +88,18 @@ public sealed partial class AiController(
         ViewerZoomCommand? viewerZoom = null;
         ConfirmedSiteBoundaryData? confirmedBoundary = null;
 
-        await foreach (var chunk in mediator.CreateStream(
-            new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
+        // specs/045-conversational-agent-runtime research.md D5 — a beat can now sit
+        // "pending" for tens of seconds (site-boundary resolution). Without a keep-alive, an
+        // idle SSE connection on the shared production host risks a proxy buffering or timing
+        // it out, which would make the progress indication silently disappear even though the
+        // server is still working (SC-004a). WithKeepAliveAsync interleaves a comment line —
+        // invisible to aiApi.ts's parser, which only matches "data: " lines — whenever the
+        // stream goes quiet for longer than the configured interval.
+        await foreach (var chunk in WithKeepAliveAsync(
+            mediator.CreateStream(
+                new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
+                cancellationToken),
+            TimeSpan.FromSeconds(conversationRuntimeOptions.Value.KeepAliveIntervalSeconds),
             cancellationToken))
         {
             // Handled before this chunk's own content goes out, so the client closes the current
@@ -305,6 +318,53 @@ public sealed partial class AiController(
     /// invisible to the client.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// specs/045 research.md D5 — interleaves an SSE comment line whenever <paramref name="source"/>
+    /// goes quiet for longer than <paramref name="interval"/>, without altering the sequence or
+    /// timing of the real chunks it yields.
+    /// <para>
+    /// A comment (<c>: keep-alive</c>) rather than a data event: <c>aiApi.ts</c>'s parser splits
+    /// on blank-line-terminated SSE records and only interprets lines starting with
+    /// <c>data:</c>, so a comment line is invisible to it while still being a byte written to the
+    /// wire — which is the only thing that resets an intermediary proxy's idle-connection timer
+    /// or defeats response buffering. Racing <see cref="IAsyncEnumerator{T}.MoveNextAsync"/>
+    /// against a timer, rather than a fixed-interval loop, means a keep-alive is written only
+    /// when nothing else already would have been (a beat's own chunks reset the clock for free).
+    /// </para>
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> WithKeepAliveAsync(
+        IAsyncEnumerable<ChatStreamChunk> source,
+        TimeSpan interval,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await using var enumerator = source.GetAsyncEnumerator(cancellationToken);
+        var moveNextTask = enumerator.MoveNextAsync().AsTask();
+
+        while (true)
+        {
+            var completed = await Task.WhenAny(moveNextTask, Task.Delay(interval, cancellationToken));
+
+            if (completed == moveNextTask)
+            {
+                if (!await moveNextTask)
+                {
+                    yield break;
+                }
+
+                yield return enumerator.Current;
+                moveNextTask = enumerator.MoveNextAsync().AsTask();
+            }
+            else
+            {
+                // The delay won the race — the real chunk is still pending. Write the comment and
+                // keep waiting on the SAME MoveNextAsync task rather than starting a new one; a
+                // fresh await on an in-flight ValueTask-backed operation would be invalid.
+                await Response.WriteAsync(": keep-alive\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+    }
+
     private async Task WriteConfirmedLocationEventAsync(
         Guid chatId, ConfirmedLocationData confirmedLocation, CancellationToken cancellationToken)
     {
