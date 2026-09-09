@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
@@ -6,6 +7,7 @@ using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Consent;
+using AskLucy.Infrastructure.Conversations;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Documents.Extraction;
 using AskLucy.Infrastructure.Documents.Ocr;
@@ -422,6 +424,14 @@ public static class DependencyInjection
         // hosted service reads, which is what keeps the window and the interval in step.
         services.AddSingleton<IProviderHealthFreshnessPolicy, ProviderHealthFreshnessPolicy>();
         services.AddHostedService<ProviderHealthCheckHostedService>();
+
+        // specs/045 FR-033/SC-011 — provisions the orchestrator and its sub-agents into the agent
+        // catalog on every startup. The status holder is a singleton shared with a /health/ready
+        // check the Web layer registers; the provisioner itself is scoped, like every repository
+        // it depends on.
+        services.AddScoped<ISystemAgentProvisioner, SystemAgentProvisioner>();
+        services.AddSingleton<ISystemAgentProvisioningStatus, SystemAgentProvisioningStatus>();
+        services.AddHostedService<SystemAgentProvisioningHostedService>();
 
         services.AddScoped<ITextToSpeechProvider, ElevenLabsTextToSpeechProvider>();
         services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();

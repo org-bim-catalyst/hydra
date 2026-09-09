@@ -12,7 +12,8 @@ public sealed class UpdateAgentCommandHandler(
     public async Task<AgentDetailDto> Handle(UpdateAgentCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var agent = AgentOwnershipGuard.EnsureOwnedBy(await agentRepository.GetByIdForOwnerAsync(request.Id, userId, cancellationToken), userId);
+        var agent = SystemAgentMutationGuard.EnsureMutable(
+            AgentOwnershipGuard.EnsureOwnedBy(await agentRepository.GetByIdForOwnerAsync(request.Id, userId, cancellationToken), userId));
 
         agent.UpdateDraft(
             request.Name, request.Description, request.AgentType, request.Instructions.ToDomain(),

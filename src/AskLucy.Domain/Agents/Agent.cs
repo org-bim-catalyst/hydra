@@ -403,4 +403,37 @@ public sealed class Agent : BaseEntity
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }
+
+    /// <summary>
+    /// FR-035 — publishes a new version for a system-provisioned agent, gated by
+    /// <paramref name="definitionHash"/> rather than by a selected model: there is none, since a
+    /// system agent resolves its model by <see cref="ModelCapability"/> at run time (research.md
+    /// D9). Not usable from <see cref="Publish"/>, which requires one.
+    /// <para>
+    /// The "tools" a system agent's version snapshots are the capability keys its own definition
+    /// names directly (contracts/system-agent-provisioning.md §1) — never <see cref="_tools"/>,
+    /// which stays empty for these agents; there is no draft configuration for a user to have set.
+    /// </para>
+    /// </summary>
+    public AgentVersion PublishSystemVersion(IReadOnlyList<string> capabilityKeys, string definitionHash, string actor)
+    {
+        if (!IsSystemOwned)
+        {
+            throw new DomainRuleViolationException("Only a system-provisioned agent can publish a system version.");
+        }
+
+        var nextVersionNumber = (PublishedVersionNumber ?? 0) + 1;
+        var toolsSnapshotJson = JsonSerializer.Serialize(capabilityKeys);
+
+        var version = AgentVersion.Create(
+            Id, nextVersionNumber, Instructions, ModelProviderId, ModelId, ExecutionPolicy,
+            OutputFormat, toolsSnapshotJson, "[]", memoryPolicySnapshotJson: null, changeDescription: null, actor, definitionHash);
+
+        _versions.Add(version);
+        PublishedVersionNumber = nextVersionNumber;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+
+        return version;
+    }
 }

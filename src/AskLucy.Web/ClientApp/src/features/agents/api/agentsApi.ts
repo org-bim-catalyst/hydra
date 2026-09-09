@@ -58,6 +58,7 @@ export interface AgentDetail {
   knowledgeBaseIds: string[]
   createdAtUtc: string
   modifiedAtUtc: string | null
+  isSystemOwned: boolean
 }
 
 export interface AgentListItem {
@@ -69,6 +70,7 @@ export interface AgentListItem {
   publishedVersionNumber: number | null
   createdAtUtc: string
   modifiedAtUtc: string | null
+  isSystemOwned: boolean
 }
 
 export interface PagedResult<T> {

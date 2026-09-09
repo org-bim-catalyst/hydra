@@ -11,7 +11,8 @@ public sealed class ArchiveAgentCommandHandler(IAgentRepository agentRepository,
     public async Task<AgentDetailDto> Handle(ArchiveAgentCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var agent = AgentOwnershipGuard.EnsureOwnedBy(await agentRepository.GetByIdForOwnerAsync(request.Id, userId, cancellationToken), userId);
+        var agent = SystemAgentMutationGuard.EnsureMutable(
+            AgentOwnershipGuard.EnsureOwnedBy(await agentRepository.GetByIdForOwnerAsync(request.Id, userId, cancellationToken), userId));
 
         agent.Archive(userId);
         await unitOfWork.SaveChangesAsync(cancellationToken);

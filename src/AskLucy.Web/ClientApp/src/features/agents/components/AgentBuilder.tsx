@@ -1,4 +1,4 @@
-import { Alert, Box, Button, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
@@ -40,6 +40,10 @@ interface AgentBuilderProps {
 export function AgentBuilder({ agent }: AgentBuilderProps) {
   const navigate = useNavigate()
   const isEditing = agent !== undefined
+  // specs/045 FR-034 — a platform-provisioned agent's own draft can never be saved; the backend
+  // already rejects it with 403 system-agent-immutable, this keeps the form from pretending
+  // otherwise. Reads stay open: the fields below still render the agent's real definition.
+  const isSystemOwned = agent?.isSystemOwned ?? false
   const createAgent = useCreateAgent()
   const updateAgent = useUpdateAgent()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -101,15 +105,23 @@ export function AgentBuilder({ agent }: AgentBuilderProps) {
 
   return (
     <Box component="form" onSubmit={onSubmit} sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        {isEditing ? 'Edit Agent' : 'New Agent'}
-      </Typography>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5">{isEditing ? 'Edit Agent' : 'New Agent'}</Typography>
+        {isSystemOwned && <Chip label="Provisioned by Ask Lucy" color="primary" variant="outlined" />}
+      </Stack>
+
+      {isSystemOwned && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          This agent is provisioned by Ask Lucy and cannot be edited. The fields below show its
+          current definition.
+        </Alert>
+      )}
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Stack spacing={2}>
-          <TextField label="Name" required {...register('name', { required: true })} />
-          <TextField label="Description" multiline minRows={2} {...register('description')} />
-          <TextField label="Agent Type" select {...register('agentType')}>
+          <TextField label="Name" required disabled={isSystemOwned} {...register('name', { required: true })} />
+          <TextField label="Description" multiline minRows={2} disabled={isSystemOwned} {...register('description')} />
+          <TextField label="Agent Type" select disabled={isSystemOwned} {...register('agentType')}>
             {AGENT_TYPES.map((type) => (
               <MenuItem key={type} value={type}>
                 {type}
@@ -124,13 +136,13 @@ export function AgentBuilder({ agent }: AgentBuilderProps) {
           Instructions
         </Typography>
         <Stack spacing={2}>
-          <TextField label="System Instructions" required multiline minRows={3} {...register('systemInstructions', { required: true })} />
-          <TextField label="Objectives" multiline minRows={2} {...register('objectives')} />
-          <TextField label="Constraints" multiline minRows={2} {...register('constraints')} />
-          <TextField label="Behavioral Rules" multiline minRows={2} {...register('behavioralRules')} />
-          <TextField label="Output Requirements" multiline minRows={2} {...register('outputRequirements')} />
-          <TextField label="Tool Usage Rules" multiline minRows={2} {...register('toolUsageRules')} />
-          <TextField label="Safety Rules" multiline minRows={2} {...register('safetyRules')} />
+          <TextField label="System Instructions" required multiline minRows={3} disabled={isSystemOwned} {...register('systemInstructions', { required: true })} />
+          <TextField label="Objectives" multiline minRows={2} disabled={isSystemOwned} {...register('objectives')} />
+          <TextField label="Constraints" multiline minRows={2} disabled={isSystemOwned} {...register('constraints')} />
+          <TextField label="Behavioral Rules" multiline minRows={2} disabled={isSystemOwned} {...register('behavioralRules')} />
+          <TextField label="Output Requirements" multiline minRows={2} disabled={isSystemOwned} {...register('outputRequirements')} />
+          <TextField label="Tool Usage Rules" multiline minRows={2} disabled={isSystemOwned} {...register('toolUsageRules')} />
+          <TextField label="Safety Rules" multiline minRows={2} disabled={isSystemOwned} {...register('safetyRules')} />
         </Stack>
       </Paper>
 
@@ -139,21 +151,21 @@ export function AgentBuilder({ agent }: AgentBuilderProps) {
           Model &amp; Output
         </Typography>
         <Stack spacing={2}>
-          <TextField label="AI Provider" required select {...register('modelProviderId', { required: true })}>
+          <TextField label="AI Provider" required select disabled={isSystemOwned} {...register('modelProviderId', { required: true })}>
             {(providers ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.displayName}
               </MenuItem>
             ))}
           </TextField>
-          <TextField label="Model" required select disabled={!selectedProviderId} {...register('modelId', { required: true })}>
+          <TextField label="Model" required select disabled={isSystemOwned || !selectedProviderId} {...register('modelId', { required: true })}>
             {modelsForProvider.map((m) => (
               <MenuItem key={m.id} value={m.id}>
                 {m.displayName}
               </MenuItem>
             ))}
           </TextField>
-          <TextField label="Output Format" select {...register('outputFormat')}>
+          <TextField label="Output Format" select disabled={isSystemOwned} {...register('outputFormat')}>
             {OUTPUT_FORMATS.map((format) => (
               <MenuItem key={format} value={format}>
                 {format}
@@ -163,9 +175,11 @@ export function AgentBuilder({ agent }: AgentBuilderProps) {
         </Stack>
       </Paper>
 
-      <Button type="submit" variant="contained" disabled={submitting}>
-        {isEditing ? 'Save Changes' : 'Create Agent'}
-      </Button>
+      {!isSystemOwned && (
+        <Button type="submit" variant="contained" disabled={submitting}>
+          {isEditing ? 'Save Changes' : 'Create Agent'}
+        </Button>
+      )}
 
       <Snackbar open={errorMessage !== null} autoHideDuration={6000} onClose={() => setErrorMessage(null)}>
         <Alert severity="error" onClose={() => setErrorMessage(null)}>

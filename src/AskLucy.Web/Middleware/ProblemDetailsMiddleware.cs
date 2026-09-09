@@ -295,6 +295,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "Weather provider unavailable",
             "The weather service could not process this request. Please try again."),
 
+        // specs/045-conversational-agent-runtime FR-034, contracts/system-agent-provisioning.md
+        // §3 — a platform-provisioned agent (lucy.orchestrator and its sub-agents) rejecting every
+        // user mutation path.
+        AskLucy.Domain.Agents.SystemAgentImmutableException systemAgentImmutableEx => (
+            StatusCodes.Status403Forbidden,
+            "https://hydra.bimcatalyst.com/problems/system-agent-immutable",
+            "System agent is immutable",
+            systemAgentImmutableEx.Message),
+
         UnauthorizedAccessException => (
             StatusCodes.Status403Forbidden,
             "https://hydra.bimcatalyst.com/problems/forbidden",
