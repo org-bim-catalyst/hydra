@@ -134,7 +134,9 @@
       "Bash(awk '$1>1')",
       "Bash(awk 'BEGIN{p=0} {if\\($1!=p+1\\) print \"GAP after T\"p\" -> T\"$1; p=$1} END{print \"last: T\"p}')",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\specs\\\\038-viewer-poi-zoom\")",
-      "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\specs\\\\038-viewer-poi-zoom\\\\checklists\")"
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Workshop\\\\BIM Catalyst\\\\Web Apps\\\\Platform\\\\Ask Lucy\\\\specs\\\\038-viewer-poi-zoom\\\\checklists\")",
+      "Bash(node \"C:/Users/musta/AppData/Local/Temp/claude/e--Workshop-BIM-Catalyst-Web-Apps-Platform-Ask-Lucy/7ee14503-27c3-400f-a8ed-515024b92f37/scratchpad/check-glsl.mjs\" \"src/features/chat/scene/magmaGlow.vert.glsl\" \"src/features/chat/scene/magmaGlow.frag.glsl\" \"src/features/chat/scene/sphere.vert.glsl\" \"src/features/chat/scene/sphere.frag.glsl\")",
+      "Bash(npx vite *)"
     ],
     "additionalDirectories": [
       "\\tmp",

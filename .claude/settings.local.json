@@ -79,7 +79,8 @@
       "Bash(export PERSISTENCE_TESTS_CONNECTION_STRING=\"Data Source=SQL5111.site4now.net;Initial Catalog=db_a15752_asklucytest;User Id=db_a15752_asklucytest_admin;Password=Ms@191981;Encrypt=True;TrustServerCertificate=True;\")",
       "Bash(dotnet test *)",
       "Bash(dotnet format *)",
-      "Bash(export PERSISTENCE_TESTS_CONNECTION_STRING=\"Data Source=SQL8012.site4now.net;Initial Catalog=db_a15752_asklucytest;User Id=db_a15752_asklucytest_admin;Password=Ms@191981;Encrypt=True;TrustServerCertificate=True;\")"
+      "Bash(export PERSISTENCE_TESTS_CONNECTION_STRING=\"Data Source=SQL8012.site4now.net;Initial Catalog=db_a15752_asklucytest;User Id=db_a15752_asklucytest_admin;Password=Ms@191981;Encrypt=True;TrustServerCertificate=True;\")",
+      "Bash(node \"C:/Users/musta/AppData/Local/Temp/claude/e--Workshop-BIM-Catalyst-Web-Apps-Platform-Ask-Lucy/7ee14503-27c3-400f-a8ed-515024b92f37/scratchpad/check-glsl.mjs\" \"src/AskLucy.Web/ClientApp/src/features/chat/scene/magmaGlow.vert.glsl\" \"src/AskLucy.Web/ClientApp/src/features/chat/scene/magmaGlow.frag.glsl\")"
     ]
   },
   "enabledPlugins": {
