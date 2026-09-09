@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
@@ -5,12 +6,28 @@ using AskLucy.Domain.Ai;
 
 namespace AskLucy.Web.Contracts;
 
+/// <summary>
+/// specs/045-conversational-agent-runtime US3, contracts/suggested-actions-api.md §1 — an offered
+/// row the user selected. <see cref="Kind"/> is the wire form (<c>"flowVariant"</c>,
+/// <c>"capability"</c>, <c>"followUp"</c> or <c>"decline"</c>); <see cref="Key"/>/<see cref="Text"/>/
+/// <see cref="Arguments"/> identify which row, but are only ever used to <b>find</b> it —
+/// <see cref="AskLucy.Web.Controllers.v1.AiController"/> dispatches the grounded row's own values,
+/// never these.
+/// </summary>
+public sealed record SelectedActionRequest(
+    Guid OfferedByMessageId,
+    string Kind,
+    string? Key,
+    string? Text,
+    JsonElement? Arguments);
+
 public sealed record ChatRequest(
     Guid ChatId,
     IReadOnlyList<ChatMessageDto> Messages,
     Guid ProviderId,
     Guid ModelId,
-    GenerationParametersDto? GenerationParameters = null);
+    GenerationParametersDto? GenerationParameters = null,
+    SelectedActionRequest? SelectedAction = null);
 
 public sealed record TranslateRequest(Guid ChatId, string Text, string TargetLanguage);
 

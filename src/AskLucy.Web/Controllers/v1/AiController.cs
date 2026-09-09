@@ -17,6 +17,7 @@ using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
+using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Application.Options;
@@ -57,14 +58,52 @@ namespace AskLucy.Web.Controllers.v1;
 [Route("api/v1/ai")]
 public sealed partial class AiController(
     ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository,
-    IOptions<ConversationRuntimeOptions> conversationRuntimeOptions) : ControllerBase
+    ISelectedActionResolver selectedActionResolver, IOptions<ConversationRuntimeOptions> conversationRuntimeOptions) : ControllerBase
 {
     [HttpPost("chat")]
     public async Task Chat(ChatRequest request, CancellationToken cancellationToken)
     {
-        var lastUserMessage = request.Messages[^1];
+        // specs/045-conversational-agent-runtime US3 (FR-027-FR-029) — resolved BEFORE the user
+        // message is persisted, and before Response.ContentType is even set: the message's own
+        // Content is the resolved row's label (research.md D6), and a stale/unavailable/unknown
+        // selection must come back as a plain Problem Details response, not a started SSE stream.
+        // ISelectedActionResolver throws the specific typed exception ProblemDetailsMiddleware
+        // maps to 409/400 (T074) — nothing is caught here.
+        SelectedActionInput? selectedAction = null;
+        string userMessageContent;
+        string? persistedSelectedActionKind = null;
+        string? persistedSelectedActionKey = null;
+        string? persistedSelectedActionArgumentsJson = null;
+
+        if (request.SelectedAction is { } selection)
+        {
+            var resolved = await selectedActionResolver.ResolveAsync(
+                request.ChatId, selection.OfferedByMessageId, selection.Kind, selection.Key, selection.Text,
+                selection.Arguments?.GetRawText() ?? "{}", cancellationToken);
+
+            userMessageContent = resolved.Row.Label;
+            selectedAction = new SelectedActionInput(
+                resolved.OfferingMessageId, resolved.Row.Kind, resolved.Row.Key, resolved.Row.Text, resolved.Row.ArgumentsJson ?? "{}");
+
+            // Message.cs's own invariant: Key/ArgumentsJson are non-null only alongside
+            // FlowVariant/Capability. resolved.Row already carries null for both on a FollowUp or
+            // Decline row (SuggestedAction's own structural rules), so this mirrors it rather than
+            // coercing a "{}" default onto a kind that has no arguments at all.
+            persistedSelectedActionKind = resolved.Row.Kind.ToString();
+            persistedSelectedActionKey = resolved.Row.Key;
+            persistedSelectedActionArgumentsJson = resolved.Row.ArgumentsJson;
+        }
+        else
+        {
+            userMessageContent = request.Messages[^1].Content;
+        }
+
         await mediator.Send(
-            new AppendMessageCommand(request.ChatId, MessageRole.User, MessageKind.Text, lastUserMessage.Content, null),
+            new AppendMessageCommand(
+                request.ChatId, MessageRole.User, MessageKind.Text, userMessageContent, null,
+                SelectedActionKind: persistedSelectedActionKind,
+                SelectedActionKey: persistedSelectedActionKey,
+                SelectedActionArgumentsJson: persistedSelectedActionArgumentsJson),
             cancellationToken);
 
         Response.ContentType = "text/event-stream";
@@ -100,7 +139,7 @@ public sealed partial class AiController(
         // stream goes quiet for longer than the configured interval.
         await foreach (var chunk in WithKeepAliveAsync(
             mediator.CreateStream(
-                new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters),
+                new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction),
                 cancellationToken),
             TimeSpan.FromSeconds(conversationRuntimeOptions.Value.KeepAliveIntervalSeconds),
             cancellationToken))

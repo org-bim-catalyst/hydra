@@ -41,4 +41,11 @@ public sealed record ConversationTurnRequest(
     IReadOnlyList<ChatMessageDto> Messages,
     IAIProvider Provider,
     string ModelKey,
-    GenerationParametersDto? GenerationParameters);
+    GenerationParametersDto? GenerationParameters,
+
+    /// <summary>
+    /// specs/045 US3 (FR-027) — set only when this turn dispatches a selected offer row, already
+    /// resolved and grounded by <see cref="SelectedActionResolver"/>. When non-null, the decide
+    /// step is skipped entirely: the turn runs exactly this selection instead.
+    /// </summary>
+    SelectedActionInput? SelectedAction = null);

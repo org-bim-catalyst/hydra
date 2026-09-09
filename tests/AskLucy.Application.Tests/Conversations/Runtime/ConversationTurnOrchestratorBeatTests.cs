@@ -181,10 +181,12 @@ public sealed class ConversationTurnOrchestratorBeatTests
     }
 
     [Fact]
-    public async Task RunAsync_ShouldTakeTheFastPath_WhenIntentIsSuggest_UntilOffersExist()
+    public async Task RunAsync_ShouldTakeTheFastPathMechanics_WhenIntentIsSuggest()
     {
-        // Documented interim narrowing (specs/045 tasks.md Phase 4): "suggest" degrades to an
-        // ordinary reply until the offer step ships.
+        // research.md D18 — TurnIntent.Suggest always takes the words-only mechanics (no beats,
+        // no acknowledgement); this fixture registers no capability at all, so the offer step
+        // that follows (US2) finds nothing offerable and is suppressed too — the plain-reply shape
+        // asserted here is permanent, not an interim narrowing.
         _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Suggest, []));
 
