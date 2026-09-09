@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as chatsApi from '../api/chatsApi'
 import type { PersistedMessage } from '../api/chatsApi'
-import { generateImage, streamChat, type ChatMessage, type GenerationParameters } from '../api/aiApi'
+import {
+  generateImage,
+  streamChat,
+  type ChatMessage,
+  type GenerationParameters,
+  type SuggestedAction,
+} from '../api/aiApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
@@ -50,6 +56,12 @@ export function useChatStream(
   /** What the currently-empty assistant bubble is waiting for, e.g. "Finding the site boundary". */
   const [pendingLabel, setPendingLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // specs/045-conversational-agent-runtime US3, contracts/suggested-actions-api.md §3 — kept
+  // separate from `error`/`retry` above: a failed selection reports inline inside
+  // SuggestedActionCard itself ("the card returns to its selectable state so the user can
+  // retry"), not through the generic Snackbar+Retry pair a typed-message failure uses.
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [isSelectingAction, setIsSelectingAction] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const chatIdRef = useRef<string | null>(chatId)
   // Tracks whether the *user* has sent anything in this specific mounted view — not whether
@@ -300,6 +312,153 @@ export function useChatStream(
     [messages, ensureChatId, providerId, modelId],
   )
 
+  /**
+   * specs/045-conversational-agent-runtime US3 — dispatches a chosen offer row exactly like
+   * `send()` dispatches typed text, down to the same SSE event handling (a dispatched capability
+   * can still emit `__LOCATION__`/beats/an offer of its own). The two are intentionally not
+   * merged into one shared implementation: `send()` is exercised indirectly by every existing
+   * `ChatPage` test today, and threading a second code path through it risks the one that already
+   * works for the very common case. What differs here is only how the turn starts — the user
+   * bubble's content is the row's own label (research.md D6), never typed text — and how a
+   * failure reports back (into `actionError`, for the card itself, not the general Snackbar).
+   */
+  const selectAction = useCallback(
+    async (offeredByMessageId: string, action: SuggestedAction) => {
+      if (!providerId || !modelId) {
+        setActionError('Choose an AI provider and model before sending a message.')
+        return
+      }
+      hasSentRef.current = true
+      setIsSelectingAction(true)
+      setActionError(null)
+
+      const userMessage: ChatMessage = { role: 'user', content: action.label }
+      const history = [...messages, userMessage]
+      setMessages([...history, { role: 'assistant', content: '' }])
+      setIsStreaming(true)
+      setPendingLabel(null)
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      let assistantParts = [{ id: newMessageId(), content: '' }]
+      const renderParts = (parts: { id: string; content: string }[]): ChatMessage[] =>
+        parts.map((part) => ({ id: part.id, role: 'assistant' as const, content: part.content }))
+      let citations: ChatMessage['citations']
+      let retrievalOutcome: ChatMessage['retrievalOutcome']
+      let retrievalError: ChatMessage['retrievalError']
+      let messageId: ChatMessage['id']
+      let memoryOutcome: ChatMessage['memoryOutcome']
+      let suggestedActions: ChatMessage['suggestedActions']
+      let offerQuestion: ChatMessage['question']
+      try {
+        const activeChatId = await ensureChatId(action.label)
+        const selectedAction = {
+          offeredByMessageId,
+          kind: action.kind,
+          key: action.capabilityKey,
+          text: action.text,
+          arguments: action.arguments,
+        }
+        for await (const event of streamChat(
+          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction,
+        )) {
+          if (event.type === 'content') {
+            const last = assistantParts[assistantParts.length - 1]
+            assistantParts = [...assistantParts.slice(0, -1), { ...last, content: last.content + event.delta }]
+            if (isActiveRef.current) {
+              setMessages([...history, ...renderParts(assistantParts)])
+            }
+          } else if (event.type === 'messageBreak') {
+            if (assistantParts[assistantParts.length - 1].content !== '') {
+              assistantParts = [...assistantParts, { id: newMessageId(), content: '' }]
+              setPendingLabel(event.pendingLabel)
+              if (isActiveRef.current) {
+                setMessages([...history, ...renderParts(assistantParts)])
+              }
+            }
+          } else if (event.type === 'retrieval') {
+            retrievalOutcome = event.outcome
+            retrievalError = event.error
+            citations = event.citations.map((c, index) => ({ id: `pending-${index}`, ...c }))
+          } else if (event.type === 'memory') {
+            messageId = event.messageId ?? undefined
+            memoryOutcome = event.outcome
+          } else if (event.type === 'location') {
+            useActiveLocationStore.getState().setFromAgent(
+              event.latitude,
+              event.longitude,
+              event.locationName,
+              event.confidence,
+              event.locationType,
+              event.viewport,
+            )
+            if (useActiveSiteBoundaryStore.getState().siteName !== event.locationName) {
+              useActiveSiteBoundaryStore.getState().clearBoundary()
+            }
+          } else if (event.type === 'zoom') {
+            if (useActiveLocationStore.getState().latitude !== null) {
+              viewerEngine.zoomBy(event.direction)
+            }
+          } else if (event.type === 'siteBoundary') {
+            useActiveSiteBoundaryStore.getState().setBoundary({
+              siteName: event.siteName,
+              centroid: event.centroid,
+              polygon: event.polygon,
+              areaSquareMeters: event.areaSquareMeters,
+              confidence: event.confidence,
+              confidenceLevel: event.confidenceLevel,
+              source: event.source as SiteBoundarySource,
+              sourceDetail: event.sourceDetail,
+              alternativeCandidateNames: event.alternativeCandidateNames,
+            })
+          } else if (event.type === 'actions') {
+            suggestedActions = event.actions
+            offerQuestion = event.question
+          }
+        }
+        if (isActiveRef.current) {
+          const [reply, ...rest] = assistantParts.filter((part, index) => part.content !== '' || index === 0)
+          const restRendered = renderParts(rest)
+          if (suggestedActions) {
+            const target = restRendered.length > 0 ? restRendered[restRendered.length - 1] : undefined
+            if (target) {
+              target.suggestedActions = suggestedActions
+              target.question = offerQuestion
+            }
+          }
+          setMessages([
+            ...history,
+            {
+              id: messageId ?? reply.id,
+              role: 'assistant',
+              content: reply.content,
+              citations,
+              retrievalOutcome,
+              retrievalError,
+              memoryOutcome,
+              ...(suggestedActions && restRendered.length === 0 ? { suggestedActions, question: offerQuestion } : {}),
+            },
+            ...restRendered,
+          ])
+        }
+      } catch (err) {
+        if (isActiveRef.current) {
+          setMessages([
+            ...history,
+            ...renderParts(assistantParts.slice(0, -1)),
+            { ...renderParts([assistantParts[assistantParts.length - 1]])[0], isIncomplete: true },
+          ])
+          setActionError(err instanceof Error ? err.message : 'Failed to run that action. Please try again.')
+        }
+      } finally {
+        setIsStreaming(false)
+        setIsSelectingAction(false)
+        abortRef.current = null
+      }
+    },
+    [messages, ensureChatId, providerId, modelId],
+  )
+
   const sendImage = useCallback(
     async (prompt: string) => {
       hasSentRef.current = true
@@ -323,5 +482,21 @@ export function useChatStream(
     }
   }, [send])
 
-  return { messages, isStreaming, pendingLabel, error, clearError, send, sendImage, stop, retry, providerId, modelId, setSelection }
+  return {
+    messages,
+    isStreaming,
+    pendingLabel,
+    error,
+    clearError,
+    send,
+    sendImage,
+    stop,
+    retry,
+    providerId,
+    modelId,
+    setSelection,
+    selectAction,
+    actionError,
+    isSelectingAction,
+  }
 }

@@ -144,6 +144,15 @@ const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
 
+/** specs/045-conversational-agent-runtime US3, contracts/suggested-actions-api.md §1 — echoes back which offered row was chosen; the server resolves it against the offer it came from and dispatches the grounded row, never these `key`/`text`/`arguments` values directly. */
+export interface SelectedActionRequest {
+  offeredByMessageId: string
+  kind: SuggestedAction['kind']
+  key: string | null
+  text: string | null
+  arguments: unknown
+}
+
 /**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
  * `ReadableStream` reader rather than the browser's native `EventSource`, since
@@ -156,6 +165,7 @@ export async function* streamChat(
   modelId: string,
   generationParameters: GenerationParameters | undefined,
   signal?: AbortSignal,
+  selectedAction?: SelectedActionRequest,
 ): AsyncGenerator<ChatStreamEvent> {
   const accessToken = useAuthStore.getState().accessToken
 
@@ -166,7 +176,7 @@ export async function* streamChat(
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters }),
+    body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters, selectedAction }),
   })
 
   if (!response.ok || !response.body) {

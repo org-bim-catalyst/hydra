@@ -5,9 +5,10 @@ import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
-import type { ChatMessage } from '../api/aiApi'
+import type { ChatMessage, SuggestedAction } from '../api/aiApi'
 import { CitationBadge } from '../../retrieval/components/CitationBadge'
 import { MemoryTraceIndicator } from '../../memory/components/MemoryTraceIndicator'
+import { SuggestedActionCard } from './SuggestedActionCard'
 import { codeFontFamily } from '../../../theme/tokens/typography'
 import { radius } from '../../../theme'
 
@@ -25,6 +26,10 @@ export function MessageBubble({
   isReplayDisabled,
   onReplay,
   onStopReplay,
+  isLiveOffer,
+  onSelectAction,
+  isSubmittingAction,
+  actionError,
 }: {
   message: ChatMessage
   chatId?: string | null
@@ -37,6 +42,16 @@ export function MessageBubble({
   isReplayDisabled?: boolean
   onReplay?: (message: ChatMessage) => void
   onStopReplay?: () => void
+  /**
+   * specs/045-conversational-agent-runtime US3, data-model.md §2 — "the live offer is the
+   * newest assistant message in the chat with non-null SuggestedActionsJson that no later user
+   * message has already answered." Only the caller (`ChatPage.tsx`) can know that across the
+   * whole message list; omit it (or pass false) and an offer on this message renders inert.
+   */
+  isLiveOffer?: boolean
+  onSelectAction?: (offeredByMessageId: string, action: SuggestedAction) => Promise<void>
+  isSubmittingAction?: boolean
+  actionError?: string | null
 }) {
   const isUser = message.role === 'user'
   const hasAttachments = (message.attachments?.length ?? 0) > 0
@@ -138,6 +153,22 @@ export function MessageBubble({
             subtle, non-intrusive affordance the user opens on demand, never shown unprompted. */}
         {message.memoryOutcome === 'Found' && chatId && message.id && (
           <MemoryTraceIndicator chatId={chatId} messageId={message.id} />
+        )}
+
+        {/* specs/045-conversational-agent-runtime FR-021/FR-026/FR-029 — rendered whenever this
+            message carries an offer; only the newest unanswered one (isLiveOffer) is interactive. */}
+        {message.suggestedActions && message.suggestedActions.length > 0 && message.id && (
+          <SuggestedActionCard
+            question={message.question ?? 'What would you like to do next?'}
+            actions={message.suggestedActions}
+            isLive={Boolean(isLiveOffer)}
+            isSubmitting={Boolean(isSubmittingAction)}
+            error={actionError ?? null}
+            onSelect={(action) => {
+              const offeredByMessageId = message.id
+              return offeredByMessageId ? (onSelectAction?.(offeredByMessageId, action) ?? Promise.resolve()) : Promise.resolve()
+            }}
+          />
         )}
 
         {/* specs/005-multi-provider-ai-engine FR-011: attribution is a snapshot of what

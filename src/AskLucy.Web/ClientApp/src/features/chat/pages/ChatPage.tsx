@@ -307,7 +307,24 @@ export function ConversationView({
     providerId,
     modelId,
     setSelection,
+    selectAction,
+    actionError,
+    isSelectingAction,
   } = useChatStream(chatId, persistedMessages, onChatCreated)
+
+  // specs/045-conversational-agent-runtime data-model.md §2 — "the live offer is the newest
+  // assistant message in the chat with non-null SuggestedActionsJson that no later user message
+  // has already answered." Once dispatch (or an ordinary typed message) adds anything after it,
+  // a new "newest" wins and this one ages into inert history rendering automatically.
+  const liveOfferMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const candidate = messages[i]
+      if (candidate.role === 'assistant' && candidate.suggestedActions && candidate.suggestedActions.length > 0) {
+        return candidate.id ?? null
+      }
+    }
+    return null
+  }, [messages])
 
   // specs/025-chat-configuration-settings, T021 — replaces the auto-select-on-mount behavior
   // the removed in-toolbar `ProviderModelSelector` used to provide (changing the model is now
@@ -883,6 +900,10 @@ export function ConversationView({
                             }
                             onReplay={handleReplay}
                             onStopReplay={handleStopReplay}
+                            isLiveOffer={Boolean(message.id) && message.id === liveOfferMessageId}
+                            onSelectAction={selectAction}
+                            isSubmittingAction={isSelectingAction}
+                            actionError={actionError}
                           />
                         )}
                       </Box>
