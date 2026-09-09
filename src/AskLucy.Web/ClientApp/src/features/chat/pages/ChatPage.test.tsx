@@ -93,6 +93,7 @@ function makeMessage(overrides: Partial<PersistedMessage>): PersistedMessage {
     outputTokenCount: null,
     attachments: [],
     citations: [],
+    suggestedActionsJson: null,
     ...overrides,
   }
 }
@@ -1650,6 +1651,108 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const [replyLanguage, offerLanguage] = speak.mock.calls.map((call) => call[1])
     expect(replyLanguage).toBe('es')
     expect(offerLanguage).toBe('es')
+  })
+
+  /**
+   * specs/045-conversational-agent-runtime T118 (FR-026/SC-009) — reopening a conversation whose
+   * last turn closed with an offer must show that same offer, not silently drop it. The offer
+   * rides on the assistant message's own persisted `suggestedActionsJson`, exactly like a live
+   * one rides `suggestedActions`/`question` on the streamed message.
+   */
+  it('replays a persisted offer from history, as the newest unanswered one', async () => {
+    const persistedOffer = {
+      question: 'What would you like to do next?',
+      actions: [
+        {
+          kind: 'flowVariant',
+          capabilityKey: null,
+          text: null,
+          label: 'Focus and outline the site',
+          description: 'Find it, centre the map, and outline the site boundary.',
+          arguments: {},
+          isDecline: false,
+        },
+        { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+      ],
+    }
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({ id: 'msg-user-1', role: 'User', content: 'Show me Al Safa Park 2' }),
+            makeMessage({
+              id: 'msg-assistant-1',
+              role: 'Assistant',
+              content: 'Found Al Safa Park 2.',
+              suggestedActionsJson: JSON.stringify(persistedOffer),
+            }),
+          ]),
+        ),
+      ),
+    )
+
+    renderConversation(CHAT_A)
+
+    expect(await screen.findByText('Found Al Safa Park 2.')).toBeInTheDocument()
+    expect(await screen.findByText('What would you like to do next?')).toBeInTheDocument()
+    expect(screen.getByText('Focus and outline the site')).toBeInTheDocument()
+  })
+
+  /**
+   * specs/045-conversational-agent-runtime T120 (FR-026/SC-009) — a reloaded conversation
+   * reproduces the whole turn shape in order: the beats, an offer that was answered, and the
+   * selection that answered it — with the offer rendering inert (plain text, no interactive
+   * radiogroup) because a later message has already superseded it, exactly as data-model.md §2
+   * defines "the live offer."
+   */
+  it('replays beats, an answered offer, and the selection that answered it, in order', async () => {
+    const answeredOffer = {
+      question: 'What would you like to do next?',
+      actions: [
+        { kind: 'flowVariant', capabilityKey: null, text: null, label: 'Focus and outline the site', description: 'Find it, centre the map, and outline the site boundary.', arguments: {}, isDecline: false },
+        { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+      ],
+    }
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({ id: 'msg-user-1', role: 'User', content: 'Show me Al Safa Park 2' }),
+            makeMessage({ id: 'msg-assistant-1', role: 'Assistant', content: 'Centred the viewer on it.' }),
+            makeMessage({
+              id: 'msg-assistant-2',
+              role: 'Assistant',
+              content: 'Found Al Safa Park 2.',
+              suggestedActionsJson: JSON.stringify(answeredOffer),
+            }),
+            // The selection that answered the offer above — Phase 5's own convention persists
+            // the resolved row's label as this user message's own Content.
+            makeMessage({ id: 'msg-user-2', role: 'User', content: 'Focus and outline the site' }),
+            makeMessage({ id: 'msg-assistant-3', role: 'Assistant', content: "I've outlined the site boundary." }),
+          ]),
+        ),
+      ),
+    )
+
+    renderConversation(CHAT_A)
+
+    // Beats: every message replays, and in the right order — checked positionally in the
+    // rendered text rather than via getByText, since "Focus and outline the site" legitimately
+    // appears twice (the selection's own bubble, and the now-inert offer's option list below it).
+    await screen.findByText("I've outlined the site boundary.")
+    const rendered = document.body.textContent ?? ''
+    const indexOf = (text: string) => rendered.indexOf(text)
+    expect(indexOf('Centred the viewer on it.')).toBeGreaterThanOrEqual(0)
+    expect(indexOf('Found Al Safa Park 2.')).toBeGreaterThan(indexOf('Centred the viewer on it.'))
+    expect(indexOf('What would you like to do next?')).toBeGreaterThan(indexOf('Found Al Safa Park 2.'))
+    expect(rendered.lastIndexOf('Focus and outline the site')).toBeGreaterThan(indexOf('What would you like to do next?'))
+    expect(indexOf("I've outlined the site boundary.")).toBeGreaterThan(rendered.lastIndexOf('Focus and outline the site'))
+
+    // The offer replays inert: its question and label are still visible, but a later message has
+    // already answered it, so no interactive radiogroup exists.
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 
   /**

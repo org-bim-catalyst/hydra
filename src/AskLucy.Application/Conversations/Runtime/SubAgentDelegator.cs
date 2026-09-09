@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -24,6 +25,10 @@ internal static partial class SubAgentDelegatorLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Slice for chat {UserChatId} named capability {CapabilityKey}, but it could not be resolved within its own sub-agent area")]
     public static partial void CapabilityMissingInArea(ILogger logger, Guid userChatId, string capabilityKey);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Turn for chat {UserChatId} exceeded its {BudgetSeconds}s turn budget partway through delegation")]
+    public static partial void TurnBudgetExceeded(ILogger logger, Guid userChatId, int budgetSeconds);
 }
 
 /// <summary>One delegated slice's outcome (specs/045 FR-016-FR-019, T094), for the turn record.</summary>
@@ -95,9 +100,32 @@ public sealed class SubAgentDelegator(
 
         var completed = new Dictionary<int, SubAgentDelegationResult>();
         var remaining = new List<int>(accepted.Keys);
+        var stopwatch = Stopwatch.StartNew();
+        var turnBudgetSeconds = options.Value.MaxTurnDurationSeconds;
+        var isFirstWave = true;
 
         while (remaining.Count > 0)
         {
+            // FR-009, contracts/turn-stream.md §7 — mirrors FlowRunner's own turn-budget stop
+            // (i > 0 there, isFirstWave here): the first wave always runs regardless of how the
+            // turn budget was already spent by the decide step, so a turn can never open with
+            // nothing at all; every wave after that respects the clock, keeping whatever already
+            // completed rather than discarding it.
+            if (!isFirstWave && stopwatch.Elapsed.TotalSeconds > turnBudgetSeconds)
+            {
+                SubAgentDelegatorLog.TurnBudgetExceeded(logger, request.ChatId, turnBudgetSeconds);
+                foreach (var index in remaining)
+                {
+                    completed[index] = new SubAgentDelegationResult(accepted[index].CapabilityKey, false, "not attempted — the turn's time budget was reached");
+                }
+
+                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+                yield return new ChatStreamChunk("I've stopped there — this was taking longer than expected.", null);
+                break;
+            }
+
+            isFirstWave = false;
+
             var wave = remaining.Where(i => accepted[i].DependsOn is not { } dep || completed.ContainsKey(dep)).ToList();
             remaining = [.. remaining.Except(wave)];
 
