@@ -3,6 +3,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Prompts;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
@@ -61,8 +62,10 @@ public sealed class ConversationTurnOrchestrator(
     ICurrentUserAccessor currentUser,
     IBackgroundJobClient backgroundJobClient,
     ConversationCapabilityCatalog capabilityCatalog,
+    ConversationFlowCatalog flowCatalog,
     ITurnDecider turnDecider,
     CapabilityExecutor capabilityExecutor,
+    FlowRunner flowRunner,
     ISuggestedActionOfferGenerator offerGenerator,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
@@ -91,8 +94,9 @@ public sealed class ConversationTurnOrchestrator(
         if (request.SelectedAction is { } selection)
         {
             var selectionConfirmedLocation = false;
+            var selectionFlowRecord = new List<FlowStepResult>();
 
-            await foreach (var chunk in RunSelectedActionAsync(request, turnContext, selection, cancellationToken))
+            await foreach (var chunk in RunSelectedActionAsync(request, turnContext, selection, selectionFlowRecord, cancellationToken))
             {
                 if (chunk.ConfirmedLocation is not null)
                 {
@@ -105,12 +109,15 @@ public sealed class ConversationTurnOrchestrator(
             // A dispatched capability may still be worth building on ("what next"); a followUp or
             // decline ran no capability and — for decline especially (FR-025a.3) — is exactly the
             // turn re-offering would be nagging on, so neither runs the offer step at all.
-            if (selection.Kind == SuggestedActionKind.Capability)
+            if (selection.Kind is SuggestedActionKind.Capability or SuggestedActionKind.FlowVariant)
             {
-                var outcome = new TurnOutcome([selection.Key!], selectionConfirmedLocation, [], UserDeclinedLastOffer: false);
+                var invokedKeys = selection.Kind == SuggestedActionKind.Capability
+                    ? (IReadOnlyList<string>)[selection.Key!]
+                    : [.. selectionFlowRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)];
+                var outcome = new TurnOutcome(invokedKeys, selectionConfirmedLocation, [], UserDeclinedLastOffer: false);
                 var justHappened = $"The user chose to: {selection.Key}. Lucy ran it.";
 
-                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext, memoryOutcome: null, chat, justHappened, cancellationToken))
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext, memoryOutcome: null, chat, justHappened, [], cancellationToken))
                 {
                     yield return chunk;
                 }
@@ -124,12 +131,39 @@ public sealed class ConversationTurnOrchestrator(
         // action — the decider itself is what skips its own model call when the index is empty
         // or the message is blank (FR-006), so an ordinary reply is not charged for asking.
         var index = await capabilityCatalog.BuildIndexAsync(turnContext, latestUserMessage, cancellationToken);
-        var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, cancellationToken);
+        var flowIndex = flowCatalog.AvailableFor(turnContext).Select(ConversationFlowCatalog.ToEntry).ToList();
+        var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, flowIndex, cancellationToken);
 
         MemoryRetrievalOutcome? memoryOutcome = null;
         var confirmedLocationThisTurn = false;
+        var flowRunRecord = new List<FlowStepResult>();
 
-        if (decision.IsFastPath)
+        if (decision.IsFlowRun)
+        {
+            var flow = flowCatalog.Find(decision.FlowKey!);
+            if (flow is null)
+            {
+                // The decider already checked this key against the index built moments earlier;
+                // finding it gone now means the catalog changed mid-turn. Same graceful
+                // degradation as a decided slice whose capability vanished at dispatch time.
+                ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, decision.FlowKey!, request.ChatId);
+                yield return new ChatStreamChunk("I was about to do something, but it's no longer available — could you try again?", null);
+            }
+            else
+            {
+                var throughStepIndex = Math.Clamp(decision.ThroughStepIndex ?? flow.Steps.Count - 1, 0, flow.Steps.Count - 1);
+                await foreach (var chunk in flowRunner.RunAsync(request, flow, throughStepIndex, turnContext, decision.FlowArgumentsJson ?? "{}", flowRunRecord, cancellationToken))
+                {
+                    if (chunk.ConfirmedLocation is not null)
+                    {
+                        confirmedLocationThisTurn = true;
+                    }
+
+                    yield return chunk;
+                }
+            }
+        }
+        else if (decision.IsFastPath)
         {
             // TurnIntent.Suggest takes this same words-only mechanics as Answer (TurnDecision.
             // IsFastPath is true for both) — the distinction that matters for the offer step below
@@ -158,7 +192,11 @@ public sealed class ConversationTurnOrchestrator(
         }
 
         var decideOutcome = new TurnOutcome(
-            decision.Intent == TurnIntent.Act ? [.. decision.Slices.Select(s => s.CapabilityKey).Distinct(StringComparer.Ordinal)] : [],
+            decision.Intent == TurnIntent.Act
+                ? (decision.IsFlowRun
+                    ? [.. flowRunRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)]
+                    : [.. decision.Slices.Select(s => s.CapabilityKey).Distinct(StringComparer.Ordinal)])
+                : [],
             confirmedLocationThisTurn,
             // FR-025a.4 — "previously offered and ignored" needs the last offer read back from
             // history, which needs a real offer to have existed first. Left at its safe default:
@@ -170,7 +208,8 @@ public sealed class ConversationTurnOrchestrator(
             UserDeclinedLastOffer: false);
 
         var decideJustHappened = DescribeWhatJustHappened(decision, latestUserMessage);
-        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, turnContext, memoryOutcome, chat, decideJustHappened, cancellationToken))
+        var flowVariantCandidates = FlowVariantCandidatesFor(decision, turnContext);
+        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, turnContext, memoryOutcome, chat, decideJustHappened, flowVariantCandidates, cancellationToken))
         {
             yield return chunk;
         }
@@ -195,6 +234,7 @@ public sealed class ConversationTurnOrchestrator(
         ConversationTurnRequest request,
         TurnContext turnContext,
         SelectedActionInput selection,
+        List<FlowStepResult> flowRecord,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         switch (selection.Kind)
@@ -221,7 +261,7 @@ public sealed class ConversationTurnOrchestrator(
 
                 if (result.Succeeded)
                 {
-                    var structured = TryExtractStructuredPayload(capability.Name, result.ResultJson);
+                    var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
                     if (structured is not null)
                     {
                         yield return structured;
@@ -243,9 +283,34 @@ public sealed class ConversationTurnOrchestrator(
                 yield return new ChatStreamChunk("Got it — let me know if there's anything else.", null);
                 break;
 
+            case SuggestedActionKind.FlowVariant:
+                {
+                    // The resolved row's Key is the compound "flowKey:variantKey" (data-model.md
+                    // §1); ISelectedActionResolver already confirmed both halves exist and the
+                    // flow is available, so a missing flow/variant here means the catalog changed
+                    // in the narrow window since — same graceful degradation as a vanished
+                    // capability.
+                    var separatorIndex = selection.Key!.IndexOf(':', StringComparison.Ordinal);
+                    var flow = separatorIndex > 0 ? flowCatalog.Find(selection.Key[..separatorIndex]) : null;
+                    var variant = flow?.Variants.FirstOrDefault(v => v.Key == selection.Key[(separatorIndex + 1)..]);
+
+                    if (flow is null || variant is null)
+                    {
+                        ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, selection.Key, request.ChatId);
+                        yield return new ChatStreamChunk("That's no longer available — could you try again?", null);
+                        break;
+                    }
+
+                    await foreach (var chunk in flowRunner.RunAsync(
+                        request, flow, variant.ThroughStepIndex, turnContext, selection.ArgumentsJson, flowRecord, cancellationToken))
+                    {
+                        yield return chunk;
+                    }
+
+                    break;
+                }
+
             default:
-                // FlowVariant: ISelectedActionResolver rejects this kind before a command carrying
-                // it can ever be built, so reaching here would mean that guarantee broke somewhere.
                 yield return new ChatStreamChunk("That's no longer available — could you try again?", null);
                 break;
         }
@@ -296,6 +361,7 @@ public sealed class ConversationTurnOrchestrator(
         MemoryRetrievalOutcome? memoryOutcome,
         Domain.Chats.UserChat? chat,
         string justHappened,
+        IReadOnlyList<FlowVariantOfferCandidate> flowVariantCandidates,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // FR-032 placeholder, same pattern as the entitlement rule in TurnContextFactory: no
@@ -304,7 +370,7 @@ public sealed class ConversationTurnOrchestrator(
         // to have turned off.
         const bool suggestedActionsEnabled = true;
 
-        var suppression = OfferSuppressionRules.Evaluate(intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled);
+        var suppression = OfferSuppressionRules.Evaluate(intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled, flowVariantCandidates);
         if (suppression != OfferSuppressionReason.None)
         {
             yield break;
@@ -326,7 +392,7 @@ public sealed class ConversationTurnOrchestrator(
             }
         }
 
-        var offer = await offerGenerator.GenerateAsync(turnContext, outcome, justHappened, memoryContext, cancellationToken);
+        var offer = await offerGenerator.GenerateAsync(turnContext, outcome, justHappened, memoryContext, flowVariantCandidates, cancellationToken);
 
         if (offer is not null)
         {
@@ -334,11 +400,36 @@ public sealed class ConversationTurnOrchestrator(
         }
     }
 
+    /// <summary>
+    /// specs/045 Phase 6 (FR-051a.2, FR-051b) — the flow named by the decide step's own
+    /// <see cref="TurnDecision.FlowKey"/>, resolved to its offerable variants with arguments
+    /// already bound. Only for <see cref="TurnIntent.Suggest"/>: an <see cref="TurnIntent.Act"/>
+    /// run already executed this exact flow moments ago, and offering its variants again would
+    /// suggest redoing a job that just finished (FR-025a's spirit, applied to flows specifically).
+    /// </summary>
+    private IReadOnlyList<FlowVariantOfferCandidate> FlowVariantCandidatesFor(TurnDecision decision, TurnContext turnContext)
+    {
+        if (decision.FlowKey is null || decision.Intent != TurnIntent.Suggest)
+        {
+            return [];
+        }
+
+        var flow = flowCatalog.Find(decision.FlowKey);
+        if (flow is null || !flow.IsAvailable(turnContext))
+        {
+            return [];
+        }
+
+        return ConversationFlowCatalog.VariantCandidatesFor(flow, decision.FlowArgumentsJson ?? "{}");
+    }
+
     /// <summary>A short, factual account of the turn for the offer prompt (FR-021b) — not narration a user reads, only context an LLM composes against.</summary>
     private static string DescribeWhatJustHappened(TurnDecision decision, string userMessage) =>
         decision.Intent switch
         {
+            TurnIntent.Act when decision.IsFlowRun => $"The user asked: \"{userMessage}\". Lucy ran the '{decision.FlowKey}' job.",
             TurnIntent.Act => $"The user asked: \"{userMessage}\". Lucy ran: {string.Join(", ", decision.Slices.Select(s => s.CapabilityKey))}.",
+            TurnIntent.Suggest when decision.FlowKey is not null => $"The user asked about something related to the '{decision.FlowKey}' job. Lucy answered in words; nothing was run.",
             _ => $"The user asked: \"{userMessage}\". Lucy answered in words; nothing was run.",
         };
 
@@ -467,7 +558,7 @@ public sealed class ConversationTurnOrchestrator(
 
             if (result.Succeeded)
             {
-                var structured = TryExtractStructuredPayload(capability.Name, result.ResultJson);
+                var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
                 if (structured is not null)
                 {
                     // specs/044 FR-001a — flushed as its own chunk immediately, never delayed
@@ -520,55 +611,6 @@ public sealed class ConversationTurnOrchestrator(
         result.Succeeded
             ? $"{capability.Label}: done."
             : $"{capability.Label} didn't work — {result.ResultJson}";
-
-    /// <summary>
-    /// Recovers the frozen viewer payloads (FR-048) from a capability's own JSON output. Kept as
-    /// one small adapter rather than having each capability emit these directly: capabilities
-    /// speak <see cref="AgentToolResult"/> JSON so they stay usable by the background agent
-    /// runtime too, and only the conversational turn needs to know these specific shapes exist.
-    /// </summary>
-    private static ChatStreamChunk? TryExtractStructuredPayload(string capabilityKey, string resultJson)
-    {
-        try
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(resultJson);
-            var root = document.RootElement;
-
-            switch (capabilityKey)
-            {
-                case Capabilities.ResolveLocationCapability.CapabilityKey
-                    when root.TryGetProperty("locationName", out var nameEl):
-                    return new ChatStreamChunk(null, null, ConfirmedLocation: new ConfirmedLocationData(
-                        root.GetProperty("latitude").GetDouble(),
-                        root.GetProperty("longitude").GetDouble(),
-                        nameEl.GetString() ?? string.Empty,
-                        root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 1d));
-
-                case Capabilities.ResolveSiteBoundaryCapability.CapabilityKey
-                    when root.TryGetProperty("siteName", out var siteEl):
-                    // The capability's own JSON carries only the summary fields a narration needs;
-                    // the polygon itself lives in ActiveSiteBoundary on the chat aggregate, updated
-                    // by IBoundaryResolutionService as a side effect the capability already
-                    // triggered. Full ConfirmedSiteBoundaryData reconstruction for the SSE payload
-                    // is Phase 6 work (the locate_a_place flow owns this end-to-end); for a
-                    // standalone invocation the narration alone still tells the user what happened.
-                    _ = siteEl;
-                    return null;
-
-                case Capabilities.AdjustViewerFocusCapability.CapabilityKey
-                    when root.TryGetProperty("direction", out var directionEl):
-                    return new ChatStreamChunk(null, null,
-                        ViewerZoom: new ViewerZoomCommand(directionEl.GetString() ?? "in"));
-
-                default:
-                    return null;
-            }
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return null;
-        }
-    }
 
     private static ChatRole ParseRole(string role) => role.ToLowerInvariant() switch
     {

@@ -3,7 +3,9 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Application.Conversations.Runtime;
 
@@ -20,6 +22,10 @@ internal static partial class CapabilityExecutorLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Capability {CapabilityKey} for chat {UserChatId} threw despite its never-throws contract; the turn continued")]
     public static partial void Threw(ILogger logger, string capabilityKey, Guid userChatId, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Capability {CapabilityKey} for chat {UserChatId} exceeded its {BudgetSeconds}s budget")]
+    public static partial void TimedOut(ILogger logger, string capabilityKey, Guid userChatId, int budgetSeconds);
 }
 
 /// <summary>What one capability invocation produced.</summary>
@@ -51,10 +57,22 @@ public sealed record CapabilityExecutionResult(
 /// A throw is caught, logged with its cause, and converted into a failed result the narration
 /// step can report — so one capability failing costs its own step and nothing else (FR-040).
 /// </para>
+///
+/// <para>
+/// <b>Budget (specs/045 T042).</b> <see cref="IConversationCapability.ExecuteAsync"/> runs behind
+/// a linked cancellation token, never <c>Task.WaitAsync</c> — the latter abandons the await while
+/// a slow dependency (Overpass, a vision cross-check) keeps consuming connections on this shared
+/// host. This generalises the specs/044 <c>ResolveBoundarySafelyAsync</c> pattern (deleted with
+/// the automatic boundary trigger it once guarded) from one capability to every one, budgeted by
+/// <see cref="CapabilityDuration"/> rather than a single boundary-specific timeout. The two
+/// cancellation causes are told apart against the <b>original</b> token, never the linked one —
+/// reversing that check would report every user disconnect as this capability having timed out.
+/// </para>
 /// </summary>
 public sealed class CapabilityExecutor(
     AgentPolicyEvaluator policyEvaluator,
     IJsonSchemaValidator schemaValidator,
+    IOptions<ConversationRuntimeOptions> options,
     ILogger<CapabilityExecutor> logger)
 {
     /// <summary>
@@ -120,6 +138,10 @@ public sealed class CapabilityExecutor(
             }
         }
 
+        var budgetSeconds = BudgetSecondsFor(capability.ExpectedDuration);
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        budget.CancelAfter(TimeSpan.FromSeconds(budgetSeconds));
+
         try
         {
             using var input = JsonDocument.Parse(argumentsJson);
@@ -131,7 +153,7 @@ public sealed class CapabilityExecutor(
                 AgentVersionId: Guid.Empty,
                 UserChatId: turnContext.UserChatId);
 
-            var result = await capability.ExecuteAsync(executionContext, input, cancellationToken);
+            var result = await capability.ExecuteAsync(executionContext, input, budget.Token);
             var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(startedAt);
 
             CapabilityExecutorLog.Completed(logger, capability.Name, turnContext.UserChatId,
@@ -145,9 +167,18 @@ public sealed class CapabilityExecutor(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // The user cancelled. A user action, never a capability failure — it must propagate
-            // and must never be recorded as this capability having gone wrong.
+            // The user cancelled (client disconnected) — tested against the ORIGINAL token, never
+            // the linked one. A user action, never a capability failure: it must propagate and
+            // must never be recorded as this capability having gone wrong or timed out.
             throw;
+        }
+        catch (OperationCanceledException)
+        {
+            // The original token is still fine — this can only be the linked token's own budget
+            // firing. Recorded as a timeout, not a generic failure, so the turn record and the
+            // narration step can both say what actually happened (FR-009's "I stopped waiting").
+            CapabilityExecutorLog.TimedOut(logger, capability.Name, turnContext.UserChatId, budgetSeconds);
+            return Failed(capability, $"it was taking longer than expected ({budgetSeconds}s)", startedAt);
         }
         catch (Exception ex)
         {
@@ -155,6 +186,14 @@ public sealed class CapabilityExecutor(
             return Failed(capability, $"it failed unexpectedly: {ex.Message}", startedAt);
         }
     }
+
+    private int BudgetSecondsFor(CapabilityDuration duration) => duration switch
+    {
+        CapabilityDuration.Brief => options.Value.BriefCapabilityTimeoutSeconds,
+        CapabilityDuration.Noticeable => options.Value.NoticeableCapabilityTimeoutSeconds,
+        CapabilityDuration.Extended => options.Value.ExtendedCapabilityTimeoutSeconds,
+        _ => options.Value.ExtendedCapabilityTimeoutSeconds,
+    };
 
     private static CapabilityExecutionResult Failed(IConversationCapability capability, string reason, long startedAt) =>
         new(capability.Name, false, reason, System.Diagnostics.Stopwatch.GetElapsedTime(startedAt));

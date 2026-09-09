@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
@@ -97,6 +98,7 @@ internal static class SendChatMessageHandlerFactory
         var capabilityExecutor = new CapabilityExecutor(
             new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             Substitute.For<IJsonSchemaValidator>(),
+            runtimeOptions,
             NullLogger<CapabilityExecutor>.Instance);
 
         // specs/045 US2 — same "unreachable when nothing is offerable" story as turnDecider above:
@@ -113,6 +115,12 @@ internal static class SendChatMessageHandlerFactory
             new SuggestedActionGrounder(Substitute.For<IJsonSchemaValidator>()),
             runtimeOptions, NullLogger<SuggestedActionOfferGenerator>.Instance);
 
+        // specs/045 Phase 6 — no flows registered by default, the same "empty by default" story
+        // as the capability catalog above: with nothing registered, DecideAsync's own flowIndex
+        // is empty and every flow-run branch in the orchestrator is simply never reached.
+        var flowCatalog = new ConversationFlowCatalog([]);
+        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
+
         var orchestratorLogger = logger as ILogger<ConversationTurnOrchestrator>
             ?? new CategoryAdapter(logger);
 
@@ -124,8 +132,10 @@ internal static class SendChatMessageHandlerFactory
             currentUser,
             backgroundJobClient,
             capabilityCatalog,
+            flowCatalog,
             turnDecider,
             capabilityExecutor,
+            flowRunner,
             offerGenerator,
             orchestratorLogger);
 

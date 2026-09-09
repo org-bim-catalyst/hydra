@@ -1,4 +1,5 @@
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 
 namespace AskLucy.Application.Conversations.Runtime;
 
@@ -38,7 +39,8 @@ public static class OfferSuppressionRules
         TurnContext context,
         TurnOutcome outcome,
         ConversationCapabilityCatalog catalog,
-        bool suggestedActionsEnabled)
+        bool suggestedActionsEnabled,
+        IReadOnlyList<FlowVariantOfferCandidate>? flowVariantCandidates = null)
     {
         if (!suggestedActionsEnabled)
         {
@@ -59,8 +61,14 @@ public static class OfferSuppressionRules
             return OfferSuppressionReason.UserDeclinedLastOffer;
         }
 
-        return catalog.OfferableFor(context, outcome).Count == 0
-            ? OfferSuppressionReason.NothingOfferable
-            : OfferSuppressionReason.None;
+        // specs/045 Phase 6 — a flow variant is worth offering independently of whether any
+        // standalone capability is (FR-025b): "do you know X?" can have zero offerable
+        // capabilities and still be exactly the case a flow's variants exist for.
+        if (catalog.OfferableFor(context, outcome).Count > 0 || (flowVariantCandidates?.Count ?? 0) > 0)
+        {
+            return OfferSuppressionReason.None;
+        }
+
+        return OfferSuppressionReason.NothingOfferable;
     }
 }

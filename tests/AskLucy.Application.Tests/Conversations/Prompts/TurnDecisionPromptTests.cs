@@ -95,8 +95,30 @@ public sealed class TurnDecisionPromptTests
     {
         var prompt = TurnDecisionPrompt.Build([]);
 
-        prompt.Should().Contain("No capabilities are available");
+        prompt.Should().Contain("Nothing is available this turn");
         prompt.Should().NotContain("Available capabilities.");
+    }
+
+    [Fact]
+    public void Build_ShouldListAvailableFlows_AndPreferThemOverASingleCapability()
+    {
+        var flow = new CapabilityIndexEntry(
+            "locate_a_place", "Finds a place, focuses the viewer, and outlines the site — one job, three steps.",
+            "Use when the user asks to see, find or navigate to a named place.", "the place name");
+
+        var prompt = TurnDecisionPrompt.Build([Location], [flow]);
+
+        prompt.Should().Contain("locate_a_place");
+        prompt.Should().Contain("flowKey");
+        prompt.Should().Contain("throughStepIndex");
+    }
+
+    [Fact]
+    public void Build_ShouldNotMentionFlows_WhenNoneAreAvailable()
+    {
+        var prompt = TurnDecisionPrompt.Build([Location]);
+
+        prompt.Should().NotContain("Available flows");
     }
 
     [Fact]
