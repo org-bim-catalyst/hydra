@@ -20,12 +20,13 @@ namespace AskLucy.Infrastructure.Tests.Conversations;
 public sealed class SystemAgentProvisionerTests
 {
     private readonly IDatabaseMigrationStatus _migrationStatus = Substitute.For<IDatabaseMigrationStatus>();
+    private readonly ISystemAccountProvisioner _systemAccountProvisioner = Substitute.For<ISystemAccountProvisioner>();
 
     public SystemAgentProvisionerTests() =>
         _migrationStatus.HasPendingMigrationsAsync(Arg.Any<CancellationToken>()).Returns(false);
 
     private SystemAgentProvisioner BuildProvisioner(InMemoryAgentRepository repository, IUnitOfWork? unitOfWork = null) =>
-        new(repository, unitOfWork ?? new InMemoryUnitOfWork(repository), _migrationStatus, NullLogger<SystemAgentProvisioner>.Instance);
+        new(repository, unitOfWork ?? new InMemoryUnitOfWork(repository), _migrationStatus, _systemAccountProvisioner, NullLogger<SystemAgentProvisioner>.Instance);
 
     [Fact]
     public async Task ProvisionAsync_ShouldCreateAllFive_OnAFreshDatabase()
@@ -100,6 +101,22 @@ public sealed class SystemAgentProvisionerTests
     }
 
     [Fact]
+    public async Task ProvisionAsync_ShouldDeferWithoutThrowing_WhenEnsuringTheSystemAccountFails()
+    {
+        // specs/047 — Agents.OwnerId's foreign key requires the system account to exist before
+        // any definition can be provisioned; a failure to ensure it must defer the whole pass
+        // exactly like an unreachable database, never crash the host.
+        _systemAccountProvisioner.EnsureSystemAccountExistsAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("could not provision the system account"));
+        var repository = new InMemoryAgentRepository();
+
+        var act = async () => await BuildProvisioner(repository).ProvisionAsync(CancellationToken.None);
+
+        (await act.Should().NotThrowAsync()).Which.Deferred.Should().BeTrue();
+        repository.All.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ProvisionAsync_ShouldRecoverFromALosingCreationRace_WithoutDuplicatingTheSystemKey()
     {
         var repository = new InMemoryAgentRepository();
@@ -153,6 +170,8 @@ public sealed class SystemAgentProvisionerTests
         public Task<AgentVersion?> GetVersionByIdAsync(Guid versionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<AgentVersion>> ListVersionsAsync(Guid agentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<Agent>> ListSystemOwnedAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private class InMemoryUnitOfWork(InMemoryAgentRepository repository) : IUnitOfWork

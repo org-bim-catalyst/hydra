@@ -83,4 +83,11 @@ public sealed class AgentRepository(AskLucyDbContext dbContext) : IAgentReposito
             .Where(v => v.AgentId == agentId)
             .OrderByDescending(v => v.VersionNumber)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Agent>> ListSystemOwnedAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.Agents
+            .Where(a => a.IsSystemOwned)
+            .Include(a => a.Versions)
+            .OrderBy(a => a.Name)
+            .ToListAsync(cancellationToken);
 }

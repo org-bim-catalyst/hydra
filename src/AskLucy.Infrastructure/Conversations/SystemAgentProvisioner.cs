@@ -35,6 +35,7 @@ public sealed class SystemAgentProvisioner(
     IAgentRepository agentRepository,
     IUnitOfWork unitOfWork,
     IDatabaseMigrationStatus migrationStatus,
+    ISystemAccountProvisioner systemAccountProvisioner,
     ILogger<SystemAgentProvisioner> logger) : ISystemAgentProvisioner
 {
     private const string Actor = "system:provisioner";
@@ -49,6 +50,11 @@ public sealed class SystemAgentProvisioner(
                 SystemAgentProvisionerLog.DeferredPendingMigrations(logger);
                 return SystemAgentProvisioningResult.DeferredResult;
             }
+
+            // Every definition below is created with OwnerId = Agent.SystemOwnerId, which the
+            // Agents.OwnerId foreign key requires to resolve to a real account row — this must
+            // exist before the first ProvisionOneAsync call, not be discovered missing by it.
+            await systemAccountProvisioner.EnsureSystemAccountExistsAsync(cancellationToken);
         }
         catch (Exception ex)
         {

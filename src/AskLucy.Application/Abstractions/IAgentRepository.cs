@@ -25,4 +25,7 @@ public interface IAgentRepository
     Task<AgentVersion?> GetVersionByIdAsync(Guid versionId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<AgentVersion>> ListVersionsAsync(Guid agentId, CancellationToken cancellationToken = default);
+
+    /// <summary>specs/047 FR-001 — every platform-provisioned agent (<see cref="Agent.IsSystemOwned"/>), for the admin-only System Agents view. Unlike <see cref="ListByOwnerAsync"/> this is never scoped to a caller's own agents; access control is enforced at the controller (admin-role policy), not by this query. Each agent's <see cref="Agent.Versions"/> is loaded so the caller can read the newest version's timestamp without a second round trip.</summary>
+    Task<IReadOnlyList<Agent>> ListSystemOwnedAsync(CancellationToken cancellationToken = default);
 }
