@@ -61,6 +61,8 @@ public sealed class SearchKnowledgeBaseCapability(IRagService ragService) : ICon
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Noticeable;
 
+    public SubAgentArea Area => SubAgentArea.Knowledge;
+
     public bool IsAvailable(TurnContext context) => context.AttachedKnowledgeBaseIds.Count > 0;
 
     /// <summary>

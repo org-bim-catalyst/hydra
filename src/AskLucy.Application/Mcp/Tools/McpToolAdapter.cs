@@ -69,6 +69,8 @@ public sealed class McpToolAdapter(
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Noticeable;
 
+    public SubAgentArea Area => SubAgentArea.External;
+
     /// <summary>
     /// The registry only ever holds currently-active tools, so reachability is already true by
     /// construction; entitlement is enforced centrally by the catalog against

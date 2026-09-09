@@ -227,6 +227,8 @@ public sealed class SelectedActionResolverTests
 
         public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
+        public SubAgentArea Area => SubAgentArea.Location;
+
         public bool IsAvailable(TurnContext context) => Available;
 
         public Task<AgentToolResult> ExecuteAsync(
@@ -285,12 +287,16 @@ public sealed class SelectedActionDispatchOrchestratorTests
             NullLogger<CapabilityExecutor>.Instance);
 
         var flowCatalog = new ConversationFlowCatalog([]);
-        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
+        var narrator = new CapabilityNarrator(NullLogger<CapabilityNarrator>.Instance);
+        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, narrator, runtimeOptions, NullLogger<FlowRunner>.Instance);
+        var subAgentDelegator = new SubAgentDelegator(
+            TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor),
+            capabilityCatalog, narrator, runtimeOptions, NullLogger<SubAgentDelegator>.Instance);
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, _offerGenerator,
-            NullLogger<ConversationTurnOrchestrator>.Instance);
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
+            narrator, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private ConversationTurnRequest Request(SelectedActionInput selection) =>
@@ -418,6 +424,8 @@ public sealed class SelectedActionDispatchOrchestratorTests
         public string OutputSchemaJson => """{"type":"object"}""";
 
         public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
+
+        public SubAgentArea Area => SubAgentArea.Location;
 
         public bool IsAvailable(TurnContext context) => true;
 

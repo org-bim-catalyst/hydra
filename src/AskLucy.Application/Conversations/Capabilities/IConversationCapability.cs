@@ -17,6 +17,39 @@ public enum CapabilityDuration
 }
 
 /// <summary>
+/// Which area of expertise a capability belongs to (specs/045 FR-016, spec.md's four initially
+/// provisioned sub-agents). Derived from the capability itself rather than named separately by
+/// the decide step — a slice already names the exact capability to run, so there is nothing for a
+/// second, per-slice field to add; this is what lets <see
+/// cref="ConversationCapabilityCatalog.FindInArea"/> enforce that a delegated slice can only ever
+/// resolve a capability from its own area (FR-016's "own scoped capability set"), never one
+/// belonging to another.
+/// </summary>
+public enum SubAgentArea
+{
+    /// <summary>Resolving a named place and its site boundary.</summary>
+    Location,
+
+    /// <summary>Searching attached knowledge bases and documents.</summary>
+    Knowledge,
+
+    /// <summary>Searching the user's long-term memory.</summary>
+    Memory,
+
+    /// <summary>Moving or opening something in the map/viewer UI.</summary>
+    Viewer,
+
+    /// <summary>
+    /// A third-party MCP tool (<see cref="Mcp.Tools.McpToolAdapter"/>) — not one of spec.md's four
+    /// initially provisioned sub-agents, which cover only the platform's own built-in
+    /// capabilities. An MCP server can expose any tool at all, so there is no fixed area for it to
+    /// join; it gets its own, rather than being forced into one of the other four just to satisfy
+    /// this enum.
+    /// </summary>
+    External,
+}
+
+/// <summary>
 /// An <see cref="IAgentTool"/> that Lucy may invoke during a conversation and may offer as a next
 /// step (specs/045 FR-010 – FR-014, contracts/conversation-capability.md).
 ///
@@ -114,4 +147,7 @@ public interface IConversationCapability : IAgentTool
 
     /// <summary>Roughly how long a successful invocation takes; drives the announcement rule (FR-005a).</summary>
     CapabilityDuration ExpectedDuration { get; }
+
+    /// <summary>Which sub-agent's expertise this capability belongs to (FR-016).</summary>
+    SubAgentArea Area { get; }
 }

@@ -47,7 +47,8 @@ public sealed class LocateAPlaceFlowTests
         var capabilityExecutor = new CapabilityExecutor(
             new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()), new PermissiveSchemaValidator(),
             runtimeOptions, NullLogger<CapabilityExecutor>.Instance);
-        _runner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
+        var narrator = new CapabilityNarrator(NullLogger<CapabilityNarrator>.Instance);
+        _runner = new FlowRunner(capabilityCatalog, capabilityExecutor, narrator, runtimeOptions, NullLogger<FlowRunner>.Instance);
 
         // Deterministic, inspectable narration: echoes the capability label, its outcome, and any
         // "moving on to" clause back out — enough to assert the N+1 pairing without needing this
@@ -247,7 +248,8 @@ public sealed class LocateAPlaceFlowTests
         var capabilityExecutor = new CapabilityExecutor(
             new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()), new PermissiveSchemaValidator(),
             runtimeOptions, NullLogger<CapabilityExecutor>.Instance);
-        var runner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
+        var narrator = new CapabilityNarrator(NullLogger<CapabilityNarrator>.Instance);
+        var runner = new FlowRunner(capabilityCatalog, capabilityExecutor, narrator, runtimeOptions, NullLogger<FlowRunner>.Instance);
 
         // Narration itself sleeps past the tiny budget, so step 2 onward finds it already exceeded.
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())

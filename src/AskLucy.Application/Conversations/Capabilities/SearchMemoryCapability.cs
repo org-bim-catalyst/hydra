@@ -52,6 +52,8 @@ public sealed class SearchMemoryCapability(IMemoryService memoryService) : IConv
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
+    public SubAgentArea Area => SubAgentArea.Memory;
+
     public bool IsAvailable(TurnContext context) => context.IsMemoryAvailable && context.UserId is not null;
 
     /// <summary>Never offered — an internal lookup, not a user-facing choice.</summary>

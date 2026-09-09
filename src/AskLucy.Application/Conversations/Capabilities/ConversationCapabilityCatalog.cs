@@ -78,6 +78,19 @@ public sealed class ConversationCapabilityCatalog(
             .FirstOrDefault(c => string.Equals(c.Name, capabilityKey, StringComparison.Ordinal));
 
     /// <summary>
+    /// specs/045 FR-016 — resolves a key only within the given sub-agent's own area, returning
+    /// null for a capability that exists but belongs to a different one. <see
+    /// cref="Runtime.SubAgentDelegator"/> uses this instead of <see cref="Find"/> so a delegated
+    /// slice structurally cannot reach a capability outside the area its own capability key
+    /// implies, even if some future bug fed it a mismatched pair.
+    /// </summary>
+    public IConversationCapability? FindInArea(SubAgentArea area, string capabilityKey)
+    {
+        var capability = Find(capabilityKey);
+        return capability is not null && capability.Area == area ? capability : null;
+    }
+
+    /// <summary>
     /// FR-011 rule 3, enforced here rather than inside each capability.
     /// <para>
     /// Deliberately central: an entitlement check that every implementation has to remember is an

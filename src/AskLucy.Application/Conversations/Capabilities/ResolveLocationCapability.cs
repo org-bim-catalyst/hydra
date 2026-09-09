@@ -74,6 +74,8 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Noticeable;
 
+    public SubAgentArea Area => SubAgentArea.Location;
+
     public bool IsAvailable(TurnContext context) => true;
 
     /// <summary>

@@ -73,6 +73,8 @@ public sealed class OpenVisualPanelCapability(IPanelNotifier panelNotifier) : IC
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
+    public SubAgentArea Area => SubAgentArea.Viewer;
+
     /// <summary>Available while there is room; past the cap the framework evicts, but Lucy should not be the one forcing that.</summary>
     public bool IsAvailable(TurnContext context) => context.OpenPanelTypeKeys.Count < MaxConcurrentPanels;
 

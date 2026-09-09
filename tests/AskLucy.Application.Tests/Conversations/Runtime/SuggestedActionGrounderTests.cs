@@ -191,6 +191,8 @@ public sealed class SuggestedActionGrounderTests
 
         public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
+        public SubAgentArea Area => SubAgentArea.Location;
+
         public bool IsAvailable(TurnContext context) => true;
 
         public Task<AgentToolResult> ExecuteAsync(

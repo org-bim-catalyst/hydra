@@ -236,6 +236,13 @@ public static class DependencyInjection
         services.AddScoped<TurnDecisionParser>();
         services.AddScoped<ITurnDecider, TurnDecider>();
         services.AddScoped<CapabilityExecutor>();
+        services.AddScoped<CapabilityNarrator>();
+
+        // specs/045 Phase 7 (US5) — sub-agent delegation. Uses IServiceScopeFactory (registered by
+        // the host, not here) to give every delegated slice its own scope regardless of how many
+        // others run alongside it this turn (research.md D12, the comment on the orchestrator's
+        // own registration above).
+        services.AddScoped<SubAgentDelegator>();
 
         // The offer step (specs/045 US2) — same AiCapability assignment as the decide step
         // (AiCapability.TurnOrchestration's own doc comment covers both jobs).
