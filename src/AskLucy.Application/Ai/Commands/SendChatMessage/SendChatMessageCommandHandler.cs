@@ -60,7 +60,8 @@ public sealed class SendChatMessageCommandHandler(
             request.Messages,
             providerResolver.Resolve(provider.ProviderKey),
             model.ModelKey,
-            request.GenerationParameters);
+            request.GenerationParameters,
+            request.SelectedAction);
 
         await foreach (var chunk in turnOrchestrator.RunAsync(turn, cancellationToken))
         {

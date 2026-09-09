@@ -39,7 +39,10 @@ public sealed class AppendMessageCommandHandler(
             provider, model, request.GenerationParametersJson,
             request.InputTokenCount, request.OutputTokenCount,
             request.CachedTokenCount, request.ReasoningTokenCount, request.LatencyMs, request.EstimatedCostUsd,
-            suggestedActionsJson: request.SuggestedActionsJson);
+            suggestedActionsJson: request.SuggestedActionsJson,
+            selectedActionKind: request.SelectedActionKind,
+            selectedActionKey: request.SelectedActionKey,
+            selectedActionArgumentsJson: request.SelectedActionArgumentsJson);
 
         foreach (var attachment in request.Attachments ?? [])
         {
@@ -95,5 +98,8 @@ public sealed class AppendMessageCommandHandler(
         [.. message.Attachments.Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.AccessLocation))],
         [.. message.Citations.Select(c => new CitationDto(
             c.Id, c.SourceLabel, c.SourceReference, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))],
-        message.SuggestedActionsJson);
+        message.SuggestedActionsJson,
+        message.SelectedActionKind,
+        message.SelectedActionKey,
+        message.SelectedActionArgumentsJson);
 }

@@ -197,6 +197,31 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "Memory conflict is not awaiting resolution",
             memoryResolveConflictEx.Message),
 
+        // specs/045-conversational-agent-runtime US3, contracts/suggested-actions-api.md §1 —
+        // the referenced offer is not the newest unanswered one, isn't in this chat, or no longer
+        // carries the selected row (FR-029).
+        AskLucy.Domain.Conversations.ConversationActionStaleException conversationActionStaleEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/conversation-action-stale",
+            "That offer is no longer current",
+            conversationActionStaleEx.Message),
+
+        // Same contract — the row exists, but its precondition no longer holds against a freshly
+        // built turn context (FR-028).
+        AskLucy.Domain.Conversations.ConversationActionUnavailableException conversationActionUnavailableEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/conversation-action-unavailable",
+            "That action is no longer available",
+            conversationActionUnavailableEx.Message),
+
+        // Same contract — the row's key matches no registered capability at all (or names a flow
+        // variant, which has no registry yet) — a protocol error, hence 400 rather than 409.
+        AskLucy.Domain.Conversations.ConversationActionUnknownException conversationActionUnknownEx => (
+            StatusCodes.Status400BadRequest,
+            "https://hydra.bimcatalyst.com/problems/conversation-action-unknown",
+            "Unrecognised action",
+            conversationActionUnknownEx.Message),
+
         // spec.md FR-042/FR-043 (specs/020-ai-agent-framework): a rate/capacity limit, not an
         // invalid request — 429, not DomainRuleViolationException's generic 400.
         AskLucy.Domain.Agents.AgentConcurrencyLimitExceededException agentConcurrencyEx => (

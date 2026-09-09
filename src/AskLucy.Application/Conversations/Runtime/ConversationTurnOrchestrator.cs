@@ -6,6 +6,7 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Prompts;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Domain.Conversations;
 using AskLucy.Domain.SiteBoundaries;
 using Hangfire;
 using Microsoft.Extensions.Logging;
@@ -81,7 +82,43 @@ public sealed class ConversationTurnOrchestrator(
         var chat = await userChatRepository.GetByIdAsync(request.ChatId, cancellationToken);
         var latestUserMessage = request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty;
 
-        var turnContext = BuildTurnContext(userId, request.ChatId, chat, knowledgeBaseIds);
+        var turnContext = TurnContextFactory.Build(userId, request.ChatId, chat?.ActiveLocation, chat?.ActiveBoundary, knowledgeBaseIds);
+
+        // specs/045 US3 (FR-027) — a selection was already resolved and grounded by
+        // ISelectedActionResolver before this command was even dispatched (AiController runs that
+        // ahead of persisting the user message, since the message's own Content is the resolved
+        // row's label). The decide step is skipped entirely: there is nothing left to decide.
+        if (request.SelectedAction is { } selection)
+        {
+            var selectionConfirmedLocation = false;
+
+            await foreach (var chunk in RunSelectedActionAsync(request, turnContext, selection, cancellationToken))
+            {
+                if (chunk.ConfirmedLocation is not null)
+                {
+                    selectionConfirmedLocation = true;
+                }
+
+                yield return chunk;
+            }
+
+            // A dispatched capability may still be worth building on ("what next"); a followUp or
+            // decline ran no capability and — for decline especially (FR-025a.3) — is exactly the
+            // turn re-offering would be nagging on, so neither runs the offer step at all.
+            if (selection.Kind == SuggestedActionKind.Capability)
+            {
+                var outcome = new TurnOutcome([selection.Key!], selectionConfirmedLocation, [], UserDeclinedLastOffer: false);
+                var justHappened = $"The user chose to: {selection.Key}. Lucy ran it.";
+
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext, memoryOutcome: null, chat, justHappened, cancellationToken))
+                {
+                    yield return chunk;
+                }
+            }
+
+            backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
+            yield break;
+        }
 
         // The Tier 1 index and the decision are built even on a turn that turns out to need no
         // action — the decider itself is what skips its own model call when the index is empty
@@ -120,7 +157,20 @@ public sealed class ConversationTurnOrchestrator(
             }
         }
 
-        await foreach (var chunk in RunOfferStepAsync(request, decision, turnContext, memoryOutcome, confirmedLocationThisTurn, chat, cancellationToken))
+        var decideOutcome = new TurnOutcome(
+            decision.Intent == TurnIntent.Act ? [.. decision.Slices.Select(s => s.CapabilityKey).Distinct(StringComparer.Ordinal)] : [],
+            confirmedLocationThisTurn,
+            // FR-025a.4 — "previously offered and ignored" needs the last offer read back from
+            // history, which needs a real offer to have existed first. Left at its safe default:
+            // an ordinary (non-selection) turn has no cheap way to know whether the user is
+            // ignoring a still-live offer versus there having been none. Selection dispatch above
+            // is where Phase 5 gives this a real answer, for the one case that is unambiguous —
+            // the exact turn a decline is chosen.
+            [],
+            UserDeclinedLastOffer: false);
+
+        var decideJustHappened = DescribeWhatJustHappened(decision, latestUserMessage);
+        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, turnContext, memoryOutcome, chat, decideJustHappened, cancellationToken))
         {
             yield return chunk;
         }
@@ -131,37 +181,130 @@ public sealed class ConversationTurnOrchestrator(
     }
 
     /// <summary>
+    /// specs/045 US3 (FR-027) — dispatches an already-resolved, already-grounded selection
+    /// directly, with no decide step in between.
+    /// <para>
+    /// <c>Capability</c> gets the same acknowledge/announce/execute/narrate cadence as an ordinary
+    /// act-path slice (FR-051c) — a selected action is not a lesser turn. <c>FollowUp</c> runs no
+    /// capability and structurally cannot (FR-021c, SC-002a): it answers as an ordinary reply,
+    /// seeded with the follow-up's own composed text rather than the user's literal click.
+    /// <c>Decline</c> performs no work at all (FR-022).
+    /// </para>
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> RunSelectedActionAsync(
+        ConversationTurnRequest request,
+        TurnContext turnContext,
+        SelectedActionInput selection,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        switch (selection.Kind)
+        {
+            case SuggestedActionKind.Capability:
+                var capability = capabilityCatalog.Find(selection.Key!);
+                if (capability is null)
+                {
+                    // ISelectedActionResolver just confirmed this capability was available; finding
+                    // it gone now means the catalog changed in the narrow window since (an MCP
+                    // server deactivating). Same graceful degradation as a missing decided slice.
+                    ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, selection.Key!, request.ChatId);
+                    yield return new ChatStreamChunk("That's no longer available — could you try again?", null);
+                    yield break;
+                }
+
+                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+                yield return new ChatStreamChunk(capability.AcknowledgementTemplate, null);
+
+                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: capability.Label);
+                var result = await capabilityExecutor.ExecuteAsync(capability, turnContext, selection.ArgumentsJson, cancellationToken);
+                var narration = await NarrateAsync(request, capability, result, cancellationToken);
+                yield return new ChatStreamChunk(narration, null);
+
+                if (result.Succeeded)
+                {
+                    var structured = TryExtractStructuredPayload(capability.Name, result.ResultJson);
+                    if (structured is not null)
+                    {
+                        yield return structured;
+                    }
+                }
+
+                break;
+
+            case SuggestedActionKind.FollowUp:
+                await foreach (var chunk in RunFollowUpReplyAsync(request, selection.Text ?? string.Empty, cancellationToken))
+                {
+                    yield return chunk;
+                }
+
+                break;
+
+            case SuggestedActionKind.Decline:
+                // FR-022/FR-025a.3 — a decline is an answer, not a request for anything further.
+                yield return new ChatStreamChunk("Got it — let me know if there's anything else.", null);
+                break;
+
+            default:
+                // FlowVariant: ISelectedActionResolver rejects this kind before a command carrying
+                // it can ever be built, so reaching here would mean that guarantee broke somewhere.
+                yield return new ChatStreamChunk("That's no longer available — could you try again?", null);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A <c>followUp</c> selection runs no capability and structurally cannot (FR-021c): it is
+    /// answered as an ordinary reply — no beats, no acknowledgement — seeded with the follow-up's
+    /// own composed text as the thing to respond to, rather than reusing the fast path's retrieval
+    /// pipeline (a follow-up is Lucy's own idea, not a fresh question needing RAG/memory lookup).
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> RunFollowUpReplyAsync(
+        ConversationTurnRequest request,
+        string followUpText,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var messages = request.Messages
+            .Select(m => new ChatMessage(ParseRole(m.Role), m.Content))
+            .ToList();
+
+        messages.Insert(0, new ChatMessage(ChatRole.System,
+            $"The user selected a suggested follow-up: \"{followUpText}\". Respond to it directly and " +
+            "naturally, as your next message in the conversation — do not mention that this was a " +
+            "suggested option, and do not repeat the option's wording verbatim."));
+
+        await foreach (var chunk in request.Provider.StreamChatAsync(messages, request.ModelKey, request.GenerationParameters, cancellationToken))
+        {
+            yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
+        }
+    }
+
+    /// <summary>
     /// specs/045 US2 — evaluated after the turn's real content is already on its way out, and only
     /// runs the offer step at all when none of FR-025a's five suppression conditions apply. A
     /// suppressed turn costs no model call and yields nothing (SC-008).
+    /// <para>
+    /// Shared by both callers of the offer step (specs/045 Phase 5, T072): the ordinary decide-based
+    /// path builds its <see cref="TurnOutcome"/> from a <see cref="TurnDecision"/>, and a dispatched
+    /// selection builds its own from what it just ran — neither needs a different suppression or
+    /// composition rule, only a different <paramref name="outcome"/> to evaluate them against.
+    /// </para>
     /// </summary>
-    private async IAsyncEnumerable<ChatStreamChunk> RunOfferStepAsync(
+    private async IAsyncEnumerable<ChatStreamChunk> EmitOfferIfDueAsync(
         ConversationTurnRequest request,
-        TurnDecision decision,
+        TurnIntent intent,
+        TurnOutcome outcome,
         TurnContext turnContext,
         MemoryRetrievalOutcome? memoryOutcome,
-        bool confirmedLocationThisTurn,
         Domain.Chats.UserChat? chat,
+        string justHappened,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var outcome = new TurnOutcome(
-            decision.Intent == TurnIntent.Act ? [.. decision.Slices.Select(s => s.CapabilityKey).Distinct(StringComparer.Ordinal)] : [],
-            confirmedLocationThisTurn,
-            // FR-025a.4 — "previously offered and ignored" needs the last offer read back from
-            // history, which needs a real offer to have existed first. Left at its safe default
-            // until specs/045 Phase 5's selection dispatch (tasks.md T068+) gives a persisted
-            // offer something to be ignored against — the same documented-placeholder pattern as
-            // BuildTurnContext's entitlement rule below.
-            [],
-            UserDeclinedLastOffer: false);
-
-        // FR-032 placeholder, same pattern as the entitlement rule in BuildTurnContext: no
+        // FR-032 placeholder, same pattern as the entitlement rule in TurnContextFactory: no
         // per-user preference exists yet (tasks.md T121 adds the real GET/PUT endpoints and
         // repository). Everyone is treated as opted in, the safe default while there is no toggle
         // to have turned off.
         const bool suggestedActionsEnabled = true;
 
-        var suppression = OfferSuppressionRules.Evaluate(decision.Intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled);
+        var suppression = OfferSuppressionRules.Evaluate(intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled);
         if (suppression != OfferSuppressionReason.None)
         {
             yield break;
@@ -170,9 +313,10 @@ public sealed class ConversationTurnOrchestrator(
         var memoryContext = memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found ? memoryOutcome.ContextText : null;
         if (memoryContext is null && turnContext.UserId is not null)
         {
-            // The fast path already retrieves memory for its own reply; the act path does not, so
-            // this is the first and only memory call on that path — made only here, after
-            // suppression already ruled out the common case of no offer running at all.
+            // The fast path already retrieves memory for its own reply; neither the act path nor a
+            // dispatched selection does, so this is the first and only memory call for them — made
+            // only here, after suppression already ruled out the common case of no offer running
+            // at all.
             var freshMemory = await memoryService.RetrieveRelevantMemoriesAsync(
                 turnContext.UserId, request.ChatId, chat?.ProjectId, request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty,
                 cancellationToken);
@@ -182,7 +326,6 @@ public sealed class ConversationTurnOrchestrator(
             }
         }
 
-        var justHappened = DescribeWhatJustHappened(decision, request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty);
         var offer = await offerGenerator.GenerateAsync(turnContext, outcome, justHappened, memoryContext, cancellationToken);
 
         if (offer is not null)
@@ -425,38 +568,6 @@ public sealed class ConversationTurnOrchestrator(
         {
             return null;
         }
-    }
-
-    private static TurnContext BuildTurnContext(
-        string? userId, Guid userChatId, Domain.Chats.UserChat? chat, IReadOnlyList<Guid> knowledgeBaseIds)
-    {
-        // specs/045 FR-011 rule 3 — entitlement is meant to be enforced centrally, against a real
-        // per-user grant. No granular permission system surfaces to chat today (the pre-existing
-        // pipeline ran retrieval/location/memory for any authenticated user unconditionally), so
-        // every authenticated user is granted the low-risk permissions the built-in capabilities
-        // declare — Low risk is exactly the tier none of them exceed. An unauthenticated turn
-        // (userId null) is granted none, which is the safer default. Documented here rather than
-        // silently assumed: a real entitlement source is a genuine gap, not an oversight.
-        var granted = userId is null
-            ? new HashSet<AgentToolPermission>()
-            : new HashSet<AgentToolPermission>
-            {
-                AgentToolPermission.ExternalNetwork,
-                AgentToolPermission.ReadKnowledge,
-                AgentToolPermission.ReadMemory,
-            };
-
-        return new TurnContext(
-            userId,
-            userChatId,
-            chat?.ActiveLocation,
-            chat?.ActiveBoundary,
-            knowledgeBaseIds,
-            HasAttachedDocuments: false,
-            IsMemoryAvailable: userId is not null,
-            OpenPanelTypeKeys: [],
-            granted,
-            SubscriptionTier: null);
     }
 
     private static ChatRole ParseRole(string role) => role.ToLowerInvariant() switch

@@ -49,4 +49,10 @@ public sealed record AppendMessageCommand(
     IReadOnlyList<AppendMessageCitationInput>? Citations = null,
     // specs/045-conversational-agent-runtime FR-026 — set only on the assistant message that
     // closes a turn with an offer (Web/Controllers/v1/AiController.cs, after grounding).
-    string? SuggestedActionsJson = null) : IRequest<MessageDto>;
+    string? SuggestedActionsJson = null,
+    // specs/045-conversational-agent-runtime FR-027/US3 (T073) — set only on the user message
+    // created by selecting an offered row, from the row ISelectedActionResolver already resolved
+    // and grounded — never from the client's own request body directly.
+    string? SelectedActionKind = null,
+    string? SelectedActionKey = null,
+    string? SelectedActionArgumentsJson = null) : IRequest<MessageDto>;

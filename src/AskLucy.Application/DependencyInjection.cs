@@ -234,6 +234,9 @@ public static class DependencyInjection
         services.AddScoped<SuggestedActionGrounder>();
         services.AddScoped<ISuggestedActionOfferGenerator, SuggestedActionOfferGenerator>();
 
+        // specs/045 US3 — resolves and grounds a selected offer row at dispatch time.
+        services.AddScoped<ISelectedActionResolver, SelectedActionResolver>();
+
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
         // McpToolAdapter instances must never hold a Scoped dependency (constitution §3), and the

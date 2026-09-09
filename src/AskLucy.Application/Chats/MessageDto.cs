@@ -30,4 +30,9 @@ public sealed record MessageDto(
     IReadOnlyList<CitationDto> Citations,
     // specs/045-conversational-agent-runtime FR-026 — the serialized SuggestedActionOffer this
     // assistant message offered, or null. Null on user messages and on turns that offered nothing.
-    string? SuggestedActionsJson = null);
+    string? SuggestedActionsJson = null,
+    // specs/045-conversational-agent-runtime US3 — set only on a user message created by
+    // selecting an offered row; null for a typed message.
+    string? SelectedActionKind = null,
+    string? SelectedActionKey = null,
+    string? SelectedActionArgumentsJson = null);

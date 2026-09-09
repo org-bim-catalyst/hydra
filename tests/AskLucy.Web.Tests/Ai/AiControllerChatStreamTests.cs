@@ -4,6 +4,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.AppendMessage;
+using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Chats;
@@ -38,6 +39,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
     private readonly ISender _mediator = Substitute.For<ISender>();
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
+    private readonly ISelectedActionResolver _selectedActionResolver = Substitute.For<ISelectedActionResolver>();
     private readonly MemoryStream _responseBody = new();
     private readonly AiController _controller;
     private readonly Guid _chatId = Guid.NewGuid();
@@ -49,7 +51,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
                 Guid.NewGuid(), "assistant", "text", "Here you go.", null, DateTime.UtcNow,
                 null, null, null, null, null, null, null, null, null, [], []));
 
-        _controller = new AiController(_mediator, _providers, _models, Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()))
+        _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver, Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()))
         {
             ControllerContext = new ControllerContext
             {
@@ -277,6 +279,7 @@ public sealed class AiControllerKeepAliveTests : IDisposable
     private readonly ISender _mediator = Substitute.For<ISender>();
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
+    private readonly ISelectedActionResolver _selectedActionResolver = Substitute.For<ISelectedActionResolver>();
     private readonly MemoryStream _responseBody = new();
     private readonly AiController _controller;
     private readonly Guid _chatId = Guid.NewGuid();
@@ -292,7 +295,7 @@ public sealed class AiControllerKeepAliveTests : IDisposable
         // this test under two seconds while still exercising the real Task.Delay race rather than
         // a mocked clock, which is what actually proves the wire format (a comment line, invisible
         // to aiApi.ts's parser) is correct.
-        _controller = new AiController(_mediator, _providers, _models,
+        _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }))
         {
             ControllerContext = new ControllerContext

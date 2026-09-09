@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using FluentValidation;
 
@@ -16,6 +17,21 @@ public sealed class SendChatMessageCommandValidator : AbstractValidator<SendChat
 
         RuleFor(c => c.ProviderId).NotEmpty();
         RuleFor(c => c.ModelId).NotEmpty();
+
+        // specs/045 US3 (T069) — a purely structural check. By the time this command exists,
+        // AiController has already resolved the selection through ISelectedActionResolver (which
+        // is what actually enforces staleness/ownership/availability, surfacing its own typed
+        // 409/400 Problem Details); SelectedAction here is always server-constructed from that
+        // resolution, never bound directly from the client's request body. This rule exists as
+        // defense in depth against a malformed command reaching the handler at all, same spirit
+        // as the provider/model checks above.
+        When(c => c.SelectedAction is not null, () =>
+        {
+            RuleFor(c => c.SelectedAction!.OfferedByMessageId).NotEmpty();
+            RuleFor(c => c.SelectedAction!.ArgumentsJson)
+                .Must(BeAJsonObject)
+                .WithMessage("selectedAction.arguments must be a JSON object.");
+        });
 
         RuleFor(c => c)
             .CustomAsync(async (command, context, cancellationToken) =>
@@ -50,5 +66,18 @@ public sealed class SendChatMessageCommandValidator : AbstractValidator<SendChat
                     context.AddFailure("generationParameters.reasoningLevel", "The selected model does not support a reasoning level.");
                 }
             });
+    }
+
+    private static bool BeAJsonObject(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.ValueKind == JsonValueKind.Object;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }
