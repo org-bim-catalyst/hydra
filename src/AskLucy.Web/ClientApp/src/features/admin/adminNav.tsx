@@ -4,6 +4,7 @@ import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ModelTrainingOutlinedIcon from '@mui/icons-material/ModelTrainingOutlined'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
+import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import DnsOutlinedIcon from '@mui/icons-material/DnsOutlined'
 import type { ReactNode } from 'react'
@@ -33,6 +34,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" /> },
   { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" /> },
   { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" /> },
+  { path: '/admin/system-agents', label: 'System agents', icon: <SupportAgentOutlinedIcon fontSize="small" /> },
   { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" /> },
   { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" /> },
 ]

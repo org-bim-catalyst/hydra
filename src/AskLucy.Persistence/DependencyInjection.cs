@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddAutoMapper(cfg => { }, typeof(DependencyInjection).Assembly);
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<ISystemAccountProvisioner, SystemAccountProvisioner>();
         services.AddScoped<IUserChatRepository, UserChatRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
