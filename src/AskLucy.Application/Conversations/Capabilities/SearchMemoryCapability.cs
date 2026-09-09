@@ -27,7 +27,7 @@ public sealed class SearchMemoryCapability(IMemoryService memoryService) : IConv
         "style they set before, or says \"as I told you\" or \"like last time\" — or when answering " +
         "well depends on recalling something outside this conversation.";
 
-    public string ArgumentHint => "what to recall";
+    public string ArgumentHint => "query: what to recall";
 
     public string UsageGuidance =>
         "Use recalled facts to shape the answer rather than reciting them back. If nothing " +

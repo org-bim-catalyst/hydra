@@ -34,7 +34,7 @@ public sealed class LocateAPlaceFlow : IConversationFlow
         "Use when the user asks to see, find, locate or navigate to a named place, site, park, " +
         "building or address they want shown on the map.";
 
-    public string ArgumentHint => "the place name";
+    public string ArgumentHint => "query: the place name";
 
     public bool IsAvailable(TurnContext context) => true;
 
