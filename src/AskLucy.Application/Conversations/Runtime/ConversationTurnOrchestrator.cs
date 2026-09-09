@@ -257,7 +257,7 @@ public sealed class ConversationTurnOrchestrator(
     /// own composed text as the thing to respond to, rather than reusing the fast path's retrieval
     /// pipeline (a follow-up is Lucy's own idea, not a fresh question needing RAG/memory lookup).
     /// </summary>
-    private async IAsyncEnumerable<ChatStreamChunk> RunFollowUpReplyAsync(
+    private static async IAsyncEnumerable<ChatStreamChunk> RunFollowUpReplyAsync(
         ConversationTurnRequest request,
         string followUpText,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
