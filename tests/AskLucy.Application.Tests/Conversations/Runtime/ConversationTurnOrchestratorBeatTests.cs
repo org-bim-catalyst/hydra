@@ -43,6 +43,9 @@ public sealed class ConversationTurnOrchestratorBeatTests
     private readonly ITurnDecider _decider = Substitute.For<ITurnDecider>();
     private readonly ISuggestedActionOfferGenerator _offerGenerator = Substitute.For<ISuggestedActionOfferGenerator>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
+    private readonly IAgentRepository _agentRepository = Substitute.For<IAgentRepository>();
+    private readonly IAgentExecutionRepository _agentExecutionRepository = Substitute.For<IAgentExecutionRepository>();
+    private readonly IUnitOfWork _turnRecorderUnitOfWork = Substitute.For<IUnitOfWork>();
     private readonly Guid _chatId = Guid.NewGuid();
 
     public ConversationTurnOrchestratorBeatTests()
@@ -79,11 +82,12 @@ public sealed class ConversationTurnOrchestratorBeatTests
         var subAgentDelegator = new SubAgentDelegator(
             TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor),
             capabilityCatalog, narrator, runtimeOptions, NullLogger<SubAgentDelegator>.Instance);
+        var turnRecorder = new TurnRecorder(_agentRepository, _agentExecutionRepository, _turnRecorderUnitOfWork, NullLogger<TurnRecorder>.Instance);
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
-            narrator, NullLogger<ConversationTurnOrchestrator>.Instance);
+            narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private ConversationTurnRequest Request(string message) =>
@@ -241,6 +245,45 @@ public sealed class ConversationTurnOrchestratorBeatTests
 
         chunks.Should().ContainSingle(c => c.ConfirmedLocation != null)
             .Which.ConfirmedLocation!.LocationName.Should().Be("Al Safa Park 2");
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldRecordATurn_WhenAnActPathTurnRunsAgainstAProvisionedOrchestrator()
+    {
+        // specs/045 T041/T111 (FR-038) — the turn record TurnRecorder writes, exercised end to
+        // end through the real orchestrator rather than TurnRecorder in isolation.
+        SeedProvisionedOrchestrator();
+        var capability = new StubCapability { SucceedWith = """{"status":"done"}""" };
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+            .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
+        _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
+            .Returns(new ChatCompletionResult("It worked.", new ChatUsage(null, null, null, null, null)));
+
+        await CollectAsync(BuildOrchestrator(capability), Request("do the thing"));
+
+        _agentExecutionRepository.Received(1).Add(Arg.Is<AgentExecution>(e => e != null && e.Steps.Count == 1 && e.Steps.Single().ToolName == "stub"));
+        await _turnRecorderUnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldRecordNothing_OnTheFastPath_EvenAgainstAProvisionedOrchestrator()
+    {
+        SeedProvisionedOrchestrator();
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+            .Returns(TurnDecision.AnswerOnly);
+
+        await CollectAsync(BuildOrchestrator(), Request("just chatting"));
+
+        _agentExecutionRepository.DidNotReceive().Add(Arg.Any<AgentExecution>());
+    }
+
+    private void SeedProvisionedOrchestrator()
+    {
+        var agent = Agent.CreateSystemProvisioned(
+            TurnRecorder.OrchestratorSystemKey, "Lucy", null, AgentType.Conversational,
+            AgentInstructions.Empty, AskLucy.Domain.Ai.AiCapability.TurnOrchestration, AgentExecutionPolicy.Empty, "system:test");
+        agent.PublishSystemVersion([], "test-hash", "system:test");
+        _agentRepository.GetBySystemKeyAsync(TurnRecorder.OrchestratorSystemKey, Arg.Any<CancellationToken>()).Returns(agent);
     }
 
     private static async Task<List<ChatStreamChunk>> CollectAsync(ConversationTurnOrchestrator orchestrator, ConversationTurnRequest request)

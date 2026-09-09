@@ -244,6 +244,10 @@ public static class DependencyInjection
         // own registration above).
         services.AddScoped<SubAgentDelegator>();
 
+        // specs/045 T041/T111 — the turn record, unblocked now that Phase 8 provisions a real
+        // lucy.orchestrator agent to attribute a turn's AgentExecution to.
+        services.AddScoped<TurnRecorder>();
+
         // The offer step (specs/045 US2) — same AiCapability assignment as the decide step
         // (AiCapability.TurnOrchestration's own doc comment covers both jobs).
         services.AddScoped<SuggestedActionGrounder>();

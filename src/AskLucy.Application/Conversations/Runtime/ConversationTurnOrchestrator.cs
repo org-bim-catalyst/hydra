@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
@@ -65,6 +66,7 @@ public sealed class ConversationTurnOrchestrator(
     SubAgentDelegator subAgentDelegator,
     ISuggestedActionOfferGenerator offerGenerator,
     CapabilityNarrator narrator,
+    TurnRecorder turnRecorder,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
@@ -119,6 +121,11 @@ public sealed class ConversationTurnOrchestrator(
                 {
                     yield return chunk;
                 }
+
+                var selectionPlanJson = JsonSerializer.Serialize(new { kind = selection.Kind.ToString(), key = selection.Key });
+                await turnRecorder.RecordAsync(
+                    request.ChatId, userId, $"selected: {selection.Text ?? selection.Key}", selectionPlanJson,
+                    ToRecordedSteps(selectionFlowRecord), justHappened, cancellationToken);
             }
 
             backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
@@ -213,10 +220,30 @@ public sealed class ConversationTurnOrchestrator(
             yield return chunk;
         }
 
+        if (decision.Intent == TurnIntent.Act)
+        {
+            var recordedSteps = decision.IsFlowRun ? ToRecordedSteps(flowRunRecord) : ToRecordedSteps(sliceRunRecord);
+            var decidePlanJson = JsonSerializer.Serialize(new
+            {
+                intent = decision.Intent.ToString(),
+                flowKey = decision.FlowKey,
+                slices = decision.Slices.Select(s => s.CapabilityKey),
+            });
+            await turnRecorder.RecordAsync(request.ChatId, userId, latestUserMessage, decidePlanJson, recordedSteps, decideJustHappened, cancellationToken);
+        }
+
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this
         // turn for new candidate memories, unchanged by which path the turn took.
         backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
     }
+
+    /// <summary>FR-038 — a flow's <see cref="FlowStepResult"/> already carries everything <see cref="TurnRecordedStep"/> needs.</summary>
+    private static IReadOnlyList<TurnRecordedStep> ToRecordedSteps(IReadOnlyList<FlowStepResult> steps) =>
+        [.. steps.Select(s => new TurnRecordedStep(s.CapabilityKey, s.Attempted, s.Succeeded, s.ResultJson, s.Reason))];
+
+    /// <summary>FR-038 — a delegated slice was always attempted (a dropped one never reaches <see cref="SubAgentDelegator"/>'s own record at all); its failure reason is its own result text.</summary>
+    private static IReadOnlyList<TurnRecordedStep> ToRecordedSteps(IReadOnlyList<SubAgentDelegationResult> slices) =>
+        [.. slices.Select(s => new TurnRecordedStep(s.CapabilityKey, Attempted: true, s.Succeeded, s.ResultJson, s.Succeeded ? null : s.ResultJson))];
 
     /// <summary>
     /// specs/045 US3 (FR-027) — dispatches an already-resolved, already-grounded selection
@@ -266,6 +293,13 @@ public sealed class ConversationTurnOrchestrator(
                         yield return structured;
                     }
                 }
+
+                // FR-038 — the turn record's own delegation list reuses this same FlowStepResult
+                // shape for a single-capability dispatch, exactly as it already does for a
+                // FlowVariant dispatch below; RunAsync converts either into a TurnRecordedStep.
+                flowRecord.Add(new FlowStepResult(
+                    capability.Name, Attempted: true, result.Succeeded, Skipped: false,
+                    result.Succeeded ? result.ResultJson : null, result.Succeeded ? null : result.ResultJson));
 
                 break;
 

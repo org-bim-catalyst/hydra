@@ -125,6 +125,9 @@ internal static class SendChatMessageHandlerFactory
         var subAgentDelegator = new SubAgentDelegator(
             TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor),
             capabilityCatalog, narrator, runtimeOptions, NullLogger<SubAgentDelegator>.Instance);
+        var turnRecorder = new TurnRecorder(
+            Substitute.For<IAgentRepository>(), Substitute.For<IAgentExecutionRepository>(), Substitute.For<IUnitOfWork>(),
+            NullLogger<TurnRecorder>.Instance);
 
         var orchestratorLogger = logger as ILogger<ConversationTurnOrchestrator>
             ?? new CategoryAdapter(logger);
@@ -144,6 +147,7 @@ internal static class SendChatMessageHandlerFactory
             subAgentDelegator,
             offerGenerator,
             narrator,
+            turnRecorder,
             orchestratorLogger);
 
         return new SendChatMessageCommandHandler(resolver, providers, models, orchestrator, validator);
