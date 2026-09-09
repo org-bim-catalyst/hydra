@@ -40,7 +40,7 @@ public sealed class LocateAPlaceFlowTests
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions());
         var capabilityCatalog = new ConversationCapabilityCatalog(
             new AgentToolCatalog(
-                [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(_boundaryService)],
+                [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
                 new EmptyMcpToolRegistry()),
             new CapabilityIndexRetriever(Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance),
             runtimeOptions);
@@ -241,7 +241,7 @@ public sealed class LocateAPlaceFlowTests
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { MaxTurnDurationSeconds = 5 });
         var capabilityCatalog = new ConversationCapabilityCatalog(
             new AgentToolCatalog(
-                [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(_boundaryService)],
+                [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
                 new EmptyMcpToolRegistry()),
             new CapabilityIndexRetriever(Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance),
             runtimeOptions);
@@ -281,7 +281,7 @@ public sealed class LocateAPlaceFlowTests
 
         new ResolveLocationCapability(_locationService).IsOfferable(context, outcome).Should().BeFalse();
         new AdjustViewerFocusCapability().IsOfferable(context, outcome).Should().BeFalse();
-        new ResolveSiteBoundaryCapability(_boundaryService).IsOfferable(context, outcome).Should().BeFalse();
+        new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>()).IsOfferable(context, outcome).Should().BeFalse();
     }
 
     private sealed class EmptyMcpToolRegistry : IMcpToolRegistry

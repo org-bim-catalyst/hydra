@@ -16,13 +16,25 @@ namespace AskLucy.Application.Conversations.Capabilities;
 /// </para>
 ///
 /// <para>
+/// <b>Resolves its own attached knowledge bases</b> via <see cref="IConversationKnowledgeBaseRepository"/>
+/// — found live-testing this feature (2026-09-09): the decide step is never shown which knowledge
+/// bases are attached to a conversation (that is conversation state, not a Tier 1/Tier 3
+/// capability fact), so a schema that <i>required</i> the model to supply their ids as an argument
+/// could never be satisfied — the model has no real GUIDs to invent. <see cref="TurnContext.AttachedKnowledgeBaseIds"/>
+/// already carries this same list into <see cref="IsAvailable"/>; this capability now reads it the
+/// same way <see cref="ResolveSiteBoundaryCapability"/> reads the chat's confirmed location,
+/// rather than asking the model to guess something it was never told.
+/// </para>
+///
+/// <para>
 /// One of the few capabilities that genuinely <b>is</b> offerable, and the reason
 /// <see cref="IsOfferable"/> takes the turn outcome at all: it is worth suggesting once the turn
 /// has established a subject to search for, and not worth suggesting when the same search has
 /// just run.
 /// </para>
 /// </summary>
-public sealed class SearchKnowledgeBaseCapability(IRagService ragService) : IConversationCapability
+public sealed class SearchKnowledgeBaseCapability(
+    IRagService ragService, IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository) : IConversationCapability
 {
     public const string CapabilityKey = "search_knowledge_base";
 
@@ -36,7 +48,7 @@ public sealed class SearchKnowledgeBaseCapability(IRagService ragService) : ICon
         "about something, or when answering well requires material the platform holds rather than " +
         "general knowledge.";
 
-    public string ArgumentHint => "what to search for";
+    public string ArgumentHint => "query: what to search for";
 
     public string UsageGuidance =>
         "Answer from the retrieved passages and cite them. If retrieval found nothing relevant, " +
@@ -54,7 +66,7 @@ public sealed class SearchKnowledgeBaseCapability(IRagService ragService) : ICon
     public IReadOnlyList<AgentToolPermission> RequiredPermissions => [AgentToolPermission.ReadKnowledge];
 
     public string InputSchemaJson =>
-        """{"type":"object","required":["query","knowledgeBaseIds"],"properties":{"query":{"type":"string","minLength":1},"knowledgeBaseIds":{"type":"array","items":{"type":"string"}}}}""";
+        """{"type":"object","required":["query"],"properties":{"query":{"type":"string","minLength":1}}}""";
 
     public string OutputSchemaJson =>
         """{"type":"object","properties":{"outcome":{"type":"string"},"contextText":{"type":"string"}}}""";
@@ -83,15 +95,9 @@ public sealed class SearchKnowledgeBaseCapability(IRagService ragService) : ICon
             return AgentToolResult.Failure("A non-empty search query is required.");
         }
 
-        if (!input.RootElement.TryGetProperty("knowledgeBaseIds", out var idsElement))
-        {
-            return AgentToolResult.Failure("The conversation's knowledge bases were not supplied to this capability.");
-        }
-
-        var knowledgeBaseIds = idsElement.EnumerateArray()
-            .Select(e => Guid.TryParse(e.GetString(), out var id) ? id : Guid.Empty)
-            .Where(id => id != Guid.Empty)
-            .ToList();
+        var userChatId = context.UserChatId ?? Guid.Empty;
+        var attached = await conversationKnowledgeBaseRepository.GetByConversationAsync(userChatId, cancellationToken);
+        var knowledgeBaseIds = attached.Select(l => l.KnowledgeBaseId).ToList();
 
         if (knowledgeBaseIds.Count == 0)
         {
@@ -100,8 +106,7 @@ public sealed class SearchKnowledgeBaseCapability(IRagService ragService) : ICon
 
         try
         {
-            var outcome = await ragService.RetrieveContextAsync(
-                context.UserChatId ?? Guid.Empty, query, knowledgeBaseIds, cancellationToken);
+            var outcome = await ragService.RetrieveContextAsync(userChatId, query, knowledgeBaseIds, cancellationToken);
 
             return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new
             {

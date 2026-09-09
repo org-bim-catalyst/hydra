@@ -11,6 +11,7 @@ using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Retrieval;
 using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,10 +37,14 @@ public sealed class SubAgentDelegatorTests
     private readonly IRagService _ragService = Substitute.For<IRagService>();
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
+    private readonly IConversationKnowledgeBaseRepository _knowledgeBaseRepository = Substitute.For<IConversationKnowledgeBaseRepository>();
     private readonly Guid _chatId = Guid.NewGuid();
 
     public SubAgentDelegatorTests()
     {
+        _knowledgeBaseRepository.GetByConversationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns([ConversationKnowledgeBase.Create(_chatId, Guid.NewGuid(), "test")]);
+
         // Deterministic, inspectable narration — echoes the capability label, its outcome, and
         // any failure reason back out, the same fake LocateAPlaceFlowTests uses so this fixture
         // needs no knowledge of TurnNarrationPrompt's actual wording.
@@ -63,8 +68,8 @@ public sealed class SubAgentDelegatorTests
         var toolCatalog = new AgentToolCatalog(
             [
                 new ResolveLocationCapability(_locationService),
-                new ResolveSiteBoundaryCapability(_boundaryService),
-                new SearchKnowledgeBaseCapability(_ragService),
+                new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>()),
+                new SearchKnowledgeBaseCapability(_ragService, _knowledgeBaseRepository),
                 new SearchMemoryCapability(_memoryService),
                 new AdjustViewerFocusCapability(),
             ],
