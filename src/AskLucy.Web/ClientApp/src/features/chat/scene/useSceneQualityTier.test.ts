@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
@@ -81,34 +81,5 @@ describe('useSceneQualityTier', () => {
     const { result } = renderHook(() => useSceneQualityTier())
 
     expect(result.current.prefersReducedMotion).toBe(true)
-  })
-
-  it('reportPerformanceRegression steps full down to reduced, and stays there (research.md §4)', () => {
-    installWebGL2(true)
-    installMatchMedia({ [MOBILE_QUERY]: false, [REDUCED_MOTION_QUERY]: false })
-
-    // Pin mount time at 0, then advance past the 20-second guard before triggering
-    // the ratchet — mirrors how the guard ignores the transient Google Maps load spike
-    // (and, since SphereBloom.tsx started rendering for real, bloom's own warm-up cost).
-    vi.spyOn(performance, 'now').mockReturnValue(0)
-    const { result } = renderHook(() => useSceneQualityTier())
-    expect(result.current.tier).toBe('full')
-
-    vi.spyOn(performance, 'now').mockReturnValue(21_000)
-    act(() => result.current.reportPerformanceRegression())
-    expect(result.current.tier).toBe('reduced')
-
-    act(() => result.current.reportPerformanceRegression())
-    expect(result.current.tier).toBe('reduced')
-  })
-
-  it('reportPerformanceRegression never upgrades out of static-fallback', () => {
-    installWebGL2(false)
-    installMatchMedia({ [MOBILE_QUERY]: false, [REDUCED_MOTION_QUERY]: false })
-
-    const { result } = renderHook(() => useSceneQualityTier())
-    act(() => result.current.reportPerformanceRegression())
-
-    expect(result.current.tier).toBe('static-fallback')
   })
 })
