@@ -10,6 +10,9 @@ public interface IAgentRepository
     /// <summary>Bypasses owner scoping — used only where the caller has already authorized access some other way (e.g. the Agent Runtime resolving the agent an execution belongs to, not the HTTP caller directly).</summary>
     Task<Agent?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>specs/045 FR-033 — looked up by a platform-provisioned agent's stable <see cref="Agent.SystemKey"/>, including its version history so the caller can compare against the newest <see cref="AgentVersion.DefinitionHash"/>.</summary>
+    Task<Agent?> GetBySystemKeyAsync(string systemKey, CancellationToken cancellationToken = default);
+
     void Add(Agent agent);
 
     /// <summary>Cursor-based (keyset) listing over the caller's own agents (contracts/agents-api.md <c>ListAgentsQuery</c>).</summary>

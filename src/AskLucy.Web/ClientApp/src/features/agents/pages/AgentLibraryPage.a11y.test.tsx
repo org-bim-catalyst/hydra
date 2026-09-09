@@ -20,6 +20,7 @@ const agents: AgentListItem[] = [
     publishedVersionNumber: 1,
     createdAtUtc: '2026-08-01T00:00:00Z',
     modifiedAtUtc: null,
+    isSystemOwned: false,
   },
   {
     id: 'agent-2',
@@ -30,6 +31,7 @@ const agents: AgentListItem[] = [
     publishedVersionNumber: null,
     createdAtUtc: '2026-08-02T00:00:00Z',
     modifiedAtUtc: null,
+    isSystemOwned: false,
   },
 ]
 

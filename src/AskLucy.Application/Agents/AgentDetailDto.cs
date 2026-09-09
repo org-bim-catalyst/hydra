@@ -47,21 +47,24 @@ public sealed record AgentDetailDto(
     IReadOnlyList<string> ToolNames,
     IReadOnlyList<Guid> KnowledgeBaseIds,
     DateTime CreatedAtUtc,
-    DateTime? ModifiedAtUtc)
+    DateTime? ModifiedAtUtc,
+    /// <summary>specs/045 FR-034 — true for a platform-provisioned agent; the UI badges it "Provisioned by Ask Lucy" and hides edit affordances (contracts/system-agent-provisioning.md §3). Reads stay open regardless.</summary>
+    bool IsSystemOwned)
 {
     public static AgentDetailDto Create(Agent agent) => new(
         agent.Id, agent.Name, agent.Description, agent.AgentType.ToString(), agent.Status.ToString(),
         AgentInstructionsDto.FromDomain(agent.Instructions), agent.ModelProviderId, agent.ModelId, agent.OutputFormat.ToString(),
         AgentExecutionPolicyDto.FromDomain(agent.ExecutionPolicy), agent.PublishedVersionNumber,
         agent.Tools.Select(t => t.ToolName).ToList(), agent.KnowledgeBases.Select(k => k.KnowledgeBaseId).ToList(),
-        agent.CreatedAtUtc, agent.ModifiedAtUtc);
+        agent.CreatedAtUtc, agent.ModifiedAtUtc, agent.IsSystemOwned);
 }
 
 public sealed record AgentListItemDto(
-    Guid Id, string Name, string? Description, string AgentType, string Status, int? PublishedVersionNumber, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc)
+    Guid Id, string Name, string? Description, string AgentType, string Status, int? PublishedVersionNumber,
+    DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, bool IsSystemOwned)
 {
     public static AgentListItemDto Create(Agent agent) => new(
         agent.Id, agent.Name, agent.Description, agent.AgentType.ToString(), agent.Status.ToString(),
-        agent.PublishedVersionNumber, agent.CreatedAtUtc, agent.ModifiedAtUtc);
+        agent.PublishedVersionNumber, agent.CreatedAtUtc, agent.ModifiedAtUtc, agent.IsSystemOwned);
 }
 

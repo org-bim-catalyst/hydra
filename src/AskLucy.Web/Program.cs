@@ -490,7 +490,10 @@ builder.Services.AddHealthChecks()
     // (tagged "ready", surfaced at /health/ready below, kept separate from the plain
     // liveness /health mapping) that catches an unapplied EF Core migration before it
     // manifests as a live-request 500, the root cause of this feature's Bug 1.
-    .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["ready"]);
+    .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["ready"])
+    // specs/045 T105 — degraded (not unhealthy) when the last system-agent provisioning pass was
+    // deferred, so the gap is visible on /health/ready rather than silent.
+    .AddCheck<AskLucy.Web.HealthChecks.SystemAgentProvisioningHealthCheck>("system-agent-provisioning", tags: ["ready"]);
 builder.Services.AddSignalR();
 
 var app = builder.Build();

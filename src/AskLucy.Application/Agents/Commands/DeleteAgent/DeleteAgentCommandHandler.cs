@@ -10,7 +10,8 @@ public sealed class DeleteAgentCommandHandler(IAgentRepository agentRepository, 
     public async Task Handle(DeleteAgentCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var agent = AgentOwnershipGuard.EnsureOwnedBy(await agentRepository.GetByIdForOwnerAsync(request.Id, userId, cancellationToken), userId);
+        var agent = SystemAgentMutationGuard.EnsureMutable(
+            AgentOwnershipGuard.EnsureOwnedBy(await agentRepository.GetByIdForOwnerAsync(request.Id, userId, cancellationToken), userId));
 
         agent.SoftDelete(userId);
         await unitOfWork.SaveChangesAsync(cancellationToken);

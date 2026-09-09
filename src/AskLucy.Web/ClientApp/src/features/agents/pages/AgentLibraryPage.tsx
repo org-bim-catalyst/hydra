@@ -42,6 +42,7 @@ export function AgentLibraryPage() {
                     <Typography variant="subtitle1">{agent.name}</Typography>
                     <Chip label={agent.status} size="small" />
                     <Chip label={agent.agentType} size="small" variant="outlined" />
+                    {agent.isSystemOwned && <Chip label="Provisioned by Ask Lucy" size="small" color="primary" variant="outlined" />}
                   </Stack>
                   {agent.description && (
                     <Typography variant="body2" color="text.secondary">
@@ -54,18 +55,25 @@ export function AgentLibraryPage() {
                 <Button size="small" onClick={() => duplicateAgent.mutate(agent.id)} disabled={duplicateAgent.isPending}>
                   Duplicate
                 </Button>
-                {agent.status === 'Archived' ? (
-                  <Button size="small" onClick={() => restoreAgent.mutate(agent.id)} disabled={restoreAgent.isPending}>
-                    Restore
-                  </Button>
-                ) : (
-                  <Button size="small" onClick={() => archiveAgent.mutate(agent.id)} disabled={archiveAgent.isPending}>
-                    Archive
-                  </Button>
+                {/* specs/045 FR-034 — a platform-provisioned agent cannot be archived, restored or
+                    deleted; the backend already rejects it with 403 system-agent-immutable, this
+                    just keeps the affordance from being offered in the first place. */}
+                {!agent.isSystemOwned && (
+                  <>
+                    {agent.status === 'Archived' ? (
+                      <Button size="small" onClick={() => restoreAgent.mutate(agent.id)} disabled={restoreAgent.isPending}>
+                        Restore
+                      </Button>
+                    ) : (
+                      <Button size="small" onClick={() => archiveAgent.mutate(agent.id)} disabled={archiveAgent.isPending}>
+                        Archive
+                      </Button>
+                    )}
+                    <Button size="small" color="error" onClick={() => setPendingDeleteId(agent.id)}>
+                      Delete
+                    </Button>
+                  </>
                 )}
-                <Button size="small" color="error" onClick={() => setPendingDeleteId(agent.id)}>
-                  Delete
-                </Button>
               </CardActions>
             </Card>
           ))}

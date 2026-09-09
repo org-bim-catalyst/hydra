@@ -22,6 +22,11 @@ public sealed class AgentRepository(AskLucyDbContext dbContext) : IAgentReposito
             .Include(a => a.MemoryPolicy)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
+    public Task<Agent?> GetBySystemKeyAsync(string systemKey, CancellationToken cancellationToken = default) =>
+        dbContext.Agents
+            .Include(a => a.Versions)
+            .FirstOrDefaultAsync(a => a.SystemKey == systemKey, cancellationToken);
+
     public void Add(Agent agent) => dbContext.Agents.Add(agent);
 
     public async Task<(IReadOnlyList<Agent> Items, string? NextCursor)> ListByOwnerAsync(
