@@ -44,9 +44,9 @@ public sealed class CapabilityContractTests
     private static IReadOnlyList<IConversationCapability> Build() =>
     [
         new ResolveLocationCapability(Substitute.For<ILocationResolutionService>()),
-        new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>()),
+        new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>()),
         new AdjustViewerFocusCapability(),
-        new SearchKnowledgeBaseCapability(Substitute.For<IRagService>()),
+        new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>()),
         new SearchMemoryCapability(Substitute.For<IMemoryService>()),
         new OpenVisualPanelCapability(Substitute.For<IPanelNotifier>()),
     ];

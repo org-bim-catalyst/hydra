@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.SiteBoundaries;
@@ -22,8 +23,23 @@ namespace AskLucy.Application.Conversations.Capabilities;
 /// <b>Never independently offerable</b> (FR-060): it is a flow step, and offering step 3 on its
 /// own would let a user pick something that cannot run without step 1.
 /// </para>
+///
+/// <para>
+/// <b>Falls back to the chat's confirmed location</b> via <see cref="IUserChatRepository"/> when
+/// the model-supplied arguments omit it — found live-testing this feature (2026-09-09): the
+/// "nothing; it uses the location already confirmed this turn" hint is only true when this
+/// capability is reached as step 3 of <c>locate_a_place</c>, whose own hand-authored
+/// <c>BindBoundaryArguments</c> fills the same-turn, not-yet-persisted result forward. Dispatched
+/// on its own — a later turn asking to outline a site already confirmed earlier — there is no
+/// such binding, and the chat's <c>ActiveLocation</c> is the only place that data still lives.
+/// The Web layer persists it the moment it is confirmed (not just at turn end), so a repository
+/// read here sees a prior turn's confirmation correctly; the flow's own binding remains the
+/// higher-priority source when present, since it can carry a same-turn result the repository has
+/// not seen yet.
+/// </para>
 /// </summary>
-public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService boundaryResolutionService) : IConversationCapability
+public sealed class ResolveSiteBoundaryCapability(
+    IBoundaryResolutionService boundaryResolutionService, IUserChatRepository userChatRepository) : IConversationCapability
 {
     public const string CapabilityKey = "resolve_site_boundary";
 
@@ -36,7 +52,7 @@ public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService bou
         "Use when a location is already confirmed and the user asks to outline, highlight, show " +
         "the extent of, or measure the site — or has accepted an offer to do so.";
 
-    public string ArgumentHint => "nothing; it uses the location already confirmed this turn";
+    public string ArgumentHint => "none required; it uses the location already confirmed";
 
     public string UsageGuidance =>
         "Report the area and the confidence level together — a boundary is a best match, not a " +
@@ -56,7 +72,7 @@ public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService bou
     public IReadOnlyList<AgentToolPermission> RequiredPermissions => [AgentToolPermission.ExternalNetwork];
 
     public string InputSchemaJson =>
-        """{"type":"object","required":["latitude","longitude","locationName"],"properties":{"latitude":{"type":"number"},"longitude":{"type":"number"},"locationName":{"type":"string"},"confidence":{"type":"number"}}}""";
+        """{"type":"object","properties":{"latitude":{"type":"number"},"longitude":{"type":"number"},"locationName":{"type":"string"},"confidence":{"type":"number"}}}""";
 
     // "source" (SourceDetail — a descriptive string, e.g. "OpenStreetMap") is what the narration
     // guidance above reports; "sourceType" (the SiteBoundarySource enum) plus the remaining fields
@@ -84,16 +100,28 @@ public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService bou
         AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)
     {
         var root = input.RootElement;
-        if (!root.TryGetProperty("latitude", out var latEl) ||
-            !root.TryGetProperty("longitude", out var lonEl) ||
-            !root.TryGetProperty("locationName", out var nameEl) ||
-            nameEl.GetString() is not { Length: > 0 } locationName)
+        ConfirmedLocationData confirmedLocation;
+        if (root.TryGetProperty("latitude", out var latEl) &&
+            root.TryGetProperty("longitude", out var lonEl) &&
+            root.TryGetProperty("locationName", out var nameEl) &&
+            nameEl.GetString() is { Length: > 0 } locationName)
         {
-            return AgentToolResult.Failure("A confirmed location (latitude, longitude and name) is required.");
+            var confidence = root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 1d;
+            confirmedLocation = new ConfirmedLocationData(latEl.GetDouble(), lonEl.GetDouble(), locationName, confidence);
         }
+        else
+        {
+            // Standalone dispatch (no same-turn binding): fall back to the chat's own confirmed
+            // location, kept fresh by the Web layer the moment a prior turn confirmed it.
+            var chat = context.UserChatId is { } chatId ? await userChatRepository.GetByIdAsync(chatId, cancellationToken) : null;
+            if (chat?.ActiveLocation is not { } activeLocation)
+            {
+                return AgentToolResult.Failure("A confirmed location (latitude, longitude and name) is required.");
+            }
 
-        var confidence = root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 1d;
-        var confirmedLocation = new ConfirmedLocationData(latEl.GetDouble(), lonEl.GetDouble(), locationName, confidence);
+            confirmedLocation = new ConfirmedLocationData(
+                activeLocation.Latitude, activeLocation.Longitude, activeLocation.LocationName, activeLocation.Confidence);
+        }
 
         try
         {

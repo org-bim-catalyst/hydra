@@ -55,7 +55,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeUnavailable_WhenNoLocationIsActive()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
 
         capability.IsAvailable(Base()).Should().BeFalse(
             "there is nothing to outline without a confirmed place");
@@ -64,7 +64,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeAvailable_WhenALocationIsActiveAndUnoutlined()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
         var context = Base() with { ActiveLocation = AlSafaPark };
 
         capability.IsAvailable(context).Should().BeTrue();
@@ -73,7 +73,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeUnavailable_WhenThatSiteIsAlreadyOutlined()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
         var context = Base() with
         {
             ActiveLocation = AlSafaPark,
@@ -88,7 +88,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeAvailable_WhenTheOutlinedSiteIsADifferentOne()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
         var context = Base() with
         {
             ActiveLocation = AlSafaPark,
@@ -117,7 +117,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void SearchKnowledgeBase_ShouldBeUnavailable_WithNoKnowledgeBaseAttached()
     {
-        var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>());
+        var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>());
 
         capability.IsAvailable(Base()).Should().BeFalse();
     }
@@ -125,7 +125,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void SearchKnowledgeBase_ShouldBeOfferable_OnceTheTurnHasASubject()
     {
-        var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>());
+        var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>());
         var context = Base() with { AttachedKnowledgeBaseIds = [Guid.NewGuid()] };
 
         capability.IsOfferable(context, TurnOutcome.None).Should().BeFalse(
@@ -138,7 +138,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void SearchKnowledgeBase_ShouldNotBeOffered_WhenItJustRan()
     {
-        var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>());
+        var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>());
         var context = Base() with { AttachedKnowledgeBaseIds = [Guid.NewGuid()] };
         var justSearched = new TurnOutcome([SearchKnowledgeBaseCapability.CapabilityKey], false, [], false);
 
