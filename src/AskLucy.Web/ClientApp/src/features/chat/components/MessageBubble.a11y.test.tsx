@@ -51,4 +51,13 @@ describe('MessageBubble accessibility', () => {
     )
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  // specs/046-reply-action-bar — the Copy action, in both its idle and rendered-alongside-Replay
+  // states, must have a non-empty accessible name.
+  it('has no automatically detectable a11y violations with only the Copy action (no replay wired)', async () => {
+    const { container } = render(
+      <MessageBubble message={{ role: 'assistant', content: 'Hello there', id: 'm1' }} />,
+    )
+    expect(await axe(container)).toHaveNoViolations()
+  })
 })

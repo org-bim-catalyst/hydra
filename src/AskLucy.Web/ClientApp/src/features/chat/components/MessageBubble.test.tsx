@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MessageBubble } from './MessageBubble'
 
 describe('MessageBubble', () => {
@@ -167,5 +167,66 @@ describe('MessageBubble — replay control (US5, FR-020–FR-025)', () => {
     fireEvent.click(screen.getByRole('button', { name: /stop/i }))
     expect(onStopReplay).toHaveBeenCalledTimes(1)
     expect(onReplay).not.toHaveBeenCalled()
+  })
+
+  it('renders Replay and Copy together in one row when onReplay is provided', () => {
+    render(
+      <MessageBubble
+        message={{ role: 'assistant', content: 'Hello', id: 'm1' }}
+        showStopIcon={false}
+        isReplayDisabled={false}
+        onReplay={vi.fn()}
+        onStopReplay={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /replay/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+  })
+})
+
+// specs/046-reply-action-bar FR-001–FR-003, FR-009 — the Copy action, independent of whether
+// replay is wired up by the caller.
+describe('MessageBubble — copy control (specs/046-reply-action-bar)', () => {
+  const originalClipboard = navigator.clipboard
+
+  afterEach(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true })
+  })
+
+  it('renders no Copy action on a user message', () => {
+    render(<MessageBubble message={{ role: 'user', content: 'Hi', id: 'm1' }} />)
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument()
+  })
+
+  it('renders no Copy action on an assistant message with no stable id yet (still streaming)', () => {
+    render(<MessageBubble message={{ role: 'assistant', content: 'Thinking' }} />)
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument()
+  })
+
+  it('renders Copy even when the caller does not wire replay at all (FR-009)', () => {
+    render(<MessageBubble message={{ role: 'assistant', content: 'Hello', id: 'm1' }} />)
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /replay/i })).not.toBeInTheDocument()
+  })
+
+  it('copies the message text and shows a visible success confirmation', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    render(<MessageBubble message={{ role: 'assistant', content: 'Copy me', id: 'm1' }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /copy/i }))
+    expect(writeText).toHaveBeenCalledWith('Copy me')
+
+    await screen.findByRole('button', { name: /copied/i })
+  })
+
+  it('shows a visible failure indication when the clipboard write is rejected, never a silent no-op', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('permission denied'))
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    render(<MessageBubble message={{ role: 'assistant', content: 'Copy me', id: 'm1' }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /copy/i }))
+
+    await screen.findByRole('button', { name: /copy failed/i })
   })
 })
