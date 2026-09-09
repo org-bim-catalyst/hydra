@@ -183,6 +183,15 @@ public sealed class ConversationTurnOrchestrator(
 
                 yield return chunk;
             }
+
+            // FR-039, contracts/turn-stream.md §7's first row — the decide step itself broke
+            // (unparseable even after the retry, or the model call threw). The reply above still
+            // answers the question; this is appended to that same message, never a bubble of its
+            // own, so the user knows why no action ran without losing the answer they got.
+            if (decision.WasDegraded)
+            {
+                yield return new ChatStreamChunk(" I couldn't work out a plan for that, so here's a direct answer.", null);
+            }
         }
         else
         {
@@ -220,14 +229,21 @@ public sealed class ConversationTurnOrchestrator(
             yield return chunk;
         }
 
-        if (decision.Intent == TurnIntent.Act)
+        // FR-039/FR-038 — a degraded decision gets a record despite Intent staying Answer: the
+        // decide step itself is what broke, and that is exactly the kind of thing the audit trail
+        // exists for, even though no capability ran (research.md D8's "fast-path turns create no
+        // row" is about the ordinary, non-degraded case).
+        if (decision.Intent == TurnIntent.Act || decision.WasDegraded)
         {
-            var recordedSteps = decision.IsFlowRun ? ToRecordedSteps(flowRunRecord) : ToRecordedSteps(sliceRunRecord);
+            var recordedSteps = decision.Intent == TurnIntent.Act
+                ? (decision.IsFlowRun ? ToRecordedSteps(flowRunRecord) : ToRecordedSteps(sliceRunRecord))
+                : [];
             var decidePlanJson = JsonSerializer.Serialize(new
             {
                 intent = decision.Intent.ToString(),
                 flowKey = decision.FlowKey,
                 slices = decision.Slices.Select(s => s.CapabilityKey),
+                degraded = decision.WasDegraded,
             });
             await turnRecorder.RecordAsync(request.ChatId, userId, latestUserMessage, decidePlanJson, recordedSteps, decideJustHappened, cancellationToken);
         }

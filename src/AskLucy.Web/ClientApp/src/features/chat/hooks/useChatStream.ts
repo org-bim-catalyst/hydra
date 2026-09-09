@@ -26,6 +26,18 @@ function toTitle(text: string): string {
   return text.length > TITLE_MAX_LENGTH ? `${text.slice(0, TITLE_MAX_LENGTH)}…` : text
 }
 
+/** specs/045-conversational-agent-runtime FR-026/SC-009 — parses a persisted message's whole `{question, actions}` offer back into the two fields MessageBubble already renders live ones from, so a reopened conversation replays exactly what was shown. A malformed payload degrades to "no offer" rather than breaking history load, the same posture the offer step itself already takes toward any of its own failures. */
+function toOfferFields(suggestedActionsJson: string | null): Pick<ChatMessage, 'suggestedActions' | 'question'> {
+  if (!suggestedActionsJson) return {}
+  try {
+    const offer = JSON.parse(suggestedActionsJson) as { question: string; actions: SuggestedAction[] }
+    return { suggestedActions: offer.actions, question: offer.question }
+  } catch (err) {
+    console.error('Could not parse a persisted message offer; it will not be replayed.', err)
+    return {}
+  }
+}
+
 function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
   return persisted.map((m) => ({
     id: m.id,
@@ -35,6 +47,7 @@ function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
     model: m.model,
     attachments: m.attachments,
     citations: m.citations,
+    ...toOfferFields(m.suggestedActionsJson),
   }))
 }
 

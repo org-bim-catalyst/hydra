@@ -63,14 +63,29 @@ public sealed record TurnDecision(
     /// registered <see cref="Flows.FlowVariant"/> by key, a decide-step-driven run picks a plain
     /// step count because "just find it" has no need to be a nameable, offerable outcome.
     /// </summary>
-    int? ThroughStepIndex = null)
+    int? ThroughStepIndex = null,
+
+    /// <summary>
+    /// True when this <see cref="TurnIntent.Answer"/> verdict is not a genuine "nothing to route"
+    /// case but a decide-step failure papered over with the safe fallback — the model threw, or
+    /// its response was unreadable even after the corrective retry (FR-039,
+    /// contracts/turn-stream.md §7's first row). The orchestrator uses this to add a visible
+    /// explanation to the reply and to record the turn despite it otherwise looking like an
+    /// ordinary fast-path answer; <see cref="AnswerOnly"/> (the genuine case) always leaves it
+    /// false.
+    /// </summary>
+    bool WasDegraded = false)
 {
     /// <summary>
-    /// The safe verdict. Used for the fast path, and for every degraded path — an unparseable
-    /// response, an unrecognised intent, a provider outage. Answering in words is always
-    /// something the platform can do, so failure never leaves the user with nothing (FR-039).
+    /// The safe verdict for a turn with genuinely nothing to route — an empty index, or a blank
+    /// message. Not the same case as a decide-step failure (see <see cref="WasDegraded"/>), which
+    /// the user is told about; this one is indistinguishable from an ordinary conversation on
+    /// purpose; answering in words is always something the platform can do (FR-039).
     /// </summary>
     public static readonly TurnDecision AnswerOnly = new(TurnIntent.Answer, []);
+
+    /// <summary>The decide step itself broke (FR-039) — an unparseable response even after the corrective retry, or the model call throwing outright.</summary>
+    public static readonly TurnDecision Degraded = new(TurnIntent.Answer, [], WasDegraded: true);
 
     /// <summary>True when this decision names a flow to run now, rather than merely naming one worth offering.</summary>
     public bool IsFlowRun => Intent == TurnIntent.Act && FlowKey is not null;

@@ -117,7 +117,7 @@ public sealed class TurnDecider(
                 if (!result.Succeeded)
                 {
                     TurnDeciderLog.Unreadable(logger, context.UserChatId, result.Failure, provider.ProviderKey, model.ModelKey, Truncate(retry.Content));
-                    return TurnDecision.AnswerOnly;
+                    return TurnDecision.Degraded;
                 }
             }
 
@@ -142,7 +142,7 @@ public sealed class TurnDecider(
         catch (Exception ex)
         {
             TurnDeciderLog.Failed(logger, context.UserChatId, ex);
-            return TurnDecision.AnswerOnly;
+            return TurnDecision.Degraded;
         }
     }
 
