@@ -68,6 +68,8 @@ public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService bou
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Extended;
 
+    public SubAgentArea Area => SubAgentArea.Location;
+
     /// <summary>
     /// Needs a confirmed location, and produces nothing new when that site is already outlined —
     /// precondition and non-redundancy, the two rules that belong to the capability itself.

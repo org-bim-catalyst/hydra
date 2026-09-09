@@ -57,6 +57,8 @@ public sealed class AdjustViewerFocusCapability : IConversationCapability
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
+    public SubAgentArea Area => SubAgentArea.Viewer;
+
     /// <summary>Nothing to zoom without a place on screen — the split-brain guard specs/038 added after the fact.</summary>
     public bool IsAvailable(TurnContext context) => context.HasActiveLocation;
 

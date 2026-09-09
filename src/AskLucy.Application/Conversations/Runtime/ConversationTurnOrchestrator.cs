@@ -26,10 +26,6 @@ internal static partial class ConversationTurnOrchestratorLog
     public static partial void BoundaryFailed(ILogger logger, Guid userChatId, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Narration for capability {CapabilityKey} in chat {UserChatId} failed; falling back to template wording")]
-    public static partial void NarrationFailed(ILogger logger, string capabilityKey, Guid userChatId, Exception exception);
-
-    [LoggerMessage(Level = LogLevel.Warning,
         Message = "Decided slice named capability {CapabilityKey} for chat {UserChatId}, but it was not found in the catalog at dispatch time")]
     public static partial void SliceCapabilityMissingAtDispatch(ILogger logger, string capabilityKey, Guid userChatId);
 }
@@ -66,7 +62,9 @@ public sealed class ConversationTurnOrchestrator(
     ITurnDecider turnDecider,
     CapabilityExecutor capabilityExecutor,
     FlowRunner flowRunner,
+    SubAgentDelegator subAgentDelegator,
     ISuggestedActionOfferGenerator offerGenerator,
+    CapabilityNarrator narrator,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
@@ -137,6 +135,7 @@ public sealed class ConversationTurnOrchestrator(
         MemoryRetrievalOutcome? memoryOutcome = null;
         var confirmedLocationThisTurn = false;
         var flowRunRecord = new List<FlowStepResult>();
+        var sliceRunRecord = new List<SubAgentDelegationResult>();
 
         if (decision.IsFlowRun)
         {
@@ -180,7 +179,7 @@ public sealed class ConversationTurnOrchestrator(
         }
         else
         {
-            await foreach (var chunk in RunActPathAsync(request, decision, turnContext, cancellationToken))
+            await foreach (var chunk in RunActPathAsync(request, decision, turnContext, sliceRunRecord, cancellationToken))
             {
                 if (chunk.ConfirmedLocation is not null)
                 {
@@ -195,7 +194,7 @@ public sealed class ConversationTurnOrchestrator(
             decision.Intent == TurnIntent.Act
                 ? (decision.IsFlowRun
                     ? [.. flowRunRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)]
-                    : [.. decision.Slices.Select(s => s.CapabilityKey).Distinct(StringComparer.Ordinal)])
+                    : [.. sliceRunRecord.Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)])
                 : [],
             confirmedLocationThisTurn,
             // FR-025a.4 — "previously offered and ignored" needs the last offer read back from
@@ -256,7 +255,7 @@ public sealed class ConversationTurnOrchestrator(
 
                 yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: capability.Label);
                 var result = await capabilityExecutor.ExecuteAsync(capability, turnContext, selection.ArgumentsJson, cancellationToken);
-                var narration = await NarrateAsync(request, capability, result, cancellationToken);
+                var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);
                 yield return new ChatStreamChunk(narration, null);
 
                 if (result.Succeeded)
@@ -500,22 +499,19 @@ public sealed class ConversationTurnOrchestrator(
     }
 
     /// <summary>
-    /// The agentic path (specs/045 FR-001-FR-009): one acknowledgement, then an
-    /// announce/execute/narrate cycle per decided slice.
-    ///
-    /// <para>
-    /// Slices run <b>sequentially, in decision order</b>. Genuine dependency wiring — passing one
-    /// slice's result into another, running independent slices concurrently — is specs/045's
-    /// sub-agent delegation (Phase 7, not yet built); a single-capability turn, which is what
-    /// US1's acceptance criteria describe, is unaffected by that simplification. One
-    /// acknowledgement covers the whole turn rather than one per slice, since a compound request
-    /// naming several capabilities is not yet a designed conversational scenario.
-    /// </para>
+    /// The agentic path (specs/045 FR-001-FR-009, Phase 7 FR-016-FR-019): one acknowledgement,
+    /// then <see cref="SubAgentDelegator"/> runs every decided slice — independent ones
+    /// concurrently, dependent ones in dependency order, each isolated in its own service scope.
+    /// One acknowledgement covers the whole turn rather than one per slice, since it is templated
+    /// from the first-named slice's own capability (research.md D15) and is meant to open the
+    /// turn, not announce each delegation individually — each slice's own pending label already
+    /// does that.
     /// </summary>
     private async IAsyncEnumerable<ChatStreamChunk> RunActPathAsync(
         ConversationTurnRequest request,
         TurnDecision decision,
         TurnContext turnContext,
+        List<SubAgentDelegationResult> sliceRecord,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var firstCapability = capabilityCatalog.Find(decision.Slices[0].CapabilityKey);
@@ -536,81 +532,11 @@ public sealed class ConversationTurnOrchestrator(
         yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
         yield return new ChatStreamChunk(firstCapability.AcknowledgementTemplate, null);
 
-        foreach (var slice in decision.Slices)
+        await foreach (var chunk in subAgentDelegator.RunAsync(request, decision.Slices, turnContext, sliceRecord, cancellationToken))
         {
-            var capability = capabilityCatalog.Find(slice.CapabilityKey);
-            if (capability is null)
-            {
-                ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, slice.CapabilityKey, request.ChatId);
-                continue;
-            }
-
-            // Beat 2: announce-and-work. Opened with a pending label naming the work (FR-005),
-            // which stays visible for the whole capability call and is only replaced once the
-            // narration below actually has something to say (FR-005a).
-            yield return new ChatStreamChunk(null, null, StartsNewMessage: true,
-                PendingLabel: slice.PendingLabel ?? capability.Label);
-
-            var result = await capabilityExecutor.ExecuteAsync(capability, turnContext, slice.ArgumentsJson, cancellationToken);
-
-            var narration = await NarrateAsync(request, capability, result, cancellationToken);
-            yield return new ChatStreamChunk(narration, null);
-
-            if (result.Succeeded)
-            {
-                var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
-                if (structured is not null)
-                {
-                    // specs/044 FR-001a — flushed as its own chunk immediately, never delayed
-                    // behind a later, optional step. There is no automatic boundary chaining
-                    // here (FR-046): resolve_site_boundary only runs when the decide step (or,
-                    // once Phase 6 ships, a flow) names it explicitly.
-                    yield return structured;
-                }
-            }
+            yield return chunk;
         }
     }
-
-    /// <summary>
-    /// Turns one capability's real result into the sentence the user reads (FR-007). Falls back
-    /// to a fixed, honest template on any failure of the narration call itself (FR-008) — the
-    /// user must never be left without a statement of what happened just because the model that
-    /// would have phrased it nicely was unavailable.
-    /// </summary>
-    private async Task<string> NarrateAsync(
-        ConversationTurnRequest request,
-        IConversationCapability capability,
-        CapabilityExecutionResult result,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var narrationMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, TurnNarrationPrompt.Build(
-                    capability.Label, capability.UsageGuidance, result.Succeeded, result.ResultJson, nextStepLabel: null)),
-                new(ChatRole.User, "Report this to the user now."),
-            };
-
-            var completion = await request.Provider.ChatAsync(narrationMessages, request.ModelKey, parameters: null, cancellationToken);
-            return string.IsNullOrWhiteSpace(completion.Content) ? FallbackNarration(capability, result) : completion.Content;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            ConversationTurnOrchestratorLog.NarrationFailed(logger, capability.Name, request.ChatId, ex);
-            return FallbackNarration(capability, result);
-        }
-    }
-
-    /// <summary>FR-008's fixed fallback wording — used only when the narration model call itself fails, never as the normal path.</summary>
-    private static string FallbackNarration(IConversationCapability capability, CapabilityExecutionResult result) =>
-        result.Succeeded
-            ? $"{capability.Label}: done."
-            : $"{capability.Label} didn't work — {result.ResultJson}";
 
     private static ChatRole ParseRole(string role) => role.ToLowerInvariant() switch
     {

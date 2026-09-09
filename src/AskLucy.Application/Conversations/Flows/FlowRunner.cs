@@ -21,10 +21,6 @@ internal static partial class FlowRunnerLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Flow {FlowKey} for chat {UserChatId} exceeded its {BudgetSeconds}s turn budget after step {StepIndex}")]
     public static partial void BudgetExceeded(ILogger logger, string flowKey, Guid userChatId, int budgetSeconds, int stepIndex);
-
-    [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Narration for flow step {CapabilityKey} in chat {UserChatId} failed; falling back to template wording")]
-    public static partial void NarrationFailed(ILogger logger, string capabilityKey, Guid userChatId, Exception exception);
 }
 
 /// <summary>
@@ -59,6 +55,7 @@ internal static partial class FlowRunnerLog
 public sealed class FlowRunner(
     ConversationCapabilityCatalog capabilityCatalog,
     CapabilityExecutor capabilityExecutor,
+    CapabilityNarrator narrator,
     IOptions<ConversationRuntimeOptions> options,
     ILogger<FlowRunner> logger)
 {
@@ -164,7 +161,7 @@ public sealed class FlowRunner(
                 result.Succeeded ? null : result.ResultJson));
 
             var stepFailed = !result.Succeeded && step.IsRequired;
-            var narration = await NarrateStepAsync(request, capability, result, stepFailed ? null : nextAnnouncement, cancellationToken);
+            var narration = await narrator.NarrateAsync(request, capability, result, stepFailed ? null : nextAnnouncement, cancellationToken);
             yield return new ChatStreamChunk(narration, null);
 
             if (result.Succeeded)
@@ -200,42 +197,6 @@ public sealed class FlowRunner(
         {
             completed.Add(new FlowStepResult(steps[j].CapabilityKey, false, false, false, null, "not attempted — an earlier required step failed"));
         }
-    }
-
-    private async Task<string> NarrateStepAsync(
-        ConversationTurnRequest request,
-        IConversationCapability capability,
-        CapabilityExecutionResult result,
-        string? nextStepLabel,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var narrationMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, TurnNarrationPrompt.Build(
-                    capability.Label, capability.UsageGuidance, result.Succeeded, result.ResultJson, nextStepLabel)),
-                new(ChatRole.User, "Report this to the user now."),
-            };
-
-            var completion = await request.Provider.ChatAsync(narrationMessages, request.ModelKey, parameters: null, cancellationToken);
-            return string.IsNullOrWhiteSpace(completion.Content) ? FallbackNarration(capability, result, nextStepLabel) : completion.Content;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            FlowRunnerLog.NarrationFailed(logger, capability.Name, request.ChatId, ex);
-            return FallbackNarration(capability, result, nextStepLabel);
-        }
-    }
-
-    private static string FallbackNarration(IConversationCapability capability, CapabilityExecutionResult result, string? nextStepLabel)
-    {
-        var text = result.Succeeded ? $"{capability.Label}: done." : $"{capability.Label} didn't work — {result.ResultJson}";
-        return nextStepLabel is null || !result.Succeeded ? text : $"{text} {nextStepLabel}";
     }
 
     private static string CapitalizeSentence(string reason)

@@ -9,6 +9,7 @@ using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.Conversations.Runtime;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -119,7 +120,11 @@ internal static class SendChatMessageHandlerFactory
         // as the capability catalog above: with nothing registered, DecideAsync's own flowIndex
         // is empty and every flow-run branch in the orchestrator is simply never reached.
         var flowCatalog = new ConversationFlowCatalog([]);
-        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
+        var narrator = new CapabilityNarrator(NullLogger<CapabilityNarrator>.Instance);
+        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, narrator, runtimeOptions, NullLogger<FlowRunner>.Instance);
+        var subAgentDelegator = new SubAgentDelegator(
+            TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor),
+            capabilityCatalog, narrator, runtimeOptions, NullLogger<SubAgentDelegator>.Instance);
 
         var orchestratorLogger = logger as ILogger<ConversationTurnOrchestrator>
             ?? new CategoryAdapter(logger);
@@ -136,7 +141,9 @@ internal static class SendChatMessageHandlerFactory
             turnDecider,
             capabilityExecutor,
             flowRunner,
+            subAgentDelegator,
             offerGenerator,
+            narrator,
             orchestratorLogger);
 
         return new SendChatMessageCommandHandler(resolver, providers, models, orchestrator, validator);
