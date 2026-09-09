@@ -1,4 +1,4 @@
-import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Box } from '@mui/material'
 import { Component, type ReactNode, useRef, useState } from 'react'
@@ -67,7 +67,7 @@ function StaticFallback({ visible = true }: { visible?: boolean }) {
  * the static fallback instead of mounting a `<Canvas>` at all when WebGL2 is unavailable
  * (useSceneQualityTier), and falls back the same way if the scene throws while rendering. */
 export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
-  const { tier, prefersReducedMotion, reportPerformanceRegression } = useSceneQualityTier()
+  const { tier, prefersReducedMotion } = useSceneQualityTier()
   // FR-021/SC-011: the placeholder is already visible synchronously (it's what the
   // Suspense boundary in ChatPage.tsx shows while this chunk loads); this local
   // `isReady` flag just cross-fades the canvas in on top of it once R3F's `onCreated`
@@ -155,9 +155,9 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
             setIsReady(true)
           }}
         >
-          {/* research.md §4: a one-way ratchet from 'full' to 'reduced' on sustained
-              frame-time regression — no re-upgrade, no continuous LOD (KISS/YAGNI). */}
-          <PerformanceMonitor onDecline={reportPerformanceRegression} />
+          {/* No PerformanceMonitor/auto-demote here anymore — live user report, 2026-09-09: see
+              useSceneQualityTier.ts's own doc comment for why that one-way ratchet was removed
+              outright rather than patched again. */}
           <ambientLight intensity={0.6} />
           <ReactiveSphere
             getFrequencyBands={getFrequencyBands}

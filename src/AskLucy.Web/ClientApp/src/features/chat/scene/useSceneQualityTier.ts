@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion'
 
 export type SceneQualityTier = 'full' | 'reduced' | 'static-fallback'
@@ -29,13 +29,21 @@ function initialTier(): SceneQualityTier {
   return mobile?.matches ? 'reduced' : 'full'
 }
 
-/** FR-011/FR-012/FR-020, research.md §4: decides which of three discrete quality tiers
- * the 3D scene should render at. `static-fallback` is permanent for the session (no
- * WebGL2, or the scene's error boundary caught a render failure — see SceneBackground).
- * `reportPerformanceRegression` is a one-way ratchet from `full` down to `reduced`,
- * called by the scene's PerformanceMonitor (T022) on sustained frame-time regression —
- * kept intentionally simple (no re-upgrade, no continuous LOD) per constitution
- * §2.III KISS/YAGNI. */
+/** FR-011/FR-012/FR-020, research.md §4: decides which of three discrete quality tiers the 3D
+ * scene should render at. `static-fallback` is permanent for the session (no WebGL2, or the
+ * scene's error boundary caught a render failure — see SceneBackground). `full`/`reduced`
+ * otherwise track the viewport breakpoint only — deterministic, not a reaction to runtime frame
+ * rate.
+ *
+ * Previously also had a one-way `full` -> `reduced` ratchet driven by drei's
+ * `PerformanceMonitor` (`reportPerformanceRegression`, removed here). Live user report,
+ * 2026-09-09: the sphere kept getting demoted "randomly" even after several rounds of real,
+ * confirmed root-cause fixes earlier this week (map GPU contention, a bloom-effect leak, additive
+ * alpha accumulation) — each fixed a genuine mechanism, but the underlying approach (auto-demote
+ * on any sustained fps dip, permanently, for the rest of the session, with no re-upgrade) meant
+ * any transient dip from an unrelated cause — another tab, a background process, a momentary
+ * hiccup anywhere on the page — could still permanently downgrade the sphere for no recoverable
+ * reason. Removed outright rather than chasing the next trigger. */
 export function useSceneQualityTier() {
   const [tier, setTier] = useState<SceneQualityTier>(initialTier)
   // SPEC-017 FR-010/research.md #4: sourced from the app-wide shared hook (rather than a
@@ -58,27 +66,5 @@ export function useSceneQualityTier() {
     return () => mobileQuery.removeEventListener('change', onMobileChange)
   }, [])
 
-  // Timestamp captured once the hook is mounted. Null until the first effect fires;
-  // declines that arrive before it (or within the guard window) are silently dropped —
-  // the one-time GPU spike from Google Maps WebGL Overlay initialization is
-  // indistinguishable from a real device-level regression by frame-time alone. Widened
-  // from 10s to 20s (live user report, 2026-09-07, on an RTX 4060): once the sphere's
-  // bloom pass (SphereBloom.tsx) actually started rendering for the first time, its own
-  // shader-compile/render-target warm-up cost combined with the map's own init spike to
-  // still exceed the original 10s window, so a decline reported right as the guard lifted
-  // read as "real" and permanently demoted the sphere even though both spikes were
-  // transient startup cost, not a sustained regression.
-  const mountedAt = useRef<number | null>(null)
-  useEffect(() => {
-    mountedAt.current = performance.now()
-  }, [])
-
-  const reportPerformanceRegression = useCallback(() => {
-    const elapsed = mountedAt.current === null ? null : performance.now() - mountedAt.current
-    const withinGuard = elapsed === null || elapsed < 20_000
-    if (withinGuard) return
-    setTier((current) => (current === 'full' ? 'reduced' : current))
-  }, [])
-
-  return { tier, prefersReducedMotion, reportPerformanceRegression }
+  return { tier, prefersReducedMotion }
 }
