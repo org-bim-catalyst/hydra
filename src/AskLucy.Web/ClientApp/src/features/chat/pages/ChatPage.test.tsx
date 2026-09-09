@@ -505,9 +505,9 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     // panels at once. Read from the DOM: the open menu portal breaks role queries under jsdom.
     const accountButton = screen.getByRole('button', { name: 'Account menu' })
     fireEvent.click(accountButton)
-    expect(
-      document.querySelector('[aria-label="Navigation"]')?.getAttribute('aria-expanded'),
-    ).toBe('false')
+    expect(document.querySelector('[aria-label="Navigation"]')?.getAttribute('aria-expanded')).toBe(
+      'false',
+    )
     expect(accountButton).toHaveAttribute('aria-expanded', 'true')
   })
 
@@ -1085,7 +1085,10 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
       ),
     )
     renderConversation(CHAT_A)
-    const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root') as HTMLElement
+    // specs/046-reply-action-bar — Replay now renders in the action row beneath the Paper
+    // bubble, not inside it, so scope to the Paper's parent (bubble + action row) instead.
+    const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
     expect(within(reply).getByRole('button', { name: /replay/i })).not.toBeDisabled()
 
     const micButton = await findMicButton()
@@ -1107,7 +1110,8 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
 
     renderConversation(CHAT_A)
-    const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root') as HTMLElement
+    const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
     fireEvent.click(within(reply).getByRole('button', { name: /replay/i }))
     expect(within(reply).getByRole('button', { name: /stop/i })).toBeInTheDocument()
 
@@ -1488,7 +1492,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
           async start(controller) {
             controller.enqueue(encoder.encode('data: Centred the viewer on it.\n\n'))
             controller.enqueue(
-              encoder.encode('data: __MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}\n\n'),
+              encoder.encode(
+                'data: __MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}\n\n',
+              ),
             )
             await boundaryDone
             controller.enqueue(encoder.encode("data: I've outlined the site boundary.\n\n"))
@@ -1508,7 +1514,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 
     // Still mid-stream: the reply is complete and voiced, and the pending work is named.
     expect(await screen.findByText('Centred the viewer on it.')).toBeInTheDocument()
-    expect(await screen.findByRole('status', { name: 'Finding the site boundary' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('status', { name: 'Finding the site boundary' }),
+    ).toBeInTheDocument()
     await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
     expect(speak.mock.calls[0][0]).toContain('Centred the viewer on it.')
 
@@ -1580,14 +1588,25 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
           arguments: { secretDetail: 'never-spoken-argument-value' },
           isDecline: false,
         },
-        { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'No thanks',
+          description: '',
+          arguments: {},
+          isDecline: true,
+        },
       ],
     }
 
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
       http.post('*/api/v1/ai/chat', () => {
-        const stream = sseStream(['Found Al Safa Park 2.', `__ACTIONS__${JSON.stringify(actionsPayload)}`])
+        const stream = sseStream([
+          'Found Al Safa Park 2.',
+          `__ACTIONS__${JSON.stringify(actionsPayload)}`,
+        ])
         return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
       }),
     )
@@ -1626,8 +1645,24 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
       offeredByMessageId: 'msg-offer-2',
       question: '¿Qué te gustaría hacer a continuación?',
       actions: [
-        { kind: 'capability', capabilityKey: 'search_knowledge_base', text: null, label: 'Buscar en mis documentos', description: 'Busca esto en tus documentos adjuntos.', arguments: {}, isDecline: false },
-        { kind: 'decline', capabilityKey: null, text: null, label: 'No, gracias', description: '', arguments: {}, isDecline: true },
+        {
+          kind: 'capability',
+          capabilityKey: 'search_knowledge_base',
+          text: null,
+          label: 'Buscar en mis documentos',
+          description: 'Busca esto en tus documentos adjuntos.',
+          arguments: {},
+          isDecline: false,
+        },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'No, gracias',
+          description: '',
+          arguments: {},
+          isDecline: true,
+        },
       ],
     }
 
@@ -1672,7 +1707,15 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
           arguments: {},
           isDecline: false,
         },
-        { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'No thanks',
+          description: '',
+          arguments: {},
+          isDecline: true,
+        },
       ],
     }
 
@@ -1710,8 +1753,24 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const answeredOffer = {
       question: 'What would you like to do next?',
       actions: [
-        { kind: 'flowVariant', capabilityKey: null, text: null, label: 'Focus and outline the site', description: 'Find it, centre the map, and outline the site boundary.', arguments: {}, isDecline: false },
-        { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+        {
+          kind: 'flowVariant',
+          capabilityKey: null,
+          text: null,
+          label: 'Focus and outline the site',
+          description: 'Find it, centre the map, and outline the site boundary.',
+          arguments: {},
+          isDecline: false,
+        },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'No thanks',
+          description: '',
+          arguments: {},
+          isDecline: true,
+        },
       ],
     }
 
@@ -1720,7 +1779,11 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
         HttpResponse.json(
           messagesPage([
             makeMessage({ id: 'msg-user-1', role: 'User', content: 'Show me Al Safa Park 2' }),
-            makeMessage({ id: 'msg-assistant-1', role: 'Assistant', content: 'Centred the viewer on it.' }),
+            makeMessage({
+              id: 'msg-assistant-1',
+              role: 'Assistant',
+              content: 'Centred the viewer on it.',
+            }),
             makeMessage({
               id: 'msg-assistant-2',
               role: 'Assistant',
@@ -1730,7 +1793,11 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
             // The selection that answered the offer above — Phase 5's own convention persists
             // the resolved row's label as this user message's own Content.
             makeMessage({ id: 'msg-user-2', role: 'User', content: 'Focus and outline the site' }),
-            makeMessage({ id: 'msg-assistant-3', role: 'Assistant', content: "I've outlined the site boundary." }),
+            makeMessage({
+              id: 'msg-assistant-3',
+              role: 'Assistant',
+              content: "I've outlined the site boundary.",
+            }),
           ]),
         ),
       ),
@@ -1746,9 +1813,15 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const indexOf = (text: string) => rendered.indexOf(text)
     expect(indexOf('Centred the viewer on it.')).toBeGreaterThanOrEqual(0)
     expect(indexOf('Found Al Safa Park 2.')).toBeGreaterThan(indexOf('Centred the viewer on it.'))
-    expect(indexOf('What would you like to do next?')).toBeGreaterThan(indexOf('Found Al Safa Park 2.'))
-    expect(rendered.lastIndexOf('Focus and outline the site')).toBeGreaterThan(indexOf('What would you like to do next?'))
-    expect(indexOf("I've outlined the site boundary.")).toBeGreaterThan(rendered.lastIndexOf('Focus and outline the site'))
+    expect(indexOf('What would you like to do next?')).toBeGreaterThan(
+      indexOf('Found Al Safa Park 2.'),
+    )
+    expect(rendered.lastIndexOf('Focus and outline the site')).toBeGreaterThan(
+      indexOf('What would you like to do next?'),
+    )
+    expect(indexOf("I've outlined the site boundary.")).toBeGreaterThan(
+      rendered.lastIndexOf('Focus and outline the site'),
+    )
 
     // The offer replays inert: its question and label are still visible, but a later message has
     // already answered it, so no interactive radiogroup exists.
@@ -1781,7 +1854,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
             controller.enqueue(encoder.encode('data: __MESSAGE_BREAK__\n\n'))
             controller.enqueue(encoder.encode('data: OK, let me find it first.\n\n'))
             controller.enqueue(
-              encoder.encode('data: __MESSAGE_BREAK__{"pendingLabel":"Finding Al Safa Park 2"}\n\n'),
+              encoder.encode(
+                'data: __MESSAGE_BREAK__{"pendingLabel":"Finding Al Safa Park 2"}\n\n',
+              ),
             )
             await capabilityDone
             controller.enqueue(encoder.encode('data: I found Al Safa Park 2.\n\n'))
@@ -1803,7 +1878,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(await screen.findByText('OK, let me find it first.')).toBeInTheDocument()
 
     // Beat 2, still pending: named progress, not a generic spinner (FR-005).
-    expect(await screen.findByRole('status', { name: 'Finding Al Safa Park 2' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('status', { name: 'Finding Al Safa Park 2' }),
+    ).toBeInTheDocument()
     expect(screen.queryByText('I found Al Safa Park 2.')).not.toBeInTheDocument()
 
     act(() => releaseCapability())
@@ -1949,8 +2026,10 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     renderConversation(CHAT_A)
     await screen.findByText('First reply')
 
-    const replyA = screen.getByText('First reply').closest('.MuiPaper-root') as HTMLElement
-    const replyB = screen.getByText('Second reply').closest('.MuiPaper-root') as HTMLElement
+    const replyA = screen.getByText('First reply').closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
+    const replyB = screen.getByText('Second reply').closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
 
     expect(within(replyA).getByRole('button', { name: /replay/i })).toBeDisabled()
     expect(within(replyB).getByRole('button', { name: /replay/i })).toBeDisabled()
@@ -1970,7 +2049,8 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
       mockTts.isSpeaking = false
     })
     renderConversation(CHAT_A)
-    const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root') as HTMLElement
+    const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
 
     fireEvent.click(within(reply).getByRole('button', { name: /replay/i }))
     mockTts.isSpeaking = true
@@ -2001,9 +2081,8 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     // F2's sibling concern (Replay disabled while a Push-to-Talk recording is active) lives
     // in the "Push-to-Talk recording review" describe block below.
     renderConversation(CHAT_A)
-    const reply = (await screen.findByText('Auto-spoken reply')).closest(
-      '.MuiPaper-root',
-    ) as HTMLElement
+    const reply = (await screen.findByText('Auto-spoken reply')).closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
     expect(within(reply).getByRole('button', { name: /replay/i })).toBeInTheDocument()
   })
 
@@ -2028,8 +2107,10 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
     renderConversation(CHAT_A)
     await screen.findByText('First reply')
 
-    const replyA = screen.getByText('First reply').closest('.MuiPaper-root') as HTMLElement
-    const replyB = screen.getByText('Second reply').closest('.MuiPaper-root') as HTMLElement
+    const replyA = screen.getByText('First reply').closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
+    const replyB = screen.getByText('Second reply').closest('.MuiPaper-root')
+      ?.parentElement as HTMLElement
     expect(within(replyA).getByRole('button', { name: /replay/i })).toBeEnabled()
     expect(within(replyB).getByRole('button', { name: /replay/i })).toBeEnabled()
   })
