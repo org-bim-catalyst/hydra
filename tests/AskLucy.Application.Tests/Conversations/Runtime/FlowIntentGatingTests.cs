@@ -80,11 +80,14 @@ public sealed class FlowIntentGatingTests
         var subAgentDelegator = new SubAgentDelegator(
             TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor),
             capabilityCatalog, narrator, runtimeOptions, NullLogger<SubAgentDelegator>.Instance);
+        var turnRecorder = new TurnRecorder(
+            Substitute.For<IAgentRepository>(), Substitute.For<IAgentExecutionRepository>(), Substitute.For<IUnitOfWork>(),
+            NullLogger<TurnRecorder>.Instance);
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
-            narrator, NullLogger<ConversationTurnOrchestrator>.Instance);
+            narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private ConversationTurnRequest Request(string message) =>
