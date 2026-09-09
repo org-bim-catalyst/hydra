@@ -6,6 +6,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Processing;
@@ -221,6 +222,13 @@ public static class DependencyInjection
 
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();
+
+        // specs/045 Phase 6 — flows. Registered the same way as capabilities: adding one is these
+        // two lines, never a change to the orchestrator (IConversationFlow's own doc comment).
+        services.AddScoped<LocateAPlaceFlow>();
+        services.AddScoped<IConversationFlow>(sp => sp.GetRequiredService<LocateAPlaceFlow>());
+        services.AddScoped<ConversationFlowCatalog>();
+        services.AddScoped<FlowRunner>();
 
         // The decide step. Its model is an AiCapability assignment, never a hardcoded string —
         // an administrator picks something fast and cheap for it exactly as they already do for

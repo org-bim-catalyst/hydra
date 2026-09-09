@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Domain.Conversations;
 
 namespace AskLucy.Application.Conversations.Runtime;
@@ -18,12 +19,13 @@ public sealed record SuggestedActionGroundingResult(SuggestedActionOffer? Offer,
 /// <b>Grounding differs by kind, exactly as the domain model documents it.</b> A <c>capability</c>
 /// row's key and arguments are checked absolutely, the same two-stage check
 /// <see cref="CapabilityExecutor"/> applies at dispatch — a key not in the turn's available set, or
-/// arguments that fail its <c>InputSchemaJson</c>, drops the row. A <c>flowVariant</c> row is
-/// always dropped today: no flow registry exists to check it against until specs/045 Phase 6, so a
-/// model that names one anyway is discarded exactly like a hallucinated capability key. A
-/// <c>followUp</c> row has no key to check at all — it is validated only best-effort, for phrasing
-/// that promises platform work (FR-021c, SC-002b); the real guarantee is structural, upheld by
-/// there being no dispatch path from a follow-up to any capability.
+/// arguments that fail its <c>InputSchemaJson</c>, drops the row. A <c>flowVariant</c> row (specs/045
+/// Phase 6) is grounded by exact match against the candidates the orchestrator computed and handed
+/// in — the model may only select one by its compound key, never supply its own arguments, so
+/// there is nothing to validate beyond "is this key one we actually offered." A <c>followUp</c> row
+/// has no key to check at all — it is validated only best-effort, for phrasing that promises
+/// platform work (FR-021c, SC-002b); the real guarantee is structural, upheld by there being no
+/// dispatch path from a follow-up to any capability.
 /// </para>
 ///
 /// <para>
@@ -53,8 +55,10 @@ public sealed class SuggestedActionGrounder(IJsonSchemaValidator schemaValidator
     ];
 
     public SuggestedActionGroundingResult Ground(
-        string content, TurnContext context, ConversationCapabilityCatalog catalog, int maxSuggestedActions)
+        string content, TurnContext context, ConversationCapabilityCatalog catalog, int maxSuggestedActions,
+        IReadOnlyList<FlowVariantOfferCandidate>? flowVariantCandidates = null)
     {
+        var flowVariants = (flowVariantCandidates ?? []).ToDictionary(c => c.CompoundKey, StringComparer.Ordinal);
         var dropped = new List<string>();
         var maxSubstantive = Math.Max(1, maxSuggestedActions - 1);
 
@@ -111,7 +115,7 @@ public sealed class SuggestedActionGrounder(IJsonSchemaValidator schemaValidator
                     continue;
                 }
 
-                var candidate = GroundOne(element, available, dropped);
+                var candidate = GroundOne(element, available, flowVariants, dropped);
                 if (candidate is null || !candidate.IsStructurallyValid())
                 {
                     if (candidate is not null)
@@ -144,7 +148,8 @@ public sealed class SuggestedActionGrounder(IJsonSchemaValidator schemaValidator
     }
 
     private SuggestedAction? GroundOne(
-        JsonElement element, Dictionary<string, IConversationCapability> available, List<string> dropped)
+        JsonElement element, Dictionary<string, IConversationCapability> available,
+        Dictionary<string, FlowVariantOfferCandidate> flowVariants, List<string> dropped)
     {
         var kindText = element.TryGetProperty("kind", out var kindElement) && kindElement.ValueKind == JsonValueKind.String
             ? kindElement.GetString()
@@ -188,10 +193,25 @@ public sealed class SuggestedActionGrounder(IJsonSchemaValidator schemaValidator
                 }
 
             case "flowvariant":
-                // No flow registry exists yet (specs/045 Phase 6) — every flowVariant row is
-                // ungrounded until one does, logged the same as any other unresolvable key.
-                dropped.Add($"'{ReadString(element, "key") ?? "(no key)"}' is a flow variant, and no flow registry exists yet");
-                return null;
+                {
+                    var key = ReadString(element, "key");
+                    if (string.IsNullOrEmpty(key))
+                    {
+                        dropped.Add("a flowVariant row named no key");
+                        return null;
+                    }
+
+                    if (!flowVariants.TryGetValue(key, out var candidate))
+                    {
+                        dropped.Add($"'{key}' is not a flow variant offered this turn");
+                        return null;
+                    }
+
+                    return new SuggestedAction(
+                        SuggestedActionKind.FlowVariant, candidate.CompoundKey, null,
+                        label ?? candidate.Label, Truncate(description.Length > 0 ? description : candidate.Description, SuggestedAction.MaxDescriptionLength),
+                        candidate.ArgumentsJson);
+                }
 
             case "followup":
                 {

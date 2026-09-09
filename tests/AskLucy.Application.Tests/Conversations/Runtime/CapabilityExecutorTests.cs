@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Runtime;
+using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -40,6 +41,7 @@ public sealed class CapabilityExecutorTests
         _executor = new CapabilityExecutor(
             new AgentPolicyEvaluator(_policies),
             _schemaValidator,
+            Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
             NullLogger<CapabilityExecutor>.Instance);
     }
 
@@ -170,6 +172,39 @@ public sealed class CapabilityExecutorTests
         result.ResultJson.Should().Be("I couldn't find a place matching that name.");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_ShouldReportATimeout_WhenACapabilityExceedsItsBudget()
+    {
+        // specs/045 T042 — a linked token, not Task.WaitAsync: the capability must actually
+        // observe cancellation (it awaits the token this test hangs on) rather than being merely
+        // abandoned, so a real dependency stops consuming connections once the budget fires.
+        var executor = new CapabilityExecutor(
+            new AgentPolicyEvaluator(_policies), _schemaValidator,
+            Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { BriefCapabilityTimeoutSeconds = 1 }),
+            NullLogger<CapabilityExecutor>.Instance);
+        var capability = new StubCapability { HangUntilCancelled = true };
+
+        var result = await executor.ExecuteAsync(capability, Context(), "{}", CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        result.ResultJson.Should().Contain("longer than expected");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldStillPropagateCallerCancellation_EvenWithABudgetInEffect()
+    {
+        // The original token, not the linked one, is what a real user cancellation is tested
+        // against — this must keep working now that every invocation has a budget-based linked
+        // token racing alongside it.
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        var capability = new StubCapability { HangUntilCancelled = true };
+
+        var act = async () => await _executor.ExecuteAsync(capability, Context(), "{}", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     /// <summary>A capability whose behaviour each test dials in — no substitute, because the gates under test read many members.</summary>
     private sealed class StubCapability : IConversationCapability
     {
@@ -178,6 +213,9 @@ public sealed class CapabilityExecutorTests
         public Exception? ThrowOnExecute { get; init; }
 
         public string? FailWith { get; init; }
+
+        /// <summary>Awaits the token it's given until cancelled, rather than returning immediately — the shape a slow real dependency actually has.</summary>
+        public bool HangUntilCancelled { get; init; }
 
         public AgentToolRiskLevel Risk { get; init; } = AgentToolRiskLevel.Low;
 
@@ -211,7 +249,7 @@ public sealed class CapabilityExecutorTests
 
         public bool IsAvailable(TurnContext context) => true;
 
-        public Task<AgentToolResult> ExecuteAsync(
+        public async Task<AgentToolResult> ExecuteAsync(
             AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)
         {
             WasInvoked = true;
@@ -221,9 +259,14 @@ public sealed class CapabilityExecutorTests
                 throw ThrowOnExecute;
             }
 
-            return Task.FromResult(FailWith is not null
+            if (HangUntilCancelled)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
+            return FailWith is not null
                 ? AgentToolResult.Failure(FailWith)
-                : AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { status = "done" })));
+                : AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { status = "done" }));
         }
     }
 }

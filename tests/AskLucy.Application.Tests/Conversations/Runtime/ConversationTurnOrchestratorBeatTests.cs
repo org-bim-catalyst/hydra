@@ -5,6 +5,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
@@ -69,11 +70,15 @@ public sealed class ConversationTurnOrchestratorBeatTests
         var capabilityExecutor = new CapabilityExecutor(
             new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             new PermissiveSchemaValidator(),
+            runtimeOptions,
             NullLogger<CapabilityExecutor>.Instance);
+
+        var flowCatalog = new ConversationFlowCatalog([]);
+        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, _decider, capabilityExecutor, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, _offerGenerator,
             NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
@@ -87,7 +92,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         var executionOrder = new List<string>();
         capability.OnExecute = () => executionOrder.Add("executed");
 
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", "Doing the thing", null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(call =>
@@ -109,7 +114,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     public async Task RunAsync_ShouldWriteTheResult_FromTheRealOutcome_NotACannedTemplate()
     {
         var capability = new StubCapability { SucceedWith = """{"status":"done"}""" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("Real narration mentioning the outcome.", new ChatUsage(null, null, null, null, null)));
@@ -129,7 +134,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     public async Task RunAsync_ShouldNeverNarrateSuccess_ForACapabilityThatFailed()
     {
         var capability = new StubCapability { FailWith = "the lookup timed out" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
 
         string? narrationPromptSeen = null;
@@ -154,7 +159,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         // FR-008: the fallback exists for when narration cannot run at all — never as the normal
         // path, but the user must still read SOMETHING true about what happened.
         var capability = new StubCapability { FailWith = "not found" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns<ChatCompletionResult>(_ => throw new InvalidOperationException("provider down"));
@@ -167,7 +172,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     [Fact]
     public async Task RunAsync_ShouldEmitNoBeats_OnTheFastPath()
     {
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("what is a setback?"));
@@ -187,7 +192,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         // no acknowledgement); this fixture registers no capability at all, so the offer step
         // that follows (US2) finds nothing offerable and is suppressed too — the plain-reply shape
         // asserted here is permanent, not an interim narrowing.
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Suggest, []));
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("do you know that place?"));
@@ -199,7 +204,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     [Fact]
     public async Task RunAsync_ShouldEnqueueMemoryExtraction_RegardlessOfWhichPathRan()
     {
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
         await CollectAsync(BuildOrchestrator(), Request("hello"));
@@ -222,7 +227,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
                 new ConfirmedLocationData(25.156, 55.2218, "Al Safa Park 2", 0.9),
                 "confirmed"));
 
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act,
                 [new TurnSlice(ResolveLocationCapability.CapabilityKey, """{"query":"Al Safa Park 2"}""", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())

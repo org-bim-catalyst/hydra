@@ -42,9 +42,11 @@ public sealed record TurnDecisionParseResult(
 /// </summary>
 public sealed class TurnDecisionParser(IOptions<ConversationRuntimeOptions> options)
 {
-    public TurnDecisionParseResult Parse(string content, IReadOnlySet<string> availableCapabilityKeys)
+    public TurnDecisionParseResult Parse(
+        string content, IReadOnlySet<string> availableCapabilityKeys, IReadOnlySet<string>? availableFlowKeys = null)
     {
         var dropped = new List<string>();
+        var flowKeys = availableFlowKeys ?? EmptyKeys;
 
         JsonDocument document;
         try
@@ -73,12 +75,39 @@ public sealed class TurnDecisionParser(IOptions<ConversationRuntimeOptions> opti
                     TurnDecision.AnswerOnly, TurnDecisionParseFailure.UnrecognisedIntent, dropped);
             }
 
+            // specs/045 Phase 6 — a flowKey the model named, checked against this turn's own
+            // available flows (FR-014's grounding rule, applied to flows the same as capabilities).
+            // Read regardless of intent: TurnIntent.Suggest carries it forward as a hint for the
+            // offer step (FR-051a.2) rather than running anything.
+            var flowKey = ReadFlowKey(root, flowKeys, dropped);
+            var flowArgumentsJson = flowKey is not null && root.TryGetProperty("flowArguments", out var flowArgsElement) &&
+                                     flowArgsElement.ValueKind == JsonValueKind.Object
+                ? flowArgsElement.GetRawText()
+                : "{}";
+
             // "answer" and "suggest" both mean nothing runs this turn. A model that supplies
             // slices anyway is contradicting itself; the intent wins, because it is the field the
             // prompt's guidance is written against.
             if (intent != TurnIntent.Act)
             {
-                return new TurnDecisionParseResult(new TurnDecision(intent, []), TurnDecisionParseFailure.None, dropped);
+                return new TurnDecisionParseResult(
+                    new TurnDecision(intent, [], flowKey, flowKey is null ? null : flowArgumentsJson), TurnDecisionParseFailure.None, dropped);
+            }
+
+            if (flowKey is not null)
+            {
+                // A flow decision replaces slices entirely (FR-050) — one job, not a job plus a
+                // stray capability. A model that supplies both is contradicting itself; the flow
+                // wins, both because it was named first in the document and because running a
+                // partial job alongside an unrelated capability is not a coherent turn.
+                if (root.TryGetProperty("slices", out var strayEl) && strayEl.ValueKind == JsonValueKind.Array && strayEl.GetArrayLength() > 0)
+                {
+                    dropped.Add($"a flow decision for '{flowKey}' also named slices; the slices were ignored");
+                }
+
+                return new TurnDecisionParseResult(
+                    new TurnDecision(TurnIntent.Act, [], flowKey, flowArgumentsJson, ReadThroughStepIndex(root)),
+                    TurnDecisionParseFailure.None, dropped);
             }
 
             if (!root.TryGetProperty("slices", out var slicesElement) || slicesElement.ValueKind != JsonValueKind.Array)
@@ -145,6 +174,36 @@ public sealed class TurnDecisionParser(IOptions<ConversationRuntimeOptions> opti
                 : new TurnDecisionParseResult(new TurnDecision(TurnIntent.Act, slices), TurnDecisionParseFailure.None, dropped);
         }
     }
+
+    private static readonly HashSet<string> EmptyKeys = new(StringComparer.Ordinal);
+
+    /// <summary>FR-014's grounding rule, applied to a flow key exactly as it already is to a capability key.</summary>
+    private static string? ReadFlowKey(JsonElement root, IReadOnlySet<string> availableFlowKeys, List<string> dropped)
+    {
+        if (!root.TryGetProperty("flowKey", out var flowKeyElement) ||
+            flowKeyElement.ValueKind != JsonValueKind.String ||
+            flowKeyElement.GetString() is not { Length: > 0 } key)
+        {
+            return null;
+        }
+
+        if (!availableFlowKeys.Contains(key))
+        {
+            dropped.Add($"'{key}' is not an available flow this turn");
+            return null;
+        }
+
+        return key;
+    }
+
+    /// <summary>FR-058's scoping — "just find it" names how far into the flow to run. Null (absent, wrong-typed, or negative) means run every step.</summary>
+    private static int? ReadThroughStepIndex(JsonElement root) =>
+        root.TryGetProperty("throughStepIndex", out var element) &&
+        element.ValueKind == JsonValueKind.Number &&
+        element.TryGetInt32(out var value) &&
+        value >= 0
+            ? value
+            : null;
 
     /// <summary>
     /// Reads a dependency index, rejecting anything that is not a strictly earlier slice. A

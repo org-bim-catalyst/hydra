@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Prompts;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Ai;
@@ -37,6 +38,7 @@ public interface ISuggestedActionOfferGenerator
         TurnOutcome outcome,
         string justHappened,
         string? memoryContext,
+        IReadOnlyList<FlowVariantOfferCandidate>? flowVariantCandidates,
         CancellationToken cancellationToken);
 }
 
@@ -74,10 +76,12 @@ public sealed class SuggestedActionOfferGenerator(
         TurnOutcome outcome,
         string justHappened,
         string? memoryContext,
+        IReadOnlyList<FlowVariantOfferCandidate>? flowVariantCandidates,
         CancellationToken cancellationToken)
     {
         try
         {
+            var flowVariants = flowVariantCandidates ?? [];
             var offerable = capabilityCatalog.OfferableFor(context, outcome);
             var index = offerable
                 .Select(c => new CapabilityIndexEntry(c.Name, c.OfferDescription, c.WhenToUse, c.ArgumentHint))
@@ -93,14 +97,14 @@ public sealed class SuggestedActionOfferGenerator(
             var maxSuggestedActions = options.Value.MaxSuggestedActions;
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.System, SuggestedActionPrompt.Build(index, memoryContext, justHappened, Math.Max(1, maxSuggestedActions - 1))),
+                new(ChatRole.System, SuggestedActionPrompt.Build(index, memoryContext, justHappened, Math.Max(1, maxSuggestedActions - 1), flowVariants)),
                 new(ChatRole.User, "Compose the offer now."),
             };
 
             var parameters = new GenerationParametersDto(JsonMode: model.SupportsJsonMode ? true : null);
             var completion = await aiProvider.ChatAsync(messages, model.ModelKey, parameters, cancellationToken);
 
-            var result = grounder.Ground(completion.Content, context, capabilityCatalog, maxSuggestedActions);
+            var result = grounder.Ground(completion.Content, context, capabilityCatalog, maxSuggestedActions, flowVariants);
 
             foreach (var reason in result.DroppedReasons)
             {

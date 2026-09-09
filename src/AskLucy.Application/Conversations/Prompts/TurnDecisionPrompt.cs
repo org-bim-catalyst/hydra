@@ -29,8 +29,14 @@ public static class TurnDecisionPrompt
     /// Builds the system message for one turn. Pure — no I/O, no model call — so the prompt can
     /// be asserted on directly in tests, which is the point of §9's "testable in isolation".
     /// </summary>
-    public static string Build(IReadOnlyList<CapabilityIndexEntry> index)
+    /// <param name="index">Available capabilities (Tier 1 — key/description/whenToUse/argumentHint).</param>
+    /// <param name="flowIndex">
+    /// specs/045 Phase 6 — available flows, shown the same way (a flow's index entry is the same
+    /// shape as a capability's, research.md D17): the model chooses a job, not a pipeline.
+    /// </param>
+    public static string Build(IReadOnlyList<CapabilityIndexEntry> index, IReadOnlyList<CapabilityIndexEntry>? flowIndex = null)
     {
+        flowIndex ??= [];
         var builder = new StringBuilder();
 
         builder.AppendLine(
@@ -39,21 +45,29 @@ public static class TurnDecisionPrompt
         builder.AppendLine();
 
         builder.AppendLine("Return ONLY a single JSON object — no markdown fence, no commentary — of this exact shape:");
-        builder.AppendLine("""{"intent":"answer"|"act"|"suggest","slices":[{"capabilityKey":"<key>","arguments":{},"pendingLabel":"<short label>","dependsOn":null}]}""");
+        builder.AppendLine(
+            """{"intent":"answer"|"act"|"suggest","slices":[{"capabilityKey":"<key>","arguments":{},"pendingLabel":"<short label>","dependsOn":null}],"flowKey":null,"flowArguments":{},"throughStepIndex":null}""");
+        builder.AppendLine(
+            "flowKey/flowArguments/throughStepIndex are used INSTEAD of slices when a whole flow " +
+            "fits (below) — omit or leave slices [] in that case. Omit flowKey entirely when no " +
+            "flow applies.");
         builder.AppendLine();
 
         builder.AppendLine("Choose the intent by what the user is actually asking for:");
         builder.AppendLine(
             "- \"answer\": the message can be answered in words. A question, a greeting, a " +
             "follow-up about something already said, or a place named only in passing " +
-            "(\"I read that X was renovated\"). slices must be [].");
+            "(\"I read that X was renovated\"). slices must be [] and flowKey must be omitted.");
         builder.AppendLine(
             "- \"act\": the user is asking for something to be done — \"show me X\", \"take me " +
-            "to X\", \"outline the site\", \"search my documents for X\". Populate slices.");
+            "to X\", \"outline the site\", \"search my documents for X\". Populate slices, or " +
+            "name a flow when one fits the whole request better than a single capability.");
         builder.AppendLine(
             "- \"suggest\": the user asked ABOUT something rather than asking for it to be done — " +
             "\"do you know X?\", \"what is X?\". Answer in words, and the platform will offer the " +
-            "related actions rather than performing them. slices must be [].");
+            "related actions rather than performing them. slices must be []. If a flow is " +
+            "relevant to what was asked about, still name it as flowKey (with flowArguments) so " +
+            "its variants can be offered — this does not run it.");
         builder.AppendLine();
 
         // The asymmetry is the whole reason this instruction exists, and stating the cost is what
@@ -64,24 +78,46 @@ public static class TurnDecisionPrompt
             "moves their map uninvited and can spend thirty seconds doing it.");
         builder.AppendLine();
 
-        if (index.Count == 0)
+        if (flowIndex.Count > 0)
         {
-            builder.AppendLine("No capabilities are available this turn, so intent must be \"answer\" and slices must be [].");
+            builder.AppendLine(
+                "Available flows — a flow is ONE job made of several dependent steps. Prefer a " +
+                "flow over a single capability whenever the whole job is what was actually asked " +
+                "for (\"show me X\" wants the place found AND shown, not just found):");
+            foreach (var flow in flowIndex)
+            {
+                builder.AppendLine(CultureInfo.InvariantCulture, $"- {flow.Key}: {flow.Description} {flow.WhenToUse} (needs: {flow.ArgumentHint})");
+            }
+
+            builder.AppendLine(
+                "- throughStepIndex (0-based) scopes a flow run short of every step, only when the " +
+                "user explicitly limited it (\"just find it, don't outline it\" → 0). Omit it to " +
+                "run the whole flow — that is the normal case for a navigational request.");
+            builder.AppendLine();
+        }
+
+        if (index.Count == 0 && flowIndex.Count == 0)
+        {
+            builder.AppendLine("Nothing is available this turn, so intent must be \"answer\" with slices [] and flowKey omitted.");
             return builder.ToString();
         }
 
-        builder.AppendLine("Available capabilities. Use ONLY these keys — any other key is discarded:");
-        foreach (var entry in index)
+        if (index.Count > 0)
         {
-            builder.AppendLine(CultureInfo.InvariantCulture, $"- {entry.Key}: {entry.Description} {entry.WhenToUse} (needs: {entry.ArgumentHint})");
+            builder.AppendLine("Available capabilities. Use ONLY these keys — any other key is discarded:");
+            foreach (var entry in index)
+            {
+                builder.AppendLine(CultureInfo.InvariantCulture, $"- {entry.Key}: {entry.Description} {entry.WhenToUse} (needs: {entry.ArgumentHint})");
+            }
+
+            builder.AppendLine();
         }
 
-        builder.AppendLine();
         builder.AppendLine("Rules for slices:");
         builder.AppendLine("- Only include a slice when the capability is genuinely needed. Fewer is better.");
         builder.AppendLine("- pendingLabel is what the user reads while it runs — short, present tense, naming the work.");
         builder.AppendLine("- dependsOn is the 0-based index of an earlier slice whose result this one needs, or null.");
-        builder.AppendLine("- Never invent a capability. If nothing listed fits, use intent \"answer\".");
+        builder.AppendLine("- Never invent a capability or a flow. If nothing listed fits, use intent \"answer\".");
 
         return builder.ToString();
     }

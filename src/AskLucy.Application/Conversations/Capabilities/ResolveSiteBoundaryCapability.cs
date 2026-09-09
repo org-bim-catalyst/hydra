@@ -58,8 +58,13 @@ public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService bou
     public string InputSchemaJson =>
         """{"type":"object","required":["latitude","longitude","locationName"],"properties":{"latitude":{"type":"number"},"longitude":{"type":"number"},"locationName":{"type":"string"},"confidence":{"type":"number"}}}""";
 
+    // "source" (SourceDetail — a descriptive string, e.g. "OpenStreetMap") is what the narration
+    // guidance above reports; "sourceType" (the SiteBoundarySource enum) plus the remaining fields
+    // exist only so StructuredPayloadExtractor can rebuild the full ConfirmedSiteBoundaryData for
+    // the __SITE_BOUNDARY__ event (specs/045 Phase 6) — the deciding/narrating model never needs
+    // them and this schema is Tier 3 (never shown to it) regardless.
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"confidenceLevel":{"type":"string"},"source":{"type":"string"}}}""";
+        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"confidenceLevel":{"type":"string"},"source":{"type":"string"},"centroidLatitude":{"type":"number"},"centroidLongitude":{"type":"number"},"confidence":{"type":"number"},"sourceType":{"type":"string"},"polygon":{"type":"array"},"alternativeCandidateNames":{"type":"array"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Extended;
 
@@ -104,6 +109,12 @@ public sealed class ResolveSiteBoundaryCapability(IBoundaryResolutionService bou
                 areaSquareMeters = boundary.AreaSquareMeters,
                 confidenceLevel = boundary.ConfidenceLevel.ToString(),
                 source = boundary.SourceDetail,
+                centroidLatitude = boundary.CentroidLatitude,
+                centroidLongitude = boundary.CentroidLongitude,
+                confidence = boundary.Confidence,
+                sourceType = boundary.Source.ToString(),
+                polygon = boundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
+                alternativeCandidateNames = boundary.AlternativeCandidateNames,
             }));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
 
@@ -17,8 +18,8 @@ public sealed record ResolvedSelectedAction(SuggestedAction Row, Guid OfferingMe
 public interface ISelectedActionResolver
 {
     /// <exception cref="ConversationActionStaleException">The offer is not in this chat, is not the newest unanswered one, or no longer carries this row (409).</exception>
-    /// <exception cref="ConversationActionUnknownException">The row names a capability that was never registered, or a flow variant (no registry exists yet) (400).</exception>
-    /// <exception cref="ConversationActionUnavailableException">The row's capability is registered but no longer available against a freshly built turn context (409).</exception>
+    /// <exception cref="ConversationActionUnknownException">The row names a capability or flow variant that was never registered (400).</exception>
+    /// <exception cref="ConversationActionUnavailableException">The row's capability/flow is registered but no longer available against a freshly built turn context (409).</exception>
     Task<ResolvedSelectedAction> ResolveAsync(
         Guid userChatId, Guid offeredByMessageId, string kind, string? key, string? text, string argumentsJson,
         CancellationToken cancellationToken);
@@ -48,7 +49,8 @@ public sealed class SelectedActionResolver(
     IUserChatRepository userChatRepository,
     IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository,
     ICurrentUserAccessor currentUser,
-    ConversationCapabilityCatalog capabilityCatalog) : ISelectedActionResolver
+    ConversationCapabilityCatalog capabilityCatalog,
+    ConversationFlowCatalog flowCatalog) : ISelectedActionResolver
 {
     public async Task<ResolvedSelectedAction> ResolveAsync(
         Guid userChatId, Guid offeredByMessageId, string kind, string? key, string? text, string argumentsJson,
@@ -87,29 +89,42 @@ public sealed class SelectedActionResolver(
 
         if (row.IsAction)
         {
-            if (row.Kind == SuggestedActionKind.FlowVariant)
-            {
-                // specs/045 Phase 4/6 — no flow registry exists yet, so a flowVariant row can
-                // never be grounded. Reaching here at all means one slipped past the offer
-                // grounder somehow; treated the same as any other unrecognised key.
-                throw new ConversationActionUnknownException("Flow variants are not available yet.");
-            }
-
-            var capability = capabilityCatalog.Find(row.Key!);
-            if (capability is null)
-            {
-                throw new ConversationActionUnknownException($"'{row.Key}' is not a registered capability.");
-            }
-
             var knowledgeBaseIds = (await conversationKnowledgeBaseRepository.GetByConversationAsync(userChatId, cancellationToken))
                 .Select(l => l.KnowledgeBaseId)
                 .ToList();
             var chat = await userChatRepository.GetByIdAsync(userChatId, cancellationToken);
             var context = TurnContextFactory.Build(currentUser.UserId, userChatId, chat?.ActiveLocation, chat?.ActiveBoundary, knowledgeBaseIds);
 
-            if (!capabilityCatalog.AvailableFor(context).Any(c => string.Equals(c.Name, row.Key, StringComparison.Ordinal)))
+            if (row.Kind == SuggestedActionKind.FlowVariant)
             {
-                throw new ConversationActionUnavailableException($"'{row.Label}' is no longer available.");
+                // The row's Key is the compound "flowKey:variantKey" (data-model.md §1) the offer
+                // step already assembled — never re-derived from the client's own request.
+                var separatorIndex = row.Key!.IndexOf(':', StringComparison.Ordinal);
+                var flow = separatorIndex > 0 ? flowCatalog.Find(row.Key[..separatorIndex]) : null;
+                var variantExists = flow?.Variants.Any(v => v.Key == row.Key[(separatorIndex + 1)..]) ?? false;
+
+                if (flow is null || !variantExists)
+                {
+                    throw new ConversationActionUnknownException($"'{row.Key}' is not a registered flow variant.");
+                }
+
+                if (!flow.IsAvailable(context))
+                {
+                    throw new ConversationActionUnavailableException($"'{row.Label}' is no longer available.");
+                }
+            }
+            else
+            {
+                var capability = capabilityCatalog.Find(row.Key!);
+                if (capability is null)
+                {
+                    throw new ConversationActionUnknownException($"'{row.Key}' is not a registered capability.");
+                }
+
+                if (!capabilityCatalog.AvailableFor(context).Any(c => string.Equals(c.Name, row.Key, StringComparison.Ordinal)))
+                {
+                    throw new ConversationActionUnavailableException($"'{row.Label}' is no longer available.");
+                }
             }
         }
 

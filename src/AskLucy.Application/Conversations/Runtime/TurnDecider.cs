@@ -33,6 +33,7 @@ public interface ITurnDecider
         TurnContext context,
         string userMessage,
         IReadOnlyList<CapabilityIndexEntry> index,
+        IReadOnlyList<CapabilityIndexEntry> flowIndex,
         CancellationToken cancellationToken);
 }
 
@@ -66,16 +67,18 @@ public sealed class TurnDecider(
         TurnContext context,
         string userMessage,
         IReadOnlyList<CapabilityIndexEntry> index,
+        IReadOnlyList<CapabilityIndexEntry> flowIndex,
         CancellationToken cancellationToken)
     {
         // Nothing to route between, so nothing to ask. Skipping the call here is what keeps an
         // ordinary conversation costing exactly what it costs today (SC-008).
-        if (index.Count == 0 || string.IsNullOrWhiteSpace(userMessage))
+        if ((index.Count == 0 && flowIndex.Count == 0) || string.IsNullOrWhiteSpace(userMessage))
         {
             return TurnDecision.AnswerOnly;
         }
 
         var availableKeys = index.Select(e => e.Key).ToHashSet(StringComparer.Ordinal);
+        var availableFlowKeys = flowIndex.Select(e => e.Key).ToHashSet(StringComparer.Ordinal);
 
         try
         {
@@ -88,14 +91,14 @@ public sealed class TurnDecider(
 
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.System, TurnDecisionPrompt.Build(index)),
+                new(ChatRole.System, TurnDecisionPrompt.Build(index, flowIndex)),
                 new(ChatRole.User, userMessage),
             };
 
             var parameters = new GenerationParametersDto(JsonMode: model.SupportsJsonMode ? true : null);
 
             var completion = await aiProvider.ChatAsync(messages, model.ModelKey, parameters, cancellationToken);
-            var result = parser.Parse(completion.Content, availableKeys);
+            var result = parser.Parse(completion.Content, availableKeys, availableFlowKeys);
 
             if (!result.Succeeded)
             {
@@ -109,7 +112,7 @@ public sealed class TurnDecider(
                     $"That response could not be used ({DescribeFailure(result.Failure)}). Reply again with only the JSON object — no other text."));
 
                 var retry = await aiProvider.ChatAsync(messages, model.ModelKey, parameters, cancellationToken);
-                result = parser.Parse(retry.Content, availableKeys);
+                result = parser.Parse(retry.Content, availableKeys, availableFlowKeys);
 
                 if (!result.Succeeded)
                 {

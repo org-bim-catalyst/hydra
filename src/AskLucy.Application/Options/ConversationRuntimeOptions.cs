@@ -59,4 +59,21 @@ public sealed class ConversationRuntimeOptions
     /// <summary>research.md D5 — SSE keep-alive interval while a beat is pending, so a proxy cannot silently buffer the stream.</summary>
     [Range(1, 60)]
     public int KeepAliveIntervalSeconds { get; init; } = 10;
+
+    /// <summary>
+    /// specs/045 T042 — the per-invocation budget for a <see cref="Capabilities.CapabilityDuration.Brief"/>
+    /// capability, applied as a linked-token timeout around <c>IConversationCapability.ExecuteAsync</c>
+    /// (the specs/044 <c>ResolveBoundarySafelyAsync</c> pattern, generalised to every capability
+    /// rather than one boundary-specific call site).
+    /// </summary>
+    [Range(1, 60)]
+    public int BriefCapabilityTimeoutSeconds { get; init; } = 10;
+
+    /// <summary>As above, for <see cref="Capabilities.CapabilityDuration.Noticeable"/>.</summary>
+    [Range(1, 120)]
+    public int NoticeableCapabilityTimeoutSeconds { get; init; } = 30;
+
+    /// <summary>As above, for <see cref="Capabilities.CapabilityDuration.Extended"/> — set above site-boundary resolution's own ~45s worst case.</summary>
+    [Range(1, 300)]
+    public int ExtendedCapabilityTimeoutSeconds { get; init; } = 90;
 }

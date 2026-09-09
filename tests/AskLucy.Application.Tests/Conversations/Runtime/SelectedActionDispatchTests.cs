@@ -6,6 +6,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
@@ -46,7 +47,7 @@ public sealed class SelectedActionResolverTests
             Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance);
         var catalog = new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions);
 
-        _resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog);
+        _resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]));
     }
 
     private Message OfferingMessage(SuggestedActionOffer offer, DateTime createdAtUtc)
@@ -146,7 +147,7 @@ public sealed class SelectedActionResolverTests
         var indexRetriever = new CapabilityIndexRetriever(
             Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance);
         var catalog = new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions);
-        var resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog);
+        var resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]));
 
         var act = () => resolver.ResolveAsync(_chatId, offering.Id, "capability", "unavailable_now", null, "{}", CancellationToken.None);
 
@@ -280,11 +281,15 @@ public sealed class SelectedActionDispatchOrchestratorTests
         var capabilityExecutor = new CapabilityExecutor(
             new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             new PermissiveSchemaValidator(),
+            runtimeOptions,
             NullLogger<CapabilityExecutor>.Instance);
+
+        var flowCatalog = new ConversationFlowCatalog([]);
+        var flowRunner = new FlowRunner(capabilityCatalog, capabilityExecutor, runtimeOptions, NullLogger<FlowRunner>.Instance);
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, _decider, capabilityExecutor, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, _offerGenerator,
             NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
@@ -317,7 +322,8 @@ public sealed class SelectedActionDispatchOrchestratorTests
 
         // FR-027 — "the orchestrator skips the decision step and runs the selection directly".
         await _decider.DidNotReceive().DecideAsync(
-            Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>());
+            Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
+            Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -357,7 +363,8 @@ public sealed class SelectedActionDispatchOrchestratorTests
         await CollectAsync(BuildOrchestrator(), Request(selection));
 
         await _offerGenerator.DidNotReceive().GenerateAsync(
-            Arg.Any<TurnContext>(), Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+            Arg.Any<TurnContext>(), Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Any<IReadOnlyList<FlowVariantOfferCandidate>?>(), Arg.Any<CancellationToken>());
     }
 
     private static async IAsyncEnumerable<StreamChunk> ToAsyncEnumerable(IEnumerable<StreamChunk> chunks)
