@@ -428,7 +428,21 @@ export function ConversationView({
       // Never speak conversation history restored on mount/reload — only replies from a turn
       // streamed live in this session.
       if (!hasStreamedThisSessionRef.current) return
-      tts.speak(reply.content, language)
+
+      // specs/045-conversational-agent-runtime T113 (FR-044) — the offer rides on this same
+      // last reply's own message object, never a bubble of its own, so it is spoken as a
+      // continuation of that reply's own speech rather than a second, independently-triggered
+      // effect that could race it. Only the question and the offerable labels are ever spoken —
+      // never a description, capability key or argument, none of which a user should hear read
+      // aloud.
+      const isLastReply = index === replies.length - 1
+      const speech = tts.speak(reply.content, language)
+      if (isLastReply && reply.question && reply.suggestedActions) {
+        const labels = reply.suggestedActions.filter((a) => !a.isDecline).map((a) => a.label)
+        const spokenOffer = labels.length > 0 ? `${reply.question} ${labels.join(', ')}.` : reply.question
+        speech.then(() => tts.speak(spokenOffer, language))
+      }
+
       setPlayingMessageId(reply.id ?? null)
       setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
       // FR-016: the toggle needs to indicate new activity when the panel is collapsed.

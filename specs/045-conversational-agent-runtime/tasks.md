@@ -293,9 +293,11 @@ Clean Architecture backend plus a co-located React SPA:
 
 **Independent test**: Run an action turn with voice enabled and confirm per-beat speech, labels spoken, descriptions silent, persona unchanged across two languages.
 
-- [ ] T112 [US7] Speak each beat as it arrives rather than at turn end, in `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx`
-- [ ] T113 [US7] Build the spoken offer string from question + non-decline labels only; never pass descriptions, keys or arguments to `useVoiceOutput` (FR-044)
-- [ ] T114 [P] [US7] Voice tests asserting per-beat speech, label-only offer speech, that no structured payload reaches the speech path, and that the configured voice persona is unchanged across at least two supported languages — FR-045 mandates no change, so the test guards against regression rather than driving new code
+> **Phase 9 scope decisions.** (1) T112 needed no new code: `ChatPage.tsx`'s auto-speak effect already speaks each assistant message as it *completes* ("once another message has appeared behind it, or once streaming has stopped"), not at turn end — built for specs/044's boundary-confirmation split and already covered by two existing tests (`shows what it is waiting for while the boundary resolves, and speaks the reply without waiting`; `speaks every message of a split turn, including the one with no server id`). Every specs/045 beat (a flow's N+1 messages, a delegated slice's own message) is exactly that same `StartsNewMessage`/`messageBreak`-driven split this effect was already written against, so it already satisfies "speak each beat as it arrives" with no change. (2) T113's offer speech is queued as a `.then()` continuation of the SAME reply's own `speak()` call (the offer always rides the last reply's own message object, never a bubble of its own) rather than a second, independently-triggered effect — sequencing it any other way risked two overlapping `speak()` calls racing each other's audio, since `useVoiceOutput.speak` starts a new stream without waiting for or cancelling a prior one still in flight.
+
+- [X] T112 [US7] Speak each beat as it arrives rather than at turn end, in `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx`
+- [X] T113 [US7] Build the spoken offer string from question + non-decline labels only; never pass descriptions, keys or arguments to `useVoiceOutput` (FR-044)
+- [X] T114 [P] [US7] Voice tests asserting per-beat speech, label-only offer speech, that no structured payload reaches the speech path, and that the configured voice persona is unchanged across at least two supported languages — FR-045 mandates no change, so the test guards against regression rather than driving new code
 
 ---
 

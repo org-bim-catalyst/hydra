@@ -221,14 +221,14 @@ beforeEach(() => {
   useChatPanelSizeStore.setState({ isFullHeight: false })
 })
 
-function renderConversation(chatId: string | null) {
+function renderConversation(chatId: string | null, language = 'en') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
         <ConversationView
           chatId={chatId}
-          language="en"
+          language={language}
           onChatCreated={() => {}}
           onNewChat={() => {}}
           tts={mockTts}
@@ -1555,6 +1555,101 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     const spoken = speak.mock.calls.map((call) => call[0])
     expect(spoken[0]).toContain('Centred the viewer on Al Safa Park 2.')
     expect(spoken[1]).toContain("I've outlined the site boundary.")
+  })
+
+  /**
+   * specs/045-conversational-agent-runtime T113 (FR-044) — the offer closing a turn is spoken
+   * too, but only its question and the offerable (non-decline) labels: never a row's
+   * description, capability key, or arguments, none of which a user should hear read aloud.
+   */
+  it('speaks the offer using only its question and offerable labels, never a description or arguments', async () => {
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    speak.mockClear()
+
+    const actionsPayload = {
+      offeredByMessageId: 'msg-offer-1',
+      question: 'What would you like to do next?',
+      actions: [
+        {
+          kind: 'flowVariant',
+          capabilityKey: null,
+          text: null,
+          label: 'Focus and outline the site',
+          description: 'Find it, centre the map, and outline the site boundary.',
+          arguments: { secretDetail: 'never-spoken-argument-value' },
+          isDecline: false,
+        },
+        { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+      ],
+    }
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream(['Found Al Safa Park 2.', `__ACTIONS__${JSON.stringify(actionsPayload)}`])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    expect(await screen.findByText('Found Al Safa Park 2.')).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+
+    const [replySpeech, offerSpeech] = speak.mock.calls.map((call) => call[0])
+    expect(replySpeech).toContain('Found Al Safa Park 2.')
+    expect(offerSpeech).toContain('What would you like to do next?')
+    expect(offerSpeech).toContain('Focus and outline the site')
+    // The decline row is never read aloud — it is a rendered affordance, not a spoken option.
+    expect(offerSpeech).not.toContain('No thanks')
+    expect(offerSpeech).not.toContain('Find it, centre the map, and outline the site boundary.')
+    expect(offerSpeech).not.toContain('secretDetail')
+    expect(offerSpeech).not.toContain('never-spoken-argument-value')
+  })
+
+  /**
+   * specs/045-conversational-agent-runtime T114 (FR-045) — the offer is spoken through the exact
+   * same `speak(text, language)` call the reply itself uses, so it can never end up on a
+   * different voice/persona selection path; asserted here for a non-English language, since the
+   * reply-only case is already covered above under the default "en" render.
+   */
+  it('speaks the offer with the same language as the reply, regardless of which language is active', async () => {
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    speak.mockClear()
+
+    const actionsPayload = {
+      offeredByMessageId: 'msg-offer-2',
+      question: '¿Qué te gustaría hacer a continuación?',
+      actions: [
+        { kind: 'capability', capabilityKey: 'search_knowledge_base', text: null, label: 'Buscar en mis documentos', description: 'Busca esto en tus documentos adjuntos.', arguments: {}, isDecline: false },
+        { kind: 'decline', capabilityKey: null, text: null, label: 'No, gracias', description: '', arguments: {}, isDecline: true },
+      ],
+    }
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream(['Encontrado.', `__ACTIONS__${JSON.stringify(actionsPayload)}`])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderConversation(CHAT_A, 'es')
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Muéstrame Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    expect(await screen.findByText('Encontrado.')).toBeInTheDocument()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+
+    const [replyLanguage, offerLanguage] = speak.mock.calls.map((call) => call[1])
+    expect(replyLanguage).toBe('es')
+    expect(offerLanguage).toBe('es')
   })
 
   /**
