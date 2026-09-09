@@ -47,7 +47,7 @@ public sealed class OpenVisualPanelCapability(IPanelNotifier panelNotifier) : IC
         "Use when the answer is better seen than read: comparisons, breakdowns, tabular figures, " +
         "or a summary the user will want to keep on screen while looking at the map.";
 
-    public string ArgumentHint => "the panel type and the data to show";
+    public string ArgumentHint => "typeKey: chart/table/parameters/summary; title: label; data: content object";
 
     public string UsageGuidance =>
         "Pick the type that fits the shape of the data, not the one that looks most impressive: a " +

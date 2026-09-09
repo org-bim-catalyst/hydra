@@ -48,7 +48,7 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
         "\"show me X\", \"where is X\", \"take me to X\", \"centre on X\" — or names a site, park, " +
         "building or address they want on the map.";
 
-    public string ArgumentHint => "the place name, as the user wrote it";
+    public string ArgumentHint => "query: the place name, as the user wrote it";
 
     public string UsageGuidance =>
         "Report the resolved place by the name the geocoder returned, not the user's spelling, so " +
