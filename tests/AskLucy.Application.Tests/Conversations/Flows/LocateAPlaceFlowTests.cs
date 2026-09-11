@@ -40,7 +40,7 @@ public sealed class LocateAPlaceFlowTests
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions());
         var capabilityCatalog = new ConversationCapabilityCatalog(
             new AgentToolCatalog(
-                [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
+                [new ResolveLocationCapability(_locationService), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
                 new EmptyMcpToolRegistry()),
             new CapabilityIndexRetriever(Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance),
             runtimeOptions);
@@ -108,23 +108,24 @@ public sealed class LocateAPlaceFlowTests
     }
 
     [Fact]
-    public async Task RunAsync_ShouldRunAllThreeSteps_WithFourMessages_AndNeverReGeocode()
+    public async Task RunAsync_ShouldRunBothSteps_WithThreeMessages_AndNeverReGeocode()
     {
         SucceedLocation();
         SucceedBoundary();
         var record = new List<FlowStepResult>();
 
-        var chunks = await RunAsync(Context(), throughStepIndex: 2, record);
+        var chunks = await RunAsync(Context(), throughStepIndex: 1, record);
 
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
-        messages.Should().HaveCount(4, "an N=3 step flow produces N+1 messages (FR-052/FR-053)");
+        // 2026-09-11: the flow's former step 2 (a forced adjust_viewer_focus zoom-in) is gone —
+        // see LocateAPlaceFlow's own remarks — so an N=2 step flow now produces N+1=3 messages.
+        messages.Should().HaveCount(3, "an N=2 step flow produces N+1 messages (FR-052/FR-053)");
         messages[0].Should().Be("Looking for it.");
-        messages[1].Should().Contain("done.").And.Contain("Now focusing the viewer on it.");
-        messages[2].Should().Contain("done.").And.Contain("Now highlighting the boundary.");
-        messages[3].Should().Contain("done.");
+        messages[1].Should().Contain("done.").And.Contain("Now highlighting the boundary.");
+        messages[2].Should().Contain("done.");
 
         await _locationService.Received(1).ResolveQueryAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        record.Should().HaveCount(3);
+        record.Should().HaveCount(2);
         record.Should().OnlyContain(r => r.Attempted && r.Succeeded);
     }
 
@@ -135,7 +136,7 @@ public sealed class LocateAPlaceFlowTests
         SucceedBoundary();
         var record = new List<FlowStepResult>();
 
-        var chunks = await RunAsync(Context(), throughStepIndex: 2, record);
+        var chunks = await RunAsync(Context(), throughStepIndex: 1, record);
 
         chunks.Should().ContainSingle(c => c.ConfirmedLocation != null)
             .Which.ConfirmedLocation!.LocationName.Should().Be("Al Safa Park 2");
@@ -148,72 +149,53 @@ public sealed class LocateAPlaceFlowTests
             .Returns(new LocationResolutionOutcome(LocationResolutionOutcomeType.NotFound, null, "I couldn't find a place matching that name."));
         var record = new List<FlowStepResult>();
 
-        var chunks = await RunAsync(Context(), throughStepIndex: 2, record);
+        var chunks = await RunAsync(Context(), throughStepIndex: 1, record);
 
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
         messages.Should().ContainSingle(m => m.Contains("couldn't find", StringComparison.OrdinalIgnoreCase));
         // FR-056/research.md D19 — names the cause only; never pads with what didn't happen as a result.
-        messages.Should().NotContain(m => m.Contains("focus", StringComparison.OrdinalIgnoreCase) || m.Contains("boundary", StringComparison.OrdinalIgnoreCase));
+        messages.Should().NotContain(m => m.Contains("boundary", StringComparison.OrdinalIgnoreCase));
 
-        record.Should().HaveCount(3);
+        record.Should().HaveCount(2);
         record[0].Attempted.Should().BeTrue();
         record[0].Succeeded.Should().BeFalse();
         record[1].Attempted.Should().BeFalse("step 2 was never reached");
-        record[2].Attempted.Should().BeFalse("step 3 was never reached");
     }
 
     [Fact]
-    public async Task RunAsync_ShouldStop_WhenStep3Fails_WithSteps1And2StandingAsSucceeded()
+    public async Task RunAsync_ShouldStop_WhenStep2Fails_WithStep1StandingAsSucceeded()
     {
         SucceedLocation();
         _boundaryService.ResolveAsync(Arg.Any<ConfirmedLocationData>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new BoundaryResolutionOutcome(BoundaryResolutionOutcomeType.Unavailable, null, "I couldn't work out the site boundary."));
         var record = new List<FlowStepResult>();
 
-        var chunks = await RunAsync(Context(), throughStepIndex: 2, record);
+        var chunks = await RunAsync(Context(), throughStepIndex: 1, record);
 
-        record.Should().HaveCount(3);
+        record.Should().HaveCount(2);
         record[0].Succeeded.Should().BeTrue();
-        record[1].Succeeded.Should().BeTrue();
-        record[2].Attempted.Should().BeTrue();
-        record[2].Succeeded.Should().BeFalse();
+        record[1].Attempted.Should().BeTrue();
+        record[1].Succeeded.Should().BeFalse();
 
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
-        // Still the full N+1 = 4: steps 1 and 2 succeeded and were announced/reported normally;
-        // only step 3's own failure message stands alone rather than pairing with a next
-        // announcement — there is no step 4 to name regardless of the failure.
-        messages.Should().HaveCount(4);
+        // Still the full N+1 = 3: step 1 succeeded and was announced/reported normally; only
+        // step 2's own failure message stands alone rather than pairing with a next announcement.
+        messages.Should().HaveCount(3);
         messages[^1].Should().Contain("couldn't work out the site boundary");
         messages[^1].Should().NotContain("Now ", "FR-056/research.md D19 — the final message names only the cause, never a next step that will not run");
     }
 
     [Fact]
-    public async Task RunAsync_ShouldSkipStep2_WhenTheViewerAlreadyFramesTheResolvedPlace()
-    {
-        SucceedLocation(name: "Al Safa Park 2");
-        SucceedBoundary();
-        var alreadyActive = new AskLucy.Domain.Chats.ActiveSiteLocation(25.15, 55.22, "Al Safa Park 2", 0.9);
-        var record = new List<FlowStepResult>();
-
-        var chunks = await RunAsync(Context(location: alreadyActive), throughStepIndex: 2, record);
-
-        record[1].Skipped.Should().BeTrue();
-        record[1].Attempted.Should().BeFalse();
-        var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
-        messages.Should().ContainSingle(m => m.Contains("already focused", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public async Task RunAsync_ShouldSkipStep3_WhenTheSiteIsAlreadyOutlinedForThatPlace()
+    public async Task RunAsync_ShouldSkipStep2_WhenTheSiteIsAlreadyOutlinedForThatPlace()
     {
         SucceedLocation(name: "Al Safa Park 2");
         var alreadyOutlined = new ActiveSiteBoundary(
             "Al Safa Park 2", 25.15, 55.22, [], 1000, 0.9, BoundaryConfidenceLevel.High, SiteBoundarySource.OsmBoundary, "OpenStreetMap");
         var record = new List<FlowStepResult>();
 
-        var chunks = await RunAsync(Context(boundary: alreadyOutlined), throughStepIndex: 2, record);
+        var chunks = await RunAsync(Context(boundary: alreadyOutlined), throughStepIndex: 1, record);
 
-        record[2].Skipped.Should().BeTrue();
+        record[1].Skipped.Should().BeTrue();
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
         messages.Should().ContainSingle(m => m.Contains("already outlined", StringComparison.OrdinalIgnoreCase));
         await _boundaryService.DidNotReceive().ResolveAsync(Arg.Any<ConfirmedLocationData>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
@@ -241,7 +223,7 @@ public sealed class LocateAPlaceFlowTests
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { MaxTurnDurationSeconds = 5 });
         var capabilityCatalog = new ConversationCapabilityCatalog(
             new AgentToolCatalog(
-                [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
+                [new ResolveLocationCapability(_locationService), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
                 new EmptyMcpToolRegistry()),
             new CapabilityIndexRetriever(Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance),
             runtimeOptions);
@@ -261,7 +243,7 @@ public sealed class LocateAPlaceFlowTests
 
         var record = new List<FlowStepResult>();
         var chunks = new List<ChatStreamChunk>();
-        await foreach (var chunk in runner.RunAsync(Request(), _flow, 2, Context(), """{"query":"Al Safa Park 2"}""", record, CancellationToken.None))
+        await foreach (var chunk in runner.RunAsync(Request(), _flow, 1, Context(), """{"query":"Al Safa Park 2"}""", record, CancellationToken.None))
         {
             chunks.Add(chunk);
         }

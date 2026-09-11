@@ -88,18 +88,29 @@ public sealed record FlowStepContext(
 
 ## The `locate_a_place` flow (FR-051)
 
+> **2026-09-11 — step 2 (`adjust_viewer_focus`) removed.** It was a forced `direction: "in"`
+> zoom-in, added to compensate for the viewer's own automatic recentre-on-confirmed-location
+> (`ViewerSurface.tsx`) falling back to a wide, fixed default zoom whenever the geocoder's
+> viewport/locationType data was silently lost between `ResolveLocationCapability` and the
+> client — a bug fixed the same day. Once that data reached the client correctly, step 1's own
+> auto-zoom started framing the site correctly on its own, and this step's forced zoom-in then
+> stacked an extra zoom-in on top of an already-correct frame — live-tested as "zoomed twice" and
+> "too tight to see the boundary while rotating." `AdjustViewerFocusCapability` itself is
+> untouched and still reachable directly for an explicit "zoom in"/"zoom out" request; only this
+> flow's own forced invocation of it is gone. The table, variants, and every example below reflect
+> the resulting two-step flow.
+
 | # | Capability | Announcement | Completion | Binds from | Skipped when | Duration |
 |---|---|---|---|---|---|---|
 | 1 | `resolve_location` | "Looking for {place}." | "Location found" | the place name in the request | — | Noticeable |
-| 2 | `adjust_viewer_focus` | "Now focusing the viewer on it." | "Site focused" | step 1's confirmed location | the viewer already frames that location | Brief |
-| 3 | `resolve_site_boundary` | "Now highlighting the boundary." | "Boundary highlighted — {area}" | step 1's confirmed location | a boundary for that site is already drawn | **Long** |
+| 2 | `resolve_site_boundary` | "Now highlighting the boundary." | "Boundary highlighted — {area}" | step 1's confirmed location | a boundary for that site is already drawn | **Long** |
 
 **Index entry** (Tier 1 — what the deciding model sees):
 
 ```text
 locate_a_place
   Description:  Finds a named real-world place, focuses the map viewer on it, and outlines
-                the site boundary — one job, three steps.
+                the site boundary — one job, two steps.
   WhenToUse:    Use when the user asks to see, find, locate or navigate to a named place,
                 site, park, building or address they want shown on the map.
   ArgumentHint: the place name
@@ -111,8 +122,8 @@ Note the description states the **outcome**, not the mechanics. The model choose
 
 | Key | Label | Runs | Offer description |
 |---|---|---|---|
-| `focus` | Focus the viewer on it | steps 1–2 | "Find it and centre the map on it." |
-| `full` | Focus and outline the site | steps 1–3 | "Find it, centre the map, and outline the site boundary." |
+| `focus` | Focus the viewer on it | step 1 | "Find it and centre the map on it." |
+| `full` | Focus and outline the site | steps 1–2 | "Find it, centre the map, and outline the site boundary." |
 
 Individual steps are **never offerable** (FR-060) — variants are. Offering "outline the boundary" as a standalone row would let the user pick a step that cannot run without step 1, and would make them assemble a job they should be able to want as a whole.
 
@@ -158,15 +169,13 @@ The third row runs no capability at all — Lucy simply answers in words. It is 
 ```text
 "Looking for Al Safa Park 2."                            ← step 1 announced
    [progress: Looking for Al Safa Park 2]
-"Location found. Now focusing the viewer on it."         ← step 1 done + step 2 announced
-   [progress: Focusing the viewer]
-"Site focused. Now highlighting the boundary."           ← step 2 done + step 3 announced
+"Location found. Now highlighting the boundary."         ← step 1 done + step 2 announced
    [progress: Highlighting the boundary]
-"Boundary highlighted — about 4.2 hectares, medium       ← step 3 done; flow complete
+"Boundary highlighted — about 4.2 hectares, medium       ← step 2 done; flow complete
  confidence from OpenStreetMap."
 ```
 
-Pairing each completion with the next announcement is what makes uniformity affordable: separate "done" and "starting" messages would produce 2N, and a sub-second step would get two messages of its own about work already finished. Combined, every step is named exactly once as it starts and once as it ends, in four messages rather than seven.
+Pairing each completion with the next announcement is what makes uniformity affordable: separate "done" and "starting" messages would produce 2N, and a sub-second step would get two messages of its own about work already finished. Combined, every step is named exactly once as it starts and once as it ends, in three messages rather than five.
 
 Each message is its own chat message (FR-004), so each is spoken as it arrives rather than at the end (FR-043).
 
@@ -176,9 +185,8 @@ Each message is its own chat message (FR-004), so each is spoken as it arrives r
 
 | Situation | Behaviour | What the user reads |
 |---|---|---|
-| Step 1 fails (place not found) | Flow stops. Steps 2–3 not attempted. | "I couldn't find a place matching that name." |
-| Step 2 fails | Flow stops. Step 3 not attempted. Step 1's location stays confirmed and visible. | "I found it, but couldn't focus the viewer on it." |
-| Step 3 fails or times out | Flow ends. Steps 1–2 stand. | "I couldn't work out the site boundary." |
+| Step 1 fails (place not found) | Flow stops. Step 2 not attempted. | "I couldn't find a place matching that name." |
+| Step 2 fails or times out | Flow ends. Step 1 stands. | "I couldn't work out the site boundary." |
 | A step is already satisfied | Skipped with a brief note; flow continues (FR-057). | "The site is already outlined, so I've left it as it is." |
 | Turn budget reached mid-flow | Flow stops at the current step (FR-059 → FR-056). | "I've stopped there — this was taking longer than expected." |
 | User interrupts | Flow stops at the current step; completed steps stay; recorded interrupted (FR-058). | On reload: the completed steps, marked interrupted. |
@@ -196,14 +204,14 @@ A flow produces the same record as any other turn (FR-061): one `AgentExecutionS
 
 ## Testing contract
 
-1. **Happy path, navigational intent** — "show me X" runs all three steps in order; each announced before it starts and reported when it finishes; the confirmed location is passed forward, never re-geocoded; **no offer** follows.
+1. **Happy path, navigational intent** — "show me X" runs both steps in order; each announced before it starts and reported when it finishes; the confirmed location is passed forward, never re-geocoded; **no offer** follows.
 1a. **Informational intent** — "do you know X?" answers in text, runs no step, moves the viewer not at all, and offers both variants.
 1b. **Passing mention** — "I read that X was renovated" runs nothing and offers nothing.
-1c. **Accepted variant** — selecting *focus only* runs steps 1–2 and stops; selecting *focus and outline* runs all three; both narrate identically to the navigational path.
-2. **Failure at each step position** — first, middle, last: the flow stops, the failure is named, remaining steps are reported as not attempted, and earlier results stay valid.
-3. **Already-satisfied skip** — a second run for the same place skips the satisfied steps with a note and completes fast.
+1c. **Accepted variant** — selecting *focus only* runs step 1 and stops; selecting *focus and outline* runs both steps; both narrate identically to the navigational path.
+2. **Failure at each step position** — first or last: the flow stops, the failure is named, any remaining step is reported as not attempted, and earlier results stay valid.
+3. **Already-satisfied skip** — a second run for the same place skips the satisfied step with a note and completes fast.
 4. **Scoped request** — "just find it" runs step 1 only.
 5. **Interruption** — cancelling mid-flow leaves completed steps in history and records the flow interrupted, distinct from failed.
 6. **Budget** — a flow that would exceed the per-turn budget stops and explains rather than running over.
-7. **No independent offer** — after the flow completes, neither `resolve_site_boundary` nor `adjust_viewer_focus` appears in the offer (FR-060).
+7. **No independent offer** — after the flow completes, `resolve_site_boundary` does not appear in the offer (FR-060).
 8. **Record completeness** — every step, including skipped and unattempted, appears in the execution record with a reason.
