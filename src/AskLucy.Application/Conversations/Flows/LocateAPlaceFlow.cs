@@ -4,20 +4,24 @@ using AskLucy.Application.Conversations.Capabilities;
 namespace AskLucy.Application.Conversations.Flows;
 
 /// <summary>
-/// Finds a named place, focuses the viewer on it, and outlines its site boundary — one job,
-/// three steps (specs/045 FR-051, contracts/capability-flow.md).
+/// Finds a named place and outlines its site boundary — one job, two steps (specs/045 FR-051,
+/// contracts/capability-flow.md).
 ///
 /// <para>
-/// <b>Step 2's capability choice.</b> The contract describes step 2 as "focus the viewer on the
-/// newly found place." The only capability that exists for viewer framing is
-/// <see cref="AdjustViewerFocusCapability"/> (specs/038), whose sole lever is zoom
-/// direction — it has no "centre on these coordinates" mode, because the viewer already
-/// recentres itself as soon as step 1's <c>__LOCATION__</c> payload reaches the client
-/// (<c>TryExtractStructuredPayload</c> in <c>ConversationTurnOrchestrator</c>). Binding this step
-/// to <c>direction: "in"</c> is a deliberate, documented interpretation — "found it, now focus
-/// in on it" — rather than a literal step-for-step match to the contract's illustrative capability
-/// name; building a second, coordinate-based viewer capability solely for this one flow step was
-/// judged out of scope for specs/045.
+/// <b>The former step 2 is gone (2026-09-11), not just skipped.</b> The contract's step 2 was
+/// "focus the viewer on the newly found place," bound to <see cref="AdjustViewerFocusCapability"/>
+/// with a hardcoded <c>direction: "in"</c> — a deliberate interpretation from a time when the
+/// viewer's own automatic recentre-on-<c>__LOCATION__</c> (<c>ViewerSurface.tsx</c>) fell back to
+/// a wide, fixed default zoom whenever the geocoder's viewport/locationType data was silently
+/// lost in transit (a bug fixed the same day as this one — see <c>ResolveLocationCapability</c>'s
+/// remarks). The extra forced zoom-in compensated for that loss. Once the viewport/locationType
+/// fix landed, step 1's own auto-zoom started framing the site correctly on its own — and this
+/// step's zoom-in then stacked on top of an already-correct frame, live-tested as "zoomed twice"
+/// and "too tight to see the boundary while rotating." Removing it, rather than special-casing it
+/// away, is correct: nothing about "found a place" implies "and also zoom in one more stop" once
+/// the thing it was compensating for no longer happens. <see cref="AdjustViewerFocusCapability"/>
+/// itself is untouched and still reachable directly for an explicit "zoom in"/"zoom out" request —
+/// only this flow's own forced invocation of it is gone.
 /// </para>
 /// </summary>
 public sealed class LocateAPlaceFlow : IConversationFlow
@@ -28,7 +32,7 @@ public sealed class LocateAPlaceFlow : IConversationFlow
 
     public string Description =>
         "Finds a named real-world place, focuses the map viewer on it, and outlines the site " +
-        "boundary — one job, three steps.";
+        "boundary — one job, two steps.";
 
     public string WhenToUse =>
         "Use when the user asks to see, find, locate or navigate to a named place, site, park, " +
@@ -48,14 +52,6 @@ public sealed class LocateAPlaceFlow : IConversationFlow
             CompletionTemplate: "Location found"),
 
         new FlowStep(
-            CapabilityKey: AdjustViewerFocusCapability.CapabilityKey,
-            AnnouncementTemplate: "Now focusing the viewer on it.",
-            BindArguments: _ => JsonSerializer.SerializeToDocument(new { direction = "in" }),
-            IsAlreadySatisfied: ctx => IsSamePlace(ResolvedLocationName(ctx), ctx.Turn.ActiveLocation?.LocationName),
-            CompletionTemplate: "Site focused",
-            SkipTemplate: "The viewer is already focused on it, so I've left it as it is."),
-
-        new FlowStep(
             CapabilityKey: ResolveSiteBoundaryCapability.CapabilityKey,
             AnnouncementTemplate: "Now highlighting the boundary.",
             BindArguments: BindBoundaryArguments,
@@ -66,8 +62,8 @@ public sealed class LocateAPlaceFlow : IConversationFlow
 
     public IReadOnlyList<FlowVariant> Variants { get; } =
     [
-        new FlowVariant("focus", "Focus the viewer on it", "Find it and centre the map on it.", ThroughStepIndex: 1),
-        new FlowVariant("full", "Focus and outline the site", "Find it, centre the map, and outline the site boundary.", ThroughStepIndex: 2),
+        new FlowVariant("focus", "Focus the viewer on it", "Find it and centre the map on it.", ThroughStepIndex: 0),
+        new FlowVariant("full", "Focus and outline the site", "Find it, centre the map, and outline the site boundary.", ThroughStepIndex: 1),
     ];
 
     private static JsonDocument? BindBoundaryArguments(FlowStepContext ctx)
