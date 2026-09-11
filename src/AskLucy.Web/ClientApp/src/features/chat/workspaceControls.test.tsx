@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
@@ -55,18 +55,26 @@ describe('useMapStyleControl', () => {
 
   beforeEach(() => {
     useViewerEngineStore.setState(initialViewerEngineState, true)
+    // specs/048-buildings-only-map-style FR-006: unset (raster rendering) unless a test opts
+    // into the vector-rendering case below.
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', '')
   })
 
-  it('exposes roadmap/satellite/hybrid actions, highlighting the current style', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('exposes roadmap/satellite/hybrid/buildings-only actions, highlighting the current style', () => {
     const { result } = renderHook(() => useMapStyleControl(), { wrapper })
     const content = result.current.content as React.ReactElement<{
       actions: { id: string; label: string; highlighted?: boolean }[]
     }>
     const actions = content.props.actions
-    expect(actions.map((a) => a.label)).toEqual(['Road map', 'Satellite', 'Hybrid'])
+    expect(actions.map((a) => a.label)).toEqual(['Road map', 'Satellite', 'Hybrid', 'Buildings only'])
     expect(actions.find((a) => a.id === 'roadmap')?.highlighted).toBe(true)
     expect(actions.find((a) => a.id === 'satellite')?.highlighted).toBe(false)
     expect(actions.find((a) => a.id === 'hybrid')?.highlighted).toBe(false)
+    expect(actions.find((a) => a.id === 'buildings-only')?.highlighted).toBe(false)
   })
 
   it('selecting a style calls viewerEngine.setMapStyle, which updates viewerEngineStore', () => {
@@ -82,5 +90,35 @@ describe('useMapStyleControl', () => {
     expect(useViewerEngineStore.getState().mapStyle).toBe('satellite')
 
     setMapStyleSpy.mockRestore()
+  })
+
+  it('selecting "Buildings only" calls viewerEngine.setMapStyle and highlights it as active (US1)', () => {
+    const setMapStyleSpy = vi.spyOn(viewerEngine, 'setMapStyle')
+    const { result, rerender } = renderHook(() => useMapStyleControl(), { wrapper })
+    const content = result.current.content as React.ReactElement<{
+      actions: { id: string; onSelect?: () => void }[]
+    }>
+
+    content.props.actions.find((a) => a.id === 'buildings-only')?.onSelect?.()
+    rerender()
+
+    expect(setMapStyleSpy).toHaveBeenCalledWith('buildings-only')
+    expect(useViewerEngineStore.getState().mapStyle).toBe('buildings-only')
+    const updatedContent = result.current.content as React.ReactElement<{
+      actions: { id: string; highlighted?: boolean }[]
+    }>
+    expect(updatedContent.props.actions.find((a) => a.id === 'buildings-only')?.highlighted).toBe(true)
+
+    setMapStyleSpy.mockRestore()
+  })
+
+  it('omits "Buildings only" entirely when a Map ID is configured (vector rendering, FR-006/US3)', () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'a-real-vector-map-id')
+    const { result } = renderHook(() => useMapStyleControl(), { wrapper })
+    const content = result.current.content as React.ReactElement<{
+      actions: { id: string }[]
+    }>
+
+    expect(content.props.actions.map((a) => a.id)).toEqual(['roadmap', 'satellite', 'hybrid'])
   })
 })

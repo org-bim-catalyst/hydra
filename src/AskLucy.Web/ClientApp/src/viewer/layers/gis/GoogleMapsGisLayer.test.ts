@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { shouldReduceMapQuality } from './GoogleMapsGisLayer'
+import { BUILDINGS_ONLY_STYLE, shouldReduceMapQuality } from './GoogleMapsGisLayer'
 
 // research.md Decision 10: the real `createGoogleMapsGisLayer` (Google Maps JS bootstrap +
 // WebGLOverlayView/Three.js bridging) is not unit-testable in jsdom — no real Maps JS runtime
@@ -41,5 +41,26 @@ describe('shouldReduceMapQuality (T032a, FR-005a/SC-004a)', () => {
     })) as typeof window.matchMedia
 
     expect(shouldReduceMapQuality()).toBe(false)
+  })
+})
+
+// specs/048-buildings-only-map-style: `setMapTypeId`'s live map.setOptions() behavior lives
+// inside `createGoogleMapsGisLayer`'s closure — not unit-testable here for the same reason
+// `shouldReduceMapQuality` is this file's only other coverage (see the file-level comment
+// above). The style content itself is pure data and worth locking down directly; the full
+// apply/clear behavior is covered by quickstart.md's manual/E2E validation.
+describe('BUILDINGS_ONLY_STYLE (specs/048-buildings-only-map-style FR-002)', () => {
+  it('hides exactly the five categories that compete with building footprints', () => {
+    const hiddenFeatureTypes = BUILDINGS_ONLY_STYLE.map((rule) => rule.featureType)
+    expect(hiddenFeatureTypes).toEqual([
+      'road',
+      'poi',
+      'transit',
+      'administrative',
+      'landscape.natural',
+    ])
+    for (const rule of BUILDINGS_ONLY_STYLE) {
+      expect(rule.stylers).toEqual([{ visibility: 'off' }])
+    }
   })
 })

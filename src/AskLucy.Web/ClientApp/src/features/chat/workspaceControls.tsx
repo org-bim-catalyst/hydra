@@ -36,7 +36,7 @@ import { useComingSoonStore } from '../../store/comingSoonStore'
 import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
 import { useViewerEngineStore } from '../../viewer/store/viewerEngineStore'
-import type { MapStyleId } from '../../viewer/api/commands'
+import { isBuildingsOnlyStyleSupported, type MapStyleId } from '../../viewer/api/commands'
 
 function comingSoon(label: string) {
   useComingSoonStore.getState().show(label)
@@ -121,6 +121,18 @@ export function useMapStyleControl(): ControlDefinition {
       onSelect: () => selectStyle('hybrid'),
       highlighted: mapStyle === 'hybrid',
     },
+    // specs/048-buildings-only-map-style FR-006: custom map styling has no effect on a vector
+    // base map (Map ID configured), so the option is omitted entirely there rather than being
+    // selectable but silently ineffective.
+    ...(isBuildingsOnlyStyleSupported()
+      ? [{
+          id: 'buildings-only',
+          label: 'Buildings only',
+          icon: <RiBuilding2Line size={20} />,
+          onSelect: () => selectStyle('buildings-only'),
+          highlighted: mapStyle === 'buildings-only',
+        }]
+      : []),
   ]
 
   return {

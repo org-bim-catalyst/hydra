@@ -34,7 +34,9 @@ describe('ViewerEngine — full contract (US6, SC-006)', () => {
     // setViewMode / setRotationEnabled / setMapStyle
     expect(engine.setViewMode('plan')).toEqual({ ok: true, data: undefined })
     expect(engine.setRotationEnabled(false)).toEqual({ ok: true, data: undefined })
-    expect(engine.setMapStyle('satellite')).toEqual({ ok: true, data: undefined })
+    // specs/048-buildings-only-map-style: exercises the newest MapStyleId member through the
+    // same generic command contract as the pre-existing three values.
+    expect(engine.setMapStyle('buildings-only')).toEqual({ ok: true, data: undefined })
 
     // select / clearSelection
     engine.registerSelectableElement('gis-1', 'marker')
