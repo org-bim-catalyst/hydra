@@ -62,6 +62,15 @@ export interface ChatMessage {
   suggestedActions?: SuggestedAction[]
   /** What Lucy asked before the rows in {@link suggestedActions}. Undefined exactly when that is. */
   question?: string
+  /**
+   * The label of the row the user actually picked from {@link suggestedActions}, resolved from
+   * the reply message that immediately follows this offer (its `selectedActionKind`/
+   * `selectedActionKey`, matched back against this offer's own rows). Undefined when the offer
+   * was never answered (still live, or the conversation moved on without a selection) — in that
+   * case the retired card falls back to listing every option, same as before this existed.
+   * `null` specifically for a decline, so the card can say so distinctly from "not yet answered."
+   */
+  selectedActionLabel?: string | null
 }
 
 /** specs/005-multi-provider-ai-engine contracts/chat.md — mirrors `GenerationParametersDto`. Every field optional; an unset field falls back through the server-side inheritance chain. */

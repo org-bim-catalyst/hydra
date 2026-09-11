@@ -13,13 +13,14 @@ describe('MessageBubble', () => {
     expect(document.querySelector('.katex')).not.toBeNull()
   })
 
-  it('renders a provider/model attribution chip when present (specs/005-multi-provider-ai-engine FR-011)', () => {
+  it('never renders provider/model attribution text, even when present on the message (specs/003-chat-loading-ux-fixes SC-004)', () => {
     render(
       <MessageBubble
         message={{ role: 'assistant', content: 'Hello', provider: 'OpenAI', model: 'gpt-4' }}
       />,
     )
-    expect(screen.getByText('OpenAI · gpt-4')).toBeInTheDocument()
+    expect(screen.queryByText('OpenAI · gpt-4')).not.toBeInTheDocument()
+    expect(screen.queryByText(/OpenAI/)).not.toBeInTheDocument()
   })
 
   it('does not render metadata caption when absent', () => {
