@@ -35,7 +35,15 @@ public static class StructuredPayloadExtractor
                         root.GetProperty("latitude").GetDouble(),
                         root.GetProperty("longitude").GetDouble(),
                         nameEl.GetString() ?? string.Empty,
-                        root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 1d));
+                        root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 1d,
+                        LocationType: root.TryGetProperty("locationType", out var locationTypeEl) ? locationTypeEl.GetString() : null,
+                        Viewport: root.TryGetProperty("viewport", out var viewportEl) && viewportEl.ValueKind != JsonValueKind.Null
+                            ? new ViewportBounds(
+                                viewportEl.GetProperty("northeastLat").GetDouble(),
+                                viewportEl.GetProperty("northeastLng").GetDouble(),
+                                viewportEl.GetProperty("southwestLat").GetDouble(),
+                                viewportEl.GetProperty("southwestLng").GetDouble())
+                            : null));
 
                 case ResolveSiteBoundaryCapability.CapabilityKey
                     when root.TryGetProperty("siteName", out var siteNameEl) && root.TryGetProperty("polygon", out var polygonEl):

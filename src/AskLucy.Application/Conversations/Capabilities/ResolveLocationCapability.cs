@@ -69,8 +69,14 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
     public string InputSchemaJson =>
         """{"type":"object","required":["query"],"properties":{"query":{"type":"string","minLength":1}}}""";
 
+    // "locationType"/"viewport" are Tier 3 (never shown to the deciding/narrating model): they
+    // exist only so StructuredPayloadExtractor can rebuild the full ConfirmedLocationData the
+    // viewer needs to zoom to the place's actual extent rather than a fixed default level — found
+    // live-testing this feature (2026-09-11): omitting them here silently regressed the "site
+    // fills the viewport" zoom specs/038 built, since the geocoder's own viewport/locationType
+    // (still correctly resolved by LocationResolutionService) never survived past this JSON.
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"outcome":{"type":"string"},"locationName":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"},"confidence":{"type":"number"}}}""";
+        """{"type":"object","properties":{"outcome":{"type":"string"},"locationName":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"},"confidence":{"type":"number"},"locationType":{"type":"string"},"viewport":{"type":"object"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Noticeable;
 
@@ -113,6 +119,14 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
                 latitude = location.Latitude,
                 longitude = location.Longitude,
                 confidence = location.Confidence,
+                locationType = location.LocationType,
+                viewport = location.Viewport is null ? null : new
+                {
+                    northeastLat = location.Viewport.NortheastLat,
+                    northeastLng = location.Viewport.NortheastLng,
+                    southwestLat = location.Viewport.SouthwestLat,
+                    southwestLng = location.Viewport.SouthwestLng,
+                },
             }));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
