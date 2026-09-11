@@ -4,6 +4,7 @@ import type { GoogleMapsGisLayerHandle } from '../layers/gis/GoogleMapsGisLayer'
 import { applyCameraViewMode } from '../camera/cameraViewMode'
 import { RotationDriver } from '../camera/rotationDriver'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
+import type { MapStyleId } from '../api/commands'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
 import { useThemeStore } from '../../store/themeStore'
 import type { ViewerEngine } from './ViewerEngine'
@@ -112,6 +113,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // US5 (FR-018): the marker becomes selectable only once it actually exists on the map.
       const unregisterSelectable = viewerEngine.registerSelectableElement(layerId, handle.currentLocationMarkerId)
 
+      let lastAppliedMapStyle: MapStyleId | undefined
+
       const applyStoreState = () => {
         if (!handle || !rotationDriver) return
         const { camera, selection, mapStyle } = useViewerEngineStore.getState()
@@ -122,7 +125,18 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         handle.setMarkerHighlighted(
           selection.selectedLayerId === layerId && selection.selectedElementId === handle.currentLocationMarkerId,
         )
-        handle.setMapTypeId(mapStyle)
+        // Only touch mapTypeId when the style actually changed — this subscription fires on
+        // *every* store mutation (rotation toggling, selection, etc.), and re-issuing
+        // setMapTypeId unconditionally lets Google's Maps JS API auto-tilt the camera (its
+        // built-in "45° imagery" behavior for satellite/hybrid) even when nothing about the
+        // map style changed, silently kicking Plan 2D out to the isometric tilt.
+        if (mapStyle !== lastAppliedMapStyle) {
+          lastAppliedMapStyle = mapStyle
+          handle.setMapTypeId(mapStyle)
+          // Google may have just changed tilt as a side effect of the mapTypeId change —
+          // reassert the active view mode's tilt so a style switch never changes the view mode.
+          applyCameraViewMode(handle, camera.mode)
+        }
       }
 
       applyStoreState()
@@ -135,7 +149,12 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         zoomBy: handle.zoomBy,
         applyViewMode: (mode) => applyCameraViewMode(handle!, mode),
         applyRotationEnabled: (enabled) => rotationDriver?.setEnabled(enabled && !reducedQuality),
-        applyMapStyle: (mapStyle) => handle?.setMapTypeId(mapStyle),
+        applyMapStyle: (mapStyle) => {
+          if (!handle || mapStyle === lastAppliedMapStyle) return
+          lastAppliedMapStyle = mapStyle
+          handle.setMapTypeId(mapStyle)
+          applyCameraViewMode(handle, useViewerEngineStore.getState().camera.mode)
+        },
       })
 
       // Combine the two teardown functions into the single `unregister` slot the outer cleanup
