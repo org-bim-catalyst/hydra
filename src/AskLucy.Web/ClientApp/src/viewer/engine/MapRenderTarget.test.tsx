@@ -118,7 +118,7 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
     await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
   })
 
-  it('re-applies "buildings-only" on every store update, not just the initial one (US2 persistence)', async () => {
+  it('keeps "buildings-only" in effect across an unrelated store update, without redundantly re-issuing it (US2 persistence)', async () => {
     useViewerEngineStore.setState({ mapStyle: 'buildings-only' })
     const engine = new ViewerEngine()
     render(
@@ -132,12 +132,15 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
     await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
     fakeHandle.setMapTypeId.mockClear()
 
-    // An unrelated command (view mode, not map style) still re-runs applyStoreState, which
-    // re-reads the current mapStyle from the store on every call — proving persistence doesn't
-    // depend on setMapStyle having been the triggering command.
+    // An unrelated command (view mode, not map style) still runs applyStoreState, which
+    // deliberately skips re-issuing setMapTypeId when mapStyle itself hasn't changed (avoids
+    // Google's Maps JS API silently resetting tilt on every re-application — see
+    // MapRenderTarget.tsx's own comment). Persistence here means the style is never lost or
+    // reset, not that it gets re-sent on every unrelated store change.
     engine.setViewMode('plan')
 
-    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
+    expect(fakeHandle.setMapTypeId).not.toHaveBeenCalled()
+    expect(useViewerEngineStore.getState().mapStyle).toBe('buildings-only')
   })
 
   it('calls onError, and never leaves an unhandled rejection, when loading the map throws', async () => {
