@@ -65,25 +65,34 @@ afterward.
 
 ### User Story 3 - Clear behavior when buildings-only styling cannot be applied (Priority: P3)
 
-Custom map styling (hiding roads/POI/transit/etc.) only has a visible effect on Google's
-"raster" base map rendering; it does nothing when the deployment is instead using
-Google's newer "vector" base map rendering, where the equivalent look must come from a
-cloud-configured map style rather than a client-supplied style list. A user in a vector
-map deployment should never end up in a state that silently looks unchanged after they
-picked "Buildings only" with no indication why.
+Custom client-supplied map styling (hiding roads/POI/transit/etc.) only has a visible
+effect on Google's "raster" base map rendering; it does nothing when the deployment is
+instead using Google's newer "vector" base map rendering, where the equivalent look
+instead comes from a cloud-configured map style (research.md Decision 4) attached to a
+dedicated Map ID. A user in a vector map deployment should never end up in a state that
+silently looks unchanged after they picked "Buildings only" with no indication why —
+either the cloud-styled alternative is configured and it works, or it isn't and the
+option is never offered.
 
 **Why this priority**: A real Maps API constraint (see Assumptions) that must be handled
 deliberately, but it only matters for deployments running the vector rendering path —
 lower priority than the core toggle itself, and can follow once P1 ships.
 
-**Independent Test**: In a deployment configured for vector base-map rendering, confirm
-the user is never left thinking "Buildings only" applied when it silently did not.
+**Independent Test**: In a deployment configured for vector base-map rendering with no
+buildings-only cloud style configured, confirm the user is never left thinking
+"Buildings only" applied when it silently did not. In one with a buildings-only cloud
+style configured, confirm selecting it produces the same buildings-only look.
 
 **Acceptance Scenarios**:
 
-1. **Given** the deployment is running vector base-map rendering, **When** the user
-   opens the map style menu, **Then** "Buildings only" is not offered as a selectable
-   option (rather than being selectable but silently ineffective).
+1. **Given** the deployment is running vector base-map rendering with no buildings-only
+   cloud style configured, **When** the user opens the map style menu, **Then**
+   "Buildings only" is not offered as a selectable option (rather than being selectable
+   but silently ineffective).
+2. **Given** the deployment is running vector base-map rendering with a buildings-only
+   cloud style configured, **When** the user selects "Buildings only", **Then** the map
+   shows the same buildings-only look (roads/POI/transit/administrative/natural
+   landscape hidden, buildings dominant) as on a raster deployment.
 
 ---
 
@@ -119,10 +128,12 @@ the user is never left thinking "Buildings only" applied when it silently did no
 - **FR-005**: The buildings-only styling MUST persist across camera movement (pan, zoom,
   rotate, tilt) and across navigating to a different location, exactly as the existing
   three styles already do.
-- **FR-006**: In a deployment where custom map styling has no effect (vector base-map
-  rendering, see Assumptions), the system MUST NOT present "Buildings only" as a
-  selectable option, so a user is never left believing it applied when it silently did
-  not.
+- **FR-006**: In a deployment where client-supplied custom map styling has no effect
+  (vector base-map rendering, see Assumptions) and no equivalent cloud-configured
+  buildings-only style is available for that deployment, the system MUST NOT present
+  "Buildings only" as a selectable option, so a user is never left believing it applied
+  when it silently did not. When an equivalent cloud-configured style is available
+  (research.md Decision 4), the option MUST be offered and MUST work.
 
 ### Key Entities
 

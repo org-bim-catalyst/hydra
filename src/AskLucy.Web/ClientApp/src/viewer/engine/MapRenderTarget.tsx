@@ -36,6 +36,18 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
   // google.maps.Map. Reading the mode via the hook (not a one-off `getState()` inside the
   // effect) makes it part of the effect's own dependency array, below.
   const themeMode = useThemeStore((state) => state.mode)
+  // specs/048-buildings-only-map-style research.md Decision 4: on a vector deployment (a base
+  // Map ID configured), "Buildings only" comes from switching to a second, cloud-styled Map ID
+  // (docs/google-maps-styles/*.cloud.json) rather than a client-side `styles` array, which Google
+  // ignores on vector rendering. Map ID (like `colorScheme`) can only be set when a map is
+  // initialized, so this — like a theme toggle — recreates the whole map rather than calling a
+  // live setter. `effectiveMapId` only changes when `mapStyle` crosses the buildings-only
+  // boundary (both env vars are static for the session), so switching between roadmap/satellite/
+  // hybrid never triggers this — only entering/leaving buildings-only on a vector deployment does.
+  const mapStyle = useViewerEngineStore((state) => state.mapStyle)
+  const baseMapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
+  const buildingsOnlyMapId = import.meta.env.VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID
+  const effectiveMapId = mapStyle === 'buildings-only' && buildingsOnlyMapId ? buildingsOnlyMapId : baseMapId
   // Carries the last-known pan/zoom/heading/tilt across a theme-triggered remount so toggling
   // the theme doesn't snap the camera back to this component's original mount-time `center`/
   // `zoom` props, or reset rotation/tilt to the north-up isometric default.
@@ -80,7 +92,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         reducedQuality = shouldReduceMapQuality()
         handle = await createGoogleMapsGisLayer({
           apiKey,
-          mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID,
+          mapId: effectiveMapId,
           container,
           center: lastCameraRef.current ?? center,
           zoom: lastCameraRef.current?.zoom ?? zoom,
@@ -193,7 +205,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       useGoogleMapsStore.getState().setHandle(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layerId, themeMode])
+  }, [layerId, themeMode, effectiveMapId])
 
   return <Box ref={containerRef} data-testid="viewer-map" sx={{ position: 'absolute', inset: 0 }} />
 }
