@@ -66,6 +66,9 @@ export interface PersistedMessage {
   citations: PersistedCitation[]
   /** specs/045-conversational-agent-runtime FR-026/SC-009 — the serialized `{question, actions}` offer this assistant message closed with, or null. Reopening a conversation replays it (inert unless it is still the newest unanswered offer). */
   suggestedActionsJson: string | null
+  /** specs/045-conversational-agent-runtime US3 — set only on a user message created by selecting an offered row (mirrors the resolved offer row exactly, including for a decline); null for a typed message. */
+  selectedActionKind: string | null
+  selectedActionKey: string | null
 }
 
 /** specs/025-chat-configuration-settings, contracts/chat-detail-api.md — a single chat's own detail, including its current provider/model selection (null if never set). */

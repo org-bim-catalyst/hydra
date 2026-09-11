@@ -38,17 +38,38 @@ function toOfferFields(suggestedActionsJson: string | null): Pick<ChatMessage, '
   }
 }
 
+/**
+ * specs/045-conversational-agent-runtime US3 — the next message's `selectedActionKind`/
+ * `selectedActionKey` mirror the exact offer row `ISelectedActionResolver` resolved (backend:
+ * `AiController.cs`'s `persistedSelectedActionKind`/`-Key` are the resolved row's own values, not
+ * an echo of whatever the client sent), so matching them back against this offer's own rows is an
+ * exact lookup, never a guess. Returns `null` for a resolved decline (distinct from `undefined`,
+ * "never answered") and `undefined` when the next message carries no selection at all.
+ */
+function resolveSelectedActionLabel(
+  actions: SuggestedAction[] | undefined, next: PersistedMessage | undefined,
+): string | null | undefined {
+  if (!actions || !next?.selectedActionKind) return undefined
+  const picked = actions.find((a) => a.kind === next.selectedActionKind && (a.capabilityKey ?? null) === next.selectedActionKey)
+  if (!picked) return undefined
+  return picked.isDecline ? null : picked.label
+}
+
 function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
-  return persisted.map((m) => ({
-    id: m.id,
-    role: m.role === 'User' ? 'user' : 'assistant',
-    content: m.kind === 'Image' ? `![${m.sourceText ?? 'Generated image'}](${m.content})` : m.content,
-    provider: m.provider,
-    model: m.model,
-    attachments: m.attachments,
-    citations: m.citations,
-    ...toOfferFields(m.suggestedActionsJson),
-  }))
+  return persisted.map((m, index) => {
+    const offerFields = toOfferFields(m.suggestedActionsJson)
+    return {
+      id: m.id,
+      role: m.role === 'User' ? 'user' : 'assistant',
+      content: m.kind === 'Image' ? `![${m.sourceText ?? 'Generated image'}](${m.content})` : m.content,
+      provider: m.provider,
+      model: m.model,
+      attachments: m.attachments,
+      citations: m.citations,
+      ...offerFields,
+      selectedActionLabel: resolveSelectedActionLabel(offerFields.suggestedActions, persisted[index + 1]),
+    }
+  })
 }
 
 /**

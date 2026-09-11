@@ -94,6 +94,8 @@ function makeMessage(overrides: Partial<PersistedMessage>): PersistedMessage {
     attachments: [],
     citations: [],
     suggestedActionsJson: null,
+    selectedActionKind: null,
+    selectedActionKey: null,
     ...overrides,
   }
 }
@@ -1791,8 +1793,16 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
               suggestedActionsJson: JSON.stringify(answeredOffer),
             }),
             // The selection that answered the offer above — Phase 5's own convention persists
-            // the resolved row's label as this user message's own Content.
-            makeMessage({ id: 'msg-user-2', role: 'User', content: 'Focus and outline the site' }),
+            // the resolved row's label as this user message's own Content; selectedActionKind/Key
+            // additionally mirror the exact offer row chosen (2026-09-11), which is what lets the
+            // now-inert offer above show "You chose: ..." instead of re-listing every option.
+            makeMessage({
+              id: 'msg-user-2',
+              role: 'User',
+              content: 'Focus and outline the site',
+              selectedActionKind: 'flowVariant',
+              selectedActionKey: null,
+            }),
             makeMessage({
               id: 'msg-assistant-3',
               role: 'Assistant',
@@ -1806,25 +1816,26 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     renderConversation(CHAT_A)
 
     // Beats: every message replays, and in the right order — checked positionally in the
-    // rendered text rather than via getByText, since "Focus and outline the site" legitimately
-    // appears twice (the selection's own bubble, and the now-inert offer's option list below it).
+    // rendered text. "Focus and outline the site" now appears exactly once (the selection's own
+    // bubble): the now-inert offer below it shows the resolved "You chose: ..." line instead of
+    // re-listing every option, so the label is never duplicated the way it used to be.
     await screen.findByText("I've outlined the site boundary.")
     const rendered = document.body.textContent ?? ''
     const indexOf = (text: string) => rendered.indexOf(text)
     expect(indexOf('Centred the viewer on it.')).toBeGreaterThanOrEqual(0)
     expect(indexOf('Found Al Safa Park 2.')).toBeGreaterThan(indexOf('Centred the viewer on it.'))
-    expect(indexOf('What would you like to do next?')).toBeGreaterThan(
+    expect(indexOf('You chose: Focus and outline the site')).toBeGreaterThan(
       indexOf('Found Al Safa Park 2.'),
     )
-    expect(rendered.lastIndexOf('Focus and outline the site')).toBeGreaterThan(
-      indexOf('What would you like to do next?'),
-    )
     expect(indexOf("I've outlined the site boundary.")).toBeGreaterThan(
-      rendered.lastIndexOf('Focus and outline the site'),
+      indexOf('You chose: Focus and outline the site'),
     )
+    // The question and full option list are gone now that the outcome is known — replaced by
+    // the single resolved line above (Claude-style: your pick, not the menu).
+    expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
 
-    // The offer replays inert: its question and label are still visible, but a later message has
-    // already answered it, so no interactive radiogroup exists.
+    // The offer replays inert either way: a later message has already answered it, so no
+    // interactive radiogroup exists.
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 

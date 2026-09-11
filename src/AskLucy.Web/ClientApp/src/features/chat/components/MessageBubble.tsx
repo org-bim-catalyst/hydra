@@ -67,7 +67,6 @@ export function MessageBubble({
   const isUser = message.role === 'user'
   const hasAttachments = (message.attachments?.length ?? 0) > 0
   const hasCitations = (message.citations?.length ?? 0) > 0
-  const hasAttribution = !isUser && Boolean(message.provider || message.model)
   // research.md Decision 7 — only a completed assistant reply (a stable id, not the
   // still-streaming placeholder) gets a replay control; also requires the caller to have
   // actually wired the replay handlers (onReplay undefined means "not offered here").
@@ -190,6 +189,7 @@ export function MessageBubble({
               isLive={Boolean(isLiveOffer)}
               isSubmitting={Boolean(isSubmittingAction)}
               error={actionError ?? null}
+              selectedLabel={message.selectedActionLabel}
               onSelect={(action) => {
                 const offeredByMessageId = message.id
                 return offeredByMessageId
@@ -199,26 +199,17 @@ export function MessageBubble({
             />
           )}
 
-          {/* specs/005-multi-provider-ai-engine FR-011: attribution is a snapshot of what
-            actually produced this message, independent of the conversation's current
-            provider/model selection. */}
-          {(hasAttribution || message.isIncomplete) && (
+          {/* specs/003-chat-loading-ux-fixes SC-004: 0% of rendered reply bubbles show
+            provider/model attribution text — message.provider/model is still stored and kept
+            (specs/005 FR-011) for admin/debugging use, it is just never rendered here. */}
+          {message.isIncomplete && (
             <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
-              {hasAttribution && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={[message.provider, message.model].filter(Boolean).join(' · ')}
-                />
-              )}
-              {message.isIncomplete && (
-                <Chip
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  label="Incomplete — connection dropped"
-                />
-              )}
+              <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label="Incomplete — connection dropped"
+              />
             </Stack>
           )}
         </Paper>

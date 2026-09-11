@@ -24,6 +24,13 @@ export interface SuggestedActionCardProps {
   isSubmitting: boolean
   /** Rendered as an inline Alert inside the card. */
   error: string | null
+  /**
+   * The label of the row actually picked, resolved from history (`resolveSelectedActionLabel` in
+   * `useChatStream.ts`) — `null` for a resolved decline, `undefined` when unknown (never answered,
+   * or older data this couldn't be resolved for). Only consulted when `isLive` is false: a card
+   * that is still live is never "answered" yet by definition.
+   */
+  selectedLabel?: string | null
 }
 
 /**
@@ -34,11 +41,26 @@ export interface SuggestedActionCardProps {
  * <p>No free-text row: the composer is live throughout (FR-031), so typing instead of selecting
  * is always available and needs no row of its own here.</p>
  */
-export function SuggestedActionCard({ question, actions, isLive, onSelect, isSubmitting, error }: SuggestedActionCardProps) {
+export function SuggestedActionCard({ question, actions, isLive, onSelect, isSubmitting, error, selectedLabel }: SuggestedActionCardProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const questionId = useId()
 
   if (!isLive) {
+    // Once answered, replace the whole menu with a single line naming the actual choice — the
+    // same "your pick, not the menu" convention Claude's own equivalent card follows — rather
+    // than re-listing every option as if the question were still open. Falls back to the full
+    // list only when the outcome genuinely isn't known (selectedLabel undefined): an offer that
+    // simply aged out unanswered, or older history predating this.
+    if (selectedLabel !== undefined) {
+      return (
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            {selectedLabel === null ? 'Declined.' : `You chose: ${selectedLabel}`}
+          </Typography>
+        </Box>
+      )
+    }
+
     // FR-032/history — an earlier or disabled-feature offer renders as plain text: the question
     // and the option labels as a bulleted list, never as interactive rows.
     return (

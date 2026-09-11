@@ -148,4 +148,38 @@ describe('SuggestedActionCard (specs/045-conversational-agent-runtime US2/US3, T
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+
+  it('renders the accepted choice instead of the full menu once selectedLabel is known (2026-09-11)', () => {
+    render(
+      <SuggestedActionCard
+        question="What would you like to do next?"
+        actions={actions}
+        isLive={false}
+        isSubmitting={false}
+        error={null}
+        onSelect={vi.fn()}
+        selectedLabel="Tell me more"
+      />,
+    )
+
+    expect(screen.getByText('You chose: Tell me more')).toBeInTheDocument()
+    expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Search my knowledge bases')).not.toBeInTheDocument()
+  })
+
+  it('renders a distinct decline message when selectedLabel is null', () => {
+    render(
+      <SuggestedActionCard
+        question="What would you like to do next?"
+        actions={actions}
+        isLive={false}
+        isSubmitting={false}
+        error={null}
+        onSelect={vi.fn()}
+        selectedLabel={null}
+      />,
+    )
+
+    expect(screen.getByText('Declined.')).toBeInTheDocument()
+  })
 })
