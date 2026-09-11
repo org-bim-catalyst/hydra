@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
@@ -8,12 +9,14 @@ using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Conversations;
 using AskLucy.Web.Contracts;
 using AskLucy.Web.Controllers.v1;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -51,7 +54,9 @@ public sealed class AiControllerChatStreamTests : IDisposable
                 Guid.NewGuid(), "assistant", "text", "Here you go.", null, DateTime.UtcNow,
                 null, null, null, null, null, null, null, null, null, [], []));
 
-        _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver, Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()))
+        _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
+            Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
+            NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -97,6 +102,46 @@ public sealed class AiControllerChatStreamTests : IDisposable
     }
 
     /// <summary>
+    /// 2026-09-11 live-testing report: users intermittently saw "Incomplete — connection
+    /// dropped" for what was often an ordinary, recoverable mid-stream failure. Root cause:
+    /// nothing wrapped the streaming loop in a try/catch, so an exception thrown after the
+    /// response had already started (headers sent, text/event-stream in progress) propagated
+    /// uncaught — ASP.NET Core cannot turn that into a normal error response, so it just resets
+    /// the connection, which is exactly what the client's fetch reader reports as a raw network
+    /// error (constitution §2.VIII: this was a silent-failure gap, not intentional behavior).
+    /// This test proves the fix: the exception is caught, the stream still ends cleanly with
+    /// `[DONE]`, and the partial reply plus a plain explanation reach the client instead of a
+    /// severed connection.
+    /// </summary>
+    [Fact]
+    public async Task Chat_ShouldEndTheStreamCleanly_WhenTheHandlerThrowsMidStream()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("Here you go", null);
+            await Task.Yield();
+            throw new InvalidOperationException("simulated mid-stream failure");
+#pragma warning disable CS0162 // Unreachable code — required to satisfy the iterator's yield-based signature.
+            yield break;
+#pragma warning restore CS0162
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        var act = async () => await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        await act.Should().NotThrowAsync("an exception after the response starts must be caught, never left to reset the connection");
+        ResponseText().Should().Contain("Here you go");
+        ResponseText().Should().Contain("Something went wrong partway through and I couldn't finish");
+        ResponseText().Should().Contain("data: [DONE]");
+        await _mediator.Received(1).Send(
+            Arg.Is<AppendMessageCommand>(c => c != null && c.Content.Contains("Here you go") && c.Content.Contains("Something went wrong")),
+            Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
     /// FR-002 / contract C-4: the turn still terminates cleanly and the viewer has still been told
     /// where to go, even though the boundary step blew up mid-stream.
     /// </summary>
@@ -118,9 +163,11 @@ public sealed class AiControllerChatStreamTests : IDisposable
             new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
             CancellationToken.None);
 
-        // The handler is what guarantees this never escapes in production (FR-002); here we assert
-        // the narrower controller-level property: whatever happens later, the viewer was already told.
-        await act.Should().ThrowAsync<HttpRequestException>();
+        // 2026-09-11: the controller now catches a mid-stream fault itself rather than letting it
+        // escape and reset the connection (see Chat_ShouldEndTheStreamCleanly_WhenTheHandlerThrowsMidStream)
+        // — the narrower controller-level property this test still guards is unchanged: whatever
+        // happens later, the viewer was already told.
+        await act.Should().NotThrowAsync();
         ResponseText().Should().Contain("__LOCATION__");
         ResponseText().Should().Contain("Al Safa Park 2");
     }
@@ -177,6 +224,52 @@ public sealed class AiControllerChatStreamTests : IDisposable
         text.IndexOf("__MESSAGE_BREAK__", StringComparison.Ordinal).Should().BeLessThan(
             text.IndexOf("I have outlined the site boundary.", StringComparison.Ordinal),
             "the client must have opened the new bubble before its first character arrives");
+    }
+
+    /// <summary>
+    /// 2026-09-11 live-testing report: "after a page reload, any offer card stored in the chat
+    /// history appears empty." Root cause: the persisted <c>SuggestedActionsJson</c> serialized
+    /// the raw <see cref="SuggestedAction"/> record (PascalCase — <c>Label</c>, <c>Key</c>,
+    /// <c>IsDecline</c>...), while <c>useChatStream.ts</c>'s <c>toOfferFields</c> — and
+    /// <c>SuggestedActionCard</c> itself — read the camelCase shape the live <c>__ACTIONS__</c>
+    /// event already used (<c>label</c>, <c>capabilityKey</c>, <c>isDecline</c>...). Every field
+    /// on a reopened offer read as <c>undefined</c>. This asserts the persisted JSON now matches
+    /// the live event's exact shape.
+    /// </summary>
+    [Fact]
+    public async Task Chat_ShouldPersistSuggestedActionsJson_InTheSameShapeAsTheLiveActionsEvent()
+    {
+        var actions = new[]
+        {
+            new SuggestedAction(SuggestedActionKind.FlowVariant, "locate_a_place", null, "Find and outline", "Locate it and highlight the boundary", null),
+        };
+
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("Here it is.", null, SuggestedActions: actions, SuggestedActionsQuestion: "Want more detail?");
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var persistedJson = _mediator.ReceivedCalls()
+            .Select(call => call.GetArguments().FirstOrDefault())
+            .OfType<AppendMessageCommand>()
+            .Where(command => command.Role == MessageRole.Assistant)
+            .Select(command => command.SuggestedActionsJson)
+            .Should().ContainSingle(json => json != null).Subject!;
+
+        using var document = JsonDocument.Parse(persistedJson);
+        var action = document.RootElement.GetProperty("actions")[0];
+        action.GetProperty("label").GetString().Should().Be("Find and outline");
+        action.GetProperty("description").GetString().Should().Be("Locate it and highlight the boundary");
+        action.GetProperty("capabilityKey").GetString().Should().Be("locate_a_place");
+        action.GetProperty("isDecline").GetBoolean().Should().BeFalse();
+        action.TryGetProperty("Label", out _).Should().BeFalse("the persisted shape must never regress to raw PascalCase");
     }
 
     [Fact]
@@ -296,7 +389,8 @@ public sealed class AiControllerKeepAliveTests : IDisposable
         // a mocked clock, which is what actually proves the wire format (a comment line, invisible
         // to aiApi.ts's parser) is correct.
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
-            Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }))
+            Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }),
+            NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {

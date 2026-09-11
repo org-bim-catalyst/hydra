@@ -29,6 +29,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AskLucy.Web.Controllers.v1;
@@ -52,13 +53,20 @@ namespace AskLucy.Web.Controllers.v1;
 /// cost the persisted message; the actual generation still goes through
 /// <see cref="SendChatMessageCommand"/>/<see cref="IAIProviderResolver"/>.
 /// </summary>
+internal static partial class AiControllerLog
+{
+    [LoggerMessage(Level = LogLevel.Error, Message = "Chat turn for chat {ChatId} failed mid-stream after the response had already started; ending the SSE stream cleanly instead of letting the connection drop")]
+    public static partial void TurnFailedMidStream(ILogger logger, Exception exception, Guid chatId);
+}
+
 [ApiController]
 [Authorize]
 [EnableRateLimiting("ai-endpoints")]
 [Route("api/v1/ai")]
 public sealed partial class AiController(
     ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository,
-    ISelectedActionResolver selectedActionResolver, IOptions<ConversationRuntimeOptions> conversationRuntimeOptions) : ControllerBase
+    ISelectedActionResolver selectedActionResolver, IOptions<ConversationRuntimeOptions> conversationRuntimeOptions,
+    ILogger<AiController> logger) : ControllerBase
 {
     [HttpPost("chat")]
     public async Task Chat(ChatRequest request, CancellationToken cancellationToken)
@@ -137,86 +145,122 @@ public sealed partial class AiController(
         // server is still working (SC-004a). WithKeepAliveAsync interleaves a comment line —
         // invisible to aiApi.ts's parser, which only matches "data: " lines — whenever the
         // stream goes quiet for longer than the configured interval.
-        await foreach (var chunk in WithKeepAliveAsync(
-            mediator.CreateStream(
-                new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction),
-                cancellationToken),
-            TimeSpan.FromSeconds(conversationRuntimeOptions.Value.KeepAliveIntervalSeconds),
-            cancellationToken))
+        try
         {
-            // Handled before this chunk's own content goes out, so the client closes the current
-            // bubble and opens a new one ahead of the first character that belongs in it.
-            // The break is written even when nothing is buffered — a chunk may open a
-            // message purely to say what it is waiting for. Only the persist is conditional.
-            if (chunk.StartsNewMessage)
+            await foreach (var chunk in WithKeepAliveAsync(
+                mediator.CreateStream(
+                    new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction),
+                    cancellationToken),
+                TimeSpan.FromSeconds(conversationRuntimeOptions.Value.KeepAliveIntervalSeconds),
+                cancellationToken))
             {
-                if (assistantContent.Length > 0)
+                // Handled before this chunk's own content goes out, so the client closes the current
+                // bubble and opens a new one ahead of the first character that belongs in it.
+                // The break is written even when nothing is buffered — a chunk may open a
+                // message purely to say what it is waiting for. Only the persist is conditional.
+                if (chunk.StartsNewMessage)
                 {
-                    firstAssistantMessageId ??= await PersistAssistantMessageAsync(
-                        request, assistantContent.ToString(), provider, model, generationParametersJson,
-                        finalUsage, retrievalOutcome, null, cancellationToken);
-                    assistantContent.Clear();
+                    if (assistantContent.Length > 0)
+                    {
+                        firstAssistantMessageId ??= await PersistAssistantMessageAsync(
+                            request, assistantContent.ToString(), provider, model, generationParametersJson,
+                            finalUsage, retrievalOutcome, null, cancellationToken);
+                        assistantContent.Clear();
+                    }
+
+                    var breakPayload = chunk.PendingLabel is null
+                        ? string.Empty
+                        : JsonSerializer.Serialize(new { pendingLabel = chunk.PendingLabel });
+                    await Response.WriteAsync($"data: __MESSAGE_BREAK__{breakPayload}\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
                 }
 
-                var breakPayload = chunk.PendingLabel is null
-                    ? string.Empty
-                    : JsonSerializer.Serialize(new { pendingLabel = chunk.PendingLabel });
-                await Response.WriteAsync($"data: __MESSAGE_BREAK__{breakPayload}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
-            }
+                if (!string.IsNullOrEmpty(chunk.ContentDelta))
+                {
+                    assistantContent.Append(chunk.ContentDelta);
+                    await Response.WriteAsync($"data: {chunk.ContentDelta}\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
 
-            if (!string.IsNullOrEmpty(chunk.ContentDelta))
-            {
-                assistantContent.Append(chunk.ContentDelta);
-                await Response.WriteAsync($"data: {chunk.ContentDelta}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
-            }
+                if (chunk.Usage is not null)
+                {
+                    finalUsage = chunk.Usage;
+                }
 
-            if (chunk.Usage is not null)
-            {
-                finalUsage = chunk.Usage;
-            }
+                if (chunk.RetrievalOutcome is not null)
+                {
+                    retrievalOutcome = chunk.RetrievalOutcome;
+                }
 
-            if (chunk.RetrievalOutcome is not null)
-            {
-                retrievalOutcome = chunk.RetrievalOutcome;
-            }
+                if (chunk.MemoryOutcome is not null)
+                {
+                    memoryOutcome = chunk.MemoryOutcome;
+                }
 
-            if (chunk.MemoryOutcome is not null)
-            {
-                memoryOutcome = chunk.MemoryOutcome;
-            }
+                // specs/044-location-viewer-regression FR-001a: written and flushed HERE, mid-stream,
+                // the moment the handler yields it — not after the loop drains. The handler already
+                // emits this chunk before starting the optional boundary step, but that reorder alone
+                // achieves nothing while this write waits for the whole stream: between specs/042 and
+                // this fix, a failing boundary step discarded __LOCATION__ entirely and a slow one held
+                // the viewer for up to ~90s. Both halves are required.
+                if (chunk.ConfirmedLocation is not null)
+                {
+                    confirmedLocation = chunk.ConfirmedLocation;
+                    await WriteConfirmedLocationEventAsync(request.ChatId, confirmedLocation, cancellationToken);
+                }
 
-            // specs/044-location-viewer-regression FR-001a: written and flushed HERE, mid-stream,
-            // the moment the handler yields it — not after the loop drains. The handler already
-            // emits this chunk before starting the optional boundary step, but that reorder alone
-            // achieves nothing while this write waits for the whole stream: between specs/042 and
-            // this fix, a failing boundary step discarded __LOCATION__ entirely and a slow one held
-            // the viewer for up to ~90s. Both halves are required.
-            if (chunk.ConfirmedLocation is not null)
-            {
-                confirmedLocation = chunk.ConfirmedLocation;
-                await WriteConfirmedLocationEventAsync(request.ChatId, confirmedLocation, cancellationToken);
-            }
+                if (chunk.ViewerZoom is not null)
+                {
+                    viewerZoom = chunk.ViewerZoom;
+                }
 
-            if (chunk.ViewerZoom is not null)
-            {
-                viewerZoom = chunk.ViewerZoom;
-            }
+                if (chunk.ConfirmedBoundary is not null)
+                {
+                    confirmedBoundary = chunk.ConfirmedBoundary;
+                }
 
-            if (chunk.ConfirmedBoundary is not null)
-            {
-                confirmedBoundary = chunk.ConfirmedBoundary;
+                // specs/045-conversational-agent-runtime FR-021 — rides its own chunk, with no
+                // ContentDelta/StartsNewMessage of its own; it never opens a bubble, only marks the
+                // offer that belongs to whichever one is open when the turn ends.
+                if (chunk.SuggestedActions is not null)
+                {
+                    suggestedActions = chunk.SuggestedActions;
+                    suggestedActionsQuestion = chunk.SuggestedActionsQuestion;
+                }
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The client itself disconnected/cancelled (navigated away, closed the tab, sent a
+            // new message) — not a failure to report back to a client that is no longer there.
+            return;
+        }
+        catch (Exception ex)
+        {
+            // Constitution §2.VIII — an exception here previously propagated uncaught, and since
+            // the response had already started (headers sent, text/event-stream in progress),
+            // ASP.NET Core cannot turn it into a normal Problem Details response; it just resets
+            // the connection. The client's fetch reader then throws a raw network error, which is
+            // exactly what surfaced to the user as "Incomplete — connection dropped" for what was
+            // often a perfectly ordinary, recoverable failure (a provider hiccup, an external
+            // lookup timing out) — never explained, just a severed connection. Ending the stream
+            // cleanly here, with whatever partial reply already exists plus a plain explanation,
+            // turns that into the same kind of visible, actionable failure every other turn
+            // failure mode already gets (TurnDecision.WasDegraded's "I couldn't work out a plan
+            // for that" sentence is the sibling of this one).
+            AiControllerLog.TurnFailedMidStream(logger, ex, request.ChatId);
 
-            // specs/045-conversational-agent-runtime FR-021 — rides its own chunk, with no
-            // ContentDelta/StartsNewMessage of its own; it never opens a bubble, only marks the
-            // offer that belongs to whichever one is open when the turn ends.
-            if (chunk.SuggestedActions is not null)
-            {
-                suggestedActions = chunk.SuggestedActions;
-                suggestedActionsQuestion = chunk.SuggestedActionsQuestion;
-            }
+            const string failureNotice = " Something went wrong partway through and I couldn't finish. Please try again.";
+            await Response.WriteAsync($"data: {failureNotice}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+            assistantContent.Append(failureNotice);
+
+            await PersistAssistantMessageAsync(
+                request, assistantContent.ToString(), provider, model, generationParametersJson,
+                finalUsage, retrievalOutcome, null, cancellationToken);
+
+            await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+            return;
         }
 
         // US1 (specs/016-rag-semantic-search) — a distinguishable trailing JSON event, never
@@ -260,8 +304,16 @@ public sealed partial class AiController(
             // specs/045-conversational-agent-runtime FR-026 — the offer, if any, always belongs to
             // this final message: it rides its own trailing chunk with no ContentDelta, so it is
             // never captured mid-stream by the StartsNewMessage branch above.
+            // 2026-09-11 live-testing report: this used to serialize the raw SuggestedAction
+            // records (PascalCase C# property names — Label, Key, IsDecline...) instead of the
+            // camelCase shape the frontend's SuggestedAction type and SuggestedActionCard read
+            // (label, capabilityKey, isDecline...) — the exact shape the live __ACTIONS__ event
+            // below already builds correctly. Every persisted offer card therefore reopened with
+            // every field reading as undefined, rendering the whole card empty (never in the
+            // same-session live view, only after a reload re-fetched history). BuildActionWirePayload
+            // is now the single source both paths share, so they cannot drift apart again.
             var suggestedActionsJson = suggestedActions is { Count: > 0 }
-                ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions })
+                ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions.Select(BuildActionWirePayload) })
                 : null;
 
             var persistedId = await PersistAssistantMessageAsync(
@@ -327,16 +379,7 @@ public sealed partial class AiController(
             {
                 offeredByMessageId,
                 question = suggestedActionsQuestion,
-                actions = actions.Select(a => new
-                {
-                    kind = a.Kind.ToString(),
-                    capabilityKey = a.Key,
-                    text = a.Text,
-                    label = a.Label,
-                    description = a.Description,
-                    arguments = string.IsNullOrEmpty(a.ArgumentsJson) ? (object?)null : JsonSerializer.Deserialize<JsonElement>(a.ArgumentsJson),
-                    isDecline = a.IsDecline,
-                }),
+                actions = actions.Select(BuildActionWirePayload),
             };
             await Response.WriteAsync($"data: __ACTIONS__{JsonSerializer.Serialize(actionsPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
@@ -344,6 +387,25 @@ public sealed partial class AiController(
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     }
+
+    /// <summary>
+    /// The one shape a <see cref="SuggestedAction"/> is put on the wire as — camelCase, and
+    /// <c>Key</c> renamed to <c>capabilityKey</c> — shared by the live <c>__ACTIONS__</c> trailing
+    /// event and the JSON persisted onto the message for history replay (<c>toOfferFields</c> in
+    /// <c>useChatStream.ts</c> parses this same shape back for both). The two must never diverge:
+    /// a persisted-only shape drifting from the live one is exactly the bug that made every
+    /// reopened offer card render with every field blank (2026-09-11).
+    /// </summary>
+    private static object BuildActionWirePayload(SuggestedAction a) => new
+    {
+        kind = a.Kind.ToString(),
+        capabilityKey = a.Key,
+        text = a.Text,
+        label = a.Label,
+        description = a.Description,
+        arguments = string.IsNullOrEmpty(a.ArgumentsJson) ? (object?)null : JsonSerializer.Deserialize<JsonElement>(a.ArgumentsJson),
+        isDecline = a.IsDecline,
+    };
 
     /// <summary>
     /// Persists one assistant message of the current turn, carrying the turn's provider/model
