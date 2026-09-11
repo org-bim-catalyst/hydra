@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { BUILDING_FOOTPRINT_FILL_COLOR, BUILDING_FOOTPRINT_STROKE_COLOR } from './buildingFootprintColors'
 import { BUILDINGS_ONLY_STYLE, shouldReduceMapQuality } from './GoogleMapsGisLayer'
 
 // research.md Decision 10: the real `createGoogleMapsGisLayer` (Google Maps JS bootstrap +
@@ -51,16 +52,27 @@ describe('shouldReduceMapQuality (T032a, FR-005a/SC-004a)', () => {
 // apply/clear behavior is covered by quickstart.md's manual/E2E validation.
 describe('BUILDINGS_ONLY_STYLE (specs/048-buildings-only-map-style FR-002)', () => {
   it('hides exactly the five categories that compete with building footprints', () => {
-    const hiddenFeatureTypes = BUILDINGS_ONLY_STYLE.map((rule) => rule.featureType)
-    expect(hiddenFeatureTypes).toEqual([
+    const hidingRules = BUILDINGS_ONLY_STYLE.filter((rule) => rule.featureType !== 'landscape.man_made')
+    expect(hidingRules.map((rule) => rule.featureType)).toEqual([
       'road',
       'poi',
       'transit',
       'administrative',
       'landscape.natural',
     ])
-    for (const rule of BUILDINGS_ONLY_STYLE) {
+    for (const rule of hidingRules) {
       expect(rule.stylers).toEqual([{ visibility: 'off' }])
     }
+  })
+
+  it('colors building footprints with the fixed, deterministic color-key values', () => {
+    const fillRule = BUILDINGS_ONLY_STYLE.find(
+      (rule) => rule.featureType === 'landscape.man_made' && rule.elementType === 'geometry.fill',
+    )
+    const strokeRule = BUILDINGS_ONLY_STYLE.find(
+      (rule) => rule.featureType === 'landscape.man_made' && rule.elementType === 'geometry.stroke',
+    )
+    expect(fillRule?.stylers).toEqual([{ color: BUILDING_FOOTPRINT_FILL_COLOR }])
+    expect(strokeRule?.stylers).toEqual([{ color: BUILDING_FOOTPRINT_STROKE_COLOR }])
   })
 })

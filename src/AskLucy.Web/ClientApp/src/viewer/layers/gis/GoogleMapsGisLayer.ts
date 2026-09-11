@@ -1,6 +1,7 @@
 import { Loader } from '@googlemaps/js-api-loader'
 import * as THREE from 'three'
 import type { MapStyleId } from '../../api/commands'
+import { BUILDING_FOOTPRINT_FILL_COLOR, BUILDING_FOOTPRINT_STROKE_COLOR } from './buildingFootprintColors'
 import { createSiteBoundaryRenderer } from './SiteBoundaryRenderer'
 import type { BorderConfidenceLevel, LocalPoint } from '../../effects/AnimatedBorderHighlight'
 
@@ -98,13 +99,21 @@ function toLocalMeters(point: { latitude: number; longitude: number }, reference
 /** specs/048-buildings-only-map-style: the `'buildings-only'` `MapStyleId`'s custom JSON
  * styling, hiding every category that competes with building footprints for attention. Plain
  * data — safe at module scope, unlike `MAP_STYLE_TO_GOOGLE_TYPE_ID` which needs `google.maps.*`
- * enum values that only exist after the Maps script has loaded. */
+ * enum values that only exist after the Maps script has loaded.
+ *
+ * The `landscape.man_made` rule paints building footprints with `BUILDING_FOOTPRINT_*_COLOR` —
+ * the same fixed colors the cloud-configured vector-map styles use (see
+ * `buildingFootprintColors.ts`'s doc comment) — so a future footprint-extraction algorithm can
+ * color-key against one constant regardless of whether raster or vector rendering served the
+ * tile it's reading. */
 export const BUILDINGS_ONLY_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: 'road', stylers: [{ visibility: 'off' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   { featureType: 'administrative', stylers: [{ visibility: 'off' }] },
   { featureType: 'landscape.natural', stylers: [{ visibility: 'off' }] },
+  { featureType: 'landscape.man_made', elementType: 'geometry.fill', stylers: [{ color: BUILDING_FOOTPRINT_FILL_COLOR }] },
+  { featureType: 'landscape.man_made', elementType: 'geometry.stroke', stylers: [{ color: BUILDING_FOOTPRINT_STROKE_COLOR }] },
 ]
 
 let loaderSingleton: Loader | null = null
