@@ -103,6 +103,43 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
     consoleError.mockRestore()
   })
 
+  it('applies the persisted "buildings-only" map style on initial mount (specs/048-buildings-only-map-style US2)', async () => {
+    useViewerEngineStore.setState({ mapStyle: 'buildings-only' })
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+
+    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
+  })
+
+  it('re-applies "buildings-only" on every store update, not just the initial one (US2 persistence)', async () => {
+    useViewerEngineStore.setState({ mapStyle: 'buildings-only' })
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
+    fakeHandle.setMapTypeId.mockClear()
+
+    // An unrelated command (view mode, not map style) still re-runs applyStoreState, which
+    // re-reads the current mapStyle from the store on every call — proving persistence doesn't
+    // depend on setMapStyle having been the triggering command.
+    engine.setViewMode('plan')
+
+    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
+  })
+
   it('calls onError, and never leaves an unhandled rejection, when loading the map throws', async () => {
     createGoogleMapsGisLayerMock.mockRejectedValueOnce(new Error('Failed to load Google Maps'))
     const engine = new ViewerEngine()

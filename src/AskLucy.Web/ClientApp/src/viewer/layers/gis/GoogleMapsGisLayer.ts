@@ -95,6 +95,18 @@ function toLocalMeters(point: { latitude: number; longitude: number }, reference
   }
 }
 
+/** specs/048-buildings-only-map-style: the `'buildings-only'` `MapStyleId`'s custom JSON
+ * styling, hiding every category that competes with building footprints for attention. Plain
+ * data — safe at module scope, unlike `MAP_STYLE_TO_GOOGLE_TYPE_ID` which needs `google.maps.*`
+ * enum values that only exist after the Maps script has loaded. */
+export const BUILDINGS_ONLY_STYLE: google.maps.MapTypeStyle[] = [
+  { featureType: 'road', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative', stylers: [{ visibility: 'off' }] },
+  { featureType: 'landscape.natural', stylers: [{ visibility: 'off' }] },
+]
+
 let loaderSingleton: Loader | null = null
 
 function getLoader(apiKey: string): Loader {
@@ -298,10 +310,13 @@ export async function createGoogleMapsGisLayer(
 
   // Built here (not module scope) — `google.maps.MapTypeId` only exists once the Maps script
   // has loaded, which `loader.importLibrary` above has already awaited by this point.
+  // specs/048-buildings-only-map-style: 'buildings-only' isn't a real MapTypeId — it rides on
+  // ROADMAP with BUILDINGS_ONLY_STYLE layered on top (see setMapTypeId below).
   const MAP_STYLE_TO_GOOGLE_TYPE_ID: Record<MapStyleId, google.maps.MapTypeId> = {
     roadmap: google.maps.MapTypeId.ROADMAP,
     satellite: google.maps.MapTypeId.SATELLITE,
     hybrid: google.maps.MapTypeId.HYBRID,
+    'buildings-only': google.maps.MapTypeId.ROADMAP,
   }
 
   return {
@@ -328,7 +343,13 @@ export async function createGoogleMapsGisLayer(
     },
     setHeading: (heading) => { desiredHeading = heading },
     setTilt: (tilt) => map.moveCamera({ tilt }),
-    setMapTypeId: (mapStyle) => map.setMapTypeId(MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle]),
+    // specs/048-buildings-only-map-style: setOptions (not the narrower setMapTypeId) for all
+    // four values, uniformly — leaving 'buildings-only' for any other style must clear its
+    // `styles` array, not just change the base MapTypeId, or the hidden categories would linger.
+    setMapTypeId: (mapStyle) => map.setOptions({
+      mapTypeId: MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle],
+      styles: mapStyle === 'buildings-only' ? BUILDINGS_ONLY_STYLE : [],
+    }),
     setMarkerHighlighted: (highlighted) => {
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1

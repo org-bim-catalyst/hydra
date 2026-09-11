@@ -4,8 +4,24 @@ import type { OverlayInput, RenderLayerInput } from './layers'
 export type CameraViewMode = 'isometric' | 'plan'
 
 /** The map/GIS content mode's base rendering style — mirrors `google.maps.MapTypeId`'s
- * ROADMAP/SATELLITE/HYBRID values. TERRAIN is intentionally omitted — no control surfaces it. */
-export type MapStyleId = 'roadmap' | 'satellite' | 'hybrid'
+ * ROADMAP/SATELLITE/HYBRID values. TERRAIN is intentionally omitted — no control surfaces it.
+ * `'buildings-only'` (specs/048-buildings-only-map-style) is not itself a `MapTypeId` — it is a
+ * ROADMAP base with a custom `google.maps.MapTypeStyle[]` layered on top
+ * (`GoogleMapsGisLayer.BUILDINGS_ONLY_STYLE`) that hides roads/POI/transit/administrative/natural
+ * landscape so building footprints dominate. */
+export type MapStyleId = 'roadmap' | 'satellite' | 'hybrid' | 'buildings-only'
+
+/** specs/048-buildings-only-map-style research.md Decision 2: custom `google.maps.MapTypeStyle`
+ * JSON styling has no effect on Google's vector base-map rendering (active when a Map ID is
+ * configured — see `GoogleMapsGisLayer.mapId`'s doc comment) — cloud-configured styling would be
+ * required there instead. Rather than silently offering a "Buildings only" option that does
+ * nothing on a vector deployment, callers (the map style menu) MUST check this before offering
+ * the option. Decided statically from the same build-time env var `MapRenderTarget` already uses
+ * to decide whether to pass `mapId` to `google.maps.Map`, since that is this codebase's existing
+ * proxy for "is this deployment on the vector rendering path." */
+export function isBuildingsOnlyStyleSupported(): boolean {
+  return !import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
+}
 
 /** contracts/viewer-engine-api.md — every outcome the viewer's command surface can produce.
  * Always resolves; a command never throws for an expected failure (FR-022). */

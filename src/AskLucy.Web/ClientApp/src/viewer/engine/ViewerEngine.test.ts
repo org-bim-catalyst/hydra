@@ -171,6 +171,20 @@ describe('ViewerEngine', () => {
 
       expect(applyMapStyle).toHaveBeenCalledWith('hybrid')
     })
+
+    it('accepts buildings-only like any other MapStyleId (specs/048-buildings-only-map-style)', () => {
+      const handler = vi.fn()
+      const applyMapStyle = vi.fn()
+      engine.on('mapStyleChanged', handler)
+      engine.registerRenderTarget({ applyMapStyle })
+
+      const result = engine.setMapStyle('buildings-only')
+
+      expect(result).toEqual({ ok: true, data: undefined })
+      expect(useViewerEngineStore.getState().mapStyle).toBe('buildings-only')
+      expect(applyMapStyle).toHaveBeenCalledWith('buildings-only')
+      expect(handler).toHaveBeenCalledWith({ type: 'mapStyleChanged', mapStyle: 'buildings-only' })
+    })
   })
 
   describe('select / clearSelection (US5, FR-018/FR-019/FR-021–FR-023)', () => {
