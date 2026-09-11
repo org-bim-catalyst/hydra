@@ -11,16 +11,19 @@ export type CameraViewMode = 'isometric' | 'plan'
  * landscape so building footprints dominate. */
 export type MapStyleId = 'roadmap' | 'satellite' | 'hybrid' | 'buildings-only'
 
-/** specs/048-buildings-only-map-style research.md Decision 2: custom `google.maps.MapTypeStyle`
- * JSON styling has no effect on Google's vector base-map rendering (active when a Map ID is
- * configured — see `GoogleMapsGisLayer.mapId`'s doc comment) — cloud-configured styling would be
- * required there instead. Rather than silently offering a "Buildings only" option that does
- * nothing on a vector deployment, callers (the map style menu) MUST check this before offering
- * the option. Decided statically from the same build-time env var `MapRenderTarget` already uses
- * to decide whether to pass `mapId` to `google.maps.Map`, since that is this codebase's existing
- * proxy for "is this deployment on the vector rendering path." */
+/** specs/048-buildings-only-map-style research.md Decision 2 (superseded by Decision 4): custom
+ * `google.maps.MapTypeStyle` JSON styling has no effect on Google's vector base-map rendering
+ * (active when a Map ID is configured — see `GoogleMapsGisLayer.mapId`'s doc comment). On a
+ * raster deployment (no Map ID) that's a non-issue — the client-side style just works. On a
+ * vector deployment, "Buildings only" is only offered once a *second*, cloud-styled Map ID
+ * (`VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID`, see `docs/google-maps-styles/`) is configured for
+ * `MapRenderTarget` to switch to — never silently offered as a selectable option that would do
+ * nothing (FR-006). Decided statically from build-time env vars, mirroring how `MapRenderTarget`
+ * already decides the base `mapId`. */
 export function isBuildingsOnlyStyleSupported(): boolean {
-  return !import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
+  const hasBaseMapId = Boolean(import.meta.env.VITE_GOOGLE_MAPS_MAP_ID)
+  const hasBuildingsOnlyMapId = Boolean(import.meta.env.VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID)
+  return !hasBaseMapId || hasBuildingsOnlyMapId
 }
 
 /** contracts/viewer-engine-api.md — every outcome the viewer's command surface can produce.

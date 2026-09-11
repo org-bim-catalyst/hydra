@@ -112,7 +112,7 @@ describe('useMapStyleControl', () => {
     setMapStyleSpy.mockRestore()
   })
 
-  it('omits "Buildings only" entirely when a Map ID is configured (vector rendering, FR-006/US3)', () => {
+  it('omits "Buildings only" when a Map ID is configured with no buildings-only Map ID (vector rendering, no alternate style, FR-006/US3)', () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'a-real-vector-map-id')
     const { result } = renderHook(() => useMapStyleControl(), { wrapper })
     const content = result.current.content as React.ReactElement<{
@@ -120,5 +120,16 @@ describe('useMapStyleControl', () => {
     }>
 
     expect(content.props.actions.map((a) => a.id)).toEqual(['roadmap', 'satellite', 'hybrid'])
+  })
+
+  it('offers "Buildings only" when both a Map ID and a buildings-only Map ID are configured (vector rendering, research.md Decision 4)', () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'a-real-vector-map-id')
+    vi.stubEnv('VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID', 'a-buildings-only-map-id')
+    const { result } = renderHook(() => useMapStyleControl(), { wrapper })
+    const content = result.current.content as React.ReactElement<{
+      actions: { id: string }[]
+    }>
+
+    expect(content.props.actions.map((a) => a.id)).toEqual(['roadmap', 'satellite', 'hybrid', 'buildings-only'])
   })
 })

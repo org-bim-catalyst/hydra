@@ -143,6 +143,85 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
     expect(useViewerEngineStore.getState().mapStyle).toBe('buildings-only')
   })
 
+  it('creates the map with the base Map ID when mapStyle is not buildings-only (research.md Decision 4)', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'base-map-id')
+    vi.stubEnv('VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID', 'buildings-map-id')
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
+    expect(createGoogleMapsGisLayerMock.mock.calls[0][0]).toMatchObject({ mapId: 'base-map-id' })
+  })
+
+  it('creates the map with the buildings-only Map ID on initial mount when mapStyle is already buildings-only (research.md Decision 4)', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'base-map-id')
+    vi.stubEnv('VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID', 'buildings-map-id')
+    useViewerEngineStore.setState({ mapStyle: 'buildings-only' })
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
+    expect(createGoogleMapsGisLayerMock.mock.calls[0][0]).toMatchObject({ mapId: 'buildings-map-id' })
+  })
+
+  it('recreates the map with the buildings-only Map ID when switching into buildings-only on a vector deployment (research.md Decision 4)', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'base-map-id')
+    vi.stubEnv('VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID', 'buildings-map-id')
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalledTimes(1))
+    expect(createGoogleMapsGisLayerMock.mock.calls[0][0]).toMatchObject({ mapId: 'base-map-id' })
+
+    // Map ID is immutable on a live map instance — entering buildings-only on a vector
+    // deployment must recreate the whole layer, the same way a theme toggle does.
+    engine.setMapStyle('buildings-only')
+
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalledTimes(2))
+    expect(createGoogleMapsGisLayerMock.mock.calls[1][0]).toMatchObject({ mapId: 'buildings-map-id' })
+  })
+
+  it('does not recreate the map when switching between roadmap/satellite/hybrid (only mapTypeId changes, no Map ID involved)', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', 'base-map-id')
+    vi.stubEnv('VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID', 'buildings-map-id')
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalledTimes(1))
+
+    engine.setMapStyle('satellite')
+    engine.setMapStyle('hybrid')
+
+    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('hybrid'))
+    expect(createGoogleMapsGisLayerMock).toHaveBeenCalledTimes(1)
+  })
+
   it('calls onError, and never leaves an unhandled rejection, when loading the map throws', async () => {
     createGoogleMapsGisLayerMock.mockRejectedValueOnce(new Error('Failed to load Google Maps'))
     const engine = new ViewerEngine()

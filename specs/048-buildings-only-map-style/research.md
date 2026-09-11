@@ -66,7 +66,38 @@ only the union's member count changes, not any function signature.
   would, and avoids the invalid combined states a boolean-plus-enum design would allow
   (e.g. `satellite` + `buildingsOnly: true`, which is out of scope per Decision 1).
 
+## Decision 4 (post-implementation follow-up): support "Buildings only" on vector rendering too, via a second cloud-styled Map ID
+
+**Decision**: Rather than permanently omitting "Buildings only" on any vector-rendering
+deployment (Decision 2's original scope), a second Map ID
+(`VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID`) can be configured with a cloud-based style
+(`docs/google-maps-styles/buildings-only-{light,dark}.cloud.json`, using Google's
+current cloud-based-maps-styling JSON schema) that hides everything except building
+footprints. When configured, selecting `'buildings-only'` recreates the map with this
+Map ID instead of the base one (`MapRenderTarget.tsx`); `isBuildingsOnlyStyleSupported()`
+now returns `true` for this case too. `'buildings-only'` is omitted from the menu only
+when a base Map ID is configured (vector rendering) but no buildings-only Map ID exists
+— the one remaining case where it would silently do nothing.
+
+**Rationale**: Google fully retired import/save support for the legacy array-of-rules
+JSON format in Cloud Console's Map Style editor on 2025-03-25 — the client-side `styles`
+array (Decision 1) genuinely cannot be replicated as a cloud style using that old
+schema. The current cloud-based-styling schema (`{ variant, backgroundColor, styles:
+[{ id, geometry, label }] }`, keyed by feature ids like `infrastructure.building`,
+`political`, `natural.water`, `pointOfInterest`) is a different, still-actively-
+supported mechanism that achieves the same visual result on a vector map. A single Map
+ID's Light/Dark style variants cover both themes — no second Map ID per theme is
+needed, mirroring how `colorScheme` already selects a variant on the base Map ID.
+
+**Alternatives considered**:
+- *Leave vector deployments permanently unsupported (original Decision 2 scope)*:
+  superseded once a working cloud-styling path was confirmed to exist — no longer the
+  best available option now that one does.
+- *A live `map.setOptions({ mapId })` call instead of recreating the layer*: rejected —
+  no such live setter exists; Map ID, like `colorScheme`, can only be set when a map is
+  initialized (per `@types/google.maps`), so `MapRenderTarget` must recreate the whole
+  layer, exactly as it already does for a light/dark theme toggle.
+
 ## Open questions
 
-None remaining — all three research items above resolve the plan's technical unknowns;
-no `NEEDS CLARIFICATION` markers remain from the spec or the Technical Context section.
+None remaining.

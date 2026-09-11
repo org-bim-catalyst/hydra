@@ -57,18 +57,24 @@ map tiles for this exact fill color to find building 2D shapes. Keeping it ident
 everywhere means that algorithm never needs to know which theme or rendering path
 produced the tile it's reading — one constant, one color.
 
-## Wiring this up in the client (not yet done)
+## Wiring this up in the client — done (research.md Decision 4)
 
-Once light/dark Map IDs exist with the two `.cloud.json` styles attached, using them
-from "Buildings only" on a vector deployment requires:
+One Map ID carries **both** the light and dark `.cloud.json` styles as its Light/Dark
+style variants (Cloud Console → Map Management → the Map ID → Map styles → Light
+mode / Dark mode) — no separate Map ID per theme is needed; `colorScheme` picks the
+variant the same way it already does for the base Map ID.
 
-1. Two new env vars, e.g. `VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID_LIGHT` /
-   `_DARK`, holding the two Map IDs.
-2. `GoogleMapsGisLayer`/`MapRenderTarget` recreating the map with the matching Map ID
-   when `'buildings-only'` is selected — Map ID (like `colorScheme`) can only be set
-   when a map is initialized, so this follows the same recreate-the-layer pattern
-   `MapRenderTarget` already uses for a light/dark theme toggle, not a live
-   `map.setOptions({ mapId })` call (no such live setter exists).
-
-This is out of scope for the current change — tracked here so the next step is
-concrete once the Map IDs exist.
+- `VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID` holds that one Map ID.
+- `MapRenderTarget.tsx` recreates the whole map with this Map ID (instead of
+  `VITE_GOOGLE_MAPS_MAP_ID`) whenever `mapStyle` is `'buildings-only'`, and recreates
+  back to the base Map ID when it isn't — Map ID (like `colorScheme`) can only be set
+  when a map is initialized, so this follows the same recreate-the-layer pattern
+  already used for a light/dark theme toggle, not a live `map.setOptions({ mapId })`
+  call (no such live setter exists). Switching among roadmap/satellite/hybrid never
+  triggers this recreation — only crossing the buildings-only boundary does.
+- `isBuildingsOnlyStyleSupported()` (`viewer/api/commands.ts`) now offers "Buildings
+  only" whenever either rendering path can actually show it: no Map ID at all
+  (raster, client-side style), or a Map ID **and** this buildings-only Map ID both
+  configured (vector, cloud style swap). It's omitted only when a Map ID is
+  configured but no buildings-only Map ID exists — the one case where selecting it
+  would silently do nothing.
