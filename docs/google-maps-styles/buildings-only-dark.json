@@ -25,6 +25,11 @@
     "stylers": [{ "visibility": "off" }]
   },
   {
+    "featureType": "administrative.land_parcel",
+    "elementType": "labels",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
     "featureType": "landscape",
     "elementType": "geometry",
     "stylers": [{ "visibility": "on" }, { "color": "#1A1A1A" }]
@@ -50,8 +55,18 @@
     "stylers": [{ "visibility": "on" }]
   },
   {
+    "featureType": "landscape.natural.landcover",
+    "elementType": "labels",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
     "featureType": "poi",
     "elementType": "all",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "labels",
     "stylers": [{ "visibility": "off" }]
   },
   {
@@ -72,6 +87,11 @@
   {
     "featureType": "road",
     "elementType": "all",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "labels",
     "stylers": [{ "visibility": "off" }]
   },
   {
@@ -118,6 +138,11 @@
     "featureType": "transit",
     "elementType": "all",
     "stylers": [{ "visibility": "simplified" }]
+  },
+  {
+    "featureType": "transit",
+    "elementType": "labels",
+    "stylers": [{ "visibility": "off" }]
   },
   {
     "featureType": "transit.line",

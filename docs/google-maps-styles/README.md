@@ -16,6 +16,28 @@ Both hide the same categories as the raster path (road, POI, transit, administra
 natural landscape) and differ only in their base ground/water colors, matching the
 app's existing light/dark theming.
 
+## Label categories are all off
+
+Both files explicitly turn off labels for every category Cloud Console's categorized
+style editor groups labels into — Political, Natural feature, Point of interest, and
+Infrastructure — mapped onto this JSON schema's actual `featureType` values (Cloud
+Console's four category names aren't literal `featureType`s in the raw JSON schema):
+
+| Cloud Console category | `featureType`(s) used here |
+|---|---|
+| Political | `administrative`, `administrative.country/province/locality/neighborhood/land_parcel` |
+| Natural feature | `landscape.natural`, `landscape.natural.landcover` |
+| Point of interest | `poi` |
+| Infrastructure | `road`, `transit` |
+
+Most of these were already implied by the broader `visibility: "off"` rules on those
+same feature types (an `elementType: "all"` rule already suppresses labels); the
+explicit `elementType: "labels"` rules make that intentional rather than incidental,
+and close one real gap — `landscape.natural.landcover`'s `elementType: "all"` rule
+turns its geometry back **on**, which without a following labels-specific rule would
+also have turned its labels back on. Any leftover label text would otherwise show up
+as extra, non-magenta pixels inside or beside a building's color-keyed footprint.
+
 ## Building color is fixed, not themed
 
 Both files paint `landscape.man_made` (Google's vector feature type for building
