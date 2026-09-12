@@ -1,7 +1,20 @@
 import type { OverlayInput, RenderLayerInput } from './layers'
+import type { ContentSource, WorldPlacement } from '../content/ViewerContent'
 
 /** spec.md FR-013 (as revised): the toolbar's isometric/plan camera perspective toggle. */
 export type CameraViewMode = 'isometric' | 'plan'
+
+/** data-model.md "Camera State" (specs/051 FR-025) — published, read-only snapshot of where the
+ * viewer is looking. `zoom` is the map/GIS content mode's zoom level; a future non-map content
+ * mode publishing camera state would need its own zoom-equivalent field, not reinterpret this
+ * one. */
+export interface CameraState {
+  latitude: number
+  longitude: number
+  heading: number
+  tilt: number
+  zoom: number
+}
 
 /** The map/GIS content mode's base rendering style — mirrors `google.maps.MapTypeId`'s
  * ROADMAP/SATELLITE/HYBRID values. TERRAIN is intentionally omitted — no control surfaces it.
@@ -49,3 +62,12 @@ export type ViewerCommand =
   | { type: 'clearSelection' }
   | { type: 'displayContent'; layerId: string; content: unknown }
   | { type: 'createOverlay'; overlay: OverlayInput }
+  // specs/051-viewer-scene-content-api — additive only (FR-038, FR-039).
+  | { type: 'loadContent'; source: ContentSource; placement?: WorldPlacement }
+  | { type: 'replaceContent'; contentId: string; source: ContentSource; placement?: WorldPlacement }
+  | { type: 'unloadContent'; contentId: string }
+  | { type: 'listContent' }
+  | { type: 'getReferencePoint' }
+  | { type: 'getCameraState' }
+  | { type: 'getElementInfo'; layerId: string; elementId: string }
+  | { type: 'selectAndFrame'; layerId: string; elementId: string }

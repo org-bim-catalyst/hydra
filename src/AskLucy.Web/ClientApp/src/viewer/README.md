@@ -138,6 +138,60 @@ plus one id in `declared.ts` — nothing else changes, including `ChatPage` and 
 
 See `specs/050-viewer-extension-framework/quickstart.md` for the full manual verification walkthrough.
 
+## Scene, content and elements (`scene/`, `content/`, `elements/`)
+
+The viewer scene and content API (specs/051) — grows the published command surface from a
+map-shaped set into one that owns georeferenced 3D content: content Lucy can load/replace/clear, a
+single reference point every capability positions against, isolated drawing spaces extensions
+render into, and viewer-owned redraw scheduling. See
+`specs/051-viewer-scene-content-api/` for the full spec, plan, research, data model and contracts.
+
+- `scene/SceneAnchor.ts` — the one published `ReferencePoint` (FR-008). No capability sets it
+  directly; it is set once, by the engine, when the first content loads.
+- `api/coordinateFrame.ts` — `worldToLocal`/`localToWorld`, the one published conversion between
+  real-world coordinates and the viewer's local positioning space. **ENU convention: X = East,
+  Y = North, Z = Up** — stated once here, referenced everywhere else. Maps directly onto this
+  scene's own Three.js axes (a property of the map bridge's own camera setup, not a general
+  Three.js fact) — a capability never needs a separate remapping step.
+- `scene/DrawingSpaceRegistry.ts` — issues each drawing capability its own isolated `THREE.Group`
+  ("Drawing Space") via `context.acquireDrawingSpace()`, appended to the one shared scene in
+  acquisition order (draw order, FR-015). Contains any exception a capability's `onFrame` callback
+  throws (`drawingCallbackFailed`, constitution §2.VIII) so one capability's failure never stops
+  another's callback or the render loop. Withdrawn automatically on extension stop — an author
+  never calls `release()` themselves.
+- `scene/RedrawScheduler.ts` — `invalidate()` is the *only* sanctioned way any capability (or the
+  viewer itself) requests a redraw. Coalesces every call arriving before the next frame into
+  exactly one underlying redraw, and does nothing when nothing has changed — fixes a real bug
+  where the map bridge previously redrew unconditionally on every single frame.
+- `scene/rendererState.ts` — resolves the union of every capability's declared drawing
+  requirements (`'shadows'`, `'toneMapping'`) onto the one shared renderer; a capability never
+  touches `renderer.shadowMap.enabled`/`toneMapping` itself. Conflicts are reported
+  (`drawingRequirementConflict`), never silently decided.
+- `scene/activeScene.ts` — the one live `THREE.Scene` the map bridge owns, published so
+  viewer-owned content (not capability-owned drawing spaces) has somewhere to be added.
+- `content/ViewerContent.ts` — `ContentSource` (`'gis'` | `'model'`), `WorldPlacement`
+  (location/height/orientation/scale), and the `ViewerContent` load-state machine
+  (`loading` → `loaded` | `failed`, with a closed `ContentFailureReason` set).
+- `content/contentStore.ts` — tracks every currently-loaded `ViewerContent`, session-scoped like
+  every other viewer store.
+- `content/loaders/gltfContentLoader.ts` — the one supported 3D format (glTF), read through the
+  platform's existing signed-URL file access mechanism; reads each node's `extras` into the shared
+  element index (`elements/elementIndex.ts`).
+- `elements/elementIndex.ts` — `elementId → properties`, built when content loads. Reports
+  `hasProperties: false` explicitly for an element with none, never an empty object.
+- `elements/resolveElementOverlap.ts` — deterministic overlap resolution for elements at the same
+  screen point: highest drawing-space (acquisition) order wins, then nearest to the camera within
+  one space. Mirrors `selection/resolveSelection.ts`'s own convention exactly.
+- `engine/ViewerEngine.ts` gains `loadContent`/`replaceContent`/`unloadContent`/`listContent`,
+  `getReferencePoint`/`getCameraState`, `getElementInfo`/`selectAndFrame`, and `invalidate` —
+  additive only; every command that existed before this feature keeps its exact meaning
+  (`ViewerEngine.contract.test.ts` is the evidence).
+
+Two gaps are recorded, not silently skipped: the one-time renderer color/lighting treatment's
+visual before/after review, and the multi-capability frame-rate comparison, both need a human with
+a live, GPU-capable browser — see `specs/051-viewer-scene-content-api/quickstart.md` Scenarios 5
+and 9.
+
 ## Manual verification (no AI agent required)
 
 In a development build, the running engine is exposed as `window.__askLucyViewerEngine` — open

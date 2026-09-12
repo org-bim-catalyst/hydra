@@ -105,3 +105,39 @@ describe('ViewerEngine — full contract (US6, SC-006)', () => {
     expect(handler).toHaveBeenCalledTimes(1) // no further calls after unsubscribing
   })
 })
+
+/** specs/051 T023 (FR-025, FR-026, research D6) — additive; does not modify any assertion above. */
+describe('ViewerEngine — camera state (specs/051 FR-025, FR-026)', () => {
+  let engine: ViewerEngine
+
+  beforeEach(() => {
+    useViewerEngineStore.setState(initialState, true)
+    engine = new ViewerEngine()
+  })
+
+  it('getCameraState fails when no render target is registered', () => {
+    expect(engine.getCameraState().ok).toBe(false)
+  })
+
+  it('getCameraState returns the render target\'s current values once one is registered', () => {
+    engine.registerRenderTarget({
+      getCameraState: () => ({ latitude: 25.2, longitude: 55.27, heading: 45, tilt: 30, zoom: 16 }),
+    })
+
+    expect(engine.getCameraState()).toEqual({
+      ok: true,
+      data: { camera: { latitude: 25.2, longitude: 55.27, heading: 45, tilt: 30, zoom: 16 } },
+    })
+  })
+
+  it('notifyCameraChanged emits cameraChanged with the given snapshot (fired by the render target on the map\'s idle event, not per frame)', () => {
+    const handler = vi.fn()
+    engine.on('cameraChanged', handler)
+
+    const camera = { latitude: 1, longitude: 2, heading: 3, tilt: 4, zoom: 5 }
+    engine.notifyCameraChanged(camera)
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler).toHaveBeenCalledWith({ type: 'cameraChanged', camera })
+  })
+})

@@ -1,14 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as THREE from 'three'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
+import { useContentStore } from '../content/contentStore'
+import { sceneAnchor } from '../scene/SceneAnchor'
 import { ViewerEngine } from './ViewerEngine'
 
+const { loadGltfContentMock } = vi.hoisted(() => ({ loadGltfContentMock: vi.fn() }))
+vi.mock('../content/loaders/gltfContentLoader', () => ({ loadGltfContent: loadGltfContentMock }))
+
 const initialState = useViewerEngineStore.getState()
+const initialContentState = useContentStore.getState()
 
 describe('ViewerEngine', () => {
   let engine: ViewerEngine
 
   beforeEach(() => {
     useViewerEngineStore.setState(initialState, true)
+    useContentStore.setState(initialContentState, true)
+    sceneAnchor.set({ latitude: 25.2048, longitude: 55.2708 })
+    loadGltfContentMock.mockReset()
     engine = new ViewerEngine()
   })
 
@@ -286,6 +296,135 @@ describe('ViewerEngine', () => {
       engine.createOverlay({ id: 'overlay-1' })
       const result = engine.createOverlay({ id: 'overlay-1' })
       expect(result.ok).toBe(false)
+    })
+  })
+
+  describe('loadContent / replaceContent / unloadContent / listContent (specs/051 US1, T025)', () => {
+    const placement = { latitude: 25.21, longitude: 55.28, heightMetres: 0, orientationDegrees: 90, scale: 2 }
+
+    it('loads gis content synchronously and lists it', () => {
+      const result = engine.loadContent({ kind: 'gis', provider: 'google-maps', center: { latitude: 25.2, longitude: 55.27 } })
+      expect(result.ok).toBe(true)
+
+      const { content } = engine.listContent().data!
+      expect(content).toHaveLength(1)
+      expect(content[0].loadState).toBe('loaded')
+    })
+
+    it('loads model content asynchronously, applying orientation and scale to the loaded root transform (FR-011)', async () => {
+      const root = new THREE.Object3D()
+      loadGltfContentMock.mockResolvedValue({ ok: true, result: { root, elementIndex: new Map() } })
+
+      const result = engine.loadContent({ kind: 'model', format: 'gltf', fileId: 'file-1' }, placement)
+      expect(result.ok).toBe(true)
+      expect(engine.listContent().data!.content[0].loadState).toBe('loading')
+
+      await vi.waitFor(() => {
+        expect(engine.listContent().data!.content[0].loadState).toBe('loaded')
+      })
+
+      expect(root.rotation.z).toBeCloseTo(Math.PI / 2)
+      expect(root.scale.x).toBe(2)
+    })
+
+    it('content with no placement resolves to failed/unplaceable rather than being placed arbitrarily (FR-013)', () => {
+      const result = engine.loadContent({ kind: 'model', format: 'gltf', fileId: 'file-1' })
+      expect(result.ok).toBe(false)
+
+      const content = engine.listContent().data!.content[0]
+      expect(content.loadState).toBe('failed')
+      expect(content.failureReason).toBe('unplaceable')
+      expect(loadGltfContentMock).not.toHaveBeenCalled()
+    })
+
+    it('replaceContent releases the previous content\'s RenderLayer before the new content begins loading', () => {
+      const first = engine.loadContent({ kind: 'gis', provider: 'google-maps', center: { latitude: 25.2, longitude: 55.27 } })
+      const { contentId } = first.data!
+      const firstLayerId = engine.listContent().data!.content[0].layerId
+
+      const replaceResult = engine.replaceContent(contentId, {
+        kind: 'gis',
+        provider: 'google-maps',
+        center: { latitude: 30, longitude: 30 },
+      })
+
+      expect(replaceResult.ok).toBe(true)
+      expect(useViewerEngineStore.getState().layers.some((l) => l.id === firstLayerId)).toBe(false)
+      expect(engine.listContent().data!.content).toHaveLength(1)
+    })
+
+    it('T052 (US4 AC5, FR-006): replacing model content disposes the previous content\'s geometry/material in full', async () => {
+      const firstGeometry = new THREE.BoxGeometry()
+      const firstMaterial = new THREE.MeshBasicMaterial()
+      const disposeGeometry = vi.spyOn(firstGeometry, 'dispose')
+      const disposeMaterial = vi.spyOn(firstMaterial, 'dispose')
+      const firstRoot = new THREE.Object3D()
+      firstRoot.add(new THREE.Mesh(firstGeometry, firstMaterial))
+      loadGltfContentMock.mockResolvedValueOnce({ ok: true, result: { root: firstRoot, elementIndex: new Map() } })
+
+      const { contentId } = engine.loadContent({ kind: 'model', format: 'gltf', fileId: 'file-1' }, placement).data!
+      await vi.waitFor(() => {
+        expect(engine.listContent().data!.content[0].loadState).toBe('loaded')
+      })
+
+      loadGltfContentMock.mockResolvedValueOnce({ ok: true, result: { root: new THREE.Object3D(), elementIndex: new Map() } })
+      engine.replaceContent(contentId, { kind: 'model', format: 'gltf', fileId: 'file-2' }, placement)
+
+      expect(disposeGeometry).toHaveBeenCalledTimes(1)
+      expect(disposeMaterial).toHaveBeenCalledTimes(1)
+    })
+
+    it('T055 (US5 AC4): a content failure leaves already-displayed content displayed and the viewer usable', () => {
+      const good = engine.loadContent({ kind: 'gis', provider: 'google-maps', center: { latitude: 25.2, longitude: 55.27 } })
+      expect(good.ok).toBe(true)
+
+      const failed = engine.loadContent({ kind: 'model', format: 'gltf', fileId: 'file-1' }) // no placement -> unplaceable
+      expect(failed.ok).toBe(false)
+
+      // The good content is still there, and the engine itself is still fully operable.
+      expect(engine.listContent().data!.content.some((c) => c.id === good.data!.contentId)).toBe(true)
+      expect(engine.zoomToLocation(25.2, 55.27).ok).toBe(true)
+    })
+
+    it('replaceContent fails for an unknown content id', () => {
+      const result = engine.replaceContent('does-not-exist', { kind: 'gis', provider: 'google-maps', center: { latitude: 0, longitude: 0 } })
+      expect(result.ok).toBe(false)
+    })
+
+    it('unloadContent removes content and releases its resources; fails gracefully for a non-existent id', () => {
+      const { contentId } = engine.loadContent({ kind: 'gis', provider: 'google-maps', center: { latitude: 25.2, longitude: 55.27 } }).data!
+
+      expect(engine.unloadContent(contentId).ok).toBe(true)
+      expect(engine.listContent().data!.content).toHaveLength(0)
+      expect(engine.unloadContent('unknown-id').ok).toBe(false)
+    })
+
+    it('T042 (US3): selectAndFrame selects and re-frames a known element', () => {
+      engine.registerSelectableElement('gis-1', 'marker-1')
+      const zoomHandler = vi.fn()
+      engine.on('selectionChanged', zoomHandler)
+
+      const result = engine.selectAndFrame('gis-1', 'marker-1')
+
+      expect(result.ok).toBe(true)
+      expect(zoomHandler).toHaveBeenCalledWith({ type: 'selectionChanged', layerId: 'gis-1', elementId: 'marker-1' })
+    })
+
+    it('T042 (US3 AC4): selectAndFrame fails with a stated reason for an element that no longer exists, never a silent no-op', () => {
+      const result = engine.selectAndFrame('gis-1', 'does-not-exist')
+
+      expect(result.ok).toBe(false)
+      expect(result.error).toBeTruthy()
+    })
+
+    it('listContent reflects every currently-tracked content item, each independently removable', () => {
+      const a = engine.loadContent({ kind: 'gis', provider: 'google-maps', center: { latitude: 25.2, longitude: 55.27 } }).data!
+      const b = engine.loadContent({ kind: 'gis', provider: 'google-maps', center: { latitude: 30, longitude: 30 } }).data!
+
+      expect(engine.listContent().data!.content.map((c) => c.id)).toEqual([a.contentId, b.contentId])
+
+      engine.unloadContent(a.contentId)
+      expect(engine.listContent().data!.content.map((c) => c.id)).toEqual([b.contentId])
     })
   })
 })

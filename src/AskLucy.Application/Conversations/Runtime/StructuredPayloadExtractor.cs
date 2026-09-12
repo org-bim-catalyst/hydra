@@ -3,6 +3,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Viewer;
 using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Conversations.Runtime;
@@ -66,6 +67,16 @@ public static class StructuredPayloadExtractor
                     when root.TryGetProperty("direction", out var directionEl):
                     return new ChatStreamChunk(null, null,
                         ViewerZoom: new ViewerZoomCommand(directionEl.GetString() ?? "in"));
+
+                case LoadViewerContentCapability.CapabilityKey
+                    when root.TryGetProperty("fileId", out var fileIdEl):
+                    return new ChatStreamChunk(null, null, ViewerContent: new ViewerContentCommand(
+                        fileIdEl.GetString() ?? string.Empty,
+                        root.GetProperty("latitude").GetDouble(),
+                        root.GetProperty("longitude").GetDouble(),
+                        root.TryGetProperty("heightMetres", out var heightEl) ? heightEl.GetDouble() : 0d,
+                        root.TryGetProperty("orientationDegrees", out var orientationEl) ? orientationEl.GetDouble() : 0d,
+                        root.TryGetProperty("scale", out var scaleEl) ? scaleEl.GetDouble() : 1d));
 
                 default:
                     return null;

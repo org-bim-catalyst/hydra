@@ -1,11 +1,13 @@
 import { Box } from '@mui/material'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useWebGLSupport } from '../../../hooks/useWebGLSupport'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { PlaceholderRenderTarget } from '../../../viewer/engine/PlaceholderRenderTarget'
 import { ViewerFallback } from '../../../viewer/engine/ViewerFallback'
 import { MapRenderTarget } from '../../../viewer/engine/MapRenderTarget'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
+import { ContentLoadingIndicator } from '../../../viewer/content/components/ContentLoadingIndicator'
+import { useContentStore } from '../../../viewer/content/contentStore'
 import { ExtensionFailureNotice } from '../../../viewer/extensions/components/ExtensionFailureNotice'
 import { ExtensionOverlayHost } from '../../../viewer/extensions/components/ExtensionOverlayHost'
 import { ExtensionToolbar } from '../../../viewer/extensions/components/ExtensionToolbar'
@@ -15,7 +17,6 @@ import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 
-const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
 
 // specs/038-viewer-poi-zoom: fallback altitude table when viewport is absent. Module-level (not
@@ -51,16 +52,28 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
  * active location from `activeLocationStore` (specs/036-startup-geolocation) — no longer a
  * prop — so both startup geolocation and agent-confirmed locations (specs/035, spec 036 US3)
  * drive the viewer through the same shared store. */
-/** spec.md Edge Cases: shared by "location became unavailable" (FR-012) and "the map/GIS
- * provider is unreachable" — both revert to the placeholder the same way. */
-function revertToPlaceholder() {
-  viewerEngine.removeLayer(GIS_CURRENT_LOCATION_LAYER_ID)
-  useViewerEngineStore.getState().setContentMode('placeholder')
-}
-
 export function ViewerSurface() {
   const supportsWebGL = useWebGLSupport()
   const contentMode = useViewerEngineStore((s) => s.contentMode)
+  // specs/051 FR-003/research D1: the map is the viewer's own first, default content, loaded
+  // through `engine.loadContent(...)` rather than a raw `addLayer` call — this ref remembers the
+  // content id `loadContent` generated, since revert-to-placeholder needs it to unload cleanly.
+  // The RenderLayer id downstream consumers (`MapRenderTarget`'s `layerId` prop) need is derived
+  // below from the content store, reactively, rather than mirrored into separate React state
+  // (calling `setState` synchronously inside an effect is exactly the anti-pattern that would
+  // introduce — the content store update `loadContent` already makes is itself the state).
+  const mapContentIdRef = useRef<string | null>(null)
+  const mapLayerId = useContentStore((s) => s.content.find((c) => c.id === mapContentIdRef.current)?.layerId ?? null)
+
+  // spec.md Edge Cases: shared by "location became unavailable" (FR-012) and "the map/GIS
+  // provider is unreachable" — both revert to the placeholder the same way.
+  function revertToPlaceholder() {
+    if (mapContentIdRef.current) {
+      viewerEngine.unloadContent(mapContentIdRef.current)
+      mapContentIdRef.current = null
+    }
+    useViewerEngineStore.getState().setContentMode('placeholder')
+  }
 
   // FR-002/research D3: starts every declared extension on mount. Not awaited as a group
   // (research D4) so a slow one cannot delay first paint. FR-028: stops every declared extension
@@ -95,11 +108,10 @@ export function ViewerSurface() {
       // once — a coordinate update (user physically moved, or agent confirmed a new location)
       // just re-centers via zoomToLocation below, it doesn't re-add the layer.
       if (store.contentMode !== 'map') {
-        viewerEngine.addLayer({
-          id: GIS_CURRENT_LOCATION_LAYER_ID,
-          kind: 'gis',
-          metadata: { provider: 'google-maps', center, zoom: DEFAULT_MAP_ZOOM },
-        })
+        const result = viewerEngine.loadContent({ kind: 'gis', provider: 'google-maps', center, zoom: DEFAULT_MAP_ZOOM })
+        if (result.ok && result.data) {
+          mapContentIdRef.current = result.data.contentId
+        }
         useViewerEngineStore.getState().setContentMode('map')
       }
       // specs/038-viewer-poi-zoom: priority — fitBounds > zoomToAltitude > legacy zoomToLocation.
@@ -125,10 +137,10 @@ export function ViewerSurface() {
     <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
       {!supportsWebGL ? (
         <ViewerFallback />
-      ) : contentMode === 'map' && latitude !== null && longitude !== null ? (
+      ) : contentMode === 'map' && latitude !== null && longitude !== null && mapLayerId !== null ? (
         <MapRenderTarget
           viewerEngine={viewerEngine}
-          layerId={GIS_CURRENT_LOCATION_LAYER_ID}
+          layerId={mapLayerId}
           center={{ latitude, longitude }}
           zoom={DEFAULT_MAP_ZOOM}
           onError={revertToPlaceholder}
@@ -142,6 +154,7 @@ export function ViewerSurface() {
           extension has contributed an entry (FR-023). */}
       <ExtensionToolbar />
       <ExtensionFailureNotice />
+      <ContentLoadingIndicator />
     </Box>
   )
 }

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { panelTypeRegistry } from '../panels/registry'
 import { useFloatingPanelStore } from '../panels/store/floatingPanelStore'
+import { drawingSpaceRegistry } from '../scene/DrawingSpaceRegistry'
 import type { ExtensionContext } from './context'
 import { viewerExtensionLoader } from './loader'
 import { viewerExtensionRegistry } from './registry'
@@ -361,5 +362,36 @@ describe('viewerExtensionLoader', () => {
     } finally {
       useFloatingPanelStore.setState(initialPanelState, true)
     }
+  })
+
+  it('T021: stopping an extension releases its drawing space and clears its frame subscriptions, leaving other extensions untouched', async () => {
+    let framesFired = 0
+    const drawer = register({
+      manifest: { displayName: 'Drawer', description: 'test' },
+      start: (context: ExtensionContext) => {
+        context.acquireDrawingSpace().onFrame(() => {
+          framesFired += 1
+        })
+      },
+      stop: () => {},
+    })
+    const other = register({
+      manifest: { displayName: 'Other', description: 'test' },
+      start: (context: ExtensionContext) => {
+        context.acquireDrawingSpace()
+      },
+      stop: () => {},
+    })
+
+    await viewerExtensionLoader.start(drawer.id)
+    await viewerExtensionLoader.start(other.id)
+    drawingSpaceRegistry.invokeFrameCallbacks(0.016)
+    expect(framesFired).toBe(1)
+
+    await viewerExtensionLoader.stop(drawer.id)
+    drawingSpaceRegistry.invokeFrameCallbacks(0.016)
+
+    expect(framesFired).toBe(1)
+    expect(useViewerExtensionStore.getState().extensions[other.id]?.lifecycle).toBe('started')
   })
 })

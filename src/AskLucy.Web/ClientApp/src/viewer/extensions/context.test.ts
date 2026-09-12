@@ -142,4 +142,16 @@ describe('createExtensionContext', () => {
     expect(context.registerLivePanelKind.length).toBe(1)
     expect(context.openPanel.length).toBe(1)
   })
+
+  it('T021: acquireDrawingSpace() is idempotent per extension and records exactly one contribution', () => {
+    const context = createExtensionContext('ext-drawing')
+    const first = context.acquireDrawingSpace()
+    const second = context.acquireDrawingSpace()
+
+    expect(first).toBe(second)
+    const drawingSpaceContributions = useViewerExtensionStore
+      .getState()
+      .contributions.filter((c) => c.kind === 'drawingSpace' && c.extensionId === 'ext-drawing')
+    expect(drawingSpaceContributions).toHaveLength(1)
+  })
 })

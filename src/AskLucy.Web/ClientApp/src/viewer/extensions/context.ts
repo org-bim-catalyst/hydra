@@ -5,6 +5,7 @@ import type { ViewerEventHandler, ViewerEventType } from '../api/events'
 import { panelTypeRegistry } from '../panels/registry'
 import { useFloatingPanelStore } from '../panels/store/floatingPanelStore'
 import type { PanelRequest, PanelTypeDefinition } from '../panels/types/panel'
+import { drawingSpaceRegistry, type DrawingSpaceHandle } from '../scene/DrawingSpaceRegistry'
 import { useViewerExtensionStore } from './store/viewerExtensionStore'
 import type { ToolbarEntry } from './ViewerExtension'
 
@@ -19,6 +20,11 @@ export interface ExtensionContext {
   contributeToolbarEntry(entry: ToolbarEntry): void
   registerLivePanelKind(definition: PanelTypeDefinition): void
   openPanel(request: PanelRequest): void
+  /** contracts/extension-context-extensions.md (specs/051) — acquires this extension's own
+   * isolated Drawing Space. Idempotent per extension (mirrors specs/050's start-when-started
+   * posture). Automatically released on stop — never call `release()` yourself; there isn't one
+   * exposed here. */
+  acquireDrawingSpace(): DrawingSpaceHandle
 }
 
 /** contracts/extension-context.md — a handler that throws is contained and surfaced (FR-017):
@@ -67,6 +73,20 @@ export function createExtensionContext(extensionId: string): ExtensionContext {
       // Deliberately untracked (contract: "a panel the user can close is theirs, not the
       // extension's") — not recorded as a contribution and not withdrawn on stop.
       useFloatingPanelStore.getState().openPanel(request)
+    },
+
+    acquireDrawingSpace() {
+      const handle = drawingSpaceRegistry.acquire(extensionId)
+      // acquireDrawingSpace() is itself idempotent (drawingSpaceRegistry.acquire returns the
+      // same handle on a second call), so only record the contribution once — otherwise calling
+      // this twice would queue two withdrawal entries for one drawing space.
+      const alreadyContributed = useViewerExtensionStore
+        .getState()
+        .contributions.some((c) => c.kind === 'drawingSpace' && c.extensionId === extensionId)
+      if (!alreadyContributed) {
+        addContribution({ kind: 'drawingSpace', extensionId, release: () => drawingSpaceRegistry.release(extensionId) })
+      }
+      return handle
     },
   }
 }
