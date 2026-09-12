@@ -11,13 +11,12 @@ panelTypeRegistry.register({
   typeKey: TEST_TYPE_KEY,
   renderer: () => null,
   schema: z.object({ label: z.string() }),
-  defaultSize: { width: 320, height: 240 },
-  resizable: true,
+  chrome: { titleBar: true, resizable: true, defaultSize: { width: 320, height: 240 } },
 })
 
 const initialState = useFloatingPanelStore.getState()
 
-describe('floatingPanelStore.openPanel validation states', () => {
+describe('floatingPanelStore.openPanel validation states (live panels)', () => {
   beforeEach(() => {
     useFloatingPanelStore.setState(initialState, true)
   })
@@ -25,7 +24,7 @@ describe('floatingPanelStore.openPanel validation states', () => {
   it('marks a panel valid when the type is registered and data matches its schema', () => {
     useFloatingPanelStore
       .getState()
-      .openPanel({ requestId: 'p1', typeKey: TEST_TYPE_KEY, title: 'Test', data: { label: 'ok' } })
+      .openPanel({ kind: 'live', requestId: 'p1', typeKey: TEST_TYPE_KEY, title: 'Test', data: { label: 'ok' } })
     const panel = useFloatingPanelStore.getState().panels[0]
     expect(panel.validationStatus).toBe('valid')
     expect(panel.data).toEqual({ label: 'ok' })
@@ -34,7 +33,7 @@ describe('floatingPanelStore.openPanel validation states', () => {
   it('marks a panel unknown-type when the typeKey has no registered definition', () => {
     useFloatingPanelStore
       .getState()
-      .openPanel({ requestId: 'p2', typeKey: 'does-not-exist', title: 'Test', data: {} })
+      .openPanel({ kind: 'live', requestId: 'p2', typeKey: 'does-not-exist', title: 'Test', data: {} })
     const panel = useFloatingPanelStore.getState().panels[0]
     expect(panel.validationStatus).toBe('unknown-type')
   })
@@ -42,7 +41,37 @@ describe('floatingPanelStore.openPanel validation states', () => {
   it('marks a panel invalid when data fails the resolved schema, with a validationError set', () => {
     useFloatingPanelStore
       .getState()
-      .openPanel({ requestId: 'p3', typeKey: TEST_TYPE_KEY, title: 'Test', data: { nonsense: true } })
+      .openPanel({ kind: 'live', requestId: 'p3', typeKey: TEST_TYPE_KEY, title: 'Test', data: { nonsense: true } })
+    const panel = useFloatingPanelStore.getState().panels[0]
+    expect(panel.validationStatus).toBe('invalid')
+    expect(panel.validationError).toBeTruthy()
+  })
+})
+
+describe('floatingPanelStore.openPanel validation states (content panels, specs/049)', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  it('marks a panel valid when content matches the vocabulary', () => {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId: 'c1',
+      title: 'Test',
+      content: { version: 1, blocks: [{ kind: 'heading', text: 'Hello' }] },
+    })
+    const panel = useFloatingPanelStore.getState().panels[0]
+    expect(panel.validationStatus).toBe('valid')
+    expect(panel.content).toEqual({ version: 1, blocks: [{ kind: 'heading', text: 'Hello' }] })
+  })
+
+  it('marks a panel invalid when content fails the vocabulary schema, with a validationError set', () => {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId: 'c2',
+      title: 'Test',
+      content: { version: 1, blocks: [] },
+    })
     const panel = useFloatingPanelStore.getState().panels[0]
     expect(panel.validationStatus).toBe('invalid')
     expect(panel.validationError).toBeTruthy()
@@ -56,8 +85,8 @@ describe('floatingPanelStore cascade placement (FR-021)', () => {
 
   it('offsets each new panel with no position from the last', () => {
     const store = useFloatingPanelStore.getState()
-    store.openPanel({ requestId: 'c1', typeKey: TEST_TYPE_KEY, title: 'A', data: { label: 'a' } })
-    store.openPanel({ requestId: 'c2', typeKey: TEST_TYPE_KEY, title: 'B', data: { label: 'b' } })
+    store.openPanel({ kind: 'live', requestId: 'c1', typeKey: TEST_TYPE_KEY, title: 'A', data: { label: 'a' } })
+    store.openPanel({ kind: 'live', requestId: 'c2', typeKey: TEST_TYPE_KEY, title: 'B', data: { label: 'b' } })
     const [first, second] = useFloatingPanelStore.getState().panels
     expect(second.position.x).toBeGreaterThan(first.position.x)
     expect(second.position.y).toBeGreaterThan(first.position.y)
@@ -66,13 +95,13 @@ describe('floatingPanelStore cascade placement (FR-021)', () => {
   it('wraps back toward the starting corner after enough panels', () => {
     const store = useFloatingPanelStore.getState()
     for (let i = 0; i < 10; i += 1) {
-      store.openPanel({ requestId: `wrap-${i}`, typeKey: TEST_TYPE_KEY, title: 'W', data: { label: 'w' } })
+      store.openPanel({ kind: 'live', requestId: `wrap-${i}`, typeKey: TEST_TYPE_KEY, title: 'W', data: { label: 'w' } })
     }
     // Focus wrap-0 so it isn't the least-recently-focused panel once the cap-triggering 11th
     // panel is opened below (MAX_CONCURRENT_PANELS is also 10) — this test is about the cascade
     // offset math wrapping, not eviction (covered separately), so keep wrap-0 alive to compare.
     store.focusPanel('wrap-0')
-    store.openPanel({ requestId: 'wrap-10', typeKey: TEST_TYPE_KEY, title: 'W', data: { label: 'w' } })
+    store.openPanel({ kind: 'live', requestId: 'wrap-10', typeKey: TEST_TYPE_KEY, title: 'W', data: { label: 'w' } })
 
     const panels = useFloatingPanelStore.getState().panels
     const first = panels.find((p) => p.id === 'wrap-0')!
@@ -83,13 +112,14 @@ describe('floatingPanelStore cascade placement (FR-021)', () => {
   it('does not consume a cascade slot when a position is explicitly supplied', () => {
     const store = useFloatingPanelStore.getState()
     store.openPanel({
+      kind: 'live',
       requestId: 'explicit',
       typeKey: TEST_TYPE_KEY,
       title: 'Explicit',
       data: { label: 'e' },
       position: { x: 999, y: 999 },
     })
-    store.openPanel({ requestId: 'cascaded', typeKey: TEST_TYPE_KEY, title: 'Cascaded', data: { label: 'c' } })
+    store.openPanel({ kind: 'live', requestId: 'cascaded', typeKey: TEST_TYPE_KEY, title: 'Cascaded', data: { label: 'c' } })
     const cascaded = useFloatingPanelStore.getState().panels.find((p) => p.id === 'cascaded')!
     expect(cascaded.position).toEqual({ x: 40, y: 40 })
   })
@@ -103,11 +133,11 @@ describe('floatingPanelStore LRU eviction at MAX_CONCURRENT_PANELS (FR-022)', ()
   it('evicts the least-recently-focused panel when a new panel would exceed the cap', () => {
     const store = useFloatingPanelStore.getState();
     for (let i = 0; i < MAX_CONCURRENT_PANELS; i += 1) {
-      store.openPanel({ requestId: `cap-${i}`, typeKey: TEST_TYPE_KEY, title: 'Cap', data: { label: 'cap' } })
+      store.openPanel({ kind: 'live', requestId: `cap-${i}`, typeKey: TEST_TYPE_KEY, title: 'Cap', data: { label: 'cap' } })
     }
     expect(useFloatingPanelStore.getState().panels).toHaveLength(MAX_CONCURRENT_PANELS)
 
-    store.openPanel({ requestId: 'cap-overflow', typeKey: TEST_TYPE_KEY, title: 'Overflow', data: { label: 'o' } })
+    store.openPanel({ kind: 'live', requestId: 'cap-overflow', typeKey: TEST_TYPE_KEY, title: 'Overflow', data: { label: 'o' } })
 
     const panels = useFloatingPanelStore.getState().panels
     expect(panels).toHaveLength(MAX_CONCURRENT_PANELS)
@@ -118,7 +148,7 @@ describe('floatingPanelStore LRU eviction at MAX_CONCURRENT_PANELS (FR-022)', ()
   it('never blocks the request that would exceed the cap — it always succeeds', () => {
     const store = useFloatingPanelStore.getState()
     for (let i = 0; i < MAX_CONCURRENT_PANELS + 1; i += 1) {
-      store.openPanel({ requestId: `never-blocked-${i}`, typeKey: TEST_TYPE_KEY, title: 'X', data: { label: 'x' } })
+      store.openPanel({ kind: 'live', requestId: `never-blocked-${i}`, typeKey: TEST_TYPE_KEY, title: 'X', data: { label: 'x' } })
     }
     expect(useFloatingPanelStore.getState().panels.some((p) => p.id === `never-blocked-${MAX_CONCURRENT_PANELS}`)).toBe(
       true,
@@ -134,6 +164,7 @@ describe('floatingPanelStore.clampToViewport (FR-018, Edge Cases: viewport resiz
   it('repositions a panel back within bounds when the viewport shrinks under it', () => {
     const store = useFloatingPanelStore.getState()
     store.openPanel({
+      kind: 'live',
       requestId: 'out-of-bounds',
       typeKey: TEST_TYPE_KEY,
       title: 'Out of bounds',
@@ -154,6 +185,7 @@ describe('floatingPanelStore.clampToViewport (FR-018, Edge Cases: viewport resiz
   it('leaves an already-in-bounds panel untouched', () => {
     const store = useFloatingPanelStore.getState()
     store.openPanel({
+      kind: 'live',
       requestId: 'in-bounds',
       typeKey: TEST_TYPE_KEY,
       title: 'In bounds',
@@ -176,6 +208,7 @@ describe('floatingPanelStore ViewerEventBus subscription (US4, FR-014, Edge Case
   it("marks a panel's association invalid when its associated layer is removed", () => {
     viewerEngine.addLayer({ id: 'ctx-layer-1', kind: 'model' })
     useFloatingPanelStore.getState().openPanel({
+      kind: 'live',
       requestId: 'ctx-panel-1',
       typeKey: TEST_TYPE_KEY,
       title: 'Ctx',
@@ -192,6 +225,7 @@ describe('floatingPanelStore ViewerEventBus subscription (US4, FR-014, Edge Case
   it("marks a panel's association stale when its associated layer's content reloads", () => {
     viewerEngine.addLayer({ id: 'ctx-layer-2', kind: 'model' })
     useFloatingPanelStore.getState().openPanel({
+      kind: 'live',
       requestId: 'ctx-panel-2',
       typeKey: TEST_TYPE_KEY,
       title: 'Ctx',
@@ -207,6 +241,7 @@ describe('floatingPanelStore ViewerEventBus subscription (US4, FR-014, Edge Case
   it('leaves panels with no context association untouched by layer events', () => {
     viewerEngine.addLayer({ id: 'ctx-layer-3', kind: 'model' })
     useFloatingPanelStore.getState().openPanel({
+      kind: 'live',
       requestId: 'ctx-panel-3',
       typeKey: TEST_TYPE_KEY,
       title: 'No Ctx',

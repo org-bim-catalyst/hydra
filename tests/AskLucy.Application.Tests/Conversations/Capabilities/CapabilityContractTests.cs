@@ -48,7 +48,8 @@ public sealed class CapabilityContractTests
         new AdjustViewerFocusCapability(),
         new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>()),
         new SearchMemoryCapability(Substitute.For<IMemoryService>()),
-        new OpenVisualPanelCapability(Substitute.For<IPanelNotifier>()),
+        new PresentPanelContentCapability(Substitute.For<IPanelNotifier>()),
+        new OpenLivePanelCapability(Substitute.For<IPanelNotifier>()),
     ];
 
     [Theory]

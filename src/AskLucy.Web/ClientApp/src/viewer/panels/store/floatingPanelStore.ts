@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { viewerEngine } from '../../engine/viewerEngineInstance'
 import { panelTypeRegistry } from '../registry'
+import { DEFAULT_CONTENT_CHROME, resolveChrome } from '../chrome/chrome'
+import { panelContentSchema } from '../content/blocks'
 import { MAX_CONCURRENT_PANELS, type FloatingPanel, type PanelContextStatus, type PanelRequest } from '../types/panel'
 
 /** FR-021 — cascade placement for a panel request that doesn't specify a position: each new
@@ -54,28 +56,46 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
   cascadeIndex: 0,
 
   openPanel: (request) => {
-    const definition = panelTypeRegistry.resolve(request.typeKey)
-
+    // Branches on request kind (research D5/D9): a `content` request is validated against the
+    // vocabulary directly; a `live` request keeps the pre-existing registry resolution path
+    // unchanged. Everything below this block — cascade, z-order, LRU eviction, minimize/restore,
+    // clamping, context association — is untouched by which branch ran.
     let validationStatus: FloatingPanel['validationStatus']
     let validationError: string | null = null
-    let data: unknown = request.data
-    let size = { width: 400, height: 300 }
-    let resizable = true
+    let content: FloatingPanel['content']
+    let typeKey: FloatingPanel['typeKey']
+    let data: unknown
+    let chromeBase = DEFAULT_CONTENT_CHROME
 
-    if (!definition) {
-      validationStatus = 'unknown-type'
-    } else {
-      size = definition.defaultSize
-      resizable = definition.resizable
-      const parsed = definition.schema.safeParse(request.data)
+    if (request.kind === 'content') {
+      const parsed = panelContentSchema.safeParse(request.content)
       if (parsed.success) {
         validationStatus = 'valid'
-        data = parsed.data
+        content = parsed.data
       } else {
         validationStatus = 'invalid'
         validationError = parsed.error.issues.map((issue) => issue.message).join('; ')
       }
+    } else {
+      typeKey = request.typeKey
+      data = request.data
+      const definition = panelTypeRegistry.resolve(request.typeKey)
+      if (!definition) {
+        validationStatus = 'unknown-type'
+      } else {
+        chromeBase = definition.chrome
+        const parsed = definition.schema.safeParse(request.data)
+        if (parsed.success) {
+          validationStatus = 'valid'
+          data = parsed.data
+        } else {
+          validationStatus = 'invalid'
+          validationError = parsed.error.issues.map((issue) => issue.message).join('; ')
+        }
+      }
     }
+
+    const chrome = resolveChrome(request.chrome, chromeBase)
 
     const state = get()
     const usesCascade = !request.position
@@ -89,14 +109,16 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
 
     const panel: FloatingPanel = {
       id: request.requestId,
-      typeKey: request.typeKey,
+      kind: request.kind,
+      typeKey,
+      content,
       title: request.title,
       data,
       validationStatus,
       validationError,
       position,
-      size,
-      resizable,
+      size: chrome.defaultSize,
+      chrome,
       minimized: false,
       restoreState: null,
       zOrder: nextZOrder(state.panels),

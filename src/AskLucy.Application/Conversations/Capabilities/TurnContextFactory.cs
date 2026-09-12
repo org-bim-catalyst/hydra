@@ -46,7 +46,7 @@ public static class TurnContextFactory
             knowledgeBaseIds,
             HasAttachedDocuments: false,
             IsMemoryAvailable: userId is not null,
-            OpenPanelTypeKeys: [],
+            OpenPanelCount: 0,
             granted,
             SubscriptionTier: null);
     }

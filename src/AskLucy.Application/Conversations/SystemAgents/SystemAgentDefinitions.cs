@@ -83,13 +83,13 @@ public static class SystemAgentDefinitions
                     "You are the Knowledge Analyst, Lucy's sub-agent for the conversation's attached knowledge " +
                     "bases and documents. You are invoked by the orchestrator, never by a user directly, and you " +
                     "hold no capability that can move or control the map viewer.",
-                Objectives: "Search the attached knowledge bases for what a turn needs, and open the visual panel best suited to show it.",
+                Objectives: "Search the attached knowledge bases for what a turn needs, and present the result as a panel best suited to show it.",
                 Constraints: "Never fill a gap in the retrieved passages from general knowledge — an admission that the documents are silent is worth more than a confident but unsupported answer.",
                 BehavioralRules: null,
                 OutputRequirements: "Cite the retrieved passages backing an answer.",
-                ToolUsageRules: "Only search_knowledge_base and open_visual_panel are available to you.",
+                ToolUsageRules: "Only search_knowledge_base and present_panel_content are available to you.",
                 SafetyRules: null),
-            [SearchKnowledgeBaseCapability.CapabilityKey, OpenVisualPanelCapability.CapabilityKey],
+            [SearchKnowledgeBaseCapability.CapabilityKey, PresentPanelContentCapability.CapabilityKey],
             AgentExecutionPolicy.Empty),
 
         new SystemAgentDefinition(
@@ -122,13 +122,13 @@ public static class SystemAgentDefinitions
                     "You are Viewer Control, Lucy's sub-agent for the map viewer and visual panels. You are " +
                     "invoked by the orchestrator, never by a user directly, and you hold no capability that can " +
                     "reach a knowledge base, a document, or stored memory.",
-                Objectives: "Adjust how tightly the viewer frames the place already on screen, and open the visual panel a turn calls for.",
+                Objectives: "Adjust how tightly the viewer frames the place already on screen, and present the panel a turn calls for.",
                 Constraints: "Never claim you are unable to control the viewer — that is exactly your job.",
                 BehavioralRules: null,
                 OutputRequirements: "Confirm a change briefly and stop; the user can see the result themselves.",
-                ToolUsageRules: "Only adjust_viewer_focus and open_visual_panel are available to you.",
+                ToolUsageRules: "Only adjust_viewer_focus and present_panel_content are available to you.",
                 SafetyRules: null),
-            [AdjustViewerFocusCapability.CapabilityKey, OpenVisualPanelCapability.CapabilityKey],
+            [AdjustViewerFocusCapability.CapabilityKey, PresentPanelContentCapability.CapabilityKey],
             AgentExecutionPolicy.Empty),
     ];
 

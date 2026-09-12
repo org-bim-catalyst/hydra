@@ -10,7 +10,6 @@ import { FloatingPanelHost } from '../../../viewer/panels/components/FloatingPan
 import { useFloatingPanelHub } from '../../../viewer/panels/hooks/useFloatingPanelHub'
 import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
-import '../../../viewer/panels/types'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { POIMarkerOverlay } from './POIMarkerOverlay'
 import { SiteBoundaryOverlay } from './SiteBoundaryOverlay'

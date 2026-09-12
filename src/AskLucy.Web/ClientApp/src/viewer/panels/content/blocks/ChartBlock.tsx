@@ -1,49 +1,38 @@
 import { useMemo } from 'react'
 import { Box, Stack, Typography, useTheme } from '@mui/material'
 import { max as d3Max, scaleBand, scaleLinear, scaleOrdinal, line as d3Line } from 'd3'
-import { z } from 'zod'
-import { panelTypeRegistry } from '../../registry'
+import type { ChartBlock as ChartBlockData } from '../blocks'
 
-/** contracts/panel-type-registry.md "chart" built-in type — covers the spec's "Charts",
- * "environmental analysis", and "urban design metrics" categories via one generic primitive. */
-export const chartDataSchema = z.object({
-  chartKind: z.enum(['bar', 'line']),
-  labels: z.array(z.string()).optional(),
-  series: z
-    .array(z.object({ label: z.string(), values: z.array(z.number()).min(1) }))
-    .min(1),
-})
-
-export type ChartData = z.infer<typeof chartDataSchema>
-
+/** contracts/content-vocabulary.md "chart" block — ported unchanged from the retired `chart`
+ * panel type's d3 renderer (research D8). */
 const CHART_HEIGHT = 220
 const MARGIN = { top: 12, right: 12, bottom: 28, left: 32 }
 const SERIES_COLOR_KEYS = ['primary', 'secondary', 'success', 'warning', 'error', 'info'] as const
 
-function ChartPanelRenderer({ data }: { data: ChartData }) {
+export function ChartBlockRenderer({ block }: { block: ChartBlockData }) {
   const theme = useTheme()
   const colorFor = scaleOrdinal<number, string>()
-    .domain(data.series.map((_, i) => i))
+    .domain(block.series.map((_, i) => i))
     .range(SERIES_COLOR_KEYS.map((key) => theme.palette[key].main))
 
   const { width, innerWidth, innerHeight, xScale, yScale, yTicks, labels } = useMemo(() => {
-    const pointCount = Math.max(...data.series.map((s) => s.values.length))
-    const labels = data.labels ?? Array.from({ length: pointCount }, (_, i) => String(i + 1))
+    const pointCount = Math.max(...block.series.map((s) => s.values.length))
+    const labels = block.labels ?? Array.from({ length: pointCount }, (_, i) => String(i + 1))
     const width = 560
     const innerWidth = width - MARGIN.left - MARGIN.right
     const innerHeight = CHART_HEIGHT - MARGIN.top - MARGIN.bottom
     const xScale = scaleBand<string>().domain(labels).range([0, innerWidth]).padding(0.2)
-    const maxValue = d3Max(data.series.flatMap((s) => s.values)) ?? 0
+    const maxValue = d3Max(block.series.flatMap((s) => s.values)) ?? 0
     const yScale = scaleLinear()
       .domain([0, maxValue === 0 ? 1 : maxValue])
       .range([innerHeight, 0])
       .nice()
     const yTicks = yScale.ticks(4).map((tick) => ({ value: tick, y: yScale(tick) }))
     return { width, innerWidth, innerHeight, xScale, yScale, yTicks, labels }
-  }, [data])
+  }, [block])
 
   const seriesBandScale = scaleBand<number>()
-    .domain(data.series.map((_, i) => i))
+    .domain(block.series.map((_, i) => i))
     .range([0, xScale.bandwidth()])
     .padding(0.1)
 
@@ -54,7 +43,7 @@ function ChartPanelRenderer({ data }: { data: ChartData }) {
         width="100%"
         height={CHART_HEIGHT}
         role="img"
-        aria-label={`${data.chartKind} chart with ${data.series.length} series across ${labels.length} categories`}
+        aria-label={`${block.chartKind} chart with ${block.series.length} series across ${labels.length} categories`}
       >
         <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
           {yTicks.map((tick) => (
@@ -93,8 +82,8 @@ function ChartPanelRenderer({ data }: { data: ChartData }) {
               {label}
             </text>
           ))}
-          {data.chartKind === 'bar'
-            ? data.series.map((series, seriesIndex) =>
+          {block.chartKind === 'bar'
+            ? block.series.map((series, seriesIndex) =>
                 series.values.map((value, i) => {
                   const label = labels[i]
                   const x = (xScale(label) ?? 0) + (seriesBandScale(seriesIndex) ?? 0)
@@ -117,7 +106,7 @@ function ChartPanelRenderer({ data }: { data: ChartData }) {
                   )
                 }),
               )
-            : data.series.map((series, seriesIndex) => {
+            : block.series.map((series, seriesIndex) => {
                 const path = d3Line<number>()
                   .x((_, i) => (xScale(labels[i]) ?? 0) + xScale.bandwidth() / 2)
                   .y((value) => yScale(value))(series.values)
@@ -133,9 +122,9 @@ function ChartPanelRenderer({ data }: { data: ChartData }) {
               })}
         </g>
       </svg>
-      {data.series.length > 1 && (
+      {block.series.length > 1 && (
         <Stack direction="row" spacing={2} sx={{ mt: 1, flexWrap: 'wrap' }}>
-          {data.series.map((series, i) => (
+          {block.series.map((series, i) => (
             <Stack key={series.label} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: colorFor(i) }} />
               <Typography variant="caption" color="text.secondary">
@@ -148,11 +137,3 @@ function ChartPanelRenderer({ data }: { data: ChartData }) {
     </Box>
   )
 }
-
-panelTypeRegistry.register({
-  typeKey: 'chart',
-  renderer: ChartPanelRenderer,
-  schema: chartDataSchema,
-  defaultSize: { width: 480, height: 360 },
-  resizable: true,
-})
