@@ -1,4 +1,4 @@
-import { Box, Chip } from '@mui/material'
+import { Box } from '@mui/material'
 import { useEffect } from 'react'
 import { useWebGLSupport } from '../../../hooks/useWebGLSupport'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
@@ -6,14 +6,14 @@ import { PlaceholderRenderTarget } from '../../../viewer/engine/PlaceholderRende
 import { ViewerFallback } from '../../../viewer/engine/ViewerFallback'
 import { MapRenderTarget } from '../../../viewer/engine/MapRenderTarget'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
-import { FloatingPanelHost } from '../../../viewer/panels/components/FloatingPanelHost'
-import { useFloatingPanelHub } from '../../../viewer/panels/hooks/useFloatingPanelHub'
+import { ExtensionFailureNotice } from '../../../viewer/extensions/components/ExtensionFailureNotice'
+import { ExtensionOverlayHost } from '../../../viewer/extensions/components/ExtensionOverlayHost'
+import { ExtensionToolbar } from '../../../viewer/extensions/components/ExtensionToolbar'
+import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
+import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
-import { POIMarkerOverlay } from './POIMarkerOverlay'
-import { SiteBoundaryOverlay } from './SiteBoundaryOverlay'
-import { SiteBoundaryConfidenceBadge } from './SiteBoundaryConfidenceBadge'
 
 const GIS_CURRENT_LOCATION_LAYER_ID = 'gis-current-location'
 const DEFAULT_MAP_ZOOM = 15
@@ -61,7 +61,21 @@ function revertToPlaceholder() {
 export function ViewerSurface() {
   const supportsWebGL = useWebGLSupport()
   const contentMode = useViewerEngineStore((s) => s.contentMode)
-  const { isLive: isPanelHubLive } = useFloatingPanelHub()
+
+  // FR-002/research D3: starts every declared extension on mount. Not awaited as a group
+  // (research D4) so a slow one cannot delay first paint. FR-028: stops every declared extension
+  // and withdraws every contribution when the viewer closes — the loader's own idempotency rules
+  // (FR-008, FR-010) are what make this safe under React 19 Strict Mode's mount→cleanup→remount.
+  useEffect(() => {
+    for (const id of DECLARED_EXTENSIONS) {
+      void viewerExtensionLoader.start(id)
+    }
+    return () => {
+      for (const id of DECLARED_EXTENSIONS) {
+        void viewerExtensionLoader.stop(id)
+      }
+    }
+  }, [])
 
   // specs/036-startup-geolocation: read from shared active location store.
   // source !== null means a location is set (either from device or agent); null means no location.
@@ -122,35 +136,12 @@ export function ViewerSurface() {
       ) : (
         <PlaceholderRenderTarget />
       )}
-      {/* specs/038-viewer-poi-zoom T016/T017: POI marker for agent-confirmed locations. */}
-      <POIMarkerOverlay />
-      {/* specs/042-site-boundary-resolution: animated highlight for the resolved site boundary. */}
-      <SiteBoundaryOverlay />
-      <SiteBoundaryConfidenceBadge />
-      <FloatingPanelHost />
-      {/* specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
-          ExecutionMonitor already uses for useWorkflowExecutionHub's isLive, adapted to only
-          mount while reconnecting: this is an ambient full-viewport surface, not a monitoring
-          dashboard, so a permanent "Live" badge for a niche feature (AI-requested panels)
-          would be visual noise most users never need to see. */}
-      {!isPanelHubLive && (
-        <Chip
-          label="Reconnecting…"
-          size="small"
-          variant="outlined"
-          color="default"
-          data-testid="panel-hub-connection-status"
-          sx={{
-              position: 'absolute',
-              bottom: { xs: 16, sm: 24 },
-              left: {
-                xs: 'calc(16px + min(25vh, 280px) + 12px)',
-                sm: 'calc(24px + min(25vh, 280px) + 12px)',
-              },
-              bgcolor: 'background.paper',
-            }}
-        />
-      )}
+      <ExtensionOverlayHost />
+      {/* research D6/T036 — top-right: clear of the weather widget and boundary confidence
+          badge (top-left) and the panel-hub indicator (bottom-left). Renders nothing when no
+          extension has contributed an entry (FR-023). */}
+      <ExtensionToolbar />
+      <ExtensionFailureNotice />
     </Box>
   )
 }

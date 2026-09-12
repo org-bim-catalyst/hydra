@@ -94,6 +94,50 @@ Two capabilities give Lucy access to panels: `present_panel_content` (always ava
 content freely from the vocabulary) and `open_live_panel` (available only while something has
 registered a live kind; ships with no consumer in this feature).
 
+## Extensions (`extensions/`)
+
+The extension framework (specs/050) — how the viewer scales up its capabilities, modeled loosely
+on Autodesk Platform Services viewer extensions (see `docs/APS_VIEWER.md`) but built framework-side
+rather than author-side, since that reference implementation's own samples leak panels and event
+listeners on unload. See `specs/050-viewer-extension-framework/` for the full spec, plan, research,
+data model and contracts.
+
+- `ViewerExtension.ts` — the contract: `id`, `manifest` (`displayName`, `description`,
+  `toggleable?`, `startsWithViewer?`), `start(context)`/`stop()`, and an optional
+  `activate(mode?)`/`deactivate()` pair for a `toggleable` extension. A factory function, never a
+  base class to extend — there is no is-a relationship to model.
+- `context.ts` — `createExtensionContext(id)`, an extension's **only** route to the viewer. Passes
+  the existing `viewerEngine` through unchanged, plus tracked helpers — `on()`, `contributeOverlay`,
+  `contributeToolbarEntry`, `registerLivePanelKind`, `openPanel` — that record what they did against
+  the calling extension's id, so `stop()` can withdraw everything without the author's cooperation.
+  `openPanel` is the one deliberate exception: not tracked, because a panel the user can close is
+  theirs, not the extension's.
+- `loader.ts` — starts/stops declared extensions by id. Contains every failure (a thrown/rejected
+  `start()`, a timed-out `start()`, a thrown `stop()`, an unknown declared id) so one extension's
+  problem never blocks another's, and enforces the idempotency rules a double-invoked React 19
+  Strict Mode effect actually exercises: start-when-started and stop-when-not-started are no-ops,
+  stop-while-starting wins and discards whatever the in-flight start contributed.
+- `registry.ts` — the catalogue of extensions known to the application, mirroring `panelTypeRegistry`'s
+  posture: throws on a duplicate id in development, resolves an unknown id to `undefined` rather
+  than throwing.
+- `declared.ts` — `DECLARED_EXTENSIONS`, the ordered list of extension ids the viewer starts when it
+  opens. Changing what the viewer does means changing this list, not the viewer.
+- `store/viewerExtensionStore.ts` — per-extension lifecycle/activation state and the flat,
+  insertion-ordered list of live contributions every host renders from.
+- `components/` — `ExtensionOverlayHost` (renders every contributed overlay), `ExtensionToolbar`
+  (the **viewer-embedded** toolbar — distinct from the workspace overlay's page-level controls
+  outside the viewer; renders nothing when empty), `ExtensionFailureNotice` (names every currently
+  failed or erroring capability by its manifest `displayName`, reusing the panel hub's Chip pattern
+  rather than a new notification system).
+- `builtin/` — the four migrated capabilities (`panelsExtension`, `poiMarkerExtension`,
+  `boundaryConfidenceExtension`, `siteBoundaryExtension`). Each contributes its existing,
+  unchanged component; `ViewerSurface.tsx` names none of them.
+
+Adding a new capability costs one module (a `start()` that calls a few `context.contribute*` calls)
+plus one id in `declared.ts` — nothing else changes, including `ChatPage` and `WorkspaceOverlay`.
+
+See `specs/050-viewer-extension-framework/quickstart.md` for the full manual verification walkthrough.
+
 ## Manual verification (no AI agent required)
 
 In a development build, the running engine is exposed as `window.__askLucyViewerEngine` — open

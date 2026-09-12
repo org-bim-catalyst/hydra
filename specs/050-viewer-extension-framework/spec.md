@@ -23,6 +23,12 @@ It delivers the framework and moves the four capabilities the viewer currently m
 - Q: Does the viewer toolbar belong in this feature or a later one? → A: The contract states that an extension may contribute a toolbar entry, and this feature implements a minimal host for it inside the viewer. It is deliberately not designed in detail, because none of the four migrated capabilities has a button; the first real consumer is the solar analysis capability in specs/052, which will drive its design. This avoids both building an elaborate surface with no consumer and changing the contract one feature after writing it.
 - Q: How many capabilities migrate here? → A: Exactly the four the viewer surface mounts. The site boundary overlay is sequenced last, so it moves only once the contract is proven by three easier migrations. The weather widget, marker style selector and rotation toggle are mounted by the chat page rather than the viewer, and moving those is a question about where viewer controls live — deferred.
 
+### Session 2026-09-12 (post-plan)
+
+- Q: There are two kinds of toolbar in this product. Which one does FR-021 mean? → A: The **viewer-embedded** one. They are distinct surfaces and are not interchangeable: a toolbar embedded *in* the viewer holds viewer capabilities contributed by extensions, appears and disappears with the viewer, and reaches it through the extension context; a toolbar *outside* the viewer — the workspace overlay — controls page UI and the viewer together, and drives the viewer through its published API, as the rotation toggle does today. FR-021 builds the first. The workspace overlay is untouched by this feature. (An earlier draft of research D6 conflated the two and proposed not building the toolbar at all; that reading was wrong and is recorded in D6 rather than removed, because the distinction is easy to collapse again.)
+- Q: specs/024 records that workspace controls are reached "only through this coordinating overlay, never a permanent toolbar" — does that forbid FR-021? → A: No. That decision governs *page-level* controls and is why they route through the coordinating overlay rather than fixed application chrome. It does not speak to a surface owned by the viewer's own extensions.
+- Q: Keep FR-019, which requires notifying an extension when a contribution host appears? → A: Strike it. Contributions are held in a store and hosts subscribe to it, so "contributed before the host existed" and "contributed after" are the same case — FR-018 and FR-020 hold by construction and are tested. FR-019 came from the reference model, where it exists because contributions there are imperative and an early one is simply lost. Building it here would mean maintaining a code path nothing exercises.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Viewer Capabilities Load as Independent Extensions (Priority: P1)
@@ -138,12 +144,12 @@ A capability is one the user switches on and off rather than one that is simply 
 ### Readiness Ordering
 
 - **FR-018**: An extension MUST be able to start before a host it wishes to contribute to exists.
-- **FR-019**: The system MUST notify an extension when a contribution host becomes available, and MUST notify it immediately if that host already exists at the time it starts.
+- ~~**FR-019**~~: *Struck 2026-09-12 — see Clarifications.* Previously required the system to notify an extension when a contribution host became available. The design satisfies FR-018 and FR-020 without any notification, so this would have been a second path to an already-guaranteed outcome, exercised by nothing.
 - **FR-020**: A contribution made before its host exists MUST be applied once the host becomes available, never discarded.
 
 ### Viewer Toolbar
 
-- **FR-021**: The viewer MUST provide a toolbar hosted within the viewer itself, distinct from the application ribbon, into which extensions contribute entries.
+- **FR-021**: The viewer MUST provide a toolbar hosted within the viewer itself, distinct from the application ribbon and from the workspace overlay's page-level controls, into which extensions contribute entries.
 - **FR-022**: Entries contributed by more than one extension MUST all appear, in a defined and stable order.
 - **FR-023**: A toolbar entry MUST be removed when its contributing extension stops, and the toolbar MUST be absent or empty rather than broken when no entries exist.
 - **FR-024**: The toolbar and its entries MUST meet the platform's accessibility standard, including keyboard operability and visible focus.
@@ -178,7 +184,7 @@ A capability is one the user switches on and off rather than one that is simply 
 - **Extension Context**: What a starting extension receives — the viewer's published commands and events, plus contribution helpers. An extension's only route to the viewer.
 - **Contribution**: Something an extension adds — an overlay, a live panel kind, a toolbar entry, an event subscription — tracked so it can be withdrawn in full when the extension stops.
 - **Lifecycle State**: Where an extension is: not started, starting, started, failed, stopped; and for toggleable extensions, active or inactive.
-- **Viewer Toolbar**: The control surface hosted inside the viewer into which extensions contribute entries. Distinct from the application ribbon.
+- **Viewer Toolbar**: The control surface hosted **inside** the viewer into which extensions contribute entries. Built by this feature. Distinct from both the application ribbon and the workspace overlay's page-level controls — those sit outside the viewer, control page UI alongside it, and drive it through its published API rather than through an extension context.
 
 ## Success Criteria *(mandatory)*
 

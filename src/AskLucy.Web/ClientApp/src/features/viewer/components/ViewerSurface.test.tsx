@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
+import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { ViewerSurface } from './ViewerSurface'
 
@@ -22,6 +24,7 @@ vi.mock('../../../viewer/engine/MapRenderTarget', () => ({
 }))
 
 const initialViewerState = useViewerEngineStore.getState()
+const initialExtensionState = useViewerExtensionStore.getState()
 
 describe('ViewerSurface', () => {
   beforeEach(() => {
@@ -30,6 +33,9 @@ describe('ViewerSurface', () => {
     useViewerEngineStore.setState(initialViewerState, true)
     useActiveLocationStore.getState().clear()
     useWebGLSupportMock.mockReset().mockReturnValue(true)
+    // specs/050: each test's render() starts the declared extensions afresh — reset so an
+    // earlier test's still-started extensions don't leak into the next one's assertions.
+    useViewerExtensionStore.setState(initialExtensionState, true)
   })
 
   it('renders the non-interactive fallback when WebGL is unavailable (FR-005)', () => {
@@ -115,5 +121,37 @@ describe('ViewerSurface', () => {
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
     // The GIS layer must still have one entry (re-centred, not re-added).
     expect(useViewerEngineStore.getState().layers).toHaveLength(1)
+  })
+
+  // specs/050-viewer-extension-framework T026: ViewerSurface no longer mounts panels/POI/boundary
+  // capabilities directly — it starts the declared extension set and renders their contributions
+  // through ExtensionOverlayHost. This proves that wiring actually runs end-to-end, not just that
+  // the extension modules work in isolation (already covered by their own unit tests).
+  it('starts the declared extensions, which render their contributions through the extension host (specs/050)', async () => {
+    render(<ViewerSurface />)
+
+    // The panels extension's "Reconnecting…" indicator only mounts once useFloatingPanelHub is
+    // rendered — proof the panels extension actually started and contributed its overlay.
+    expect(await screen.findByTestId('panel-hub-connection-status')).toBeInTheDocument()
+  })
+
+  // specs/050-viewer-extension-framework T051a (FR-028)
+  it('stops every declared extension and leaves no contribution in the store when the viewer closes', async () => {
+    const { unmount } = render(<ViewerSurface />)
+    await screen.findByTestId('panel-hub-connection-status')
+    for (const id of DECLARED_EXTENSIONS) {
+      expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('started')
+    }
+
+    await act(async () => {
+      unmount()
+      // Extension stop() calls resolve asynchronously; flush microtasks before asserting.
+      await Promise.resolve()
+    })
+
+    for (const id of DECLARED_EXTENSIONS) {
+      expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('stopped')
+    }
+    expect(useViewerExtensionStore.getState().contributions).toHaveLength(0)
   })
 })
