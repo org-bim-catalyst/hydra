@@ -44,6 +44,12 @@ interface FloatingPanelState {
   updateSize: (id: string, size: { width: number; height: number }) => void
   clampToViewport: (bounds: { width: number; height: number }) => void
   setContextStatus: (id: string, status: PanelContextStatus) => void
+  /** specs/050 FR-036 — a live panel kind withdrawn (its extension stopped) while a panel of that
+   * kind is open must not keep rendering against a capability that no longer exists. Reuses the
+   * `unknown-type` status `openPanel` already gives a request naming a kind that was never
+   * registered — the panel becomes "shown as unavailable" rather than closed outright, since the
+   * kind may register again if the extension restarts. */
+  markLivePanelKindUnavailable: (typeKey: string) => void
 }
 
 /** data-model.md "FloatingPanel" store — session-scoped only (no `persist` middleware, matches
@@ -203,6 +209,15 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
   setContextStatus: (id, status) =>
     set((s) => ({
       panels: s.panels.map((panel) => (panel.id === id ? { ...panel, contextStatus: status } : panel)),
+    })),
+
+  markLivePanelKindUnavailable: (typeKey) =>
+    set((s) => ({
+      panels: s.panels.map((panel) =>
+        panel.kind === 'live' && panel.typeKey === typeKey
+          ? { ...panel, validationStatus: 'unknown-type', validationError: null }
+          : panel,
+      ),
     })),
 }))
 

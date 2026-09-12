@@ -253,3 +253,51 @@ describe('floatingPanelStore ViewerEventBus subscription (US4, FR-014, Edge Case
     expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBeNull()
   })
 })
+
+describe('floatingPanelStore.markLivePanelKindUnavailable (specs/050 FR-036)', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  it('marks an open panel of the withdrawn kind as unavailable rather than leaving it rendering', () => {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'live',
+      requestId: 'withdraw-1',
+      typeKey: TEST_TYPE_KEY,
+      title: 'Test',
+      data: { label: 'ok' },
+    })
+    expect(useFloatingPanelStore.getState().panels[0].validationStatus).toBe('valid')
+
+    useFloatingPanelStore.getState().markLivePanelKindUnavailable(TEST_TYPE_KEY)
+
+    expect(useFloatingPanelStore.getState().panels[0].validationStatus).toBe('unknown-type')
+  })
+
+  it('leaves panels of a different kind untouched', () => {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'live',
+      requestId: 'withdraw-2',
+      typeKey: TEST_TYPE_KEY,
+      title: 'Test',
+      data: { label: 'ok' },
+    })
+
+    useFloatingPanelStore.getState().markLivePanelKindUnavailable('some-other-kind')
+
+    expect(useFloatingPanelStore.getState().panels[0].validationStatus).toBe('valid')
+  })
+
+  it('leaves content panels untouched', () => {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId: 'withdraw-3',
+      title: 'Test',
+      content: { version: 1, blocks: [{ kind: 'text', text: 'hello' }] },
+    })
+
+    useFloatingPanelStore.getState().markLivePanelKindUnavailable(TEST_TYPE_KEY)
+
+    expect(useFloatingPanelStore.getState().panels[0].validationStatus).toBe('valid')
+  })
+})
