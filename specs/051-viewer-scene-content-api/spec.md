@@ -212,7 +212,7 @@ Something cannot be displayed — a format that is not supported, content that w
 ### Measurable Outcomes
 
 - **SC-001**: Lucy can load, replace and clear viewer content, with a 100% success rate across the supported content forms, and the map still appears on startup without being asked for.
-- **SC-002**: Content placed by real-world coordinates appears within an agreed tolerance of its true position, and stays within it through camera movement and after the viewer's reference point changes.
+- **SC-002**: Content placed by real-world coordinates appears within 1 metre of its true position at the working scale this feature targets (a single site/local area, per Assumptions), and stays within that tolerance through camera movement and after the viewer's reference point changes.
 - **SC-003**: No capability can alter another capability's drawn content or the viewer's shared drawing state — verified by inspection and by attempting it, with zero successful attempts.
 - **SC-004**: With several capabilities drawing at once, viewer interaction remains smooth, measured against the same scene with a single capability drawing.
 - **SC-005**: Starting and stopping a drawing capability 50 times returns resource use to its starting level, with no measurable accumulation.

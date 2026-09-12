@@ -27,6 +27,15 @@ describe('action allowlist (contracts/action-allowlist.md)', () => {
     expect(actionAllowlist.removeLayer).toBeUndefined()
     expect(actionAllowlist.displayContent).toBeUndefined()
     expect(actionAllowlist.createOverlay).toBeUndefined()
+    // specs/051 T048/contracts/action-allowlist-extension.md "Deliberately still excluded"
+    expect(actionAllowlist.loadContent).toBeUndefined()
+    expect(actionAllowlist.replaceContent).toBeUndefined()
+    expect(actionAllowlist.unloadContent).toBeUndefined()
+  })
+
+  it('T048 (specs/051): validates and invokes selectAndFrame correctly', () => {
+    expect(validateAction('selectAndFrame', { layerId: 'l1', elementId: 'e1' }).valid).toBe(true)
+    expect(validateAction('selectAndFrame', { layerId: 'l1' }).valid).toBe(false)
   })
 
   it('records every rejection for diagnosis (spec FR-014) — a disallowed command and malformed arguments both', () => {

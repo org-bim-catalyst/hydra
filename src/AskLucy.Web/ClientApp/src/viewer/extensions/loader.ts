@@ -29,6 +29,17 @@ function withdrawContributions(id: string): void {
       useFloatingPanelStore.getState().markLivePanelKindUnavailable(contribution.typeKey)
     } else if (contribution.kind === 'eventSubscription') {
       contribution.unsubscribe()
+    } else if (contribution.kind === 'drawingSpace') {
+      // specs/051 T020 — releases the drawing space (removes its group from the scene, disposes
+      // every descendant, withdraws its declared drawing requirements).
+      contribution.release()
+    } else if (contribution.kind === 'frameSubscription') {
+      // Not currently emitted by context.ts: `onFrame` subscriptions live on a
+      // `DrawingSpaceHandle` and are already cleared by `DrawingSpaceRegistry.release()` above —
+      // there is no way to subscribe to frames independent of a drawing space in this
+      // implementation. The branch exists to honor the published `Contribution` union shape and
+      // fail loudly (not silently) if a future extension point ever emits this kind separately.
+      contribution.unsubscribe()
     }
   }
   store.removeContributionsFor(id)

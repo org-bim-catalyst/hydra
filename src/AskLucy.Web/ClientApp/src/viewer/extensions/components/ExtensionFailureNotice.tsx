@@ -1,49 +1,105 @@
 import { Chip, Tooltip } from '@mui/material'
+import { useEffect, useState } from 'react'
+import { viewerEngine } from '../../engine/viewerEngineInstance'
+import { useContentStore } from '../../content/contentStore'
+import type { ContentFailureReason } from '../../content/ViewerContent'
+import type { DrawingRequirement } from '../../scene/rendererState'
 import { viewerExtensionRegistry } from '../registry'
 import { useViewerExtensionStore } from '../store/viewerExtensionStore'
 
-/** research D5, FR-029, FR-031, constitution §2.VIII — the only path a lifecycle failure *or* an
- * event-handler failure (FR-017, `ExtensionRuntimeState.lastEventError`) reaches the user through.
- * Reuses the exact Chip treatment `ViewerSurface` already used for the panel hub's
- * `panel-hub-connection-status` indicator rather than inventing a notification system for a
- * failure mode that should never occur in a correct build. Names every currently-failed or
- * currently-erroring capability by its manifest `displayName`; renders nothing when nothing has
- * failed. The two kinds are worded differently ("unavailable" vs. "reported an error") since a
- * lifecycle failure means the capability isn't running at all, while an event-handler failure
- * means it's still running but one of its handlers broke. */
+const CONTENT_FAILURE_MESSAGE: Record<ContentFailureReason, string> = {
+  'unsupported-format': 'format not supported',
+  'unreachable-or-corrupt': 'could not be loaded',
+  unplaceable: 'has no position and cannot be shown',
+}
+
+interface DrawingConflict {
+  requirement: DrawingRequirement
+  requestedBy: string[]
+}
+
+interface DrawingCallbackFailure {
+  extensionId: string
+  message: string
+}
+
+/** research D5, D9, FR-029, FR-031, FR-035, FR-037, constitution §2.VIII — the only path any
+ * failure this feature (or specs/050) can produce reaches the user through. Reuses the exact Chip
+ * treatment `ViewerSurface` already used for the panel hub's `panel-hub-connection-status`
+ * indicator rather than inventing a notification system for a failure mode that should never
+ * occur in a correct build. Renders nothing when nothing has failed. */
 export function ExtensionFailureNotice() {
   const extensions = useViewerExtensionStore((s) => s.extensions)
+  const content = useContentStore((s) => s.content)
+
+  // drawingRequirementConflict/drawingCallbackFailed are transient viewerEngine events, not
+  // store-backed state — subscribed here directly, mirroring how every other viewer command
+  // announces itself (FR-023).
+  const [conflicts, setConflicts] = useState<DrawingConflict[]>([])
+  const [callbackFailures, setCallbackFailures] = useState<DrawingCallbackFailure[]>([])
+
+  useEffect(() => {
+    const unsubscribeConflict = viewerEngine.on('drawingRequirementConflict', ({ requirement, requestedBy }) => {
+      setConflicts((prev) => [...prev.filter((c) => c.requirement !== requirement), { requirement, requestedBy }])
+    })
+    const unsubscribeCallbackFailure = viewerEngine.on('drawingCallbackFailed', ({ extensionId, message }) => {
+      setCallbackFailures((prev) => [...prev.filter((f) => f.extensionId !== extensionId), { extensionId, message }])
+    })
+    return () => {
+      unsubscribeConflict()
+      unsubscribeCallbackFailure()
+    }
+  }, [])
 
   const lifecycleFailures = Object.entries(extensions)
     .filter(([, state]) => state.lifecycle === 'failed')
     .map(([id, state]) => ({
-      id,
-      displayName: viewerExtensionRegistry.resolve(id)?.manifest.displayName ?? id,
-      reason: state.failureReason,
-      kind: 'unavailable' as const,
+      label: viewerExtensionRegistry.resolve(id)?.manifest.displayName ?? id,
+      wording: 'unavailable',
+      detail: state.failureReason ?? 'unknown error',
     }))
 
   const eventFailures = Object.entries(extensions)
     .filter(([, state]) => state.lifecycle !== 'failed' && state.lastEventError !== null)
     .map(([id, state]) => ({
-      id,
-      displayName: viewerExtensionRegistry.resolve(id)?.manifest.displayName ?? id,
-      reason: state.lastEventError,
-      kind: 'error' as const,
+      label: viewerExtensionRegistry.resolve(id)?.manifest.displayName ?? id,
+      wording: 'reported an error',
+      detail: state.lastEventError ?? 'unknown error',
     }))
 
-  const failures = [...lifecycleFailures, ...eventFailures]
+  // specs/051 FR-035/FR-037 — every content failure reason worded distinctly.
+  const contentFailures = content
+    .filter((c) => c.loadState === 'failed')
+    .map((c) => ({
+      label: 'Content',
+      wording: CONTENT_FAILURE_MESSAGE[c.failureReason ?? 'unreachable-or-corrupt'],
+      detail: c.failureReason ?? 'unknown error',
+    }))
+
+  // specs/051 FR-017 (research D3a) — a drawing capability's onFrame callback threw.
+  const drawingCallbackFailureEntries = callbackFailures.map((f) => ({
+    label: viewerExtensionRegistry.resolve(f.extensionId)?.manifest.displayName ?? f.extensionId,
+    wording: 'reported a drawing error',
+    detail: f.message,
+  }))
+
+  // specs/051 FR-017 (research D3) — two capabilities declared incompatible drawing requirements.
+  const conflictEntries = conflicts.map((c) => ({
+    label: `${c.requirement} requirement`,
+    wording: 'conflict',
+    detail: `requested by ${c.requestedBy.join(', ')}`,
+  }))
+
+  const failures = [...lifecycleFailures, ...eventFailures, ...contentFailures, ...drawingCallbackFailureEntries, ...conflictEntries]
 
   if (failures.length === 0) return null
 
   const label =
     failures.length === 1
-      ? `${failures[0].displayName} ${failures[0].kind === 'unavailable' ? 'unavailable' : 'reported an error'}`
+      ? `${failures[0].label} ${failures[0].wording}`
       : `${failures.length} capabilities affected`
 
-  const detail = failures
-    .map((f) => `${f.displayName} ${f.kind === 'unavailable' ? 'unavailable' : 'error'}: ${f.reason ?? 'unknown error'}`)
-    .join('\n')
+  const detail = failures.map((f) => `${f.label} ${f.wording}: ${f.detail}`).join('\n')
 
   return (
     <Tooltip title={detail}>

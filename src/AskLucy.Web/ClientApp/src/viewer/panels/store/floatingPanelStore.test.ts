@@ -1,9 +1,14 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as THREE from 'three'
 import { z } from 'zod'
 import { viewerEngine } from '../../engine/viewerEngineInstance'
+import { sceneAnchor } from '../../scene/SceneAnchor'
 import { panelTypeRegistry } from '../registry'
 import { MAX_CONCURRENT_PANELS } from '../types/panel'
 import { useFloatingPanelStore } from './floatingPanelStore'
+
+const { loadGltfContentMock } = vi.hoisted(() => ({ loadGltfContentMock: vi.fn() }))
+vi.mock('../../content/loaders/gltfContentLoader', () => ({ loadGltfContent: loadGltfContentMock }))
 
 const TEST_TYPE_KEY = `test-panel-${Math.random()}`
 
@@ -236,6 +241,33 @@ describe('floatingPanelStore ViewerEventBus subscription (US4, FR-014, Edge Case
     viewerEngine.displayContent('ctx-layer-2', { some: 'update' })
 
     expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBe('stale')
+  })
+
+  it('T031a: also marks stale when contentLoaded is fired via the new loadContent/replaceContent path (specs/051), not only the pre-existing displayContent path', async () => {
+    sceneAnchor.set({ latitude: 25.2, longitude: 55.27 })
+    let resolveLoad: (value: { ok: true; result: { root: THREE.Object3D; elementIndex: Map<string, Record<string, unknown>> } }) => void
+    loadGltfContentMock.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve }))
+
+    const { contentId } = viewerEngine.loadContent(
+      { kind: 'model', format: 'gltf', fileId: 'file-1' },
+      { latitude: 25.2, longitude: 55.27, heightMetres: 0, orientationDegrees: 0, scale: 1 },
+    ).data!
+    const layerId = viewerEngine.listContent().data!.content.find((c) => c.id === contentId)!.layerId
+
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'live',
+      requestId: 'ctx-panel-content-api',
+      typeKey: TEST_TYPE_KEY,
+      title: 'Ctx',
+      data: { label: 'x' },
+      contextAssociation: { layerId },
+    })
+    expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBe('current')
+
+    resolveLoad!({ ok: true, result: { root: new THREE.Object3D(), elementIndex: new Map() } })
+    await vi.waitFor(() => {
+      expect(useFloatingPanelStore.getState().panels[0].contextStatus).toBe('stale')
+    })
   })
 
   it('leaves panels with no context association untouched by layer events', () => {

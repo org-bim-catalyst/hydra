@@ -19,6 +19,7 @@ using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Viewer;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Ai;
@@ -135,6 +136,7 @@ public sealed partial class AiController(
         ConfirmedLocationData? confirmedLocation = null;
         ViewerZoomCommand? viewerZoom = null;
         ConfirmedSiteBoundaryData? confirmedBoundary = null;
+        ViewerContentCommand? viewerContent = null;
         IReadOnlyList<SuggestedAction>? suggestedActions = null;
         string? suggestedActionsQuestion = null;
 
@@ -212,6 +214,11 @@ public sealed partial class AiController(
                 if (chunk.ViewerZoom is not null)
                 {
                     viewerZoom = chunk.ViewerZoom;
+                }
+
+                if (chunk.ViewerContent is not null)
+                {
+                    viewerContent = chunk.ViewerContent;
                 }
 
                 if (chunk.ConfirmedBoundary is not null)
@@ -366,6 +373,23 @@ public sealed partial class AiController(
         if (viewerZoom is not null)
         {
             await Response.WriteAsync($"data: __ZOOM__{viewerZoom.Direction}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
+        // specs/051-viewer-scene-content-api FR-004/research D8 — content Lucy asked the viewer
+        // to load, mirroring __ZOOM__'s own trailing-event shape exactly.
+        if (viewerContent is not null)
+        {
+            var viewerContentPayload = new
+            {
+                fileId = viewerContent.FileId,
+                latitude = viewerContent.Latitude,
+                longitude = viewerContent.Longitude,
+                heightMetres = viewerContent.HeightMetres,
+                orientationDegrees = viewerContent.OrientationDegrees,
+                scale = viewerContent.Scale,
+            };
+            await Response.WriteAsync($"data: __VIEWER_CONTENT__{JsonSerializer.Serialize(viewerContentPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 

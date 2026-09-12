@@ -1,6 +1,9 @@
 import { act, render, screen } from '@testing-library/react'
+import * as THREE from 'three'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { worldToLocal } from '../api/coordinateFrame'
+import { sceneAnchor } from '../scene/SceneAnchor'
 import { ExtensionOverlayHost } from './components/ExtensionOverlayHost'
 import { ExtensionToolbar } from './components/ExtensionToolbar'
 import type { ExtensionContext } from './context'
@@ -106,5 +109,33 @@ describe('extensibility (quickstart Scenario 3, SC-003)', () => {
       await act(() => viewerExtensionLoader.start(id))
       expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('started')
     }
+  })
+
+  it('T035 (US2): a scratch extension draws through its own Drawing Space, positioned via worldToLocal, at the expected local coordinates', async () => {
+    sceneAnchor.set({ latitude: 25.2048, longitude: 55.2708 })
+    const point = { latitude: 25.21, longitude: 55.28 }
+    const expected = worldToLocal(point, 5)
+
+    const id = uniqueId('viewer.scratch-drawing')
+    let mesh: THREE.Object3D | null = null
+    viewerExtensionRegistry.register({
+      id,
+      manifest: { displayName: 'Scratch Drawing', description: 'Throwaway.' },
+      start(context: ExtensionContext) {
+        const handle = context.acquireDrawingSpace()
+        mesh = new THREE.Object3D()
+        const local = worldToLocal(point, 5)
+        mesh.position.set(local.x, local.y, local.z)
+        handle.group.add(mesh)
+      },
+      stop() {},
+    })
+
+    await act(() => viewerExtensionLoader.start(id))
+
+    expect(mesh).not.toBeNull()
+    expect(mesh!.position.x).toBeCloseTo(expected.x)
+    expect(mesh!.position.y).toBeCloseTo(expected.y)
+    expect(mesh!.position.z).toBe(expected.z)
   })
 })

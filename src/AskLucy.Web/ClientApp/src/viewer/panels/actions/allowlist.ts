@@ -17,11 +17,17 @@ import type { ViewerCommandResult } from '../../api/commands'
  * a narrower reason: it exists on the concrete `ViewerEngine` (specs/038) but was never published
  * on `IViewerEngine`, and widening that published interface is exactly the kind of viewer-command
  * change this feature keeps out of scope (spec 049 Constraints) — `zoomToLocation` already covers
- * framing for v1; `fitBounds` can join once 051 settles the published surface it belongs to. */
+ * framing for v1; `fitBounds` can join once 051 settles the published surface it belongs to.
+ *
+ * specs/051 adds `selectAndFrame` (contracts/action-allowlist-extension.md) — safe because it only
+ * selects and re-frames already-loaded content, the same risk profile as `select`. `loadContent`/
+ * `replaceContent`/`unloadContent` are deliberately still excluded, for the same reason as
+ * `addLayer`/`removeLayer` above: they create or destroy viewer content. */
 
 type Invoker = (engine: IViewerEngine, args: unknown) => ViewerCommandResult
 
 const selectArgsSchema = z.object({ layerId: z.string().min(1), elementId: z.string().min(1) })
+const selectAndFrameArgsSchema = z.object({ layerId: z.string().min(1), elementId: z.string().min(1) })
 const clearSelectionArgsSchema = z.object({})
 const zoomToLocationArgsSchema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -48,6 +54,13 @@ export const actionAllowlist: Record<string, AllowlistEntry> = {
   clearSelection: {
     argsSchema: clearSelectionArgsSchema,
     invoke: (engine) => engine.clearSelection(),
+  },
+  selectAndFrame: {
+    argsSchema: selectAndFrameArgsSchema,
+    invoke: (engine, args) => {
+      const { layerId, elementId } = args as z.infer<typeof selectAndFrameArgsSchema>
+      return engine.selectAndFrame(layerId, elementId)
+    },
   },
   zoomToLocation: {
     argsSchema: zoomToLocationArgsSchema,

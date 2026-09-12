@@ -271,6 +271,20 @@ export function useChatStream(
             if (useActiveLocationStore.getState().latitude !== null) {
               viewerEngine.zoomBy(event.direction)
             }
+          } else if (event.type === 'viewerContent') {
+            // specs/051-viewer-scene-content-api FR-004/research D8: content Lucy asked the
+            // viewer to load — the backend only describes what/where, this performs the actual
+            // engine call (mirrors how 'zoom' and 'location' are handled).
+            viewerEngine.loadContent(
+              { kind: 'model', format: 'gltf', fileId: event.fileId },
+              {
+                latitude: event.latitude,
+                longitude: event.longitude,
+                heightMetres: event.heightMetres,
+                orientationDegrees: event.orientationDegrees,
+                scale: event.scale,
+              },
+            )
           } else if (event.type === 'siteBoundary') {
             // specs/042-site-boundary-resolution: resolved site boundary — replaces the
             // previously active one wholesale (a new site fully supersedes the previous one).
@@ -433,6 +447,17 @@ export function useChatStream(
             if (useActiveLocationStore.getState().latitude !== null) {
               viewerEngine.zoomBy(event.direction)
             }
+          } else if (event.type === 'viewerContent') {
+            viewerEngine.loadContent(
+              { kind: 'model', format: 'gltf', fileId: event.fileId },
+              {
+                latitude: event.latitude,
+                longitude: event.longitude,
+                heightMetres: event.heightMetres,
+                orientationDegrees: event.orientationDegrees,
+                scale: event.scale,
+              },
+            )
           } else if (event.type === 'siteBoundary') {
             useActiveSiteBoundaryStore.getState().setBoundary({
               siteName: event.siteName,

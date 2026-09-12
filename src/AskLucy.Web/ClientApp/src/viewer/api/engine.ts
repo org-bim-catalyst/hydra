@@ -1,6 +1,9 @@
 import type { OverlayInput, RenderLayerInput } from './layers'
-import type { CameraViewMode, MapStyleId, ViewerCommandResult } from './commands'
+import type { CameraViewMode, CameraState, MapStyleId, ViewerCommandResult } from './commands'
 import type { ViewerEventHandler, ViewerEventType } from './events'
+import type { ContentSource, ViewerContent, WorldPlacement } from '../content/ViewerContent'
+import type { ReferencePoint } from '../scene/SceneAnchor'
+import type { ElementProperties } from '../elements/elementIndex'
 
 /** contracts/viewer-engine-api.md — the viewer's public command/event facade. Implemented by
  * `viewer/engine/ViewerEngine.ts`; every method resolves to a `ViewerCommandResult` rather than
@@ -20,4 +23,19 @@ export interface IViewerEngine {
   displayContent(layerId: string, content: unknown): ViewerCommandResult
   createOverlay(overlay: OverlayInput): ViewerCommandResult<{ overlayId: string }>
   on<E extends ViewerEventType>(type: E, handler: ViewerEventHandler<E>): () => void
+
+  // specs/051-viewer-scene-content-api — additive only (FR-038, FR-039); every method above is
+  // unchanged. See contracts/viewer-engine-api-extensions.md.
+  loadContent(source: ContentSource, placement?: WorldPlacement): ViewerCommandResult<{ contentId: string }>
+  replaceContent(contentId: string, source: ContentSource, placement?: WorldPlacement): ViewerCommandResult
+  unloadContent(contentId: string): ViewerCommandResult
+  listContent(): ViewerCommandResult<{ content: ViewerContent[] }>
+  getReferencePoint(): ViewerCommandResult<{ referencePoint: ReferencePoint | null }>
+  getCameraState(): ViewerCommandResult<{ camera: CameraState }>
+  getElementInfo(layerId: string, elementId: string): ViewerCommandResult<{ info: ElementProperties }>
+  selectAndFrame(layerId: string, elementId: string): ViewerCommandResult
+  /** Not a `ViewerCommandResult` command like the others — a fire-and-forget scheduling request
+   * (research D4). Safe to call with nothing pending; safe to call after the requesting
+   * capability has stopped (FR-024). */
+  invalidate(): void
 }

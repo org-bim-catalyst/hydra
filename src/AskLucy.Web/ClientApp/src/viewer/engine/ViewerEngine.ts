@@ -1,7 +1,17 @@
+import * as THREE from 'three'
 import type { IViewerEngine } from '../api/engine'
 import type { OverlayInput, RenderLayer, RenderLayerInput } from '../api/layers'
-import type { CameraViewMode, MapStyleId, ViewerCommandResult } from '../api/commands'
+import type { CameraState, CameraViewMode, MapStyleId, ViewerCommandResult } from '../api/commands'
 import type { ViewerEventHandler, ViewerEventType } from '../api/events'
+import { worldToLocal } from '../api/coordinateFrame'
+import type { ContentSource, ContentFailureReason, ViewerContent, WorldPlacement } from '../content/ViewerContent'
+import { useContentStore } from '../content/contentStore'
+import { loadGltfContent } from '../content/loaders/gltfContentLoader'
+import { getElementProperties, type ElementIndex, type ElementProperties } from '../elements/elementIndex'
+import { activeScene } from '../scene/activeScene'
+import { redrawScheduler } from '../scene/RedrawScheduler'
+import type { DrawingRequirement } from '../scene/rendererState'
+import { sceneAnchor, type ReferencePoint } from '../scene/SceneAnchor'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import { ViewerEventBus } from './viewerEventBus'
 
@@ -38,6 +48,8 @@ export interface ViewerRenderTargetHandle {
   applyViewMode?(mode: CameraViewMode): void
   applyRotationEnabled?(enabled: boolean): void
   applyMapStyle?(mapStyle: MapStyleId): void
+  /** specs/051 FR-025 — the render target's current camera snapshot. */
+  getCameraState?(): CameraState
 }
 
 /** The viewer's public command/event facade (FR-021–FR-024, contracts/viewer-engine-api.md,
@@ -53,6 +65,10 @@ export class ViewerEngine implements IViewerEngine {
   private readonly selectableElements = new Map<string, Set<string>>()
   // specs/038-viewer-poi-zoom T044: prevents visual glitches from rapid successive zoom commands.
   private _isAnimating = false
+  // specs/051 — per-layer element index (populated by a content loader that found addressable
+  // nodes) and per-content loaded root objects (for disposal on replace/unload, FR-006/FR-033).
+  private readonly elementIndices = new Map<string, ElementIndex>()
+  private readonly loadedContentObjects = new Map<string, THREE.Object3D>()
 
   on<E extends ViewerEventType>(type: E, handler: ViewerEventHandler<E>): () => void {
     return this.events.on(type, handler)
@@ -78,6 +94,19 @@ export class ViewerEngine implements IViewerEngine {
    * an external caller issues. */
   notifyContentLoaded(layerId: string): void {
     this.emit({ type: 'contentLoaded', layerId })
+  }
+
+  /** specs/051 research D3a — called by `DrawingSpaceRegistry` when a capability's `onFrame`
+   * callback throws (FR-019, constitution §2.VIII). Not part of `IViewerEngine`: an internal
+   * notification, mirroring `notifyContentLoaded`'s own posture. */
+  notifyDrawingCallbackFailed(extensionId: string, message: string): void {
+    this.emit({ type: 'drawingCallbackFailed', extensionId, message })
+  }
+
+  /** specs/051 research D3 — called by `rendererState` when two capabilities declare conflicting
+   * drawing requirements (FR-017). */
+  notifyDrawingRequirementConflict(requirement: DrawingRequirement, requestedBy: string[]): void {
+    this.emit({ type: 'drawingRequirementConflict', requirement, requestedBy })
   }
 
   /** Called by a layer (e.g. `GoogleMapsGisLayer`'s current-location marker, User Story 5) once
@@ -259,5 +288,197 @@ export class ViewerEngine implements IViewerEngine {
       metadata: overlay.metadata,
     })
     return result.ok ? ok({ overlayId: result.data!.layerId }) : fail(result.error!)
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // specs/051-viewer-scene-content-api — additive only (FR-038, FR-039).
+  // ---------------------------------------------------------------------------------------
+
+  /** FR-025 — reads the active render target's live camera snapshot. `ok: false` (not a thrown
+   * error) when nothing is showing yet, matching every other command's "no active render target"
+   * posture. */
+  getCameraState(): ViewerCommandResult<{ camera: CameraState }> {
+    const camera = this.activeTarget?.getCameraState?.()
+    if (!camera) {
+      return fail('No active render target — camera state is not available yet.')
+    }
+    return ok({ camera })
+  }
+
+  /** FR-026 — called by the render target on its map's `'idle'` event (research D6), not per
+   * frame. Not part of `IViewerEngine`: a render-target-to-engine notification, mirroring
+   * `notifyContentLoaded`. */
+  notifyCameraChanged(camera: CameraState): void {
+    this.emit({ type: 'cameraChanged', camera })
+  }
+
+  /** FR-008 — the one published reference point, or `null` before any content has loaded. */
+  getReferencePoint(): ViewerCommandResult<{ referencePoint: ReferencePoint | null }> {
+    return ok({ referencePoint: sceneAnchor.get() })
+  }
+
+  /** FR-001, FR-002, FR-003, FR-005, FR-006, FR-007, FR-011, FR-013 (research D1). Resolves
+   * synchronously with a content id once the request is accepted and loading has begun — the
+   * eventual `loaded`/`failed` outcome arrives via `contentLoaded`/`contentFailed` (FR-005's
+   * loading indication exists precisely because this does not block on the actual load). */
+  loadContent(source: ContentSource, placement?: WorldPlacement): ViewerCommandResult<{ contentId: string }> {
+    const contentId = generateId('content')
+    return this.beginLoadContent(contentId, source, placement)
+  }
+
+  /** FR-001, FR-006 — releases the previous content's resources before the new content begins
+   * loading. Fails if `contentId` does not name existing content. */
+  replaceContent(contentId: string, source: ContentSource, placement?: WorldPlacement): ViewerCommandResult {
+    const existing = useContentStore.getState().content.find((c) => c.id === contentId)
+    if (!existing) {
+      return fail(`No content with id "${contentId}" is loaded.`)
+    }
+    this.releaseContentResources(existing)
+    const result = this.beginLoadContent(contentId, source, placement)
+    return result.ok ? ok() : fail(result.error!)
+  }
+
+  /** FR-001, FR-006. */
+  unloadContent(contentId: string): ViewerCommandResult {
+    const existing = useContentStore.getState().content.find((c) => c.id === contentId)
+    if (!existing) {
+      return fail(`No content with id "${contentId}" is loaded.`)
+    }
+    this.releaseContentResources(existing)
+    useContentStore.getState().remove(contentId)
+    return ok()
+  }
+
+  /** FR-001 — always succeeds; may return an empty list. */
+  listContent(): ViewerCommandResult<{ content: ViewerContent[] }> {
+    return ok({ content: useContentStore.getState().content })
+  }
+
+  /** FR-027, FR-028, FR-031. */
+  getElementInfo(layerId: string, elementId: string): ViewerCommandResult<{ info: ElementProperties }> {
+    return ok({ info: getElementProperties(this.elementIndices.get(layerId), elementId) })
+  }
+
+  /** FR-029 — composes the existing `select()` with a framing call. Fails with a stated reason
+   * (US3 AC4) rather than a silent no-op if the element is no longer registered. */
+  selectAndFrame(layerId: string, elementId: string): ViewerCommandResult {
+    const selectResult = this.select(layerId, elementId)
+    if (!selectResult.ok) return selectResult
+
+    const layer = this.store.layers.find((l) => l.id === layerId)
+    const placement = layer?.metadata?.placement as WorldPlacement | undefined
+    if (placement) {
+      this.zoomToLocation(placement.latitude, placement.longitude)
+    }
+    return ok()
+  }
+
+  /** research D4 — the only sanctioned redraw request path. */
+  invalidate(): void {
+    redrawScheduler.invalidate()
+  }
+
+  private beginLoadContent(
+    contentId: string,
+    source: ContentSource,
+    placement: WorldPlacement | undefined,
+  ): ViewerCommandResult<{ contentId: string }> {
+    if (source.kind === 'gis') {
+      if (!sceneAnchor.get()) sceneAnchor.set(source.center)
+      const layerResult = this.addLayer({ kind: 'gis', metadata: { provider: source.provider, center: source.center, zoom: source.zoom } })
+      if (!layerResult.ok) return fail(layerResult.error!)
+      const layerId = layerResult.data!.layerId
+
+      const content: ViewerContent = {
+        id: contentId,
+        layerId,
+        source,
+        placement: placement ?? null,
+        loadState: 'loaded',
+        failureReason: null,
+      }
+      useContentStore.getState().upsert(content)
+      this.notifyContentLoaded(layerId)
+      return ok({ contentId })
+    }
+
+    // model kind (FR-007, FR-011, FR-013) — requires a placement before any loader runs.
+    if (!placement) {
+      const content: ViewerContent = { id: contentId, layerId: '', source, placement: null, loadState: 'failed', failureReason: 'unplaceable' }
+      useContentStore.getState().upsert(content)
+      this.emit({ type: 'contentFailed', contentId, reason: 'unplaceable' })
+      return fail('Content has no placement — it cannot be shown.')
+    }
+
+    const layerResult = this.addLayer({ kind: 'model', metadata: { format: source.format, placement } })
+    if (!layerResult.ok) return fail(layerResult.error!)
+    const layerId = layerResult.data!.layerId
+
+    const loadingContent: ViewerContent = { id: contentId, layerId, source, placement, loadState: 'loading', failureReason: null }
+    useContentStore.getState().upsert(loadingContent)
+    this.emit({ type: 'contentLoading', contentId })
+
+    void this.finishModelLoad(contentId, layerId, source, placement)
+
+    return ok({ contentId })
+  }
+
+  private async finishModelLoad(
+    contentId: string,
+    layerId: string,
+    source: Extract<ContentSource, { kind: 'model' }>,
+    placement: WorldPlacement,
+  ): Promise<void> {
+    const outcome = await loadGltfContent(source.fileId)
+    if (!outcome.ok) {
+      this.failContent(contentId, layerId, source, outcome.reason)
+      return
+    }
+
+    const { root, elementIndex } = outcome.result
+    // FR-011: applies position, orientation and scale — not just position. ENU maps directly
+    // onto this scene's own axes (research D2, corrected during implementation).
+    const local = worldToLocal({ latitude: placement.latitude, longitude: placement.longitude }, placement.heightMetres)
+    root.position.set(local.x, local.y, local.z)
+    root.rotation.z = THREE.MathUtils.degToRad(placement.orientationDegrees)
+    root.scale.setScalar(placement.scale)
+
+    activeScene.get()?.add(root)
+    this.loadedContentObjects.set(contentId, root)
+    this.elementIndices.set(layerId, elementIndex)
+
+    const content: ViewerContent = { id: contentId, layerId, source, placement, loadState: 'loaded', failureReason: null }
+    useContentStore.getState().upsert(content)
+    this.notifyContentLoaded(layerId)
+    redrawScheduler.invalidate()
+  }
+
+  private failContent(contentId: string, layerId: string, source: ContentSource, reason: ContentFailureReason): void {
+    this.removeLayer(layerId)
+    const content: ViewerContent = { id: contentId, layerId, source, placement: null, loadState: 'failed', failureReason: reason }
+    useContentStore.getState().upsert(content)
+    this.emit({ type: 'contentFailed', contentId, reason })
+  }
+
+  /** FR-006, FR-033 — releases a content item's drawing resources in full: removes its loaded
+   * object from the scene and disposes every geometry/material/texture, then removes its
+   * backing `RenderLayer` and element index. */
+  private releaseContentResources(content: ViewerContent): void {
+    const root = this.loadedContentObjects.get(content.id)
+    if (root) {
+      activeScene.get()?.remove(root)
+      root.traverse((child) => {
+        const mesh = child as THREE.Mesh
+        mesh.geometry?.dispose()
+        const material = mesh.material
+        if (Array.isArray(material)) material.forEach((m) => m.dispose())
+        else material?.dispose()
+      })
+      this.loadedContentObjects.delete(content.id)
+    }
+    this.elementIndices.delete(content.layerId)
+    if (content.layerId && this.store.layers.some((l) => l.id === content.layerId)) {
+      this.removeLayer(content.layerId)
+    }
   }
 }

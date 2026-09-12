@@ -6,8 +6,27 @@ import { RotationDriver } from '../camera/rotationDriver'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import type { MapStyleId } from '../api/commands'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
+import { drawingSpaceRegistry } from '../scene/DrawingSpaceRegistry'
+import { rendererState } from '../scene/rendererState'
+import type { CameraState } from '../api/commands'
 import { useThemeStore } from '../../store/themeStore'
 import type { ViewerEngine } from './ViewerEngine'
+
+/** specs/051 FR-025 — reads the live camera snapshot from the underlying `google.maps.Map`. All
+ * four values already exist on the map instance; this is exposing them, not computing anything
+ * new. */
+function getCameraStateFromHandle(handle: GoogleMapsGisLayerHandle): CameraState | null {
+  const center = handle.map.getCenter?.()
+  const zoom = handle.map.getZoom?.()
+  if (!center || zoom === undefined) return null
+  return {
+    latitude: center.lat(),
+    longitude: center.lng(),
+    heading: handle.map.getHeading?.() ?? 0,
+    tilt: handle.map.getTilt?.() ?? 0,
+    zoom,
+  }
+}
 
 export interface MapRenderTargetProps {
   viewerEngine: ViewerEngine
@@ -120,6 +139,24 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // call setSiteBoundary() without knowing about MapRenderTarget's internals.
       useGoogleMapsStore.getState().setHandle(handle)
 
+      // specs/051 research D3a/D3 — routes DrawingSpaceRegistry's onFrame-containment failures
+      // and rendererState's requirement conflicts to the real viewer event bus. GoogleMapsGisLayer.ts
+      // deliberately does not depend on `viewerEngine` itself, so this is done here instead.
+      drawingSpaceRegistry.bindFailureReporter((extensionId, message) =>
+        viewerEngine.notifyDrawingCallbackFailed(extensionId, message),
+      )
+      rendererState.bindConflictReporter((requirement, requestedBy) =>
+        viewerEngine.notifyDrawingRequirementConflict(requirement, requestedBy),
+      )
+
+      // specs/051 FR-026/research D6 — announces on the map's own 'idle' event (fires once
+      // movement settles, not per frame), never a per-frame poll. Optional chaining: the map
+      // instance in existing tests is a lightweight stub without Maps SDK event methods.
+      const idleListener = handle.map.addListener?.('idle', () => {
+        const camera = getCameraStateFromHandle(handle!)
+        if (camera) viewerEngine.notifyCameraChanged(camera)
+      })
+
       rotationDriver = new RotationDriver({ setHeading: handle.setHeading }, lastCameraRef.current?.heading)
 
       // US5 (FR-018): the marker becomes selectable only once it actually exists on the map.
@@ -167,14 +204,16 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           handle.setMapTypeId(mapStyle)
           applyCameraViewMode(handle, useViewerEngineStore.getState().camera.mode)
         },
+        getCameraState: () => getCameraStateFromHandle(handle!) ?? { latitude: 0, longitude: 0, heading: 0, tilt: 0, zoom: 0 },
       })
 
-      // Combine the two teardown functions into the single `unregister` slot the outer cleanup
-      // already calls, rather than tracking a third variable.
+      // Combine the teardown functions into the single `unregister` slot the outer cleanup
+      // already calls, rather than tracking extra variables.
       const unregisterRenderTarget = unregister
       unregister = () => {
         unregisterRenderTarget()
         unregisterSelectable()
+        if (idleListener) google.maps.event.removeListener(idleListener)
       }
     })()
 

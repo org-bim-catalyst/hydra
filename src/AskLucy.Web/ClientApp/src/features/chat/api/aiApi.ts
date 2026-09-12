@@ -116,6 +116,17 @@ export type ChatStreamEvent =
       viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
     }
   | { type: 'zoom'; direction: 'in' | 'out' }
+  /** specs/051-viewer-scene-content-api FR-004/research D8 — content Lucy asked the viewer to
+   * load, carried on the trailing `__VIEWER_CONTENT__` event, mirroring `zoom`'s own shape. */
+  | {
+      type: 'viewerContent'
+      fileId: string
+      latitude: number
+      longitude: number
+      heightMetres: number
+      orientationDegrees: number
+      scale: number
+    }
   /**
    * The server finished one assistant message and started another. Deltas that follow belong to
    * the new one; the text so far is complete and already persisted server-side.
@@ -149,6 +160,7 @@ const RAG_EVENT_PREFIX = '__RAG__'
 const MEMORY_EVENT_PREFIX = '__MEMORY__'
 const LOCATION_EVENT_PREFIX = '__LOCATION__'
 const ZOOM_EVENT_PREFIX = '__ZOOM__'
+const VIEWER_CONTENT_EVENT_PREFIX = '__VIEWER_CONTENT__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
@@ -355,6 +367,21 @@ export async function* streamChat(
         if (direction === 'in' || direction === 'out') {
           yield { type: 'zoom', direction }
         }
+        continue
+      }
+
+      // specs/051-viewer-scene-content-api FR-004: content Lucy asked the viewer to load —
+      // `data: __VIEWER_CONTENT__{...}`.
+      if (data.startsWith(VIEWER_CONTENT_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(VIEWER_CONTENT_EVENT_PREFIX.length)) as {
+          fileId: string
+          latitude: number
+          longitude: number
+          heightMetres: number
+          orientationDegrees: number
+          scale: number
+        }
+        yield { type: 'viewerContent', ...payload }
         continue
       }
 

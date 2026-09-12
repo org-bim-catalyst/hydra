@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Viewer;
 using AskLucy.Domain.Conversations;
 using AskLucy.Domain.SiteBoundaries;
 
@@ -49,6 +50,9 @@ public sealed record ChatStreamChunk(
     ConfirmedLocationData? ConfirmedLocation = null,
     ViewerZoomCommand? ViewerZoom = null,
     ConfirmedSiteBoundaryData? ConfirmedBoundary = null,
+
+    /// <summary>specs/051-viewer-scene-content-api FR-004 — content Lucy asked the viewer to load, carried the same way <see cref="ViewerZoom"/> is.</summary>
+    ViewerContentCommand? ViewerContent = null,
     bool StartsNewMessage = false,
 
     /// <summary>

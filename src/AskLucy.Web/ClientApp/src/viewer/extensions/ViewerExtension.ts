@@ -71,3 +71,6 @@ export type Contribution =
   | { kind: 'toolbarEntry'; extensionId: string; entry: ToolbarEntry }
   | { kind: 'livePanelKind'; extensionId: string; typeKey: string }
   | { kind: 'eventSubscription'; extensionId: string; unsubscribe: () => void }
+  // specs/051-viewer-scene-content-api — additive only.
+  | { kind: 'drawingSpace'; extensionId: string; release: () => void }
+  | { kind: 'frameSubscription'; extensionId: string; unsubscribe: () => void }

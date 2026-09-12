@@ -1,9 +1,15 @@
 import { Loader } from '@googlemaps/js-api-loader'
 import * as THREE from 'three'
 import type { MapStyleId } from '../../api/commands'
+import { worldToLocal } from '../../api/coordinateFrame'
+import { sceneAnchor } from '../../scene/SceneAnchor'
+import { activeScene } from '../../scene/activeScene'
+import { drawingSpaceRegistry } from '../../scene/DrawingSpaceRegistry'
+import { redrawScheduler } from '../../scene/RedrawScheduler'
+import { rendererState } from '../../scene/rendererState'
 import { BUILDING_FOOTPRINT_FILL_COLOR, BUILDING_FOOTPRINT_STROKE_COLOR } from './buildingFootprintColors'
 import { createSiteBoundaryRenderer } from './SiteBoundaryRenderer'
-import type { BorderConfidenceLevel, LocalPoint } from '../../effects/AnimatedBorderHighlight'
+import type { BorderConfidenceLevel } from '../../effects/AnimatedBorderHighlight'
 
 export interface GoogleMapsGisLayerOptions {
   apiKey: string
@@ -63,6 +69,11 @@ export interface GoogleMapsGisLayerHandle {
   setMarkerHighlighted(highlighted: boolean): void
   /** specs/042-site-boundary-resolution: shows/updates/clears the animated site-boundary highlight. Pass `null` to remove it. */
   setSiteBoundary(input: { exteriorRing: { latitude: number; longitude: number }[]; confidenceLevel: BorderConfidenceLevel } | null): void
+  /** T051 (specs/051 US4) — advances the site-boundary comet animation's internal clock by
+   * `deltaSeconds`. Called from `siteBoundaryExtension.tsx`'s own `context.onFrame()`
+   * subscription, not automatically every draw — the animation only ticks while that extension
+   * is started and keeps requesting a redraw (FR-022). A no-op while no boundary is shown. */
+  advanceSiteBoundaryAnimation(deltaSeconds: number): void
   dispose(): void
 }
 
@@ -77,23 +88,6 @@ const MOBILE_BREAKPOINT_PX = 600
 export function shouldReduceMapQuality(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 0.05}px)`).matches
-}
-
-/** specs/042-site-boundary-resolution research.md #8 — same equirectangular local-meters
- * projection as the backend's `GeometryMath.ToLocalMeters` (no shared code between the two
- * stacks; kept in sync deliberately, both being small, stable, single-purpose formulas).
- * `reference` is always the layer's own fixed `options.center` — the same real-world anchor
- * `onDraw` already uses for the camera's `transformer.fromLatLngAltitude` call every frame, so
- * anything placed here in local meters tracks correctly with the live Maps camera with no
- * separate per-object transform call needed. */
-const METERS_PER_DEGREE_LATITUDE = 111_320
-
-function toLocalMeters(point: { latitude: number; longitude: number }, reference: { latitude: number; longitude: number }): LocalPoint {
-  const metersPerDegreeLongitude = METERS_PER_DEGREE_LATITUDE * Math.cos((reference.latitude * Math.PI) / 180)
-  return {
-    x: (point.longitude - reference.longitude) * metersPerDegreeLongitude,
-    y: (point.latitude - reference.latitude) * METERS_PER_DEGREE_LATITUDE,
-  }
 }
 
 /** specs/048-buildings-only-map-style: the `'buildings-only'` `MapStyleId`'s custom JSON
@@ -169,22 +163,27 @@ export async function createGoogleMapsGisLayer(
   const camera = new THREE.PerspectiveCamera()
   let renderer: THREE.WebGLRenderer | undefined
 
+  // research D3/T037 (specs/051) — publishes this scene for viewer-owned content (loadContent's
+  // model roots) and capability-owned drawing spaces to be added into. One scene, one binding.
+  activeScene.bind(scene)
+  drawingSpaceRegistry.bind(scene)
+
   // specs/042-site-boundary-resolution: added to `scene` once; contents are swapped internally
   // by setSiteBoundary(). clock drives the comet animation from onDraw.
   const siteBoundaryRenderer = createSiteBoundaryRenderer()
   scene.add(siteBoundaryRenderer.object3D)
   const siteBoundaryClock = new THREE.Clock()
 
-  // specs/042-site-boundary-resolution bugfix: MapRenderTarget only creates this layer ONCE
-  // (its effect depends on [layerId], a stable constant — `options.center` is whatever location
-  // was active at that single mount, never updated on later searches). The camera itself already
-  // pans correctly via map.moveCamera() elsewhere, but this closure's own Three.js anchor point
-  // does NOT track that — a boundary resolved far from the original mount location was being
-  // placed in local-meters space relative to a stale, unrelated anchor. Re-anchored to the
-  // boundary's own centroid on every setSiteBoundary() call instead of the frozen options.center
-  // — always accurate for whatever is actually being rendered, and sidesteps float precision
-  // concerns from a potentially-distant fixed anchor.
-  let sceneAnchor = { ...options.center }
+  // research D2/FR-008 (specs/051): the viewer owns exactly one reference point, published via
+  // `scene/SceneAnchor.ts` and consumed through `api/coordinateFrame.ts`'s `worldToLocal`. This
+  // layer's own creation is, today, the first content load — the place that reference point gets
+  // set. This replaces the previous per-file re-anchoring bug (specs/042/044 history): the old
+  // code re-anchored a private closure variable to each new site boundary's own centroid on every
+  // `setSiteBoundary()` call, which was a second, capability-specific reference point living
+  // inside this one file — exactly what FR-008 now forbids. `worldToLocal`'s accuracy is stated as
+  // within 1 metre at the working scale this feature targets (SC-002), not unlimited-precision
+  // geodesy, so this is a deliberate, reviewed trade-off, not an oversight.
+  sceneAnchor.set(options.center)
 
   // specs/042-site-boundary-resolution: a plain google.maps.Polygon is the RELIABLE boundary
   // shape — native Maps JS rendering, no dependency on the WebGLOverlayView/Three.js bridge
@@ -243,6 +242,23 @@ export async function createGoogleMapsGisLayer(
     // tiles, which Google's native renderer draws separately at full quality -- doesn't need
     // more than 1x to read clearly, so there's no real quality/cost tradeoff being made here.
     renderer.setPixelRatio(1)
+
+    // research D5/FR-018 (specs/051): the one-time color/lighting treatment. The scene previously
+    // declared no color-space or tone-mapping handling at all — a correctness gap independent of
+    // any capability. Reviewed against SiteBoundaryRenderer's colors (`BOUNDARY_STYLE` below) is
+    // an open item recorded in quickstart.md Scenario 9 — this code change is made, the visual
+    // before/after comparison itself needs a human with a live browser.
+    renderer.outputColorSpace = THREE.SRGBColorSpace
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+
+    // research D4 (specs/051): the map bridge's own `requestRedraw` is the one real redraw call
+    // in this application — bound here so `RedrawScheduler.invalidate()` is the only sanctioned
+    // path to it (FR-020).
+    redrawScheduler.bind(() => overlay.requestRedraw())
+    // The conflict-report callback is bound here as a no-op and rebound to the real viewer event
+    // bus by `MapRenderTarget.tsx` (which holds the `viewerEngine` reference this layer
+    // deliberately does not depend on) immediately after this layer resolves.
+    rendererState.bind(renderer, () => {})
   }
 
   overlay.onDraw = ({ transformer }) => {
@@ -253,9 +269,13 @@ export async function createGoogleMapsGisLayer(
       map.moveCamera({ heading: desiredHeading })
       appliedHeading = desiredHeading
     }
+    // research D2/FR-008 (specs/051): reads the current published reference point fresh every
+    // call — never a stale local copy — so it reflects whatever `SceneAnchor.set()` last set,
+    // including a change made after this layer was created.
+    const reference = sceneAnchor.get() ?? options.center
     const matrix = transformer.fromLatLngAltitude({
-      lat: sceneAnchor.latitude,
-      lng: sceneAnchor.longitude,
+      lat: reference.latitude,
+      lng: reference.longitude,
       altitude: 0,
     })
     camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix)
@@ -269,14 +289,27 @@ export async function createGoogleMapsGisLayer(
       // Mercator ground-resolution formula (same "meters per pixel at this zoom/latitude" figure
       // used to size map tiles themselves) — a fixed real-world half-width, even one scaled to
       // the boundary's own size, still only reads correctly at one particular zoom.
-      const zoom = map.getZoom() ?? options.zoom ?? 15
-      const metersPerPixel = (156_543.03392 * Math.cos((sceneAnchor.latitude * Math.PI) / 180)) / 2 ** zoom
-      siteBoundaryRenderer.update(siteBoundaryClock.getDelta(), metersPerPixel)
-      overlay.requestRedraw()
+      const delta = siteBoundaryClock.getDelta()
+      // T051 (specs/051 US4): the comet animation's own tick is no longer driven directly here —
+      // it moved to a `context.onFrame()` subscription owned by `siteBoundaryExtension.tsx`,
+      // which calls `advanceSiteBoundaryAnimation` (below) and keeps itself looping via
+      // `invalidate()` while active — the correct, capability-owned way to keep an animation
+      // running under FR-022's "no redraw when nothing changed" rule. `invokeFrameCallbacks`
+      // fires that subscription (and any other capability's) once per actual draw — contained
+      // per-subscriber (FR-019/T009a) so one capability's failure never stops another's or this
+      // draw itself.
+      drawingSpaceRegistry.invokeFrameCallbacks(delta)
       renderer?.render(scene, camera)
       renderer?.resetState()
     } catch (error) {
       console.error('[GoogleMapsGisLayer] Three.js site-boundary render failed:', error)
+    } finally {
+      // research D4/FR-020/FR-022 (specs/051): clears the coalescing window so the next
+      // `invalidate()` call schedules a fresh redraw. Previously this callback called
+      // `overlay.requestRedraw()` unconditionally on every draw — a continuous redraw loop that
+      // violated "MUST NOT redraw continuously when nothing has changed." `finally` so a draw
+      // that hit the catch above still clears the window rather than wedging it closed.
+      redrawScheduler.frameRendered()
     }
   }
 
@@ -408,18 +441,26 @@ export async function createGoogleMapsGisLayer(
       // failure here never affects the reliable google.maps.Polygon above (see this function's
       // own doc comment on the bridge's unverified status).
       try {
-        // Re-anchor to this boundary's own centroid (not the frozen options.center — see the
-        // sceneAnchor declaration above) before converting to local meters, so precision is
-        // always good regardless of how far the map has panned since this layer was created.
-        sceneAnchor = {
-          latitude: input.exteriorRing.reduce((sum, p) => sum + p.latitude, 0) / input.exteriorRing.length,
-          longitude: input.exteriorRing.reduce((sum, p) => sum + p.longitude, 0) / input.exteriorRing.length,
-        }
-        const localRing = input.exteriorRing.map((p) => toLocalMeters(p, sceneAnchor))
+        // research D2/FR-008 (specs/051): converts against the one published reference point —
+        // never re-anchors it to this boundary's own centroid, which was the exact per-capability
+        // reference-point violation this feature removes (see the `sceneAnchor.set()` call
+        // above). `worldToLocal`'s 1-metre tolerance (SC-002) covers this boundary's own scale.
+        const localRing = input.exteriorRing.map((p) => {
+          const local = worldToLocal(p, 0)
+          return { x: local.x, y: local.y }
+        })
         siteBoundaryRenderer.setPolygon(localRing, input.confidenceLevel)
       } catch (error) {
         console.error('[GoogleMapsGisLayer] Failed to build the Three.js site-boundary highlight (native polygon above still shows the boundary):', error)
       }
+    },
+    advanceSiteBoundaryAnimation: (deltaSeconds) => {
+      // Same metersPerPixel formula onDraw itself used before T051's migration — kept here since
+      // it needs live zoom/reference state this closure owns.
+      const reference = sceneAnchor.get() ?? options.center
+      const zoom = map.getZoom() ?? options.zoom ?? 15
+      const metersPerPixel = (156_543.03392 * Math.cos((reference.latitude * Math.PI) / 180)) / 2 ** zoom
+      siteBoundaryRenderer.update(deltaSeconds, metersPerPixel)
     },
     dispose: () => {
       marker.map = null
