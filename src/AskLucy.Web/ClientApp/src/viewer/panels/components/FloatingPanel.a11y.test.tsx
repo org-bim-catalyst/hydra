@@ -27,6 +27,7 @@ vi.mock('react-rnd', () => ({
 function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelModel {
   return {
     id: 'p1',
+    kind: 'live',
     typeKey: 'unregistered-type',
     title: 'Test Panel',
     data: {},
@@ -34,7 +35,7 @@ function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelMo
     validationError: null,
     position: { x: 40, y: 40 },
     size: { width: 400, height: 300 },
-    resizable: true,
+    chrome: { titleBar: true, resizable: true, defaultSize: { width: 400, height: 300 } },
     minimized: false,
     restoreState: null,
     zOrder: 1,
@@ -55,6 +56,27 @@ describe('FloatingPanel accessibility — normal (drag handle, minimize, close)'
 
   it('exposes minimize and close as labeled, keyboard-focusable buttons', () => {
     render(<FloatingPanel panel={makePanel()} />)
+    for (const name of [/minimize panel/i, /close panel/i]) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toBeVisible()
+      expect(button.tabIndex).not.toBe(-1)
+    }
+  })
+})
+
+describe('FloatingPanel accessibility — no title bar (grip, minimize, close)', () => {
+  const noTitleBarChrome = { titleBar: false, resizable: false, defaultSize: { width: 96, height: 96 } }
+
+  it('has no automatically detectable a11y violations', async () => {
+    const { container } = render(<FloatingPanel panel={makePanel({ chrome: noTitleBarChrome })} />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('exposes the grip as a focusable, labelled group, and minimize/close as labeled buttons', () => {
+    render(<FloatingPanel panel={makePanel({ chrome: noTitleBarChrome })} />)
+    const grip = screen.getByRole('group', { name: /use arrow keys to move/i })
+    expect(grip.tabIndex).not.toBe(-1)
     for (const name of [/minimize panel/i, /close panel/i]) {
       const button = screen.getByRole('button', { name })
       expect(button).toBeVisible()

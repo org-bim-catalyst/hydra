@@ -217,8 +217,10 @@ public static class DependencyInjection
         services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<SearchKnowledgeBaseCapability>());
         services.AddScoped<SearchMemoryCapability>();
         services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<SearchMemoryCapability>());
-        services.AddScoped<OpenVisualPanelCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenVisualPanelCapability>());
+        services.AddScoped<PresentPanelContentCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<PresentPanelContentCapability>());
+        services.AddScoped<OpenLivePanelCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenLivePanelCapability>());
 
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();

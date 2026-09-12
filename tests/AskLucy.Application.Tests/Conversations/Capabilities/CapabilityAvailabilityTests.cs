@@ -167,20 +167,18 @@ public sealed class CapabilityAvailabilityTests
         capability.IsAvailable(context).Should().BeFalse();
     }
 
-    // ---- open_visual_panel: capacity. ----
+    // ---- present_panel_content: capacity. ----
 
     [Fact]
-    public void OpenVisualPanel_ShouldBecomeUnavailable_AtTheConcurrentPanelCap()
+    public void PresentPanelContent_ShouldBecomeUnavailable_AtTheConcurrentPanelCap()
     {
-        var capability = new OpenVisualPanelCapability(Substitute.For<IPanelNotifier>());
+        var capability = new PresentPanelContentCapability(Substitute.For<IPanelNotifier>());
 
-        capability.IsAvailable(Base() with { OpenPanelTypeKeys = ["chart", "table"] })
+        capability.IsAvailable(Base() with { OpenPanelCount = 2 })
             .Should().BeTrue();
 
-        capability.IsAvailable(Base() with
-        {
-            OpenPanelTypeKeys = ["chart", "table", "summary", "parameters", "chart", "table"],
-        }).Should().BeFalse("past the cap the framework evicts, and Lucy should not force that");
+        capability.IsAvailable(Base() with { OpenPanelCount = 6 })
+            .Should().BeFalse("past the cap the framework evicts, and Lucy should not force that");
     }
 
     private static ActiveSiteBoundary BoundaryFor(string siteName) =>

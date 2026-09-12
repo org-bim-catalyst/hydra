@@ -54,6 +54,7 @@ vi.mock('react-rnd', () => ({
 function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelModel {
   return {
     id: 'p1',
+    kind: 'live',
     typeKey: 'unregistered-type',
     title: 'Test Panel',
     data: {},
@@ -61,7 +62,7 @@ function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelMo
     validationError: null,
     position: { x: 40, y: 40 },
     size: { width: 400, height: 300 },
-    resizable: true,
+    chrome: { titleBar: true, resizable: true, defaultSize: { width: 400, height: 300 } },
     minimized: false,
     restoreState: null,
     zOrder: 1,
@@ -78,6 +79,15 @@ describe('FloatingPanel fallback rendering', () => {
     render(<FloatingPanel panel={makePanel({ validationStatus: 'unknown-type', typeKey: 'mystery' })} />)
     expect(screen.getByText(/unsupported panel type/i)).toBeInTheDocument()
     expect(screen.getByText(/mystery/)).toBeInTheDocument()
+  })
+
+  it('never reaches the unknown-type fallback for a content panel (specs/049 FR-025, T059) — only a live panel can', () => {
+    render(
+      <FloatingPanel
+        panel={makePanel({ kind: 'content', validationStatus: 'unknown-type', typeKey: undefined, content: undefined })}
+      />,
+    )
+    expect(screen.queryByText(/unsupported panel type/i)).not.toBeInTheDocument()
   })
 
   it('renders a distinct visible fallback for invalid data, including the validation error', () => {
@@ -107,10 +117,14 @@ describe('FloatingPanel drag/resize wiring (US2, FR-004/FR-005/FR-018)', () => {
   })
 
   it('enables resizing for a resizable panel and disables it for a fixed-size one', () => {
-    render(<FloatingPanel panel={makePanel({ resizable: true })} />)
+    render(<FloatingPanel panel={makePanel({ chrome: { titleBar: true, resizable: true, defaultSize: { width: 400, height: 300 } } })} />)
     expect(lastRndProps.enableResizing).toBe(true)
 
-    render(<FloatingPanel panel={makePanel({ id: 'fixed', resizable: false })} />)
+    render(
+      <FloatingPanel
+        panel={makePanel({ id: 'fixed', chrome: { titleBar: true, resizable: false, defaultSize: { width: 400, height: 300 } } })}
+      />,
+    )
     expect(lastRndProps.enableResizing).toBe(false)
   })
 
@@ -184,6 +198,47 @@ describe('FloatingPanel minimize/restore (US2, FR-006)', () => {
     expect(screen.queryByRole('button', { name: /minimize panel/i })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /restore panel/i }))
     expect(restorePanelMock).toHaveBeenCalledWith('panel-restore')
+  })
+})
+
+describe('FloatingPanel chrome variants (specs/049 User Story 3)', () => {
+  it('shows a title bar with the title, minimize and close controls when the panel declares one', () => {
+    render(
+      <FloatingPanel
+        panel={makePanel({ chrome: { titleBar: true, resizable: true, defaultSize: { width: 400, height: 300 } } })}
+      />,
+    )
+    expect(screen.getByText('Test Panel')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /minimize panel/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /close panel/i })).toBeInTheDocument()
+  })
+
+  it('shows no title text when the panel declares no title bar, but keeps minimize/close reachable', () => {
+    render(
+      <FloatingPanel
+        panel={makePanel({ chrome: { titleBar: false, resizable: false, defaultSize: { width: 96, height: 96 } } })}
+      />,
+    )
+    expect(screen.queryByText('Test Panel')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /minimize panel/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /close panel/i })).toBeInTheDocument()
+  })
+
+  it('exposes the no-title-bar grip as a focusable, labelled group supporting arrow-key movement', async () => {
+    const user = userEvent.setup()
+    render(
+      <FloatingPanel
+        panel={makePanel({
+          id: 'panel-grip',
+          position: { x: 50, y: 50 },
+          chrome: { titleBar: false, resizable: false, defaultSize: { width: 96, height: 96 } },
+        })}
+      />,
+    )
+    const grip = screen.getByRole('group', { name: /use arrow keys to move/i })
+    grip.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-grip', { x: 60, y: 50 })
   })
 })
 

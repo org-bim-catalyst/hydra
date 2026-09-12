@@ -26,7 +26,11 @@ namespace AskLucy.Application.Conversations.Capabilities;
 /// <param name="AttachedKnowledgeBaseIds">Knowledge bases linked to this conversation.</param>
 /// <param name="HasAttachedDocuments">Whether the conversation has documents to analyse.</param>
 /// <param name="IsMemoryAvailable">Whether the memory subsystem can serve this turn.</param>
-/// <param name="OpenPanelTypeKeys">Visual panels already open, so a capability can avoid opening a duplicate.</param>
+/// <param name="OpenPanelCount">
+/// How many floating panels are already open, so a capability can gate on the concurrent-panel
+/// cap rather than force the framework's eviction (specs/049: replaces the panel-type-keyed
+/// <c>OpenPanelTypeKeys</c> — content panels have no type key to key on).
+/// </param>
 /// <param name="GrantedPermissions">
 /// What the user is authorized for. Enforced by the catalog rather than by each capability
 /// (FR-011 rule 3), so a newly written capability cannot forget the check.
@@ -40,7 +44,7 @@ public sealed record TurnContext(
     IReadOnlyList<Guid> AttachedKnowledgeBaseIds,
     bool HasAttachedDocuments,
     bool IsMemoryAvailable,
-    IReadOnlyList<string> OpenPanelTypeKeys,
+    int OpenPanelCount,
     IReadOnlySet<AgentToolPermission> GrantedPermissions,
     string? SubscriptionTier)
 {
@@ -59,7 +63,7 @@ public sealed record TurnContext(
 
     /// <summary>An empty context, for the fast path and for tests that care about a single field.</summary>
     public static TurnContext Empty(string? userId = null, Guid userChatId = default) =>
-        new(userId, userChatId, null, null, [], false, false, [], new HashSet<AgentToolPermission>(), null);
+        new(userId, userChatId, null, null, [], false, false, 0, new HashSet<AgentToolPermission>(), null);
 }
 
 /// <summary>

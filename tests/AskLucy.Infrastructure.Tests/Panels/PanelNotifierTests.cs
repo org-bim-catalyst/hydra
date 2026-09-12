@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AskLucy.Application.Panels;
 using AskLucy.Infrastructure.Panels;
 using Microsoft.AspNetCore.SignalR;
@@ -25,7 +26,8 @@ public sealed class PanelNotifierTests
     public async Task PanelRequestedAsync_ShouldSendOnlyToTheTriggeringUsersGroup()
     {
         var sut = CreateSut("user-1");
-        var request = new PanelRequestDto("req-1", "chart", "Sun Exposure", new { series = Array.Empty<object>() }, null, null);
+        var content = JsonSerializer.SerializeToElement(new { version = 1, blocks = Array.Empty<object>() });
+        var request = PanelRequestDto.ForContent("req-1", "Sun Exposure", content);
 
         await sut.PanelRequestedAsync("user-1", request, CancellationToken.None);
 
@@ -38,7 +40,8 @@ public sealed class PanelNotifierTests
         var sut = CreateSut("user-2");
         var otherUserProxy = Substitute.For<IClientProxy>();
         _hubClients.Group(PanelHub.UserGroup("user-3")).Returns(otherUserProxy);
-        var request = new PanelRequestDto("req-2", "table", "Data", new { }, null, null);
+        var data = JsonSerializer.SerializeToElement(new { });
+        var request = PanelRequestDto.ForLive("req-2", "Data", "some-live-panel-kind", data);
 
         await sut.PanelRequestedAsync("user-2", request, CancellationToken.None);
 

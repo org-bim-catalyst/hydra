@@ -1,7 +1,12 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * specs/028-ai-floating-panels quickstart.md — Scenarios 1 onward.
+ * specs/028-ai-floating-panels quickstart.md — Scenarios 1 onward, updated by specs/049 to the
+ * discriminated content/live request shape (contracts/panel-request.md). Content panels replace
+ * what used to be the four built-in registered types (chart, table, parameters, summary) with
+ * composed blocks; assertions and wording follow accordingly. The panel *behaviours* under test —
+ * drag, resize, minimize/restore, close, focus/z-order, opacity, cascade, context association —
+ * are unchanged (specs/049 FR-027) and this file's job is exactly to prove that.
  *
  * NOT RUNNABLE IN THIS ENVIRONMENT: requires a running backend, frontend dev server, and an
  * authenticated session — see ImmersiveViewerPlatform.spec.ts's doc comment for the same caveat.
@@ -13,18 +18,38 @@ import { expect, test } from '@playwright/test'
  * decision step is out of this feature's scope.
  */
 
+interface PanelChromeOverride {
+  titleBar?: boolean
+  resizable?: boolean
+  defaultSize?: { width: number; height: number }
+}
+
+type PanelRequest =
+  | {
+      kind: 'content'
+      requestId: string
+      title: string
+      content: unknown
+      chrome?: PanelChromeOverride | null
+      position?: { x: number; y: number } | null
+      contextAssociation?: { layerId?: string; elementId?: string } | null
+    }
+  | {
+      kind: 'live'
+      requestId: string
+      title: string
+      typeKey: string
+      data: unknown
+      chrome?: PanelChromeOverride | null
+      position?: { x: number; y: number } | null
+      contextAssociation?: { layerId?: string; elementId?: string } | null
+    }
+
 interface FloatingPanelDevtools {
   __askLucyFloatingPanelStore: {
     getState: () => {
       panels: { id: string; title: string; validationStatus: string }[]
-      openPanel: (request: {
-        requestId: string
-        typeKey: string
-        title: string
-        data: unknown
-        position?: { x: number; y: number } | null
-        contextAssociation?: { layerId?: string; elementId?: string } | null
-      }) => void
+      openPanel: (request: PanelRequest) => void
     }
   }
   __askLucyViewerEngine: {
@@ -33,8 +58,15 @@ interface FloatingPanelDevtools {
   }
 }
 
-test.describe('AI floating panels — User Story 1 (AI presents a visual response as a panel)', () => {
-  test('opening a valid panel request renders it over the viewer while the viewer stays interactive (SC-008)', async ({
+/** A single-column table content document — the composed-block equivalent of the retired `table`
+ * panel type, used throughout this file wherever the test only cares that *some* panel is open,
+ * not what it shows. */
+function simpleTableContent() {
+  return { version: 1, blocks: [{ kind: 'table', columns: ['A'], rows: [] }] }
+}
+
+test.describe('AI floating panels — User Story 1 (Lucy presents composed content as a panel)', () => {
+  test('opening a valid content request renders it over the viewer while the viewer stays interactive (SC-008)', async ({
     page,
   }) => {
     await page.goto('/studio')
@@ -42,10 +74,13 @@ test.describe('AI floating panels — User Story 1 (AI presents a visual respons
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-chart-1',
-        typeKey: 'chart',
         title: 'Daily Sun Exposure',
-        data: { chartKind: 'bar', series: [{ label: 'Exposure (hrs)', values: [4, 6, 8] }] },
+        content: {
+          version: 1,
+          blocks: [{ kind: 'chart', chartKind: 'bar', series: [{ label: 'Exposure (hrs)', values: [4, 6, 8] }] }],
+        },
       })
     })
 
@@ -56,7 +91,7 @@ test.describe('AI floating panels — User Story 1 (AI presents a visual respons
     await expect(viewer).toBeVisible()
   })
 
-  test('an unknown panel type produces a visible fallback, never nothing happening (FR-016, SC-007)', async ({
+  test('an unknown live panel kind produces a visible fallback, never nothing happening (spec FR-025)', async ({
     page,
   }) => {
     await page.goto('/studio')
@@ -64,6 +99,7 @@ test.describe('AI floating panels — User Story 1 (AI presents a visual respons
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'live',
         requestId: 'e2e-unknown-1',
         typeKey: 'does-not-exist',
         title: 'Mystery Panel',
@@ -75,7 +111,7 @@ test.describe('AI floating panels — User Story 1 (AI presents a visual respons
     await expect(page.getByText(/unsupported panel type/i)).toBeVisible()
   })
 
-  test('malformed data for a known type produces a visible fallback, never a blank or crashed panel (FR-017)', async ({
+  test('a malformed block produces a visible per-block error while every sibling still renders (spec User Story 4)', async ({
     page,
   }) => {
     await page.goto('/studio')
@@ -83,15 +119,22 @@ test.describe('AI floating panels — User Story 1 (AI presents a visual respons
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-invalid-1',
-        typeKey: 'chart',
         title: 'Bad Data',
-        data: { nonsense: true },
+        content: {
+          version: 1,
+          blocks: [
+            { kind: 'heading', text: 'This renders' },
+            { kind: 'table', columns: [] },
+          ],
+        },
       })
     })
 
     await expect(page.getByRole('region', { name: 'Bad Data' })).toBeVisible()
-    await expect(page.getByText(/couldn't be loaded/i)).toBeVisible()
+    await expect(page.getByText('This renders')).toBeVisible()
+    await expect(page.getByText(/couldn't be displayed/i)).toBeVisible()
   })
 
   test('multiple panels opened without an explicit position cascade instead of stacking exactly (FR-021)', async ({
@@ -101,18 +144,8 @@ test.describe('AI floating panels — User Story 1 (AI presents a visual respons
 
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
-      store.getState().openPanel({
-        requestId: 'e2e-cascade-1',
-        typeKey: 'table',
-        title: 'Panel One',
-        data: { columns: ['A'], rows: [] },
-      })
-      store.getState().openPanel({
-        requestId: 'e2e-cascade-2',
-        typeKey: 'table',
-        title: 'Panel Two',
-        data: { columns: ['A'], rows: [] },
-      })
+      store.getState().openPanel({ kind: 'content', requestId: 'e2e-cascade-1', title: 'Panel One', content: simpleTableContent() })
+      store.getState().openPanel({ kind: 'content', requestId: 'e2e-cascade-2', title: 'Panel Two', content: simpleTableContent() })
     })
 
     const first = await page.getByRole('region', { name: 'Panel One' }).boundingBox()
@@ -134,10 +167,10 @@ test.describe('AI floating panels — User Story 2 (user manages panel layout)',
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-drag-1',
-        typeKey: 'table',
         title: 'Draggable Panel',
-        data: { columns: ['A'], rows: [] },
+        content: simpleTableContent(),
         position: { x: 60, y: 60 },
       })
     })
@@ -165,15 +198,16 @@ test.describe('AI floating panels — User Story 2 (user manages panel layout)',
     }
   })
 
-  test('a fixed-size panel type shows no resize handles (FR-005, US2-AS3)', async ({ page }) => {
+  test('a panel declaring itself fixed-size shows no resize handles (specs/049 US3, FR-020)', async ({ page }) => {
     await page.goto('/studio')
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-fixed-1',
-        typeKey: 'parameters',
         title: 'Fixed Panel',
-        data: { fields: [{ key: 'x', label: 'X', type: 'number', value: 1 }] },
+        content: { version: 1, blocks: [{ kind: 'keyValue', items: [{ label: 'X', value: 1 }] }] },
+        chrome: { resizable: false },
       })
     })
 
@@ -191,10 +225,10 @@ test.describe('AI floating panels — User Story 2 (user manages panel layout)',
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-minimize-1',
-        typeKey: 'table',
         title: 'Minimize Me',
-        data: { columns: ['A'], rows: [] },
+        content: simpleTableContent(),
         position: { x: 80, y: 80 },
       })
     })
@@ -215,12 +249,7 @@ test.describe('AI floating panels — User Story 2 (user manages panel layout)',
     await page.goto('/studio')
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
-      store.getState().openPanel({
-        requestId: 'e2e-close-1',
-        typeKey: 'table',
-        title: 'Close Me',
-        data: { columns: ['A'], rows: [] },
-      })
+      store.getState().openPanel({ kind: 'content', requestId: 'e2e-close-1', title: 'Close Me', content: simpleTableContent() })
     })
 
     await expect(page.getByRole('region', { name: 'Close Me' })).toBeVisible()
@@ -233,17 +262,17 @@ test.describe('AI floating panels — User Story 2 (user manages panel layout)',
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-focus-back',
-        typeKey: 'table',
         title: 'Back Panel',
-        data: { columns: ['A'], rows: [] },
+        content: simpleTableContent(),
         position: { x: 60, y: 60 },
       })
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-focus-front',
-        typeKey: 'table',
         title: 'Front Panel',
-        data: { columns: ['A'], rows: [] },
+        content: simpleTableContent(),
         position: { x: 70, y: 70 },
       })
     })
@@ -267,12 +296,7 @@ test.describe('AI floating panels — User Story 3 (opacity preference)', () => 
     await page.goto('/studio')
     await page.evaluate(() => {
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
-      store.getState().openPanel({
-        requestId: 'e2e-opacity-1',
-        typeKey: 'table',
-        title: 'Opacity Panel',
-        data: { columns: ['A'], rows: [] },
-      })
+      store.getState().openPanel({ kind: 'content', requestId: 'e2e-opacity-1', title: 'Opacity Panel', content: simpleTableContent() })
     })
     const panel = page.getByRole('region', { name: 'Opacity Panel' })
     const opacityBefore = await panel.evaluate((el) => getComputedStyle(el).backgroundColor)
@@ -322,10 +346,10 @@ test.describe('AI floating panels — User Story 4 (panel reacts to and informs 
       engine.addLayer({ id: 'e2e-ctx-layer', kind: 'model' })
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-ctx-1',
-        typeKey: 'summary',
         title: 'Context Panel',
-        data: { heading: 'Site Notes', body: 'Demo' },
+        content: { version: 1, blocks: [{ kind: 'heading', text: 'Site Notes' }, { kind: 'text', text: 'Demo' }] },
         contextAssociation: { layerId: 'e2e-ctx-layer', elementId: 'e2e-ctx-element' },
       })
     })
@@ -346,10 +370,10 @@ test.describe('AI floating panels — User Story 4 (panel reacts to and informs 
       engine.addLayer({ id: 'e2e-ctx-layer-2', kind: 'model' })
       const store = (window as unknown as FloatingPanelDevtools).__askLucyFloatingPanelStore
       store.getState().openPanel({
+        kind: 'content',
         requestId: 'e2e-ctx-2',
-        typeKey: 'summary',
         title: 'Stale Panel',
-        data: { heading: 'Site Notes', body: 'Demo' },
+        content: { version: 1, blocks: [{ kind: 'heading', text: 'Site Notes' }, { kind: 'text', text: 'Demo' }] },
         contextAssociation: { layerId: 'e2e-ctx-layer-2' },
       })
     })

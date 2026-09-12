@@ -61,6 +61,39 @@ const unsubscribe = viewerEngine.on('selectionChanged', (event) => {
 `layerAdded`, `layerRemoved`, `contentLoaded`, `selectionChanged`, `viewModeChanged`,
 `rotationChanged` — see `api/events.ts` for exact payload shapes.
 
+## Panels (`panels/`)
+
+The floating panel framework (specs/028), reshaped by specs/049 into a content model. See
+`specs/049-panel-content-model/` for the full spec, plan, research, data model and contracts.
+
+- `content/` — the panel content vocabulary. `blocks.ts` defines each block kind (`heading`,
+  `text`, `keyValue`, `table`, `chart`, `metric`, `image`, `divider`) as a zod schema, plus the
+  loose document envelope (`panelContentSchema`) that gates a whole document without deep-checking
+  every block — that split is what lets one malformed block degrade individually instead of
+  failing the entire panel. `ContentRenderer.tsx` renders an ordered block sequence; `blockRegistry.ts`
+  is its internal kind→renderer map. Presenting a new kind of content Lucy has never shown before
+  requires composing a different sequence of these blocks — never new code.
+- `actions/` — the closed action allowlist (`allowlist.ts`) a block or block entry may invoke.
+  Every command is an explicit, written-out mapping onto the viewer's published `IViewerEngine`
+  surface — never dynamic dispatch by a content-supplied string, because panel content is composed
+  by a language model and constitution §8 treats that as untrusted input. `ActionAffordance.tsx` is
+  the shared presentation every actionable entry renders through; an action that fails validation
+  is rendered inert, never merely refused on click.
+- `chrome/` — `PanelChrome` (title bar / resizable / default size) and `resolveChrome`, applying a
+  request's override on top of a base chrome and clamping to the minimum usable size.
+- `registry.ts` — narrowed by specs/049 to hold only **live panel kinds**: panels whose content is
+  code rather than data (continuous state, an owned drawing surface, or values flowing back into
+  them live). No content panel needs registration. Nothing registers here today — the four
+  built-in kinds this registry used to hold at import time became content blocks instead.
+- `store/floatingPanelStore.ts` — owns every open panel's lifecycle: cascade placement, z-order,
+  the fixed-cap LRU eviction, minimize/restore, viewport clamping, and the two viewer-context
+  subscriptions. Branches on a request's `kind` (`content` vs `live`) at construction; everything
+  after that is common to both.
+
+Two capabilities give Lucy access to panels: `present_panel_content` (always available — composes
+content freely from the vocabulary) and `open_live_panel` (available only while something has
+registered a live kind; ships with no consumer in this feature).
+
 ## Manual verification (no AI agent required)
 
 In a development build, the running engine is exposed as `window.__askLucyViewerEngine` — open

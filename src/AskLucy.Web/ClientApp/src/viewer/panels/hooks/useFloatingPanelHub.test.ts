@@ -60,7 +60,7 @@ describe('useFloatingPanelHub', () => {
       await Promise.resolve()
     })
 
-    const payload = { requestId: 'r1', typeKey: 'table', title: 'T', data: {} }
+    const payload = { kind: 'live' as const, requestId: 'r1', typeKey: 'some-live-panel-kind', title: 'T', data: {} }
     handlers['PanelRequested']?.(payload)
 
     expect(openPanelSpy).toHaveBeenCalledWith(payload)

@@ -1,7 +1,8 @@
-import { RiCloseLine, RiErrorWarningLine, RiExpandDiagonalLine, RiMapPinLine, RiSubtractLine } from '@remixicon/react'
+import { RiCloseLine, RiDraggable, RiErrorWarningLine, RiExpandDiagonalLine, RiMapPinLine, RiSubtractLine } from '@remixicon/react'
 import { Box, IconButton, Tooltip, Typography, alpha } from '@mui/material'
 import { Rnd } from 'react-rnd'
 import { viewerEngine } from '../../engine/viewerEngineInstance'
+import { ContentRenderer } from '../content/ContentRenderer'
 import { panelTypeRegistry } from '../registry'
 import { useFloatingPanelStore } from '../store/floatingPanelStore'
 import { usePanelPreferencesStore } from '../store/panelPreferencesStore'
@@ -42,8 +43,17 @@ export interface FloatingPanelProps {
   panel: FloatingPanelModel
 }
 
+/** Dispatches on the panel's own `kind` (specs/049): a content panel's already-validated block
+ * document renders through the one general `ContentRenderer`; a live panel keeps resolving its
+ * renderer from the (now narrowed, specs/049 FR-022) registry exactly as every panel did before
+ * this feature. The `unknown-type`/`invalid` fallbacks below apply only to live panels — a
+ * content panel's per-block degradation happens inside `ContentRenderer` itself, never here. */
 function PanelContent({ panel }: { panel: FloatingPanelModel }) {
-  const definition = panelTypeRegistry.resolve(panel.typeKey)
+  if (panel.kind === 'content') {
+    return panel.content ? <ContentRenderer content={panel.content} /> : null
+  }
+
+  const definition = panelTypeRegistry.resolve(panel.typeKey ?? '')
   const Renderer = definition?.renderer
 
   if (panel.validationStatus === 'unknown-type') {
@@ -181,7 +191,7 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
       position={{ x: panel.position.x, y: panel.position.y }}
       bounds="parent"
       dragHandleClassName={DRAG_HANDLE_CLASS}
-      enableResizing={panel.resizable}
+      enableResizing={panel.chrome.resizable}
       minWidth={MIN_PANEL_WIDTH}
       minHeight={MIN_PANEL_HEIGHT}
       style={{ zIndex: panel.zOrder, pointerEvents: 'auto' }}
@@ -207,36 +217,73 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
           color: 'text.primary',
         }}
       >
-        <Box
-          className={DRAG_HANDLE_CLASS}
-          tabIndex={0}
-          role="group"
-          aria-label={`${panel.title} panel controls — use arrow keys to move`}
-          onKeyDown={(event) => nudgePosition(event, panel, updatePosition)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            px: 1.5,
-            py: 1,
-            borderBottom: 1,
-            borderColor: 'divider',
-            flexShrink: 0,
-            cursor: 'move',
-          }}
-        >
-          <Typography variant="subtitle2" noWrap sx={{ flex: 1, minWidth: 0 }}>
-            {panel.title}
-          </Typography>
-          <ContextAssociationControls panel={panel} />
-          <IconButton onClick={() => minimizePanel(panel.id)} aria-label="Minimize panel" size="small">
-            <RiSubtractLine size={18} />
-          </IconButton>
-          <IconButton onClick={() => closePanel(panel.id)} aria-label="Close panel" size="small">
-            <RiCloseLine size={18} />
-          </IconButton>
-        </Box>
-        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1.5 }}>
+        {panel.chrome.titleBar ? (
+          <Box
+            className={DRAG_HANDLE_CLASS}
+            tabIndex={0}
+            role="group"
+            aria-label={`${panel.title} panel controls — use arrow keys to move`}
+            onKeyDown={(event) => nudgePosition(event, panel, updatePosition)}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              px: 1.5,
+              py: 1,
+              borderBottom: 1,
+              borderColor: 'divider',
+              flexShrink: 0,
+              cursor: 'move',
+            }}
+          >
+            <Typography variant="subtitle2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+              {panel.title}
+            </Typography>
+            <ContextAssociationControls panel={panel} />
+            <IconButton onClick={() => minimizePanel(panel.id)} aria-label="Minimize panel" size="small">
+              <RiSubtractLine size={18} />
+            </IconButton>
+            <IconButton onClick={() => closePanel(panel.id)} aria-label="Close panel" size="small">
+              <RiCloseLine size={18} />
+            </IconButton>
+          </Box>
+        ) : (
+          // research D7 — a panel with no title bar (a compact readout or a wide control strip)
+          // still needs to be movable, minimisable, closable and focusable. A small grip carries
+          // the same drag-handle class and the same keyboard-nudge handler the title bar uses, so
+          // both variants share one movement implementation; there is just no title text to show.
+          <Box
+            className={DRAG_HANDLE_CLASS}
+            tabIndex={0}
+            role="group"
+            aria-label={`${panel.title} panel controls — use arrow keys to move`}
+            onKeyDown={(event) => nudgePosition(event, panel, updatePosition)}
+            sx={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              zIndex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.25,
+              bgcolor: 'action.selected',
+              borderRadius: 4,
+              px: 0.25,
+              cursor: 'move',
+            }}
+          >
+            <Box component="span" sx={{ display: 'inline-flex', px: 0.5, color: 'text.secondary' }}>
+              <RiDraggable size={16} />
+            </Box>
+            <IconButton onClick={() => minimizePanel(panel.id)} aria-label="Minimize panel" size="small">
+              <RiSubtractLine size={16} />
+            </IconButton>
+            <IconButton onClick={() => closePanel(panel.id)} aria-label="Close panel" size="small">
+              <RiCloseLine size={16} />
+            </IconButton>
+          </Box>
+        )}
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1.5, pt: panel.chrome.titleBar ? 1.5 : 4.5 }}>
           <PanelContent panel={panel} />
         </Box>
       </Box>
