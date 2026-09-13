@@ -1,0 +1,65 @@
+{
+  "//": "Template for the untracked local development overlay. Copy to appsettings.Development.json and fill in. Every value marked SECRET belongs in `dotnet user-secrets` instead (this project has a UserSecretsId) — keep this file for non-secret local settings and the dev connection string. Constitution §8: secrets never live in source control.",
+
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+
+  "Cors": {
+    "AllowedOrigins": [ "http://localhost:5173" ]
+  },
+
+  "App": {
+    "FrontendBaseUrl": "http://localhost:5173"
+  },
+
+  "Mcp": {
+    "AllowLocalTransport": true
+  },
+
+  "//ConnectionStrings": "Also the source of PERSISTENCE_TESTS_CONNECTION_STRING — AskLucy.Web.Tests and AskLucy.Persistence.Tests need that environment variable set to this value or almost every test fails at Hangfire startup.",
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=<host>;Initial Catalog=<database>;User Id=<user>;Password=<SECRET>;Encrypt=True;TrustServerCertificate=True;"
+  },
+
+  "//Authentication": "ClientId/AppId are public identifiers and are safe here; the secrets are not.",
+  "Authentication": {
+    "Google": {
+      "ClientId": "<google-oauth-client-id>.apps.googleusercontent.com",
+      "ClientSecret": "<SECRET — prefer: dotnet user-secrets set \"Authentication:Google:ClientSecret\" ...>"
+    },
+    "Facebook": {
+      "AppId": "<facebook-app-id>",
+      "AppSecret": "<SECRET — prefer: dotnet user-secrets set \"Authentication:Facebook:AppSecret\" ...>"
+    }
+  },
+
+  "OpenAI": {
+    "ApiKey": "<SECRET — prefer: dotnet user-secrets set \"OpenAI:ApiKey\" ...>",
+    "ChatModel": "gpt-3.5-turbo",
+    "ImageModel": "gpt-image-2",
+    "TranscriptionModel": "whisper-1",
+    "BaseUrl": "https://api.openai.com/v1/"
+  },
+
+  "//Anthropic": "Identity-linked keys are rejected without a workspace id — see the Anthropic provider's own notes.",
+  "Anthropic": {
+    "WorkspaceId": "<anthropic-workspace-id>"
+  },
+
+  "ElevenLabs": {
+    "ApiKey": "<SECRET — prefer: dotnet user-secrets set \"ElevenLabs:ApiKey\" ...>",
+    "VoiceId": "<voice-id>"
+  },
+
+  "Pinecone": {
+    "ApiKey": "<SECRET — prefer: dotnet user-secrets set \"Pinecone:ApiKey\" ...>",
+    "IndexHost": "<index-host>"
+  },
+
+  "//Geocoding": "Not present in the tracked template because it already lives in user-secrets: Geocoding:GoogleMapsApiKey. Listed here so its existence is discoverable.",
+  "//AlsoInUserSecrets": [ "Geocoding:GoogleMapsApiKey" ]
+}
