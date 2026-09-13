@@ -391,3 +391,11 @@ tests/AskLucy.E2E.Tests/dist/
 # ASPNETCORE_ENVIRONMENT=Production. See CONTRIBUTING.md § Production secrets.
 src/AskLucy.Web/appsettings.Production.json
 !src/AskLucy.Web/appsettings.Production.json.example
+
+# Local development overlay — holds live provider credentials (OAuth client secrets, AI provider
+# API keys, the dev database connection string) and is therefore untracked, for the same reason
+# the production overlay above is. Untracked on 2026-09-13 after live secrets were found staged
+# in it; the preferred home for a secret is still `dotnet user-secrets` (this project has a
+# UserSecretsId), with this file reserved for non-secret local settings.
+src/AskLucy.Web/appsettings.Development.json
+!src/AskLucy.Web/appsettings.Development.json.example
