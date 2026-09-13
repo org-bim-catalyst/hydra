@@ -194,11 +194,13 @@ describe('FloatingPanelHost drag-time landing placeholder (specs/054 FR-005f/g, 
 
     act(() => onDragStart())
     // With no reserved regions and only this one panel, the sole candidate slot is a 200x160 box
-    // at {16, 16} — HOST_MARGIN's own inset, the only free origin. {100, 100} sits inside it but
-    // is not equal to it, so a resulting position of exactly {16, 16} proves a snap happened.
-    act(() => onDrag(undefined, { x: 100, y: 100 }))
+    // at {16, 16} — HOST_MARGIN's own inset, the only free origin. FloatingPanel reports the
+    // panel's CENTER, not its raw top-left (feedback 2026-09-13) — a raw drop of {10, 10} for a
+    // 200x160 panel centers at {110, 90}, which sits inside that slot but isn't equal to its
+    // origin, so a resulting position of exactly {16, 16} proves a snap happened.
+    act(() => onDrag(undefined, { x: 10, y: 10 }))
     expect(screen.getByTestId('landing-placeholder')).toBeInTheDocument()
-    act(() => onDragStop(undefined, { x: 100, y: 100 }))
+    act(() => onDragStop(undefined, { x: 10, y: 10 }))
 
     // Snapped to the slot's own origin, not left at the raw {100, 100} drop point.
     expect(useFloatingPanelStore.getState().panels[0]?.position).toEqual({ x: 16, y: 16 })
@@ -228,6 +230,45 @@ describe('FloatingPanelHost drag-time landing placeholder (specs/054 FR-005f/g, 
     act(() => onDragStop(undefined, { x: 111, y: 222 }))
 
     expect(useFloatingPanelStore.getState().panels[0]?.position).toEqual({ x: 111, y: 222 })
+  })
+})
+
+describe('FloatingPanelHost minimized panels as fixed obstacles (specs/054 feedback 2026-09-13)', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  it('a full panel opened later avoids a minimized panel’s actual on-screen footprint, not its stale pre-minimize size', async () => {
+    const { container } = render(<FloatingPanelHost />)
+    stubHostSize(container, 1000, 800)
+
+    openTestPanel('min-obstacle-a')
+    await waitFor(() => {
+      expect(useFloatingPanelStore.getState().panels[0]?.position).toEqual(CENTERED_SINGLE_PANEL_POSITION)
+    })
+
+    act(() => {
+      useFloatingPanelStore.getState().minimizePanel('min-obstacle-a')
+    })
+    const minimizedPosition = useFloatingPanelStore.getState().panels[0]!.position
+    // MINIMIZED_BAR_WIDTH/HEIGHT from FloatingPanel.tsx — kept as literals here so this test
+    // doesn't depend on that export, only on the behavior it enables.
+    const minimizedRect = { x: minimizedPosition.x, y: minimizedPosition.y, width: 220, height: 40 }
+
+    openTestPanel('min-obstacle-b')
+    await waitFor(() => {
+      const b = useFloatingPanelStore.getState().panels.find((p) => p.id === 'min-obstacle-b')
+      expect(b?.position).toBeDefined()
+    })
+
+    const b = useFloatingPanelStore.getState().panels.find((p) => p.id === 'min-obstacle-b')!
+    const bRect = { x: b.position.x, y: b.position.y, width: b.size.width, height: b.size.height }
+    const overlaps =
+      bRect.x < minimizedRect.x + minimizedRect.width &&
+      bRect.x + bRect.width > minimizedRect.x &&
+      bRect.y < minimizedRect.y + minimizedRect.height &&
+      bRect.y + bRect.height > minimizedRect.y
+    expect(overlaps).toBe(false)
   })
 })
 

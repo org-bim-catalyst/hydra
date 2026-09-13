@@ -4,10 +4,23 @@ import type { ArrangeablePanel } from '../layout/arrangement'
 import { computeArrangement, findCandidateSlots, slotAtPoint } from '../layout/arrangement'
 import { collectReservedRects } from '../layout/reservedRegions'
 import { useFloatingPanelStore } from '../store/floatingPanelStore'
-import type { Rect } from '../types/panel'
-import { FloatingPanel } from './FloatingPanel'
+import type { FloatingPanel as FloatingPanelModel, Rect } from '../types/panel'
+import { FloatingPanel, MINIMIZED_BAR_HEIGHT, MINIMIZED_BAR_WIDTH } from './FloatingPanel'
 import { LandingPlaceholder } from './LandingPlaceholder'
 import { PanelDock } from './PanelDock'
+
+/** specs/054 (feedback 2026-09-13) — a minimized panel's stored `size` is its pre-minimize
+ * (restoreState) size, not its current on-screen footprint (`MINIMIZED_BAR_WIDTH/HEIGHT`), and it
+ * is never itself an auto-placement target (`manuallyPlaced: true` unconditionally) — but IS a
+ * fixed obstacle other panels must avoid, exactly like a manually-placed full panel, so both
+ * `beginDrag` (candidate slots) and `runArrangement` (the grid/cascade pass) build their
+ * `ArrangeablePanel` list through this one conversion, applied to every panel including minimized
+ * ones (neither function filters minimized panels out anymore). */
+function toArrangeablePanel(panel: FloatingPanelModel): ArrangeablePanel {
+  return panel.minimized
+    ? { id: panel.id, size: { width: MINIMIZED_BAR_WIDTH, height: MINIMIZED_BAR_HEIGHT }, manuallyPlaced: true, position: panel.position }
+    : { id: panel.id, size: panel.size, manuallyPlaced: panel.manuallyPlaced, position: panel.position }
+}
 
 /** specs/054 D6/data-model.md "Drag Session" — component-local, not store state: which panel is
  * being dragged and its candidate landing slots, frozen once at drag start. */
@@ -48,13 +61,7 @@ export function FloatingPanelHost() {
     if (!hostEl) return
     const hostRect = hostEl.getBoundingClientRect()
     const reserved = collectReservedRects(hostRect)
-    const currentPanels = useFloatingPanelStore.getState().panels.filter((panel) => !panel.minimized)
-    const arrangeable: ArrangeablePanel[] = currentPanels.map((panel) => ({
-      id: panel.id,
-      size: panel.size,
-      manuallyPlaced: panel.manuallyPlaced,
-      position: panel.position,
-    }))
+    const arrangeable = useFloatingPanelStore.getState().panels.map(toArrangeablePanel)
     const candidateSlots = findCandidateSlots(
       { host: { width: hostRect.width, height: hostRect.height }, reserved, panels: arrangeable },
       panelId,
@@ -80,13 +87,7 @@ export function FloatingPanelHost() {
     if (hostRect.width <= 0 || hostRect.height <= 0) return
 
     const reserved = collectReservedRects(hostRect)
-    const currentPanels = useFloatingPanelStore.getState().panels.filter((panel) => !panel.minimized)
-    const arrangeable: ArrangeablePanel[] = currentPanels.map((panel) => ({
-      id: panel.id,
-      size: panel.size,
-      manuallyPlaced: panel.manuallyPlaced,
-      position: panel.position,
-    }))
+    const arrangeable = useFloatingPanelStore.getState().panels.map(toArrangeablePanel)
 
     const result = computeArrangement({
       host: { width: hostRect.width, height: hostRect.height },
@@ -96,31 +97,36 @@ export function FloatingPanelHost() {
     applyArrangement(result.positions, result.zOrder)
   }, [applyArrangement])
 
-  // specs/054 FR-005f/g — returns the position `FloatingPanel` should actually apply: the shown
-  // placeholder's origin when one was showing (a snap), or the raw drop point unchanged when none
-  // was (free-form drop, unchanged from prior behavior). Either way, the drop reflows every other
-  // (non-pinned) panel around wherever this one just landed (feedback 2026-09-13: "push each
-  // other while moving in the grid") — queued as a microtask so it runs after `FloatingPanel`'s
-  // own `updatePosition` call for THIS drop (same synchronous call stack, still ahead of the
-  // microtask queue), which is what makes this panel a fixed obstacle (`manuallyPlaced: true`,
-  // set by `updatePosition`) for that reflow rather than something it could move itself.
+  // specs/054 FR-005f/g — `center` is the dragged panel's CENTER (feedback 2026-09-13: anchoring
+  // to the top-left corner made the landing placeholder track far from wherever the user actually
+  // grabbed the panel). Returns the shown placeholder's own top-left origin to snap to, or
+  // null/undefined when none was showing — `FloatingPanel` falls back to the raw drop point in
+  // that case, since `center` itself isn't a valid top-left position. Either way, the drop
+  // reflows every other (non-pinned) panel around wherever this one just landed (feedback
+  // 2026-09-13: "push each other while moving in the grid") — queued as a microtask so it runs
+  // after `FloatingPanel`'s own `updatePosition` call for THIS drop (same synchronous call stack,
+  // still ahead of the microtask queue), which is what makes this panel a fixed obstacle
+  // (`manuallyPlaced: true`, set by `updatePosition`) for that reflow rather than something it
+  // could move itself.
   const endDrag = useCallback(
-    (panelId: string, point: { x: number; y: number }): { x: number; y: number } => {
+    (panelId: string, center: { x: number; y: number }): { x: number; y: number } | null => {
       const session = dragSessionRef.current
-      const slot = session && session.panelId === panelId ? slotAtPoint(session.candidateSlots, point) : null
+      const slot = session && session.panelId === panelId ? slotAtPoint(session.candidateSlots, center) : null
       dragSessionRef.current = null
       setActiveSlot(null)
       queueMicrotask(() => runArrangement())
-      return slot ? { x: slot.x, y: slot.y } : point
+      return slot ? { x: slot.x, y: slot.y } : null
     },
     [runArrangement],
   )
 
-  // specs/054 FR-002/FR-003: a fresh arrangement pass whenever the number of open (non-minimized)
-  // panels changes — covers both opening a panel (including a reopen from the tray, US2) and
-  // closing one. Keyed on count rather than the `panels` array itself so applying an arrangement's
-  // own position writes (which don't change the count) never re-triggers this effect.
-  const openPanelCount = panels.filter((panel) => !panel.minimized).length
+  // specs/054 FR-002/FR-003: a fresh arrangement pass whenever the number of open panels changes
+  // — covers opening a panel (including a reopen from the tray, US2), closing one, and closing a
+  // minimized one (a minimized panel is a fixed obstacle other panels must avoid — feedback
+  // 2026-09-13 — so one fewer of them can free up space for the rest, same as a full panel).
+  // Keyed on count rather than the `panels` array itself so applying an arrangement's own position
+  // writes (which don't change the count) never re-triggers this effect.
+  const openPanelCount = panels.length
   useEffect(() => {
     runArrangement()
   }, [openPanelCount, runArrangement])
