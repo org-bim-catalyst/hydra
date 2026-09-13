@@ -93,7 +93,20 @@ export class SolarScene {
         return new Date(Date.UTC(year, month - 1, day))
       })()
       const sunPath = buildSunPath(dateForArc, latitude, longitude, currentInstantUtc)
-      for (const object of [sunPath.chosenDay, sunPath.summerExtreme, sunPath.winterExtreme, ...sunPath.hourMarks, sunPath.currentPositionMarker]) {
+      const objects: (THREE.Object3D | null)[] = [
+        // Furniture first so the dial and lattice sit behind the arcs in draw order.
+        sunPath.dial,
+        sunPath.mountPost,
+        ...sunPath.monthlyArcs,
+        sunPath.chosenDay,
+        sunPath.summerExtreme,
+        sunPath.winterExtreme,
+        ...sunPath.hourMarks,
+        sunPath.currentPositionMarker,
+        // Transparent shell last: it writes no depth, so it must draw over what it encloses.
+        sunPath.shell,
+      ]
+      for (const object of objects) {
         if (object) this.sunPathGroup.add(object)
       }
       this.currentMarker = sunPath.currentPositionMarker
@@ -126,14 +139,27 @@ export class SolarScene {
     return this.currentRadiusMetres
   }
 
+  /** Traverses rather than walking direct children only: the dome's mount post is a `Group`, and a
+   * shallow pass would leave its meshes' geometry and materials undisposed. Textures are released
+   * too — the compass dial bakes a 2048² canvas texture that is rebuilt on every date change, so
+   * leaking it would accumulate a few megabytes per scrub across a calendar. */
   private disposeGroupContents(group: THREE.Group): void {
     for (const child of [...group.children]) {
       group.remove(child)
-      const mesh = child as THREE.Mesh
-      mesh.geometry?.dispose()
-      const material = mesh.material as THREE.Material | THREE.Material[] | undefined
-      if (Array.isArray(material)) material.forEach((m) => m.dispose())
-      else material?.dispose()
+      child.traverse((descendant) => {
+        const mesh = descendant as THREE.Mesh
+        mesh.geometry?.dispose()
+        const material = mesh.material as THREE.Material | THREE.Material[] | undefined
+        const materials = Array.isArray(material) ? material : material ? [material] : []
+        for (const entry of materials) {
+          for (const value of Object.values(entry)) {
+            if (value && typeof value === 'object' && 'isTexture' in value) {
+              ;(value as THREE.Texture).dispose()
+            }
+          }
+          entry.dispose()
+        }
+      })
     }
   }
 

@@ -279,6 +279,17 @@ export async function createGoogleMapsGisLayer(
       altitude: 0,
     })
     camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix)
+
+    // Closes the coalescing window BEFORE the frame callbacks run, not after. Clearing it
+    // afterwards (in a `finally`) meant every `invalidate()` raised from inside a frame callback
+    // hit `RedrawScheduler.pending === true` and was silently dropped — so an animation that keeps
+    // itself alive by invalidating once per frame (the site-boundary comet, solar playback) died
+    // after a single draw, and any capability that built geometry while a redraw was already in
+    // flight never got a draw of its own. That is the "nothing renders until you interact with the
+    // map" symptom: only an external event (pan, zoom, theme toggle) could request the next frame.
+    // Clearing first also means a throw below still leaves the window open rather than wedged.
+    redrawScheduler.frameRendered()
+
     try {
       // specs/042-site-boundary-resolution diagnostic: this Three.js/WebGLOverlayView bridge
       // was never runtime-verified before this feature (see this function's own doc comment).
@@ -303,13 +314,6 @@ export async function createGoogleMapsGisLayer(
       renderer?.resetState()
     } catch (error) {
       console.error('[GoogleMapsGisLayer] Three.js site-boundary render failed:', error)
-    } finally {
-      // research D4/FR-020/FR-022 (specs/051): clears the coalescing window so the next
-      // `invalidate()` call schedules a fresh redraw. Previously this callback called
-      // `overlay.requestRedraw()` unconditionally on every draw — a continuous redraw loop that
-      // violated "MUST NOT redraw continuously when nothing has changed." `finally` so a draw
-      // that hit the catch above still clears the window rather than wedging it closed.
-      redrawScheduler.frameRendered()
     }
   }
 
