@@ -17,6 +17,7 @@ import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circ
 import { useCurrentWeather } from '../hooks/useCurrentWeather'
 import type { WeatherCondition } from '../api/weatherApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { RESERVED_ATTRIBUTE } from '../../../viewer/panels/layout/reservedRegions'
 
 function conditionIcon(condition: WeatherCondition, isDaytime: boolean): ReactNode {
   switch (condition) {
@@ -96,7 +97,12 @@ export function LocationWeatherWidget() {
     if (!isError) return null
 
     return (
-      <Box role="status" aria-label="Weather is unavailable" sx={{ ...shellSx, opacity: 0.75 }}>
+      <Box
+        role="status"
+        aria-label="Weather is unavailable"
+        {...{ [RESERVED_ATTRIBUTE]: '' }}
+        sx={{ ...shellSx, opacity: 0.75 }}
+      >
         <Typography variant="subtitle2" component="div" sx={{ lineHeight: 1.2 }}>
           Weather unavailable
         </Typography>
@@ -108,6 +114,7 @@ export function LocationWeatherWidget() {
     <Box
       role="status"
       aria-label={`Weather in ${data.locationName}: ${Math.round(data.temperatureCelsius)}°C, ${data.condition}${isStale ? ' (last known reading)' : ''}`}
+      {...{ [RESERVED_ATTRIBUTE]: '' }}
       sx={shellSx}
     >
       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>

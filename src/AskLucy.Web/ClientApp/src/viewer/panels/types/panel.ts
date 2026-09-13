@@ -18,6 +18,21 @@ export interface ViewerContextAssociation {
   elementId: string | null
 }
 
+/** specs/054 data-model.md "Rect" — a plain axis-aligned rectangle in `FloatingPanelHost`-relative
+ * coordinates (origin = the host's top-left), matching how `FloatingPanel.position` is already
+ * interpreted. Shared by the layout module and the store so there is exactly one definition. */
+export interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** specs/054 data-model.md "Arrangement Mode" — `'grid'` when every panel was placed with zero
+ * overlap (FR-005a), `'cascade'` when at least one could not be and all auto-placed panels were
+ * re-laid as an offset stack instead (FR-005b). */
+export type ArrangementMode = 'grid' | 'cascade'
+
 /** data-model.md "Live Panel Kind" (spec FR-022/FR-026, contracts/panel-request.md). Registered
  * only for panels whose content is code rather than data — a "live" panel. Content panels
  * (specs/049) need no registration at all; this narrows what `registry.ts` used to hold for
@@ -87,4 +102,22 @@ export interface FloatingPanel {
   opacityOverride: number | null
   contextAssociation: ViewerContextAssociation | null
   contextStatus: PanelContextStatus
+  /** specs/054 data-model.md — set only by a user gesture (`updatePosition`/`updateSize`), never by
+   * `applyArrangement` or `clampToViewport`. While true, automatic arrangement treats this panel as
+   * a fixed obstacle instead of a placement target (FR-005d), until the explicit "arrange" action
+   * clears it for every panel (FR-005e). */
+  manuallyPlaced: boolean
+}
+
+/** specs/054 data-model.md "Reopen Tray Entry" — one closed panel retained long enough to be
+ * reopened. Deliberately carries the original `PanelRequest` rather than the full `FloatingPanel`
+ * — position/size/zOrder/minimized are dropped on purpose (a reopened panel is placed fresh, since
+ * the screen layout may have changed since it closed), and reopening feeds `request` straight back
+ * into the existing `openPanel`, so validation/chrome-resolution/context-status derivation is
+ * identical to a first-time open (FR-009, FR-013). */
+export interface ClosedPanelEntry {
+  request: PanelRequest
+  /** Epoch ms (the store's existing monotonic timestamp helper) — orders the tray and identifies
+   * the oldest entry when trimming past `MAX_CONCURRENT_PANELS` (FR-010). */
+  closedAtUtc: number
 }

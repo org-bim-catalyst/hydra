@@ -2,6 +2,7 @@ import { alpha, Box, Stack, Typography, useTheme } from '@mui/material'
 import { RiQuestionLine, RiShieldCheckLine, RiShieldLine } from '@remixicon/react'
 import type { ReactNode } from 'react'
 import { useActiveSiteBoundaryStore, type SiteBoundaryConfidenceLevel } from '../../../store/activeSiteBoundaryStore'
+import { RESERVED_ATTRIBUTE } from '../../../viewer/panels/layout/reservedRegions'
 
 /** The requested brand accent — used identically in light/dark mode (a mid-tone violet reads fine as an icon/border accent against both a light and a near-black card, so no per-mode variant is needed for the accent itself; only the surrounding card surface adapts). */
 const ACCENT = '#9C62DE'
@@ -48,6 +49,7 @@ export function SiteBoundaryConfidenceBadge() {
     <Box
       role="status"
       aria-label={`${siteName} boundary: ${CONFIDENCE_LABEL[confidenceLevel]}, source: ${sourceDetail ?? 'unknown'}`}
+      {...{ [RESERVED_ATTRIBUTE]: '' }}
       sx={{
         position: 'absolute',
         // Stacked directly under LocationWeatherWidget (top: {76,84}, left: {16,24}) — same

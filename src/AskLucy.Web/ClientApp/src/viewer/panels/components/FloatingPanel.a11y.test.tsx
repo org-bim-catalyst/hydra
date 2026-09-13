@@ -43,6 +43,7 @@ function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelMo
     opacityOverride: null,
     contextAssociation: null,
     contextStatus: null,
+    manuallyPlaced: false,
     ...overrides,
   }
 }

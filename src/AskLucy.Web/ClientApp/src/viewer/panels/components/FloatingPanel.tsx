@@ -1,4 +1,12 @@
-import { RiCloseLine, RiDraggable, RiErrorWarningLine, RiExpandDiagonalLine, RiMapPinLine, RiSubtractLine } from '@remixicon/react'
+import {
+  RiCloseLine,
+  RiDraggable,
+  RiErrorWarningLine,
+  RiExpandDiagonal2Line,
+  RiExpandDiagonalLine,
+  RiMapPinLine,
+  RiSubtractLine,
+} from '@remixicon/react'
 import { Box, IconButton, Tooltip, Typography, alpha } from '@mui/material'
 import { Rnd } from 'react-rnd'
 import { viewerEngine } from '../../engine/viewerEngineInstance'
@@ -41,6 +49,16 @@ function nudgePosition(
 
 export interface FloatingPanelProps {
   panel: FloatingPanelModel
+  /** specs/054 D6 — fired when a drag gesture begins, so `FloatingPanelHost` can compute this
+   * panel's candidate landing slots once, up front. */
+  onDragStart?: () => void
+  /** specs/054 D6 — fired on every drag move with the panel's current (raw, un-snapped) position,
+   * so the host can look up and render whichever candidate slot the pointer is currently over. */
+  onDragMove?: (point: { x: number; y: number }) => void
+  /** specs/054 D6 — given the raw drop point, returns the position to actually apply. The host
+   * uses this to snap onto whichever landing placeholder was shown; absent (or returning the same
+   * point back) leaves the panel exactly where it was released, unchanged from prior behavior. */
+  onDragEnd?: (point: { x: number; y: number }) => { x: number; y: number }
 }
 
 /** Dispatches on the panel's own `kind` (specs/049): a content panel's already-validated block
@@ -136,7 +154,7 @@ function ContextAssociationControls({ panel }: { panel: FloatingPanelModel }) {
  * never asks for. This component is intentionally namespaced under `viewer/panels/` rather than
  * reusing `components/workspace-shell/FloatingPanel.tsx`, an unrelated single-instance
  * workspace-control drawer (research.md Decision 5). */
-export function FloatingPanel({ panel }: FloatingPanelProps) {
+export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: FloatingPanelProps) {
   const closePanel = useFloatingPanelStore((s) => s.closePanel)
   const focusPanel = useFloatingPanelStore((s) => s.focusPanel)
   const minimizePanel = useFloatingPanelStore((s) => s.minimizePanel)
@@ -196,7 +214,22 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
       minHeight={MIN_PANEL_HEIGHT}
       style={{ zIndex: panel.zOrder, pointerEvents: 'auto' }}
       onMouseDown={() => focusPanel(panel.id)}
-      onDragStop={(_event, data) => updatePosition(panel.id, { x: data.x, y: data.y })}
+      onDragStart={() => onDragStart?.()}
+      // `position` is a CONTROLLED prop, so it has to track the drag as it happens: react-rnd
+      // re-applies the prop value on every render, and a panel that re-renders mid-drag (focus
+      // change, a live panel refreshing its own content) would otherwise snap back to the stale
+      // position — which reads as the panel lagging behind the cursor instead of staying under it.
+      onDrag={(_event, data) => {
+        updatePosition(panel.id, { x: data.x, y: data.y })
+        onDragMove?.({ x: data.x, y: data.y })
+      }}
+      // specs/054 D6 — the host may snap this onto whichever landing placeholder was showing;
+      // with no `onDragEnd` wired (or one that hands the same point back), this is unchanged from
+      // dropping exactly where released.
+      onDragStop={(_event, data) => {
+        const finalPosition = onDragEnd?.({ x: data.x, y: data.y }) ?? { x: data.x, y: data.y }
+        updatePosition(panel.id, finalPosition)
+      }}
       onResizeStop={(_event, _direction, ref, _delta, position) => {
         updateSize(panel.id, { width: ref.offsetWidth, height: ref.offsetHeight })
         updatePosition(panel.id, position)
@@ -206,6 +239,7 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
         role="region"
         aria-label={panel.title}
         sx={{
+          position: 'relative',
           width: '100%',
           height: '100%',
           display: 'flex',
@@ -286,6 +320,28 @@ export function FloatingPanel({ panel }: FloatingPanelProps) {
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1.5, pt: panel.chrome.titleBar ? 1.5 : 4.5 }}>
           <PanelContent panel={panel} />
         </Box>
+        {panel.chrome.resizable && (
+          // Purely decorative (`react-rnd` already makes the whole edge/corner resizable
+          // regardless of this) — found live: nothing on screen hinted a panel could be resized
+          // at all, so users had no reason to try. A diagonal resize-handle glyph in the corner is
+          // the conventional affordance; the earlier CSS dot-grid attempt read as low-quality/
+          // blurry at this size, so this uses a proper icon instead (deliberately not
+          // `RiExpandDiagonalLine`, already used for the minimized-panel restore button).
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              right: 2,
+              bottom: 2,
+              pointerEvents: 'none',
+              display: 'flex',
+              opacity: 0.45,
+              color: 'text.secondary',
+            }}
+          >
+            <RiExpandDiagonal2Line size={14} />
+          </Box>
+        )}
       </Box>
     </Rnd>
   )

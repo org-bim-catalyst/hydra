@@ -70,6 +70,7 @@ function makePanel(overrides: Partial<FloatingPanelModel> = {}): FloatingPanelMo
     opacityOverride: null,
     contextAssociation: null,
     contextStatus: null,
+    manuallyPlaced: false,
     ...overrides,
   }
 }
@@ -133,6 +134,41 @@ describe('FloatingPanel drag/resize wiring (US2, FR-004/FR-005/FR-018)', () => {
     const onDragStop = lastRndProps.onDragStop as (e: unknown, data: { x: number; y: number }) => void
     onDragStop(undefined, { x: 123, y: 456 })
     expect(updatePositionMock).toHaveBeenCalledWith('panel-drag', { x: 123, y: 456 })
+  })
+
+  describe('specs/054 drag-time placement wiring (FR-005f/FR-005g, D6)', () => {
+    it('calls onDragStart when Rnd reports a drag start', () => {
+      const onDragStart = vi.fn()
+      render(<FloatingPanel panel={makePanel({ id: 'panel-drag-start' })} onDragStart={onDragStart} />)
+      const rndOnDragStart = lastRndProps.onDragStart as () => void
+      rndOnDragStart()
+      expect(onDragStart).toHaveBeenCalledTimes(1)
+    })
+
+    it('calls onDragMove with the live point on every drag move, alongside the existing live-follow updatePosition', () => {
+      const onDragMove = vi.fn()
+      render(<FloatingPanel panel={makePanel({ id: 'panel-drag-move' })} onDragMove={onDragMove} />)
+      const onDrag = lastRndProps.onDrag as (e: unknown, data: { x: number; y: number }) => void
+      onDrag(undefined, { x: 77, y: 88 })
+      expect(updatePositionMock).toHaveBeenCalledWith('panel-drag-move', { x: 77, y: 88 })
+      expect(onDragMove).toHaveBeenCalledWith({ x: 77, y: 88 })
+    })
+
+    it('applies the position onDragEnd returns (a snap) instead of the raw drop point', () => {
+      const onDragEnd = vi.fn().mockReturnValue({ x: 999, y: 111 })
+      render(<FloatingPanel panel={makePanel({ id: 'panel-snap' })} onDragEnd={onDragEnd} />)
+      const onDragStop = lastRndProps.onDragStop as (e: unknown, data: { x: number; y: number }) => void
+      onDragStop(undefined, { x: 200, y: 200 })
+      expect(onDragEnd).toHaveBeenCalledWith({ x: 200, y: 200 })
+      expect(updatePositionMock).toHaveBeenCalledWith('panel-snap', { x: 999, y: 111 })
+    })
+
+    it('falls back to the raw drop point when no onDragEnd is wired', () => {
+      render(<FloatingPanel panel={makePanel({ id: 'panel-no-snap' })} />)
+      const onDragStop = lastRndProps.onDragStop as (e: unknown, data: { x: number; y: number }) => void
+      onDragStop(undefined, { x: 321, y: 654 })
+      expect(updatePositionMock).toHaveBeenCalledWith('panel-no-snap', { x: 321, y: 654 })
+    })
   })
 
   it('updates floatingPanelStore size and position when Rnd reports a resize stop', () => {
