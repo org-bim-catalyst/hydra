@@ -11,6 +11,16 @@ export interface FloatingToolbarProps {
   direction?: 'row' | 'column'
   sx?: SxProps<Theme>
   children: ReactNode
+  /** FOUND LIVE (2026-09-13): `data-*` attributes (e.g. `RESERVED_ATTRIBUTE` — see
+   * `WorkspaceOverlay.tsx`) must land on THIS component's own root, not a wrapper around it.
+   * This is the one absolutely-positioned, actually-sized element; a plain `<Box>` wrapping it
+   * with no positioning of its own collapses to a 0×0 rect (its only child is out of flow), so
+   * a caller marking that wrapper "reserved" was marking a region nothing could ever measure —
+   * `useAvoidReservedCorner`/`collectReservedRects` both skip zero-size rects, so the toolbar's
+   * own chrome silently never occupied any reserved space at all — the confirmed cause of the
+   * viewer's "Solar Analysis" toolbar entry rendering behind the Account Menu button, since the
+   * corner-avoidance code had nothing real to measure. */
+  dataAttributes?: Record<string, string>
 }
 
 const anchorSx: Record<FloatingToolbarAnchor, object> = {
@@ -26,12 +36,13 @@ const anchorSx: Record<FloatingToolbarAnchor, object> = {
  * `bottom-*` anchor wraps *upward* (`wrap-reverse`), a `top-*` anchor wraps downward,
  * so extra rows always grow away from the screen edge they're anchored to rather than
  * off-screen past it. `column` mode is a single vertical stack, no wrapping. */
-export function FloatingToolbar({ anchor, direction = 'row', sx, children }: FloatingToolbarProps) {
+export function FloatingToolbar({ anchor, direction = 'row', sx, children, dataAttributes }: FloatingToolbarProps) {
   return (
     <Stack
       direction={direction}
       spacing={1.5}
       useFlexGap
+      {...dataAttributes}
       sx={[
         {
           position: 'absolute',

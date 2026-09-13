@@ -65,27 +65,37 @@ export function WorkspaceOverlay({ controls, topClusterLeading, children }: Work
     </CircularAction>
   )
 
+  // FOUND LIVE (2026-09-13): `RESERVED_ATTRIBUTE` previously sat on a plain wrapping `<Box>`
+  // around each `FloatingToolbar` — a static element with no positioning of its own around a
+  // `position: absolute` child collapses to a 0×0 rect (the child contributes nothing to a
+  // static parent's flow size). `useAvoidReservedCorner`/`collectReservedRects` both skip
+  // zero-size rects, so none of this component's own chrome (the account/theme cluster, the
+  // viewer-tool stack, the chat trigger) ever actually registered as reserved space — the
+  // confirmed cause of the viewer's "Solar Analysis" toolbar button rendering behind the
+  // Account Menu button. `pointerEvents: 'auto'` moved onto `FloatingToolbar` itself via `sx`,
+  // since the wrapper it used to live on is gone.
   return (
     <Box sx={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
       {(topClusterLeading || groups['top-cluster'].length > 0) && (
-        <Box sx={{ pointerEvents: 'auto' }} {...{ [RESERVED_ATTRIBUTE]: '' }}>
-          <FloatingToolbar anchor="top-end">
-            {topClusterLeading}
-            {groups['top-cluster'].map(renderControl)}
-          </FloatingToolbar>
-        </Box>
+        <FloatingToolbar anchor="top-end" sx={{ pointerEvents: 'auto' }} dataAttributes={{ [RESERVED_ATTRIBUTE]: '' }}>
+          {topClusterLeading}
+          {groups['top-cluster'].map(renderControl)}
+        </FloatingToolbar>
       )}
       {groups['right-stack'].length > 0 && (
-        <Box sx={{ pointerEvents: 'auto' }} {...{ [RESERVED_ATTRIBUTE]: '' }}>
-          <FloatingToolbar anchor="top-end" direction="column" sx={{ mt: { xs: 9, sm: 10.5 } }}>
-            {groups['right-stack'].map(renderControl)}
-          </FloatingToolbar>
-        </Box>
+        <FloatingToolbar
+          anchor="top-end"
+          direction="column"
+          sx={{ pointerEvents: 'auto', mt: { xs: 9, sm: 10.5 } }}
+          dataAttributes={{ [RESERVED_ATTRIBUTE]: '' }}
+        >
+          {groups['right-stack'].map(renderControl)}
+        </FloatingToolbar>
       )}
       {groups['bottom-end'].length > 0 && (
-        <Box sx={{ pointerEvents: 'auto' }} {...{ [RESERVED_ATTRIBUTE]: '' }}>
-          <FloatingToolbar anchor="bottom-end">{groups['bottom-end'].map(renderControl)}</FloatingToolbar>
-        </Box>
+        <FloatingToolbar anchor="bottom-end" sx={{ pointerEvents: 'auto' }} dataAttributes={{ [RESERVED_ATTRIBUTE]: '' }}>
+          {groups['bottom-end'].map(renderControl)}
+        </FloatingToolbar>
       )}
       {children}
     </Box>
