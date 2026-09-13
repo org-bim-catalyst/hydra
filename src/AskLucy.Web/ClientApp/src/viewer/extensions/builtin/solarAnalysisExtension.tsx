@@ -1,4 +1,5 @@
 import { RiSunLine } from '@remixicon/react'
+import { makeCameraAttitudeWidget } from '../../../features/solar/components/CameraAttitudeWidget'
 import { EXTENSION_ID, makeSolarAnalysisOverlay } from '../../../features/solar/components/SolarAnalysisOverlay'
 import { copy } from '../../../features/solar/copy'
 import {
@@ -83,6 +84,11 @@ export const solarAnalysisExtension: ViewerExtension = {
 
     // FR-008, FR-031, FR-042 — site following and figures-panel refresh (T021).
     context.contributeOverlay(makeSolarAnalysisOverlay(context, sceneRef))
+
+    // True north and camera tilt. Kept out of the figures panel deliberately: the figures track
+    // the time of day, these two track the camera, so they answer different questions and respond
+    // to different inputs. Withdrawn by the framework with every other contribution on stop.
+    context.contributeOverlay(makeCameraAttitudeWidget(context))
 
     // FR-030 — the time control is a live panel (interactive code with its own state, research
     // D12), registered once at start so it is ready the moment the user activates the analysis.

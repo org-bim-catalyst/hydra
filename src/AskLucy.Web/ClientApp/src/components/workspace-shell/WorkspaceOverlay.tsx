@@ -1,5 +1,6 @@
 import { Box } from '@mui/material'
 import type { ReactNode } from 'react'
+import { RESERVED_ATTRIBUTE } from '../../viewer/panels/layout/reservedRegions'
 import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
 import { CircularAction, type ExpandDirection } from './CircularAction'
 import { FloatingToolbar } from './FloatingToolbar'
@@ -67,7 +68,7 @@ export function WorkspaceOverlay({ controls, topClusterLeading, children }: Work
   return (
     <Box sx={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
       {(topClusterLeading || groups['top-cluster'].length > 0) && (
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto' }} {...{ [RESERVED_ATTRIBUTE]: '' }}>
           <FloatingToolbar anchor="top-end">
             {topClusterLeading}
             {groups['top-cluster'].map(renderControl)}
@@ -75,14 +76,14 @@ export function WorkspaceOverlay({ controls, topClusterLeading, children }: Work
         </Box>
       )}
       {groups['right-stack'].length > 0 && (
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto' }} {...{ [RESERVED_ATTRIBUTE]: '' }}>
           <FloatingToolbar anchor="top-end" direction="column" sx={{ mt: { xs: 9, sm: 10.5 } }}>
             {groups['right-stack'].map(renderControl)}
           </FloatingToolbar>
         </Box>
       )}
       {groups['bottom-end'].length > 0 && (
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto' }} {...{ [RESERVED_ATTRIBUTE]: '' }}>
           <FloatingToolbar anchor="bottom-end">{groups['bottom-end'].map(renderControl)}</FloatingToolbar>
         </Box>
       )}

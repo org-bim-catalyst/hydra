@@ -85,10 +85,21 @@ The floating panel framework (specs/028), reshaped by specs/049 into a content m
   code rather than data (continuous state, an owned drawing surface, or values flowing back into
   them live). No content panel needs registration. Nothing registers here today — the four
   built-in kinds this registry used to hold at import time became content blocks instead.
-- `store/floatingPanelStore.ts` — owns every open panel's lifecycle: cascade placement, z-order,
-  the fixed-cap LRU eviction, minimize/restore, viewport clamping, and the two viewer-context
-  subscriptions. Branches on a request's `kind` (`content` vs `live`) at construction; everything
-  after that is common to both.
+- `store/floatingPanelStore.ts` — owns every open panel's lifecycle: initial cascade seed (immediately
+  superseded by a real arrangement pass — see `layout/` below), z-order, the fixed-cap LRU eviction,
+  minimize/restore, viewport clamping, the reopen tray (`closedPanels`/`closePanel`/`reopenPanel`,
+  specs/054), and the two viewer-context subscriptions. Branches on a request's `kind` (`content` vs
+  `live`) at construction; everything after that is common to both.
+- `layout/` (specs/054) — the placement policy: `arrangement.ts` is a **pure** function
+  (`computeArrangement`) that packs open panels into a non-overlapping grid when they fit, falling
+  back to a size-ordered cascade (smallest panel frontmost) when they don't, plus
+  `findCandidateSlots`/`slotAtPoint` for the drag-time landing placeholder. `reservedRegions.ts` is
+  the module's only DOM-aware code: it collects every element carrying `data-panel-reserved`
+  (`RESERVED_ATTRIBUTE`) — page chrome, the extension toolbar, overlay widgets, the panel dock
+  itself — so placement never covers them. `components/FloatingPanelHost.tsx` is the thin glue that
+  feeds the DOM measurements to the pure engine and applies the result; `components/PanelDock.tsx`
+  is the left-edge rail hosting the explicit "arrange" action and the reopen-tray list. See
+  `specs/054-panel-placement-reopen/` for the full spec, plan, research, data model and contracts.
 
 Two capabilities give Lucy access to panels: `present_panel_content` (always available — composes
 content freely from the vocabulary) and `open_live_panel` (available only while something has
