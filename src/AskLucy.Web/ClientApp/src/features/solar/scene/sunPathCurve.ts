@@ -78,6 +78,177 @@ function seasonalExtremeDates(year: number, latitude: number): { summer: Date; w
   return latitude >= 0 ? { summer: juneSolstice, winter: decemberSolstice } : { summer: decemberSolstice, winter: juneSolstice }
 }
 
+/** The engraved compass dial the dome sits on — degree ticks every 5°, numbers every 30°, and
+ * cardinal/intercardinal letters, baked into one canvas texture. This is not decoration: FR-005
+ * requires the path be "correctly oriented against north", and a dial is what makes that legible
+ * rather than asserted.
+ *
+ * Every stroke and glyph is drawn twice — a light halo behind a dark core — so the dial stays
+ * readable over roads, parks or buildings in either map theme, the same "casing" trick real maps
+ * use for trail markers. Reproduced from the reference implementation, which arrived at it because
+ * a single-colour dial disappeared against the basemap. */
+function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const texture = new THREE.CanvasTexture(canvas)
+  if (!ctx) return texture
+
+  const centre = size / 2
+  const ringRadius = size * 0.42
+  const ink = 'rgba(15,18,24,0.95)'
+  const halo = 'rgba(255,255,255,0.92)'
+
+  function casedStroke(draw: () => void, coreWidth: number): void {
+    ctx!.lineWidth = coreWidth * 2.6
+    ctx!.strokeStyle = halo
+    draw()
+    ctx!.lineWidth = coreWidth
+    ctx!.strokeStyle = ink
+    draw()
+  }
+
+  function outlinedText(text: string, x: number, y: number, font: string): void {
+    ctx!.font = font
+    ctx!.textAlign = 'center'
+    ctx!.textBaseline = 'middle'
+    ctx!.lineWidth = size * 0.009
+    ctx!.strokeStyle = halo
+    ctx!.strokeText(text, x, y)
+    ctx!.fillStyle = ink
+    ctx!.fillText(text, x, y)
+  }
+
+  casedStroke(() => {
+    ctx.beginPath()
+    ctx.arc(centre, centre, ringRadius, 0, Math.PI * 2)
+    ctx.stroke()
+  }, size * 0.0026)
+
+  for (let degrees = 0; degrees < 360; degrees += 5) {
+    const isMajor = degrees % 30 === 0
+    const isMid = !isMajor && degrees % 10 === 0
+    // 0° = North at the texture's top, increasing clockwise — matching compass convention.
+    const angle = ((degrees - 90) * Math.PI) / 180
+    const tickLength = isMajor ? size * 0.026 : isMid ? size * 0.017 : size * 0.009
+    const outerRadius = ringRadius + tickLength
+    casedStroke(() => {
+      ctx.beginPath()
+      ctx.moveTo(centre + Math.cos(angle) * ringRadius, centre + Math.sin(angle) * ringRadius)
+      ctx.lineTo(centre + Math.cos(angle) * outerRadius, centre + Math.sin(angle) * outerRadius)
+      ctx.stroke()
+    }, isMajor ? size * 0.0026 : size * 0.0015)
+
+    if (isMajor) {
+      const labelRadius = outerRadius + size * 0.028
+      outlinedText(
+        String(degrees),
+        centre + Math.cos(angle) * labelRadius,
+        centre + Math.sin(angle) * labelRadius,
+        `500 ${Math.round(size * 0.018)}px Inter, sans-serif`,
+      )
+    }
+  }
+
+  const cardinals = [
+    { angle: 0, label: 'N' }, { angle: 45, label: 'NE' }, { angle: 90, label: 'E' }, { angle: 135, label: 'SE' },
+    { angle: 180, label: 'S' }, { angle: 225, label: 'SW' }, { angle: 270, label: 'W' }, { angle: 315, label: 'NW' },
+  ]
+  for (const cardinal of cardinals) {
+    const isPrimary = cardinal.label.length === 1
+    const angle = ((cardinal.angle - 90) * Math.PI) / 180
+    const labelRadius = ringRadius + size * (isPrimary ? 0.062 : 0.053)
+    outlinedText(
+      cardinal.label,
+      centre + Math.cos(angle) * labelRadius,
+      centre + Math.sin(angle) * labelRadius,
+      `${isPrimary ? 700 : 600} ${Math.round(size * (isPrimary ? 0.03 : 0.021))}px Inter, sans-serif`,
+    )
+  }
+
+  texture.anisotropy = 4
+  texture.needsUpdate = true
+  return texture
+}
+
+/** The dial platform the whole instrument reads as sitting on. `0.84` is twice the texture's own
+ * ring-radius fraction (0.42), so the drawn ring lands exactly at `radiusMetres`. */
+export function buildCompassDial(radiusMetres: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.CircleGeometry(radiusMetres / 0.84, 96),
+    new THREE.MeshStandardMaterial({
+      map: makeCompassDialTexture(),
+      transparent: true,
+      alphaTest: 0.04,
+      depthWrite: false,
+      roughness: 0.7,
+      metalness: 0.05,
+    }),
+  )
+  // Just clear of z=0 so it never z-fights the shadow ground plane sharing that height.
+  mesh.position.z = 0.05
+  mesh.receiveShadow = true
+  return mesh
+}
+
+/** The instrument's centre mounting post — a visual anchor tying the dome to the site point. */
+export function buildMountPost(heightMetres = 12, radiusMetres = 1.1): THREE.Group {
+  const group = new THREE.Group()
+  const material = new THREE.MeshStandardMaterial({ color: 0x3a4152, metalness: 0.65, roughness: 0.3 })
+
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(radiusMetres * 0.5, radiusMetres * 0.75, heightMetres, 14), material)
+  // CylinderGeometry is Y-aligned by default; this scene's up axis is Z (ENU).
+  post.rotation.x = Math.PI / 2
+  post.position.z = heightMetres / 2
+  post.castShadow = true
+  group.add(post)
+
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(radiusMetres * 1.3, 16, 16), material)
+  knob.position.z = heightMetres
+  knob.castShadow = true
+  group.add(knob)
+
+  return group
+}
+
+/** The translucent envelope enclosing the whole sun-path dome.
+ *
+ * research D17 dropped the reference implementation's glass shell because it used
+ * `MeshPhysicalMaterial`'s `transmission`, which only reads as glass against a `scene.environment`
+ * — and the scene is shared, framework-owned state an extension may not assign (FR-038). This is
+ * the same envelope built from a plain transparent material instead: no environment map, no global
+ * state touched, and it still gives the dome its enclosing volume. */
+export function buildDomeShell(radiusMetres: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(radiusMetres, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({
+      color: 0x8fd6bc,
+      transparent: true,
+      opacity: 0.16,
+      roughness: 0.12,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  // SphereGeometry's hemisphere opens along +Y; rotate so it opens along this scene's +Z up axis.
+  mesh.rotation.x = Math.PI / 2
+  return mesh
+}
+
+/** The faint monthly lattice that gives the dome its characteristic woven look — the sun's arc on
+ * the 15th of each month. Context for the chosen day and the two extremes, deliberately dim so it
+ * never competes with them (FR-006 requires the extremes stay distinguishable). */
+export function buildMonthlyGridArcs(latitude: number, longitude: number, year: number, radiusMetres: number): THREE.Mesh[] {
+  const arcs: THREE.Mesh[] = []
+  for (let month = 0; month < 12; month++) {
+    const points = sampleDayArcPoints(new Date(Date.UTC(year, month, 15)), latitude, longitude, radiusMetres)
+    const tube = buildTubeFromPoints(points, 0.3, 0xe8a03d, 0.4)
+    if (tube) arcs.push(tube)
+  }
+  return arcs
+}
+
 export interface SunPathObjects {
   /** `null` only when the chosen day never rises above the horizon at all (deep polar night). */
   chosenDay: THREE.Mesh | null
@@ -85,6 +256,12 @@ export interface SunPathObjects {
   winterExtreme: THREE.Mesh | null
   hourMarks: THREE.Sprite[]
   currentPositionMarker: THREE.Mesh
+  /** The dome's fixed furniture — compass dial, mount post, shell and the monthly lattice. Built
+   * alongside the arcs so the whole instrument is created and disposed as one unit. */
+  dial: THREE.Mesh
+  mountPost: THREE.Group
+  shell: THREE.Mesh
+  monthlyArcs: THREE.Mesh[]
 }
 
 /** contracts/solar-extension.md, FR-005, FR-006, FR-007 — the chosen day's arc, the two seasonal
@@ -125,7 +302,17 @@ export function buildSunPath(
   )
   currentPositionMarker.position.copy(sphericalToVec(currentPosition.azimuthDegrees, clampedAltitude, radiusMetres))
 
-  return { chosenDay, summerExtreme, winterExtreme, hourMarks, currentPositionMarker }
+  return {
+    chosenDay,
+    summerExtreme,
+    winterExtreme,
+    hourMarks,
+    currentPositionMarker,
+    dial: buildCompassDial(radiusMetres),
+    mountPost: buildMountPost(),
+    shell: buildDomeShell(radiusMetres),
+    monthlyArcs: buildMonthlyGridArcs(latitude, longitude, dateUtc.getUTCFullYear(), radiusMetres),
+  }
 }
 
 /** T051, FR-019, FR-022, FR-023, SC-004 — repositions and recolors an EXISTING current-position

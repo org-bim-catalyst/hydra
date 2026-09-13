@@ -152,10 +152,20 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // specs/051 FR-026/research D6 — announces on the map's own 'idle' event (fires once
       // movement settles, not per frame), never a per-frame poll. Optional chaining: the map
       // instance in existing tests is a lightweight stub without Maps SDK event methods.
-      const idleListener = handle.map.addListener?.('idle', () => {
+      const announceCamera = () => {
         const camera = getCameraStateFromHandle(handle!)
         if (camera) viewerEngine.notifyCameraChanged(camera)
-      })
+      }
+
+      const idleListener = handle.map.addListener?.('idle', announceCamera)
+
+      // 'idle' alone is too coarse for anything that tracks orientation continuously — it fires
+      // only once movement settles, so a compass or level indicator driven by it would sit still
+      // during the rotation it is meant to be showing. Heading and tilt each get their own
+      // listener so orientation changes are announced as they happen, while pan/zoom stay on
+      // 'idle' (they have no such consumer and would be pure churn per frame).
+      const headingListener = handle.map.addListener?.('heading_changed', announceCamera)
+      const tiltListener = handle.map.addListener?.('tilt_changed', announceCamera)
 
       rotationDriver = new RotationDriver({ setHeading: handle.setHeading }, lastCameraRef.current?.heading)
 
@@ -213,7 +223,9 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       unregister = () => {
         unregisterRenderTarget()
         unregisterSelectable()
-        if (idleListener) google.maps.event.removeListener(idleListener)
+        for (const listener of [idleListener, headingListener, tiltListener]) {
+          if (listener) google.maps.event.removeListener(listener)
+        }
       }
     })()
 

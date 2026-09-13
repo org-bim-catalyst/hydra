@@ -69,4 +69,11 @@ export const copy = {
   sunriseLabel: 'Sunrise',
   sunsetLabel: 'Sunset',
   dayLengthLabel: 'Day length',
+
+  // Camera attitude widget — north and tilt, both driven by the camera rather than by time.
+  cameraAttitudeLabel: 'View orientation',
+  /** The widget's accessible text equivalent: the needle and bubble are decorative, so the actual
+   * values have to be readable, not just visible (constitution §7). */
+  cameraAttitudeReadout: (headingDegrees: number, tiltDegrees: number) =>
+    `N ${Math.round(headingDegrees)}° · Tilt ${Math.round(tiltDegrees)}°`,
 } as const
