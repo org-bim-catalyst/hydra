@@ -145,21 +145,23 @@ describe('FloatingPanel drag/resize wiring (US2, FR-004/FR-005/FR-018)', () => {
       expect(onDragStart).toHaveBeenCalledTimes(1)
     })
 
-    it('calls onDragMove with the live point on every drag move, alongside the existing live-follow updatePosition', () => {
+    it('calls onDragMove with the panel’s CENTER (not its raw top-left) on every drag move, alongside the existing live-follow updatePosition', () => {
       const onDragMove = vi.fn()
+      // Default makePanel size is 400x300 (half-width 200, half-height 150).
       render(<FloatingPanel panel={makePanel({ id: 'panel-drag-move' })} onDragMove={onDragMove} />)
       const onDrag = lastRndProps.onDrag as (e: unknown, data: { x: number; y: number }) => void
       onDrag(undefined, { x: 77, y: 88 })
       expect(updatePositionMock).toHaveBeenCalledWith('panel-drag-move', { x: 77, y: 88 })
-      expect(onDragMove).toHaveBeenCalledWith({ x: 77, y: 88 })
+      expect(onDragMove).toHaveBeenCalledWith({ x: 277, y: 238 })
     })
 
-    it('applies the position onDragEnd returns (a snap) instead of the raw drop point', () => {
+    it('applies the position onDragEnd returns (a snap) instead of the raw drop point, called with the CENTER', () => {
       const onDragEnd = vi.fn().mockReturnValue({ x: 999, y: 111 })
+      // Default makePanel size is 400x300 (half-width 200, half-height 150).
       render(<FloatingPanel panel={makePanel({ id: 'panel-snap' })} onDragEnd={onDragEnd} />)
       const onDragStop = lastRndProps.onDragStop as (e: unknown, data: { x: number; y: number }) => void
       onDragStop(undefined, { x: 200, y: 200 })
-      expect(onDragEnd).toHaveBeenCalledWith({ x: 200, y: 200 })
+      expect(onDragEnd).toHaveBeenCalledWith({ x: 400, y: 350 })
       expect(updatePositionMock).toHaveBeenCalledWith('panel-snap', { x: 999, y: 111 })
     })
 
@@ -227,13 +229,48 @@ describe('FloatingPanel minimize/restore (US2, FR-006)', () => {
     expect(minimizePanelMock).toHaveBeenCalledWith('panel-min')
   })
 
-  it('renders a compact bar (no Rnd chrome) when minimized, with a working restore button', async () => {
+  it('renders a compact bar (no minimize control) when minimized, with a working restore button', async () => {
     const user = userEvent.setup()
     render(<FloatingPanel panel={makePanel({ id: 'panel-restore', minimized: true })} />)
-    expect(screen.queryByTestId('rnd-mock')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /minimize panel/i })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /restore panel/i }))
     expect(restorePanelMock).toHaveBeenCalledWith('panel-restore')
+  })
+
+  // specs/054 (feedback 2026-09-13) — a minimized panel used to be a plain positioned Box, not
+  // wrapped in Rnd at all, so it couldn't be dragged. Several panels can now minimize into
+  // overlapping bars with no collision avoidance of their own, so it's wired through the same
+  // Rnd + onDragStart/onDragMove/onDragEnd chain the full panel uses.
+  it('is draggable while minimized, wired through the same onDragStart/onDragMove/onDragEnd chain as a full panel', () => {
+    const onDragStart = vi.fn()
+    const onDragMove = vi.fn()
+    const onDragEnd = vi.fn().mockReturnValue({ x: 77, y: 88 })
+    render(
+      <FloatingPanel
+        panel={makePanel({ id: 'panel-min-drag', minimized: true, position: { x: 10, y: 20 } })}
+        onDragStart={onDragStart}
+        onDragMove={onDragMove}
+        onDragEnd={onDragEnd}
+      />,
+    )
+
+    expect(lastRndProps.position).toEqual({ x: 10, y: 20 })
+    expect(lastRndProps.enableResizing).toBe(false)
+
+    const rndOnDragStart = lastRndProps.onDragStart as () => void
+    rndOnDragStart()
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+
+    // MINIMIZED_BAR_WIDTH/HEIGHT (220x40) — half-width 110, half-height 20.
+    const onDrag = lastRndProps.onDrag as (e: unknown, data: { x: number; y: number }) => void
+    onDrag(undefined, { x: 30, y: 40 })
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-min-drag', { x: 30, y: 40 })
+    expect(onDragMove).toHaveBeenCalledWith({ x: 140, y: 60 })
+
+    const onDragStop = lastRndProps.onDragStop as (e: unknown, data: { x: number; y: number }) => void
+    onDragStop(undefined, { x: 50, y: 60 })
+    expect(onDragEnd).toHaveBeenCalledWith({ x: 160, y: 80 })
+    expect(updatePositionMock).toHaveBeenCalledWith('panel-min-drag', { x: 77, y: 88 })
   })
 })
 

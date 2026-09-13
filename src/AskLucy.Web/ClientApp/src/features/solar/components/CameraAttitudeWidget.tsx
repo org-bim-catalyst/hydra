@@ -53,81 +53,109 @@ export function makeCameraAttitudeWidget(context: ExtensionContext) {
     const bubbleOffsetPixels = Math.max(-1, Math.min(1, camera.tilt / MAX_TILT_DEGREES)) * BUBBLE_TRAVEL_PIXELS
 
     return (
+      // Found live (2026-09-13): the heading/tilt readout used to live INSIDE the circular dial
+      // (`overflow: hidden`, 96px wide) — "N 321° · Tilt 0°" at that width routinely got clipped.
+      // Restructured into two siblings sharing one absolute position: the dial (unchanged
+      // visually) and a small badge below it, outside the dial's clipping region entirely, sized
+      // to fit its own text rather than a fixed circle.
       <Box
         ref={rootRef}
-        role="group"
-        aria-label={copy.cameraAttitudeLabel}
         {...{ [RESERVED_ATTRIBUTE]: '' }}
-        sx={{
-          position: 'absolute',
-          top,
-          left: { xs: 16, sm: 24 },
-          zIndex: 2,
-          width: 96,
-          height: 96,
-          borderRadius: '50%',
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          boxShadow: 3,
-          pointerEvents: 'none',
-          overflow: 'hidden',
-        }}
+        sx={{ position: 'absolute', top, left: { xs: 16, sm: 24 }, zIndex: 2, width: 96, pointerEvents: 'none' }}
       >
-        {/* Crosshair — the fixed frame the bubble moves against. */}
-        <Box sx={{ position: 'absolute', inset: 8, borderRadius: '50%', border: '1px solid', borderColor: 'divider', opacity: 0.6 }} />
-        <Box sx={{ position: 'absolute', left: '50%', top: 10, bottom: 10, width: '1px', bgcolor: 'divider', transform: 'translateX(-50%)' }} />
-        <Box sx={{ position: 'absolute', top: '50%', left: 10, right: 10, height: '1px', bgcolor: 'divider', transform: 'translateY(-50%)' }} />
-
-        {/* North needle. `aria-hidden` because the accessible value is published as text below —
-            a rotated triangle conveys nothing to a screen reader. */}
-        {/* The rotation goes through `style`, not `sx`: it changes on every camera event, and MUI
-            would otherwise generate and inject a fresh CSS class per distinct angle. */}
         <Box
-          aria-hidden
-          style={{ transform: `rotate(${northRotationDegrees}deg)` }}
-          sx={{ position: 'absolute', inset: 0, transition: 'transform 0.12s linear' }}
+          role="group"
+          aria-label={copy.cameraAttitudeLabel}
+          sx={{
+            // Found live (2026-09-13): missing `position: 'relative'` here — every child below
+            // uses `position: 'absolute'` expecting THIS 96x96 circle as its containing block, but
+            // without it, they positioned against the OUTER wrapper instead, which is TALLER than
+            // 96px (it also contains the badge below). That stretched the crosshair/needle/bubble
+            // outside the circle's actual bounds — the "distortion" reported live.
+            position: 'relative',
+            width: 96,
+            height: 96,
+            borderRadius: '50%',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            boxShadow: 3,
+            overflow: 'hidden',
+          }}
         >
+          {/* Crosshair — the fixed frame the bubble moves against. */}
+          <Box sx={{ position: 'absolute', inset: 8, borderRadius: '50%', border: '1px solid', borderColor: 'divider', opacity: 0.6 }} />
+          <Box sx={{ position: 'absolute', left: '50%', top: 10, bottom: 10, width: '1px', bgcolor: 'divider', transform: 'translateX(-50%)' }} />
+          <Box sx={{ position: 'absolute', top: '50%', left: 10, right: 10, height: '1px', bgcolor: 'divider', transform: 'translateY(-50%)' }} />
+
+          {/* North needle. `aria-hidden` because the accessible value is published as text in the
+              badge below — a rotated triangle conveys nothing to a screen reader. */}
+          {/* The rotation goes through `style`, not `sx`: it changes on every camera event, and MUI
+              would otherwise generate and inject a fresh CSS class per distinct angle. */}
           <Box
+            aria-hidden
+            style={{ transform: `rotate(${northRotationDegrees}deg)` }}
+            sx={{ position: 'absolute', inset: 0, transition: 'transform 0.12s linear' }}
+          >
+            <Box
+              sx={{
+                position: 'absolute',
+                left: '50%',
+                top: 12,
+                width: 0,
+                height: 0,
+                transform: 'translateX(-50%)',
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderBottom: '14px solid',
+                borderBottomColor: 'error.main',
+              }}
+            />
+            <Typography
+              sx={{ position: 'absolute', left: '50%', top: 26, transform: 'translateX(-50%)', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px' }}
+            >
+              N
+            </Typography>
+          </Box>
+
+          {/* Tilt bubble — rides toward the bottom of its travel as the camera tilts toward horizon. */}
+          <Box
+            aria-hidden
+            style={{ transform: `translate(-50%, calc(-50% + ${bubbleOffsetPixels}px))` }}
             sx={{
               position: 'absolute',
               left: '50%',
-              top: 12,
-              width: 0,
-              height: 0,
-              transform: 'translateX(-50%)',
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderBottom: '14px solid',
-              borderBottomColor: 'error.main',
+              top: '50%',
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              bgcolor: 'success.light',
+              boxShadow: '0 0 8px rgba(111,207,92,0.65)',
+              transition: 'transform 0.25s ease-out',
             }}
           />
-          <Typography
-            sx={{ position: 'absolute', left: '50%', top: 26, transform: 'translateX(-50%)', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px' }}
-          >
-            N
-          </Typography>
         </Box>
 
-        {/* Tilt bubble — rides toward the bottom of its travel as the camera tilts toward horizon. */}
-        <Box
-          aria-hidden
-          style={{ transform: `translate(-50%, calc(-50% + ${bubbleOffsetPixels}px))` }}
-          sx={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            width: 18,
-            height: 18,
-            borderRadius: '50%',
-            bgcolor: 'success.light',
-            boxShadow: '0 0 8px rgba(111,207,92,0.65)',
-            transition: 'transform 0.25s ease-out',
-          }}
-        />
-
         <Typography
-          sx={{ position: 'absolute', bottom: 4, left: 0, right: 0, textAlign: 'center', fontSize: 9, letterSpacing: '0.6px', color: 'text.secondary' }}
+          sx={{
+            display: 'block',
+            mt: 0.5,
+            mx: 'auto',
+            width: 'fit-content',
+            maxWidth: '100%',
+            textAlign: 'center',
+            fontSize: 9,
+            letterSpacing: '0.6px',
+            color: 'text.secondary',
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            px: 0.75,
+            py: 0.25,
+            boxShadow: 1,
+            whiteSpace: 'nowrap',
+          }}
         >
           {copy.cameraAttitudeReadout(camera.heading, camera.tilt)}
         </Typography>

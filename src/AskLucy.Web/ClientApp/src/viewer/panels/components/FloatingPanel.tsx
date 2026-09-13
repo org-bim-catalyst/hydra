@@ -17,8 +17,12 @@ import { usePanelPreferencesStore } from '../store/panelPreferencesStore'
 import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, type FloatingPanel as FloatingPanelModel } from '../types/panel'
 
 const DRAG_HANDLE_CLASS = 'floating-panel-drag-handle'
-const MINIMIZED_BAR_WIDTH = 220
-const MINIMIZED_BAR_HEIGHT = 40
+// specs/054 (feedback 2026-09-13): exported — FloatingPanelHost needs the minimized bar's actual
+// on-screen footprint to compute correct drag candidate slots/obstacles for it, since a minimized
+// panel's stored `size` field still holds its pre-minimize (full) dimensions (restoreState.size),
+// not what it currently occupies on screen.
+export const MINIMIZED_BAR_WIDTH = 220
+export const MINIMIZED_BAR_HEIGHT = 40
 const NUDGE_STEP = 10
 const NUDGE_STEP_LARGE = 40
 
@@ -52,13 +56,16 @@ export interface FloatingPanelProps {
   /** specs/054 D6 — fired when a drag gesture begins, so `FloatingPanelHost` can compute this
    * panel's candidate landing slots once, up front. */
   onDragStart?: () => void
-  /** specs/054 D6 — fired on every drag move with the panel's current (raw, un-snapped) position,
-   * so the host can look up and render whichever candidate slot the pointer is currently over. */
-  onDragMove?: (point: { x: number; y: number }) => void
-  /** specs/054 D6 — given the raw drop point, returns the position to actually apply. The host
-   * uses this to snap onto whichever landing placeholder was shown; absent (or returning the same
-   * point back) leaves the panel exactly where it was released, unchanged from prior behavior. */
-  onDragEnd?: (point: { x: number; y: number }) => { x: number; y: number }
+  /** specs/054 D6 — fired on every drag move with the panel's current CENTER (not its top-left
+   * corner — feedback 2026-09-13: anchoring slot detection to the corner meant the landing
+   * placeholder tracked far from wherever the user actually grabbed the panel, for anything but a
+   * tiny panel or a corner grab), so the host can look up and render whichever candidate slot the
+   * panel's center is currently over. */
+  onDragMove?: (center: { x: number; y: number }) => void
+  /** specs/054 D6 — given the drop point's CENTER, returns the top-left position to snap to when
+   * a landing placeholder was showing there, or `null`/`undefined` to leave the panel exactly
+   * where it was released (free-form drop, unchanged from prior behavior). */
+  onDragEnd?: (center: { x: number; y: number }) => { x: number; y: number } | null | undefined
 }
 
 /** Dispatches on the panel's own `kind` (specs/049): a content panel's already-validated block
@@ -168,38 +175,59 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
 
   if (panel.minimized) {
     return (
-      <Box
-        role="region"
-        aria-label={panel.title}
+      // Found live (2026-09-13): this used to be a plain positioned Box, not wrapped in `Rnd` at
+      // all — a deliberate spec-049 simplification ("simpler, avoids ambiguity about what
+      // dragging a minimized panel even means"), but with several panels now able to minimize
+      // into overlapping bars with no collision avoidance of their own, that gap became a real
+      // usability problem. Wired through the same onDragStart/onDragMove/onDragEnd chain the
+      // full panel uses, so the identical landing-placeholder and reflow-on-drop behavior applies
+      // here too — no new mechanism, just the existing one extended to this branch.
+      <Rnd
+        size={{ width: MINIMIZED_BAR_WIDTH, height: MINIMIZED_BAR_HEIGHT }}
+        position={{ x: panel.position.x, y: panel.position.y }}
+        bounds="parent"
+        enableResizing={false}
+        style={{ zIndex: panel.zOrder, pointerEvents: 'auto' }}
         onMouseDown={() => focusPanel(panel.id)}
-        sx={{
-          position: 'absolute',
-          left: panel.position.x,
-          top: panel.position.y,
-          width: MINIMIZED_BAR_WIDTH,
-          height: MINIMIZED_BAR_HEIGHT,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          px: 1,
-          borderRadius: 2,
-          boxShadow: 4,
-          zIndex: panel.zOrder,
-          bgcolor: backgroundColor,
-          color: 'text.primary',
-          pointerEvents: 'auto',
+        onDragStart={() => onDragStart?.()}
+        onDrag={(_event, data) => {
+          updatePosition(panel.id, { x: data.x, y: data.y })
+          onDragMove?.({ x: data.x + MINIMIZED_BAR_WIDTH / 2, y: data.y + MINIMIZED_BAR_HEIGHT / 2 })
+        }}
+        onDragStop={(_event, data) => {
+          const center = { x: data.x + MINIMIZED_BAR_WIDTH / 2, y: data.y + MINIMIZED_BAR_HEIGHT / 2 }
+          const finalPosition = onDragEnd?.(center) ?? { x: data.x, y: data.y }
+          updatePosition(panel.id, finalPosition)
         }}
       >
-        <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
-          {panel.title}
-        </Typography>
-        <IconButton onClick={() => restorePanel(panel.id)} aria-label="Restore panel" size="small">
-          <RiExpandDiagonalLine size={16} />
-        </IconButton>
-        <IconButton onClick={() => closePanel(panel.id)} aria-label="Close panel" size="small">
-          <RiCloseLine size={16} />
-        </IconButton>
-      </Box>
+        <Box
+          role="region"
+          aria-label={panel.title}
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: 1,
+            borderRadius: 2,
+            boxShadow: 4,
+            bgcolor: backgroundColor,
+            color: 'text.primary',
+            cursor: 'move',
+          }}
+        >
+          <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
+            {panel.title}
+          </Typography>
+          <IconButton onClick={() => restorePanel(panel.id)} aria-label="Restore panel" size="small">
+            <RiExpandDiagonalLine size={16} />
+          </IconButton>
+          <IconButton onClick={() => closePanel(panel.id)} aria-label="Close panel" size="small">
+            <RiCloseLine size={16} />
+          </IconButton>
+        </Box>
+      </Rnd>
     )
   }
 
@@ -221,13 +249,14 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
       // position — which reads as the panel lagging behind the cursor instead of staying under it.
       onDrag={(_event, data) => {
         updatePosition(panel.id, { x: data.x, y: data.y })
-        onDragMove?.({ x: data.x, y: data.y })
+        onDragMove?.({ x: data.x + panel.size.width / 2, y: data.y + panel.size.height / 2 })
       }}
       // specs/054 D6 — the host may snap this onto whichever landing placeholder was showing;
-      // with no `onDragEnd` wired (or one that hands the same point back), this is unchanged from
+      // with no `onDragEnd` wired (or one that returns null/undefined), this is unchanged from
       // dropping exactly where released.
       onDragStop={(_event, data) => {
-        const finalPosition = onDragEnd?.({ x: data.x, y: data.y }) ?? { x: data.x, y: data.y }
+        const center = { x: data.x + panel.size.width / 2, y: data.y + panel.size.height / 2 }
+        const finalPosition = onDragEnd?.(center) ?? { x: data.x, y: data.y }
         updatePosition(panel.id, finalPosition)
       }}
       onResizeStop={(_event, _direction, ref, _delta, position) => {
