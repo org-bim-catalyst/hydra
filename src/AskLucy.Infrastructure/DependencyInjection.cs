@@ -146,6 +146,14 @@ public static class DependencyInjection
             .BindConfiguration(BuildingRetrievalOptions.SectionName)
             .ValidateOnStart();
 
+        // specs/053-rendered-building-footprints — building footprints traced from the map
+        // provider's own rendered imagery. No ApiKey here either: it reuses
+        // GoogleMapsGeocodingOptions.GoogleMapsApiKey, the same key GoogleRenderedFillBoundaryExtractor
+        // already validates at startup.
+        services.AddOptions<RenderedFootprintOptions>()
+            .BindConfiguration(RenderedFootprintOptions.SectionName)
+            .ValidateOnStart();
+
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
         // pipeline, research.md Decision 2). Connection string resolved lazily from the
         // container's IConfiguration at configuration time, not eagerly from the `configuration`
@@ -320,9 +328,18 @@ public static class DependencyInjection
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
-        // specs/052-solar-analysis research D4 — always Overpass in v1 (a future authoritative/
-        // cadastral source is an additive Infrastructure implementation, not a rewrite).
-        services.AddScoped<IBuildingFootprintProvider, OverpassBuildingFootprintProvider>();
+        // specs/053-rendered-building-footprints T025 — IBuildingFootprintProvider now resolves to
+        // the composite (rendered primary, Overpass fallback — contracts/footprint-source-
+        // arbitration.md), not directly to Overpass. Both inner providers are registered as KEYED
+        // IBuildingFootprintProvider implementations (corrected during implementation from the
+        // contract's original concrete-type design — RenderedBuildingFootprintProvider and
+        // OverpassBuildingFootprintProvider are both `sealed`, which NSubstitute cannot proxy, so a
+        // concrete-type constructor could not be unit-tested; keyed-interface DI is both fakeable
+        // and better dependency inversion, §2.V) — this is the only change to existing backend
+        // wiring this feature makes.
+        services.AddKeyedScoped<IBuildingFootprintProvider, RenderedBuildingFootprintProvider>(CompositeBuildingFootprintProvider.RenderedKey);
+        services.AddKeyedScoped<IBuildingFootprintProvider, OverpassBuildingFootprintProvider>(CompositeBuildingFootprintProvider.OsmKey);
+        services.AddScoped<IBuildingFootprintProvider, CompositeBuildingFootprintProvider>();
         // Same key-presence rule as the geocoder above, and for the same reason: prefer Google
         // where we can reach it, degrade to a keyless provider where we cannot.
         if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))

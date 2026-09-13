@@ -41,7 +41,6 @@ internal sealed class OverpassBuildingFootprintProvider(
     private const string UserAgentHeader = "AskLucy/1.0 (+https://hydra.bimcatalyst.com)";
     private const double MetresPerLevel = 3.0;
     private const double DefaultHeightMetres = 9.0; // research D5 — 9 m is three levels at the same 3 m rule.
-    private const double SiteBuildingEdgeToleranceMetres = 25.0; // research D8
 
     private const int MaxAttempts = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
@@ -139,8 +138,8 @@ internal sealed class OverpassBuildingFootprintProvider(
 
     /// <summary>FR-013 — unusable footprints are excluded and counted, never failing the whole
     /// analysis. FR-015 — the count cap sets <see cref="BuildingFootprintResult.Limited"/>.
-    /// FR-012, research D8 — the site-building rule: containment first (in Overpass's own return
-    /// order), then nearest edge within 25 m, otherwise none.</summary>
+    /// FR-012, research D8 — the site-building rule is <see cref="SiteBuildingLocator"/>, shared
+    /// with specs/053's rendered provider so both sources apply the identical rule.</summary>
     private BuildingFootprintResult BuildResult(IReadOnlyList<OverpassElement> elements, GeoPoint center, int radiusMetres)
     {
         var usable = new List<(OverpassElement Element, IReadOnlyList<GeoPoint> Ring)>();
@@ -164,7 +163,7 @@ internal sealed class OverpassBuildingFootprintProvider(
             usable.Add((element, ring));
         }
 
-        var siteBuildingIndex = FindSiteBuildingIndex(usable.Select(u => u.Ring).ToList(), center);
+        var siteBuildingIndex = SiteBuildingLocator.FindIndex(usable.Select(u => u.Ring).ToList(), center);
 
         var limited = usable.Count > _retrievalOptions.MaxBuildingCount;
         var bounded = limited ? usable.Take(_retrievalOptions.MaxBuildingCount).ToList() : usable;
@@ -185,7 +184,7 @@ internal sealed class OverpassBuildingFootprintProvider(
                 IsSiteBuilding: i == siteBuildingIndex));
         }
 
-        return new BuildingFootprintResult(buildings, limited, excludedCount, radiusMetres);
+        return new BuildingFootprintResult(buildings, limited, excludedCount, radiusMetres, BuildingFootprintSource.Osm);
     }
 
     /// <summary>research D5 — height tag (parsed leniently for a trailing "m") -&gt; known;
@@ -262,75 +261,6 @@ internal sealed class OverpassBuildingFootprintProvider(
         double d3 = Cross(p2.X - p1.X, p2.Y - p1.Y, p3.X - p1.X, p3.Y - p1.Y);
         double d4 = Cross(p2.X - p1.X, p2.Y - p1.Y, p4.X - p1.X, p4.Y - p1.Y);
         return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
-    }
-
-    /// <summary>research D8 — the footprint whose polygon contains the site point (tested in
-    /// Overpass's own return order, first containing footprint wins); failing that, the footprint
-    /// whose edge is nearest to the site point, provided it is within 25 m; otherwise none (-1).</summary>
-    private static int FindSiteBuildingIndex(IReadOnlyList<IReadOnlyList<GeoPoint>> rings, GeoPoint sitePoint)
-    {
-        for (var i = 0; i < rings.Count; i++)
-        {
-            if (PointInPolygon(sitePoint, rings[i])) return i;
-        }
-
-        var nearestIndex = -1;
-        var nearestDistance = double.MaxValue;
-        for (var i = 0; i < rings.Count; i++)
-        {
-            var distance = DistanceToRingEdge(sitePoint, rings[i]);
-            if (distance < nearestDistance)
-            {
-                nearestDistance = distance;
-                nearestIndex = i;
-            }
-        }
-
-        return nearestDistance <= SiteBuildingEdgeToleranceMetres ? nearestIndex : -1;
-    }
-
-    private static bool PointInPolygon(GeoPoint point, IReadOnlyList<GeoPoint> ring)
-    {
-        var inside = false;
-        for (int i = 0, j = ring.Count - 1; i < ring.Count; j = i++)
-        {
-            var pi = ring[i];
-            var pj = ring[j];
-            var intersects = ((pi.Latitude > point.Latitude) != (pj.Latitude > point.Latitude)) &&
-                              (point.Longitude < ((pj.Longitude - pi.Longitude) * (point.Latitude - pi.Latitude) / (pj.Latitude - pi.Latitude)) + pi.Longitude);
-            if (intersects) inside = !inside;
-        }
-        return inside;
-    }
-
-    private static double DistanceToRingEdge(GeoPoint point, IReadOnlyList<GeoPoint> ring)
-    {
-        var reference = point;
-        var (px, py) = GeometryMath.ToLocalMeters(point, reference); // (0, 0)
-        var local = ring.Select(p => GeometryMath.ToLocalMeters(p, reference)).ToList();
-
-        var minDistance = double.MaxValue;
-        for (var i = 0; i < local.Count; i++)
-        {
-            var a = local[i];
-            var b = local[(i + 1) % local.Count];
-            var distance = DistancePointToSegment(px, py, a.X, a.Y, b.X, b.Y);
-            if (distance < minDistance) minDistance = distance;
-        }
-        return minDistance;
-    }
-
-    private static double DistancePointToSegment(double px, double py, double ax, double ay, double bx, double by)
-    {
-        var abx = bx - ax;
-        var aby = by - ay;
-        var lengthSquared = (abx * abx) + (aby * aby);
-        var t = lengthSquared < 1e-9 ? 0 : Math.Clamp((((px - ax) * abx) + ((py - ay) * aby)) / lengthSquared, 0, 1);
-        var closestX = ax + (t * abx);
-        var closestY = ay + (t * aby);
-        var dx = px - closestX;
-        var dy = py - closestY;
-        return Math.Sqrt((dx * dx) + (dy * dy));
     }
 
     private sealed record OverpassResponse([property: JsonPropertyName("elements")] IReadOnlyList<OverpassElement>? Elements);

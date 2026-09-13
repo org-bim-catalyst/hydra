@@ -21,6 +21,16 @@ namespace AskLucy.Infrastructure.Boundaries;
 /// silently rounded off every real corner of a site whose shape (like nearly every real property)
 /// isn't grid-aligned in the source image. See docs/LOCATION_TO_BOUNDARY_END_TO_END.md §9.8.
 /// </remarks>
+/// <summary>specs/053-rendered-building-footprints — one polygon <see cref="MaskContourVectorizer.ExtractAllRings"/>
+/// produced, plus whether its source component touched the tile edge (research D6).</summary>
+internal sealed record ExtractedRing(IReadOnlyList<GeoPoint> Geo, bool TouchesTileEdge);
+
+/// <summary>Every usable ring from one mask, plus how many components were rejected — either below
+/// the caller's minimum area or for tracing to fewer than 3 points after simplification — counted,
+/// never silently dropped (FR-009). Both reasons roll into one total: the wire contract
+/// (<c>BuildingFootprintResult.ExcludedCount</c>) exposes a single count, not a reason breakdown.</summary>
+internal sealed record ExtractAllRingsResult(IReadOnlyList<ExtractedRing> Rings, int DegenerateCount);
+
 internal static class MaskContourVectorizer
 {
     /// <summary>Below this fraction of the image's own diagonal, a mask blob is treated as noise, not a boundary.</summary>
@@ -66,9 +76,54 @@ internal static class MaskContourVectorizer
     /// </summary>
     internal static HashSet<(int X, int Y)>? LargestComponent(bool[,] mask, int width, int height)
     {
-        var visited = new bool[width, height];
         HashSet<(int X, int Y)>? largest = null;
         var largestDiagonalSquared = 0.0;
+
+        foreach (var component in FloodFillComponents(mask, width, height, eightConnected: true))
+        {
+            var (minX, maxX, minY, maxY) = BoundingBox(component);
+            var diagonalSquared = ((double)(maxX - minX) * (maxX - minX)) + ((double)(maxY - minY) * (maxY - minY));
+            if (diagonalSquared > largestDiagonalSquared)
+            {
+                largestDiagonalSquared = diagonalSquared;
+                largest = component;
+            }
+        }
+
+        var imageDiagonal = Math.Sqrt(((double)width * width) + ((double)height * height));
+        var minDiagonal = imageDiagonal * MinComponentDiagonalFraction;
+        return largestDiagonalSquared >= minDiagonal * minDiagonal ? largest : null;
+    }
+
+    /// <summary>
+    /// specs/053-rendered-building-footprints research D2/D4/D5 — every component at or above
+    /// <paramref name="minimumPixelArea"/> pixels, instead of <see cref="LargestComponent"/>'s
+    /// single largest-by-diagonal. <paramref name="eightConnected"/> is <see langword="false"/> for
+    /// buildings (4-connected — diagonally-touching buildings must stay separate; research D4) and
+    /// would be <see langword="true"/> for a single-boundary caller like <see cref="LargestComponent"/>,
+    /// which does not use this method today but could switch to it without behaviour change since
+    /// both traverse identically at 8-connectivity.
+    /// </summary>
+    internal static List<HashSet<(int X, int Y)>> AllComponents(bool[,] mask, int width, int height, int minimumPixelArea, bool eightConnected)
+    {
+        var result = new List<HashSet<(int X, int Y)>>();
+        foreach (var component in FloodFillComponents(mask, width, height, eightConnected))
+        {
+            if (component.Count >= minimumPixelArea)
+            {
+                result.Add(component);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Shared flood-fill traversal: every connected component in <paramref name="mask"/>,
+    /// unfiltered by size. <paramref name="eightConnected"/> selects diagonal adjacency (a single
+    /// boundary, where bridging a one-pixel gap is desirable) versus 4-connected (buildings, where
+    /// two diagonally-adjacent footprints must not merge into one — research D4).</summary>
+    private static IEnumerable<HashSet<(int X, int Y)>> FloodFillComponents(bool[,] mask, int width, int height, bool eightConnected)
+    {
+        var visited = new bool[width, height];
 
         for (var x = 0; x < width; x++)
         {
@@ -84,20 +139,17 @@ internal static class MaskContourVectorizer
                 queue.Enqueue((x, y));
                 visited[x, y] = true;
 
-                var minX = x; var maxX = x; var minY = y; var maxY = y;
-
                 while (queue.Count > 0)
                 {
                     var (cx, cy) = queue.Dequeue();
                     component.Add((cx, cy));
-                    minX = Math.Min(minX, cx); maxX = Math.Max(maxX, cx);
-                    minY = Math.Min(minY, cy); maxY = Math.Max(maxY, cy);
 
                     for (var dx = -1; dx <= 1; dx++)
                     {
                         for (var dy = -1; dy <= 1; dy++)
                         {
                             if (dx == 0 && dy == 0) continue;
+                            if (!eightConnected && dx != 0 && dy != 0) continue; // 4-connected: skip diagonals
                             var nx = cx + dx; var ny = cy + dy;
                             if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
                             if (!mask[nx, ny] || visited[nx, ny]) continue;
@@ -107,18 +159,66 @@ internal static class MaskContourVectorizer
                     }
                 }
 
-                var diagonalSquared = ((double)(maxX - minX) * (maxX - minX)) + ((double)(maxY - minY) * (maxY - minY));
-                if (diagonalSquared > largestDiagonalSquared)
-                {
-                    largestDiagonalSquared = diagonalSquared;
-                    largest = component;
-                }
+                yield return component;
             }
         }
+    }
 
-        var imageDiagonal = Math.Sqrt(((double)width * width) + ((double)height * height));
-        var minDiagonal = imageDiagonal * MinComponentDiagonalFraction;
-        return largestDiagonalSquared >= minDiagonal * minDiagonal ? largest : null;
+    private static (int MinX, int MaxX, int MinY, int MaxY) BoundingBox(HashSet<(int X, int Y)> component)
+    {
+        var minX = int.MaxValue; var maxX = int.MinValue; var minY = int.MaxValue; var maxY = int.MinValue;
+        foreach (var (x, y) in component)
+        {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
+        return (minX, maxX, minY, maxY);
+    }
+
+    /// <summary>
+    /// specs/053-rendered-building-footprints research D2 — vectorises EVERY component
+    /// <see cref="AllComponents"/> returns, reusing <see cref="TraceOuterRing"/>,
+    /// <see cref="DouglasPeucker"/> and <see cref="ToGeoRing"/> unchanged per component. Each
+    /// result also carries whether the component touched the tile edge (research D6 — a
+    /// tile-edge-clipped footprint is fabricated geometry and must be excluded by the caller, while
+    /// a footprint merely extending past the analysis RADIUS, not the tile edge, is kept whole).
+    /// </summary>
+    internal static ExtractAllRingsResult ExtractAllRings(
+        bool[,] mask, int width, int height, SatelliteImage bounds, int minimumPixelArea, double simplifyEpsilon, bool eightConnected)
+    {
+        // Every component below minimumPixelArea is filtered out INSIDE AllComponents and never
+        // reaches the loop below — counting only from that filtered list would silently undercount
+        // FR-009's exclusion total. Comparing against the unfiltered set (minimumPixelArea: 1, the
+        // smallest a component can be) is what makes every too-small blob actually get counted.
+        var allRaw = AllComponents(mask, width, height, minimumPixelArea: 1, eightConnected).Count;
+        var components = AllComponents(mask, width, height, minimumPixelArea, eightConnected);
+        var rings = new List<ExtractedRing>();
+        var degenerateCount = allRaw - components.Count;
+
+        foreach (var component in components)
+        {
+            var pixelRing = TraceOuterRing(component, width, height);
+            if (pixelRing is null || pixelRing.Count < 3)
+            {
+                degenerateCount++;
+                continue;
+            }
+
+            var simplified = DouglasPeucker(pixelRing, simplifyEpsilon);
+            if (simplified.Count < 3)
+            {
+                degenerateCount++;
+                continue;
+            }
+
+            var geo = ToGeoRing(simplified, width, height, bounds);
+            var touchesTileEdge = component.Any(p => p.X == 0 || p.Y == 0 || p.X == width - 1 || p.Y == height - 1);
+            rings.Add(new ExtractedRing(geo, touchesTileEdge));
+        }
+
+        return new ExtractAllRingsResult(rings, degenerateCount);
     }
 
     /// <summary>
