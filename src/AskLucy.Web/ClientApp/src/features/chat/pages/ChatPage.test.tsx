@@ -522,6 +522,10 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     await waitForModelSeeding(queryClient)
 
     for (const label of [
+      // specs/052-solar-analysis: the first built-in extension to contribute a viewer toolbar
+      // entry (FR-029) — rendered by `ExtensionToolbar` inside `ViewerSurface`, which sits earlier
+      // in the DOM than WorkspaceOverlay's own controls, so it is the first stop in tab order.
+      'Solar Analysis',
       'Switch to dark mode',
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
       'Account menu',

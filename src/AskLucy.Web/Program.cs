@@ -457,6 +457,22 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // specs/052-solar-analysis contracts/building-footprints-endpoint.md — fronts a shared free
+    // Overpass service that has its own limits and has already returned 429 to this system
+    // (research D4); same generous, non-AI-cost-tiered shape as weather-endpoints (§6 requires
+    // every public endpoint carry a rate-limit policy — WeatherController is the precedent).
+    options.AddPolicy("buildings-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 30,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---

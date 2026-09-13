@@ -295,6 +295,16 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "Weather provider unavailable",
             "The weather service could not process this request. Please try again."),
 
+        // specs/052-solar-analysis contracts/building-footprints-endpoint.md — Overpass exhausted
+        // its retries. 503, not 502: this is the contract's own stated status (distinct from the
+        // AI-provider/weather 502 convention above), so the client's `partial` state (FR-014,
+        // sun path continues) can be driven off a status code specific to this endpoint.
+        AskLucy.Application.Buildings.BuildingProviderUnavailableException => (
+            StatusCodes.Status503ServiceUnavailable,
+            "https://hydra.bimcatalyst.com/problems/building-provider-unavailable",
+            "Building data unavailable",
+            "Building data is temporarily unavailable."),
+
         // specs/045-conversational-agent-runtime FR-034, contracts/system-agent-provisioning.md
         // §3 — a platform-provisioned agent (lucy.orchestrator and its sub-agents) rejecting every
         // user mutation path.

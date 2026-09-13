@@ -78,6 +78,16 @@ public static class StructuredPayloadExtractor
                         root.TryGetProperty("orientationDegrees", out var orientationEl) ? orientationEl.GetDouble() : 0d,
                         root.TryGetProperty("scale", out var scaleEl) ? scaleEl.GetDouble() : 1d));
 
+                // specs/052-solar-analysis research D3 — only the "opened" success case produces a
+                // client-visible command; a refusal (opened: false) carries nothing for the viewer
+                // to act on, so it is deliberately NOT matched here (falls through to `default`)
+                // and Lucy narrates the refusal from the tool result text alone.
+                case OpenSolarAnalysisCapability.CapabilityKey
+                    when root.TryGetProperty("opened", out var openedEl) && openedEl.GetBoolean():
+                    return new ChatStreamChunk(null, null, SolarAnalysis: new SolarAnalysisCommand(
+                        root.TryGetProperty("date", out var solarDateEl) ? solarDateEl.GetString() ?? string.Empty : string.Empty,
+                        root.TryGetProperty("timeOfDay", out var solarTimeEl) ? solarTimeEl.GetString() ?? string.Empty : string.Empty));
+
                 default:
                     return null;
             }

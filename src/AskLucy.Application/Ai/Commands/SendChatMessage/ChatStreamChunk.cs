@@ -53,6 +53,11 @@ public sealed record ChatStreamChunk(
 
     /// <summary>specs/051-viewer-scene-content-api FR-004 — content Lucy asked the viewer to load, carried the same way <see cref="ViewerZoom"/> is.</summary>
     ViewerContentCommand? ViewerContent = null,
+
+    /// <summary>specs/052-solar-analysis research D3 — Lucy opening solar analysis for the active
+    /// site, carried the same way <see cref="ViewerContent"/> is. Carries no solar figures: the
+    /// browser computes them once.</summary>
+    SolarAnalysisCommand? SolarAnalysis = null,
     bool StartsNewMessage = false,
 
     /// <summary>

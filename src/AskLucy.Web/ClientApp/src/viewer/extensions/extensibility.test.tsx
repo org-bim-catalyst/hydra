@@ -96,7 +96,7 @@ describe('extensibility (quickstart Scenario 3, SC-003)', () => {
     // Neither host crashes or renders anything for the kind it doesn't recognize.
     expect(document.body.textContent).toBe('')
 
-    // The four migrated built-in extensions register and start unchanged — the new kind above
+    // The migrated built-in extensions register and start unchanged — the new kind above
     // required no edit to any of them.
     const { DECLARED_EXTENSIONS } = await import('./declared')
     expect(DECLARED_EXTENSIONS).toEqual([
@@ -104,6 +104,7 @@ describe('extensibility (quickstart Scenario 3, SC-003)', () => {
       'viewer.poi-marker',
       'viewer.boundary-confidence',
       'viewer.site-boundary',
+      'viewer.solar-analysis',
     ])
     for (const id of DECLARED_EXTENSIONS) {
       await act(() => viewerExtensionLoader.start(id))

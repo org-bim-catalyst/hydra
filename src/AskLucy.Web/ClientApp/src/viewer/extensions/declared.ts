@@ -2,6 +2,7 @@ import './builtin/panelsExtension'
 import './builtin/poiMarkerExtension'
 import './builtin/boundaryConfidenceExtension'
 import './builtin/siteBoundaryExtension'
+import './builtin/solarAnalysisExtension'
 
 /** data-model.md "Declared Extension Set" — the ordered list of extension ids the viewer starts
  * when it opens. Changing what the viewer does means changing this list, not the viewer. Fixed in
@@ -13,4 +14,5 @@ export const DECLARED_EXTENSIONS: readonly string[] = [
   'viewer.poi-marker',
   'viewer.boundary-confidence',
   'viewer.site-boundary',
+  'viewer.solar-analysis',
 ]

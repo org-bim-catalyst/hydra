@@ -31,8 +31,14 @@ describe('ViewerSurface accessibility (FR-001/FR-004)', () => {
   })
 
   it('the placeholder is aria-hidden and never traps keyboard focus', () => {
-    const { getByTestId, container } = render(<ViewerSurface />)
-    expect(getByTestId('viewer-placeholder')).toHaveAttribute('aria-hidden', 'true')
-    expect(container.querySelectorAll('button, a, input, [tabindex]')).toHaveLength(0)
+    // specs/052-solar-analysis: the viewer's own extension toolbar (`ExtensionToolbar`, a sibling
+    // of the placeholder, not part of it) now legitimately contains a real control regardless of
+    // whether a site is shown (FR-029) — the first built-in extension to contribute one. This
+    // assertion's actual intent, unchanged, is that the inert PLACEHOLDER GRAPHIC ITSELF never
+    // becomes keyboard-reachable — scoped to that element rather than the whole surface.
+    const { getByTestId } = render(<ViewerSurface />)
+    const placeholder = getByTestId('viewer-placeholder')
+    expect(placeholder).toHaveAttribute('aria-hidden', 'true')
+    expect(placeholder.querySelectorAll('button, a, input, [tabindex]')).toHaveLength(0)
   })
 })
