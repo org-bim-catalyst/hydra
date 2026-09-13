@@ -32,4 +32,11 @@
     <ProjectReference Include="..\..\src\AskLucy.Application\AskLucy.Application.csproj" />
   </ItemGroup>
 
+  <!-- specs/053-rendered-building-footprints T003 — checked-in Static Maps tile fixtures, copied
+       to the test output so RenderedBuildingFootprintProviderTests can load them deterministically,
+       with no network call and no API key needed to run the suite. -->
+  <ItemGroup>
+    <None Include="Buildings\fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

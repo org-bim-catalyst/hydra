@@ -1,0 +1,60 @@
+{
+  "fixtures": [
+    {
+      "name": "dubai-al-safa-park",
+      "centerLatitude": 25.1558327,
+      "centerLongitude": 55.2217644,
+      "zoom": 18,
+      "scale": 2,
+      "areaType": "dense-urban",
+      "bounds": {
+        "west": 55.22004778623045,
+        "south": 25.154278888566022,
+        "east": 55.223481013769515,
+        "north": 25.157386491645244
+      }
+    },
+    {
+      "name": "cairo-prototype-site",
+      "centerLatitude": 30.1327,
+      "centerLongitude": 31.7195,
+      "zoom": 18,
+      "scale": 2,
+      "areaType": "dense-urban-osm-sparse",
+      "bounds": {
+        "west": 31.71778338623048,
+        "south": 30.13121534957122,
+        "east": 31.721216613769542,
+        "north": 30.134184628099305
+      }
+    },
+    {
+      "name": "dubai-arabian-ranches",
+      "centerLatitude": 25.0445,
+      "centerLongitude": 55.2708,
+      "zoom": 18,
+      "scale": 2,
+      "areaType": "suburban",
+      "bounds": {
+        "west": 55.26908338623048,
+        "south": 25.042944773633966,
+        "east": 55.27251661376954,
+        "north": 25.046055206641235
+      }
+    },
+    {
+      "name": "rub-al-khali-desert-edge",
+      "centerLatitude": 22.7,
+      "centerLongitude": 54,
+      "zoom": 18,
+      "scale": 2,
+      "areaType": "sparse",
+      "bounds": {
+        "west": 53.99828338623047,
+        "south": 22.698416349257894,
+        "east": 54.00171661376953,
+        "north": 22.701583632432108
+      }
+    }
+  ]
+}
