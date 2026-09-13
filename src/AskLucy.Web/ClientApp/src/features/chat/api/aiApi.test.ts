@@ -219,6 +219,28 @@ describe('streamChat', () => {
     expect(events[1]).toEqual({ type: 'siteBoundary', ...boundaryPayload })
   })
 
+  // specs/052-solar-analysis research D3: __SOLAR_ANALYSIS__ trailing SSE event
+  it('parses a __SOLAR_ANALYSIS__ trailing event and yields a solarAnalysis event', async () => {
+    const solarPayload = { date: '2026-09-13', timeOfDay: '14:00' }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Opening the sun and shadow analysis.\n\n',
+          `data: __SOLAR_ANALYSIS__${JSON.stringify(solarPayload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toContainEqual({ type: 'solarAnalysis', ...solarPayload })
+  })
+
   it('preserves the single meaningful space each streamed chunk carries', async () => {
     // Mirrors AiController.cs writing `data: {chunk}\n\n` — most word tokens from OpenAI
     // arrive with their own leading space (" I", " can", " hear"), which is the word boundary.

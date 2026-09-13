@@ -8,9 +8,11 @@ import {
   type GenerationParameters,
   type SuggestedAction,
 } from '../api/aiApi'
+import { requestSolarAnalysisMoment } from '../../solar/components/SolarAnalysisOverlay'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
+import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 
 /**
  * A client-side id for a streamed assistant bubble, so it has one from the moment it exists.
@@ -285,6 +287,13 @@ export function useChatStream(
                 scale: event.scale,
               },
             )
+          } else if (event.type === 'solarAnalysis') {
+            // specs/052-solar-analysis research D3: Lucy opening solar analysis for the active
+            // site — the backend only confirms it can open, this performs the actual activation
+            // (mirrors how 'zoom' and 'viewerContent' are handled). No solar computation happens
+            // here or on the server; the browser computes the figures once the extension opens.
+            requestSolarAnalysisMoment(event.date, event.timeOfDay)
+            viewerExtensionLoader.activate('viewer.solar-analysis')
           } else if (event.type === 'siteBoundary') {
             // specs/042-site-boundary-resolution: resolved site boundary — replaces the
             // previously active one wholesale (a new site fully supersedes the previous one).
@@ -458,6 +467,9 @@ export function useChatStream(
                 scale: event.scale,
               },
             )
+          } else if (event.type === 'solarAnalysis') {
+            requestSolarAnalysisMoment(event.date, event.timeOfDay)
+            viewerExtensionLoader.activate('viewer.solar-analysis')
           } else if (event.type === 'siteBoundary') {
             useActiveSiteBoundaryStore.getState().setBoundary({
               siteName: event.siteName,

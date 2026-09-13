@@ -223,6 +223,8 @@ public static class DependencyInjection
         services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenLivePanelCapability>());
         services.AddScoped<LoadViewerContentCapability>();
         services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<LoadViewerContentCapability>());
+        services.AddScoped<OpenSolarAnalysisCapability>();
+        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenSolarAnalysisCapability>());
 
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();

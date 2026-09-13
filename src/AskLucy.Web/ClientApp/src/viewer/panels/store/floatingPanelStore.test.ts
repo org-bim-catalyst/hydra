@@ -333,3 +333,83 @@ describe('floatingPanelStore.markLivePanelKindUnavailable (specs/050 FR-036)', (
     expect(useFloatingPanelStore.getState().panels[0].validationStatus).toBe('valid')
   })
 })
+
+/** Re-opening an already-open panel id is a REFRESH, not a re-creation. Found in review of
+ * specs/052: the solar figures panel refreshes its content on every playback tick via a stable
+ * `requestId`, and the previous behaviour rebuilt the panel from scratch each time — resetting
+ * position and size, un-minimizing it, and stealing z-order at frame rate. */
+describe('floatingPanelStore.openPanel — refreshing an already-open panel', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  function openFigures(text: string) {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId: 'refresh-me',
+      title: 'Figures',
+      content: { version: 1, blocks: [{ kind: 'text', text }] },
+    })
+  }
+
+  it('updates the content but preserves position, size, minimized state and z-order', () => {
+    openFigures('first')
+    const id = useFloatingPanelStore.getState().panels[0].id
+
+    useFloatingPanelStore.getState().updatePosition(id, { x: 640, y: 480 })
+    useFloatingPanelStore.getState().updateSize(id, { width: 500, height: 300 })
+    useFloatingPanelStore.getState().minimizePanel(id)
+    const before = useFloatingPanelStore.getState().panels.find((p) => p.id === id)!
+
+    openFigures('second')
+
+    const after = useFloatingPanelStore.getState().panels.find((p) => p.id === id)!
+    expect(useFloatingPanelStore.getState().panels).toHaveLength(1)
+    // Content refreshed...
+    expect(after.content).toEqual({ version: 1, blocks: [{ kind: 'text', text: 'second' }] })
+    // ...everything the user controls preserved.
+    expect(after.position).toEqual({ x: 640, y: 480 })
+    expect(after.size).toEqual({ width: 500, height: 300 })
+    expect(after.minimized).toBe(true)
+    expect(after.restoreState).toEqual(before.restoreState)
+    expect(after.zOrder).toBe(before.zOrder)
+  })
+
+  it('does not steal focus from another panel when refreshed', () => {
+    openFigures('first')
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId: 'other',
+      title: 'Other',
+      content: { version: 1, blocks: [{ kind: 'text', text: 'other' }] },
+    })
+    const otherZOrder = useFloatingPanelStore.getState().panels.find((p) => p.id === 'other')!.zOrder
+
+    openFigures('second')
+
+    const figures = useFloatingPanelStore.getState().panels.find((p) => p.id === 'refresh-me')!
+    expect(figures.zOrder).toBeLessThan(otherZOrder)
+  })
+
+  it('consumes no additional cascade slot when refreshed', () => {
+    openFigures('first')
+    const cascadeAfterOpen = useFloatingPanelStore.getState().cascadeIndex
+
+    openFigures('second')
+
+    expect(useFloatingPanelStore.getState().cascadeIndex).toBe(cascadeAfterOpen)
+  })
+
+  it('still places a genuinely new panel normally', () => {
+    openFigures('first')
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId: 'brand-new',
+      title: 'New',
+      content: { version: 1, blocks: [{ kind: 'text', text: 'new' }] },
+    })
+
+    expect(useFloatingPanelStore.getState().panels).toHaveLength(2)
+    expect(useFloatingPanelStore.getState().cascadeIndex).toBe(2)
+  })
+})

@@ -137,6 +137,7 @@ public sealed partial class AiController(
         ViewerZoomCommand? viewerZoom = null;
         ConfirmedSiteBoundaryData? confirmedBoundary = null;
         ViewerContentCommand? viewerContent = null;
+        SolarAnalysisCommand? solarAnalysis = null;
         IReadOnlyList<SuggestedAction>? suggestedActions = null;
         string? suggestedActionsQuestion = null;
 
@@ -224,6 +225,11 @@ public sealed partial class AiController(
                 if (chunk.ConfirmedBoundary is not null)
                 {
                     confirmedBoundary = chunk.ConfirmedBoundary;
+                }
+
+                if (chunk.SolarAnalysis is not null)
+                {
+                    solarAnalysis = chunk.SolarAnalysis;
                 }
 
                 // specs/045-conversational-agent-runtime FR-021 — rides its own chunk, with no
@@ -390,6 +396,20 @@ public sealed partial class AiController(
                 scale = viewerContent.Scale,
             };
             await Response.WriteAsync($"data: __VIEWER_CONTENT__{JsonSerializer.Serialize(viewerContentPayload)}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
+        // specs/052-solar-analysis research D3 — Lucy opening solar analysis for the active site,
+        // mirroring __VIEWER_CONTENT__'s own trailing-event shape exactly. No solar figures ride
+        // this event: the browser computes them once (FR-034).
+        if (solarAnalysis is not null)
+        {
+            var solarAnalysisPayload = new
+            {
+                date = solarAnalysis.Date,
+                timeOfDay = solarAnalysis.TimeOfDay,
+            };
+            await Response.WriteAsync($"data: __SOLAR_ANALYSIS__{JsonSerializer.Serialize(solarAnalysisPayload)}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
         }
 

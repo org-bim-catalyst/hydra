@@ -135,18 +135,41 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
     }
 
     set((s) => {
-      let panels = [...s.panels.filter((existing) => existing.id !== panel.id), panel]
+      // Re-opening a panel that is ALREADY open is a refresh, not a re-creation: its content and
+      // title change, but everything the *user* controls — where they dragged it, how they resized
+      // it, whether they minimized it, and its place in the z-order — is preserved. Replacing those
+      // wholesale made a repeat `openPanel` on a stable requestId yank the panel back to a cascade
+      // position, reset its size, un-minimize it and steal focus; for any caller that refreshes a
+      // live panel's content on a timer (specs/052's solar figures do so on every playback tick)
+      // that is once per frame, which makes the panel unusable while it updates.
+      const existing = s.panels.find((p) => p.id === panel.id)
+      const nextPanel: FloatingPanel = existing
+        ? {
+            ...panel,
+            position: existing.position,
+            size: existing.size,
+            minimized: existing.minimized,
+            restoreState: existing.restoreState,
+            zOrder: existing.zOrder,
+            lastFocusedAtUtc: existing.lastFocusedAtUtc,
+            opacityOverride: existing.opacityOverride,
+          }
+        : panel
+
+      let panels = [...s.panels.filter((p) => p.id !== nextPanel.id), nextPanel]
 
       // FR-022: enforce the fixed cap by evicting the least-recently-focused *other* panel.
       if (panels.length > MAX_CONCURRENT_PANELS) {
-        const evictable = panels.filter((existing) => existing.id !== panel.id)
+        const evictable = panels.filter((p) => p.id !== nextPanel.id)
         const leastRecentlyFocused = evictable.reduce((oldest, candidate) =>
           candidate.lastFocusedAtUtc < oldest.lastFocusedAtUtc ? candidate : oldest,
         )
-        panels = panels.filter((existing) => existing.id !== leastRecentlyFocused.id)
+        panels = panels.filter((p) => p.id !== leastRecentlyFocused.id)
       }
 
-      return { panels, cascadeIndex: usesCascade ? s.cascadeIndex + 1 : s.cascadeIndex }
+      // A refresh of an already-open panel consumes no new cascade slot — it never took a fresh
+      // position, so advancing the cascade would push the *next* genuinely new panel off-pattern.
+      return { panels, cascadeIndex: usesCascade && !existing ? s.cascadeIndex + 1 : s.cascadeIndex }
     })
   },
 

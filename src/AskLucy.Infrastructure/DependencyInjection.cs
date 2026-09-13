@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
@@ -6,6 +7,7 @@ using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Boundaries;
+using AskLucy.Infrastructure.Buildings;
 using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Conversations;
 using AskLucy.Infrastructure.Documents;
@@ -135,6 +137,13 @@ public static class DependencyInjection
         // ApiKey to validate (free, keyless API, same reasoning as GeocodingOptions above).
         services.AddOptions<OverpassOptions>()
             .BindConfiguration(OverpassOptions.SectionName)
+            .ValidateOnStart();
+
+        // specs/052-solar-analysis research D4 — building-footprint retrieval reuses the same
+        // Overpass endpoints/mirrors above; this options type carries only the building-specific
+        // settings (radius default, count cap, cache TTL) — no ApiKey to validate.
+        services.AddOptions<BuildingRetrievalOptions>()
+            .BindConfiguration(BuildingRetrievalOptions.SectionName)
             .ValidateOnStart();
 
         // Document Intelligence Pipeline's durable job engine (specs/015-document-intelligence-
@@ -311,6 +320,9 @@ public static class DependencyInjection
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
+        // specs/052-solar-analysis research D4 — always Overpass in v1 (a future authoritative/
+        // cadastral source is an additive Infrastructure implementation, not a rewrite).
+        services.AddScoped<IBuildingFootprintProvider, OverpassBuildingFootprintProvider>();
         // Same key-presence rule as the geocoder above, and for the same reason: prefer Google
         // where we can reach it, degrade to a keyless provider where we cannot.
         if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))

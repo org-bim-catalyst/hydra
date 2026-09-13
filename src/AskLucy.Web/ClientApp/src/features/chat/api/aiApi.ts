@@ -127,6 +127,14 @@ export type ChatStreamEvent =
       orientationDegrees: number
       scale: number
     }
+  /** specs/052-solar-analysis research D3 — Lucy opening solar analysis for the active site,
+   * carried on the trailing `__SOLAR_ANALYSIS__` event, mirroring `viewerContent`'s own shape.
+   * Carries no solar figures — the browser computes them once. */
+  | {
+      type: 'solarAnalysis'
+      date: string
+      timeOfDay: string
+    }
   /**
    * The server finished one assistant message and started another. Deltas that follow belong to
    * the new one; the text so far is complete and already persisted server-side.
@@ -161,6 +169,7 @@ const MEMORY_EVENT_PREFIX = '__MEMORY__'
 const LOCATION_EVENT_PREFIX = '__LOCATION__'
 const ZOOM_EVENT_PREFIX = '__ZOOM__'
 const VIEWER_CONTENT_EVENT_PREFIX = '__VIEWER_CONTENT__'
+const SOLAR_ANALYSIS_EVENT_PREFIX = '__SOLAR_ANALYSIS__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
@@ -382,6 +391,14 @@ export async function* streamChat(
           scale: number
         }
         yield { type: 'viewerContent', ...payload }
+        continue
+      }
+
+      // specs/052-solar-analysis research D3: Lucy opening solar analysis for the active site —
+      // `data: __SOLAR_ANALYSIS__{...}`.
+      if (data.startsWith(SOLAR_ANALYSIS_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(SOLAR_ANALYSIS_EVENT_PREFIX.length)) as { date: string; timeOfDay: string }
+        yield { type: 'solarAnalysis', ...payload }
         continue
       }
 

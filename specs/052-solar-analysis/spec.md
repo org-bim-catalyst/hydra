@@ -24,6 +24,10 @@ A working reference implementation exists. It is a specification of behaviour, n
 - Q: Does this feature produce quantitative results — hours of sunlight per surface, irradiance, overshadowing compliance? → A: No. This release is visual and qualitative: where the sun is, where shadows fall, how they move. Quantitative analysis is a substantially larger feature with its own accuracy, validation and liability obligations, and belongs in its own specification.
 - Q: Where does building data come from? → A: Fetched by the platform rather than by the browser, reusing the existing arrangement that already retrieves map data for site boundaries. This gives caching, rate limiting and a single place to handle the source being slow or unavailable, and treats third-party geometry as untrusted at the correct boundary.
 
+### Session 2026-09-13 (after reviewing the reference implementation)
+
+- Q: Should the retrieved building footprints be drawn as visible massing? → A: No. They participate in the analysis as shadow-casting geometry but are not themselves drawn, with a developer toggle to reveal the massing. The reference implementation established why: the basemap already draws its own 3D buildings, and a second copy from a different data source does not align with it — showing both reads as a broken, shifted duplicate rather than as information. What the user needs from the surrounding buildings is their *shadows*; the massing is already on screen from the basemap. Height and its provenance remain visible for the building being analysed, as figures rather than as geometry.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - See Where the Sun Is and Where It Goes (Priority: P1)
@@ -55,7 +59,7 @@ The user sets a date and time and sees shadows cast by the actual buildings arou
 
 **Acceptance Scenarios**:
 
-1. **Given** a site with mapped surrounding buildings, **When** solar analysis opens, **Then** those buildings appear as solid forms at their recorded heights.
+1. **Given** a site with mapped surrounding buildings, **When** solar analysis opens, **Then** those buildings take part in the analysis at their recorded heights and cast shadows, without being drawn over the buildings the basemap already shows.
 2. **Given** buildings are shown and the sun is above the horizon, **When** the user views the site, **Then** each building casts a shadow in the direction and at the length the sun's position implies.
 3. **Given** the sun is below the horizon, **When** the user views the site, **Then** no shadows are cast and this is evident rather than ambiguous.
 4. **Given** a building whose height is not recorded in the source data, **When** it is shown, **Then** a stated default is used and the user can see that the height was assumed rather than known.
@@ -149,7 +153,7 @@ The user asks Lucy about sunlight on the site in plain language. She runs the an
 ### Surrounding Buildings
 
 - **FR-009**: The system MUST retrieve building footprints within a bounded distance of the site, through the platform rather than directly from the browser.
-- **FR-010**: Building footprints MUST be shown as solid forms at their recorded height, using a stated default where no height is recorded.
+- **FR-010**: Building footprints MUST take part in the analysis as shadow-casting forms at their recorded height, using a stated default where no height is recorded. They MUST NOT be drawn over the buildings the basemap already displays; a developer-facing toggle MUST be able to reveal the massing for verification.
 - **FR-011**: The user MUST be able to see, for the building being analysed, whether its height was recorded in the source or assumed.
 - **FR-012**: The system MUST identify which building the site sits in or nearest to, by a stated rule.
 - **FR-013**: Footprints that cannot be used MUST be excluded without failing the whole analysis.
