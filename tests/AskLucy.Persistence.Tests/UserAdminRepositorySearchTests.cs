@@ -8,7 +8,7 @@ namespace AskLucy.Persistence.Tests;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class UserAdminRepositorySearchTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldFilterByPartialEmailOrName_SortAndPaginate_Correctly()
     {
         var suffix = Guid.NewGuid().ToString("N");
@@ -42,7 +42,7 @@ public sealed class UserAdminRepositorySearchTests(PersistenceTestFixture fixtur
         page2.Items.Single().FirstName.Should().Be("Jane");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldExcludeSoftDeletedUsers()
     {
         var suffix = Guid.NewGuid().ToString("N");

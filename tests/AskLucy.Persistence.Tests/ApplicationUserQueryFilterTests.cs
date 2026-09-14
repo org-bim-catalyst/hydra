@@ -13,7 +13,7 @@ namespace AskLucy.Persistence.Tests;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class ApplicationUserQueryFilterTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task Users_query_excludes_soft_deleted_user_by_default()
     {
         var activeEmail = $"active-{Guid.NewGuid():N}@example.com";
@@ -37,7 +37,7 @@ public sealed class ApplicationUserQueryFilterTests(PersistenceTestFixture fixtu
         }
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task IgnoreQueryFilters_still_surfaces_the_soft_deleted_user()
     {
         var deletedEmail = $"deleted-{Guid.NewGuid():N}@example.com";

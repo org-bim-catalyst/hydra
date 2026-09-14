@@ -93,6 +93,14 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        // Every test is skipped when the gate is shut, but the collection fixture's lifetime is
+        // xUnit's to decide — so the wipe below is guarded here too, rather than trusting that a
+        // fully-skipped collection never initializes its fixture.
+        if (PersistenceDatabaseGate.NotConfigured)
+        {
+            return;
+        }
+
         await using var dbContext = CreateDbContext(MaintenanceCommandTimeoutSeconds);
 
         // Clears every EF-mapped table's data (schema untouched) so each run starts from the

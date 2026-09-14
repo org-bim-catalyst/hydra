@@ -41,7 +41,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         return (document.Id, version.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetRetryQueueAsync_ShouldIncludeADocument_WhoseCurrentJobIsFailed()
     {
         var ownerId = await SeedOwnerAsync();
@@ -65,7 +65,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         retryQueue.Should().ContainSingle(e => e.DocumentId == documentId && e.FailureReason == "The file could not be parsed.");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetRetryQueueAsync_ShouldNotIncludeADocument_ThatFailedOnceButLaterSucceededAfterRetry()
     {
         var ownerId = await SeedOwnerAsync();
@@ -95,7 +95,7 @@ public sealed class RetryQueueTests(PersistenceTestFixture fixture)
         counts.CompletedTodayCount.Should().Be(1);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetDashboardCountsAsync_ShouldScopeToTheGivenOwner_NotAnotherOwnersDocuments()
     {
         var ownerId = await SeedOwnerAsync();

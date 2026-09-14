@@ -12,7 +12,7 @@ public sealed class PromptConcurrencyTests(PersistenceTestFixture fixture)
         "System instructions", null, "Summarize {{document}}.", null, null, null, null,
         null, null, null, null, false);
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task ApplyEdit_ShouldThrowConcurrencyException_WhenTheUnderlyingRowChangedSinceLoad()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

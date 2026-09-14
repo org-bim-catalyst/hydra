@@ -220,12 +220,29 @@ Verify:
 * Migrations
 * Repository behavior
 
-Run against a real, dedicated test SQL Server instance (connection string via the
-`PERSISTENCE_TESTS_CONNECTION_STRING` environment variable — `dotnet user-secrets` locally,
-a GitHub Actions secret in CI). `PersistenceTestFixture` drops and recreates the schema at the
-start of every run, so tests still get the same clean-slate guarantee a throwaway container
-would have given. Not Testcontainers: the CI runner is `windows-latest`, which cannot run the
-Linux-only `mcr.microsoft.com/mssql/server` image.
+Run against a real SQL Server instance that exists **only** for these tests. Not Testcontainers:
+the CI runner is `windows-latest`, which cannot run the Linux-only
+`mcr.microsoft.com/mssql/server` image.
+
+## Persistence tests are skipped unless a dedicated database is declared
+
+`PersistenceTestFixture` deletes every row from every EF-mapped table before the suite runs
+(schema and `__EFMigrationsHistory` untouched), and the tests then insert their own users, chats,
+documents and memories. That is only safe against a disposable database, so **every test in
+`AskLucy.Persistence.Tests` is skipped** — and the fixture never touches the database — unless
+both are set:
+
+* `PERSISTENCE_TESTS_CONNECTION_STRING` — the dedicated test database.
+* `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` — the explicit declaration that it may be emptied.
+
+The gate is `PersistenceDatabaseGate`. A connection string alone is deliberately not enough: it
+said where a database was, not that it could be wiped, and it pointed at the shared development
+database — each run deleted that database's migration-seeded reference rows (embedding providers,
+knowledge-base categories), its AI provider configuration and every role assignment. The
+scale-performance tests below require this gate as well as their own.
+
+`AskLucy.Web.Tests` still points its app host at `PERSISTENCE_TESTS_CONNECTION_STRING` when it is
+set. It does not wipe anything, but its tests do create users and data there.
 
 Avoid the EF Core InMemory provider for relational behavior.
 

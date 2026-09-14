@@ -24,7 +24,7 @@ public sealed class PromptSearchTests(PersistenceTestFixture fixture)
         new("document", null, PromptVariableType.File, true, null, null, null, 0),
     ];
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldMatchByName()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -43,7 +43,7 @@ public sealed class PromptSearchTests(PersistenceTestFixture fixture)
         items.Should().ContainSingle(p => p.Id == matching.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldMatchByDescription()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -59,7 +59,7 @@ public sealed class PromptSearchTests(PersistenceTestFixture fixture)
         items.Should().ContainSingle(p => p.Id == matching.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldMatchByUserInstructions()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -76,7 +76,7 @@ public sealed class PromptSearchTests(PersistenceTestFixture fixture)
         items.Should().ContainSingle(p => p.Id == matching.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_WithCombinedCategoryTagAndFolderFilters_ShouldReturnOnlyThePromptMatchingAllThree()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

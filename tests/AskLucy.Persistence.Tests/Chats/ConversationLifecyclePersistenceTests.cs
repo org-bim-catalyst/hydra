@@ -17,7 +17,7 @@ namespace AskLucy.Persistence.Tests.Chats;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SoftDelete_ShouldHideFromActiveView_AndAppearUnderDeletedView()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -49,7 +49,7 @@ public sealed class ConversationLifecyclePersistenceTests(PersistenceTestFixture
         deletedItems.Should().ContainSingle(c => c.Id == chat.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task PurgeAsync_ShouldActuallyRemoveTheRow_NotJustSoftDeleteItAgain()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
