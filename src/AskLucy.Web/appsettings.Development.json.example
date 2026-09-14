@@ -45,6 +45,13 @@
     "BaseUrl": "https://api.openai.com/v1/"
   },
 
+  "//OpenAiEmbedding": "Distinct from OpenAI above (embedding generation is decoupled from chat model selection). OpenAiEmbeddingProvider prefers the OpenAI credential configured on the admin AI Providers page and falls back to this section only when that column is null — which is the usual case on a fresh local database, so set it or every memory/semantic-search embedding call returns 401.",
+  "OpenAiEmbedding": {
+    "ApiKey": "<SECRET — prefer: dotnet user-secrets set \"OpenAiEmbedding:ApiKey\" ...>",
+    "Model": "text-embedding-3-small",
+    "BaseUrl": "https://api.openai.com/v1/"
+  },
+
   "//Anthropic": "Identity-linked keys are rejected without a workspace id — see the Anthropic provider's own notes.",
   "Anthropic": {
     "WorkspaceId": "<anthropic-workspace-id>"

@@ -171,8 +171,20 @@ public sealed class MemoryExtractionJob(
 
     private async Task EmbedAndUpsertAsync(MemoryEntity memory, CancellationToken cancellationToken)
     {
-        var provider = await embeddingProviderRepository.GetDefaultAsync(EmbeddingHostingType.Cloud, cancellationToken)
-            ?? throw new InvalidOperationException("No default embedding provider is configured.");
+        // Same reasoning as MemoryConflictDetectionService.FindCandidatePoolAsync: a missing
+        // default provider is a configuration state no retry can fix, so it is logged and skipped
+        // rather than thrown — which previously failed this run and every [AutomaticRetry] attempt
+        // after it. The memory itself is already created and usable; only its embedding (and so
+        // its semantic searchability) is deferred until a provider is configured and it is
+        // re-embedded. A real outage or auth failure from EmbedAsync below still propagates, since
+        // retrying genuinely can fix those.
+        var provider = await embeddingProviderRepository.GetDefaultAsync(EmbeddingHostingType.Cloud, cancellationToken);
+        if (provider is null)
+        {
+            MemoryExtractionJobLog.NoDefaultEmbeddingProvider(logger, memory.Id);
+            return;
+        }
+
         var embeddingService = embeddingServiceResolver.Resolve(provider.Vendor);
         var embeddingResult = await embeddingService.EmbedAsync(memory.Content, cancellationToken);
 
@@ -272,4 +284,7 @@ internal static partial class MemoryExtractionJobLog
 {
     [LoggerMessage(Level = LogLevel.Warning, Message = "Memory extraction response was not valid JSON for chat {UserChatId} — treating as no candidates found")]
     public static partial void ExtractionParseFailed(ILogger logger, Guid userChatId, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No default Cloud embedding provider is configured — memory {MemoryId} was created but not embedded, so it will not be semantically searchable until a provider is configured and it is re-embedded.")]
+    public static partial void NoDefaultEmbeddingProvider(ILogger logger, Guid memoryId);
 }

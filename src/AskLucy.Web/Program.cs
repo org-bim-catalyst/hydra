@@ -690,6 +690,17 @@ if (app.Environment.IsDevelopment())
         app.Logger.LogWarning(ex, "Dev AI provider seed skipped — could not reach the database.");
 #pragma warning restore CA1848
     }
+
+    try
+    {
+        await DevBaselineSeeder.SeedAsync(app.Services, app.Logger);
+    }
+    catch (Exception ex)
+    {
+#pragma warning disable CA1848
+        app.Logger.LogWarning(ex, "Dev baseline seed skipped — could not reach the database.");
+#pragma warning restore CA1848
+    }
 }
 
 // Which geocoding provider is live is decided silently by whether Geocoding:GoogleMapsApiKey
