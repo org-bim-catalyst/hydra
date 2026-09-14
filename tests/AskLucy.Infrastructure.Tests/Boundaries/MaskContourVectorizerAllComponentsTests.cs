@@ -63,12 +63,12 @@ public sealed class MaskContourVectorizerAllComponentsTests
         var mask = new bool[30, 10];
         FillSquare(mask, 0, 0, 10); // real ring
         mask[20, 5] = true; // single pixel: below minimumPixelArea=1 it survives AllComponents,
-                             // but traces to a degenerate (< 3 point) ring after simplification is
-                             // still possible for pathological shapes — asserted via the count path
-                             // regardless, since a real single-pixel "ring" is 4 grid-edge corners
-                             // that collapse under simplification to fewer than 3 points only in
-                             // edge cases; the assertion below is on the RESULT SHAPE (counted, not
-                             // silently dropped), not on this particular mask forcing degeneracy.
+                            // but traces to a degenerate (< 3 point) ring after simplification is
+                            // still possible for pathological shapes — asserted via the count path
+                            // regardless, since a real single-pixel "ring" is 4 grid-edge corners
+                            // that collapse under simplification to fewer than 3 points only in
+                            // edge cases; the assertion below is on the RESULT SHAPE (counted, not
+                            // silently dropped), not on this particular mask forcing degeneracy.
 
         var result = MaskContourVectorizer.ExtractAllRings(
             mask, 30, 10, IdentityBounds(30, 10), minimumPixelArea: 1, simplifyEpsilon: 3.0, eightConnected: true);
