@@ -170,6 +170,15 @@ existing convention doesn't fit and Hangfire's own built-in attribute (already p
 already-referenced package, zero new dependency) is used instead. Flagged explicitly per the
 "never claim to follow existing convention when introducing something new" principle.
 
+**Amendment 2026-09-14 — configuration states are not retried.** Automatic retry is for transient
+failures. A missing default embedding provider is not one: every attempt fails identically, so a
+run that hit it failed three more times for nothing (and, under a debugger, broke into every
+attempt). `MemoryExtractionJob.EmbedAndUpsertAsync` and
+`MemoryConflictDetectionService.FindCandidatePoolAsync` now treat it the way
+`ExtractCandidatesAsync` already treats a malformed model response: a logged warning and a skip —
+the memory is kept, unembedded and not compared for conflicts, until a provider exists. Provider
+outages, auth failures and rate limits still propagate to `[AutomaticRetry]`.
+
 **Rationale**: No tool-calling loop exists in the chat pipeline (verified — `IAIProvider` has no
 tool/function types; the only `FunctionCalling` hits in the codebase are an unused capability
 metadata flag). Building one solely to support memory extraction would be significant, speculative,

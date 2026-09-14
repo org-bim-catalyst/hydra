@@ -127,6 +127,14 @@ exposure.
 
 ## Scenario 7 — Background extraction resilience (FR-006b)
 
+> **Amendment 2026-09-14**: a *missing default embedding provider* is a configuration state, not a
+> transient failure, so it is no longer retried. `MemoryExtractionJob.EmbedAndUpsertAsync` and
+> `MemoryConflictDetectionService.FindCandidatePoolAsync` log a warning and skip — the memory is
+> kept, unembedded and not compared for conflicts — instead of throwing; previously the whole run
+> failed and every `[AutomaticRetry]` attempt failed the same way. Genuine provider outages and auth
+> failures still propagate and retry. In development, `DevBaselineSeeder` restores the baseline
+> embedding providers if they are missing.
+
 1. Temporarily make the extraction LLM call fail (e.g., point the resolved "utility model" provider
    at an invalid key). Trigger a conversation turn; confirm `MemoryExtractionJob` retries
    automatically (Hangfire dashboard shows retry attempts, research.md Decision 6) and, once

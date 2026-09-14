@@ -110,8 +110,22 @@ public sealed class MemoryConflictDetectionService(
 
     private async Task<IReadOnlyList<MemoryEntity>> FindCandidatePoolAsync(MemoryEntity candidateMemory, CancellationToken cancellationToken)
     {
-        var provider = await embeddingProviderRepository.GetDefaultAsync(EmbeddingHostingType.Cloud, cancellationToken)
-            ?? throw new InvalidOperationException("No default embedding provider is configured.");
+        // A missing default provider is a CONFIGURATION state, not a transient outage: throwing
+        // here failed the whole enclosing memory-extraction run and, under [AutomaticRetry], did so
+        // three more times — none of which could succeed, since no amount of retrying configures a
+        // provider. Treated the same way this feature already treats a malformed extraction
+        // response (MemoryExtractionJob.ExtractCandidatesAsync): logged as a warning and reported
+        // as "nothing found", never silently swallowed. Without embeddings there is no way to find
+        // similar memories, so an empty pool is also the semantically correct answer — the
+        // candidate is simply kept as-is rather than compared for conflicts. A genuine provider
+        // outage or auth failure still propagates from EmbedAsync below, where retrying does help.
+        var provider = await embeddingProviderRepository.GetDefaultAsync(EmbeddingHostingType.Cloud, cancellationToken);
+        if (provider is null)
+        {
+            MemoryConflictDetectionServiceLog.NoDefaultEmbeddingProvider(logger, candidateMemory.Id);
+            return [];
+        }
+
         var embeddingService = embeddingServiceResolver.Resolve(provider.Vendor);
         var candidateEmbedding = await embeddingService.EmbedAsync(candidateMemory.Content, cancellationToken);
 
@@ -244,4 +258,7 @@ internal static partial class MemoryConflictDetectionServiceLog
 {
     [LoggerMessage(Level = LogLevel.Warning, Message = "Memory conflict classification failed for candidate {CandidateMemoryId} — defaulting every pooled memory to NoConflict")]
     public static partial void ClassificationFailed(ILogger logger, Guid candidateMemoryId, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No default Cloud embedding provider is configured — skipping conflict detection for candidate {CandidateMemoryId}, which is therefore kept without being compared against existing memories. Configure one (admin AI Providers page, or the EmbeddingProviders baseline rows) to restore conflict detection.")]
+    public static partial void NoDefaultEmbeddingProvider(ILogger logger, Guid candidateMemoryId);
 }

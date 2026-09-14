@@ -15,4 +15,6 @@ public sealed class EmbeddingProviderRepository(AskLucyDbContext dbContext) : IE
 
     public async Task<IReadOnlyList<EmbeddingProvider>> GetActiveAsync(CancellationToken cancellationToken = default) =>
         await dbContext.EmbeddingProviders.Where(p => p.IsActive).ToListAsync(cancellationToken);
+
+    public void Add(EmbeddingProvider provider) => dbContext.EmbeddingProviders.Add(provider);
 }
