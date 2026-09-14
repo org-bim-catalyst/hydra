@@ -141,7 +141,7 @@ Something cannot be displayed — a format that is not supported, content that w
 
 ### Positioning in the World
 
-- **FR-008**: The viewer MUST own a single reference point from which all drawn content is positioned; no capability may set its own.
+- **FR-008**: The viewer MUST own a single reference point from which all drawn content is positioned; no capability may set its own. The viewer MUST move that point to follow the active location (the site the user or Lucy has confirmed), and content positioned from it MUST be re-positioned when it moves. Recreating the map — a theme change, a map style change, returning to the workspace — MUST NOT move it. *(Amended 2026-09-14: the point was set once, on first content load, so it stayed at the startup location when the active site changed; the solar dome and the site-boundary ring rendered kilometres from the site, and a theme change appeared to "fix" it only because recreating the map re-set the point to the camera centre.)*
 - **FR-009**: The viewer MUST publish a conversion between real-world coordinates and the local positioning space capabilities draw in, so that no capability implements its own conversion.
 - **FR-010**: The local positioning space's orientation convention MUST be defined once, published, and consistent for every capability.
 - **FR-011**: Content MUST be positionable by real-world location, height above ground, orientation and scale.

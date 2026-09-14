@@ -79,7 +79,7 @@ The floating panel framework (specs/028), reshaped by specs/049 into a content m
   by a language model and constitution §8 treats that as untrusted input. `ActionAffordance.tsx` is
   the shared presentation every actionable entry renders through; an action that fails validation
   is rendered inert, never merely refused on click.
-- `chrome/` — `PanelChrome` (title bar / resizable / default size) and `resolveChrome`, applying a
+- `chrome/` — `PanelChrome` (title bar / resizable / default size / density — `compact` is the reference page's dense look, carried to content through `PanelDensityContext`; a resizable panel gets a footer with a status cell and the resize grip) and `resolveChrome`, applying a
   request's override on top of a base chrome and clamping to the minimum usable size.
 - `registry.ts` — narrowed by specs/049 to hold only **live panel kinds**: panels whose content is
   code rather than data (continuous state, an owned drawing surface, or values flowing back into

@@ -1,4 +1,5 @@
 import { Box, Stack, Typography } from '@mui/material'
+import { usePanelDensity } from '../chrome/density'
 import { blockRegistry } from './blockRegistry'
 import { blockSchema, type LooseBlock, type PanelContent } from './blocks'
 
@@ -40,10 +41,13 @@ function BlockOutcome({ block }: { block: LooseBlock }) {
 
 /** Renders an ordered sequence of content blocks (specs/049 User Story 1) — one general
  * presentation for any composition Lucy assembles from the vocabulary, rather than
- * per-composition code. */
+ * per-composition code. In a compact panel the blocks carry their own tight rhythm (rows on
+ * hairline dividers), so no extra gap is added between them. */
 export function ContentRenderer({ content }: { content: PanelContent }) {
+  const density = usePanelDensity()
+
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={density === 'compact' ? 0 : 1.5}>
       {content.blocks.map((block, index) => (
         // Blocks carry no stable identity of their own — index is the only option, mirroring the
         // same precedent the retired TablePanel used for its rows.

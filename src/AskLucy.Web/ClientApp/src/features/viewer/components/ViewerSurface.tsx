@@ -1,5 +1,5 @@
 import { Box } from '@mui/material'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useWebGLSupport } from '../../../hooks/useWebGLSupport'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { PlaceholderRenderTarget } from '../../../viewer/engine/PlaceholderRenderTarget'
@@ -15,6 +15,11 @@ import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
 import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
+import { viewerSession } from '../../../viewer/session/viewerSession'
+// Side-effect imports: the subscription that keeps the scene's reference point on the active
+// location, and the sign-out subscription that ends the viewer session.
+import '../../../viewer/session/anchorFollowsActiveLocation'
+import '../../../viewer/session/resetViewerSession'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 
 const DEFAULT_MAP_ZOOM = 15
@@ -56,37 +61,33 @@ export function ViewerSurface() {
   const supportsWebGL = useWebGLSupport()
   const contentMode = useViewerEngineStore((s) => s.contentMode)
   // specs/051 FR-003/research D1: the map is the viewer's own first, default content, loaded
-  // through `engine.loadContent(...)` rather than a raw `addLayer` call — this ref remembers the
-  // content id `loadContent` generated, since revert-to-placeholder needs it to unload cleanly.
-  // The RenderLayer id downstream consumers (`MapRenderTarget`'s `layerId` prop) need is derived
-  // below from the content store, reactively, rather than mirrored into separate React state
-  // (calling `setState` synchronously inside an effect is exactly the anti-pattern that would
-  // introduce — the content store update `loadContent` already makes is itself the state).
-  const mapContentIdRef = useRef<string | null>(null)
-  const mapLayerId = useContentStore((s) => s.content.find((c) => c.id === mapContentIdRef.current)?.layerId ?? null)
+  // through `engine.loadContent(...)` rather than a raw `addLayer` call. Its content id lives in
+  // `viewerSession`, not a component ref, so returning to this route re-attaches to the map that
+  // is still loaded instead of losing track of it (see viewerSession.ts).
+  const mapLayerId = useContentStore((s) => s.content.find((c) => c.id === viewerSession.mapContentId)?.layerId ?? null)
 
   // spec.md Edge Cases: shared by "location became unavailable" (FR-012) and "the map/GIS
   // provider is unreachable" — both revert to the placeholder the same way.
   function revertToPlaceholder() {
-    if (mapContentIdRef.current) {
-      viewerEngine.unloadContent(mapContentIdRef.current)
-      mapContentIdRef.current = null
+    if (viewerSession.mapContentId) {
+      viewerEngine.unloadContent(viewerSession.mapContentId)
+      viewerSession.mapContentId = null
     }
     useViewerEngineStore.getState().setContentMode('placeholder')
   }
 
   // FR-002/research D3: starts every declared extension on mount. Not awaited as a group
-  // (research D4) so a slow one cannot delay first paint. FR-028: stops every declared extension
-  // and withdraws every contribution when the viewer closes — the loader's own idempotency rules
-  // (FR-008, FR-010) are what make this safe under React 19 Strict Mode's mount→cleanup→remount.
+  // (research D4) so a slow one cannot delay first paint. Start is idempotent (FR-008), so a
+  // remount — returning from another route, or React 19 Strict Mode's double mount — reuses the
+  // extensions already running rather than restarting them.
+  //
+  // Deliberately no stop on unmount: stopping withdrew every contribution, so leaving /studio for
+  // another page closed the live panels' kinds, released the drawing spaces and deactivated any
+  // running analysis — the user came back to a reset workspace. The session now ends on sign-out
+  // instead (resetViewerSession.ts).
   useEffect(() => {
     for (const id of DECLARED_EXTENSIONS) {
       void viewerExtensionLoader.start(id)
-    }
-    return () => {
-      for (const id of DECLARED_EXTENSIONS) {
-        void viewerExtensionLoader.stop(id)
-      }
     }
   }, [])
 
@@ -106,11 +107,13 @@ export function ViewerSurface() {
       const center = { latitude, longitude }
       // FR-007: replaces the placeholder as the active view once a location is set. Only added
       // once — a coordinate update (user physically moved, or agent confirmed a new location)
-      // just re-centers via zoomToLocation below, it doesn't re-add the layer.
-      if (store.contentMode !== 'map') {
+      // just re-centers via zoomToLocation below, it doesn't re-add the layer. Also loads when the
+      // mode says 'map' but no map content is tracked, so a mismatch can never strand the user on
+      // the placeholder.
+      if (store.contentMode !== 'map' || !viewerSession.mapContentId) {
         const result = viewerEngine.loadContent({ kind: 'gis', provider: 'google-maps', center, zoom: DEFAULT_MAP_ZOOM })
         if (result.ok && result.data) {
-          mapContentIdRef.current = result.data.contentId
+          viewerSession.mapContentId = result.data.contentId
         }
         useViewerEngineStore.getState().setContentMode('map')
       }

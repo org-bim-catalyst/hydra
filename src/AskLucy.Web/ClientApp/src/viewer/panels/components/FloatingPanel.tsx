@@ -10,6 +10,7 @@ import {
 import { Box, IconButton, Tooltip, Typography, alpha } from '@mui/material'
 import { Rnd } from 'react-rnd'
 import { viewerEngine } from '../../engine/viewerEngineInstance'
+import { PanelDensityContext } from '../chrome/density'
 import { ContentRenderer } from '../content/ContentRenderer'
 import { panelTypeRegistry } from '../registry'
 import { useFloatingPanelStore } from '../store/floatingPanelStore'
@@ -25,6 +26,9 @@ export const MINIMIZED_BAR_WIDTH = 220
 export const MINIMIZED_BAR_HEIGHT = 40
 const NUDGE_STEP = 10
 const NUDGE_STEP_LARGE = 40
+
+/** The footer's resize cell: the 14px grip plus 6px either side. */
+const FOOTER_RESIZE_CELL_WIDTH = 26
 
 /** `react-rnd`'s drag is pointer/touch-only (no keyboard equivalent built in — the same posture
  * as most drag-resize libraries). This gives keyboard users a way to reposition a panel: focus the
@@ -156,11 +160,9 @@ function ContextAssociationControls({ panel }: { panel: FloatingPanelModel }) {
 /** The chrome for a single open AI-requested panel (data-model.md "Floating Panel"). Normal
  * (non-minimized) panels are wrapped in `react-rnd` for drag/resize (FR-004/FR-005), bounded to
  * the viewer surface (`bounds="parent"`, FR-018) with a minimum usable size (Edge Cases). A
- * minimized panel renders as a small, non-draggable, non-resizable bar instead (FR-006) — simpler
- * and avoids ambiguity about what "dragging a minimized panel" should even mean, which the spec
- * never asks for. This component is intentionally namespaced under `viewer/panels/` rather than
- * reusing `components/workspace-shell/FloatingPanel.tsx`, an unrelated single-instance
- * workspace-control drawer (research.md Decision 5). */
+ * minimized panel renders as a small bar instead (FR-006). This component is intentionally
+ * namespaced under `viewer/panels/` rather than reusing `components/workspace-shell/FloatingPanel.tsx`,
+ * an unrelated single-instance workspace-control drawer (research.md Decision 5). */
 export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: FloatingPanelProps) {
   const closePanel = useFloatingPanelStore((s) => s.closePanel)
   const focusPanel = useFloatingPanelStore((s) => s.focusPanel)
@@ -169,6 +171,10 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
   const updatePosition = useFloatingPanelStore((s) => s.updatePosition)
   const updateSize = useFloatingPanelStore((s) => s.updateSize)
   const opacityPercent = usePanelPreferencesStore((s) => s.opacityPercent)
+
+  const density = panel.chrome.density ?? 'comfortable'
+  const compact = density === 'compact'
+  const controlIconSize = compact ? 15 : 18
 
   const backgroundColor = (theme: { palette: { background: { paper: string } } }) =>
     alpha(theme.palette.background.paper, opacityPercent / 100)
@@ -267,6 +273,7 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
       <Box
         role="region"
         aria-label={panel.title}
+        data-density={density}
         sx={{
           position: 'relative',
           width: '100%',
@@ -274,10 +281,11 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          borderRadius: 2,
+          borderRadius: compact ? '10px' : 2,
           boxShadow: 4,
           bgcolor: backgroundColor,
           color: 'text.primary',
+          ...(compact && { border: '1px solid', borderColor: 'divider', backdropFilter: 'blur(6px)' }),
         }}
       >
         {panel.chrome.titleBar ? (
@@ -291,23 +299,37 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              px: 1.5,
-              py: 1,
+              px: compact ? 1.25 : 1.5,
+              py: compact ? 0.375 : 1,
               borderBottom: 1,
               borderColor: 'divider',
               flexShrink: 0,
               cursor: 'move',
             }}
           >
-            <Typography variant="subtitle2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="subtitle2"
+              noWrap
+              sx={{ flex: 1, minWidth: 0, ...(compact && { fontSize: 12, fontWeight: 600 }) }}
+            >
               {panel.title}
             </Typography>
             <ContextAssociationControls panel={panel} />
-            <IconButton onClick={() => minimizePanel(panel.id)} aria-label="Minimize panel" size="small">
-              <RiSubtractLine size={18} />
+            <IconButton
+              onClick={() => minimizePanel(panel.id)}
+              aria-label="Minimize panel"
+              size="small"
+              sx={compact ? { p: 0.375 } : undefined}
+            >
+              <RiSubtractLine size={controlIconSize} />
             </IconButton>
-            <IconButton onClick={() => closePanel(panel.id)} aria-label="Close panel" size="small">
-              <RiCloseLine size={18} />
+            <IconButton
+              onClick={() => closePanel(panel.id)}
+              aria-label="Close panel"
+              size="small"
+              sx={compact ? { p: 0.375 } : undefined}
+            >
+              <RiCloseLine size={controlIconSize} />
             </IconButton>
           </Box>
         ) : (
@@ -346,29 +368,58 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
             </IconButton>
           </Box>
         )}
-        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1.5, pt: panel.chrome.titleBar ? 1.5 : 4.5 }}>
-          <PanelContent panel={panel} />
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+            ...(compact ? { px: 1.75, py: 1.25 } : { p: 1.5 }),
+            ...(!panel.chrome.titleBar && { pt: 4.5 }),
+          }}
+        >
+          <PanelDensityContext.Provider value={density}>
+            <PanelContent panel={panel} />
+          </PanelDensityContext.Provider>
         </Box>
         {panel.chrome.resizable && (
-          // Purely decorative (`react-rnd` already makes the whole edge/corner resizable
-          // regardless of this) — found live: nothing on screen hinted a panel could be resized
-          // at all, so users had no reason to try. A diagonal resize-handle glyph in the corner is
-          // the conventional affordance; the earlier CSS dot-grid attempt read as low-quality/
-          // blurry at this size, so this uses a proper icon instead (deliberately not
-          // `RiExpandDiagonalLine`, already used for the minimized-panel restore button).
+          // Found live (2026-09-14): the resize grip used to sit absolutely positioned in the
+          // corner, on top of the content area — right where its scrollbar's down arrow is, so the
+          // two overlapped. The grip now lives in its own footer cell, below the scrolling area.
+          // The wide left cell is a slot for hints or status; the narrow right cell fits the grip
+          // alone, sitting under react-rnd's bottom-right resize handle so the glyph marks exactly
+          // the spot that resizes.
           <Box
-            aria-hidden
+            data-testid="panel-footer"
             sx={{
-              position: 'absolute',
-              right: 2,
-              bottom: 2,
-              pointerEvents: 'none',
               display: 'flex',
-              opacity: 0.45,
-              color: 'text.secondary',
+              alignItems: 'stretch',
+              flexShrink: 0,
+              height: compact ? 20 : 24,
+              borderTop: 1,
+              borderColor: 'divider',
             }}
           >
-            <RiExpandDiagonal2Line size={14} />
+            <Box
+              data-testid="panel-footer-status"
+              sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', px: 1, ...(compact ? { fontSize: 11 } : { fontSize: 12 }), color: 'text.secondary' }}
+            />
+            <Box aria-hidden sx={{ width: '1px', my: 0.5, bgcolor: 'divider', flexShrink: 0 }} />
+            <Box
+              aria-hidden
+              data-testid="panel-footer-resize"
+              sx={{
+                width: FOOTER_RESIZE_CELL_WIDTH,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'text.secondary',
+                opacity: 0.6,
+                pointerEvents: 'none',
+              }}
+            >
+              <RiExpandDiagonal2Line size={14} />
+            </Box>
           </Box>
         )}
       </Box>

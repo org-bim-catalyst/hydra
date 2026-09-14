@@ -1,6 +1,12 @@
-import { Alert, Box, Button, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, InputBase, Typography } from '@mui/material'
 import { useState } from 'react'
 import { z } from 'zod'
+import {
+  compactAlertSx,
+  compactButtonSx,
+  compactInputSx,
+  compactLabelSx,
+} from '../../../viewer/panels/chrome/compactStyles'
 import { copy } from '../copy'
 import { useCorrectionsStore } from '../store/correctionsStore'
 import { useSolarAnalysisStore } from '../store/solarAnalysisStore'
@@ -9,6 +15,8 @@ export const SOLAR_CORRECTIONS_TYPE_KEY = 'solar.corrections'
 
 export const solarCorrectionsDataSchema = z.object({})
 export type SolarCorrectionsData = z.infer<typeof solarCorrectionsDataSchema>
+
+const sectionTitleSx = { fontSize: 12, fontWeight: 600, lineHeight: 1.4 } as const
 
 /**
  * contracts/solar-panels.md "Building Corrections" — shows the site building's height AND
@@ -21,6 +29,9 @@ export type SolarCorrectionsData = z.infer<typeof solarCorrectionsDataSchema>
  * Validation (FR-027): an invalid entry is rejected with a stated reason and the PREVIOUS value
  * is kept — never a silent clamp, never a discarded edit. The rejection message is shown inline
  * and cleared the next time the field is edited.
+ *
+ * Laid out in the reference page's compact style: small section titles, dim notes, and a narrow
+ * monospace input beside a small bordered button on each row.
  */
 export function BuildingCorrectionsPanel(): React.JSX.Element | null {
   const site = useSolarAnalysisStore((s) => s.site)
@@ -66,55 +77,67 @@ export function BuildingCorrectionsPanel(): React.JSX.Element | null {
   }
 
   return (
-    <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Typography variant="body2" color="text.secondary">
-        {copy.correctionsApplyToSite(site.timeBasisLabel)}
-      </Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      <Typography sx={compactLabelSx}>{copy.correctionsApplyToSite(site.timeBasisLabel)}</Typography>
 
       {siteBuilding ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Typography variant="subtitle2">{copy.siteBuildingHeightLabel}</Typography>
-          <Typography variant="caption" color="text.secondary">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Typography variant="subtitle2" sx={sectionTitleSx}>
+            {copy.siteBuildingHeightLabel}
+          </Typography>
+          <Typography sx={compactLabelSx}>
             {siteBuilding.heightProvenance === 'known' ? copy.heightKnown : copy.heightAssumed}
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
-            <TextField
+          <Box sx={{ display: 'flex', gap: 0.75, mt: 0.25 }}>
+            <InputBase
               type="number"
-              size="small"
               value={heightInput ?? correctedHeight ?? ''}
               onChange={(e) => setHeightInput(e.target.value)}
-              slotProps={{ htmlInput: { 'aria-label': copy.siteBuildingHeightLabel } }}
+              slotProps={{ input: { 'aria-label': copy.siteBuildingHeightLabel } }}
+              sx={{ ...compactInputSx, flex: 1, minWidth: 0 }}
             />
-            <Button size="small" variant="outlined" onClick={applyHeight}>
+            <Button size="small" variant="outlined" onClick={applyHeight} sx={compactButtonSx}>
               Apply
             </Button>
           </Box>
-          {heightError && <Alert severity="error">{heightError}</Alert>}
+          {heightError && (
+            <Alert severity="error" sx={compactAlertSx}>
+              {heightError}
+            </Alert>
+          )}
         </Box>
       ) : (
-        <Typography variant="caption" color="text.secondary">
-          {copy.noSiteBuildingFound}
-        </Typography>
+        <Typography sx={compactLabelSx}>{copy.noSiteBuildingFound}</Typography>
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Typography variant="subtitle2">{copy.groundOffsetLabel}</Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
-          <TextField
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Typography variant="subtitle2" sx={sectionTitleSx}>
+          {copy.groundOffsetLabel}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 0.75, mt: 0.25 }}>
+          <InputBase
             type="number"
-            size="small"
             value={offsetInput ?? groundOffset}
             onChange={(e) => setOffsetInput(e.target.value)}
-            slotProps={{ htmlInput: { 'aria-label': copy.groundOffsetLabel } }}
+            slotProps={{ input: { 'aria-label': copy.groundOffsetLabel } }}
+            sx={{ ...compactInputSx, flex: 1, minWidth: 0 }}
           />
-          <Button size="small" variant="outlined" onClick={applyOffset}>
+          <Button size="small" variant="outlined" onClick={applyOffset} sx={compactButtonSx}>
             Set
           </Button>
         </Box>
-        {offsetError && <Alert severity="error">{offsetError}</Alert>}
+        {offsetError && (
+          <Alert severity="error" sx={compactAlertSx}>
+            {offsetError}
+          </Alert>
+        )}
       </Box>
 
-      <Button size="small" onClick={() => resetCorrections(site.siteKey)}>
+      <Button
+        size="small"
+        onClick={() => resetCorrections(site.siteKey)}
+        sx={{ ...compactButtonSx, alignSelf: 'flex-start', color: 'text.secondary' }}
+      >
         {copy.resetLabel}
       </Button>
     </Box>

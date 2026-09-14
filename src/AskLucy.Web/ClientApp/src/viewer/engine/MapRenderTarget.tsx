@@ -10,6 +10,7 @@ import { drawingSpaceRegistry } from '../scene/DrawingSpaceRegistry'
 import { rendererState } from '../scene/rendererState'
 import type { CameraState } from '../api/commands'
 import { useThemeStore } from '../../store/themeStore'
+import { viewerSession } from '../session/viewerSession'
 import type { ViewerEngine } from './ViewerEngine'
 
 /** specs/051 FR-025 — reads the live camera snapshot from the underlying `google.maps.Map`. All
@@ -67,16 +68,10 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
   const baseMapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
   const buildingsOnlyMapId = import.meta.env.VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID
   const effectiveMapId = mapStyle === 'buildings-only' && buildingsOnlyMapId ? buildingsOnlyMapId : baseMapId
-  // Carries the last-known pan/zoom/heading/tilt across a theme-triggered remount so toggling
-  // the theme doesn't snap the camera back to this component's original mount-time `center`/
-  // `zoom` props, or reset rotation/tilt to the north-up isometric default.
-  const lastCameraRef = useRef<{
-    latitude: number
-    longitude: number
-    zoom?: number
-    heading?: number
-    tilt?: number
-  } | null>(null)
+  // The last-known pan/zoom/heading/tilt lives in `viewerSession.camera`, not a component ref, so
+  // it survives both a theme-triggered recreation of the map AND leaving this route and coming
+  // back — neither snaps the camera back to the mount-time `center`/`zoom` props or resets
+  // rotation/tilt to the north-up isometric default.
 
   useEffect(() => {
     const container = containerRef.current
@@ -113,10 +108,10 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           apiKey,
           mapId: effectiveMapId,
           container,
-          center: lastCameraRef.current ?? center,
-          zoom: lastCameraRef.current?.zoom ?? zoom,
-          heading: lastCameraRef.current?.heading,
-          tilt: lastCameraRef.current?.tilt,
+          center: viewerSession.camera ?? center,
+          zoom: viewerSession.camera?.zoom ?? zoom,
+          heading: viewerSession.camera?.heading,
+          tilt: viewerSession.camera?.tilt,
           reducedQuality,
           colorScheme: themeMode,
           onLoaded: () => viewerEngine.notifyContentLoaded(layerId),
@@ -167,7 +162,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       const headingListener = handle.map.addListener?.('heading_changed', announceCamera)
       const tiltListener = handle.map.addListener?.('tilt_changed', announceCamera)
 
-      rotationDriver = new RotationDriver({ setHeading: handle.setHeading }, lastCameraRef.current?.heading)
+      rotationDriver = new RotationDriver({ setHeading: handle.setHeading }, viewerSession.camera?.heading)
 
       // US5 (FR-018): the marker becomes selectable only once it actually exists on the map.
       const unregisterSelectable = viewerEngine.registerSelectableElement(layerId, handle.currentLocationMarkerId)
@@ -240,7 +235,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       const currentHeading = handle?.map.getHeading?.()
       const currentTilt = handle?.map.getTilt?.()
       if (currentCenter) {
-        lastCameraRef.current = {
+        viewerSession.camera = {
           latitude: currentCenter.lat(),
           longitude: currentCenter.lng(),
           zoom: currentZoom,

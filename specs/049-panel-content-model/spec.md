@@ -127,7 +127,7 @@ Something arrives that the system cannot render or must not act on — a block k
 
 ### Panel Framing
 
-- **FR-017**: A panel MUST declare its framing: whether it has a title bar, whether it is resizable, and its default size.
+- **FR-017**: A panel MUST declare its framing: whether it has a title bar, whether it is resizable, its default size, and optionally its density — `comfortable` (default) or `compact`, the dense look for panels that sit over the scene. A resizable panel MUST show a footer with a status area and a resize affordance that never overlaps its scrolling content. *(Amended 2026-09-14: density added; the resize grip previously sat over the content's scrollbar.)*
 - **FR-018**: A panel declaring a title bar MUST present its title and its close and minimise controls there.
 - **FR-019**: A panel declaring no title bar MUST remain movable, minimisable, closable and focusable through an affordance that is discoverable and keyboard-operable.
 - **FR-020**: A panel declaring itself fixed-size MUST offer no resize affordance and MUST retain its declared size.
@@ -154,7 +154,7 @@ Something arrives that the system cannot render or must not act on — a block k
 - **Panel Content**: An ordered sequence of content blocks, together with the panel's title — the complete description of what a content panel shows.
 - **Action**: A declared request to perform one permitted viewer operation, naming the operation and its arguments. Validated against the allowlist before it is ever performed.
 - **Action Allowlist**: The closed set of viewer operations content is permitted to invoke, derived from the viewer's published command surface.
-- **Panel Framing**: A panel's declared presentation — title bar or none, resizable or fixed, default size.
+- **Panel Framing**: A panel's declared presentation — title bar or none, resizable or fixed, default size, and density (comfortable or compact).
 - **Live Panel Kind**: A registered panel whose content is code rather than data. None ship in this feature; the registry narrows to this purpose.
 
 ## Success Criteria *(mandatory)*

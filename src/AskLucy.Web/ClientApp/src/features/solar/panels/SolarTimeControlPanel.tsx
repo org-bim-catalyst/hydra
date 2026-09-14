@@ -1,6 +1,13 @@
-import { Box, IconButton, Slider, TextField, Typography } from '@mui/material'
+import { Box, IconButton, InputBase, Slider, Typography } from '@mui/material'
 import { RiPauseFill, RiPlayFill } from '@remixicon/react'
+import { useId } from 'react'
 import { z } from 'zod'
+import {
+  COMPACT_ACCENT,
+  COMPACT_MONO_FONT,
+  compactInputSx,
+  compactLabelSx,
+} from '../../../viewer/panels/chrome/compactStyles'
 import { copy } from '../copy'
 import { useSolarAnalysisStore } from '../store/solarAnalysisStore'
 
@@ -12,6 +19,8 @@ export const SOLAR_TIME_CONTROL_TYPE_KEY = 'solar.time-control'
  * only to satisfy `PanelTypeDefinition`'s contract. */
 export const solarTimeControlDataSchema = z.object({})
 export type SolarTimeControlData = z.infer<typeof solarTimeControlDataSchema>
+
+const ROW_LABEL_WIDTH = 34
 
 function formatLocalTime(localMinuteOfDay: number): string {
   const hour = Math.floor(localMinuteOfDay / 60)
@@ -25,8 +34,12 @@ function formatLocalTime(localMinuteOfDay: number): string {
  * position, shadows and figures can never disagree — there is one value, not three (FR-022).
  * The slider is a native `range` input with `aria-valuetext` carrying the local time, so assistive
  * technology reads "14:00", not "840" (FR-032).
+ *
+ * Laid out as the reference page's two compact rows — date, then play/slider/time — with small
+ * labels and a monospace amber time readout.
  */
 export function SolarTimeControlPanel(): React.JSX.Element | null {
+  const dateInputId = useId()
   const moment = useSolarAnalysisStore((s) => s.moment)
   const setLocalDate = useSolarAnalysisStore((s) => s.setLocalDate)
   const setLocalMinuteOfDay = useSolarAnalysisStore((s) => s.setLocalMinuteOfDay)
@@ -37,35 +50,43 @@ export function SolarTimeControlPanel(): React.JSX.Element | null {
   const localTimeLabel = formatLocalTime(moment.localMinuteOfDay)
 
   return (
-    <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <TextField
-        type="date"
-        label={copy.dateLabel}
-        value={moment.localDate}
-        onChange={(e) => setLocalDate(e.target.value)}
-        size="small"
-        fullWidth
-      />
-      <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1, alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box component="label" htmlFor={dateInputId} sx={{ ...compactLabelSx, width: ROW_LABEL_WIDTH, flexShrink: 0 }}>
+          {copy.dateLabel}
+        </Box>
+        <InputBase
+          id={dateInputId}
+          type="date"
+          value={moment.localDate}
+          onChange={(e) => setLocalDate(e.target.value)}
+          sx={compactInputSx}
+        />
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <IconButton
           aria-label={moment.isPlaying ? copy.stopLabel : copy.playLabel}
           onClick={() => setPlaying(!moment.isPlaying)}
           size="small"
+          sx={{ width: 28, height: 28, flexShrink: 0, border: '1px solid', borderColor: 'divider', borderRadius: '5px' }}
         >
-          {moment.isPlaying ? <RiPauseFill /> : <RiPlayFill />}
+          {moment.isPlaying ? <RiPauseFill size={14} /> : <RiPlayFill size={14} />}
         </IconButton>
-        <Box sx={{ flex: 1 }}>
-          <Slider
-            aria-label={copy.timeLabel}
-            aria-valuetext={localTimeLabel}
-            value={moment.localMinuteOfDay}
-            min={0}
-            max={1439}
-            step={1}
-            onChange={(_, value) => setLocalMinuteOfDay(value as number)}
-          />
-        </Box>
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', minWidth: 48, textAlign: 'right' }}>
+        <Slider
+          size="small"
+          aria-label={copy.timeLabel}
+          aria-valuetext={localTimeLabel}
+          value={moment.localMinuteOfDay}
+          min={0}
+          max={1439}
+          step={1}
+          onChange={(_, value) => setLocalMinuteOfDay(value as number)}
+          sx={{ flex: 1, color: COMPACT_ACCENT }}
+        />
+        <Typography
+          component="span"
+          sx={{ fontFamily: COMPACT_MONO_FONT, fontSize: 12.5, color: COMPACT_ACCENT, minWidth: 44, textAlign: 'right', flexShrink: 0 }}
+        >
           {localTimeLabel}
         </Typography>
       </Box>

@@ -159,7 +159,7 @@ A capability is one the user switches on and off rather than one that is simply 
 - **FR-025**: The viewer MUST start a declared set of extensions when it opens and stop them when it closes, without the viewer core containing logic specific to any individual extension.
 - **FR-026**: The viewer core MUST NOT reference any individual capability after this feature.
 - **FR-027**: The viewer MUST remain usable while extensions are starting, and MUST NOT wait indefinitely on an extension that does not finish starting.
-- **FR-028**: When the viewer closes, every running extension MUST be stopped and every contribution withdrawn.
+- **FR-028**: When the user's session ends (sign-out), every running extension MUST be stopped and every contribution withdrawn. Leaving the viewer's page and returning within the same session MUST keep extensions running, so open panels, an active analysis and the camera survive the trip. An extension's event subscriptions MUST be taken for the extension's lifetime (in `start()`), never from a contributed component's mount, so remounting a component cannot accumulate listeners. *(Amended 2026-09-14: extensions previously stopped whenever the viewer unmounted, so navigating to another page reset the workspace; the camera-attitude widget subscribed on every mount.)*
 
 ### Failure Isolation
 

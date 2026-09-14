@@ -1,8 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { useAuthStore } from '../../../store/authStore'
 import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
 import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
+import { resetViewerSession } from '../../../viewer/session/resetViewerSession'
+import { viewerSession } from '../../../viewer/session/viewerSession'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { ViewerSurface } from './ViewerSurface'
 
@@ -26,6 +29,13 @@ vi.mock('../../../viewer/engine/MapRenderTarget', () => ({
 const initialViewerState = useViewerEngineStore.getState()
 const initialExtensionState = useViewerExtensionStore.getState()
 
+/** Extension stop() calls resolve asynchronously — let them settle before asserting. */
+async function flushAsync(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
 describe('ViewerSurface', () => {
   beforeEach(() => {
     // specs/036-startup-geolocation T009/T016: ViewerSurface now reads from activeLocationStore
@@ -36,6 +46,15 @@ describe('ViewerSurface', () => {
     // specs/050: each test's render() starts the declared extensions afresh — reset so an
     // earlier test's still-started extensions don't leak into the next one's assertions.
     useViewerExtensionStore.setState(initialExtensionState, true)
+    viewerSession.mapContentId = null
+    viewerSession.camera = null
+  })
+
+  // Extensions now outlive an unmount by design, so each test ends the session explicitly —
+  // otherwise one test's running extensions would carry their contributions into the next.
+  afterEach(async () => {
+    resetViewerSession()
+    await flushAsync()
   })
 
   it('renders the non-interactive fallback when WebGL is unavailable (FR-005)', () => {
@@ -137,23 +156,50 @@ describe('ViewerSurface', () => {
     expect(await screen.findByTestId('panel-hub-connection-status')).toBeInTheDocument()
   })
 
-  // specs/050-viewer-extension-framework T051a (FR-028)
-  it('stops every declared extension and leaves no contribution in the store when the viewer closes', async () => {
-    const { unmount } = render(<ViewerSurface />)
+  // Found live (2026-09-14): leaving /studio (e.g. for /admin) used to stop every extension and
+  // lose track of the loaded map, so the user came back to a reset workspace stuck on the
+  // placeholder. The workspace state now survives the trip.
+  it('keeps the extensions running and the map attached when the viewer is remounted after leaving the route', async () => {
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    const first = render(<ViewerSurface />)
     await screen.findByTestId('panel-hub-connection-status')
+    const contributionsBefore = useViewerExtensionStore.getState().contributions.length
+
+    first.unmount()
+    await flushAsync()
+
     for (const id of DECLARED_EXTENSIONS) {
       expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('started')
     }
 
-    await act(async () => {
-      unmount()
-      // Extension stop() calls resolve asynchronously; flush microtasks before asserting.
-      await Promise.resolve()
+    render(<ViewerSurface />)
+
+    expect(screen.getByTestId('viewer-map-stub')).toBeInTheDocument()
+    expect(useViewerEngineStore.getState().contentMode).toBe('map')
+    // Re-attached to the map already loaded — not a second copy of it.
+    expect(useViewerEngineStore.getState().layers).toHaveLength(1)
+    expect(useViewerExtensionStore.getState().contributions).toHaveLength(contributionsBefore)
+  })
+
+  // specs/050 FR-028, now on sign-out: the next person to sign in on this tab must not inherit the
+  // previous user's running extensions, contributions or loaded map.
+  it('ends the viewer session when the user signs out', async () => {
+    useAuthStore.setState({ accessToken: 'token', userId: 'user-1' })
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    render(<ViewerSurface />)
+    await screen.findByTestId('panel-hub-connection-status')
+
+    act(() => {
+      useAuthStore.getState().clear()
     })
+    await flushAsync()
 
     for (const id of DECLARED_EXTENSIONS) {
       expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('stopped')
     }
     expect(useViewerExtensionStore.getState().contributions).toHaveLength(0)
+    expect(useViewerEngineStore.getState().contentMode).toBe('placeholder')
+    expect(useViewerEngineStore.getState().layers).toEqual([])
+    expect(viewerSession.mapContentId).toBeNull()
   })
 })

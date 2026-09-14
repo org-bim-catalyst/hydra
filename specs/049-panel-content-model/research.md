@@ -92,6 +92,8 @@ All Technical Context unknowns are resolved below. Each decision records what wa
 
 **Decision**: Chrome is `{ titleBar: boolean, resizable: boolean, defaultSize: {width, height} }`. Content panels get a default (title bar, resizable, 400×300) that a request may override within the existing minimum-size floor. Live panel kinds declare chrome at registration, extending today's `defaultSize`/`resizable` fields.
 
+**Amendment 2026-09-14**: chrome gains an optional `density` (`comfortable` | `compact`), declared per panel like the other fields rather than applied globally, so Lucy-composed panels keep today's look while panels that sit over the scene (the solar analysis) opt into the dense reference-page style. A resizable panel's grip moves into a footer (status cell | divider | grip cell) so it no longer overlaps the content's scrollbar.
+
 For a panel with no title bar: a small, visually distinct **grip affordance** in a corner, focusable, labelled, carrying the drag handle class and the existing arrow-key nudge handler, with the close and minimise controls beside it.
 
 **Rationale**: `FloatingPanel.tsx` already attaches drag to a handle class and already implements keyboard nudging on that handle ([FloatingPanel.tsx:23-39, 210-238](../../src/AskLucy.Web/ClientApp/src/viewer/panels/components/FloatingPanel.tsx#L23-L39)). A grip reuses both unchanged. It is also unambiguous in a way that body-dragging is not — a small circular readout is mostly content, and dragging by content fights any interactive element inside it.

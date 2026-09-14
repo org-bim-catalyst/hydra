@@ -88,6 +88,20 @@ Every prior content panel was composed by the model and validated at the server 
 composed in the browser. `panelContentSchema` is indifferent to the author, so no framework change
 is implied — but it is the first exercise of that path, and the quickstart checks it deliberately.
 
+## Presentation (amended 2026-09-14)
+
+All three panels declare `density: 'compact'` chrome (specs/049 FR-017) to match the solar-analysis
+reference page (`sunpath-osm-shadows-13.html`) and leave the scene they describe visible:
+
+| Panel | Default size | Layout |
+|---|---|---|
+| Solar Figures | 260 × 320 | Metrics render as highlighted rows (amber monospace value); key/value items as rows on hairline dividers; the closing statement as an 11px note. Still the same content document — FR-031 is unchanged. |
+| Time Control | 420 × 160 | Two rows: date; play/stop, slider, amber monospace local time. |
+| Building Corrections | 280 × 300 | Small section titles, dim provenance notes, narrow monospace inputs beside small bordered Apply/Set buttons. |
+
+The camera-attitude readout (true north and tilt) is not one of these panels: it is an overlay
+whose `cameraChanged` subscription is taken once in the extension's `start()` (specs/050 FR-028).
+
 ## Accessibility (FR-032, constitution §7)
 
 - All three panels are keyboard-operable end to end; the slider is a native `range` input with

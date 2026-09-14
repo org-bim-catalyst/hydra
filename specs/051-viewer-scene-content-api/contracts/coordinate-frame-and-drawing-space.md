@@ -27,10 +27,12 @@ function localToWorld(position: LocalPosition): { latitude: number; longitude: n
 ```
 
 - There is exactly one reference point at a time (FR-008) — `getReferencePoint()` on the engine
-  reads it; nothing but `SceneAnchor` itself ever sets it.
+  reads it; only the viewer sets it (first content load, then every active-location change —
+  amended 2026-09-14), never a capability.
 - `worldToLocal`/`localToWorld` are pure functions of the current reference point — calling them
-  again after the reference point changes (FR-012) produces correct, non-stale results; nothing
-  needs to be re-anchored manually by a capability.
+  again after the reference point changes (FR-012) produces correct, non-stale results. Geometry
+  already converted from an earlier point must be rebuilt: subscribe with `sceneAnchor.subscribe()`
+  (or read `sceneAnchor.version`) and re-convert when it changes.
 - Precision: accurate to within 1 metre at the working scale this feature targets (SC-002) — the
   same tolerance `GoogleMapsGisLayer`'s existing equirectangular approximation already delivers at
   typical site distances, not unlimited-precision geodesy (spec Assumptions: "the conversion's

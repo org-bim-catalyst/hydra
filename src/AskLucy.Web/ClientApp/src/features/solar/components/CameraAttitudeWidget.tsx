@@ -1,5 +1,6 @@
 import { Box, Typography } from '@mui/material'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { create } from 'zustand'
 import type { CameraState } from '../../../viewer/api/commands'
 import type { ExtensionContext } from '../../../viewer/extensions/context'
 import { useAvoidReservedCorner } from '../../../viewer/extensions/components/useAvoidReservedCorner'
@@ -13,6 +14,34 @@ import { EXTENSION_ID } from './SolarAnalysisOverlay'
 const MAX_TILT_DEGREES = 67.5
 const BUBBLE_TRAVEL_PIXELS = 26
 
+interface CameraAttitudeState {
+  camera: CameraState | null
+  setCamera: (camera: CameraState | null) => void
+}
+
+/** The latest camera heading/tilt, fed by the extension-lifetime subscription below. */
+export const useCameraAttitudeStore = create<CameraAttitudeState>((set) => ({
+  camera: null,
+  setCamera: (camera) => set({ camera }),
+}))
+
+/**
+ * Subscribes to `cameraChanged` for the lifetime of the extension — call once, from `start()`.
+ *
+ * Found live (2026-09-14): this used to be `context.on(...)` inside the widget's own mount effect.
+ * `context.on` records an extension-owned subscription that is only withdrawn when the extension
+ * stops, and returns nothing to unsubscribe with — so every remount of the widget (leaving the
+ * workspace route and returning, now that extensions keep running across it) added one more
+ * listener that was never removed, each calling `setState` on an unmounted component. Owning the
+ * subscription at the extension's own lifetime is what `ExtensionContext`'s contract intends.
+ *
+ * `cameraChanged` fires on heading and tilt changes as they happen (specs/051 FR-026), not only
+ * when movement settles, which is what lets the needle track a rotation instead of snapping.
+ */
+export function subscribeCameraAttitude(context: ExtensionContext): void {
+  context.on('cameraChanged', (event) => useCameraAttitudeStore.getState().setCamera(event.camera))
+}
+
 /**
  * A compact camera-attitude readout: where true north lies relative to the current view, and how
  * far the camera is tilted from straight down.
@@ -21,15 +50,11 @@ const BUBBLE_TRAVEL_PIXELS = 26
  * day — move the time slider and azimuth, altitude and the sun marker all change. These two are
  * driven by the camera instead: they change when the user rotates or tilts the view and are
  * completely unaffected by time. Two different inputs, so two different surfaces.
- *
- * Reads `cameraChanged` (specs/051 FR-026) rather than polling. That event now fires on heading
- * and tilt changes as they happen, not only when movement settles, which is what lets the needle
- * track a rotation instead of snapping to its end state.
  */
 export function makeCameraAttitudeWidget(context: ExtensionContext) {
   return function CameraAttitudeWidget() {
     const activation = useViewerExtensionStore((s) => s.extensions[EXTENSION_ID]?.activation)
-    const [camera, setCamera] = useState<CameraState | null>(null)
+    const camera = useCameraAttitudeStore((s) => s.camera)
     const rootRef = useRef<HTMLDivElement>(null)
     // specs/054 (feedback 2026-09-13): moved to the top-left corner, under the location/weather
     // readout and the site-boundary confidence badge (both `data-panel-reserved`) — the top-right
@@ -37,12 +62,12 @@ export function makeCameraAttitudeWidget(context: ExtensionContext) {
     const top = useAvoidReservedCorner(rootRef, 'left')
 
     useEffect(() => {
-      // Seed from the engine so the widget is correct the moment it appears, rather than blank
-      // until the user happens to move the camera.
+      // Seed from the engine so the widget is correct the moment it first appears, rather than
+      // blank until the user happens to move the camera. A one-off read, not a subscription — the
+      // extension-lifetime subscription above keeps it current from then on.
+      if (useCameraAttitudeStore.getState().camera) return
       const initial = context.engine.getCameraState()
-      if (initial.ok && initial.data) setCamera(initial.data.camera)
-
-      context.on('cameraChanged', (event) => setCamera(event.camera))
+      if (initial.ok && initial.data) useCameraAttitudeStore.getState().setCamera(initial.data.camera)
     }, [])
 
     if (activation !== 'active' || !camera) return null

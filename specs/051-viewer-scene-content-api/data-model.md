@@ -82,9 +82,12 @@ interface ReferencePoint {
 }
 ```
 
-Only the engine sets this (on first content load, and never mid-session by any capability — spec
-Out of Scope explicitly excludes multiple simultaneous reference points). Read via
-`engine.getReferencePoint()`; consumed internally by `worldToLocal`/`localToWorld` (below).
+Only the viewer sets this: the engine on first content load, and the viewer again whenever the
+active location changes (`viewer/session/anchorFollowsActiveLocation.ts` — amended 2026-09-14, see
+research D2). No capability ever sets it, and there is still exactly one at a time (spec Out of
+Scope excludes multiple simultaneous reference points). Read via `engine.getReferencePoint()`;
+consumed internally by `worldToLocal`/`localToWorld` (below). `subscribe(listener)` and `version`
+let content positioned from it re-position when it moves; setting the same point notifies nobody.
 
 ## Local Positioning Space (ENU)
 
