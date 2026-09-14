@@ -26,6 +26,34 @@ vi.mock('../../../viewer/engine/MapRenderTarget', () => ({
   ),
 }))
 
+// The panels extension's overlay only opens a real SignalR connection once a user is signed in
+// (useFloatingPanelHub.ts) — every other test here renders signed out, so this never ran until
+// the sign-out test below authenticates first. Mirrors useFloatingPanelHub.test.ts's own mock.
+vi.mock('@microsoft/signalr', () => {
+  class MockHubConnectionBuilder {
+    withUrl() {
+      return this
+    }
+    withAutomaticReconnect() {
+      return this
+    }
+    configureLogging() {
+      return this
+    }
+    build() {
+      return {
+        on: () => {},
+        onreconnected: () => {},
+        onreconnecting: () => {},
+        onclose: () => {},
+        start: () => Promise.resolve(),
+        stop: () => Promise.resolve(),
+      }
+    }
+  }
+  return { HubConnectionBuilder: MockHubConnectionBuilder, LogLevel: { Warning: 2 } }
+})
+
 const initialViewerState = useViewerEngineStore.getState()
 const initialExtensionState = useViewerExtensionStore.getState()
 
