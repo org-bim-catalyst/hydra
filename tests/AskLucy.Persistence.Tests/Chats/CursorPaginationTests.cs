@@ -14,7 +14,7 @@ namespace AskLucy.Persistence.Tests.Chats;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldPageThroughAllConversations_WithoutDuplicatesOrGaps()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -44,7 +44,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
         seen.Should().OnlyHaveUniqueItems();
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldNotDuplicateOrSkip_WhenANewConversationIsInsertedBetweenPages()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -79,7 +79,7 @@ public sealed class CursorPaginationTests(PersistenceTestFixture fixture)
         secondPage.Should().Contain(c => c.Id == chats[2].Id, "the third original conversation must not be skipped");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task ListPagedByChatIdAsync_ShouldPageThroughAllMessages_InOrder()
     {
         var userId = $"owner-{Guid.NewGuid():N}";

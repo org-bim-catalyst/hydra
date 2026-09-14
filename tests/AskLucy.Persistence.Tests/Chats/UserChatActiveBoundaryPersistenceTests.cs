@@ -15,7 +15,7 @@ namespace AskLucy.Persistence.Tests.Chats;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class UserChatActiveBoundaryPersistenceTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task ActiveBoundary_ShouldRoundTrip_IncludingThePolygonRing()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -52,7 +52,7 @@ public sealed class UserChatActiveBoundaryPersistenceTests(PersistenceTestFixtur
         }
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task ActiveBoundary_ShouldBeNull_WhenNeverSet()
     {
         var userId = $"owner-{Guid.NewGuid():N}";

@@ -33,7 +33,7 @@ public sealed class DocumentMetadataConcurrencyTests(PersistenceTestFixture fixt
         return (document.Id, metadata.RowVersion);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SaveMetadataResolvingStalenessAsync_ShouldSucceedWithoutRetry_WhenNoConcurrentEditOccurred()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -54,7 +54,7 @@ public sealed class DocumentMetadataConcurrencyTests(PersistenceTestFixture fixt
         persisted!.Title.Should().Be("New Title");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SaveMetadataResolvingStalenessAsync_ShouldMergeAndReturnWasStaleTrue_WhenAnotherEditCommittedFirst()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

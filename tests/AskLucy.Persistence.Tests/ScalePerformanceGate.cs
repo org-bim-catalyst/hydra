@@ -40,13 +40,17 @@ public static class ScalePerformanceGate
 
     public const string SkipReason =
         "Wall-clock scale thresholds are deferred until go-live: pre-production they measure the "
-        + "shared test host rather than this code. Set RUN_SCALE_PERFORMANCE_TESTS=1 to run them "
-        + "— see ScalePerformanceGate and docs/TESTING.md §13.";
+        + "shared test host rather than this code. Set RUN_SCALE_PERFORMANCE_TESTS=1 to run them, "
+        + "against a dedicated test database (PersistenceDatabaseGate) — see ScalePerformanceGate and "
+        + "docs/TESTING.md §13.";
 
     /// <summary>
     /// Read by xUnit through <c>[Fact(Skip = ..., SkipWhen = ..., SkipType = ...)]</c>, so the
-    /// tests are reported as skipped with the reason above rather than silently absent.
+    /// tests are reported as skipped with the reason above rather than silently absent. Also shut
+    /// whenever <see cref="PersistenceDatabaseGate"/> is — these tests write to the database too,
+    /// and an attribute can carry only one skip condition.
     /// </summary>
     public static bool NotRequested =>
-        Environment.GetEnvironmentVariable(EnvironmentVariable) != "1";
+        Environment.GetEnvironmentVariable(EnvironmentVariable) != "1"
+        || PersistenceDatabaseGate.NotConfigured;
 }

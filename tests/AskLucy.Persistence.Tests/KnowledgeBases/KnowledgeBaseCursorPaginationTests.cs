@@ -14,7 +14,7 @@ namespace AskLucy.Persistence.Tests.KnowledgeBases;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldPageThroughAllKnowledgeBases_WithoutDuplicatesOrGaps()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -47,7 +47,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         seen.Should().OnlyHaveUniqueItems();
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldNotDuplicateOrSkip_WhenANewKnowledgeBaseIsInsertedBetweenPages()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -85,7 +85,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         secondPage.Should().Contain(k => k.Id == knowledgeBases[2].Id, "the third original knowledge base must not be skipped");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldAlwaysReturnPinnedKnowledgeBases_BeforeUnpinnedOnes_AcrossPageBoundaries()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -125,7 +125,7 @@ public sealed class KnowledgeBaseCursorPaginationTests(PersistenceTestFixture fi
         seenInOrder.Should().HaveCount(5);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldPageThroughByDocumentCount_WithoutDuplicatesOrGaps()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

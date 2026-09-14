@@ -21,7 +21,7 @@ namespace AskLucy.Persistence.Tests.HealthChecks;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class PendingMigrationsHealthCheckTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task CheckHealthAsync_ShouldReportHealthy_WhenNoMigrationsArePending()
     {
         await using var dbContext = fixture.CreateDbContext();

@@ -24,7 +24,7 @@ public sealed class UserCookieConsentRepositoryTests(PersistenceTestFixture fixt
         return user.Id;
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetLatestAsync_ShouldReturnTheMostRecentlyCreatedRecord_AcrossMultipleInserts()
     {
         string userId;
@@ -46,7 +46,7 @@ public sealed class UserCookieConsentRepositoryTests(PersistenceTestFixture fixt
         latest.FunctionalAccepted.Should().BeTrue();
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetHistoryAsync_ShouldReturnEveryRecord_OrderedByCreatedAtUtcDescending()
     {
         string userId;
@@ -67,7 +67,7 @@ public sealed class UserCookieConsentRepositoryTests(PersistenceTestFixture fixt
         history[1].PolicyVersion.Should().Be("2026-01-01.1");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task DeletingTheOwningUser_ShouldCascadeAndRemoveAllOfThatUsersConsentRecords()
     {
         string userId;

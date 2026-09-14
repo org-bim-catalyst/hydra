@@ -12,7 +12,7 @@ namespace AskLucy.Persistence.Tests.Chats;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class MessagePersistenceTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task Message_ShouldRoundTrip_MetadataAttachmentsAndCitations()
     {
         var userId = $"owner-{Guid.NewGuid():N}";

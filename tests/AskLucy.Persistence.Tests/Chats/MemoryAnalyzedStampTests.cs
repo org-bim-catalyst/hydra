@@ -35,7 +35,7 @@ public sealed class MemoryAnalyzedStampTests(PersistenceTestFixture fixture)
         return chat.Id;
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task MarkMemoryAnalyzedAsync_ShouldSucceed_EvenWhenTheChatWasWrittenSinceItWasLoaded()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -66,7 +66,7 @@ public sealed class MemoryAnalyzedStampTests(PersistenceTestFixture fixture)
         reloaded.Title.Should().Be("Renamed by the turn", "the targeted update must touch only the timestamp");
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task MarkMemoryAnalyzedAsync_ShouldTakeTheChatOutOfTheSweepQueue()
     {
         var userId = $"owner-{Guid.NewGuid():N}";

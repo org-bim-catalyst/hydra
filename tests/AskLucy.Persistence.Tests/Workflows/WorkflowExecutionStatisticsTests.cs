@@ -15,7 +15,7 @@ namespace AskLucy.Persistence.Tests.Workflows;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetStatisticsAsync_ShouldBucketCountsAndSumUsageAndCost_Correctly()
     {
         var suffix = Guid.NewGuid().ToString("N");
@@ -103,7 +103,7 @@ public sealed class WorkflowExecutionStatisticsTests(PersistenceTestFixture fixt
         stats.TotalEstimatedCost.Should().Be(1.00m);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task GetStatisticsAsync_ShouldReturnZeroFailureRateAndNullAverageDuration_WhenTheUserHasNoTerminalExecutions()
     {
         var suffix = Guid.NewGuid().ToString("N");

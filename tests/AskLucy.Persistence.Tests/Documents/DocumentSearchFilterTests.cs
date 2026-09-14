@@ -78,7 +78,7 @@ public sealed class DocumentSearchFilterTests(PersistenceTestFixture fixture)
         return document.Id;
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldReturnOnlyDocumentsMatchingEveryActiveFilter()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -115,7 +115,7 @@ public sealed class DocumentSearchFilterTests(PersistenceTestFixture fixture)
         items.Should().ContainSingle(d => d.Id == matchId);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldMatchTheQueryFilterAgainstMetadataTitleAndKeywords_NotJustFileName()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";
@@ -136,7 +136,7 @@ public sealed class DocumentSearchFilterTests(PersistenceTestFixture fixture)
         items.Should().ContainSingle(d => d.Id == documentId);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldFilterByDateRange()
     {
         var ownerId = $"owner-{Guid.NewGuid():N}";

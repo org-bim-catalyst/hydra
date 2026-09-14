@@ -10,7 +10,7 @@ namespace AskLucy.Persistence.Tests;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class AgentRepositoryTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task ListSystemOwnedAsync_ShouldReturnOnlySystemOwnedAgents_ExcludingUserOwnedOnes()
     {
         var suffix = Guid.NewGuid().ToString("N");

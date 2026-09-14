@@ -18,7 +18,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
             userId, null, category, content, MemorySourceType.PassiveConversationAnalysis,
             null, 0.5m, 0.5m, isSensitive: false, MemoryApprovalMode.Automatic, "test");
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldFilterByCategoryAndState_AndPaginateWithoutDuplicatesOrGaps()
     {
         var userId = $"user-{Guid.NewGuid():N}";
@@ -51,7 +51,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         seen.Should().OnlyHaveUniqueItems();
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task CountAsync_ShouldMatchSearchAsyncsFilters_IgnoringPageSize()
     {
         var userId = $"user-{Guid.NewGuid():N}";
@@ -72,7 +72,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         count.Should().Be(5);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldFindByFreeTextContent_DespiteContentBeingEncryptedAtRest()
     {
         var userId = $"user-{Guid.NewGuid():N}";
@@ -94,7 +94,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         results.Should().ContainSingle().Which.Id.Should().Be(target.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task Edit_ShouldAppendAMemoryVersion_RetrievableViaMemoryVersionRepository()
     {
         var userId = $"user-{Guid.NewGuid():N}";
@@ -126,7 +126,7 @@ public sealed class MemoryCenterTests(PersistenceTestFixture fixture)
         history.Should().ContainSingle(v => v.PreviousContent == "Original content" && v.ChangeReason == MemoryChangeReason.UserEdit);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task Delete_ShouldExcludeTheMemory_FromEveryFutureSearchAsyncCall()
     {
         var userId = $"user-{Guid.NewGuid():N}";

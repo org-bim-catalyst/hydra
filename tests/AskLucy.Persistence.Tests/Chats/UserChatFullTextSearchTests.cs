@@ -13,7 +13,7 @@ namespace AskLucy.Persistence.Tests.Chats;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class UserChatFullTextSearchTests(PersistenceTestFixture fixture)
 {
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldMatchByTitle()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
@@ -36,7 +36,7 @@ public sealed class UserChatFullTextSearchTests(PersistenceTestFixture fixture)
         items.Should().ContainSingle(c => c.Id == matching.Id);
     }
 
-    [Fact]
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task SearchAsync_ShouldMatchByMessageContent()
     {
         var userId = $"owner-{Guid.NewGuid():N}";
