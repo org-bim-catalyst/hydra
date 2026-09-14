@@ -1,5 +1,10 @@
 import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH } from '../types/panel'
 
+/** How tightly a panel lays out its chrome and content. `compact` is the dense look of the
+ * solar-analysis reference page — small dim labels, rows on hairline dividers, monospace values —
+ * for panels that must leave the scene visible around them. */
+export type PanelDensity = 'comfortable' | 'compact'
+
 /** data-model.md "Panel Chrome" (research D7) — how a panel is framed, declared rather than
  * uniform across every panel. A conventional titled box, a wide control strip and a small
  * circular widget with no title bar all exist under this one shape. */
@@ -7,6 +12,8 @@ export interface PanelChrome {
   titleBar: boolean
   resizable: boolean
   defaultSize: { width: number; height: number }
+  /** Optional so every existing chrome declaration keeps its meaning; absent means `comfortable`. */
+  density?: PanelDensity
 }
 
 export const DEFAULT_CONTENT_CHROME: PanelChrome = {
@@ -27,5 +34,7 @@ export function resolveChrome(override: Partial<PanelChrome> | null | undefined,
       height: Math.max(override?.defaultSize?.height ?? base.defaultSize.height, MIN_PANEL_HEIGHT),
     },
   }
+  const density = override?.density ?? base.density
+  if (density) merged.density = density
   return merged
 }

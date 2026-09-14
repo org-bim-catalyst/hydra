@@ -2,6 +2,7 @@ import { act, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SiteBoundaryOverlay } from './SiteBoundaryOverlay'
 import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
+import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
 import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 import type { GoogleMapsGisLayerHandle } from '../../../viewer/layers/gis/GoogleMapsGisLayer'
 
@@ -79,5 +80,24 @@ describe('SiteBoundaryOverlay', () => {
     act(() => useActiveSiteBoundaryStore.getState().clearBoundary())
 
     expect(handle.setSiteBoundary).toHaveBeenLastCalledWith(null)
+  })
+
+  // Found live (2026-09-14): the ring is converted into metres from the reference point when it is
+  // set, so a ring built before the reference point followed the active location stayed drawn
+  // kilometres from the site. Moving the reference point must rebuild it.
+  it('re-applies the boundary when the scene reference point moves', () => {
+    act(() => sceneAnchor.set({ latitude: 30.1383, longitude: 31.7108 }))
+    const handle = fakeHandle()
+    act(() => useGoogleMapsStore.getState().setHandle(handle))
+    render(<SiteBoundaryOverlay />)
+    act(() => useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary))
+    vi.mocked(handle.setSiteBoundary).mockClear()
+
+    act(() => sceneAnchor.set({ latitude: 25.1558327, longitude: 55.2217644 }))
+
+    expect(handle.setSiteBoundary).toHaveBeenLastCalledWith({
+      exteriorRing: sampleBoundary.polygon,
+      confidenceLevel: 'high',
+    })
   })
 })

@@ -30,4 +30,13 @@ describe('resolveChrome (data-model.md "Panel Chrome", research D7)', () => {
     const resolved = resolveChrome({ defaultSize: { width: 500, height: 400 } })
     expect(resolved.defaultSize).toEqual({ width: 500, height: 400 })
   })
+
+  it('carries a declared density from the override or the base, and leaves it absent otherwise', () => {
+    expect(resolveChrome(null).density).toBeUndefined()
+    expect(resolveChrome({ density: 'compact' }).density).toBe('compact')
+
+    const compactBase = { ...DEFAULT_CONTENT_CHROME, density: 'compact' as const }
+    expect(resolveChrome({ titleBar: false }, compactBase).density).toBe('compact')
+    expect(resolveChrome({ density: 'comfortable' }, compactBase).density).toBe('comfortable')
+  })
 })

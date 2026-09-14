@@ -33,4 +33,23 @@ describe('SceneAnchor (FR-008)', () => {
     expect(roundTripped.latitude).toBeCloseTo(nearby.latitude, 6)
     expect(roundTripped.longitude).toBeCloseTo(nearby.longitude, 6)
   })
+
+  it('bumps its version and notifies subscribers only when the reference point actually moves', () => {
+    sceneAnchor.set({ latitude: 1, longitude: 2 })
+    const notifiedVersions: number[] = []
+    const unsubscribe = sceneAnchor.subscribe(() => notifiedVersions.push(sceneAnchor.version))
+    const before = sceneAnchor.version
+
+    sceneAnchor.set({ latitude: 1, longitude: 2 })
+    expect(sceneAnchor.version).toBe(before)
+    expect(notifiedVersions).toEqual([])
+
+    sceneAnchor.set({ latitude: 3, longitude: 4 })
+    expect(sceneAnchor.version).toBe(before + 1)
+    expect(notifiedVersions).toEqual([before + 1])
+
+    unsubscribe()
+    sceneAnchor.set({ latitude: 5, longitude: 6 })
+    expect(notifiedVersions).toEqual([before + 1])
+  })
 })

@@ -2,7 +2,7 @@ import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExtensionContext } from '../../../viewer/extensions/context'
 import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
-import { makeCameraAttitudeWidget } from './CameraAttitudeWidget'
+import { makeCameraAttitudeWidget, subscribeCameraAttitude, useCameraAttitudeStore } from './CameraAttitudeWidget'
 import { EXTENSION_ID } from './SolarAnalysisOverlay'
 
 function makeContext(camera: { heading: number; tilt: number } | null) {
@@ -37,7 +37,10 @@ function setActivation(activation: 'active' | 'inactive') {
 afterEach(cleanup)
 
 describe('CameraAttitudeWidget', () => {
-  beforeEach(() => setActivation('active'))
+  beforeEach(() => {
+    setActivation('active')
+    useCameraAttitudeStore.getState().setCamera(null)
+  })
 
   it('renders the camera heading and tilt as readable text, not only as a rotated needle', () => {
     const { context } = makeContext({ heading: 90, tilt: 55 })
@@ -61,6 +64,7 @@ describe('CameraAttitudeWidget', () => {
 
   it('tracks a camera change as it happens rather than waiting for the next read', () => {
     const { context, handlers } = makeContext({ heading: 0, tilt: 0 })
+    subscribeCameraAttitude(context)
     const Widget = makeCameraAttitudeWidget(context)
     render(<Widget />)
     expect(screen.getByText('N 0° · Tilt 0°')).toBeInTheDocument()
@@ -70,6 +74,27 @@ describe('CameraAttitudeWidget', () => {
     })
 
     expect(screen.getByText('N 180° · Tilt 40°')).toBeInTheDocument()
+  })
+
+  it('subscribes to camera changes exactly once, through the extension context', () => {
+    const { context } = makeContext({ heading: 0, tilt: 0 })
+    subscribeCameraAttitude(context)
+
+    expect(context.on).toHaveBeenCalledTimes(1)
+    expect(context.on).toHaveBeenCalledWith('cameraChanged', expect.any(Function))
+  })
+
+  // Found live (2026-09-14): the widget used to subscribe from its own mount, so every remount —
+  // leaving the workspace route and returning — added a listener that was never removed.
+  it('never subscribes from the component itself, so remounting cannot accumulate listeners', () => {
+    const { context } = makeContext({ heading: 0, tilt: 0 })
+    const Widget = makeCameraAttitudeWidget(context)
+
+    const first = render(<Widget />)
+    first.unmount()
+    render(<Widget />)
+
+    expect(context.on).not.toHaveBeenCalled()
   })
 
   it('renders nothing while the analysis is not active', () => {

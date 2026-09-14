@@ -1,5 +1,9 @@
 import { RiSunLine } from '@remixicon/react'
-import { makeCameraAttitudeWidget } from '../../../features/solar/components/CameraAttitudeWidget'
+import {
+  makeCameraAttitudeWidget,
+  subscribeCameraAttitude,
+  useCameraAttitudeStore,
+} from '../../../features/solar/components/CameraAttitudeWidget'
 import { EXTENSION_ID, makeSolarAnalysisOverlay } from '../../../features/solar/components/SolarAnalysisOverlay'
 import { copy } from '../../../features/solar/copy'
 import {
@@ -87,16 +91,21 @@ export const solarAnalysisExtension: ViewerExtension = {
 
     // True north and camera tilt. Kept out of the figures panel deliberately: the figures track
     // the time of day, these two track the camera, so they answer different questions and respond
-    // to different inputs. Withdrawn by the framework with every other contribution on stop.
+    // to different inputs. Withdrawn by the framework with every other contribution on stop. The
+    // camera subscription is taken HERE, once per start, rather than in the widget's own mount —
+    // see subscribeCameraAttitude for the listener leak that placement caused.
     context.contributeOverlay(makeCameraAttitudeWidget(context))
+    subscribeCameraAttitude(context)
 
     // FR-030 — the time control is a live panel (interactive code with its own state, research
     // D12), registered once at start so it is ready the moment the user activates the analysis.
+    // Both solar live panels use the compact density, like the figures panel, so the analysis
+    // leaves the scene it describes visible around it.
     context.registerLivePanelKind({
       typeKey: SOLAR_TIME_CONTROL_TYPE_KEY,
       renderer: SolarTimeControlPanel,
       schema: solarTimeControlDataSchema,
-      chrome: { ...DEFAULT_CONTENT_CHROME, defaultSize: { width: 420, height: 160 } },
+      chrome: { ...DEFAULT_CONTENT_CHROME, density: 'compact', defaultSize: { width: 420, height: 160 } },
     })
 
     // FR-030 — building corrections are likewise interactive code with their own state.
@@ -104,7 +113,7 @@ export const solarAnalysisExtension: ViewerExtension = {
       typeKey: SOLAR_CORRECTIONS_TYPE_KEY,
       renderer: BuildingCorrectionsPanel,
       schema: solarCorrectionsDataSchema,
-      chrome: { ...DEFAULT_CONTENT_CHROME, defaultSize: { width: 360, height: 360 } },
+      chrome: { ...DEFAULT_CONTENT_CHROME, density: 'compact', defaultSize: { width: 280, height: 300 } },
     })
 
     // research D9, FR-039 — registered ONCE. Inert unless playing, and critically, requests no
@@ -147,9 +156,11 @@ export const solarAnalysisExtension: ViewerExtension = {
     // All teardown beyond stopping playback is framework-owned (FR-040, contracts/solar-
     // extension.md): the drawing space, its declared requirements, contributed panels, the
     // toolbar entry, the overlay and every event subscription are withdrawn by the loader, not by
-    // this file.
+    // this file. The last camera reading is cleared too, so a later start (e.g. the next user to
+    // sign in) never shows the previous session's orientation before its own first event.
     useSolarAnalysisStore.getState().setPlaying(false)
     useSolarAnalysisStore.getState().close()
+    useCameraAttitudeStore.getState().setCamera(null)
     sceneRef.current = null
     savedContext = null
   },

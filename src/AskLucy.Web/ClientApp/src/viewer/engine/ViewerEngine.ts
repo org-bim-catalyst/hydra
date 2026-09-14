@@ -80,6 +80,25 @@ export class ViewerEngine implements IViewerEngine {
     return useViewerEngineStore.getState()
   }
 
+  constructor() {
+    // A loaded model's position is converted into metres from the reference point once, at load.
+    // The reference point now follows the active location, so already-loaded content is
+    // re-converted whenever it moves — otherwise it would stay offset by the distance moved.
+    sceneAnchor.subscribe(() => this.repositionLoadedContent())
+  }
+
+  private repositionLoadedContent(): void {
+    if (this.loadedContentObjects.size === 0) return
+    const { content } = useContentStore.getState()
+    for (const [contentId, root] of this.loadedContentObjects) {
+      const placement = content.find((c) => c.id === contentId)?.placement
+      if (!placement) continue
+      const local = worldToLocal({ latitude: placement.latitude, longitude: placement.longitude }, placement.heightMetres)
+      root.position.set(local.x, local.y, local.z)
+    }
+    redrawScheduler.invalidate()
+  }
+
   /** Called by `MapRenderTarget` on mount/unmount (User Story 2). */
   registerRenderTarget(target: ViewerRenderTargetHandle): () => void {
     this.activeTarget = target

@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
 import type { ExtensionContext } from '../../../viewer/extensions/context'
 import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
 import { getSiteBuildings } from '../api/siteBuildingsApi'
@@ -162,10 +163,16 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
       }
     }, [activation, site])
 
+    // Footprints are converted into metres from the scene's reference point when built. That
+    // point follows the active location, so a move must rebuild them — otherwise the buildings of
+    // the site being left would render shifted onto the new one until its own data arrived.
+    const anchorVersion = useSyncExternalStore(sceneAnchor.subscribe, () => sceneAnchor.version)
+
     // T040, T056, T057, FR-010, FR-019, FR-025, FR-026, research D13, D15 — rebuilds the
     // buildings group (with any height corrections applied) and the ground offset whenever the
-    // fetched buildings OR this site's corrections change. Deliberately NOT keyed on `moment` —
-    // this must never run on a time-of-day tick (that would defeat T051's whole point).
+    // fetched buildings OR this site's corrections change, or the reference point moves.
+    // Deliberately NOT keyed on `moment` — this must never run on a time-of-day tick (that would
+    // defeat T051's whole point).
     useEffect(() => {
       const solarScene = sceneRef.current
       if (activation !== 'active' || !solarScene) return
@@ -189,7 +196,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         // (constitution §2.VIII: the failure surfaced must describe what actually failed).
         useSolarAnalysisStore.getState().markFailed(copy.viewerUnavailable)
       }
-    }, [activation, siteBuildings, siteBuildingsRadiusMetres, corrections])
+    }, [activation, siteBuildings, siteBuildingsRadiusMetres, corrections, anchorVersion])
 
     // Rebuilds the sun-path geometry, aims the shadow light, and refreshes the figures panel
     // whenever the instant or the site changes (FR-005…FR-008, FR-016, FR-017, FR-031).
@@ -223,6 +230,9 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         requestId: FIGURES_PANEL_REQUEST_ID,
         title: copy.toolbarLabel,
         content,
+        // The reference page's compact look: this readout sits over the scene the analysis is
+        // about, so it keeps its footprint small.
+        chrome: { density: 'compact', defaultSize: { width: 260, height: 320 } },
       })
     }, [activation, site, moment, status, siteBuildings])
 

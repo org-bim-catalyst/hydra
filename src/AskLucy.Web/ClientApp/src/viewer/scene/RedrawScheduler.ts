@@ -5,11 +5,23 @@
 export class RedrawScheduler {
   private pending = false
   private requestRedraw: (() => void) | null = null
+  /** FOUND LIVE (2026-09-13): mirrors the same bug fixed in `RendererState.bind()` — an
+   * `invalidate()` call arriving before `bind()` (a capability started before the map bridge's
+   * async `onContextRestored` fired) used to just return, with nothing remembering that a redraw
+   * had been asked for. Once `bind()` finally ran, that request was gone rather than replayed, so
+   * whatever change prompted it stayed undrawn until some unrelated interaction (pan/zoom) forced
+   * a native redraw. */
+  private missedBeforeBind = false
 
   /** Called once by the map bridge to supply the real underlying redraw call
    * (`overlay.requestRedraw`). Never called by a capability. */
   bind(requestRedraw: () => void): void {
     this.requestRedraw = requestRedraw
+    if (this.missedBeforeBind) {
+      this.missedBeforeBind = false
+      this.pending = true
+      this.requestRedraw()
+    }
   }
 
   /** The one path any capability (or the viewer itself) requests a redraw through. Safe to call
@@ -17,7 +29,11 @@ export class RedrawScheduler {
    * a stopped capability holds no live handle to call it from in the first place; this method
    * itself does not track callers, so there is nothing to reject. */
   invalidate(): void {
-    if (this.pending || !this.requestRedraw) return
+    if (!this.requestRedraw) {
+      this.missedBeforeBind = true
+      return
+    }
+    if (this.pending) return
     this.pending = true
     this.requestRedraw()
   }

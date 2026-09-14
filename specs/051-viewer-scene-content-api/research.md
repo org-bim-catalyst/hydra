@@ -82,6 +82,19 @@ regression around once (per this repository's own history), and FR-012 ("content
 correctly positioned... when the viewer's reference point changes") is the guarantee that makes
 future changes like it safe.
 
+**Amendment 2026-09-14 — the reference point follows the active location.** Setting it once, on
+first content load, left it at the device's startup location when Lucy confirmed a different site:
+the solar dome (drawn at the reference point) and the site-boundary ring (converted into metres from
+it) rendered kilometres from the site, and the equirectangular error grew with that distance. A
+theme change appeared to fix it only because recreating the map layer re-set the point to the
+current camera centre. Now `viewer/session/anchorFollowsActiveLocation.ts` — a store subscription,
+so it runs before any component reacts to the same change — moves the point on every
+active-location change; the map layer sets it only when unset, so recreation never moves it; and
+`SceneAnchor` exposes `subscribe()`/`version`, notifying only on a real move, so content positioned
+from it (the boundary ring, solar building footprints, loaded models) re-positions. Moving the point
+remains the viewer's own act and no capability sets it, so FR-008's "no capability may set its own"
+still holds.
+
 **Alternatives rejected**:
 - *Let each capability compute its own local-meters offset, as `GoogleMapsGisLayer.ts` and the
   backend's `GeometryMath.ToLocalMeters` already independently do* — this is the exact duplication

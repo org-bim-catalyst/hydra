@@ -168,6 +168,7 @@ export async function createGoogleMapsGisLayer(
   activeScene.bind(scene)
   drawingSpaceRegistry.bind(scene)
 
+
   // specs/042-site-boundary-resolution: added to `scene` once; contents are swapped internally
   // by setSiteBoundary(). clock drives the comet animation from onDraw.
   const siteBoundaryRenderer = createSiteBoundaryRenderer()
@@ -183,7 +184,15 @@ export async function createGoogleMapsGisLayer(
   // inside this one file — exactly what FR-008 now forbids. `worldToLocal`'s accuracy is stated as
   // within 1 metre at the working scale this feature targets (SC-002), not unlimited-precision
   // geodesy, so this is a deliberate, reviewed trade-off, not an oversight.
-  sceneAnchor.set(options.center)
+  //
+  // Found live (2026-09-14): this used to set the anchor unconditionally. Recreating this layer —
+  // a theme toggle, a Map ID change, returning to the workspace route — passes the CURRENT camera
+  // centre as `options.center`, so every recreation silently moved the anchor to wherever the
+  // camera happened to be, while geometry built against the previous anchor stayed where it was.
+  // That is why a theme toggle appeared to "fix" the dome. The anchor is set here only when
+  // nothing has set it yet; after that it moves only with the active location
+  // (viewer/session/anchorFollowsActiveLocation.ts).
+  if (!sceneAnchor.get()) sceneAnchor.set(options.center)
 
   // specs/042-site-boundary-resolution: a plain google.maps.Polygon is the RELIABLE boundary
   // shape — native Maps JS rendering, no dependency on the WebGLOverlayView/Three.js bridge
@@ -218,6 +227,11 @@ export async function createGoogleMapsGisLayer(
   overlay.onAdd = () => {}
   overlay.onRemove = () => {}
 
+  // Tracks the canvas size the renderer's viewport was last set to (device pixels, since
+  // `setPixelRatio(1)` means CSS pixels === device pixels here) — see the `setSize` calls below.
+  let lastCanvasWidth = 0
+  let lastCanvasHeight = 0
+
   overlay.onContextRestored = ({ gl }) => {
     renderer = new THREE.WebGLRenderer({
       canvas: gl.canvas as HTMLCanvasElement,
@@ -242,6 +256,22 @@ export async function createGoogleMapsGisLayer(
     // tiles, which Google's native renderer draws separately at full quality -- doesn't need
     // more than 1x to read clearly, so there's no real quality/cost tradeoff being made here.
     renderer.setPixelRatio(1)
+    // FOUND LIVE (2026-09-13): nothing ever called `setSize`, so the renderer's internal viewport
+    // came only from whatever `gl.canvas.width`/`.height` happened to be at this exact moment —
+    // which, on this page's very first load, can still be the canvas's pre-layout placeholder
+    // size (React/flex layout hasn't necessarily settled yet when this fires). Three.js caches
+    // that viewport and never re-reads the canvas on its own, so every subsequent render drew
+    // into that stale, wrong-sized region for the rest of the session: content was genuinely
+    // being drawn, just squeezed into a sliver that read as "nothing renders." A later event that
+    // reconstructs this whole layer (a theme toggle recreates the map — see MapRenderTarget.tsx's
+    // comment on `colorScheme`) fires a *fresh* `onContextRestored` well after layout has
+    // settled, which is why toggling the theme "fixed" it — coincidentally, not because the
+    // toggle itself did anything relevant. The `false` third argument is required: it updates
+    // Three's internal size tracking without touching the canvas's CSS size/style, which Maps
+    // owns exclusively.
+    renderer.setSize(gl.canvas.width, gl.canvas.height, false)
+    lastCanvasWidth = gl.canvas.width
+    lastCanvasHeight = gl.canvas.height
 
     // research D5/FR-018 (specs/051): the one-time color/lighting treatment. The scene previously
     // declared no color-space or tone-mapping handling at all — a correctness gap independent of
@@ -261,7 +291,18 @@ export async function createGoogleMapsGisLayer(
     rendererState.bind(renderer, () => {})
   }
 
-  overlay.onDraw = ({ transformer }) => {
+  overlay.onDraw = ({ transformer, gl }) => {
+    // Companion to the `setSize` fix in `onContextRestored` above: Maps can resize its own
+    // canvas after context creation (a container layout change, a window resize) with no signal
+    // to this bridge beyond the canvas element's own width/height changing — so this checks on
+    // every draw, not just once. Cheap (two integer comparisons) when nothing changed.
+    if (gl.canvas.width !== lastCanvasWidth || gl.canvas.height !== lastCanvasHeight) {
+      renderer?.setSize(gl.canvas.width, gl.canvas.height, false)
+      lastCanvasWidth = gl.canvas.width
+      lastCanvasHeight = gl.canvas.height
+    }
+
+
     // Apply any pending heading update here — inside the Maps SDK draw cycle — so rotation
     // is always synchronised with the Maps renderer. Only calls moveCamera when the heading
     // has actually changed, avoiding redundant camera updates on frames where rotation is off.
@@ -310,6 +351,16 @@ export async function createGoogleMapsGisLayer(
       // per-subscriber (FR-019/T009a) so one capability's failure never stops another's or this
       // draw itself.
       drawingSpaceRegistry.invokeFrameCallbacks(delta)
+      // `autoClear = false` deliberately leaves the *color* buffer alone (Maps' own basemap
+      // draw for this frame already painted it — clearing color would erase the map). But that
+      // also skips clearing *depth*, and the map's camera moves every frame (pan/zoom/rotate),
+      // so without this, every draw depth-tests new geometry against the PREVIOUS frame's
+      // now-stale depth values at the old camera position — silently failing the depth test
+      // almost everywhere after the first frame or two. This is why nothing thrown here ever
+      // showed up as an error: the scene renders "successfully," it's just invisible. Clearing
+      // only depth (not color) keeps the map intact while giving this frame's geometry a fair
+      // depth comparison.
+      renderer?.clearDepth()
       renderer?.render(scene, camera)
       renderer?.resetState()
     } catch (error) {

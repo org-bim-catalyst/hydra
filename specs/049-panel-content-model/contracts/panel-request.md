@@ -47,7 +47,7 @@ Discriminated on `kind` (research D5).
 | `content` | content | Validated against the vocabulary — server-side at the capability gate, client-side per block. |
 | `typeKey` | live | Must be a currently registered live kind. If not, the existing unknown-type fallback panel is shown. |
 | `data` | live | Opaque on the wire; validated client-side against the registered kind's schema. |
-| `chrome` | both | Optional override. Content panels default to `{titleBar: true, resizable: true, 400×300}`; live kinds declare chrome at registration. |
+| `chrome` | both | Optional override. Content panels default to `{titleBar: true, resizable: true, 400×300}`; live kinds declare chrome at registration. May include `density: "comfortable" \| "compact"` (default `comfortable`). |
 | `position` | both | Absent or null means cascade placement. Unchanged from specs/028. |
 | `contextAssociation` | both | Unchanged from specs/028, including the stale and invalid transitions driven by viewer events. |
 

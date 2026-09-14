@@ -109,6 +109,43 @@ describe('FloatingPanel fallback rendering', () => {
   })
 })
 
+// Found live (2026-09-14): the resize grip was absolutely positioned over the content area's
+// bottom-right corner, overlapping the scrollbar's down arrow. It now lives in a footer below it.
+describe('FloatingPanel footer and density', () => {
+  it('gives a resizable panel a footer with a status cell and a separate resize cell', () => {
+    render(<FloatingPanel panel={makePanel()} />)
+
+    const footer = screen.getByTestId('panel-footer')
+    expect(footer).toContainElement(screen.getByTestId('panel-footer-status'))
+    expect(footer).toContainElement(screen.getByTestId('panel-footer-resize'))
+  })
+
+  it('renders no footer for a panel that cannot be resized', () => {
+    render(
+      <FloatingPanel
+        panel={makePanel({ chrome: { titleBar: true, resizable: false, defaultSize: { width: 400, height: 300 } } })}
+      />,
+    )
+
+    expect(screen.queryByTestId('panel-footer')).not.toBeInTheDocument()
+  })
+
+  it('declares its density on the panel region, defaulting to comfortable', () => {
+    const { unmount } = render(<FloatingPanel panel={makePanel()} />)
+    expect(screen.getByRole('region', { name: 'Test Panel' })).toHaveAttribute('data-density', 'comfortable')
+    unmount()
+
+    render(
+      <FloatingPanel
+        panel={makePanel({
+          chrome: { titleBar: true, resizable: true, defaultSize: { width: 400, height: 300 }, density: 'compact' },
+        })}
+      />,
+    )
+    expect(screen.getByRole('region', { name: 'Test Panel' })).toHaveAttribute('data-density', 'compact')
+  })
+})
+
 describe('FloatingPanel drag/resize wiring (US2, FR-004/FR-005/FR-018)', () => {
   it('passes controlled position/size and parent-relative bounds to Rnd', () => {
     render(<FloatingPanel panel={makePanel({ position: { x: 10, y: 20 }, size: { width: 500, height: 350 } })} />)

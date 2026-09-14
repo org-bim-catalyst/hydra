@@ -11,16 +11,28 @@ type ConflictReporter = (requirement: DrawingRequirement, requestedBy: string[])
  * until every capability that declared it has withdrawn. A capability never sets
  * `renderer.shadowMap.enabled`/`toneMapping` itself — only this module does, and only in response
  * to declared requirements. */
-class RendererState {
+export class RendererState {
   private readonly declarations = new Map<DrawingRequirement, Set<string>>()
   private renderer: THREE.WebGLRenderer | null = null
   private onConflict: ConflictReporter | null = null
 
   /** Called once by the map bridge to supply the real renderer instance and the conflict-report
-   * callback. Never called by a capability. */
+   * callback. Never called by a capability.
+   *
+   * FOUND LIVE (2026-09-13): an extension can call `declareRequirement` before this ever runs —
+   * `start()` (where `solarAnalysisExtension`/`siteBoundaryExtension` declare 'shadows'/
+   * 'toneMapping') is not ordered against the map bridge's async `onContextRestored`, which is
+   * where this `bind()` call actually happens. `resolve()` previously only ran from
+   * `declareRequirement`/`withdrawRequirements`, both no-ops while `this.renderer` was still
+   * null — so a requirement declared that early was silently dropped forever, never applied even
+   * once the renderer became available. Mirrors `DrawingSpaceRegistry.bind()`, which already
+   * replays every group acquired before its own scene existed for the same reason. */
   bind(renderer: THREE.WebGLRenderer, onConflict: ConflictReporter): void {
     this.renderer = renderer
     this.onConflict = onConflict
+    for (const requirement of this.declarations.keys()) {
+      this.resolve(requirement)
+    }
   }
 
   /** Rebinds just the conflict-report callback — used by `MapRenderTarget.tsx` to route it to the

@@ -122,8 +122,9 @@ How a panel is framed (research D7).
 | Field | Type | Rules |
 |---|---|---|
 | `titleBar` | boolean | Default `true`. When `false`, a grip affordance carries movement, focus and the close/minimise controls. |
-| `resizable` | boolean | Default `true`. |
+| `resizable` | boolean | Default `true`. A resizable panel shows a footer below its scrolling content: a wide status cell (reserved for hints or status), a vertical divider, and a narrow cell holding only the resize grip (amended 2026-09-14 — the grip previously overlapped the content's scrollbar). |
 | `defaultSize` | `{width, height}` | Default `{400, 300}`. Subject to the existing `MIN_PANEL_WIDTH`/`MIN_PANEL_HEIGHT` floor and to remaining within the viewer. |
+| `density` | `'comfortable' \| 'compact'` | Optional, default `comfortable`. `compact` is the dense look of the solar-analysis reference page — slimmer title bar and padding, 11px labels, rows on hairline dividers, monospace values — carried to content blocks and live panels through `PanelDensityContext` (amended 2026-09-14). |
 
 Content panels take the defaults unless the request overrides them. Live panel kinds declare chrome at registration.
 

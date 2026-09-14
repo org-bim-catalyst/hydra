@@ -54,4 +54,24 @@ describe('RedrawScheduler (FR-020, FR-021, FR-022, FR-024, research D4)', () => 
 
     expect(() => redrawScheduler.invalidate()).not.toThrow()
   })
+
+  // FOUND LIVE (2026-09-13): a capability can call invalidate() before the map bridge's async
+  // onContextRestored ever calls bind() — that request used to be silently dropped forever.
+  it('replays a redraw that was requested before anything was bound', () => {
+    const early = new RedrawScheduler()
+    early.invalidate() // nothing bound yet — must not throw, must not be lost
+
+    const requestRedraw = vi.fn()
+    early.bind(requestRedraw)
+
+    expect(requestRedraw).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not replay on bind when nothing was invalidated first', () => {
+    const early = new RedrawScheduler()
+    const requestRedraw = vi.fn()
+    early.bind(requestRedraw)
+
+    expect(requestRedraw).not.toHaveBeenCalled()
+  })
 })
