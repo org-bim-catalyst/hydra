@@ -258,6 +258,14 @@ debounce itself.
 **Alternatives rejected**: *Emit on every Maps camera event* — reintroduces exactly the
 per-frame-churn problem D4 exists to prevent, just on the event bus instead of the redraw path.
 
+**Amendment 2026-09-16 — the `tilt_changed`/`heading_changed` listeners this decision added now also
+enforce, not just announce.** See specs/027-immersive-viewer-platform/research.md Decision 4's
+2026-09-16 amendment: Google's vector map can tilt itself (gesture default, or its own 45°-imagery
+auto-engagement) independently of anything `MapRenderTarget` calls, and `announceCamera()` alone had
+no way to correct that. The `tilt_changed` handler now also reasserts the active view mode's tilt on
+every fire, in addition to announcing `cameraChanged` — an idempotent no-op when tilt is already
+correct, so it never fights a tilt change this component made itself.
+
 ---
 
 ## D7 — Elements, selection, and framing (FR-027–FR-031)

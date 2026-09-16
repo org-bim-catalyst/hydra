@@ -80,6 +80,32 @@ UI/store plumbing that already exists in the right place (`right-stack` placemen
 **Alternatives considered**: A brand-new `isometricPlanControl` alongside the untouched `viewModeControl`
 — rejected as duplicative; would leave the old placeholder inert and confusing next to a new real one.
 
+**Amendment 2026-09-06 — pausing rotation or switching map style silently kicked Plan into
+isometric.** `MapRenderTarget`'s store subscription re-ran on *every* `viewerEngineStore` mutation —
+including ones with nothing to do with map style, like toggling rotation — and unconditionally
+re-issued `map.setMapTypeId()` each time. Google's Maps JS API can auto-tilt the camera as a side
+effect of that call (its own "45° imagery" behavior for satellite/hybrid), and nothing reasserted
+the active view mode's tilt afterward, so a user in Plan who merely paused rotation, or switched to
+Satellite, would see the camera silently snap to the isometric angle. Fixed (`0c0d8ea`) by only
+calling `setMapTypeId` when the style actually changed, and reasserting the view mode's tilt
+immediately after any style change that does happen.
+
+**Amendment 2026-09-16 — the same symptom returned from a different cause: Google's own gesture/
+auto-tilt, not this app's code.** The `0c0d8ea` guard above is still correct and unbroken (re-verified
+live after three further viewer commits touched this file) — but it only ever governed calls *this
+app* makes. On a vector map (a Map ID configured — the only configuration where tilt/rotation are
+visible at all), Google defaults both `tiltInteractionEnabled` and `headingInteractionEnabled` to
+`true`, so a gesture on the map can change tilt/heading outside every one of this app's own controls,
+and Google's built-in 45°-imagery auto-engagement for satellite/hybrid in supported areas can
+(re-)engage asynchronously — after this component's own one-time corrective `setTilt` call has
+already run — with nothing watching for it afterward. Fixed by (1) setting both interaction flags to
+`false` in `GoogleMapsGisLayer.ts`'s `Map` constructor, so gesture-driven tilt/heading changes are no
+longer possible at all, and (2) turning the existing `tilt_changed` listener in `MapRenderTarget.tsx`
+(specs/051 D6) from a read-only `cameraChanged` announcement into an active corrector: it now
+reasserts the active view mode's tilt on every `tilt_changed` event, from any cause, not just the
+ones this app's own commands trigger — setting an already-correct tilt is a no-op, so this never
+fights a change the app just made itself.
+
 ## Decision 5: Rotation toggle is a standalone `Fab`, following the `ThemeToggleButton` pattern
 
 **Decision**: A new `RotationToggleButton` component, styled identically to `ThemeToggleButton.tsx`

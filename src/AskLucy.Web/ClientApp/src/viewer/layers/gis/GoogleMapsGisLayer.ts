@@ -143,6 +143,12 @@ export async function createGoogleMapsGisLayer(
       options.colorScheme === 'dark' ? google.maps.ColorScheme.DARK : google.maps.ColorScheme.LIGHT,
     disableDefaultUI: true,
     gestureHandling: 'greedy',
+    // On a vector map (a Map ID configured), Google defaults both of these to true — a two-finger
+    // drag/ctrl-drag can tilt or spin the camera outside the app's own Isometric/Plan and rotation
+    // controls, leaving `viewerEngineStore.camera` out of sync with what the map is actually
+    // showing. Tilt/heading here are only ever meant to change through this app's own controls.
+    tiltInteractionEnabled: false,
+    headingInteractionEnabled: false,
   })
 
   // US5 (FR-018): the current-location marker is this feature's one addressable, selectable

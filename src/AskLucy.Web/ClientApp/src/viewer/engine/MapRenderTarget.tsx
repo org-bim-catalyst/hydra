@@ -160,7 +160,17 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // listener so orientation changes are announced as they happen, while pan/zoom stay on
       // 'idle' (they have no such consumer and would be pure churn per frame).
       const headingListener = handle.map.addListener?.('heading_changed', announceCamera)
-      const tiltListener = handle.map.addListener?.('tilt_changed', announceCamera)
+      // Google's vector renderer can tilt the camera on its own — most notably its built-in
+      // "45° imagery" for satellite/hybrid in supported areas, which can (re-)engage
+      // asynchronously, after this component's own corrective setTilt call has already run — so
+      // a one-time correction right after a style/mode change isn't enough. This listener keeps
+      // watching and snaps the tilt back to whatever the active view mode calls for whenever it
+      // drifts, from any cause (not just our own commands). Setting an already-correct tilt is a
+      // harmless no-op, so this never fights a change this component itself just made.
+      const tiltListener = handle.map.addListener?.('tilt_changed', () => {
+        announceCamera()
+        applyCameraViewMode(handle!, useViewerEngineStore.getState().camera.mode)
+      })
 
       rotationDriver = new RotationDriver({ setHeading: handle.setHeading }, viewerSession.camera?.heading)
 
