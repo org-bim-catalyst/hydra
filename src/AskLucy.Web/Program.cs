@@ -28,6 +28,7 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
@@ -527,6 +528,26 @@ builder.Services.AddHealthChecks()
 builder.Services.AddSignalR();
 
 var app = builder.Build();
+
+// Applies any pending EF Core migrations on every startup, in every environment — closes the
+// exact gap that let 20260914180820_AddRoleManagement.cs ship merged to main but never actually
+// run against production (2026-09-16 incident: Roles/Role-assignments 500s from missing
+// columns). /health/ready's PendingMigrationsHealthCheck above only ever reported that gap;
+// nothing previously closed it. A failed migration is logged critical but does not crash the
+// host, matching this file's existing tolerance of the database being briefly unreachable at
+// startup (see the dev-seed block below) — an operator watching /health/ready still sees it.
+try
+{
+    using var migrationScope = app.Services.CreateScope();
+    var migrationDbContext = migrationScope.ServiceProvider.GetRequiredService<AskLucyDbContext>();
+    await migrationDbContext.Database.MigrateAsync();
+}
+catch (Exception ex)
+{
+#pragma warning disable CA1848
+    app.Logger.LogCritical(ex, "Automatic database migration failed at startup.");
+#pragma warning restore CA1848
+}
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ProblemDetailsMiddleware>();
