@@ -1,85 +1,109 @@
 import { useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControlLabel,
   List,
   ListItem,
   ListItemText,
-  Radio,
-  RadioGroup,
   Typography,
 } from '@mui/material'
+import type { BulkActionOutcome } from '../bulkRunner'
 
-export type BulkActionScope = 'page' | 'all'
+export type { BulkActionOutcome, BulkActionSkip } from '../bulkRunner'
 
-export interface BulkActionSkip {
-  id: string
-  reason: string
-}
-
-export interface BulkActionOutcome {
-  succeededCount: number
-  skipped: BulkActionSkip[]
-}
+type Step = 'confirm' | 'running' | 'done'
 
 interface BulkActionConfirmDialogProps {
   open: boolean
   onClose: () => void
   /** Verb describing the action, e.g. "Lock", "Delete". */
   actionLabel: string
-  /** Rows selected on the current page. */
-  pageSelectedCount: number
-  /** Total rows matching the active filter across every page, once resolved. `undefined` while resolving. */
-  allMatchingCount?: number
-  onConfirm: (scope: BulkActionScope) => Promise<BulkActionOutcome>
+  /** Present-progressive form for the progress step, e.g. "Deleting", "Locking". Defaults to `${actionLabel}ing`. */
+  progressVerb?: string
+  /** Already-resolved count of items this action will target (FR-009: the admin sees the real number before confirming). */
+  itemCount: number
+  /** Runs the action, reporting `(done, total)` after each batch so the dialog can show live progress. */
+  onConfirm: (onProgress: (done: number, total: number) => void) => Promise<BulkActionOutcome>
 }
 
-/** Shared confirmation + per-row result summary for every bulk action (FR-007/FR-009). */
-export function BulkActionConfirmDialog({
-  open,
-  onClose,
-  actionLabel,
-  pageSelectedCount,
-  allMatchingCount,
-  onConfirm,
-}: BulkActionConfirmDialogProps) {
-  const [scope, setScope] = useState<BulkActionScope>('page')
-  const [isRunning, setIsRunning] = useState(false)
+/** Shared confirm → progress → result flow for every bulk action (FR-007/FR-009). */
+export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVerb, itemCount, onConfirm }: BulkActionConfirmDialogProps) {
+  const [step, setStep] = useState<Step>('confirm')
+  const [progress, setProgress] = useState({ done: 0, total: itemCount })
   const [outcome, setOutcome] = useState<BulkActionOutcome | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  function handleClose() {
-    setScope('page')
+  function reset() {
+    setStep('confirm')
+    setProgress({ done: 0, total: itemCount })
     setOutcome(null)
     setErrorMessage(null)
+  }
+
+  function handleClose() {
+    reset()
     onClose()
   }
 
   async function handleConfirm() {
-    setIsRunning(true)
+    setStep('running')
     setErrorMessage(null)
     try {
-      const result = await onConfirm(scope)
+      const result = await onConfirm((done, total) => setProgress({ done, total }))
       setOutcome(result)
+      setStep('done')
     } catch {
       setErrorMessage('Something went wrong. Please try again.')
-    } finally {
-      setIsRunning(false)
+      setStep('confirm')
     }
   }
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-      <DialogTitle>{outcome ? `${actionLabel} complete` : `${actionLabel} selected items?`}</DialogTitle>
-      <DialogContent>
-        {outcome ? (
-          <>
+    <Dialog open={open} onClose={step === 'running' ? undefined : handleClose} fullWidth maxWidth="sm">
+      {step === 'confirm' && (
+        <>
+          <DialogTitle>{actionLabel} selected items?</DialogTitle>
+          <DialogContent>
+            {errorMessage && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {errorMessage}
+              </Alert>
+            )}
+            <DialogContentText>
+              Do you want to {actionLabel.toLowerCase()} {itemCount} item{itemCount === 1 ? '' : 's'}?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleConfirm} color="error" variant="contained" autoFocus>
+              {actionLabel}
+            </Button>
+          </DialogActions>
+        </>
+      )}
+
+      {step === 'running' && (
+        <DialogContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 3 }}>
+            <CircularProgress size={24} />
+            <Typography>
+              {progressVerb ?? `${actionLabel}ing`} {progress.done} of {progress.total}&hellip;
+            </Typography>
+          </Box>
+        </DialogContent>
+      )}
+
+      {step === 'done' && outcome && (
+        <>
+          <DialogTitle>{actionLabel} complete</DialogTitle>
+          <DialogContent>
             <DialogContentText sx={{ mb: 1 }}>
               {outcome.succeededCount} item{outcome.succeededCount === 1 ? '' : 's'} succeeded.
             </DialogContentText>
@@ -95,46 +119,14 @@ export function BulkActionConfirmDialog({
                 </List>
               </>
             )}
-          </>
-        ) : (
-          <>
-            {errorMessage && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {errorMessage}
-              </Alert>
-            )}
-            <RadioGroup value={scope} onChange={(e) => setScope(e.target.value as BulkActionScope)}>
-              <FormControlLabel value="page" control={<Radio />} label={`${pageSelectedCount} selected on this page`} />
-              <FormControlLabel
-                value="all"
-                control={<Radio />}
-                disabled={allMatchingCount === undefined}
-                label={
-                  allMatchingCount === undefined
-                    ? 'Resolving total matching…'
-                    : `All ${allMatchingCount} matching items`
-                }
-              />
-            </RadioGroup>
-          </>
-        )}
-      </DialogContent>
-      <DialogActions>
-        {outcome ? (
-          <Button onClick={handleClose} autoFocus>
-            Close
-          </Button>
-        ) : (
-          <>
-            <Button onClick={handleClose} disabled={isRunning}>
-              Cancel
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose} autoFocus>
+              Done
             </Button>
-            <Button onClick={handleConfirm} color="error" variant="contained" disabled={isRunning} autoFocus>
-              {actionLabel}
-            </Button>
-          </>
-        )}
-      </DialogActions>
+          </DialogActions>
+        </>
+      )}
     </Dialog>
   )
 }

@@ -31,6 +31,9 @@ import { RoleEditorDialog } from '../components/RoleEditorDialog'
 import { DeleteRoleDialog } from '../components/DeleteRoleDialog'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import { BulkActionConfirmDialog } from '../components/BulkActionConfirmDialog'
+import { SelectAllScopeDialog } from '../components/SelectAllScopeDialog'
+import type { SelectionScopeChoice } from '../components/SelectAllScopeDialog'
+import { runBatchedBulkAction } from '../bulkRunner'
 
 /** Roles screen (specs/055-role-management User Story 1) — define, edit, and delete custom roles; built-in roles are listed read-only. */
 export function AdminRolesPage() {
@@ -51,26 +54,62 @@ export function AdminRolesPage() {
   })
 
   const selectableIds = (data?.items ?? []).filter((r) => !r.isBuiltIn).map((r) => r.id)
-  const selection = useBulkSelection(selectableIds)
+  const selection = useBulkSelection()
 
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [scopeDialog, setScopeDialog] = useState<{ verb: 'Select' | 'Deselect' } | null>(null)
 
-  const { data: eligibleIdsData } = useQuery({
+  const { data: scopeTotalData } = useQuery({
     queryKey: ['admin', 'roles', 'bulk-eligible-ids', search],
     queryFn: () => adminRolesApi.getRolesEligibleIds(search || undefined),
-    enabled: bulkDeleteOpen,
+    enabled: scopeDialog !== null || selection.isAllMatching,
   })
+  const allMatchingTotal = scopeTotalData?.ids.length
 
-  async function runBulkDelete(scope: 'page' | 'all') {
-    const target: adminRolesApi.BulkTargetRequest =
-      scope === 'all'
-        ? { ids: null, allMatching: true, search: search || undefined }
-        : { ids: [...selection.selected], allMatching: false }
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [pendingTargetIds, setPendingTargetIds] = useState<string[] | null>(null)
 
-    const result = await adminRolesApi.bulkDeleteRoles(target)
+  function handleHeaderCheckboxChange() {
+    const state = selection.pageState(selectableIds)
+    setScopeDialog({ verb: state === 'all' ? 'Deselect' : 'Select' })
+  }
+
+  function handleScopeChoice(scope: SelectionScopeChoice) {
+    const verb = scopeDialog?.verb
+    setScopeDialog(null)
+    if (verb === 'Select') {
+      if (scope === 'page') selection.selectPageOnly(selectableIds)
+      else selection.selectAllMatching()
+    } else if (verb === 'Deselect') {
+      if (scope === 'page') selection.deselectPageOnly(selectableIds)
+      else selection.deselectAll()
+    }
+  }
+
+  async function beginBulkDelete() {
+    let targetIds: string[]
+    if (selection.isAllMatching) {
+      const eligible = await queryClient.fetchQuery({
+        queryKey: ['admin', 'roles', 'bulk-eligible-ids', search],
+        queryFn: () => adminRolesApi.getRolesEligibleIds(search || undefined),
+      })
+      targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
+    } else {
+      targetIds = [...selection.selectedIds]
+    }
+    setPendingTargetIds(targetIds)
+    setBulkDeleteOpen(true)
+  }
+
+  async function runBulkDelete(onProgress: (done: number, total: number) => void) {
+    const ids = pendingTargetIds ?? []
+    const outcome = await runBatchedBulkAction(
+      ids,
+      (batch) => adminRolesApi.bulkDeleteRoles({ ids: batch, allMatching: false }),
+      onProgress,
+    )
     await queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] })
-    selection.clear()
-    return { succeededCount: result.succeededCount, skipped: result.skipped }
+    selection.deselectAll()
+    return outcome
   }
 
   const openCreate = () => {
@@ -111,12 +150,12 @@ export function AdminRolesPage() {
         </Alert>
       )}
 
-      {selection.selectedCount > 0 && (
+      {selection.selectedCount(allMatchingTotal) > 0 && (
         <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
           <Typography variant="body2" sx={{ mr: 1 }}>
-            {selection.selectedCount} selected
+            {selection.selectedCount(allMatchingTotal)} selected
           </Typography>
-          <Button size="small" variant="outlined" color="error" onClick={() => setBulkDeleteOpen(true)}>
+          <Button size="small" variant="outlined" color="error" onClick={beginBulkDelete}>
             Delete selected
           </Button>
         </Toolbar>
@@ -128,10 +167,10 @@ export function AdminRolesPage() {
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    checked={selection.isAllSelected}
-                    indeterminate={selection.isIndeterminate}
+                    checked={selection.pageState(selectableIds) === 'all'}
+                    indeterminate={selection.pageState(selectableIds) === 'partial'}
                     disabled={selectableIds.length === 0}
-                    onChange={selection.toggleAll}
+                    onChange={handleHeaderCheckboxChange}
                     slotProps={{ input: { 'aria-label': 'Select all custom roles on this page' } }}
                   />
                 </TableCell>
@@ -148,7 +187,7 @@ export function AdminRolesPage() {
                   <TableCell padding="checkbox">
                     {!role.isBuiltIn && (
                       <Checkbox
-                        checked={selection.selected.has(role.id)}
+                        checked={selection.isSelected(role.id)}
                         onChange={() => selection.toggleOne(role.id)}
                         slotProps={{ input: { 'aria-label': `Select ${role.name}` } }}
                       />
@@ -212,13 +251,27 @@ export function AdminRolesPage() {
         <DeleteRoleDialog open onClose={() => setDeletingRole(null)} role={deletingRole} />
       )}
 
-      {bulkDeleteOpen && (
+      {scopeDialog && (
+        <SelectAllScopeDialog
+          open
+          onClose={() => setScopeDialog(null)}
+          verb={scopeDialog.verb}
+          pageCount={selectableIds.length}
+          totalCount={allMatchingTotal}
+          onChoose={handleScopeChoice}
+        />
+      )}
+
+      {bulkDeleteOpen && pendingTargetIds && (
         <BulkActionConfirmDialog
           open
-          onClose={() => setBulkDeleteOpen(false)}
+          onClose={() => {
+            setBulkDeleteOpen(false)
+            setPendingTargetIds(null)
+          }}
           actionLabel="Delete"
-          pageSelectedCount={selection.selectedCount}
-          allMatchingCount={eligibleIdsData?.ids.length}
+          progressVerb="Deleting"
+          itemCount={pendingTargetIds.length}
           onConfirm={runBulkDelete}
         />
       )}

@@ -158,15 +158,6 @@ describe('AdminUsersPage', () => {
     expect(headerCheckbox).toHaveAttribute('aria-checked', 'mixed')
   })
 
-  it('selects every eligible row via the header "select all" checkbox', async () => {
-    renderPage()
-    await screen.findByText('alice@example.com')
-
-    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
-
-    expect(await screen.findByText('2 selected')).toBeInTheDocument()
-  })
-
   it('disables "select all" when there are zero eligible rows on the page', async () => {
     server.use(
       http.get('*/api/v1/users', () => {
@@ -181,19 +172,70 @@ describe('AdminUsersPage', () => {
     )
   })
 
-  it('opens the confirmation dialog with page and all-matching counts, then shows the result summary with skip reasons', async () => {
+  it('clicking the header checkbox asks for scope, and "this page only" selects the current page\'s rows', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
+
+    expect(await screen.findByText('Select the 2 items on this page only')).toBeInTheDocument()
+    expect(await screen.findByText('Select all 2 matching items')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Select'))
+
+    expect(await screen.findByText('2 selected')).toBeInTheDocument()
+  })
+
+  it('selecting "all matching" keeps the selection when the header checkbox is later unchecked page-only', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
+    fireEvent.click(await screen.findByText('Select all 2 matching items'))
+    fireEvent.click(screen.getByText('Select'))
+    expect(await screen.findByText('2 selected')).toBeInTheDocument()
+
+    // Clicking the (now fully-checked) header checkbox again asks to deselect, scoped either way.
+    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
+    expect(await screen.findByText('Deselect the 2 items on this page only')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Deselect'))
+
+    // Still "all matching" minus this page's ids, so selectedCount is 0 with only 2 eligible total.
+    await waitFor(() => expect(screen.queryByText(/selected$/)).not.toBeInTheDocument())
+  })
+
+  it('resolves the item count synchronously for an explicit selection and shows live progress, then the result', async () => {
     renderPage()
     await screen.findByText('alice@example.com')
 
     fireEvent.click(screen.getByLabelText('Select alice@example.com'))
     fireEvent.click(await screen.findByText('Lock selected'))
 
-    expect(await screen.findByText('1 selected on this page')).toBeInTheDocument()
-    expect(await screen.findByText('All 2 matching items')).toBeInTheDocument()
+    expect(await screen.findByText('Do you want to lock 1 item?')).toBeInTheDocument()
 
     fireEvent.click(screen.getAllByText('Lock')[0])
 
     expect(await screen.findByText('1 item succeeded.')).toBeInTheDocument()
-    expect(screen.getByText('AlreadyLocked')).toBeInTheDocument()
+  })
+
+  it('resolves the full eligible id list before confirming when the selection is "all matching"', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
+    fireEvent.click(await screen.findByText('Select all 2 matching items'))
+    fireEvent.click(screen.getByText('Select'))
+    await screen.findByText('2 selected')
+
+    fireEvent.click(screen.getByText('Force 2FA reset'))
+
+    expect(await screen.findByText('Do you want to force 2fa reset 2 items?')).toBeInTheDocument()
+
+    // Two matches now: the toolbar button (still in the DOM behind the dialog) and the dialog's
+    // own confirm button, both labeled "Force 2FA reset" — the confirm button is the later one.
+    const buttons = screen.getAllByText('Force 2FA reset')
+    fireEvent.click(buttons[buttons.length - 1])
+
+    expect(await screen.findByText('2 items succeeded.')).toBeInTheDocument()
   })
 })

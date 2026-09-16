@@ -26,6 +26,9 @@ import { AdminShell } from '../components/AdminShell'
 import { AssignRoleDialog } from '../components/AssignRoleDialog'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import { BulkActionConfirmDialog } from '../components/BulkActionConfirmDialog'
+import { SelectAllScopeDialog } from '../components/SelectAllScopeDialog'
+import type { SelectionScopeChoice } from '../components/SelectAllScopeDialog'
+import { runBatchedBulkAction } from '../bulkRunner'
 
 const NO_ROLE_FILTER = 'none'
 const ANY_ROLE_FILTER = ''
@@ -57,26 +60,66 @@ export function AdminRoleAssignmentsPage() {
   const selectableIds = (data?.items ?? [])
     .filter((a) => !a.isLockedOut && !a.role?.isBuiltIn)
     .map((a) => a.userId)
-  const selection = useBulkSelection(selectableIds)
+  const selection = useBulkSelection()
+
+  const [scopeDialog, setScopeDialog] = useState<{ verb: 'Select' | 'Deselect' } | null>(null)
+
+  // Eligibility here doesn't actually vary by role (only by search + the acting admin's own
+  // Super User status — see RoleAssignmentRepository.ListEligibleIdsAsync), so this same query
+  // can resolve the "all matching" total for selection purposes even before a role is picked.
+  const { data: scopeTotalData } = useQuery({
+    queryKey: ['admin', 'role-assignments', 'bulk-eligible-ids', search],
+    queryFn: () => adminRolesApi.getRoleAssignmentsEligibleIds(pickedRoleId ?? '', search || undefined),
+    enabled: scopeDialog !== null || selection.isAllMatching,
+  })
+  const allMatchingTotal = scopeTotalData?.ids.length
 
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false)
+  const [pendingTargetIds, setPendingTargetIds] = useState<string[] | null>(null)
 
-  const { data: eligibleIdsData } = useQuery({
-    queryKey: ['admin', 'role-assignments', 'bulk-eligible-ids', pickedRoleId, search],
-    queryFn: () => adminRolesApi.getRoleAssignmentsEligibleIds(pickedRoleId!, search || undefined),
-    enabled: bulkAssignOpen && pickedRoleId !== null,
-  })
+  function handleHeaderCheckboxChange() {
+    const state = selection.pageState(selectableIds)
+    setScopeDialog({ verb: state === 'all' ? 'Deselect' : 'Select' })
+  }
 
-  async function runBulkAssign(scope: 'page' | 'all') {
-    const target: adminRolesApi.BulkTargetRequest =
-      scope === 'all'
-        ? { ids: null, allMatching: true, search: search || undefined }
-        : { ids: [...selection.selected], allMatching: false }
+  function handleScopeChoice(scope: SelectionScopeChoice) {
+    const verb = scopeDialog?.verb
+    setScopeDialog(null)
+    if (verb === 'Select') {
+      if (scope === 'page') selection.selectPageOnly(selectableIds)
+      else selection.selectAllMatching()
+    } else if (verb === 'Deselect') {
+      if (scope === 'page') selection.deselectPageOnly(selectableIds)
+      else selection.deselectAll()
+    }
+  }
 
-    const result = await adminRolesApi.bulkAssignRole(pickedRoleId!, target)
+  async function beginBulkAssign() {
+    if (pickedRoleId === null) return
+    let targetIds: string[]
+    if (selection.isAllMatching) {
+      const eligible = await queryClient.fetchQuery({
+        queryKey: ['admin', 'role-assignments', 'bulk-eligible-ids', search],
+        queryFn: () => adminRolesApi.getRoleAssignmentsEligibleIds(pickedRoleId, search || undefined),
+      })
+      targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
+    } else {
+      targetIds = [...selection.selectedIds]
+    }
+    setPendingTargetIds(targetIds)
+    setBulkAssignOpen(true)
+  }
+
+  async function runBulkAssign(onProgress: (done: number, total: number) => void) {
+    const ids = pendingTargetIds ?? []
+    const outcome = await runBatchedBulkAction(
+      ids,
+      (batch) => adminRolesApi.bulkAssignRole(pickedRoleId!, { ids: batch, allMatching: false }),
+      onProgress,
+    )
     await queryClient.invalidateQueries({ queryKey: ['admin', 'role-assignments'] })
-    selection.clear()
-    return result
+    selection.deselectAll()
+    return outcome
   }
 
   return (
@@ -119,16 +162,16 @@ export function AdminRoleAssignmentsPage() {
         </Alert>
       )}
 
-      {selection.selectedCount > 0 && (
+      {selection.selectedCount(allMatchingTotal) > 0 && (
         <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
           <Typography variant="body2" sx={{ mr: 1 }}>
-            {selection.selectedCount} selected
+            {selection.selectedCount(allMatchingTotal)} selected
           </Typography>
           <Button
             size="small"
             variant="outlined"
             disabled={pickedRoleId === null}
-            onClick={() => setBulkAssignOpen(true)}
+            onClick={beginBulkAssign}
           >
             Assign selected
           </Button>
@@ -141,10 +184,10 @@ export function AdminRoleAssignmentsPage() {
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    checked={selection.isAllSelected}
-                    indeterminate={selection.isIndeterminate}
+                    checked={selection.pageState(selectableIds) === 'all'}
+                    indeterminate={selection.pageState(selectableIds) === 'partial'}
                     disabled={selectableIds.length === 0}
-                    onChange={selection.toggleAll}
+                    onChange={handleHeaderCheckboxChange}
                     slotProps={{ input: { 'aria-label': 'Select all eligible users on this page' } }}
                   />
                 </TableCell>
@@ -161,7 +204,7 @@ export function AdminRoleAssignmentsPage() {
                   <TableCell padding="checkbox">
                     {!assignment.isLockedOut && !assignment.role?.isBuiltIn && (
                       <Checkbox
-                        checked={selection.selected.has(assignment.userId)}
+                        checked={selection.isSelected(assignment.userId)}
                         onChange={() => selection.toggleOne(assignment.userId)}
                         slotProps={{ input: { 'aria-label': `Select ${assignment.email}` } }}
                       />
@@ -216,13 +259,27 @@ export function AdminRoleAssignmentsPage() {
         <AssignRoleDialog open onClose={() => setEditingAssignment(null)} assignment={editingAssignment} />
       )}
 
-      {bulkAssignOpen && pickedRoleId !== null && (
+      {scopeDialog && (
+        <SelectAllScopeDialog
+          open
+          onClose={() => setScopeDialog(null)}
+          verb={scopeDialog.verb}
+          pageCount={selectableIds.length}
+          totalCount={allMatchingTotal}
+          onChoose={handleScopeChoice}
+        />
+      )}
+
+      {bulkAssignOpen && pickedRoleId !== null && pendingTargetIds && (
         <BulkActionConfirmDialog
           open
-          onClose={() => setBulkAssignOpen(false)}
+          onClose={() => {
+            setBulkAssignOpen(false)
+            setPendingTargetIds(null)
+          }}
           actionLabel="Assign"
-          pageSelectedCount={selection.selectedCount}
-          allMatchingCount={eligibleIdsData?.ids.length}
+          progressVerb="Assigning role to"
+          itemCount={pendingTargetIds.length}
           onConfirm={runBulkAssign}
         />
       )}

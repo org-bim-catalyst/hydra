@@ -118,7 +118,7 @@ describe('AdminRoleAssignmentsPage bulk assign', () => {
     expect(headerCheckbox).toHaveAttribute('aria-checked', 'mixed')
   })
 
-  it('opens the confirmation with page/all-matching counts once a role is picked, then confirms', async () => {
+  it('confirms the resolved item count once a role is picked, then shows the result', async () => {
     renderPage()
     await screen.findByText('alice@example.com')
 
@@ -129,11 +129,24 @@ describe('AdminRoleAssignmentsPage bulk assign', () => {
     fireEvent.click(screen.getByLabelText('Select alice@example.com'))
     fireEvent.click(screen.getByText('Assign selected'))
 
-    expect(await screen.findByText('1 selected on this page')).toBeInTheDocument()
-    expect(await screen.findByText('All 1 matching items')).toBeInTheDocument()
+    expect(await screen.findByText('Do you want to assign 1 item?')).toBeInTheDocument()
 
     fireEvent.click(screen.getAllByText('Assign')[0])
 
     expect(await screen.findByText('1 item succeeded.')).toBeInTheDocument()
+  })
+
+  it('clicking the header checkbox asks for scope before selecting', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
+
+    expect(await screen.findByText('Select the 1 item on this page only')).toBeInTheDocument()
+    expect(await screen.findByText('Select all 1 matching items')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Select'))
+
+    expect(await screen.findByText('1 selected')).toBeInTheDocument()
   })
 })

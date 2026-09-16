@@ -25,7 +25,14 @@ import { useMyProfile } from '../../profile/hooks/useProfile'
 import { UserActionMenu } from '../components/UserActionMenu'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import { BulkActionConfirmDialog } from '../components/BulkActionConfirmDialog'
-import type { BulkActionScope } from '../components/BulkActionConfirmDialog'
+import { SelectAllScopeDialog } from '../components/SelectAllScopeDialog'
+import type { SelectionScopeChoice } from '../components/SelectAllScopeDialog'
+import { runBatchedBulkAction } from '../bulkRunner'
+
+/** Every action's eligibility excludes only self (never already-locked/unlocked), so any one of
+ * them is a valid stand-in for "everyone matching this filter" when resolving selection scope
+ * (as opposed to a specific action's own narrower eligibility, resolved separately at run time). */
+const SELECTION_SCOPE_ACTION: UserBulkAction = 'ForceReset2fa'
 
 /**
  * Admin user management console (specs/001-admin-dashboard) — evolves the original
@@ -51,39 +58,78 @@ export function AdminUsersPage() {
   })
 
   const selectableIds = (data?.items ?? []).filter((u) => u.id !== profile?.id).map((u) => u.id)
-  const selection = useBulkSelection(selectableIds)
+  const selection = useBulkSelection()
 
-  const selectedUsers = (data?.items ?? []).filter((u) => selection.selected.has(u.id))
+  const [scopeDialog, setScopeDialog] = useState<{ verb: 'Select' | 'Deselect' } | null>(null)
+
+  const { data: scopeTotalData } = useQuery({
+    queryKey: ['admin', 'users', 'bulk-eligible-ids', SELECTION_SCOPE_ACTION, search],
+    queryFn: () => adminApi.getUsersEligibleIds(SELECTION_SCOPE_ACTION, search || undefined),
+    enabled: scopeDialog !== null || selection.isAllMatching,
+  })
+  const allMatchingTotal = scopeTotalData?.ids.length
+
+  const selectedUsers = (data?.items ?? []).filter((u) => selection.isSelected(u.id))
   const allSelectedAreLockedOut = selectedUsers.length > 0 && selectedUsers.every((u) => u.isLockedOut)
   const lockUnlockAction: UserBulkAction = allSelectedAreLockedOut ? 'Unlock' : 'Lock'
 
   const [pendingAction, setPendingAction] = useState<UserBulkAction | null>(null)
+  const [pendingTargetIds, setPendingTargetIds] = useState<string[] | null>(null)
+  const [resolvingAction, setResolvingAction] = useState(false)
 
-  const { data: eligibleIdsData } = useQuery({
-    queryKey: ['admin', 'users', 'bulk-eligible-ids', pendingAction, search],
-    queryFn: () => adminApi.getUsersEligibleIds(pendingAction!, search || undefined),
-    enabled: pendingAction !== null,
-  })
-
-  function buildTarget(scope: BulkActionScope): adminApi.BulkTargetRequest {
-    return scope === 'all'
-      ? { ids: null, allMatching: true, search: search || undefined }
-      : { ids: [...selection.selected], allMatching: false }
+  function handleHeaderCheckboxChange() {
+    const state = selection.pageState(selectableIds)
+    setScopeDialog({ verb: state === 'all' ? 'Deselect' : 'Select' })
   }
 
-  async function runBulkAction(scope: BulkActionScope): Promise<adminApi.BulkActionResult> {
-    const target = buildTarget(scope)
-    const result = await (pendingAction === 'Lock'
-      ? adminApi.bulkLockUsers(target)
-      : pendingAction === 'Unlock'
-        ? adminApi.bulkUnlockUsers(target)
-        : pendingAction === 'ForceReset2fa'
-          ? adminApi.bulkForceReset2fa(target)
-          : adminApi.bulkDeleteUsers(target))
+  function handleScopeChoice(scope: SelectionScopeChoice) {
+    const verb = scopeDialog?.verb
+    setScopeDialog(null)
+    if (verb === 'Select') {
+      if (scope === 'page') selection.selectPageOnly(selectableIds)
+      else selection.selectAllMatching()
+    } else if (verb === 'Deselect') {
+      if (scope === 'page') selection.deselectPageOnly(selectableIds)
+      else selection.deselectAll()
+    }
+  }
+
+  async function beginAction(action: UserBulkAction) {
+    setResolvingAction(true)
+    try {
+      let targetIds: string[]
+      if (selection.isAllMatching) {
+        const eligible = await queryClient.fetchQuery({
+          queryKey: ['admin', 'users', 'bulk-eligible-ids', action, search],
+          queryFn: () => adminApi.getUsersEligibleIds(action, search || undefined),
+        })
+        targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
+      } else {
+        targetIds = [...selection.selectedIds]
+      }
+      setPendingTargetIds(targetIds)
+      setPendingAction(action)
+    } finally {
+      setResolvingAction(false)
+    }
+  }
+
+  async function runBulkAction(onProgress: (done: number, total: number) => void) {
+    const ids = pendingTargetIds ?? []
+    const run =
+      pendingAction === 'Lock'
+        ? adminApi.bulkLockUsers
+        : pendingAction === 'Unlock'
+          ? adminApi.bulkUnlockUsers
+          : pendingAction === 'ForceReset2fa'
+            ? adminApi.bulkForceReset2fa
+            : adminApi.bulkDeleteUsers
+
+    const outcome = await runBatchedBulkAction(ids, (batch) => run({ ids: batch, allMatching: false }), onProgress)
 
     await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
-    selection.clear()
-    return result
+    selection.deselectAll()
+    return outcome
   }
 
   const actionLabel: Record<UserBulkAction, string> = {
@@ -91,6 +137,12 @@ export function AdminUsersPage() {
     Unlock: 'Unlock',
     ForceReset2fa: 'Force 2FA reset',
     Delete: 'Delete',
+  }
+  const progressVerb: Record<UserBulkAction, string> = {
+    Lock: 'Locking',
+    Unlock: 'Unlocking',
+    ForceReset2fa: 'Resetting 2FA for',
+    Delete: 'Deleting',
   }
 
   const toggleSort = (column: UserSortBy) => {
@@ -102,6 +154,9 @@ export function AdminUsersPage() {
     }
     setPage(0)
   }
+
+  const currentPageState = selection.pageState(selectableIds)
+  const selectedCount = selection.selectedCount(allMatchingTotal)
 
   return (
     <AdminShell title="User management" subtitle={`${data?.totalCount ?? 0} registered users`}>
@@ -115,18 +170,23 @@ export function AdminUsersPage() {
         }}
         sx={{ mb: 2, width: { xs: '100%', sm: 320 } }}
       />
-      {selection.selectedCount > 0 && (
+      {selectedCount > 0 && (
         <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
           <Typography variant="body2" sx={{ mr: 1 }}>
-            {selection.selectedCount} selected
+            {selectedCount} selected
           </Typography>
-          <Button size="small" variant="outlined" onClick={() => setPendingAction(lockUnlockAction)}>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={resolvingAction}
+            onClick={() => beginAction(lockUnlockAction)}
+          >
             {lockUnlockAction === 'Unlock' ? 'Unlock selected' : 'Lock selected'}
           </Button>
-          <Button size="small" variant="outlined" onClick={() => setPendingAction('ForceReset2fa')}>
+          <Button size="small" variant="outlined" disabled={resolvingAction} onClick={() => beginAction('ForceReset2fa')}>
             Force 2FA reset
           </Button>
-          <Button size="small" variant="outlined" color="error" onClick={() => setPendingAction('Delete')}>
+          <Button size="small" variant="outlined" color="error" disabled={resolvingAction} onClick={() => beginAction('Delete')}>
             Delete
           </Button>
         </Toolbar>
@@ -138,10 +198,10 @@ export function AdminUsersPage() {
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    checked={selection.isAllSelected}
-                    indeterminate={selection.isIndeterminate}
+                    checked={currentPageState === 'all'}
+                    indeterminate={currentPageState === 'partial'}
                     disabled={selectableIds.length === 0}
-                    onChange={selection.toggleAll}
+                    onChange={handleHeaderCheckboxChange}
                     slotProps={{ input: { 'aria-label': 'Select all eligible users on this page' } }}
                   />
                 </TableCell>
@@ -183,7 +243,7 @@ export function AdminUsersPage() {
                   <TableCell padding="checkbox">
                     {user.id !== profile?.id && (
                       <Checkbox
-                        checked={selection.selected.has(user.id)}
+                        checked={selection.isSelected(user.id)}
                         onChange={() => selection.toggleOne(user.id)}
                         slotProps={{ input: { 'aria-label': `Select ${user.email}` } }}
                       />
@@ -243,13 +303,27 @@ export function AdminUsersPage() {
         />
       </Paper>
 
-      {pendingAction && (
+      {scopeDialog && (
+        <SelectAllScopeDialog
+          open
+          onClose={() => setScopeDialog(null)}
+          verb={scopeDialog.verb}
+          pageCount={selectableIds.length}
+          totalCount={allMatchingTotal}
+          onChoose={handleScopeChoice}
+        />
+      )}
+
+      {pendingAction && pendingTargetIds && (
         <BulkActionConfirmDialog
           open
-          onClose={() => setPendingAction(null)}
+          onClose={() => {
+            setPendingAction(null)
+            setPendingTargetIds(null)
+          }}
           actionLabel={actionLabel[pendingAction]}
-          pageSelectedCount={selection.selectedCount}
-          allMatchingCount={eligibleIdsData?.ids.length}
+          progressVerb={progressVerb[pendingAction]}
+          itemCount={pendingTargetIds.length}
           onConfirm={runBulkAction}
         />
       )}

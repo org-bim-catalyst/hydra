@@ -110,18 +110,31 @@ describe('AdminRolesPage bulk delete', () => {
     expect(headerCheckbox).toHaveAttribute('aria-checked', 'mixed')
   })
 
-  it('opens the confirmation with page/all-matching counts and confirms via bulkDeleteRoles', async () => {
+  it('confirms the resolved item count and shows the result after running via bulkDeleteRoles', async () => {
     renderPage()
     await screen.findByText('Project Reviewer')
 
     fireEvent.click(screen.getByLabelText('Select Project Reviewer'))
     fireEvent.click(screen.getByText('Delete selected'))
 
-    expect(await screen.findByText('1 selected on this page')).toBeInTheDocument()
-    expect(await screen.findByText('All 1 matching items')).toBeInTheDocument()
+    expect(await screen.findByText('Do you want to delete 1 item?')).toBeInTheDocument()
 
     fireEvent.click(screen.getAllByText('Delete')[0])
 
     expect(await screen.findByText('1 item succeeded.')).toBeInTheDocument()
+  })
+
+  it('clicking the header checkbox asks for scope before selecting', async () => {
+    renderPage()
+    await screen.findByText('Project Reviewer')
+
+    fireEvent.click(screen.getByLabelText('Select all custom roles on this page'))
+
+    expect(await screen.findByText('Select the 1 item on this page only')).toBeInTheDocument()
+    expect(await screen.findByText('Select all 1 matching items')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Select'))
+
+    expect(await screen.findByText('1 selected')).toBeInTheDocument()
   })
 })
