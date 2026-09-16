@@ -112,8 +112,10 @@ describe('AdminRoleAssignmentsPage bulk assign', () => {
 
     fireEvent.click(screen.getByLabelText('Select alice@example.com'))
 
-    const headerCheckbox = screen.getByLabelText('Select all eligible users on this page') as HTMLInputElement
-    expect(headerCheckbox.indeterminate).toBe(true)
+    // MUI's Checkbox deliberately does not set the native `.indeterminate` DOM property — it
+    // reflects the state via `aria-checked="mixed"` instead (see its own source comment).
+    const headerCheckbox = screen.getByLabelText('Select all eligible users on this page')
+    expect(headerCheckbox).toHaveAttribute('aria-checked', 'mixed')
   })
 
   it('opens the confirmation with page/all-matching counts once a role is picked, then confirms', async () => {

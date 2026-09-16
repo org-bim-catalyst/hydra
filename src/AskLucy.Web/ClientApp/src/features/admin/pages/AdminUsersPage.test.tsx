@@ -141,6 +141,7 @@ describe('AdminUsersPage', () => {
     fireEvent.click(screen.getByLabelText('Select alice@example.com'))
     expect(await screen.findByText('Lock selected')).toBeInTheDocument()
 
+    fireEvent.click(screen.getByLabelText('Select alice@example.com')) // deselect — alice isn't locked, so leaving her selected would keep the mix non-uniform
     fireEvent.click(screen.getByLabelText('Select bob@example.com'))
     expect(await screen.findByText('Unlock selected')).toBeInTheDocument()
   })
@@ -151,8 +152,10 @@ describe('AdminUsersPage', () => {
 
     fireEvent.click(screen.getByLabelText('Select alice@example.com'))
 
-    const headerCheckbox = screen.getByLabelText('Select all eligible users on this page') as HTMLInputElement
-    expect(headerCheckbox.indeterminate).toBe(true)
+    // MUI's Checkbox deliberately does not set the native `.indeterminate` DOM property — it
+    // reflects the state via `aria-checked="mixed"` instead (see its own source comment).
+    const headerCheckbox = screen.getByLabelText('Select all eligible users on this page')
+    expect(headerCheckbox).toHaveAttribute('aria-checked', 'mixed')
   })
 
   it('selects every eligible row via the header "select all" checkbox', async () => {

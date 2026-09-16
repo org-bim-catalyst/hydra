@@ -1,9 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AdminShell } from './AdminShell'
 import { ADMIN_NAV } from '../adminNav'
+
+// specs/055-role-management: AdminShell now filters ADMIN_NAV by the caller's built-in-admin
+// status/permissions. These tests predate that and assert every section is always reachable —
+// mock the built-in-admin check so the filter is a no-op, same as a real Administrator/Super
+// User session would produce.
+vi.mock('../../../hooks/useIsAdmin', () => ({ useIsAdmin: () => true }))
 
 function renderShell(pathname = '/admin/dashboard') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

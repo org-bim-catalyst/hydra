@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserAdmin } from '../api/adminApi'
 import * as adminApi from '../api/adminApi'
@@ -22,6 +23,12 @@ vi.mock('../api/adminApi', async () => {
   }
 })
 
+const navigateMock = vi.fn()
+vi.mock('react-router', async () => {
+  const actual = await vi.importActual<typeof import('react-router')>('react-router')
+  return { ...actual, useNavigate: () => navigateMock }
+})
+
 const user: UserAdmin = {
   id: 'user-2',
   email: 'jane@example.com',
@@ -39,7 +46,9 @@ function renderMenu(props: Partial<React.ComponentProps<typeof UserActionMenu>> 
   const queryClient = new QueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
-      <UserActionMenu user={user} isSelf={false} isSuperUser={false} {...props} />
+      <MemoryRouter>
+        <UserActionMenu user={user} isSelf={false} isSuperUser={false} {...props} />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -96,21 +105,16 @@ describe('UserActionMenu', () => {
     expect(lockItem).not.toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('disables granting Administrator/Super User for a plain Administrator caller', async () => {
+  it('navigates to the Role assignments screen, pre-filtered to this user, on "Change role…"', async () => {
+    // specs/055-role-management FR-021: role changes happen on the Role assignments screen (the
+    // single source of role data) — this menu only deep-links there. The plain-Administrator
+    // restriction on granting Administrator/Super User is enforced there and server-side, not
+    // by a picker in this menu (which no longer has one).
     renderMenu({ isSuperUser: false })
 
     fireEvent.click(screen.getByRole('button', { name: /actions for jane@example.com/i }))
     fireEvent.click(await screen.findByText('Change role…'))
 
-    const combobox = document.querySelector('[role="combobox"]');
-    expect(combobox).not.toBeNull()
-    fireEvent.mouseDown(combobox!)
-
-    const options = await screen.findAllByText(/^(Regular|Administrator|Super User)$/)
-    const adminOption = options.find((el) => el.textContent === 'Administrator')!.closest('li')
-    const superUserOption = options.find((el) => el.textContent === 'Super User')!.closest('li')
-
-    expect(adminOption).toHaveAttribute('aria-disabled', 'true')
-    expect(superUserOption).toHaveAttribute('aria-disabled', 'true')
+    expect(navigateMock).toHaveBeenCalledWith('/admin/role-assignments?search=jane%40example.com')
   })
 })

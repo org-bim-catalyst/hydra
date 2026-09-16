@@ -104,8 +104,10 @@ describe('AdminRolesPage bulk delete', () => {
 
     fireEvent.click(screen.getByLabelText('Select Project Reviewer'))
 
-    const headerCheckbox = screen.getByLabelText('Select all custom roles on this page') as HTMLInputElement
-    expect(headerCheckbox.indeterminate).toBe(true)
+    // MUI's Checkbox deliberately does not set the native `.indeterminate` DOM property — it
+    // reflects the state via `aria-checked="mixed"` instead (see its own source comment).
+    const headerCheckbox = screen.getByLabelText('Select all custom roles on this page')
+    expect(headerCheckbox).toHaveAttribute('aria-checked', 'mixed')
   })
 
   it('opens the confirmation with page/all-matching counts and confirms via bulkDeleteRoles', async () => {
