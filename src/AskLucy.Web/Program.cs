@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using AskLucy.Application;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Authorization;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Auth;
@@ -22,9 +23,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -151,6 +155,16 @@ if (!string.IsNullOrEmpty(facebookAppId))
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdministratorOrSuperUser", policy => policy.RequireRole("Administrator", "Super User"));
+
+// --- Role Definition, Role Assignment & Permission Catalogue (specs/055-role-management) ---
+// Replaces the JWT's baked-in role claims with the caller's *current* role/permissions on every
+// request (research.md Decision 3) — fixes the pre-existing gap where a role change only took
+// effect after the 15-minute access token expired, for every existing IsInRole caller too.
+builder.Services.AddScoped<IClaimsTransformation, CurrentAuthorizationClaimsTransformation>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationCacheInvalidator, MemoryCacheAuthorizationCacheInvalidator>();
+builder.Services.Replace(ServiceDescriptor.Scoped<IAuthorizationMiddlewareResultHandler, PermissionDeniedAuditResultHandler>());
+builder.Services.AddHostedService<PermissionCatalogReconciler>();
 
 // --- Rate limiting, tiered by role (research.md Topic 3 / FR-023) ---
 builder.Services.AddRateLimiter(options =>

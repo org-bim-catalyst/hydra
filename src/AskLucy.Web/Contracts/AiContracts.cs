@@ -39,6 +39,9 @@ public sealed record TranscriptionResponse(string Text);
 
 public sealed record UpdateAiProviderRequest(bool? IsEnabled, Guid? DefaultModelId, bool? ClearDefaultModel);
 
+/// <summary>specs/055-role-management contracts §4 — the permission-split successor to <c>UpdateAiProviderRequest</c>'s deprecated default-model fields. <c>DefaultModelId</c> null clears the default.</summary>
+public sealed record SetProviderDefaultModelRequest(Guid? DefaultModelId);
+
 /// <summary>Null <c>ProviderId</c> clears the assignment, returning the capability to the platform default.</summary>
 public sealed record SetAiCapabilityAssignmentRequest(Guid? ProviderId);
 

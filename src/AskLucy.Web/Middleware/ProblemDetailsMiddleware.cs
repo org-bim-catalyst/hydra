@@ -161,6 +161,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "Concurrency conflict",
             "This item was modified by another request. Please reload and try again."),
 
+        // Application-layer-safe equivalent of DbUpdateConcurrencyException above (constitution
+        // §3 forbids Application from referencing EF Core) — specs/055-role-management's
+        // AssignRoleCommandHandler raises this, never the EF Core type directly.
+        AskLucy.Domain.Common.ConcurrencyConflictException concurrencyEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/concurrency-conflict",
+            "Concurrency conflict",
+            concurrencyEx.Message),
+
         DomainRuleViolationException domainEx => (
             StatusCodes.Status400BadRequest,
             "https://hydra.bimcatalyst.com/problems/domain-rule-violation",

@@ -4,36 +4,39 @@ using AskLucy.Application.Workflows.Commands.DeleteWorkflowPolicy;
 using AskLucy.Application.Workflows.Commands.SetWorkflowUserExecutionLimit;
 using AskLucy.Application.Workflows.Commands.UpdateWorkflowPolicy;
 using AskLucy.Application.Workflows.Queries.ListWorkflowPolicies;
+using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace AskLucy.Web.Controllers.v1;
 
-/// <summary>Administrator-managed auto-approval policy CRUD for the workflow engine's platform-mandatory approval baseline (spec.md "Approval Policies") — Administrator/Super User only.</summary>
+/// <summary>Administrator-managed auto-approval policy CRUD for the workflow engine's platform-mandatory approval baseline (spec.md "Approval Policies") — permission-gated (specs/055-role-management research.md Decision 5).</summary>
 [ApiController]
-[Authorize(Policy = "AdministratorOrSuperUser")]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/workflow-policies")]
 public sealed class WorkflowPoliciesController(ISender mediator) : ControllerBase
 {
     [HttpGet]
+    [RequirePermission("admin.workflow-policies.view")]
     public async Task<ActionResult<IReadOnlyList<WorkflowPolicyDto>>> List(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new ListWorkflowPoliciesQuery(), cancellationToken));
 
     [HttpPost]
+    [RequirePermission("admin.workflow-policies.manage")]
     public async Task<ActionResult<WorkflowPolicyDto>> Create([FromBody] CreateWorkflowPolicyRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(
             new CreateWorkflowPolicyCommand(request.Name, request.Description, request.WorkflowNodeType, request.UnderlyingToolName, request.ConditionsJson),
             cancellationToken));
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("admin.workflow-policies.manage")]
     public async Task<ActionResult<WorkflowPolicyDto>> Update(Guid id, [FromBody] UpdateWorkflowPolicyRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new UpdateWorkflowPolicyCommand(id, request.Name, request.Description, request.ConditionsJson, request.IsEnabled), cancellationToken));
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("admin.workflow-policies.manage")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await mediator.Send(new DeleteWorkflowPolicyCommand(id), cancellationToken);
@@ -42,6 +45,7 @@ public sealed class WorkflowPoliciesController(ISender mediator) : ControllerBas
 
     /// <summary>FR-069/FR-070 — per-user override of the concurrent-execution cap.</summary>
     [HttpPut("user-limits/{userId}")]
+    [RequirePermission("admin.workflow-policies.manage")]
     public async Task<ActionResult<WorkflowUserExecutionLimitDto>> SetUserExecutionLimit(
         string userId, [FromBody] SetWorkflowUserExecutionLimitRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new SetWorkflowUserExecutionLimitCommand(userId, request.MaxConcurrentExecutions), cancellationToken));

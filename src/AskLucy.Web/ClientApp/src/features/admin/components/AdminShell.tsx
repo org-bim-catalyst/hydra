@@ -19,6 +19,8 @@ import { Link as RouterLink, useLocation } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
 import { ADMIN_NAV } from '../adminNav'
 import { overlaySurface } from '../../../theme/tokens/overlaySurface'
+import { useIsAdmin } from '../../../hooks/useIsAdmin'
+import { usePermissions } from '../../auth/hooks/usePermissions'
 
 const EXPANDED_WIDTH = 232
 const COLLAPSED_WIDTH = 60
@@ -46,6 +48,15 @@ interface AdminShellProps {
  */
 export function AdminShell({ title, subtitle, actions, children }: AdminShellProps) {
   const { pathname } = useLocation()
+  const isBuiltInAdmin = useIsAdmin()
+  const permissions = usePermissions()
+  const visibleNav = ADMIN_NAV.filter((item) => {
+    if (isBuiltInAdmin) return true
+    if (item.builtInOnly) return false
+    if (!item.permission) return true
+    const keys = Array.isArray(item.permission) ? item.permission : [item.permission]
+    return keys.some((key) => permissions.includes(key))
+  })
   const [collapsed, setCollapsed] = useState(() => {
     // Per-browser convenience only, so a failure to read it must never break the page —
     // private windows and blocked site data both throw here.
@@ -105,7 +116,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
           </Box>
           <Divider />
           <List sx={{ p: 0.75 }}>
-            {ADMIN_NAV.map((item) => {
+            {visibleNav.map((item) => {
               const selected = pathname === item.path
               return (
                 // Each row wrapped in a ListItem so it renders an <li>: ListItemButton with

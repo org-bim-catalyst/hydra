@@ -18,7 +18,7 @@ public sealed class AdminDashboardRepositoryTests(PersistenceTestFixture fixture
 
         await using (var dbContext = fixture.CreateDbContext())
         {
-            var superUserRole = new IdentityRole($"Super User-{suffix}") { NormalizedName = $"SUPER USER-{suffix}".ToUpperInvariant() };
+            var superUserRole = new ApplicationRole($"Super User-{suffix}") { NormalizedName = $"SUPER USER-{suffix}".ToUpperInvariant() };
             await dbContext.Roles.AddAsync(superUserRole, TestContext.Current.CancellationToken);
 
             var confirmedActiveUser = new ApplicationUser

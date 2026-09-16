@@ -98,6 +98,14 @@ public interface IIdentityService
 
     /// <summary>Count of Super Users who are not currently locked out — the FR-023 last-Super-User guard's denominator.</summary>
     Task<int> CountActiveSuperUsersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether an Identity row for <paramref name="userId"/> actually exists. Lets
+    /// <c>CurrentAuthorizationClaimsTransformation</c> (specs/055-role-management) refresh a
+    /// principal's role/permission claims only for a resolvable identity, leaving the incoming
+    /// token's claims untouched otherwise — the same behavior as before that feature shipped.
+    /// </summary>
+    Task<bool> UserExistsAsync(string userId, CancellationToken cancellationToken = default);
 }
 
 public sealed record ExternalLoginDto(string Provider, string ProviderKey, string DisplayName);

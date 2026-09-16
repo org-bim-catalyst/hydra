@@ -1,6 +1,10 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Users;
+using AskLucy.Application.Users.Commands.BulkDeleteUsers;
+using AskLucy.Application.Users.Commands.BulkForceReset2fa;
+using AskLucy.Application.Users.Commands.BulkLockUsers;
+using AskLucy.Application.Users.Commands.BulkUnlockUsers;
 using AskLucy.Application.Users.Commands.ChangeUserRole;
 using AskLucy.Application.Users.Commands.DeleteMyAccount;
 using AskLucy.Application.Users.Commands.DeleteUser;
@@ -12,6 +16,7 @@ using AskLucy.Application.Users.Commands.UpdateUser;
 using AskLucy.Application.Users.Commands.UploadAvatar;
 using AskLucy.Application.Users.Queries.GetMyProfile;
 using AskLucy.Application.Users.Queries.GetUsers;
+using AskLucy.Application.Users.Queries.GetUsersEligibleIds;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
 using MediatR;
@@ -105,7 +110,7 @@ public sealed class UsersController(
     /// sort/pagination per FR-009/010/011 (specs/001-admin-dashboard).
     /// </summary>
     [HttpGet]
-    [Authorize(Policy = "AdministratorOrSuperUser")]
+    [RequirePermission("admin.users.view")]
     [EnableRateLimiting("admin-endpoints")]
     public async Task<ActionResult<PagedResult<UserAdminDto>>> GetAll(
         [FromQuery] string? search,
@@ -123,7 +128,7 @@ public sealed class UsersController(
     /// overposting/mass-assignment vulnerability). Role-gated (FR-017, User Story 4).
     /// </summary>
     [HttpPatch("{userId}")]
-    [Authorize(Policy = "AdministratorOrSuperUser")]
+    [RequirePermission("admin.users.manage")]
     [EnableRateLimiting("admin-endpoints")]
     public async Task<IActionResult> UpdateUser(string userId, UpdateUserRequest request, CancellationToken cancellationToken)
     {
@@ -133,7 +138,7 @@ public sealed class UsersController(
 
     /// <summary>FR-012. Non-CRUD verb modeled as a sub-resource action per constitution &#167;6.</summary>
     [HttpPost("{userId}/actions/lock")]
-    [Authorize(Policy = "AdministratorOrSuperUser")]
+    [RequirePermission("admin.users.manage")]
     [EnableRateLimiting("admin-endpoints")]
     public async Task<IActionResult> Lock(string userId, CancellationToken cancellationToken)
     {
@@ -143,7 +148,7 @@ public sealed class UsersController(
 
     /// <summary>FR-013.</summary>
     [HttpPost("{userId}/actions/unlock")]
-    [Authorize(Policy = "AdministratorOrSuperUser")]
+    [RequirePermission("admin.users.manage")]
     [EnableRateLimiting("admin-endpoints")]
     public async Task<IActionResult> Unlock(string userId, CancellationToken cancellationToken)
     {
@@ -151,7 +156,13 @@ public sealed class UsersController(
         return NoContent();
     }
 
-    /// <summary>FR-014 — maps cleanly to a resource update, so PATCH .../role rather than an /actions/ verb.</summary>
+    /// <summary>
+    /// FR-014 — maps cleanly to a resource update, so PATCH .../role rather than an /actions/ verb.
+    /// <b>Deprecated</b> (specs/055-role-management contracts §4): prefer
+    /// <c>PUT /api/v1/admin/role-assignments/{userId}</c>, which supports any role (not only the
+    /// two built-in names) and an explicit optimistic-concurrency token. Kept for existing
+    /// callers — delegates to the same <c>AssignRoleCommand</c> path internally.
+    /// </summary>
     [HttpPatch("{userId}/role")]
     [Authorize(Policy = "AdministratorOrSuperUser")]
     [EnableRateLimiting("admin-endpoints")]
@@ -163,7 +174,7 @@ public sealed class UsersController(
 
     /// <summary>FR-015.</summary>
     [HttpPost("{userId}/actions/force-2fa-reset")]
-    [Authorize(Policy = "AdministratorOrSuperUser")]
+    [RequirePermission("admin.users.manage")]
     [EnableRateLimiting("admin-endpoints")]
     public async Task<IActionResult> ForceReset2fa(string userId, CancellationToken cancellationToken)
     {
@@ -173,11 +184,49 @@ public sealed class UsersController(
 
     /// <summary>FR-016 — soft-delete, never a hard delete.</summary>
     [HttpDelete("{userId}")]
-    [Authorize(Policy = "AdministratorOrSuperUser")]
+    [RequirePermission("admin.users.manage")]
     [EnableRateLimiting("admin-endpoints")]
     public async Task<IActionResult> DeleteUser(string userId, CancellationToken cancellationToken)
     {
         await mediator.Send(new DeleteUserCommand(userId), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>specs/056-bulk-select-all — resolves the "all matching" id set server-side at execution time.</summary>
+    [HttpGet("actions/bulk-eligible-ids")]
+    [RequirePermission("admin.users.view")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<ActionResult<BulkEligibleIdsResponse>> GetBulkEligibleIds(
+        [FromQuery] string? search, [FromQuery] UserBulkAction action, CancellationToken cancellationToken) =>
+        Ok(new BulkEligibleIdsResponse(await mediator.Send(new GetUsersEligibleIdsQuery(search, action), cancellationToken)));
+
+    [HttpPost("actions/bulk-lock")]
+    [RequirePermission("admin.users.manage")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<ActionResult<BulkActionResultResponse>> BulkLock(BulkTargetRequest request, CancellationToken cancellationToken) =>
+        Ok(ToResponse(await mediator.Send(new BulkLockUsersCommand(ToTarget(request), request.Search), cancellationToken)));
+
+    [HttpPost("actions/bulk-unlock")]
+    [RequirePermission("admin.users.manage")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<ActionResult<BulkActionResultResponse>> BulkUnlock(BulkTargetRequest request, CancellationToken cancellationToken) =>
+        Ok(ToResponse(await mediator.Send(new BulkUnlockUsersCommand(ToTarget(request), request.Search), cancellationToken)));
+
+    [HttpPost("actions/bulk-force-2fa-reset")]
+    [RequirePermission("admin.users.manage")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<ActionResult<BulkActionResultResponse>> BulkForceReset2fa(BulkTargetRequest request, CancellationToken cancellationToken) =>
+        Ok(ToResponse(await mediator.Send(new BulkForceReset2faCommand(ToTarget(request), request.Search), cancellationToken)));
+
+    [HttpDelete("actions/bulk-delete")]
+    [RequirePermission("admin.users.manage")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<ActionResult<BulkActionResultResponse>> BulkDelete(BulkTargetRequest request, CancellationToken cancellationToken) =>
+        Ok(ToResponse(await mediator.Send(new BulkDeleteUsersCommand(ToTarget(request), request.Search), cancellationToken)));
+
+    private static Application.Common.BulkTarget ToTarget(BulkTargetRequest request) => new(request.Ids, request.AllMatching);
+
+    private static BulkActionResultResponse ToResponse(Application.Common.BulkActionOutcome outcome) => new(
+        outcome.SucceededCount,
+        outcome.Skipped.Select(s => new BulkActionSkipResponse(s.Id, s.Reason)).ToList());
 }

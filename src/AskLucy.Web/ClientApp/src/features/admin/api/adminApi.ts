@@ -77,3 +77,40 @@ export const forceReset2fa = (userId: string) =>
   apiFetch<void>(`/users/${userId}/actions/force-2fa-reset`, { method: 'POST' })
 
 export const deleteUser = (userId: string) => apiFetch<void>(`/users/${userId}`, { method: 'DELETE' })
+
+export type UserBulkAction = 'Lock' | 'Unlock' | 'ForceReset2fa' | 'Delete'
+
+export interface BulkTargetRequest {
+  ids: string[] | null
+  allMatching: boolean
+  search?: string | null
+}
+
+export interface BulkActionSkip {
+  id: string
+  reason: string
+}
+
+export interface BulkActionResult {
+  succeededCount: number
+  skipped: BulkActionSkip[]
+}
+
+export function getUsersEligibleIds(action: UserBulkAction, search?: string) {
+  const query = new URLSearchParams()
+  query.set('action', action)
+  if (search) query.set('search', search)
+  return apiFetch<{ ids: string[] }>(`/users/actions/bulk-eligible-ids?${query.toString()}`)
+}
+
+export const bulkLockUsers = (target: BulkTargetRequest) =>
+  apiFetch<BulkActionResult>('/users/actions/bulk-lock', { method: 'POST', body: JSON.stringify(target) })
+
+export const bulkUnlockUsers = (target: BulkTargetRequest) =>
+  apiFetch<BulkActionResult>('/users/actions/bulk-unlock', { method: 'POST', body: JSON.stringify(target) })
+
+export const bulkForceReset2fa = (target: BulkTargetRequest) =>
+  apiFetch<BulkActionResult>('/users/actions/bulk-force-2fa-reset', { method: 'POST', body: JSON.stringify(target) })
+
+export const bulkDeleteUsers = (target: BulkTargetRequest) =>
+  apiFetch<BulkActionResult>('/users/actions/bulk-delete', { method: 'DELETE', body: JSON.stringify(target) })

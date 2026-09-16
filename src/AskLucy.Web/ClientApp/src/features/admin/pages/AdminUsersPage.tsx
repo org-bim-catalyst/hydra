@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import {
+  Button,
+  Checkbox,
   Chip,
   Paper,
   Table,
@@ -11,14 +13,19 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  Toolbar,
+  Typography,
 } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as adminApi from '../api/adminApi'
-import type { UserSortBy } from '../api/adminApi'
+import type { UserBulkAction, UserSortBy } from '../api/adminApi'
 import { AdminShell } from '../components/AdminShell'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { useMyProfile } from '../../profile/hooks/useProfile'
 import { UserActionMenu } from '../components/UserActionMenu'
+import { useBulkSelection } from '../hooks/useBulkSelection'
+import { BulkActionConfirmDialog } from '../components/BulkActionConfirmDialog'
+import type { BulkActionScope } from '../components/BulkActionConfirmDialog'
 
 /**
  * Admin user management console (specs/001-admin-dashboard) — evolves the original
@@ -35,12 +42,56 @@ export function AdminUsersPage() {
 
   const { data: profile } = useMyProfile()
   const isSuperUser = useIsSuperUser()
+  const queryClient = useQueryClient()
 
   const { data } = useQuery({
     queryKey: ['admin', 'users', { search, sortBy, sortDescending, page, pageSize }],
     queryFn: () => adminApi.getUsers({ search, sortBy, sortDescending, page: page + 1, pageSize }),
     placeholderData: (previous) => previous,
   })
+
+  const selectableIds = (data?.items ?? []).filter((u) => u.id !== profile?.id).map((u) => u.id)
+  const selection = useBulkSelection(selectableIds)
+
+  const selectedUsers = (data?.items ?? []).filter((u) => selection.selected.has(u.id))
+  const allSelectedAreLockedOut = selectedUsers.length > 0 && selectedUsers.every((u) => u.isLockedOut)
+  const lockUnlockAction: UserBulkAction = allSelectedAreLockedOut ? 'Unlock' : 'Lock'
+
+  const [pendingAction, setPendingAction] = useState<UserBulkAction | null>(null)
+
+  const { data: eligibleIdsData } = useQuery({
+    queryKey: ['admin', 'users', 'bulk-eligible-ids', pendingAction, search],
+    queryFn: () => adminApi.getUsersEligibleIds(pendingAction!, search || undefined),
+    enabled: pendingAction !== null,
+  })
+
+  function buildTarget(scope: BulkActionScope): adminApi.BulkTargetRequest {
+    return scope === 'all'
+      ? { ids: null, allMatching: true, search: search || undefined }
+      : { ids: [...selection.selected], allMatching: false }
+  }
+
+  async function runBulkAction(scope: BulkActionScope): Promise<adminApi.BulkActionResult> {
+    const target = buildTarget(scope)
+    const result = await (pendingAction === 'Lock'
+      ? adminApi.bulkLockUsers(target)
+      : pendingAction === 'Unlock'
+        ? adminApi.bulkUnlockUsers(target)
+        : pendingAction === 'ForceReset2fa'
+          ? adminApi.bulkForceReset2fa(target)
+          : adminApi.bulkDeleteUsers(target))
+
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+    selection.clear()
+    return result
+  }
+
+  const actionLabel: Record<UserBulkAction, string> = {
+    Lock: 'Lock',
+    Unlock: 'Unlock',
+    ForceReset2fa: 'Force 2FA reset',
+    Delete: 'Delete',
+  }
 
   const toggleSort = (column: UserSortBy) => {
     if (sortBy === column) {
@@ -64,11 +115,36 @@ export function AdminUsersPage() {
         }}
         sx={{ mb: 2, width: { xs: '100%', sm: 320 } }}
       />
+      {selection.selectedCount > 0 && (
+        <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
+          <Typography variant="body2" sx={{ mr: 1 }}>
+            {selection.selectedCount} selected
+          </Typography>
+          <Button size="small" variant="outlined" onClick={() => setPendingAction(lockUnlockAction)}>
+            {lockUnlockAction === 'Unlock' ? 'Unlock selected' : 'Lock selected'}
+          </Button>
+          <Button size="small" variant="outlined" onClick={() => setPendingAction('ForceReset2fa')}>
+            Force 2FA reset
+          </Button>
+          <Button size="small" variant="outlined" color="error" onClick={() => setPendingAction('Delete')}>
+            Delete
+          </Button>
+        </Toolbar>
+      )}
       <Paper elevation={1}>
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={selection.isAllSelected}
+                    indeterminate={selection.isIndeterminate}
+                    disabled={selectableIds.length === 0}
+                    onChange={selection.toggleAll}
+                    slotProps={{ input: { 'aria-label': 'Select all eligible users on this page' } }}
+                  />
+                </TableCell>
                 <TableCell
                   sortDirection={sortBy === 'email' ? (sortDescending ? 'desc' : 'asc') : false}
                 >
@@ -104,6 +180,15 @@ export function AdminUsersPage() {
             <TableBody>
               {data?.items.map((user) => (
                 <TableRow key={user.id} hover>
+                  <TableCell padding="checkbox">
+                    {user.id !== profile?.id && (
+                      <Checkbox
+                        checked={selection.selected.has(user.id)}
+                        onChange={() => selection.toggleOne(user.id)}
+                        slotProps={{ input: { 'aria-label': `Select ${user.email}` } }}
+                      />
+                    )}
+                  </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.firstName}</TableCell>
                   <TableCell>{user.lastName}</TableCell>
@@ -157,6 +242,17 @@ export function AdminUsersPage() {
           rowsPerPageOptions={[10, 20, 50]}
         />
       </Paper>
+
+      {pendingAction && (
+        <BulkActionConfirmDialog
+          open
+          onClose={() => setPendingAction(null)}
+          actionLabel={actionLabel[pendingAction]}
+          pageSelectedCount={selection.selectedCount}
+          allMatchingCount={eligibleIdsData?.ids.length}
+          onConfirm={runBulkAction}
+        />
+      )}
     </AdminShell>
   )
 }

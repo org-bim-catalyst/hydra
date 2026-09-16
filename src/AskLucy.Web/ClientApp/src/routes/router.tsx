@@ -75,6 +75,12 @@ const AdminAiCapabilitiesPage = lazy(() =>
 const AdminDefaultModelsPage = lazy(() =>
   import('../features/admin/pages/AdminDefaultModelsPage').then((m) => ({ default: m.AdminDefaultModelsPage })),
 )
+const AdminRolesPage = lazy(() =>
+  import('../features/admin/pages/AdminRolesPage').then((m) => ({ default: m.AdminRolesPage })),
+)
+const AdminRoleAssignmentsPage = lazy(() =>
+  import('../features/admin/pages/AdminRoleAssignmentsPage').then((m) => ({ default: m.AdminRoleAssignmentsPage })),
+)
 const ChatSettingsPage = lazy(() =>
   import('../features/settings/pages/ChatSettingsPage').then((m) => ({ default: m.ChatSettingsPage })),
 )
@@ -458,6 +464,32 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AdminAiCapabilitiesPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/roles',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <AdminRolesPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/role-assignments',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <AdminRoleAssignmentsPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

@@ -23,9 +23,11 @@ public sealed class UserAdminRepository(AskLucyDbContext dbContext) : IUserAdmin
         u.TwoFactorEnabled,
         u.LockoutEnabled,
         u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.UtcNow,
+        // specs/055-role-management: a user's single role may now be built-in or custom — no
+        // longer filtered to the two privileged names (that filter predates custom roles).
         (from ur in dbContext.UserRoles
          join r in dbContext.Roles on ur.RoleId equals r.Id
-         where ur.UserId == u.Id && (r.Name == PrivilegedRoleNames.Administrator || r.Name == PrivilegedRoleNames.SuperUser)
+         where ur.UserId == u.Id
          select r.Name!).FirstOrDefault() ?? PrivilegedRoleNames.Regular,
         u.CreatedAtUtc);
 
@@ -97,5 +99,28 @@ public sealed class UserAdminRepository(AskLucyDbContext dbContext) : IUserAdmin
             .ToListAsync(cancellationToken);
 
         return new PagedResult<UserAdminDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<IReadOnlyList<string>> ListEligibleIdsAsync(
+        string? search, UserBulkAction action, string excludedUserId, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Users.Where(u => u.Id != excludedUserId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(u =>
+                u.Email!.Contains(search) ||
+                (u.FirstName != null && u.FirstName.Contains(search)) ||
+                (u.LastName != null && u.LastName.Contains(search)));
+        }
+
+        query = action switch
+        {
+            UserBulkAction.Lock => query.Where(u => u.LockoutEnd == null || u.LockoutEnd <= DateTimeOffset.UtcNow),
+            UserBulkAction.Unlock => query.Where(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.UtcNow),
+            _ => query,
+        };
+
+        return await query.Select(u => u.Id).ToListAsync(cancellationToken);
     }
 }

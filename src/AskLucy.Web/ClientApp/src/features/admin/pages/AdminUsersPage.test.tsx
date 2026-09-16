@@ -53,6 +53,13 @@ const server = setupServer(
       avatarFileName: null,
     }),
   ),
+  http.get('*/api/v1/users/actions/bulk-eligible-ids', () => HttpResponse.json({ ids: ['user-1', 'user-2'] })),
+  http.post('*/api/v1/users/actions/bulk-lock', () =>
+    HttpResponse.json({ succeededCount: 1, skipped: [{ id: 'user-2', reason: 'AlreadyLocked' }] }),
+  ),
+  http.post('*/api/v1/users/actions/bulk-unlock', () => HttpResponse.json({ succeededCount: 1, skipped: [] })),
+  http.post('*/api/v1/users/actions/bulk-force-2fa-reset', () => HttpResponse.json({ succeededCount: 2, skipped: [] })),
+  http.delete('*/api/v1/users/actions/bulk-delete', () => HttpResponse.json({ succeededCount: 2, skipped: [] })),
 )
 
 beforeAll(() => server.listen())
@@ -114,5 +121,76 @@ describe('AdminUsersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /next page/i }))
 
     await waitFor(() => expect(lastRequestUrl?.searchParams.get('page')).toBe('2'))
+  })
+
+  it('shows no bulk toolbar until a row is selected, then shows the persistent selected-count label', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    expect(screen.queryByText(/selected$/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Select alice@example.com'))
+
+    expect(await screen.findByText('1 selected')).toBeInTheDocument()
+  })
+
+  it('reads "Lock selected" by default and switches to "Unlock selected" when every selected user is locked', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select alice@example.com'))
+    expect(await screen.findByText('Lock selected')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Select bob@example.com'))
+    expect(await screen.findByText('Unlock selected')).toBeInTheDocument()
+  })
+
+  it('goes indeterminate on the header checkbox when only some eligible rows are selected', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select alice@example.com'))
+
+    const headerCheckbox = screen.getByLabelText('Select all eligible users on this page') as HTMLInputElement
+    expect(headerCheckbox.indeterminate).toBe(true)
+  })
+
+  it('selects every eligible row via the header "select all" checkbox', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select all eligible users on this page'))
+
+    expect(await screen.findByText('2 selected')).toBeInTheDocument()
+  })
+
+  it('disables "select all" when there are zero eligible rows on the page', async () => {
+    server.use(
+      http.get('*/api/v1/users', () => {
+        const result: PagedResult<UserAdmin> = { items: [], totalCount: 0, page: 1, pageSize: 20 }
+        return HttpResponse.json(result)
+      }),
+    )
+    renderPage()
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Select all eligible users on this page')).toBeDisabled(),
+    )
+  })
+
+  it('opens the confirmation dialog with page and all-matching counts, then shows the result summary with skip reasons', async () => {
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getByLabelText('Select alice@example.com'))
+    fireEvent.click(await screen.findByText('Lock selected'))
+
+    expect(await screen.findByText('1 selected on this page')).toBeInTheDocument()
+    expect(await screen.findByText('All 2 matching items')).toBeInTheDocument()
+
+    fireEvent.click(screen.getAllByText('Lock')[0])
+
+    expect(await screen.findByText('1 item succeeded.')).toBeInTheDocument()
+    expect(screen.getByText('AlreadyLocked')).toBeInTheDocument()
   })
 })

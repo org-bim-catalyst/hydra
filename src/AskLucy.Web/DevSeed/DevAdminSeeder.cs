@@ -21,7 +21,7 @@ public static class DevAdminSeeder
     public static async Task SeedAsync(IServiceProvider services, ILogger logger)
     {
         using var scope = services.CreateScope();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
@@ -29,7 +29,8 @@ public static class DevAdminSeeder
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
-                await roleManager.CreateAsync(new IdentityRole(role));
+                var now = DateTime.UtcNow;
+                await roleManager.CreateAsync(new ApplicationRole(role) { IsBuiltIn = true, CreatedAtUtc = now, ModifiedAtUtc = now });
             }
         }
 
@@ -68,7 +69,9 @@ public static class DevAdminSeeder
             }
         }
 
-        await userManager.AddToRoleAsync(user, "Administrator");
+        // specs/055-role-management FR-012: a user holds at most one role — the bootstrap admin
+        // gets only Super User (the more privileged of the two), never both.
+        await userManager.AddToRoleAsync(user, "Super User");
         DevSeedLog.SeedAdminReady(logger, email);
     }
 }

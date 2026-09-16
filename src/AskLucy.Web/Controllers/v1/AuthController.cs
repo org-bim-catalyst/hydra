@@ -109,7 +109,7 @@ public sealed class AuthController(
 
         var session = await mediator.Send(new GetSessionQuery(refreshToken), cancellationToken);
         return session.Authenticated
-            ? Ok(new SessionResponse(true, session.UserId, session.Roles))
+            ? Ok(new SessionResponse(true, session.UserId, session.Roles, session.Permissions))
             : Problem(title: "Session expired", statusCode: StatusCodes.Status401Unauthorized);
     }
 

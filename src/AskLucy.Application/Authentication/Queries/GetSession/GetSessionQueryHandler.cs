@@ -11,7 +11,8 @@ namespace AskLucy.Application.Authentication.Queries.GetSession;
 public sealed class GetSessionQueryHandler(
     ITokenService tokenService,
     IRefreshTokenRepository refreshTokenRepository,
-    IIdentityService identityService) : IRequestHandler<GetSessionQuery, SessionResult>
+    IIdentityService identityService,
+    IEffectivePermissionResolver permissionResolver) : IRequestHandler<GetSessionQuery, SessionResult>
 {
     public async Task<SessionResult> Handle(GetSessionQuery request, CancellationToken cancellationToken)
     {
@@ -24,6 +25,7 @@ public sealed class GetSessionQueryHandler(
         }
 
         var roles = await identityService.GetRolesAsync(existing.UserId, cancellationToken);
-        return new SessionResult(true, existing.UserId, roles);
+        var permissions = await permissionResolver.ResolveAsync(existing.UserId, cancellationToken);
+        return new SessionResult(true, existing.UserId, roles, [.. permissions.Keys]);
     }
 }

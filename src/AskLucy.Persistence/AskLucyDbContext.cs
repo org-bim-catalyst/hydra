@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Authentication;
+using AskLucy.Domain.Authorization;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
 using AskLucy.Domain.Documents;
@@ -28,8 +29,11 @@ namespace AskLucy.Persistence;
 /// is migrated in place, per spec.md FR-014/SC-009.
 /// </summary>
 public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options, IMemoryContentProtector memoryContentProtector)
-    : IdentityDbContext<ApplicationUser>(options)
+    : IdentityDbContext<ApplicationUser, ApplicationRole, string>(options)
 {
+    // Role Definition, Role Assignment & Permission Catalogue (specs/055-role-management).
+    public DbSet<RoleAuditLog> RoleAuditLogs => Set<RoleAuditLog>();
+
     public DbSet<UserChat> UserChats => Set<UserChat>();
 
     public DbSet<Message> Messages => Set<Message>();

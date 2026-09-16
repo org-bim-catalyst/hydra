@@ -20,4 +20,15 @@ public interface IUserAdminRepository
     /// <summary>FR-009/010/011 — partial name/email search, single-column sort, offset pagination. <paramref name="sortBy"/> is <c>"email"</c> or <c>"createdAtUtc"</c>.</summary>
     Task<PagedResult<UserAdminDto>> SearchAsync(
         string? search, string sortBy, bool sortDescending, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ids of every user eligible for <paramref name="action"/> matching <paramref name="search"/>,
+    /// unpaged (specs/056-bulk-select-all, "all matching" resolution — never trusts a client-cached
+    /// count). Always excludes <paramref name="excludedUserId"/> (the acting admin's own row);
+    /// <see cref="UserBulkAction.Lock"/> additionally excludes already-locked users and
+    /// <see cref="UserBulkAction.Unlock"/> excludes already-unlocked users. The last-Super-User
+    /// safeguard is a per-id count check applied at execution time, not a row exclusion here.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListEligibleIdsAsync(
+        string? search, UserBulkAction action, string excludedUserId, CancellationToken cancellationToken = default);
 }

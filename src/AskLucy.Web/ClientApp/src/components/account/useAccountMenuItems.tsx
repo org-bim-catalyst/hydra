@@ -11,6 +11,8 @@ import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import type { ReactNode } from 'react'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { usePermissions } from '../../features/auth/hooks/usePermissions'
+import { ADMIN_NAV } from '../../features/admin/adminNav'
 
 export interface AccountMenuItem {
   id: string
@@ -28,8 +30,20 @@ export interface AccountMenuItem {
  * entries after they had been merged into a single "Chat settings" page everywhere else. Both
  * menus read this now, so a destination added or removed here reaches both by construction.
  */
+/** First admin section the caller's effective permissions actually let them open (specs/055-role-management) — built-in admins land on the Dashboard as before. */
+function firstPermittedAdminPath(permissions: string[]): string | null {
+  const item = ADMIN_NAV.find((nav) => {
+    if (nav.builtInOnly || !nav.permission) return false
+    const keys = Array.isArray(nav.permission) ? nav.permission : [nav.permission]
+    return keys.some((key) => permissions.includes(key))
+  })
+  return item?.path ?? null
+}
+
 export function useAccountMenuItems(): AccountMenuItem[] {
-  const isAdmin = useIsAdmin()
+  const isBuiltInAdmin = useIsAdmin()
+  const permissions = usePermissions()
+  const adminPath = isBuiltInAdmin ? '/admin/dashboard' : firstPermittedAdminPath(permissions)
 
   return [
     { id: 'profile', label: 'Profile', icon: <PersonIcon fontSize="small" />, path: '/profile' },
@@ -41,13 +55,13 @@ export function useAccountMenuItems(): AccountMenuItem[] {
     { id: 'prompts', label: 'Prompts', icon: <ArticleOutlinedIcon fontSize="small" />, path: '/prompts' },
     { id: 'agents', label: 'Agents', icon: <SmartToyOutlinedIcon fontSize="small" />, path: '/agents' },
     { id: 'workflows', label: 'Workflows', icon: <AccountTreeOutlinedIcon fontSize="small" />, path: '/workflows' },
-    ...(isAdmin
+    ...(adminPath
       ? [
           {
             id: 'admin',
             label: 'Admin panel',
             icon: <AdminPanelSettingsIcon fontSize="small" />,
-            path: '/admin/dashboard',
+            path: adminPath,
           },
         ]
       : []),

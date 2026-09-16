@@ -11,8 +11,6 @@ import {
   ListItemText,
   Menu,
   MenuItem,
-  Select,
-  Typography,
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import LockIcon from '@mui/icons-material/Lock'
@@ -21,8 +19,9 @@ import SecurityIcon from '@mui/icons-material/Security'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router'
 import * as adminApi from '../api/adminApi'
-import type { UserAdmin, UserRole } from '../api/adminApi'
+import type { UserAdmin } from '../api/adminApi'
 
 const USERS_QUERY_KEY = ['admin', 'users']
 
@@ -50,24 +49,19 @@ const CONFIRM_COPY: Record<Exclude<PendingAction, null>, { title: string; body: 
 /** Lock/unlock/role-change/force-2FA-reset/delete row actions (specs/001-admin-dashboard FR-012 through FR-017). */
 export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProps) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
-  const [roleDialogOpen, setRoleDialogOpen] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<UserRole>(user.role)
 
-  // A plain Administrator can only touch a currently-Regular user's role (and only ever
-  // set it to Regular) — any grant/revoke of Administrator/Super User requires Super User
-  // (FR-014). Hide the action entirely for rows a plain Administrator could never change.
+  // A plain Administrator can only touch a currently-Regular user's role — any grant/revoke of
+  // Administrator/Super User requires Super User (FR-014, FR-016). Hide the action entirely for
+  // rows a plain Administrator could never change; the server re-checks regardless.
   const canOfferRoleChange = isSuperUser || user.role === 'Regular'
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY })
 
   const lockMutation = useMutation({ mutationFn: () => adminApi.lockUser(user.id), onSuccess: invalidate })
   const unlockMutation = useMutation({ mutationFn: () => adminApi.unlockUser(user.id), onSuccess: invalidate })
-  const roleMutation = useMutation({
-    mutationFn: (role: UserRole) => adminApi.changeUserRole(user.id, role),
-    onSuccess: invalidate,
-  })
   const force2faMutation = useMutation({ mutationFn: () => adminApi.forceReset2fa(user.id), onSuccess: invalidate })
   const deleteMutation = useMutation({ mutationFn: () => adminApi.deleteUser(user.id), onSuccess: invalidate })
 
@@ -117,8 +111,9 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
           <MenuItem
             onClick={() => {
               closeMenu()
-              setSelectedRole(user.role)
-              setRoleDialogOpen(true)
+              // specs/055-role-management FR-021: links to the Role assignments screen (the
+              // single source of role data) rather than duplicating a role picker here.
+              navigate(`/admin/role-assignments?search=${encodeURIComponent(user.email)}`)
             }}
           >
             <ListItemIcon>
@@ -168,41 +163,6 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
             </DialogActions>
           </>
         )}
-      </Dialog>
-
-      <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>
-        <DialogTitle>Change role for {user.email}</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Only a Super User can grant or revoke the Administrator or Super User role.
-          </Typography>
-          <Select
-            fullWidth
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-            size="small"
-          >
-            <MenuItem value="Regular">Regular</MenuItem>
-            <MenuItem value="Administrator" disabled={!isSuperUser}>
-              Administrator
-            </MenuItem>
-            <MenuItem value="Super User" disabled={!isSuperUser}>
-              Super User
-            </MenuItem>
-          </Select>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRoleDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              roleMutation.mutate(selectedRole)
-              setRoleDialogOpen(false)
-            }}
-          >
-            Save
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   )

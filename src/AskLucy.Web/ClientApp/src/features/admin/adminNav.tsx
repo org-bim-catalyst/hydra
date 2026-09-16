@@ -7,12 +7,22 @@ import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import DnsOutlinedIcon from '@mui/icons-material/DnsOutlined'
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
+import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined'
 import type { ReactNode } from 'react'
 
 export interface AdminNavItem {
   path: string
   label: string
   icon: ReactNode
+  /**
+   * The permission key(s) that make this section visible (ANY-of) — omitted for a screen
+   * reserved to built-in roles regardless of permissions (`builtInOnly`, specs/055-role-
+   * management FR-002). `AdminShell` filters against the caller's effective permissions; the
+   * server enforces the same gate independently on every request.
+   */
+  permission?: string | string[]
+  builtInOnly?: boolean
 }
 
 /**
@@ -28,13 +38,20 @@ export interface AdminNavItem {
  * page needs to carry links to its siblings.
  */
 export const ADMIN_NAV: AdminNavItem[] = [
-  { path: '/admin/dashboard', label: 'Dashboard', icon: <DashboardOutlinedIcon fontSize="small" /> },
-  { path: '/admin/users', label: 'Users', icon: <PeopleOutlinedIcon fontSize="small" /> },
-  { path: '/admin/ai-providers', label: 'AI providers', icon: <HubOutlinedIcon fontSize="small" /> },
-  { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" /> },
-  { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" /> },
-  { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" /> },
-  { path: '/admin/system-agents', label: 'System agents', icon: <SupportAgentOutlinedIcon fontSize="small" /> },
-  { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" /> },
-  { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" /> },
+  { path: '/admin/dashboard', label: 'Dashboard', icon: <DashboardOutlinedIcon fontSize="small" />, permission: 'admin.dashboard.view' },
+  { path: '/admin/users', label: 'Users', icon: <PeopleOutlinedIcon fontSize="small" />, permission: 'admin.users.view' },
+  { path: '/admin/roles', label: 'Roles', icon: <BadgeOutlinedIcon fontSize="small" />, builtInOnly: true },
+  { path: '/admin/role-assignments', label: 'Role assignments', icon: <AssignmentIndOutlinedIcon fontSize="small" />, builtInOnly: true },
+  {
+    path: '/admin/ai-providers',
+    label: 'AI providers',
+    icon: <HubOutlinedIcon fontSize="small" />,
+    permission: ['admin.ai-providers.view', 'admin.default-models.view', 'admin.ai-capabilities.view'],
+  },
+  { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
+  { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
+  { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
+  { path: '/admin/system-agents', label: 'System agents', icon: <SupportAgentOutlinedIcon fontSize="small" />, permission: 'admin.system-agents.view' },
+  { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
+  { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },
 ]

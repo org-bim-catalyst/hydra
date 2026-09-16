@@ -10,7 +10,8 @@ public sealed record ExternalLoginCompleteRequest(string Code);
 
 public sealed record AuthResponse(string? UserId, string? AccessToken, DateTime? ExpiresAtUtc, bool RequiresTwoFactor);
 
-public sealed record SessionResponse(bool Authenticated, string? UserId, IReadOnlyList<string> Roles);
+/// <summary>specs/055-role-management: <c>Permissions</c> is the caller's effective permission-catalogue keys, resolved fresh every request (research.md Decision 3).</summary>
+public sealed record SessionResponse(bool Authenticated, string? UserId, IReadOnlyList<string> Roles, IReadOnlyList<string> Permissions);
 
 public sealed record ConfirmEmailRequest(string UserId, string Token);
 

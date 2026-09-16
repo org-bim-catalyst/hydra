@@ -11,6 +11,8 @@ export interface SessionResponse {
   authenticated: boolean
   userId: string | null
   roles: string[]
+  /** Effective admin-panel permission-catalogue keys, resolved fresh on every session check (specs/055-role-management). */
+  permissions: string[]
 }
 
 export function login(email: string, password: string) {

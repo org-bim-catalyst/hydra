@@ -43,7 +43,7 @@ public static class DependencyInjection
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
                 options.Lockout.MaxFailedAccessAttempts = 5;
             })
-            .AddRoles<IdentityRole>()
+            .AddRoles<ApplicationRole>()
             .AddSignInManager()
             .AddDefaultTokenProviders()
             .AddEntityFrameworkStores<AskLucyDbContext>();
@@ -60,6 +60,12 @@ public static class DependencyInjection
         services.AddScoped<IUserAdminRepository, UserAdminRepository>();
         services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
         services.AddScoped<IIdentityService, IdentityService>();
+
+        // Role Definition, Role Assignment & Permission Catalogue (specs/055-role-management) — Foundational.
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
+        services.AddScoped<IRoleAuditLogRepository, RoleAuditLogRepository>();
+        services.AddScoped<IEffectivePermissionResolver, AskLucy.Application.Authorization.EffectivePermissionResolver>();
         services.AddScoped<IAIProviderRepository, AIProviderRepository>();
         services.AddScoped<IAiCapabilityAssignmentRepository, AiCapabilityAssignmentRepository>();
         services.AddScoped<IAIModelRepository, AIModelRepository>();

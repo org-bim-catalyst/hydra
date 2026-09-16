@@ -365,4 +365,7 @@ public sealed class IdentityService(
         var now = DateTimeOffset.UtcNow;
         return superUsers.Count(u => u.LockoutEnd is null || u.LockoutEnd <= now);
     }
+
+    public async Task<bool> UserExistsAsync(string userId, CancellationToken cancellationToken = default) =>
+        await userManager.FindByIdAsync(userId) is not null;
 }

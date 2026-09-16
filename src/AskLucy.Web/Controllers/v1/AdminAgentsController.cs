@@ -1,6 +1,6 @@
 using AskLucy.Application.Agents.Queries.GetSystemAgents;
+using AskLucy.Web.Auth;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -12,9 +12,11 @@ namespace AskLucy.Web.Controllers.v1;
 /// <see cref="AgentsController"/> is deliberately untouched: its <c>GET /agents</c> stays scoped
 /// to the caller's own agents (spec.md FR-048) and can never surface a system-owned agent, since
 /// <c>ListAgentsQuery</c> filters by owner id and a system agent's owner is never a real user.
+/// Permission-gated per specs/055-role-management research.md Decision 5 — System agents is a
+/// view-only catalogue area, no "manage" permission exists for it.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AdministratorOrSuperUser")]
+[RequirePermission("admin.system-agents.view")]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/agents")]
 public sealed class AdminAgentsController(ISender mediator) : ControllerBase
