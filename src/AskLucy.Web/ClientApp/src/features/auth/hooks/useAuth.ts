@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as authApi from '../api/authApi'
+import type { SessionResponse } from '../api/authApi'
 import { useAuthStore } from '../../../store/authStore'
 import { SESSION_QUERY_KEY } from './useSession'
+
+const LOGGED_OUT_SESSION: SessionResponse = { authenticated: false, userId: null, roles: [], permissions: [] }
 
 const EXTERNAL_LOGINS_QUERY_KEY = ['auth', 'external-logins']
 
@@ -63,6 +66,12 @@ export function useLogout() {
     mutationFn: () => authApi.logout(),
     onSettled: () => {
       clear()
+      // Set the cache synchronously rather than only invalidating — invalidateQueries schedules
+      // a background refetch, leaving `data` at its stale "authenticated: true" value for that
+      // request's round trip. In that window ProtectedRoute still renders ConsentGate (reading
+      // this same query), which fires its own now-unauthorized request and surfaces its "Couldn't
+      // load your cookie preferences" error — even though the URL has already changed to /login.
+      queryClient.setQueryData(SESSION_QUERY_KEY, LOGGED_OUT_SESSION)
       void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
     },
   })
