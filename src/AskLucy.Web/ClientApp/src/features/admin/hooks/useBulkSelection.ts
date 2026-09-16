@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 export interface UseBulkSelectionResult {
   selected: ReadonlySet<string>
@@ -15,9 +15,13 @@ export interface UseBulkSelectionResult {
 export function useBulkSelection(rowIds: string[]): UseBulkSelectionResult {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
+  // Resets the selection when `rowIds` changes reference (a new page or filtered result), without
+  // an effect — see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
+  const [prevRowIds, setPrevRowIds] = useState(rowIds)
+  if (rowIds !== prevRowIds) {
+    setPrevRowIds(rowIds)
     setSelected(new Set())
-  }, [rowIds])
+  }
 
   const selectableIds = useMemo(() => rowIds, [rowIds])
 

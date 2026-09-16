@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Alert,
   Button,
@@ -36,7 +36,12 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  useEffect(() => {
+  // Re-initializes the form fields whenever the dialog transitions to open, without an effect
+  // (this component stays mounted across open/close, so an effect would run one render late —
+  // see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (open) {
       setName(role?.name ?? '')
       setDescription(role?.description ?? '')
@@ -45,7 +50,7 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
       setPermissionError(null)
       setErrorMessage(null)
     }
-  }, [open, role])
+  }
 
   const onError = (err: unknown) => {
     setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.')

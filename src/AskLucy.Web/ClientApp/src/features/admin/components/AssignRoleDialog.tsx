@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Alert,
   Button,
@@ -28,15 +28,11 @@ const ASSIGNMENTS_QUERY_KEY = ['admin', 'role-assignments']
 /** Assign/change/remove one user's role (US2) — the server enforces the privileged-role rule and the last-Super-User safeguard; this dialog just surfaces whatever it says. */
 export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialogProps) {
   const queryClient = useQueryClient()
+  // The parent conditionally renders this dialog (`editingAssignment && <AssignRoleDialog .../>`)
+  // rather than toggling `open`, so a fresh mount — not an effect — is what resets these on
+  // every open/close cycle.
   const [selectedRoleId, setSelectedRoleId] = useState(assignment.role?.id ?? NO_ROLE_VALUE)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (open) {
-      setSelectedRoleId(assignment.role?.id ?? NO_ROLE_VALUE)
-      setErrorMessage(null)
-    }
-  }, [open, assignment])
 
   const { data: roles } = useQuery({
     queryKey: ['admin', 'roles', 'all-for-picker'],
