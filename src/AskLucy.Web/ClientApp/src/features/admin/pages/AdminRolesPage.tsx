@@ -22,6 +22,7 @@ import {
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import AddIcon from '@mui/icons-material/Add'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminRolesApi from '../api/adminRolesApi'
@@ -29,6 +30,7 @@ import type { RoleSummary } from '../api/adminRolesApi'
 import { AdminShell } from '../components/AdminShell'
 import { RoleEditorDialog } from '../components/RoleEditorDialog'
 import { DeleteRoleDialog } from '../components/DeleteRoleDialog'
+import { RolePermissionsDialog } from '../components/RolePermissionsDialog'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import { BulkActionConfirmDialog } from '../components/BulkActionConfirmDialog'
 import { SelectAllScopeDialog } from '../components/SelectAllScopeDialog'
@@ -43,6 +45,7 @@ export function AdminRolesPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<RoleSummary | undefined>(undefined)
   const [deletingRole, setDeletingRole] = useState<RoleSummary | null>(null)
+  const [viewingPermissionsRole, setViewingPermissionsRole] = useState<RoleSummary | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; role: RoleSummary } | null>(null)
 
   const queryClient = useQueryClient()
@@ -205,6 +208,15 @@ export function AdminRolesPage() {
                   </TableCell>
                   <TableCell align="right">{role.userCount}</TableCell>
                   <TableCell align="right">
+                    <Tooltip title="View permissions">
+                      <IconButton
+                        size="small"
+                        aria-label={`View permissions for ${role.name}`}
+                        onClick={() => setViewingPermissionsRole(role)}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     {!role.isBuiltIn && (
                       <IconButton
                         size="small"
@@ -249,6 +261,9 @@ export function AdminRolesPage() {
       <RoleEditorDialog open={editorOpen} onClose={() => setEditorOpen(false)} role={editingRole} />
       {deletingRole && (
         <DeleteRoleDialog open onClose={() => setDeletingRole(null)} role={deletingRole} />
+      )}
+      {viewingPermissionsRole && (
+        <RolePermissionsDialog open onClose={() => setViewingPermissionsRole(null)} role={viewingPermissionsRole} />
       )}
 
       {scopeDialog && (
