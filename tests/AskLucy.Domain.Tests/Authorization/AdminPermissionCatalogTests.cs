@@ -107,15 +107,15 @@ public sealed class AdminPermissionCatalogTests
 
     private static string GetExpectedAreaSlug(AdminArea area) => area switch
     {
-        AdminArea.Dashboard       => "dashboard",
-        AdminArea.Users           => "users",
-        AdminArea.AiProviders     => "ai-providers",
-        AdminArea.DefaultModels   => "default-models",
-        AdminArea.AiCapabilities  => "ai-capabilities",
-        AdminArea.AgentPolicies   => "agent-policies",
-        AdminArea.SystemAgents    => "system-agents",
-        AdminArea.WorkflowPolicies=> "workflow-policies",
-        AdminArea.McpServers      => "mcp-servers",
-        _                         => throw new System.ArgumentOutOfRangeException(nameof(area))
+        AdminArea.Dashboard => "dashboard",
+        AdminArea.Users => "users",
+        AdminArea.AiProviders => "ai-providers",
+        AdminArea.DefaultModels => "default-models",
+        AdminArea.AiCapabilities => "ai-capabilities",
+        AdminArea.AgentPolicies => "agent-policies",
+        AdminArea.SystemAgents => "system-agents",
+        AdminArea.WorkflowPolicies => "workflow-policies",
+        AdminArea.McpServers => "mcp-servers",
+        _ => throw new System.ArgumentOutOfRangeException(nameof(area))
     };
 }

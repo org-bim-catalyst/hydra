@@ -14,38 +14,38 @@ public static class AdminPermissionCatalog
     static AdminPermissionCatalog()
     {
         // Dashboard — view-only
-        _allList.Add(Permission("admin.dashboard.view",   AdminArea.Dashboard,              AdminPermissionLevel.View,   "View dashboard",       "View the admin dashboard overview."));
+        _allList.Add(Permission("admin.dashboard.view", AdminArea.Dashboard, AdminPermissionLevel.View, "View dashboard", "View the admin dashboard overview."));
 
         // Users
-        _allList.Add(Permission("admin.users.view",      AdminArea.Users,                   AdminPermissionLevel.View,   "View users",           "View user list and details."));
-        _allList.Add(Permission("admin.users.manage",    AdminArea.Users,                   AdminPermissionLevel.Manage, "Manage users",          "Create, edit, suspend, or delete users."));
+        _allList.Add(Permission("admin.users.view", AdminArea.Users, AdminPermissionLevel.View, "View users", "View user list and details."));
+        _allList.Add(Permission("admin.users.manage", AdminArea.Users, AdminPermissionLevel.Manage, "Manage users", "Create, edit, suspend, or delete users."));
 
         // AI providers
-        _allList.Add(Permission("admin.ai-providers.view",      AdminArea.AiProviders,       AdminPermissionLevel.View,   "View AI providers",     "View registered AI provider configurations."));
-        _allList.Add(Permission("admin.ai-providers.manage",    AdminArea.AiProviders,       AdminPermissionLevel.Manage, "Manage AI providers",   "Add, edit, or remove AI provider credentials."));
+        _allList.Add(Permission("admin.ai-providers.view", AdminArea.AiProviders, AdminPermissionLevel.View, "View AI providers", "View registered AI provider configurations."));
+        _allList.Add(Permission("admin.ai-providers.manage", AdminArea.AiProviders, AdminPermissionLevel.Manage, "Manage AI providers", "Add, edit, or remove AI provider credentials."));
 
         // Default models
-        _allList.Add(Permission("admin.default-models.view",      AdminArea.DefaultModels,   AdminPermissionLevel.View,   "View default models",   "View the admin's chosen default model per provider."));
-        _allList.Add(Permission("admin.default-models.manage",    AdminArea.DefaultModels,   AdminPermissionLevel.Manage, "Manage default models", "Change the admin's default model for any provider."));
+        _allList.Add(Permission("admin.default-models.view", AdminArea.DefaultModels, AdminPermissionLevel.View, "View default models", "View the admin's chosen default model per provider."));
+        _allList.Add(Permission("admin.default-models.manage", AdminArea.DefaultModels, AdminPermissionLevel.Manage, "Manage default models", "Change the admin's default model for any provider."));
 
         // AI capabilities
-        _allList.Add(Permission("admin.ai-capabilities.view",      AdminArea.AiCapabilities,  AdminPermissionLevel.View,   "View AI capabilities",  "View which AI features are enabled system-wide."));
-        _allList.Add(Permission("admin.ai-capabilities.manage",    AdminArea.AiCapabilities,  AdminPermissionLevel.Manage, "Manage AI capabilities", "Enable or disable AI features such as chat, images, voice."));
+        _allList.Add(Permission("admin.ai-capabilities.view", AdminArea.AiCapabilities, AdminPermissionLevel.View, "View AI capabilities", "View which AI features are enabled system-wide."));
+        _allList.Add(Permission("admin.ai-capabilities.manage", AdminArea.AiCapabilities, AdminPermissionLevel.Manage, "Manage AI capabilities", "Enable or disable AI features such as chat, images, voice."));
 
         // Agent policies
-        _allList.Add(Permission("admin.agent-policies.view",      AdminArea.AgentPolicies,   AdminPermissionLevel.View,   "View agent policies",   "View agent execution policy configurations."));
-        _allList.Add(Permission("admin.agent-policies.manage",    AdminArea.AgentPolicies,   AdminPermissionLevel.Manage, "Manage agent policies", "Create or edit agent execution policies."));
+        _allList.Add(Permission("admin.agent-policies.view", AdminArea.AgentPolicies, AdminPermissionLevel.View, "View agent policies", "View agent execution policy configurations."));
+        _allList.Add(Permission("admin.agent-policies.manage", AdminArea.AgentPolicies, AdminPermissionLevel.Manage, "Manage agent policies", "Create or edit agent execution policies."));
 
         // System agents — view-only
-        _allList.Add(Permission("admin.system-agents.view",       AdminArea.SystemAgents,    AdminPermissionLevel.View,   "View system agents",    "View registered system agents."));
+        _allList.Add(Permission("admin.system-agents.view", AdminArea.SystemAgents, AdminPermissionLevel.View, "View system agents", "View registered system agents."));
 
         // Workflow policies
-        _allList.Add(Permission("admin.workflow-policies.view",      AdminArea.WorkflowPolicies,  AdminPermissionLevel.View,   "View workflow policies", "View workflow execution policy configurations."));
-        _allList.Add(Permission("admin.workflow-policies.manage",    AdminArea.WorkflowPolicies,  AdminPermissionLevel.Manage, "Manage workflow policies", "Create or edit workflow execution policies."));
+        _allList.Add(Permission("admin.workflow-policies.view", AdminArea.WorkflowPolicies, AdminPermissionLevel.View, "View workflow policies", "View workflow execution policy configurations."));
+        _allList.Add(Permission("admin.workflow-policies.manage", AdminArea.WorkflowPolicies, AdminPermissionLevel.Manage, "Manage workflow policies", "Create or edit workflow execution policies."));
 
         // MCP servers
-        _allList.Add(Permission("admin.mcp-servers.view",      AdminArea.McpServers,      AdminPermissionLevel.View,   "View MCP servers",     "View registered Model Context Protocol servers."));
-        _allList.Add(Permission("admin.mcp-servers.manage",    AdminArea.McpServers,      AdminPermissionLevel.Manage, "Manage MCP servers",   "Add, edit, or remove MCP server registrations."));
+        _allList.Add(Permission("admin.mcp-servers.view", AdminArea.McpServers, AdminPermissionLevel.View, "View MCP servers", "View registered Model Context Protocol servers."));
+        _allList.Add(Permission("admin.mcp-servers.manage", AdminArea.McpServers, AdminPermissionLevel.Manage, "Manage MCP servers", "Add, edit, or remove MCP server registrations."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);
     }
