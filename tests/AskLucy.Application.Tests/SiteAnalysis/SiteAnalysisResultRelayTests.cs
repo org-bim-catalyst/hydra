@@ -27,7 +27,7 @@ public sealed class SiteAnalysisResultRelayTests
     private readonly IPanelNotifier _panelNotifier = Substitute.For<IPanelNotifier>();
 
     private SiteAnalysisResultRelay BuildRelay() =>
-        new(_repository, _messageRepository, _unitOfWork, _notifier, _panelNotifier, new SiteAnalysisContentComposer(), NullLogger<SiteAnalysisResultRelay>.Instance);
+        new(_repository, _messageRepository, _unitOfWork, _notifier, _panelNotifier, NullLogger<SiteAnalysisResultRelay>.Instance);
 
     private static Domain.SiteAnalysis.SiteAnalysis CreateAnalysis(int expectedResultCount = 1) =>
         Domain.SiteAnalysis.SiteAnalysis.Create(UserId, UserChatId, "Al Barsha South", 25.09, 55.20, null, expectedResultCount, UserId);
@@ -45,10 +45,10 @@ public sealed class SiteAnalysisResultRelayTests
         _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid());
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         analysis.Results.Should().ContainSingle(r => r.Status == SiteAnalysisResultStatus.Completed);
-        _messageRepository.Received(1).Add(Arg.Is<Message>(m => m.Role == MessageRole.Assistant && m.UserChatId == UserChatId));
+        _messageRepository.Received(1).Add(Arg.Is<Message>(m => m!.Role == MessageRole.Assistant && m.UserChatId == UserChatId));
         await _notifier.Received(1).ResultReceivedAsync(UserId, Arg.Any<SiteAnalysisResultReceivedDto>(), Arg.Any<CancellationToken>());
         await _panelNotifier.Received(1).PanelRequestedAsync(UserId, Arg.Any<PanelRequestDto>(), Arg.Any<CancellationToken>());
     }
@@ -61,7 +61,7 @@ public sealed class SiteAnalysisResultRelayTests
         var metadata = ValidMetadata() with { DataSource = "" };
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, metadata, ValidContent(), Guid.NewGuid());
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, metadata, ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         analysis.Results.Should().ContainSingle(r => r.Status == SiteAnalysisResultStatus.Rejected);
         await _notifier.DidNotReceive().ResultReceivedAsync(Arg.Any<string>(), Arg.Any<SiteAnalysisResultReceivedDto>(), Arg.Any<CancellationToken>());
@@ -75,7 +75,7 @@ public sealed class SiteAnalysisResultRelayTests
         _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), documentId: null);
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), documentId: null, TestContext.Current.CancellationToken);
 
         analysis.Results.Should().ContainSingle(r => r.Status == SiteAnalysisResultStatus.Rejected);
     }
@@ -87,7 +87,7 @@ public sealed class SiteAnalysisResultRelayTests
         _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
 
         var relay = BuildRelay();
-        await relay.ReportFailureAsync(analysis.Id, SiteAnalysisType.SchematicImage, "provider unavailable", cause: null);
+        await relay.ReportFailureAsync(analysis.Id, SiteAnalysisType.SchematicImage, "provider unavailable", cause: null, TestContext.Current.CancellationToken);
 
         analysis.Results.Should().ContainSingle(r => r.Status == SiteAnalysisResultStatus.Failed && r.FailureReason == "provider unavailable");
         await _notifier.DidNotReceive().ResultReceivedAsync(Arg.Any<string>(), Arg.Any<SiteAnalysisResultReceivedDto>(), Arg.Any<CancellationToken>());
@@ -101,11 +101,11 @@ public sealed class SiteAnalysisResultRelayTests
         _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
 
         var relay = BuildRelay();
-        await relay.ReportFailureAsync(analysis.Id, SiteAnalysisType.SchematicImage, "provider unavailable", cause: null);
+        await relay.ReportFailureAsync(analysis.Id, SiteAnalysisType.SchematicImage, "provider unavailable", cause: null, TestContext.Current.CancellationToken);
 
         analysis.Status.Should().Be(SiteAnalysisStatus.Failed);
         await _notifier.Received(1).AnalysisCompletedAsync(
-            UserId, Arg.Is<SiteAnalysisCompletedDto>(dto => dto.Status == "Failed" && dto.NoticeText != null), Arg.Any<CancellationToken>());
+            UserId, Arg.Is<SiteAnalysisCompletedDto>(dto => dto!.Status == "Failed" && dto.NoticeText != null), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class SiteAnalysisResultRelayTests
         analysis.TryClaimClosingOutcome("pre-claimed-by-a-simulated-sibling").Should().BeTrue();
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid());
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         await _notifier.DidNotReceiveWithAnyArgs().AnalysisCompletedAsync(default!, default!);
     }
@@ -138,11 +138,11 @@ public sealed class SiteAnalysisResultRelayTests
         _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid());
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         analysis.Status.Should().Be(SiteAnalysisStatus.Completed);
         await _notifier.Received(1).AnalysisCompletedAsync(
-            UserId, Arg.Is<SiteAnalysisCompletedDto>(dto => dto.NoticeText == null), Arg.Any<CancellationToken>());
+            UserId, Arg.Is<SiteAnalysisCompletedDto>(dto => dto!.NoticeText == null), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -159,11 +159,11 @@ public sealed class SiteAnalysisResultRelayTests
         using var emptyContent = JsonDocument.Parse("""{"version":1,"blocks":[]}""");
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), emptyContent, Guid.NewGuid());
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), emptyContent, Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         analysis.Results.Should().ContainSingle(r => r.Status == SiteAnalysisResultStatus.Rejected);
         await _notifier.Received(1).AnalysisCompletedAsync(
-            UserId, Arg.Is<SiteAnalysisCompletedDto>(dto => dto.SucceededCount == 0 && dto.Status == "Failed"), Arg.Any<CancellationToken>());
+            UserId, Arg.Is<SiteAnalysisCompletedDto>(dto => dto!.SucceededCount == 0 && dto.Status == "Failed"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class SiteAnalysisResultRelayTests
         _repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Domain.SiteAnalysis.SiteAnalysis?)null);
 
         var relay = BuildRelay();
-        await relay.ReportSuccessAsync(Guid.NewGuid(), SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid());
+        await relay.ReportSuccessAsync(Guid.NewGuid(), SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }

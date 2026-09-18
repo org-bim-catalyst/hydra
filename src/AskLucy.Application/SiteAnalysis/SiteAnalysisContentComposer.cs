@@ -13,6 +13,11 @@ namespace AskLucy.Application.SiteAnalysis;
 /// </summary>
 public sealed class SiteAnalysisContentComposer
 {
+    // CA1822: both members are kept instance rather than static — this is a DI-registered service
+    // consumed as a constructor dependency (SiteSchematicImageGenerationTool, and every specialist
+    // that follows), matching AgentDuplicateToolCallDetector's own precedent. A static composer
+    // would be a static service class, which the constitution rules out.
+#pragma warning disable CA1822
     private const int VocabularyVersion = 1;
 
     /// <summary>Composes a heading + body text + (optional) image + a trailing provenance block. The provenance block is always last (FR-011) so a reader sees the finding before its sourcing.</summary>
@@ -72,4 +77,5 @@ public sealed class SiteAnalysisContentComposer
 
     private static JsonObject ImageBlock(Guid fileId, string alt) =>
         new() { ["kind"] = "image", ["fileId"] = fileId.ToString(), ["alt"] = alt };
+#pragma warning restore CA1822
 }

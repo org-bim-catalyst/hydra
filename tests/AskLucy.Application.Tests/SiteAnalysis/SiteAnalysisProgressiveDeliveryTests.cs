@@ -42,10 +42,14 @@ public sealed class SiteAnalysisProgressiveDeliveryTests
     private readonly ISiteAnalysisNotifier _notifier = Substitute.For<ISiteAnalysisNotifier>();
     private readonly IPanelNotifier _panelNotifier = Substitute.For<IPanelNotifier>();
 
-    private ISiteAnalysisResultRelay BuildRelay() =>
-        new SiteAnalysisResultRelay(_repository, _messageRepository, _unitOfWork, _notifier, _panelNotifier, new SiteAnalysisContentComposer(), NullLogger<SiteAnalysisResultRelay>.Instance);
+    private SiteAnalysisResultRelay BuildRelay() =>
+        new SiteAnalysisResultRelay(_repository, _messageRepository, _unitOfWork, _notifier, _panelNotifier, NullLogger<SiteAnalysisResultRelay>.Instance);
 
     /// <summary>Stands in for a specialist tool: waits, then reports through the REAL relay — exactly what <c>SiteSchematicImageGenerationTool</c> does, minus the AI call.</summary>
+    // CA1859: the parameter stays ISiteAnalysisResultRelay on purpose — a real specialist only ever
+    // sees the interface, and this stand-in exists to prove the relay behaves correctly when driven
+    // that way. Taking the concrete type would test a path production never uses.
+#pragma warning disable CA1859
     private static async Task RunFakeSpecialistAsync(
         Guid siteAnalysisId, TimeSpan delay, ISiteAnalysisResultRelay relay, string name, List<string> deliveryOrder, bool shouldFail = false)
     {
@@ -66,6 +70,7 @@ public sealed class SiteAnalysisProgressiveDeliveryTests
         await relay.ReportSuccessAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, metadata, content, documentId: Guid.NewGuid());
         lock (deliveryOrder) { deliveryOrder.Add(name); }
     }
+#pragma warning restore CA1859
 
     private static Domain.SiteAnalysis.SiteAnalysis CreateAnalysis() =>
         Domain.SiteAnalysis.SiteAnalysis.Create(UserId, UserChatId, "Test Site", 25.09, 55.20, null, expectedResultCount: 1, UserId);

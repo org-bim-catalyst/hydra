@@ -41,7 +41,6 @@ public sealed class SiteAnalysisResultRelay(
     IUnitOfWork unitOfWork,
     ISiteAnalysisNotifier notifier,
     IPanelNotifier panelNotifier,
-    SiteAnalysisContentComposer composer,
     ILogger<SiteAnalysisResultRelay> logger) : ISiteAnalysisResultRelay
 {
     private const string Actor = "system:site-analysis-relay";

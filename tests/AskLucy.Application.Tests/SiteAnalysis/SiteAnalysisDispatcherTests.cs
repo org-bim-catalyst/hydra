@@ -45,7 +45,7 @@ public sealed class SiteAnalysisDispatcherTests
         _executionRepository.When(r => r.Add(Arg.Any<WorkflowExecution>())).Do(call => captured = call.Arg<WorkflowExecution>());
 
         var dispatcher = BuildDispatcher();
-        var executionId = await dispatcher.DispatchAsync(Guid.NewGuid(), "real-user-1", "Al Barsha South", "Dubai, UAE", 25.09, 55.20);
+        var executionId = await dispatcher.DispatchAsync(Guid.NewGuid(), "real-user-1", "Al Barsha South", "Dubai, UAE", 25.09, 55.20, TestContext.Current.CancellationToken);
 
         captured.Should().NotBeNull();
         captured!.RunByUserId.Should().Be("real-user-1");

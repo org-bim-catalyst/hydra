@@ -17,9 +17,16 @@ public enum DataResolutionOutcomeType
     Unavailable,
 }
 
-public sealed record DataResolutionOutcome<T>(DataResolutionOutcomeType Type, T? Value, string? Reason)
-{
-    public static DataResolutionOutcome<T> Confirmed(T value) => new(DataResolutionOutcomeType.Confirmed, value, null);
+public sealed record DataResolutionOutcome<T>(DataResolutionOutcomeType Type, T? Value, string? Reason);
 
-    public static DataResolutionOutcome<T> Unavailable(string reason) => new(DataResolutionOutcomeType.Unavailable, default, reason);
+/// <summary>
+/// Factories for <see cref="DataResolutionOutcome{T}"/>. Non-generic so the type argument is inferred
+/// from the call (<c>DataResolutionOutcome.Confirmed(value)</c>) rather than restated, which is also
+/// what keeps the factories off the generic type itself (CA1000).
+/// </summary>
+public static class DataResolutionOutcome
+{
+    public static DataResolutionOutcome<T> Confirmed<T>(T value) => new(DataResolutionOutcomeType.Confirmed, value, null);
+
+    public static DataResolutionOutcome<T> Unavailable<T>(string reason) => new(DataResolutionOutcomeType.Unavailable, default, reason);
 }

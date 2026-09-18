@@ -28,7 +28,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <!--
+      10.0.12, not 10.0.10: the older patch pins the transitive Microsoft.OpenApi to 2.0.0, which
+      carries GHSA-v5pm-xwqc-g5wc (NU1903, high). 10.0.12 depends on [2.12.0, 3.0.0), so the fix
+      arrives without crossing into Microsoft.OpenApi 3.x — that major breaks ASP.NET Core's OpenApi
+      source generator, so this project must stay on the 2.x line.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
