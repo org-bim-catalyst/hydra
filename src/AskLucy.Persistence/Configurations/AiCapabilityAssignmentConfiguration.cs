@@ -35,6 +35,16 @@ public sealed class AiCapabilityAssignmentConfiguration : IEntityTypeConfigurati
             .HasForeignKey(a => a.ProviderId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Optional pinned model (image generation only needs one). Restrict for the same reason
+        // as the provider FK: retiring a model a capability depends on must be a deliberate
+        // admin decision, never a silent unassignment.
+        builder.Property(a => a.ModelId);
+        builder.HasOne<AIModel>()
+            .WithMany()
+            .HasForeignKey(a => a.ModelId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasQueryFilter(a => a.DeletedAtUtc == null);
     }
 }

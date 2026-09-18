@@ -1,4 +1,5 @@
 import { Chip } from '@mui/material'
+import { useSiteAnalysisHub } from '../../../features/siteAnalysis/hooks/useSiteAnalysisHub'
 import { FloatingPanelHost } from '../../panels/components/FloatingPanelHost'
 import { useFloatingPanelHub } from '../../panels/hooks/useFloatingPanelHub'
 
@@ -6,9 +7,15 @@ import { useFloatingPanelHub } from '../../panels/hooks/useFloatingPanelHub'
  * used to render from `useFloatingPanelHub().isLive` directly. The hook holds the SignalR
  * connection, so it must stay mounted for exactly as long as this extension is started — which is
  * exactly the lifetime of a contributed overlay component (contributed at `start()`, unmounted
- * when `stop()` withdraws the contribution). */
+ * when `stop()` withdraws the contribution).
+ *
+ * specs/057-site-analysis-agent — `useSiteAnalysisHub` is mounted here too, not at the app shell:
+ * a site analysis's panel and chat notice always arrive together for the same viewer-active
+ * surface, so coupling both hubs' connection lifetimes to this same extension keeps them
+ * consistent rather than one outliving the other. */
 export function PanelsExtensionOverlay() {
   const { isLive } = useFloatingPanelHub()
+  useSiteAnalysisHub()
 
   return (
     <>

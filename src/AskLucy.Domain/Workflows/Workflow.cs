@@ -80,6 +80,26 @@ public sealed class Workflow : BaseEntity
 
     public IReadOnlyCollection<WorkflowVersion> Versions => _versions;
 
+    /// <summary>
+    /// specs/057-site-analysis-agent research.md D12 — stable identity of a platform-provisioned
+    /// workflow (e.g. <c>site-analysis</c>). Null for every user-created workflow, and unique
+    /// among those that are not, so a provisioner can upsert by it and two instances starting at
+    /// once cannot create duplicates. Mirrors <c>Agent.SystemKey</c> exactly.
+    /// </summary>
+    public string? SystemKey { get; private set; }
+
+    /// <summary>
+    /// Mirrors <c>Agent.IsSystemOwned</c> (specs/045 FR-034). A shared, system-owned workflow is
+    /// started by <c>ISiteAnalysisDispatcher</c> directly rather than through
+    /// <c>StartWorkflowExecutionCommand</c>, whose <c>WorkflowOwnershipGuard</c> hard-checks
+    /// <c>OwnerId == userId</c> and can never be satisfied by a shared workflow (research.md D12,
+    /// plan.md Complexity Tracking).
+    /// </summary>
+    public bool IsSystemOwned { get; private set; }
+
+    /// <summary>The owner recorded for platform-provisioned workflows; matches <c>Agent.SystemOwnerId</c>'s existing <c>"system"</c> convention.</summary>
+    public const string SystemOwnerId = "system";
+
     private Workflow()
     {
         // Required by EF Core materialization.
@@ -114,6 +134,27 @@ public sealed class Workflow : BaseEntity
             CreatedAtUtc = DateTime.UtcNow,
             CreatedBy = actor,
         };
+    }
+
+    /// <summary>
+    /// specs/057-site-analysis-agent research.md D12 — creates a platform-provisioned workflow,
+    /// owned by <see cref="SystemOwnerId"/> and carrying a <see cref="SystemKey"/>. Separate from
+    /// <see cref="Create"/> for the same reason <c>Agent.CreateSystemProvisioned</c> is separate
+    /// from <c>Agent.Create</c>: the invariants genuinely differ. The caller (a provisioner) still
+    /// calls <see cref="Publish"/> afterward to materialize the fan-out graph, exactly as it would
+    /// for a user-created workflow.
+    /// </summary>
+    public static Workflow CreateSystemProvisioned(string systemKey, string name, string? description, WorkflowType workflowType, string actor)
+    {
+        if (string.IsNullOrWhiteSpace(systemKey))
+        {
+            throw new DomainRuleViolationException("A system-provisioned workflow must have a system key.");
+        }
+
+        var workflow = Create(SystemOwnerId, name, description, workflowType, actor);
+        workflow.SystemKey = systemKey;
+        workflow.IsSystemOwned = true;
+        return workflow;
     }
 
     /// <summary>Draft-field edit (FR-001/FR-003/FR-009) — never touches published version history.</summary>

@@ -12,6 +12,7 @@ using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
+using AskLucy.Infrastructure.SiteAnalysis;
 using AskLucy.Infrastructure.Workflows;
 using AskLucy.Persistence;
 using AskLucy.Persistence.HealthChecks;
@@ -392,6 +393,20 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    // specs/057-site-analysis-agent — read-only rehydration (GET .../site-analyses), same tier as
+    // workflow-endpoints.
+    options.AddPolicy("site-analysis-endpoints", context =>
+    {
+        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
     // MCP server administration (specs/021-mcp-integration) — Administrator/Super User only, same
     // admin-CRUD cost tier as admin-endpoints; a dedicated policy (not a reuse of admin-endpoints)
     // because test-connection/refresh-capabilities make outbound calls to external MCP servers,
@@ -552,6 +567,17 @@ catch (Exception ex)
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ProblemDetailsMiddleware>();
 
+// One structured summary line per request (method, path, status code, elapsed ms), covering
+// every request this pipeline handles — including the ones a controller never sees (a failed
+// static-file lookup, auth/authorization rejections, a rate-limit rejection, a routing miss).
+// Placed after CorrelationIdMiddleware so CorrelationId is already in Serilog's LogContext and
+// tags this line too, and after ProblemDetailsMiddleware so the status code logged here is the
+// real, already-translated Problem Details status rather than a since-rewritten one. Closes the
+// exact gap that made a pre-controller failure (e.g. the DI-cycle hang this session's
+// RequestSiteAnalysisCapability fix addressed) produce no log line at all — see
+// di_selfreferential_factory_deadlock's "absence of a log proves nothing" note.
+app.UseSerilogRequestLogging();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -664,6 +690,7 @@ app.MapHub<MemoryHub>("/hubs/memory");
 app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
 app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
 app.MapHub<PanelHub>("/hubs/panels");
+app.MapHub<SiteAnalysisHub>("/hubs/site-analysis");
 
 // SPA fallback: any GET that didn't match a static file (the app.Use above) or any endpoint
 // mapped above (controllers, hubs, health checks, OpenAPI) serves index.html so React Router

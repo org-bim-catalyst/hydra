@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MemoryEntities = AskLucy.Domain.Memory;
+using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
 
 namespace AskLucy.Persistence;
 
@@ -229,6 +230,9 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<McpAuditLog> McpAuditLogs => Set<McpAuditLog>();
 
     public DbSet<Workflow> Workflows => Set<Workflow>();
+
+    /// <summary>specs/057-site-analysis-agent — no DbSet&lt;SiteAnalysisResult&gt;; children are reachable only through this aggregate (constitution &#167;5).</summary>
+    public DbSet<SiteAnalysisAggregate> SiteAnalyses => Set<SiteAnalysisAggregate>();
 
     public DbSet<WorkflowVersion> WorkflowVersions => Set<WorkflowVersion>();
 

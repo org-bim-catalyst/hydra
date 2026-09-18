@@ -40,6 +40,8 @@ internal static partial class OpenAIProviderLog
 public sealed class OpenAIProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<OpenAIOptions> options,
+    IAIProviderRepository providerRepository,
+    IAiCredentialProtector credentialProtector,
     ILogger<OpenAIProvider> logger) : IAIProvider
 {
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
@@ -49,7 +51,6 @@ public sealed class OpenAIProvider(
 
     public string ChatModel => _options.ChatModel;
 
-    public string ImageModel => _options.ImageModel;
 
     public async Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default)
     {
@@ -62,7 +63,7 @@ public sealed class OpenAIProvider(
         WithRetryAsync(async ct =>
         {
             var stopwatch = Stopwatch.StartNew();
-            using var client = CreateClient();
+            using var client = await CreateClientAsync(ct);
             var payload = BuildChatPayload(messages, model, parameters, stream: false);
 
             using var response = await client.PostAsJsonAsync("chat/completions", payload, ct);
@@ -91,7 +92,7 @@ public sealed class OpenAIProvider(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        using var client = CreateClient();
+        using var client = await CreateClientAsync(cancellationToken);
         var payload = BuildChatPayload(messages, model, parameters, stream: true);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
@@ -163,13 +164,17 @@ public sealed class OpenAIProvider(
         }
     }
 
-    public Task<Uri> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
-        GenerateImageAsync(prompt, _options.ImageModel, cancellationToken);
-
-    public Task<Uri> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
+    /// <summary>
+    /// OpenAI's image models disagree on the response form: GPT image models (<c>gpt-image-*</c>)
+    /// always return <c>b64_json</c> and never a URL, while DALL·E models return a hosted
+    /// <c>url</c> by default. Whichever the response carries is reported as-is — reading only
+    /// <c>url</c> is exactly what made every GPT-image generation fail after a successful,
+    /// billed call. <c>response_format</c> is deliberately not sent: GPT image models reject it.
+    /// </summary>
+    public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         WithRetryAsync(async ct =>
         {
-            using var client = CreateClient();
+            using var client = await CreateClientAsync(ct);
             var payload = new { model, prompt, n = 1, size = "1024x1024" };
 
             using var response = await client.PostAsJsonAsync("images/generations", payload, ct);
@@ -178,17 +183,30 @@ public sealed class OpenAIProvider(
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-            var url = document.RootElement.GetProperty("data")[0].GetProperty("url").GetString()
-                ?? throw new AiProviderUnavailableException("The AI service returned no image.");
+            if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array || data.GetArrayLength() == 0)
+            {
+                throw new AiProviderUnavailableException("The AI service returned no image.");
+            }
 
-            return new Uri(url);
+            var image = data[0];
+            if (image.TryGetProperty("b64_json", out var base64) && base64.GetString() is { Length: > 0 } base64Data)
+            {
+                return (GeneratedImagePayload)new GeneratedImagePayload.Base64(base64Data);
+            }
+
+            if (image.TryGetProperty("url", out var url) && url.GetString() is { Length: > 0 } urlValue)
+            {
+                return new GeneratedImagePayload.RemoteUrl(new Uri(urlValue));
+            }
+
+            throw new AiProviderUnavailableException("The AI service returned no image.");
         }, cancellationToken);
 
     public Task<string> TranscribeAudioAsync(
         Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
         WithRetryAsync(async ct =>
         {
-            using var client = CreateClient();
+            using var client = await CreateClientAsync(ct);
             using var form = new MultipartFormDataContent();
             using var fileContent = new StreamContent(audioContent);
             // Browsers append codec parameters (e.g. "audio/webm;codecs=opus"). MediaTypeHeaderValue
@@ -226,7 +244,7 @@ public sealed class OpenAIProvider(
         AiProviderResponseClassifier.ProbeAsync(
             async ct =>
             {
-                using var client = CreateClient();
+                using var client = await CreateClientAsync(ct);
                 using var response = await client.GetAsync("models", ct);
                 await EnsureSuccessAsync(response, ct);
             },
@@ -238,7 +256,7 @@ public sealed class OpenAIProvider(
         AiProviderResponseClassifier.TranslateAsync<IReadOnlyList<ProviderModelInfo>>(
             async ct =>
             {
-                using var client = CreateClient();
+                using var client = await CreateClientAsync(ct);
                 using var response = await client.GetAsync("models", ct);
                 await EnsureSuccessAsync(response, ct);
 
@@ -249,7 +267,9 @@ public sealed class OpenAIProvider(
                 foreach (var model in document.RootElement.GetProperty("data").EnumerateArray())
                 {
                     var id = model.GetProperty("id").GetString();
-                    if (string.IsNullOrEmpty(id) || !id.Contains("gpt", StringComparison.OrdinalIgnoreCase))
+                    var isImageModel = id is not null
+                        && (id.StartsWith("gpt-image", StringComparison.OrdinalIgnoreCase) || id.StartsWith("dall-e", StringComparison.OrdinalIgnoreCase));
+                    if (string.IsNullOrEmpty(id) || (!id.Contains("gpt", StringComparison.OrdinalIgnoreCase) && !isImageModel))
                     {
                         continue;
                     }
@@ -259,12 +279,20 @@ public sealed class OpenAIProvider(
                     // sync-diff flow (research.md Decision 5). specs/043 FR-029: absent figures
                     // are null, not 0. Substituting 0 made every one of these rows fail the
                     // catalog's own validation, so none of them could ever be added.
+                    //
+                    // Image models are recognised the same way, by their id: OpenAI names them
+                    // gpt-image-* and dall-e-*, and nothing else in the list says so. Without this
+                    // flag the ImageGeneration capability can never be assigned one.
                     results.Add(new ProviderModelInfo(
                         id, id, ContextWindowTokens: null, MaxOutputTokens: null,
-                        new AIModelCapabilities(
-                            Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
-                            Reasoning: id.Contains('o', StringComparison.OrdinalIgnoreCase),
-                            Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
+                        isImageModel
+                            ? new AIModelCapabilities(
+                                Streaming: false, Vision: false, FunctionCalling: false, JsonMode: false, Reasoning: false,
+                                Embeddings: false, ImageInput: false, ImageOutput: true, Audio: false)
+                            : new AIModelCapabilities(
+                                Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false,
+                                Reasoning: id.Contains('o', StringComparison.OrdinalIgnoreCase),
+                                Embeddings: false, ImageInput: false, ImageOutput: false, Audio: false)));
                 }
 
                 return results;
@@ -272,14 +300,49 @@ public sealed class OpenAIProvider(
             ProviderName,
             cancellationToken);
 
-    private HttpClient CreateClient()
+    /// <summary>
+    /// Resolves this provider's credential the same way <c>OpenAiEmbeddingProvider</c> does:
+    /// the administrator's stored credential first, configuration only as a fallback.
+    /// <para>
+    /// These two used to disagree — chat/images read <c>OpenAI:ApiKey</c> from configuration and
+    /// never looked at the database, while embeddings preferred the database. Saving a bad key in
+    /// the admin UI therefore broke memory/RAG with a 401 while chat carried on working from the
+    /// config key, which reads as "OpenAI is half down" rather than "that key is wrong". One
+    /// source of truth per provider is what makes the admin UI mean what it says, and it is the
+    /// step this provider needed before configuration keys can be retired entirely.
+    /// </para>
+    /// </summary>
+    private async Task<string> ResolveApiKeyAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+        var provider = await providerRepository.GetByKeyAsync("openai", cancellationToken);
+        if (provider?.CredentialCiphertext is not null)
+        {
+            try
+            {
+                return credentialProtector.Unprotect(provider.CredentialCiphertext);
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                // specs/043 FR-004: a key-ring change leaves the ciphertext undecryptable. Named
+                // as such rather than falling back to a config key that is probably absent —
+                // and never reported as a generic 500 while the UI still says "Configured".
+                throw AiProviderResponseClassifier.Create(
+                    AiProviderFailureKind.CredentialUnreadable, ProviderName, retryAfter: null, ex);
+            }
+        }
+
+        return _options.ApiKey;
+    }
+
+    private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken)
+    {
+        var apiKey = await ResolveApiKeyAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(apiKey))
             throw new AiProviderAuthenticationException("The OpenAI provider is not configured with an API key.");
 
         var client = httpClientFactory.CreateClient("OpenAI");
         client.BaseAddress = new Uri(_options.BaseUrl);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         return client;
     }
 

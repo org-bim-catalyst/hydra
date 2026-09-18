@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import * as THREE from 'three'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -19,6 +20,18 @@ const initialPanelState = useFloatingPanelStore.getState()
 
 function uniqueId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2)}`
+}
+
+// specs/057-site-analysis-agent — viewer.panels' overlay now also mounts useSiteAnalysisHub,
+// which calls useQueryClient() unconditionally on every render.
+function renderExtensionHosts() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ExtensionOverlayHost />
+      <ExtensionToolbar />
+    </QueryClientProvider>,
+  )
 }
 
 /** quickstart Scenario 3 (SC-003) — a throwaway extension contributing all three kinds this
@@ -56,12 +69,7 @@ describe('extensibility (quickstart Scenario 3, SC-003)', () => {
 
     await act(() => viewerExtensionLoader.start(id))
 
-    render(
-      <>
-        <ExtensionOverlayHost />
-        <ExtensionToolbar />
-      </>,
-    )
+    renderExtensionHosts()
 
     expect(screen.getByTestId('scratch-overlay')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scratch' })).toBeInTheDocument()
@@ -87,12 +95,7 @@ describe('extensibility (quickstart Scenario 3, SC-003)', () => {
     })
     expect(useViewerExtensionStore.getState().contributions).toHaveLength(1)
 
-    render(
-      <>
-        <ExtensionOverlayHost />
-        <ExtensionToolbar />
-      </>,
-    )
+    renderExtensionHosts()
     // Neither host crashes or renders anything for the kind it doesn't recognize.
     expect(document.body.textContent).toBe('')
 

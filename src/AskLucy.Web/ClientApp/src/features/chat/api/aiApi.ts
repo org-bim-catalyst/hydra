@@ -45,6 +45,12 @@ export interface ChatMessage {
   id?: string
   role: 'system' | 'user' | 'assistant'
   content: string
+  /**
+   * A generated image stored as a platform document. When set, the bubble shows that image
+   * (resolved to a fresh signed URL at render time) and `content` is its alt text. Older image
+   * messages predate this and carry a markdown image in `content` instead.
+   */
+  imageDocumentId?: string
   /** Display-only metadata (specs/002-chat-history-management FR-016/FR-017) — never sent to the AI provider, only rendered. */
   provider?: string | null
   model?: string | null
@@ -423,12 +429,17 @@ export async function* streamChat(
 export const translate = (chatId: string, text: string, targetLanguage: string) =>
   apiFetch<string>('/ai/translate', { method: 'POST', body: JSON.stringify({ chatId, text, targetLanguage }) })
 
+/**
+ * Generates an image with the administrator's ImageGeneration model and stores it as the user's
+ * own document. Returns that document's id — never a provider URL, which would expire and is not
+ * the platform's to hand out.
+ */
 export async function generateImage(chatId: string, prompt: string): Promise<string> {
-  const result = await apiFetch<{ url: string }>('/ai/images', {
+  const result = await apiFetch<{ documentId: string }>('/ai/images', {
     method: 'POST',
     body: JSON.stringify({ chatId, prompt }),
   })
-  return result.url
+  return result.documentId
 }
 
 export async function transcribeAudio(file: File): Promise<string> {

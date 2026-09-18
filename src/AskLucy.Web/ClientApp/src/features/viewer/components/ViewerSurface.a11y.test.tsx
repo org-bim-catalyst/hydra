@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +13,17 @@ vi.mock('../../../hooks/useWebGLSupport', () => ({ useWebGLSupport: useWebGLSupp
 
 const initialState = useViewerEngineStore.getState()
 
+// specs/057-site-analysis-agent — the panels extension overlay now also mounts
+// useSiteAnalysisHub, which calls useQueryClient() unconditionally on every render.
+function renderViewerSurface() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ViewerSurface />
+    </QueryClientProvider>,
+  )
+}
+
 describe('ViewerSurface accessibility (FR-001/FR-004)', () => {
   beforeEach(() => {
     useViewerEngineStore.setState(initialState, true)
@@ -25,7 +37,7 @@ describe('ViewerSurface accessibility (FR-001/FR-004)', () => {
 
   it('has no automatically detectable a11y violations (neutral / no location state)', async () => {
     // Store is empty — source === null; renders placeholder (FR-004).
-    const { container } = render(<ViewerSurface />)
+    const { container } = renderViewerSurface()
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
@@ -36,7 +48,7 @@ describe('ViewerSurface accessibility (FR-001/FR-004)', () => {
     // whether a site is shown (FR-029) — the first built-in extension to contribute one. This
     // assertion's actual intent, unchanged, is that the inert PLACEHOLDER GRAPHIC ITSELF never
     // becomes keyboard-reachable — scoped to that element rather than the whole surface.
-    const { getByTestId } = render(<ViewerSurface />)
+    const { getByTestId } = renderViewerSurface()
     const placeholder = getByTestId('viewer-placeholder')
     expect(placeholder).toHaveAttribute('aria-hidden', 'true')
     expect(placeholder.querySelectorAll('button, a, input, [tabindex]')).toHaveLength(0)

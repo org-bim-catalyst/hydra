@@ -608,15 +608,20 @@ public sealed partial class AiController(
     [HttpPost("images")]
     public async Task<ActionResult<GenerateImageResponse>> GenerateImage(GenerateImageRequest request, CancellationToken cancellationToken)
     {
-        var uri = await mediator.Send(new GenerateImageCommand(request.Prompt), cancellationToken);
+        var image = await mediator.Send(new GenerateImageCommand(request.Prompt), cancellationToken);
 
         await mediator.Send(
             new AppendMessageCommand(request.ChatId, MessageRole.User, MessageKind.Text, request.Prompt, null), cancellationToken);
+
+        // An Image message's Content is the stored document's id — a stable reference the client
+        // resolves to a fresh signed URL on every render. Storing a URL here instead would break
+        // the conversation's history the moment that URL expired.
         await mediator.Send(
-            new AppendMessageCommand(request.ChatId, MessageRole.Assistant, MessageKind.Image, uri.ToString(), request.Prompt),
+            new AppendMessageCommand(request.ChatId, MessageRole.Assistant, MessageKind.Image, image.DocumentId.ToString(), request.Prompt,
+                Provider: image.ProviderName, Model: image.ModelKey),
             cancellationToken);
 
-        return Ok(new GenerateImageResponse(uri.ToString()));
+        return Ok(new GenerateImageResponse(image.DocumentId));
     }
 
     [HttpPost("transcriptions")]

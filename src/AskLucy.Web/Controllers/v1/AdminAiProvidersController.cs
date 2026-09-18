@@ -70,9 +70,9 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     }
 
     /// <summary>
-    /// Which provider serves each non-chat capability. The model is not chosen here — it is
-    /// whatever default model the assigned provider carries, so the two settings can never
-    /// disagree.
+    /// Which provider serves each non-chat capability, and — only where a provider's default
+    /// model cannot serve it (image generation) — which of its models. Otherwise the model is
+    /// whatever default the assigned provider carries, so the two settings can never disagree.
     /// </summary>
     [HttpGet("capabilities")]
     [RequirePermission("admin.ai-capabilities.view")]
@@ -84,7 +84,7 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     public async Task<IActionResult> SetCapabilityAssignment(
         AiCapability capability, SetAiCapabilityAssignmentRequest request, CancellationToken cancellationToken)
     {
-        await mediator.Send(new SetAiCapabilityAssignmentCommand(capability, request.ProviderId), cancellationToken);
+        await mediator.Send(new SetAiCapabilityAssignmentCommand(capability, request.ProviderId, request.ModelId), cancellationToken);
         return NoContent();
     }
 

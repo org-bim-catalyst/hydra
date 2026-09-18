@@ -37,7 +37,7 @@ public sealed class GetAiCapabilityAssignmentsQueryHandler(
             }
 
             results.Add(new AiCapabilityAssignmentDto(
-                capability, assignment?.ProviderId, effectiveProviderId, effectiveModelId));
+                capability, assignment?.ProviderId, assignment?.ModelId, effectiveProviderId, effectiveModelId));
         }
 
         return results;

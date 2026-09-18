@@ -20,11 +20,29 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
         {
             await next(context);
         }
+        catch (Exception ex) when (IsClientDisconnect(context, ex))
+        {
+            // The caller went away mid-request — a page refresh, a closed tab, a superseded
+            // request. Nothing failed on the server and there is nobody left to send a response
+            // to, so this is recorded as the routine event it is rather than reported as an
+            // error. Left unhandled it surfaced as "Unhandled exception" at Error level on every
+            // refresh of a page holding an open SSE stream, burying real failures in the log.
+            ProblemDetailsMiddlewareLog.ClientDisconnected(logger, context.Request.Path);
+        }
         catch (Exception ex)
         {
             await HandleAsync(context, ex);
         }
     }
+
+    /// <summary>
+    /// A cancellation caused by the caller disconnecting, rather than by anything the server
+    /// decided. Checked against this request's own <see cref="HttpContext.RequestAborted"/> —
+    /// an <see cref="OperationCanceledException"/> raised for any other reason is a real failure
+    /// and must still be mapped and reported.
+    /// </summary>
+    private static bool IsClientDisconnect(HttpContext context, Exception exception) =>
+        exception is OperationCanceledException && context.RequestAborted.IsCancellationRequested;
 
     private async Task HandleAsync(HttpContext context, Exception exception)
     {
@@ -133,6 +151,20 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             problemDetails.Extensions["violations"] = workflowValidationFailedException.Violations
                 .Select(v => new { nodeKey = v.NodeKey, message = v.Message })
                 .ToArray();
+        }
+
+        // Nothing can be reported to the client once the response is on the wire: the status
+        // line and headers are already sent, and a streaming endpoint (the chat SSE stream) has
+        // usually written content too. Setting StatusCode here throws
+        // "StatusCode cannot be set because the response has already started" — a SECOND
+        // exception, raised from inside the error handler, which replaces the real one in the
+        // log and escapes to Kestrel, which then resets the connection. That reset is what the
+        // browser reported as ERR_HTTP2_PROTOCOL_ERROR on a 200 response. The failure is still
+        // recorded above; the connection simply ends, which is the only honest outcome left.
+        if (context.Response.HasStarted)
+        {
+            ProblemDetailsMiddlewareLog.ResponseAlreadyStarted(logger, context.Request.Path, statusCode);
+            return;
         }
 
         context.Response.StatusCode = statusCode;
@@ -284,6 +316,23 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
         // administrator's specific detail and the machine-readable extension are applied in
         // HandleAsync, gated on role (FR-015a).
         AiProviderException providerFailure => MapProviderFailure(providerFailure),
+
+        // specs/057 follow-up: image generation has no platform-default fallback (a chat model
+        // cannot draw), so an unassigned or unusable ImageGeneration capability is a setup gap
+        // the user should be told about plainly — 503, not a generic 500.
+        AskLucy.Application.Ai.AiCapabilityNotConfiguredException => (
+            StatusCodes.Status503ServiceUnavailable,
+            "https://hydra.bimcatalyst.com/problems/ai-capability-not-configured",
+            "AI capability not configured",
+            "Image generation isn't set up yet. An administrator needs to assign an image model on the AI Capabilities page."),
+
+        // The provider answered, but not with a usable image (malformed data, unsupported
+        // format, oversized) — upstream's fault, same 502 family as a provider failure.
+        AskLucy.Application.Ai.Images.InvalidGeneratedImageException => (
+            StatusCodes.Status502BadGateway,
+            "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
+            "AI provider unavailable",
+            "The AI service returned an image that couldn't be used. Please try again."),
 
         // specs/040-composer-interaction-bug-fixes US6: any HttpRequestException that escapes
         // the AI providers without being caught and re-thrown as a typed AiProvider*Exception
@@ -439,4 +488,11 @@ internal static partial class ProblemDetailsMiddlewareLog
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Access denied: {Path} returned {StatusCode}")]
     public static partial void AccessDenied(ILogger logger, PathString path, int statusCode);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Client disconnected before {Path} completed")]
+    public static partial void ClientDisconnected(ILogger logger, PathString path);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "{Path} failed after the response had already started; the {StatusCode} Problem Details response could not be sent and the connection will be reset")]
+    public static partial void ResponseAlreadyStarted(ILogger logger, PathString path, int statusCode);
 }

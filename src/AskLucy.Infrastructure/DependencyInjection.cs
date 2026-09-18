@@ -25,6 +25,7 @@ using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
 using AskLucy.Infrastructure.Retrieval.VectorStores;
+using AskLucy.Infrastructure.SiteAnalysis;
 using AskLucy.Infrastructure.Weather;
 using AskLucy.Infrastructure.Workflows;
 using Hangfire;
@@ -300,6 +301,16 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // specs/057-site-analysis-agent — downloading a generated image from the AI provider's
+        // transient URL before it is persisted as a platform Document. Generous, not the
+        // framework default: a short timeout produced false "unavailable" failures elsewhere in
+        // this codebase for exactly this kind of outbound call (Overpass/Geocoding precedent
+        // above).
+        services.AddHttpClient("SiteAnalysisImageDownload", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         // Imagery for the Gemini vision cross-check. Google Static Maps is the primary provider:
         // it is what the viewer renders on, so a boundary read off this image is measured in the
         // same reference frame it will be drawn in. 30s matches the vision step's own budget.
@@ -431,6 +442,12 @@ public static class DependencyInjection
         // AgentExecutionNotifier do — Application must never reference SignalR directly (constitution §3).
         services.AddScoped<IPanelNotifier, PanelNotifier>();
 
+        // Site Analysis Agent (specs/057-site-analysis-agent research.md D5) — a chat notice needs
+        // its own hub because chat itself streams over SSE per turn, not SignalR. SiteAnalysisHub/
+        // SiteAnalysisNotifier live here for the same reason PanelHub/PanelNotifier do.
+        services.AddScoped<ISiteAnalysisNotifier, SiteAnalysisNotifier>();
+        services.AddScoped<IRemoteFileDownloader, RemoteFileDownloader>();
+
         // MCP Integration (specs/021-mcp-integration) — Foundational. IMcpClientFactory is a
         // singleton (research.md Decision 2, corrected during implementation — see plan.md): its
         // connection cache spans every execution, not one DI scope, and it resolves the Scoped
@@ -461,6 +478,11 @@ public static class DependencyInjection
         services.AddScoped<ISystemAgentProvisioner, SystemAgentProvisioner>();
         services.AddSingleton<ISystemAgentProvisioningStatus, SystemAgentProvisioningStatus>();
         services.AddHostedService<SystemAgentProvisioningHostedService>();
+
+        // specs/057-site-analysis-agent — provisions the shared "site-analysis" fan-out workflow
+        // on every startup, mirroring the agent provisioning above.
+        services.AddScoped<SystemWorkflowProvisioner>();
+        services.AddHostedService<SystemWorkflowProvisioningHostedService>();
 
         services.AddScoped<ITextToSpeechProvider, ElevenLabsTextToSpeechProvider>();
         services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();

@@ -1362,7 +1362,105 @@ Administrator/Super User only. A workflow's effective permissions are always the
 its configuration and the executing user's own authorization, never broader — the same guarantee
 §30 establishes for Agents, extended here through every node type rather than re-derived.
 
-# 33. Architecture Principles
+# 33. Site Analysis Agent
+
+Introduced in specs/057-site-analysis-agent. Lives in `Domain/SiteAnalysis`,
+`Application/SiteAnalysis` (`Tools/`, `Providers/`, `Queries/GetSiteAnalysis`,
+`Queries/ListSiteAnalysesByChat`), `Infrastructure/SiteAnalysis` (`SiteAnalysisHub`/
+`SiteAnalysisNotifier`, `SystemWorkflowProvisioner`, `RemoteFileDownloader` — only these reference
+SignalR/HttpClient, never `Application`), `Persistence` (via `AskLucyDbContext`), and
+`SiteAnalysesController` under `Web/Controllers/v1`. Frontend lives in
+`ClientApp/src/features/siteAnalysis`.
+
+**A hierarchical agent, not a new orchestration mechanism.** Lucy hands a resolved site to a
+coordinating agent, which fans the analysis out to independent specialists and relays only
+validated findings back — but the fan-out itself is a system-owned Workflow (§32)
+(`Start → Parallel → [one NativeTool node per specialist] → Merge → End`), not a new execution
+engine. `Workflow.IsSystemOwned`/`SystemKey` (mirrors `Agent.IsSystemOwned`/`SystemKey`, §30
+exactly) let `SiteAnalysisDispatcher` start it directly — bypassing `StartWorkflowExecutionCommand`,
+whose `WorkflowOwnershipGuard` (`OwnerId == userId`) can never be satisfied by a workflow shared
+across every user. `SystemWorkflowProvisioner`/`SystemWorkflowProvisioningHostedService` upsert
+that workflow at startup, mirroring `SystemAgentProvisioner` (§30) including its
+defer-on-pending-migrations behavior. Each specialist is a plain `IAgentTool` behind a `NativeTool`
+node (never `AiAgent` — that node type resolves agents by owner and cannot find a system-owned
+one, and discards the triggering chat id); adding a further specialist (Site Geometry, Urban
+Context, Connectivity & Access, Environmental Context, Character Analysis — all deferred) is one
+provisioner branch entry plus one tool class, no orchestration change.
+
+**The relay, not the workflow engine, delivers findings.** `WorkflowExecutionOrchestrator`
+batches a Parallel node's branch-completion notifications until every branch settles — riding
+those would deliver every finding at once. Instead, each specialist tool calls
+`ISiteAnalysisResultRelay.ReportSuccessAsync`/`ReportFailureAsync` **inline**, as the last step of
+its own execution, so the fastest specialist is delivered the moment it finishes, independent of
+its siblings. The relay is the only component permitted to validate, persist, and deliver — a
+specialist never pushes a panel or a chat message itself. Delivery is: persist the
+`SiteAnalysisResult`; persist a real assistant `Message` for the chat notice (not only a transient
+push — a reload must still show it via ordinary message history); push `SiteAnalysisResultReceived`
+(a dedicated `SiteAnalysisHub`, since chat itself streams over SSE per turn, not SignalR) for
+immediate rendering; push the finding's panel via the existing `IPanelNotifier`/`PanelHub`
+(specs/028, unchanged). When every specialist has settled, an atomic
+`SiteAnalysis.TryClaimClosingOutcome` (a `RowVersion`-guarded claim, not a distributed lock) picks
+exactly one caller to emit a single closing outcome — silent when everything succeeded, one brief
+line otherwise — so concurrent final reports can never double-announce completion.
+
+**Concurrency isolation.** `WorkflowExecutionOrchestrator`'s own Parallel branches share one
+scoped `DbContext` (its own doc comment: "neither is thread-safe" for the orchestrator's
+bookkeeping). No prior `IAgentTool` wrote to the database, so this was latent until this feature's
+specialists became the first to. `ScopeIsolatedSiteAnalysisResultRelay` (mirrors
+`ScopeIsolatedLocationResolutionService`, itself created after an identical race caused a
+production `DbUpdateConcurrencyException`) resolves a fresh `IServiceScopeFactory`-created scope
+per relay call, so concurrent specialists never share a `DbContext` instance regardless of how many
+run side by side.
+
+**Provenance, never invented.** Every finding carries a `SiteAnalysisResultMetadata` — analysis
+type, data source, a rule-based `SiteAnalysisConfidenceLevel` (High/Medium/Low, computed by
+`SiteAnalysisConfidence.ResolveConfidence` from plain grounding facts), and generation time —
+composed into a trailing `keyValue` block by `SiteAnalysisContentComposer`. Confidence is never
+derived from `GeocodingCandidate.Importance`: Google and Nominatim populate that field on
+incompatible scales, a divergence that already caused a production defect once. Three stub
+provider interfaces (`IZoningDataProvider`/`IFloodDataProvider`/`IClimateDataProvider`) exist with
+no implementation — OpenStreetMap, the only geospatial source integrated today, has none of floor
+area ratio, flood modelling, or wind/climate data; a deferred specialist reports "unavailable" with
+a reason rather than presenting an estimate as measured.
+
+**No new content vocabulary.** Findings compose entirely from the existing panel content-block
+vocabulary (heading/text/keyValue/image) — the same envelope `PresentPanelContentCapability`
+already produces. The one specialist in this release, `SiteSchematicImageGenerationTool`, generates
+through the platform-wide `IImageGenerationService` and persists the result through the existing
+`DocumentUploadFinalizer` — only a platform `Document` id ever reaches an `ImageBlock`.
+
+**Image generation (platform-wide).** One service, `IImageGenerationService`, serves every caller —
+the chat's image command and the site-analysis map. Its provider **and model** come from the
+`ImageGeneration` AI capability: `AiCapabilityAssignment` gained an optional `ModelId` that pins one
+of the provider's models (null everywhere else keeps following the provider's default), and
+`ImageGeneration` requires a pinned `SupportsImageOutput` model with **no platform-default fallback**
+— an unassigned capability throws `AiCapabilityNotConfiguredException` (→ 503) instead of asking a
+chat model to draw. `IAIProvider.GenerateImageAsync` returns a `GeneratedImagePayload` in whatever
+form the vendor produced (hosted URL, base64, data URL, binary — OpenAI's GPT image models return
+base64 only, DALL·E returns a URL, Gemini returns `inlineData`); `GeneratedImageMaterializer`
+normalises every form to bytes and verifies the format from the content itself (PNG/JPEG/WebP)
+before storage. Generated images are always stored as the user's `Document`; a chat `Image`
+message's content is that document id, resolved to a fresh signed URL at render time — a provider
+URL is never persisted or handed to the client.
+
+**Rehydration.** `SiteAnalysis`/`SiteAnalysisResult` persist every outcome — including failed and
+rejected ones, for operator diagnosis — so `GET /api/v1/site-analyses/{id}` and the
+chat-scoped list endpoint can replay a conversation's findings exactly as first delivered after a
+reload or navigation, closing the one gap the existing floating-panel framework (session-scoped
+only) would otherwise have for a feature whose results can arrive minutes apart.
+
+**Error handling**: every specialist failure is captured at its origin, persisted with its
+reason and diagnostic detail, and structure-logged — constitution §2 VIII governs capture and
+diagnosability, not end-user disclosure. A failing specialist produces no notice or panel of its
+own; the single closing outcome is what guarantees the user is never left with only a start
+acknowledgement and silence.
+
+**Security**: `GetSiteAnalysisQueryHandler` scopes every read to the caller
+(`ISiteAnalysisRepository.GetByIdForUserAsync`), returning `404` for another user's analysis —
+identical to `AgentOwnershipGuard`'s convention (§30). `SiteAnalysisResultDetailDto` deliberately
+never exposes `FailureReason`, consistent with the no-per-specialist-disclosure rule above.
+
+# 34. Architecture Principles
 
 Before implementing any feature, ask:
 

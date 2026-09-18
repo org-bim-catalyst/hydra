@@ -26,13 +26,12 @@ public sealed class AppendMessageCommandHandler(
         // them; a caller may already know these (none do today) and override by supplying
         // them explicitly. Token counts have no equivalent source yet — IAIProvider doesn't
         // surface usage stats — so they stay null until that's added, rather than fabricated.
-        var provider = request.Provider ?? (request.Role == MessageRole.Assistant ? aiProvider.ProviderName : null);
-        var model = request.Model ?? request.Role switch
-        {
-            MessageRole.Assistant when request.Kind == MessageKind.Image => aiProvider.ImageModel,
-            MessageRole.Assistant => aiProvider.ChatModel,
-            _ => null,
-        };
+        // Image messages are never defaulted: the image model comes from the ImageGeneration
+        // capability assignment, not the legacy unkeyed provider, so their caller always states
+        // provider and model explicitly — a default here would misattribute them to OpenAI.
+        var isImage = request.Kind == MessageKind.Image;
+        var provider = request.Provider ?? (request.Role == MessageRole.Assistant && !isImage ? aiProvider.ProviderName : null);
+        var model = request.Model ?? (request.Role == MessageRole.Assistant && !isImage ? aiProvider.ChatModel : null);
 
         var message = Message.Create(
             request.ChatId, request.Role, request.Kind, request.Content, request.SourceText, userId,

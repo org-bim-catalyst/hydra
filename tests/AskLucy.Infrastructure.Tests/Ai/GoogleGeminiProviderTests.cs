@@ -292,4 +292,41 @@ public sealed class GoogleGeminiProviderTests
         result.IsHealthy.Should().BeTrue();
         result.Kind.Should().BeNull();
     }
+
+    [Fact]
+    public async Task GenerateImageAsync_ShouldReturnTheInlineDataImage_SkippingTextParts()
+    {
+        string? requestBody = null;
+        var provider = CreateProvider(request =>
+        {
+            requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                """{"candidates":[{"content":{"parts":[{"text":"Here is your map."},{"inlineData":{"mimeType":"image/png","data":"iVBORw0KGgo="}}]}}]}""",
+                Encoding.UTF8, "application/json"),
+            };
+        }, out var handler);
+
+        var payload = await provider.GenerateImageAsync("a map", "gemini-3-pro-image-preview", CancellationToken.None);
+
+        var base64 = payload.Should().BeOfType<GeneratedImagePayload.Base64>().Subject;
+        base64.Data.Should().Be("iVBORw0KGgo=");
+        base64.ContentType.Should().Be("image/png");
+        handler.LastRequest!.RequestUri!.AbsolutePath.Should().EndWith("models/gemini-3-pro-image-preview:generateContent");
+        requestBody.Should().Contain("IMAGE");
+    }
+
+    [Fact]
+    public async Task GenerateImageAsync_ShouldThrowUnavailable_WhenTheModelAnsweredWithTextOnly()
+    {
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"candidates":[{"content":{"parts":[{"text":"I can't draw."}]}}]}""", Encoding.UTF8, "application/json"),
+        }, out _);
+
+        var act = () => provider.GenerateImageAsync("a map", "gemini-1.5-pro", CancellationToken.None);
+
+        await act.Should().ThrowAsync<AiProviderUnavailableException>();
+    }
 }

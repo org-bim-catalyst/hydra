@@ -57,13 +57,25 @@ function resolveSelectedActionLabel(
   return picked.isDecline ? null : picked.label
 }
 
+const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * An Image message's `content` is the stored document's id; older ones (before generated images
+ * were stored as documents) hold the provider's own URL, which still renders as markdown — though
+ * such URLs have long since expired.
+ */
+function toImageFields(m: PersistedMessage): Pick<ChatMessage, 'content' | 'imageDocumentId'> {
+  const alt = m.sourceText ?? 'Generated image'
+  return GUID_PATTERN.test(m.content) ? { content: alt, imageDocumentId: m.content } : { content: `![${alt}](${m.content})` }
+}
+
 function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
   return persisted.map((m, index) => {
     const offerFields = toOfferFields(m.suggestedActionsJson)
     return {
       id: m.id,
       role: m.role === 'User' ? 'user' : 'assistant',
-      content: m.kind === 'Image' ? `![${m.sourceText ?? 'Generated image'}](${m.content})` : m.content,
+      ...(m.kind === 'Image' ? toImageFields(m) : { content: m.content }),
       provider: m.provider,
       model: m.model,
       attachments: m.attachments,
@@ -534,16 +546,27 @@ export function useChatStream(
     async (prompt: string) => {
       hasSentRef.current = true
       const activeChatId = await ensureChatId(prompt)
-      const url = await generateImage(activeChatId, prompt)
+      const documentId = await generateImage(activeChatId, prompt)
       if (isActiveRef.current) {
-        setMessages((prev) => [...prev, { role: 'user', content: prompt }, { role: 'assistant', content: `![${prompt}](${url})` }])
+        setMessages((prev) => [...prev, { role: 'user', content: prompt }, { role: 'assistant', content: prompt, imageDocumentId: documentId }])
       }
-      return url
+      return documentId
     },
     [ensureChatId],
   )
 
   const stop = useCallback(() => abortRef.current?.abort(), [])
+
+  /**
+   * specs/057-site-analysis-agent — appends an assistant message the server produced outside any
+   * turn (a site-analysis notice), which a history refetch can never deliver to a view the user
+   * has already sent in (see the `hasSentRef` gate above). Idempotent by id. Callers must only
+   * call this while no stream is in flight: `send`/`selectAction` rebuild the list from their own
+   * captured `history` on every chunk, so anything appended mid-stream would be overwritten.
+   */
+  const appendAssistantNotice = useCallback((id: string, content: string) => {
+    setMessages((current) => (current.some((m) => m.id === id) ? current : [...current, { id, role: 'assistant', content }]))
+  }, [])
   const clearError = useCallback(() => setError(null), [])
 
   /** Resends the message content from the most recent failed send() (FR-008). No-op if nothing has failed. */
@@ -569,5 +592,6 @@ export function useChatStream(
     selectAction,
     actionError,
     isSelectingAction,
+    appendAssistantNotice,
   }
 }

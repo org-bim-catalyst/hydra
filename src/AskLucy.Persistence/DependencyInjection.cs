@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace AskLucy.Persistence;
 
@@ -52,6 +53,11 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ISystemAccountProvisioner, SystemAccountProvisioner>();
+        // Registered here, and before AddInfrastructure's own provisioning hosted services are
+        // added, so the .NET Generic Host starts and fully awaits this one first — see
+        // SystemAccountProvisioningHostedService's own doc comment for why this eliminates the
+        // system-account creation race rather than merely catching its consequence.
+        services.AddHostedService<SystemAccountProvisioningHostedService>();
         services.AddScoped<IUserChatRepository, UserChatRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -136,6 +142,9 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowExecutionRepository, WorkflowExecutionRepository>();
         services.AddScoped<IWorkflowPolicyRepository, WorkflowPolicyRepository>();
         services.AddScoped<IWorkflowAuditLogRepository, WorkflowAuditLogRepository>();
+
+        // Site Analysis Agent (specs/057-site-analysis-agent).
+        services.AddScoped<ISiteAnalysisRepository, SiteAnalysisRepository>();
 
         return services;
     }

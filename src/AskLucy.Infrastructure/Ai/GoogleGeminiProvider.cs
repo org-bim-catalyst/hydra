@@ -45,7 +45,6 @@ public sealed class GoogleGeminiProvider(
 
     public string ChatModel => _options.ChatModel;
 
-    public string ImageModel => throw new NotSupportedException("Google Gemini image generation is not supported by this provider.");
 
     public async Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default)
     {
@@ -138,11 +137,53 @@ public sealed class GoogleGeminiProvider(
         }
     }
 
-    public Task<Uri> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Google Gemini image generation is not supported by this provider.");
+    /// <summary>
+    /// Gemini's native image models (e.g. <c>gemini-*-image*</c>) generate through the same
+    /// <c>generateContent</c> endpoint as chat, with <c>responseModalities</c> including
+    /// <c>IMAGE</c>; the picture comes back as base64 <c>inlineData</c> on one of the candidate's
+    /// parts (alongside optional text). A text-only model simply returns no such part, which is
+    /// reported as "no image" rather than guessed around.
+    /// </summary>
+    public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
+        WithRetryAsync(async ct =>
+        {
+            var (client, apiKey) = await CreateClientAsync(ct);
+            using var httpClient = client;
+            var payload = new
+            {
+                contents = new[] { new { role = "user", parts = new[] { new { text = prompt } } } },
+                generationConfig = new { responseModalities = new[] { "TEXT", "IMAGE" } },
+            };
 
-    public Task<Uri> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Google Gemini image generation is not supported by this provider.");
+            using var response = await httpClient.PostAsJsonAsync($"models/{model}:generateContent?key={apiKey}", payload, ct);
+            await EnsureSuccessAsync(response, ct);
+
+            using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+            if (document.RootElement.TryGetProperty("candidates", out var candidates) && candidates.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var candidate in candidates.EnumerateArray())
+                {
+                    if (!candidate.TryGetProperty("content", out var content) || !content.TryGetProperty("parts", out var parts) || parts.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var part in parts.EnumerateArray())
+                    {
+                        if (part.TryGetProperty("inlineData", out var inlineData)
+                            && inlineData.TryGetProperty("data", out var data) && data.GetString() is { Length: > 0 } base64)
+                        {
+                            var mimeType = inlineData.TryGetProperty("mimeType", out var mime) ? mime.GetString() : null;
+                            return (GeneratedImagePayload)new GeneratedImagePayload.Base64(base64, mimeType);
+                        }
+                    }
+                }
+            }
+
+            throw new AiProviderUnavailableException("The AI service returned no image.");
+        }, cancellationToken);
 
     public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Google Gemini audio transcription is not supported by this provider.");
@@ -238,11 +279,17 @@ public sealed class GoogleGeminiProvider(
         var maxOutput = model.TryGetProperty("outputTokenLimit", out var outputLimit) && outputLimit.ValueKind == JsonValueKind.Number
             ? outputLimit.GetInt32() : (int?)null;
 
+        // Gemini's list reports no output modalities either. Its native image models are named
+        // gemini-*-image* and generate through generateContent (GenerateImageAsync); imagen-*
+        // models use a different endpoint this provider does not call, so they are not flagged.
+        var producesImages = modelKey.StartsWith("gemini", StringComparison.OrdinalIgnoreCase)
+            && modelKey.Contains("-image", StringComparison.OrdinalIgnoreCase);
+
         return new ProviderModelInfo(
             modelKey, displayName, contextWindow, maxOutput,
             new AIModelCapabilities(
                 Streaming: true, Vision: true, FunctionCalling: true, JsonMode: true,
-                Reasoning: false, Embeddings: false, ImageInput: true, ImageOutput: false, Audio: false));
+                Reasoning: false, Embeddings: false, ImageInput: true, ImageOutput: producesImages, Audio: false));
     }
 
     private async Task<(HttpClient Client, string ApiKey)> CreateClientAsync(CancellationToken cancellationToken)

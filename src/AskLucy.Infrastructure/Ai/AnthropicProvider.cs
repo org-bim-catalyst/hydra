@@ -50,7 +50,6 @@ public sealed class AnthropicProvider(
 
     public string ChatModel => _options.ChatModel;
 
-    public string ImageModel => throw new NotSupportedException("Anthropic does not support image generation.");
 
     public async Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default)
     {
@@ -167,10 +166,7 @@ public sealed class AnthropicProvider(
         }
     }
 
-    public Task<Uri> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Anthropic does not support image generation.");
-
-    public Task<Uri> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
+    public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Anthropic does not support image generation.");
 
     public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>

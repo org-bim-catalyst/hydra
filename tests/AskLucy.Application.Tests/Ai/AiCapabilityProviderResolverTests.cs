@@ -45,7 +45,7 @@ public sealed class AiCapabilityProviderResolverTests
 
     private void Assign(AiCapability capability, Guid providerId) =>
         _assignments.GetByCapabilityAsync(capability, Arg.Any<CancellationToken>())
-            .Returns(AiCapabilityAssignment.Create(capability, providerId, "test"));
+            .Returns(AiCapabilityAssignment.Create(capability, providerId, null, "test"));
 
     [Fact]
     public async Task ResolveAsync_ShouldUseTheAssignedProvider_AndItsOwnDefaultModel()
@@ -126,5 +126,64 @@ public sealed class AiCapabilityProviderResolverTests
 
         resolved.ProviderId.Should().Be(openai.Id);
         resolved.ModelId.Should().Be(gpt.Id);
+    }
+
+    private static AIModel ImageModel(Guid providerId, string key) => AIModel.Create(
+        providerId, key, key, null, null,
+        new AIModelCapabilities(false, false, false, false, false, false, false, true, false), null, null, "test");
+
+    [Fact]
+    public async Task ResolveAsync_ShouldUseThePinnedModel_InsteadOfTheProvidersDefault()
+    {
+        var openai = Configured("openai", "OpenAI", out _);
+        var image = ImageModel(openai.Id, "gpt-image-2");
+        _models.GetByIdAsync(image.Id, Arg.Any<CancellationToken>()).Returns(image);
+        _assignments.GetByCapabilityAsync(AiCapability.ImageGeneration, Arg.Any<CancellationToken>())
+            .Returns(AiCapabilityAssignment.Create(AiCapability.ImageGeneration, openai.Id, image.Id, "test"));
+
+        var resolved = await CreateSut().ResolveAsync(AiCapability.ImageGeneration, TestContext.Current.CancellationToken);
+
+        resolved.ProviderId.Should().Be(openai.Id);
+        resolved.ModelId.Should().Be(image.Id);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldNeverFallBack_ForImageGeneration_WhenNothingIsAssigned()
+    {
+        // A chat model is always available as the platform default here — and must NOT be used:
+        // "generating an image" with a chat model is a broken request, not an imperfect one.
+        var openai = Configured("openai", "OpenAI", out _);
+        _providers.ListEnabledAsync(Arg.Any<CancellationToken>()).Returns(new List<AIProvider> { openai });
+
+        var act = () => CreateSut().ResolveAsync(AiCapability.ImageGeneration, TestContext.Current.CancellationToken);
+
+        (await act.Should().ThrowAsync<AiCapabilityNotConfiguredException>()).Which.Capability.Should().Be(AiCapability.ImageGeneration);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldRejectAPinnedModelThatCannotProduceImages_ForImageGeneration()
+    {
+        var openai = Configured("openai", "OpenAI", out var chatModel);
+        _assignments.GetByCapabilityAsync(AiCapability.ImageGeneration, Arg.Any<CancellationToken>())
+            .Returns(AiCapabilityAssignment.Create(AiCapability.ImageGeneration, openai.Id, chatModel.Id, "test"));
+
+        var act = () => CreateSut().ResolveAsync(AiCapability.ImageGeneration, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<AiCapabilityNotConfiguredException>();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldRejectAPinnedModelFromADifferentProvider()
+    {
+        var openai = Configured("openai", "OpenAI", out _);
+        var gemini = Configured("google-gemini", "Google Gemini", out _);
+        var geminiImage = ImageModel(gemini.Id, "gemini-3-pro-image-preview");
+        _models.GetByIdAsync(geminiImage.Id, Arg.Any<CancellationToken>()).Returns(geminiImage);
+        _assignments.GetByCapabilityAsync(AiCapability.ImageGeneration, Arg.Any<CancellationToken>())
+            .Returns(AiCapabilityAssignment.Create(AiCapability.ImageGeneration, openai.Id, geminiImage.Id, "test"));
+
+        var act = () => CreateSut().ResolveAsync(AiCapability.ImageGeneration, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<AiCapabilityNotConfiguredException>();
     }
 }

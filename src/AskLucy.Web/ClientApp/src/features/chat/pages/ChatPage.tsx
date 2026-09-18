@@ -26,6 +26,8 @@ import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
 import { useChatDetail, useChatMessages } from '../hooks/useChats'
+import { useSiteAnalysisRehydration } from '../../siteAnalysis/hooks/useSiteAnalysisRehydration'
+import { useSiteAnalysisNoticeStore } from '../../siteAnalysis/store/siteAnalysisNoticeStore'
 import { useChatStream } from '../hooks/useChatStream'
 import { useConversationAudio } from '../voice/useConversationAudio'
 import type { VoiceStateName } from '../voice/useVoiceState'
@@ -284,6 +286,10 @@ export function ConversationView({
     refetch: refetchMessages,
   } = useChatMessages(chatId)
 
+  // specs/057-site-analysis-agent tasks.md T048 — reopens completed site-analysis findings'
+  // panels on conversation open, so navigation or a reload never loses them (FR-016-FR-018).
+  const { isError: isSiteAnalysisRehydrationError, retry: retrySiteAnalysisRehydration } = useSiteAnalysisRehydration(chatId)
+
   // FR-024: a long conversation's full history is loaded incrementally (background-fetched
   // page by page here) rather than all at once, then rendered with only the visible portion
   // mounted (the virtualizer below) — the two together keep scrolling smooth regardless of
@@ -310,7 +316,23 @@ export function ConversationView({
     selectAction,
     actionError,
     isSelectingAction,
+    appendAssistantNotice,
   } = useChatStream(chatId, persistedMessages, onChatCreated)
+
+  // specs/057-site-analysis-agent — site-analysis notices pushed by the hub for THIS chat are
+  // appended live, but only between streams (see appendAssistantNotice's doc): one arriving
+  // mid-turn waits in the store, and this effect re-runs as soon as isStreaming drops.
+  const siteAnalysisNotices = useSiteAnalysisNoticeStore((state) => state.notices)
+  const consumeSiteAnalysisNotices = useSiteAnalysisNoticeStore((state) => state.consume)
+  useEffect(() => {
+    if (isStreaming || !chatId) return
+    const mine = siteAnalysisNotices.filter((notice) => notice.userChatId === chatId)
+    if (mine.length === 0) return
+    for (const notice of mine) {
+      appendAssistantNotice(notice.id, notice.text)
+    }
+    consumeSiteAnalysisNotices(mine.map((notice) => notice.id))
+  }, [siteAnalysisNotices, isStreaming, chatId, appendAssistantNotice, consumeSiteAnalysisNotices])
 
   // specs/045-conversational-agent-runtime data-model.md §2 — "the live offer is the newest
   // assistant message in the chat with non-null SuggestedActionsJson that no later message has
@@ -956,6 +978,24 @@ export function ConversationView({
                 : undefined
             }
           />
+          <Snackbar open={isSiteAnalysisRehydrationError} autoHideDuration={5000}>
+            <Alert
+              severity="error"
+              variant="filled"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={retrySiteAnalysisRehydration}
+                  aria-label="Retry restoring site analysis panels"
+                >
+                  Retry
+                </Button>
+              }
+            >
+              Some site analysis panels couldn&apos;t be restored.
+            </Alert>
+          </Snackbar>
           <Snackbar open={Boolean(error)} autoHideDuration={5000} onClose={clearError}>
             <Alert
               severity="error"

@@ -1,11 +1,13 @@
 using System.Net;
 using System.Text;
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using AskLucy.Infrastructure.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.Ai;
@@ -18,7 +20,23 @@ namespace AskLucy.Infrastructure.Tests.Ai;
 /// </summary>
 public sealed class OpenAIProviderTests
 {
-    private static OpenAIProvider CreateProvider(Func<HttpRequestMessage, HttpResponseMessage> responder, out StubHttpMessageHandler handler)
+    private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
+    private readonly IAiCredentialProtector _credentialProtector = Substitute.For<IAiCredentialProtector>();
+
+    /// <summary>
+    /// Stores the administrator's credential, which this provider now prefers over
+    /// <c>OpenAI:ApiKey</c> — the same source <c>OpenAiEmbeddingProvider</c> reads, so the two
+    /// can no longer end up authenticating as different keys.
+    /// </summary>
+    public OpenAIProviderTests()
+    {
+        var provider = AIProvider.Create("openai", "OpenAI", "test");
+        provider.SetCredential("ciphertext", "test");
+        _providers.GetByKeyAsync("openai", Arg.Any<CancellationToken>()).Returns(provider);
+        _credentialProtector.Unprotect("ciphertext").Returns("stored-api-key");
+    }
+
+    private OpenAIProvider CreateProvider(Func<HttpRequestMessage, HttpResponseMessage> responder, out StubHttpMessageHandler handler)
     {
         var stubHandler = new StubHttpMessageHandler(responder);
         handler = stubHandler;
@@ -29,7 +47,7 @@ public sealed class OpenAIProviderTests
         factory.CreateClient("OpenAI").Returns(_ => new HttpClient(stubHandler, disposeHandler: false));
 
         var options = Options.Create(new OpenAIOptions { ApiKey = "test-key", BaseUrl = "https://api.openai.com/v1/" });
-        return new OpenAIProvider(factory, options, Substitute.For<ILogger<OpenAIProvider>>());
+        return new OpenAIProvider(factory, options, _providers, _credentialProtector, Substitute.For<ILogger<OpenAIProvider>>());
     }
 
     private static Task<string> TranscribeAsync(OpenAIProvider provider) =>
@@ -203,7 +221,7 @@ public sealed class OpenAIProviderTests
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("OpenAI").Returns(_ => new HttpClient(stubHandler, disposeHandler: false));
         var options = Options.Create(new OpenAIOptions { ApiKey = "test-key", BaseUrl = "https://api.openai.com/v1/" });
-        var provider = new OpenAIProvider(factory, options, Substitute.For<ILogger<OpenAIProvider>>());
+        var provider = new OpenAIProvider(factory, options, _providers, _credentialProtector, Substitute.For<ILogger<OpenAIProvider>>());
 
         var act = () => TranscribeAsync(provider);
 
@@ -223,7 +241,10 @@ public sealed class OpenAIProviderTests
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("OpenAI").Returns(_ => new HttpClient(stubHandler, disposeHandler: false));
         var options = Options.Create(new OpenAIOptions { ApiKey = apiKey!, BaseUrl = "https://api.openai.com/v1/" });
-        var provider = new OpenAIProvider(factory, options, Substitute.For<ILogger<OpenAIProvider>>());
+        // No stored credential, so configuration is genuinely the only source — otherwise the
+        // fixture's stored key would satisfy the request and this would stop testing anything.
+        _providers.GetByKeyAsync("openai", Arg.Any<CancellationToken>()).Returns((AIProvider?)null);
+        var provider = new OpenAIProvider(factory, options, _providers, _credentialProtector, Substitute.For<ILogger<OpenAIProvider>>());
 
         var act = () => TranscribeAsync(provider);
 
@@ -245,5 +266,111 @@ public sealed class OpenAIProviderTests
         var models = await provider.ListAvailableModelsAsync(CancellationToken.None);
 
         models.Should().ContainSingle(m => m.ModelKey == "gpt-4-turbo" && m.ContextWindowTokens == null && m.MaxOutputTokens == null);
+    }
+
+    private static HttpResponseMessage ImageResponse(string json) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+
+    [Fact]
+    public async Task GenerateImageAsync_ShouldReturnBase64_ForGptImageModelsWhichNeverReturnAUrl()
+    {
+        // The exact production failure: gpt-image-* answered 200 with b64_json only, and the
+        // provider read data[0].url, throwing KeyNotFoundException after a successful, billed call.
+        string? requestBody = null;
+        var provider = CreateProvider(request =>
+        {
+            requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return ImageResponse("""{"data":[{"b64_json":"iVBORw0KGgo="}]}""");
+        }, out _);
+
+        var payload = await provider.GenerateImageAsync("a map", "gpt-image-2", CancellationToken.None);
+
+        payload.Should().BeOfType<GeneratedImagePayload.Base64>().Which.Data.Should().Be("iVBORw0KGgo=");
+        requestBody.Should().Contain("\"model\":\"gpt-image-2\"")
+            .And.NotContain("response_format");
+    }
+
+    [Fact]
+    public async Task GenerateImageAsync_ShouldReturnARemoteUrl_ForModelsThatReturnOne()
+    {
+        var provider = CreateProvider(_ => ImageResponse("""{"data":[{"url":"https://files.example/img.png"}]}"""), out _);
+
+        var payload = await provider.GenerateImageAsync("a map", "dall-e-3", CancellationToken.None);
+
+        payload.Should().BeOfType<GeneratedImagePayload.RemoteUrl>().Which.Url.Should().Be(new Uri("https://files.example/img.png"));
+    }
+
+    [Fact]
+    public async Task GenerateImageAsync_ShouldThrowUnavailable_WhenTheResponseCarriesNoImage()
+    {
+        var provider = CreateProvider(_ => ImageResponse("""{"data":[{}]}"""), out _);
+
+        var act = () => provider.GenerateImageAsync("a map", "gpt-image-2", CancellationToken.None);
+
+        await act.Should().ThrowAsync<AiProviderUnavailableException>();
+    }
+
+    [Fact]
+    public async Task ListAvailableModelsAsync_ShouldFlagGptImageAndDallEModels_AsProducingImages()
+    {
+        var provider = CreateProvider(_ => ImageResponse(
+            """{"data":[{"id":"gpt-5"},{"id":"gpt-image-2"},{"id":"dall-e-3"},{"id":"whisper-1"}]}"""), out _);
+
+        var models = await provider.ListAvailableModelsAsync(CancellationToken.None);
+
+        models.Select(m => m.ModelKey).Should().BeEquivalentTo(["gpt-5", "gpt-image-2", "dall-e-3"]);
+        models.Single(m => m.ModelKey == "gpt-image-2").Capabilities.ImageOutput.Should().BeTrue();
+        models.Single(m => m.ModelKey == "dall-e-3").Capabilities.ImageOutput.Should().BeTrue();
+        models.Single(m => m.ModelKey == "gpt-5").Capabilities.ImageOutput.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ShouldAuthenticateWithTheStoredCredential_NotTheConfigurationKey()
+    {
+        // The whole point of unifying the two OpenAI call paths: whatever the administrator saved
+        // is what every OpenAI request uses. Previously chat/images authenticated with
+        // OpenAI:ApiKey while embeddings used this stored credential, so a wrong key in the admin
+        // UI broke memory/RAG with a 401 while chat kept working — which reads as a provider
+        // outage rather than a bad key.
+        string? authorization = null;
+        var provider = CreateProvider(request =>
+        {
+            authorization = request.Headers.Authorization?.Parameter;
+            return ImageResponse("""{"data":[{"b64_json":"iVBORw0KGgo="}]}""");
+        }, out _);
+
+        await provider.GenerateImageAsync("a map", "gpt-image-2", CancellationToken.None);
+
+        authorization.Should().Be("stored-api-key").And.NotBe("test-key");
+    }
+
+    [Fact]
+    public async Task ShouldFallBackToConfiguration_WhenNoCredentialHasBeenStoredYet()
+    {
+        // A deployment that has not yet moved this provider's key into the database keeps working
+        // — the fallback is what makes the move to database-held credentials incremental.
+        _providers.GetByKeyAsync("openai", Arg.Any<CancellationToken>()).Returns((AIProvider?)null);
+
+        string? authorization = null;
+        var provider = CreateProvider(request =>
+        {
+            authorization = request.Headers.Authorization?.Parameter;
+            return ImageResponse("""{"data":[{"b64_json":"iVBORw0KGgo="}]}""");
+        }, out _);
+
+        await provider.GenerateImageAsync("a map", "gpt-image-2", CancellationToken.None);
+
+        authorization.Should().Be("test-key");
+    }
+
+    [Fact]
+    public async Task ShouldReportAnUndecryptableCredential_RatherThanSilentlyUsingTheConfigurationKey()
+    {
+        _credentialProtector.Unprotect("ciphertext").Throws(new System.Security.Cryptography.CryptographicException("key ring changed"));
+        var provider = CreateProvider(_ => ImageResponse("""{"data":[{"b64_json":"iVBORw0KGgo="}]}"""), out _);
+
+        var act = () => provider.GenerateImageAsync("a map", "gpt-image-2", CancellationToken.None);
+
+        await act.Should().ThrowAsync<AiProviderException>();
     }
 }

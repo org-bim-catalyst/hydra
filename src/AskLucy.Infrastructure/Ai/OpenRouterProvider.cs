@@ -41,7 +41,6 @@ public sealed class OpenRouterProvider(
 
     public string ChatModel => _options.ChatModel;
 
-    public string ImageModel => throw new NotSupportedException("OpenRouter image generation is not supported by this provider.");
 
     public async Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default)
     {
@@ -153,10 +152,7 @@ public sealed class OpenRouterProvider(
         }
     }
 
-    public Task<Uri> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("OpenRouter image generation is not supported by this provider.");
-
-    public Task<Uri> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
+    public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("OpenRouter image generation is not supported by this provider.");
 
     public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>

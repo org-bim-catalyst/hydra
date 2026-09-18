@@ -138,9 +138,9 @@ public sealed class AiProviderResponseInvalidException(string message, Exception
 /// directly by concrete type. This supersedes the single-provider constraint the legacy-
 /// modernization spec's FR-022 originally placed here.
 ///
-/// The single-arg <c>ChatModel</c>/<c>ImageModel</c>/<c>*Async(..., CancellationToken)</c>
-/// members exist only for call sites that predate per-request model selection (Translate,
-/// image generation, and <c>AppendMessageCommandHandler</c>'s attribution — none of which
+/// The single-arg <c>ChatModel</c>/<c>*Async(..., CancellationToken)</c>
+/// members exist only for call sites that predate per-request model selection (Translate
+/// and <c>AppendMessageCommandHandler</c>'s attribution — none of which
 /// are in specs/005-multi-provider-ai-engine's scope) and stay wired to the single, unkeyed
 /// <c>IAIProvider</c> registration (OpenAI). New call sites use the model/parameter-aware
 /// overloads via <see cref="IAIProviderResolver"/> instead.
@@ -152,9 +152,6 @@ public interface IAIProvider
     /// <summary>The model used by legacy, pre-multi-provider call sites.</summary>
     string ChatModel { get; }
 
-    /// <summary>Same reasoning as <see cref="ChatModel"/>. Providers with no image-generation support throw <see cref="NotSupportedException"/>.</summary>
-    string ImageModel { get; }
-
     Task<string> ChatAsync(IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default);
 
     /// <summary>Model/parameter-aware overload (FR-008/FR-014/FR-020) used by the multi-provider chat and comparison flows.</summary>
@@ -165,9 +162,14 @@ public interface IAIProvider
     /// <summary>Model/parameter-aware overload, same reasoning as the <see cref="ChatAsync(IReadOnlyList{ChatMessage},string,GenerationParametersDto?,CancellationToken)"/> overload.</summary>
     IAsyncEnumerable<StreamChunk> StreamChatAsync(IReadOnlyList<ChatMessage> messages, string model, GenerationParametersDto? parameters, CancellationToken cancellationToken = default);
 
-    Task<Uri> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default);
-
-    Task<Uri> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Generates one image with <paramref name="model"/> and returns it in whatever form this
+    /// vendor produced (<see cref="GeneratedImagePayload"/>) — callers never parse it; they go
+    /// through <c>IImageGenerationService</c>, which picks the model from the
+    /// <c>ImageGeneration</c> capability assignment and normalises the payload. Providers with no
+    /// image-generation support throw <see cref="NotSupportedException"/>.
+    /// </summary>
+    Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default);
 
     Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default);
 

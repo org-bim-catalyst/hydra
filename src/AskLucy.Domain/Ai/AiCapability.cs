@@ -47,4 +47,13 @@ public enum AiCapability
     /// </para>
     /// </summary>
     TurnOrchestration,
+
+    /// <summary>
+    /// Produces an image from a text prompt — the chat's image generation and the Site Analysis
+    /// Agent's schematic map (specs/057). Unlike every other member this one needs a specific
+    /// model, not merely a provider: a provider's default model is a chat model, which cannot
+    /// produce images, so its assignment must pin an image-capable model
+    /// (<c>AIModel.SupportsImageOutput</c>) and it never falls back to the platform default.
+    /// </summary>
+    ImageGeneration,
 }

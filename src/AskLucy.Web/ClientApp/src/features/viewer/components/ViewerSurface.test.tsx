@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
@@ -64,6 +65,18 @@ async function flushAsync(): Promise<void> {
   })
 }
 
+// specs/057-site-analysis-agent — the panels extension overlay now also mounts
+// useSiteAnalysisHub, which calls useQueryClient(); a QueryClientProvider is required here for
+// the same reason ChatPage.test.tsx's own render helper provides one.
+function renderViewerSurface() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ViewerSurface />
+    </QueryClientProvider>,
+  )
+}
+
 describe('ViewerSurface', () => {
   beforeEach(() => {
     // specs/036-startup-geolocation T009/T016: ViewerSurface now reads from activeLocationStore
@@ -87,19 +100,19 @@ describe('ViewerSurface', () => {
 
   it('renders the non-interactive fallback when WebGL is unavailable (FR-005)', () => {
     useWebGLSupportMock.mockReturnValue(false)
-    render(<ViewerSurface />)
+    renderViewerSurface()
     expect(screen.getByTestId('viewer-fallback')).toBeInTheDocument()
   })
 
   it('renders the placeholder while location is still resolving (FR-001/FR-004)', () => {
     // Store is empty — no location yet; mirrors the 'resolving' geolocation state.
-    render(<ViewerSurface />)
+    renderViewerSurface()
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
   })
 
   it('transitions to the map content mode once geolocation resolves (FR-007, US2-AC1)', () => {
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
-    render(<ViewerSurface />)
+    renderViewerSurface()
 
     expect(screen.getByTestId('viewer-map-stub')).toBeInTheDocument()
     expect(screen.queryByTestId('viewer-placeholder')).not.toBeInTheDocument()
@@ -119,7 +132,7 @@ describe('ViewerSurface', () => {
 
   it('stays on the placeholder and never adds a layer when geolocation is denied/unavailable (FR-008, US2-AC3)', () => {
     // Store stays empty after clear() — source === null, same as unavailable.
-    render(<ViewerSurface />)
+    renderViewerSurface()
 
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
     expect(useViewerEngineStore.getState().contentMode).toBe('placeholder')
@@ -128,7 +141,7 @@ describe('ViewerSurface', () => {
 
   it('reverts to the placeholder if location becomes unavailable after the map was active (FR-012)', () => {
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
-    render(<ViewerSurface />)
+    renderViewerSurface()
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
 
     // Mirrors ChatPage's useEffect calling clear() when geolocation transitions to 'unavailable'.
@@ -143,7 +156,7 @@ describe('ViewerSurface', () => {
 
   it('falls back to the placeholder (never a blank screen) when the map fails to load (spec.md Edge Cases)', () => {
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
-    render(<ViewerSurface />)
+    renderViewerSurface()
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
 
     fireEvent.click(screen.getByRole('button', { name: 'simulate map load failure' }))
@@ -157,7 +170,7 @@ describe('ViewerSurface', () => {
   it('re-centres the map to an agent-confirmed location, overriding the startup geolocation (US3 AC1/AC2)', () => {
     // Startup geolocation: map already active at device coords.
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
-    render(<ViewerSurface />)
+    renderViewerSurface()
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
 
     // Agent confirms a different, user-named location (from __LOCATION__ SSE event via useChatStream).
@@ -177,7 +190,7 @@ describe('ViewerSurface', () => {
   // through ExtensionOverlayHost. This proves that wiring actually runs end-to-end, not just that
   // the extension modules work in isolation (already covered by their own unit tests).
   it('starts the declared extensions, which render their contributions through the extension host (specs/050)', async () => {
-    render(<ViewerSurface />)
+    renderViewerSurface()
 
     // The panels extension's "Reconnecting…" indicator only mounts once useFloatingPanelHub is
     // rendered — proof the panels extension actually started and contributed its overlay.
@@ -189,7 +202,7 @@ describe('ViewerSurface', () => {
   // placeholder. The workspace state now survives the trip.
   it('keeps the extensions running and the map attached when the viewer is remounted after leaving the route', async () => {
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
-    const first = render(<ViewerSurface />)
+    const first = renderViewerSurface()
     await screen.findByTestId('panel-hub-connection-status')
     const contributionsBefore = useViewerExtensionStore.getState().contributions.length
 
@@ -200,7 +213,7 @@ describe('ViewerSurface', () => {
       expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('started')
     }
 
-    render(<ViewerSurface />)
+    renderViewerSurface()
 
     expect(screen.getByTestId('viewer-map-stub')).toBeInTheDocument()
     expect(useViewerEngineStore.getState().contentMode).toBe('map')
@@ -214,7 +227,7 @@ describe('ViewerSurface', () => {
   it('ends the viewer session when the user signs out', async () => {
     useAuthStore.setState({ accessToken: 'token', userId: 'user-1' })
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
-    render(<ViewerSurface />)
+    renderViewerSurface()
     await screen.findByTestId('panel-hub-connection-status')
 
     act(() => {

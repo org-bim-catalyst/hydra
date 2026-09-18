@@ -71,7 +71,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
         _providers.GetByIdAsync(provider.Id, Arg.Any<CancellationToken>()).Returns(provider);
         _models.GetByIdAsync(model.Id, Arg.Any<CancellationToken>()).Returns(model);
         _assignments.GetByCapabilityAsync(AiCapability.BoundaryVision, Arg.Any<CancellationToken>())
-            .Returns(AiCapabilityAssignment.Create(AiCapability.BoundaryVision, provider.Id, "test"));
+            .Returns(AiCapabilityAssignment.Create(AiCapability.BoundaryVision, provider.Id, null, "test"));
     }
 
     private GeminiBoundaryVisionAnalyzer CreateAnalyzer(Func<HttpRequestMessage, HttpResponseMessage> responder, int visionTimeoutSeconds = 30)

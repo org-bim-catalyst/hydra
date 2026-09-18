@@ -150,11 +150,15 @@ export type AiCapability =
   | 'MemoryConflictDetection'
   | 'DocumentClassification'
   | 'BoundaryVision'
+  | 'TurnOrchestration'
+  | 'ImageGeneration'
 
 export interface AiCapabilityAssignment {
   capability: AiCapability
-  /** Null when nothing is assigned — the capability then falls back to the platform default. */
+  /** Null when nothing is assigned — the capability then falls back to the platform default (ImageGeneration: "not configured"). */
   providerId: string | null
+  /** A pinned model of that provider; null follows the provider's own default. Only ImageGeneration pins one. */
+  modelId: string | null
   /** Where the capability actually lands today, assigned or not. Resolved server-side. */
   effectiveProviderId: string | null
   effectiveModelId: string | null
@@ -163,9 +167,13 @@ export interface AiCapabilityAssignment {
 export const getCapabilityAssignments = () =>
   apiFetch<AiCapabilityAssignment[]>('/admin/ai/capabilities')
 
-/** A null `providerId` clears the assignment, returning the capability to the platform default. */
-export const setCapabilityAssignment = (capability: AiCapability, providerId: string | null) =>
+/**
+ * A null `providerId` clears the assignment, returning the capability to the platform default.
+ * `modelId` pins one of that provider's models — required for `ImageGeneration`, whose provider
+ * default is a chat model; omitted everywhere else so the capability follows the provider default.
+ */
+export const setCapabilityAssignment = (capability: AiCapability, providerId: string | null, modelId: string | null = null) =>
   apiFetch<void>(`/admin/ai/capabilities/${capability}`, {
     method: 'PUT',
-    body: JSON.stringify({ providerId }),
+    body: JSON.stringify({ providerId, modelId }),
   })

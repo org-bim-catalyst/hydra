@@ -9,8 +9,6 @@ public sealed class OpenAIOptions
 
     public string ChatModel { get; init; } = "gpt-3.5-turbo";
 
-    public string ImageModel { get; init; } = "dall-e-3";
-
     public string TranscriptionModel { get; init; } = "whisper-1";
 
     public string BaseUrl { get; init; } = "https://api.openai.com/v1/";

@@ -47,6 +47,14 @@ public enum SubAgentArea
     /// this enum.
     /// </summary>
     External,
+
+    /// <summary>
+    /// specs/057-site-analysis-agent — dispatching a hierarchical, multi-specialist site analysis.
+    /// Additive: this capability's own delivery does not run through the decide/offer machinery
+    /// the other five areas share (it dispatches a background workflow and returns immediately),
+    /// but it still needs an <see cref="Area"/> value to satisfy <see cref="IConversationCapability"/>.
+    /// </summary>
+    SiteAnalysis,
 }
 
 /// <summary>

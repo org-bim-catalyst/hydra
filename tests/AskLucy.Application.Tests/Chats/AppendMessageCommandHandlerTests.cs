@@ -26,7 +26,6 @@ public sealed class AppendMessageCommandHandlerTests
             .Returns(Array.Empty<Message>());
         _aiProvider.ProviderName.Returns("OpenAI");
         _aiProvider.ChatModel.Returns("gpt-4");
-        _aiProvider.ImageModel.Returns("dall-e-3");
     }
 
     private AppendMessageCommandHandler CreateHandler() =>
@@ -80,7 +79,7 @@ public sealed class AppendMessageCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldUseImageModel_ForImageKindAssistantMessages()
+    public async Task Handle_ShouldAttributeImageMessages_ToTheExplicitProviderAndModel_NeverTheLegacyDefault()
     {
         var chat = UserChat.Create("My chat", "owner-1", null, "owner-1");
         _chatRepository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
@@ -88,10 +87,12 @@ public sealed class AppendMessageCommandHandlerTests
         var handler = CreateHandler();
 
         var result = await handler.Handle(
-            new AppendMessageCommand(chat.Id, MessageRole.Assistant, MessageKind.Image, "https://example.com/img.png", "a cat"),
+            new AppendMessageCommand(chat.Id, MessageRole.Assistant, MessageKind.Image, "0198f3a2-0000-7000-8000-000000000001", "a cat",
+                Provider: "Google Gemini", Model: "gemini-3-pro-image-preview"),
             CancellationToken.None);
 
-        result.Model.Should().Be("dall-e-3");
+        result.Provider.Should().Be("Google Gemini");
+        result.Model.Should().Be("gemini-3-pro-image-preview");
     }
 
     [Fact]

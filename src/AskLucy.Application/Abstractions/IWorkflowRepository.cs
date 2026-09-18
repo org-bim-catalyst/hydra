@@ -28,4 +28,7 @@ public interface IWorkflowRepository
 
     /// <summary>Every published, enabled Event-Driven workflow's currently-published version — the event-trigger dispatch path's candidate set (FR-064, research.md Decision 12).</summary>
     Task<IReadOnlyList<(Workflow Workflow, WorkflowVersion Version)>> ListPublishedEventDrivenAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>specs/057-site-analysis-agent research.md D12 — bypasses owner scoping, mirroring <see cref="IAgentRepository.GetBySystemKeyAsync"/>: a platform-provisioned workflow's identity is its <see cref="Workflow.SystemKey"/>, not a caller-owned id.</summary>
+    Task<Workflow?> GetBySystemKeyAsync(string systemKey, CancellationToken cancellationToken = default);
 }

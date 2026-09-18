@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Documents;
+using Hangfire;
 using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Infrastructure.Documents;
@@ -27,6 +28,23 @@ public sealed class DocumentStatisticsRecomputeJob(
 {
     private const string SystemActor = "system:statistics-recompute";
 
+    /// <summary>
+    /// Scheduled every minute (Program.cs), but one sweep can outlast that interval against the
+    /// remote database — and two overlapping sweeps load, refresh and save the same
+    /// concurrency-checked statistics rows, so one always fails with a
+    /// DbUpdateConcurrencyException (which is how three stuck copies piled up in Processing).
+    /// <see cref="DisableConcurrentExecutionAttribute"/> makes overlap impossible; a run that
+    /// can't take the lock gives up <i>immediately</i> (timeout 0) rather than blocking, and zero
+    /// retries + Delete drops it rather than queueing a backlog of retries behind a slow sweep.
+    /// The wait must not be longer: Hangfire acquires this lock synchronously, so any wait parks
+    /// a worker thread outright — with 20 workers and a sweep that outlasts its own one-minute
+    /// schedule on a remote database, waiting starves the thread pool and slows unrelated
+    /// requests (a plain static file took ~50s under exactly that pressure). Nothing is
+    /// lost by dropping it: every sweep is a full, idempotent recompute, so the next minute's run
+    /// covers it. The lock-timeout failure is still recorded by Hangfire's own logging.
+    /// </summary>
+    [DisableConcurrentExecution(timeoutInSeconds: 0)]
+    [AutomaticRetry(Attempts = 0, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
     public async Task RecomputeAllAsync(CancellationToken cancellationToken = default)
     {
         await RecomputeOrganizationAsync(cancellationToken);

@@ -14,6 +14,9 @@ public sealed class WorkflowRepository(AskLucyDbContext dbContext) : IWorkflowRe
     public Task<Workflow?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.Workflows.FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
+    public Task<Workflow?> GetBySystemKeyAsync(string systemKey, CancellationToken cancellationToken = default) =>
+        dbContext.Workflows.Include(w => w.Versions).FirstOrDefaultAsync(w => w.SystemKey == systemKey, cancellationToken);
+
     public void Add(Workflow workflow) => dbContext.Workflows.Add(workflow);
 
     public Task<bool> ExistsWithNameForOwnerAsync(string ownerId, string name, Guid? excludingWorkflowId, CancellationToken cancellationToken = default)

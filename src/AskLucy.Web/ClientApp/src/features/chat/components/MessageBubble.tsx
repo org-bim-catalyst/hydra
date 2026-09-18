@@ -9,6 +9,7 @@ import { Alert, Box, Chip, IconButton, Paper, Stack, Tooltip, Typography } from 
 import 'katex/dist/katex.min.css'
 import { useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { DocumentImage } from '../../documents/components/DocumentImage'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -130,9 +131,13 @@ export function MessageBubble({
           }}
         >
           <Typography component="div" variant="body1">
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-              {message.content}
-            </ReactMarkdown>
+            {message.imageDocumentId ? (
+              <DocumentImage documentId={message.imageDocumentId} alt={message.content} />
+            ) : (
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {message.content}
+              </ReactMarkdown>
+            )}
           </Typography>
 
           {(hasAttachments || hasCitations) && (

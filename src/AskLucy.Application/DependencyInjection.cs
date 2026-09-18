@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Ai.Images;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Behaviors;
 using AskLucy.Application.Conversations.Capabilities;
@@ -20,6 +21,8 @@ using AskLucy.Application.Memory;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
+using AskLucy.Application.SiteAnalysis;
+using AskLucy.Application.SiteAnalysis.Tools;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
@@ -46,6 +49,12 @@ public static class DependencyInjection
         services.AddScoped<TokenIssuer>();
         services.AddScoped<DefaultProviderResolver>();
         services.AddScoped<AiCapabilityProviderResolver>();
+
+        // Image generation (specs/057 follow-up) — one service for every caller; the model comes
+        // from the ImageGeneration capability assignment, and any provider response form (URL,
+        // base64, data URL, binary) is normalised by the materializer.
+        services.AddScoped<GeneratedImageMaterializer>();
+        services.AddScoped<IImageGenerationService, ImageGenerationService>();
         services.AddScoped<IDocumentProcessingPipeline, DocumentProcessingPipeline>();
         services.AddScoped<DocumentUploadFinalizer>();
         services.AddScoped<IProcessingStageHandler, ValidationStageHandler>();
@@ -176,6 +185,27 @@ public static class DependencyInjection
             services.AddScoped<IAgentTool, FakeHighRiskTool>();
         }
 
+        // specs/057-site-analysis-agent — the one specialist in this release; a further one is a
+        // provisioner entry + one more registration here, no other change (FR-031).
+        services.AddScoped<SiteAnalysisContentComposer>();
+        services.AddScoped<SiteAnalysisResultRelay>();
+        // Registered as the concrete type as well: ScopeIsolatedSiteAnalysisResultRelay resolves
+        // SiteAnalysisResultRelay fresh from its own DI scope on every call (research.md D2 —
+        // concurrent workflow branches share one scoped DbContext), mirroring
+        // ScopeIsolatedLocationResolutionService/LocationResolutionService exactly.
+        services.AddScoped<ISiteAnalysisResultRelay, ScopeIsolatedSiteAnalysisResultRelay>();
+        services.AddScoped<ISiteAnalysisDispatcher, SiteAnalysisDispatcher>();
+        // Registered straight against IAgentTool, NOT via the `sp => sp.GetRequiredService<T>()`
+        // shape the capabilities below still use. That shape re-enters ServiceProvider.GetService
+        // from inside a call-site visit that already holds the runtime resolver's lock; when the
+        // service's own graph is deep enough for StackGuard to move the remainder of the
+        // resolution onto another thread, the two deadlock and every request resolving
+        // IEnumerable<IAgentTool> hangs forever with no exception and no log. Both site-analysis
+        // tools carry by far the deepest graphs in this collection, so they must not add a
+        // re-entrant hop on top. Neither is ever resolved by its concrete type, so the extra
+        // registration bought nothing.
+        services.AddScoped<IAgentTool, SiteSchematicImageGenerationTool>();
+
         services.AddOptions<AgentRuntimeOptions>()
             .Bind(configuration.GetSection(AgentRuntimeOptions.SectionName))
             .ValidateDataAnnotations()
@@ -203,28 +233,29 @@ public static class DependencyInjection
         // in this codebase once, on DB-credential providers only.
         services.AddScoped<IConversationTurnOrchestrator, ConversationTurnOrchestrator>();
 
-        // Conversation capabilities (specs/045 FR-012/FR-013). Registered as IAgentTool as well as
-        // themselves so AgentToolCatalog — the single discovery point the whole agent runtime
-        // already uses — sees them without a second catalog existing. Adding a capability is these
-        // two lines and nothing else; the orchestrator never learns its name.
-        services.AddScoped<ResolveLocationCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<ResolveLocationCapability>());
-        services.AddScoped<ResolveSiteBoundaryCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<ResolveSiteBoundaryCapability>());
-        services.AddScoped<AdjustViewerFocusCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<AdjustViewerFocusCapability>());
-        services.AddScoped<SearchKnowledgeBaseCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<SearchKnowledgeBaseCapability>());
-        services.AddScoped<SearchMemoryCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<SearchMemoryCapability>());
-        services.AddScoped<PresentPanelContentCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<PresentPanelContentCapability>());
-        services.AddScoped<OpenLivePanelCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenLivePanelCapability>());
-        services.AddScoped<LoadViewerContentCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<LoadViewerContentCapability>());
-        services.AddScoped<OpenSolarAnalysisCapability>();
-        services.AddScoped<IAgentTool>(sp => sp.GetRequiredService<OpenSolarAnalysisCapability>());
+        // Conversation capabilities (specs/045 FR-012/FR-013). Registered directly against
+        // IAgentTool — never `sp => sp.GetRequiredService<T>()` — so AgentToolCatalog (the single
+        // discovery point the whole agent runtime already uses) sees them without a second catalog
+        // existing, and so a capability with a deep dependency graph can never close a DI cycle
+        // back through AgentToolCatalog's own IEnumerable<IAgentTool> the way the self-referential
+        // factory shape did (see RequestSiteAnalysisCapability's history: that shape hid a real
+        // cycle from startup validation and hung every chat turn at runtime instead of failing
+        // loudly at boot). None of these is ever resolved by its concrete type — only through
+        // IAgentTool or its own static CapabilityKey constant — so nothing is lost by dropping the
+        // paired concrete registration. Adding a capability is one line and nothing else.
+        services.AddScoped<IAgentTool, ResolveLocationCapability>();
+        services.AddScoped<IAgentTool, ResolveSiteBoundaryCapability>();
+        services.AddScoped<IAgentTool, AdjustViewerFocusCapability>();
+        services.AddScoped<IAgentTool, SearchKnowledgeBaseCapability>();
+        services.AddScoped<IAgentTool, SearchMemoryCapability>();
+        services.AddScoped<IAgentTool, PresentPanelContentCapability>();
+        services.AddScoped<IAgentTool, OpenLivePanelCapability>();
+        services.AddScoped<IAgentTool, LoadViewerContentCapability>();
+        services.AddScoped<IAgentTool, OpenSolarAnalysisCapability>();
+        // Direct, not via a `sp => sp.GetRequiredService<T>()` factory — see the note on
+        // SiteSchematicImageGenerationTool above: this exact registration was the one the runtime
+        // deadlocked on.
+        services.AddScoped<IAgentTool, RequestSiteAnalysisCapability>();
 
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();

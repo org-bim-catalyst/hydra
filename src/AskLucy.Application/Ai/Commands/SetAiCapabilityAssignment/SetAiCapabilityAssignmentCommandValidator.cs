@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using FluentValidation;
 
 namespace AskLucy.Application.Ai.Commands.SetAiCapabilityAssignment;
@@ -14,6 +15,11 @@ public sealed class SetAiCapabilityAssignmentCommandValidator : AbstractValidato
             {
                 if (command.ProviderId is not { } providerId)
                 {
+                    if (command.ModelId is not null)
+                    {
+                        context.AddFailure("modelId", "A model can only be pinned together with its provider.");
+                    }
+
                     return; // Clearing is always allowed — it restores the platform default.
                 }
 
@@ -21,6 +27,31 @@ public sealed class SetAiCapabilityAssignmentCommandValidator : AbstractValidato
                 if (provider is null || !provider.IsEnabled)
                 {
                     context.AddFailure("providerId", "The selected provider is not enabled.");
+                    return;
+                }
+
+                if (command.ModelId is { } pinnedModelId)
+                {
+                    var pinned = await models.GetByIdAsync(pinnedModelId, cancellationToken);
+                    if (pinned is null || pinned.ProviderId != providerId)
+                    {
+                        context.AddFailure("modelId", "The selected model does not belong to the selected provider.");
+                    }
+                    else if (!pinned.IsSelectable)
+                    {
+                        context.AddFailure("modelId", "The selected model is not Available.");
+                    }
+                    else if (command.Capability == AiCapability.ImageGeneration && !pinned.SupportsImageOutput)
+                    {
+                        context.AddFailure("modelId", "Image generation needs a model that can produce images.");
+                    }
+
+                    return; // A pinned model replaces the provider default, so the default's state is irrelevant.
+                }
+
+                if (command.Capability == AiCapability.ImageGeneration)
+                {
+                    context.AddFailure("modelId", "Choose an image-capable model — a provider's default model is a chat model.");
                     return;
                 }
 

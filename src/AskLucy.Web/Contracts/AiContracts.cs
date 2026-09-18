@@ -33,7 +33,11 @@ public sealed record TranslateRequest(Guid ChatId, string Text, string TargetLan
 
 public sealed record GenerateImageRequest(Guid ChatId, string Prompt);
 
-public sealed record GenerateImageResponse(string Url);
+/// <summary>
+/// The generated image is stored as the caller's own document; the client fetches it through
+/// <c>GET /documents/{DocumentId}/download</c> (a fresh signed URL), never a provider address.
+/// </summary>
+public sealed record GenerateImageResponse(Guid DocumentId);
 
 public sealed record TranscriptionResponse(string Text);
 
@@ -42,8 +46,12 @@ public sealed record UpdateAiProviderRequest(bool? IsEnabled, Guid? DefaultModel
 /// <summary>specs/055-role-management contracts §4 — the permission-split successor to <c>UpdateAiProviderRequest</c>'s deprecated default-model fields. <c>DefaultModelId</c> null clears the default.</summary>
 public sealed record SetProviderDefaultModelRequest(Guid? DefaultModelId);
 
-/// <summary>Null <c>ProviderId</c> clears the assignment, returning the capability to the platform default.</summary>
-public sealed record SetAiCapabilityAssignmentRequest(Guid? ProviderId);
+/// <summary>
+/// Null <c>ProviderId</c> clears the assignment, returning the capability to the platform default.
+/// <c>ModelId</c> pins one of that provider's models (required for <c>ImageGeneration</c>); null
+/// follows the provider's own default model.
+/// </summary>
+public sealed record SetAiCapabilityAssignmentRequest(Guid? ProviderId, Guid? ModelId = null);
 
 public sealed record SetAiProviderCredentialRequest(string ApiKey);
 

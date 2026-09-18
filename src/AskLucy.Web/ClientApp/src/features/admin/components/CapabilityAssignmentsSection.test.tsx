@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AdminAiProvider, AiCapabilityAssignment } from '../api/adminAiProvidersApi'
+import type { AdminAiModel, AdminAiProvider, AiCapabilityAssignment } from '../api/adminAiProvidersApi'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import { CapabilityAssignmentsSection } from './CapabilityAssignmentsSection'
 
 vi.mock('../api/adminAiProvidersApi', async () => {
   const actual = await vi.importActual<typeof adminAiProvidersApi>('../api/adminAiProvidersApi')
-  return { ...actual, getCapabilityAssignments: vi.fn(), setCapabilityAssignment: vi.fn() }
+  return { ...actual, getCapabilityAssignments: vi.fn(), setCapabilityAssignment: vi.fn(), getModels: vi.fn() }
 })
 
 function makeProvider(overrides: Partial<AdminAiProvider>): AdminAiProvider {
@@ -38,6 +38,7 @@ const anthropic = makeProvider({
 const unassigned: AiCapabilityAssignment = {
   capability: 'LocationIntent',
   providerId: null,
+  modelId: null,
   effectiveProviderId: 'provider-openai',
   effectiveModelId: 'model-gpt41',
 }
@@ -185,5 +186,76 @@ describe('CapabilityAssignmentsSection', () => {
     fireEvent.click(menu.getByText('Anthropic'))
 
     expect(await screen.findByText(/Something went wrong/)).toBeInTheDocument()
+  })
+})
+
+describe('CapabilityAssignmentsSection — image generation (specs/057 follow-up)', () => {
+  function makeModel(overrides: Partial<AdminAiModel> & { imageOutput?: boolean }): AdminAiModel {
+    const { imageOutput = false, ...rest } = overrides
+    return {
+      id: 'model-x',
+      modelKey: 'x',
+      displayName: 'X',
+      contextWindowTokens: null,
+      maxOutputTokens: null,
+      capabilities: {
+        streaming: false, vision: false, functionCalling: false, jsonMode: false, reasoning: false,
+        embeddings: false, imageInput: false, imageOutput, audio: false,
+      },
+      pricing: null,
+      releaseDate: null,
+      status: 'Available',
+      ...rest,
+    }
+  }
+
+  const imageUnassigned: AiCapabilityAssignment = {
+    capability: 'ImageGeneration',
+    providerId: null,
+    modelId: null,
+    effectiveProviderId: null,
+    effectiveModelId: null,
+  }
+
+  it('says it is not configured, and saves nothing until an image model is chosen', async () => {
+    vi.mocked(adminAiProvidersApi.getModels).mockResolvedValue([
+      makeModel({ id: 'model-chat', displayName: 'GPT-5 (chat)' }),
+      makeModel({ id: 'model-image', displayName: 'GPT Image 2', imageOutput: true }),
+      makeModel({ id: 'model-retired', displayName: 'DALL-E 2', imageOutput: true, status: 'Deprecated' }),
+    ])
+    vi.mocked(adminAiProvidersApi.setCapabilityAssignment).mockResolvedValue(undefined)
+    renderSection([imageUnassigned])
+
+    expect(await screen.findByText('Not configured')).toBeInTheDocument()
+
+    const providerMenu = await openProviderMenu('Image generation')
+    fireEvent.click(providerMenu.getByText('OpenAI'))
+    expect(adminAiProvidersApi.setCapabilityAssignment).not.toHaveBeenCalled()
+
+    const modelSelect = await screen.findByRole('combobox', { name: 'Image model for Image generation' })
+    // Disabled while the provider's models load — MUI ignores a press on a disabled select.
+    await waitFor(() => expect(modelSelect).not.toHaveAttribute('aria-disabled', 'true'))
+    fireEvent.mouseDown(modelSelect)
+    await waitFor(() => expect(document.querySelector('ul[role="listbox"]')).not.toBeNull())
+    const modelMenu = within(document.querySelector('ul[role="listbox"]') as HTMLElement)
+
+    // Only Available, image-capable models are offered — never the chat model or a retired one.
+    expect(modelMenu.queryByText('GPT-5 (chat)')).not.toBeInTheDocument()
+    expect(modelMenu.queryByText('DALL-E 2')).not.toBeInTheDocument()
+    fireEvent.click(modelMenu.getByText('GPT Image 2'))
+
+    await waitFor(() =>
+      expect(adminAiProvidersApi.setCapabilityAssignment).toHaveBeenCalledWith('ImageGeneration', 'provider-openai', 'model-image'),
+    )
+  })
+
+  it('explains when the chosen provider has no image-capable model', async () => {
+    vi.mocked(adminAiProvidersApi.getModels).mockResolvedValue([makeModel({ id: 'model-chat', displayName: 'Claude' })])
+    renderSection([imageUnassigned])
+
+    const providerMenu = await openProviderMenu('Image generation')
+    fireEvent.click(providerMenu.getByText('Anthropic'))
+
+    expect(await screen.findByText(/no Available model marked as able to produce images/i)).toBeInTheDocument()
   })
 })

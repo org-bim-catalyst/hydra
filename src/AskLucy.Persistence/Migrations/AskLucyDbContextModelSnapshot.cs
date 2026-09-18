@@ -1262,6 +1262,9 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("ModelId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1282,6 +1285,8 @@ namespace AskLucy.Persistence.Migrations
                     b.HasIndex("Capability")
                         .IsUnique()
                         .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("ModelId");
 
                     b.HasIndex("ProviderId");
 
@@ -6412,6 +6417,158 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("SearchHistories", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.SiteAnalysis.SiteAnalysis", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BoundaryGeoJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ClosingOutcomeReportedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ExpectedResultCount")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SiteName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("UserChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("WorkflowExecutionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "UserChatId", "StartedAtUtc");
+
+                    b.ToTable("SiteAnalyses", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.SiteAnalysis.SiteAnalysisResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AnalysisType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ConfidenceLevel")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("ContentJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DataSource")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("SiteAnalysisId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SiteAnalysisId");
+
+                    b.HasIndex("SiteAnalysisId", "AnalysisType")
+                        .IsUnique();
+
+                    b.ToTable("SiteAnalysisResults", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Workflows.Workflow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6440,6 +6597,11 @@ namespace AskLucy.Persistence.Migrations
 
                     b.Property<string>("EventTriggerConfigurationJson")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsSystemOwned")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("datetime2");
@@ -6474,6 +6636,10 @@ namespace AskLucy.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("SystemKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("WorkflowType")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -6482,6 +6648,10 @@ namespace AskLucy.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("SystemKey")
+                        .IsUnique()
+                        .HasFilter("[SystemKey] IS NOT NULL");
 
                     b.HasIndex("WorkflowType");
 
@@ -8057,6 +8227,11 @@ namespace AskLucy.Persistence.Migrations
 
             modelBuilder.Entity("AskLucy.Domain.Ai.AiCapabilityAssignment", b =>
                 {
+                    b.HasOne("AskLucy.Domain.Ai.AIModel", null)
+                        .WithMany()
+                        .HasForeignKey("ModelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AskLucy.Domain.Ai.AIProvider", null)
                         .WithMany()
                         .HasForeignKey("ProviderId")
@@ -8911,6 +9086,24 @@ namespace AskLucy.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.SiteAnalysis.SiteAnalysis", b =>
+                {
+                    b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.SiteAnalysis.SiteAnalysisResult", b =>
+                {
+                    b.HasOne("AskLucy.Domain.SiteAnalysis.SiteAnalysis", null)
+                        .WithMany("Results")
+                        .HasForeignKey("SiteAnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Workflows.Workflow", b =>
                 {
                     b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
@@ -9161,6 +9354,11 @@ namespace AskLucy.Persistence.Migrations
             modelBuilder.Entity("AskLucy.Domain.Prompts.PromptVersion", b =>
                 {
                     b.Navigation("Variables");
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.SiteAnalysis.SiteAnalysis", b =>
+                {
+                    b.Navigation("Results");
                 });
 
             modelBuilder.Entity("AskLucy.Domain.Workflows.Workflow", b =>

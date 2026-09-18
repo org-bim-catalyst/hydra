@@ -25,18 +25,19 @@ public sealed class SetAiCapabilityAssignmentCommandHandler(
         }
         else if (existing is null)
         {
-            assignments.Add(AiCapabilityAssignment.Create(request.Capability, providerId, actorUserId));
+            assignments.Add(AiCapabilityAssignment.Create(request.Capability, providerId, request.ModelId, actorUserId));
         }
         else
         {
-            existing.AssignTo(providerId, actorUserId);
+            existing.AssignTo(providerId, request.ModelId, actorUserId);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         if (logger.IsEnabled(LogLevel.Information))
         {
-            var detail = $"{request.Capability} -> {request.ProviderId?.ToString() ?? "platform default"}";
+            var detail = $"{request.Capability} -> {request.ProviderId?.ToString() ?? "platform default"}"
+                + (request.ModelId is { } pinnedModelId ? $" (model {pinnedModelId})" : string.Empty);
             AiAdminActionLog.AdminAiProviderActionPerformed(
                 logger, "SetCapabilityAssignment", actorUserId, request.ProviderId ?? Guid.Empty, detail);
         }

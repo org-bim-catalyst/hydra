@@ -15,6 +15,7 @@ import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { useComingSoonStore } from '../../../store/comingSoonStore'
 import { ChatPage, ConversationView } from './ChatPage'
+import { useSiteAnalysisNoticeStore } from '../../siteAnalysis/store/siteAnalysisNoticeStore'
 
 vi.mock('../api/voiceApi', async () => {
   const actual = await vi.importActual<typeof voiceApi>('../api/voiceApi')
@@ -2235,3 +2236,56 @@ describe('ChatPage — continuous-mode deferred start (specs/040 US5)', () => {
     expect(conversationAudioMock.startTurn).not.toHaveBeenCalled()
   })
 })
+
+describe('ConversationView — live site-analysis notices (specs/057)', () => {
+  beforeEach(() => {
+    useSiteAnalysisNoticeStore.setState({ notices: [] })
+  })
+
+  it('appends a notice for the open chat once, and leaves another chat notice queued', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(messagesPage([makeMessage({ id: 'a1', content: 'Existing conversation content' })])),
+      ),
+    )
+    renderConversation(CHAT_A)
+    expect(await screen.findByText('Existing conversation content')).toBeInTheDocument()
+
+    act(() => {
+      const { push } = useSiteAnalysisNoticeStore.getState()
+      push({ id: 'completed:x', userChatId: CHAT_A, text: "I couldn't complete the site analysis." })
+      // A hub reconnect replaying the same notice must not duplicate it.
+      push({ id: 'completed:x', userChatId: CHAT_A, text: "I couldn't complete the site analysis." })
+      push({ id: 'completed:other', userChatId: 'another-chat', text: 'Not for this view.' })
+    })
+
+    expect(await screen.findByText("I couldn't complete the site analysis.")).toBeInTheDocument()
+    expect(screen.getAllByText("I couldn't complete the site analysis.")).toHaveLength(1)
+    expect(screen.queryByText('Not for this view.')).not.toBeInTheDocument()
+    expect(useSiteAnalysisNoticeStore.getState().notices.map((n) => n.id)).toEqual(['completed:other'])
+  })
+})
+
+describe('ConversationView — generated images in history (specs/057 follow-up)', () => {
+  const IMAGE_DOC = '0198f3a2-0000-7000-8000-000000000001'
+
+  it('renders a stored image through a fresh signed URL, and still renders an older URL-only image', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({ id: 'img-new', kind: 'Image', content: IMAGE_DOC, sourceText: 'A schematic map' }),
+            makeMessage({ id: 'img-old', kind: 'Image', content: 'https://legacy.example/old.png', sourceText: 'An old picture' }),
+          ]),
+        ),
+      ),
+      http.get(`*/api/v1/documents/${IMAGE_DOC}/download`, () => HttpResponse.json({ url: '/signed/map.png' })),
+    )
+    renderConversation(CHAT_A)
+
+    const stored = await screen.findByAltText('A schematic map')
+    expect(stored.getAttribute('src')).toContain('/signed/map.png')
+    expect((await screen.findByAltText('An old picture')).getAttribute('src')).toBe('https://legacy.example/old.png')
+  })
+})
+

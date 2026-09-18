@@ -37,6 +37,15 @@ public sealed class WorkflowConfiguration : IEntityTypeConfiguration<Workflow>
         builder.HasIndex(w => w.Status);
         builder.HasIndex(w => w.WorkflowType);
 
+        // specs/057-site-analysis-agent research.md D12 — mirrors AgentConfiguration.SystemKey
+        // exactly, including the filtered-not-plain unique index (a plain index would reject the
+        // second user-created workflow ever created, since SQL Server treats nulls as equal).
+        builder.Property(w => w.SystemKey).HasMaxLength(64);
+        builder.Property(w => w.IsSystemOwned).IsRequired().HasDefaultValue(false);
+        builder.HasIndex(w => w.SystemKey)
+            .IsUnique()
+            .HasFilter("[SystemKey] IS NOT NULL");
+
         builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(w => w.OwnerId)
