@@ -1,0 +1,1 @@
+{"nodes": [{"id": "specs_036_startup_geolocation_contracts_active_location_store", "label": "Contract: Active Location Store", "file_type": "code", "source_file": "specs/036-startup-geolocation/contracts/active-location-store.md", "rationale": "Authoritative source for session-scoped location state in the Ask Lucy workspace."}], "edges": [], "hyperedges": []}

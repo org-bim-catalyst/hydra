@@ -1,0 +1,1 @@
+{"nodes": [{"id": "tasks_t001", "label": "T001: Add d3 dependency", "file_type": "code", "source_file": "specs/001-admin-dashboard/tasks.md", "rationale": "Required for d3.js charts in Admin Dashboard."}], "edges": [], "hyperedges": []}

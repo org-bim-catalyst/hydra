@@ -1,0 +1,1 @@
+{"nodes": [{"id": "specs_025_chat_configuration_settings_data_model", "label": "Chat Configuration Data Model", "file_type": "document", "source_file": "specs/025-chat-configuration-settings/data-model.md", "rationale": "Introduces activeConversationStore and maps existing UserChat fields to new DTOs."}], "edges": [], "hyperedges": []}

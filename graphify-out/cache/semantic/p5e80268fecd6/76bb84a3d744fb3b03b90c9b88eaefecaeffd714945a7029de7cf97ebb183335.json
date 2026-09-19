@@ -1,0 +1,1 @@
+{"nodes": [{"id": "specs_027_immersive_viewer_platform_research", "label": "Immersive Viewer Research", "file_type": "document", "source_file": "specs/027-immersive-viewer-platform/research.md", "rationale": "Documents the decision to use Google Maps WebGLOverlayView as a swappable render target."}], "edges": [], "hyperedges": []}

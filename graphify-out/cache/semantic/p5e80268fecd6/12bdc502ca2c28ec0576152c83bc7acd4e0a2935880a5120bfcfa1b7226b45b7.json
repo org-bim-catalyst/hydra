@@ -1,0 +1,1 @@
+{"nodes": [{"id": "docs_adr_0004_multi_provider_ai_engine", "label": "ADR-0004: Multi-Provider AI Engine", "file_type": "rationale", "source_file": "docs/adr/0004-multi-provider-ai-engine.md", "rationale": "Decision to use keyed DI for provider resolution and reuse existing message tables."}], "edges": [], "hyperedges": []}

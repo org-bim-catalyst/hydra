@@ -1,0 +1,1 @@
+{"nodes": [{"id": "specs_027_immersive_viewer_platform_data_model", "label": "Immersive Viewer Data Model", "file_type": "document", "source_file": "specs/027-immersive-viewer-platform/data-model.md", "rationale": "Defines the viewerEngineStore and WeatherSnapshotDto shapes."}], "edges": [], "hyperedges": []}

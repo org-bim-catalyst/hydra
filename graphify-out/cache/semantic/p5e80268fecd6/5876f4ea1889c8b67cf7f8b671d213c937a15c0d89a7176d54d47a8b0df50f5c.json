@@ -1,0 +1,1 @@
+{"nodes": [{"id": "docs_viewer_platform_spec_outlines_extension_framework", "label": "Viewer Extension Framework", "file_type": "concept", "source_file": "docs/viewer-platform-spec-outlines.md", "rationale": "Stable contract for packaging and loading viewer capabilities."}], "edges": [], "hyperedges": []}

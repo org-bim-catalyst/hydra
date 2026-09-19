@@ -1,0 +1,1 @@
+{"nodes": [], "edges": [], "hyperedges": [{"id": "admin_dashboard_feature", "label": "Admin Dashboard Feature Set", "nodes": ["admin_dashboard_summary_dto", "research_d3_integration", "specs_001_admin_dashboard_spec"], "relation": "form", "confidence": "EXTRACTED", "confidence_score": 0.9, "source_file": "specs/001-admin-dashboard/plan.md"}]}

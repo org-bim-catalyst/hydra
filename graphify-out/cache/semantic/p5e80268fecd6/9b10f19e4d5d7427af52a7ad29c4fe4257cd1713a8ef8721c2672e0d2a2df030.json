@@ -1,0 +1,1 @@
+{"nodes": [{"id": "specs_049_panel_content_model_contracts_action_allowlist", "label": "Action Allowlist", "file_type": "document", "source_file": "specs/049-panel-content-model/contracts/action-allowlist.md", "rationale": "Security boundary defining permitted viewer operations (select, zoom, etc.) that can be triggered from panel content."}], "edges": [], "hyperedges": []}

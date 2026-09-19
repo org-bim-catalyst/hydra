@@ -1,0 +1,1 @@
+{"nodes": [{"id": "docs_security_principles", "label": "Security Principles", "file_type": "concept", "source_file": "docs/SECURITY.md", "rationale": "Mandatory standards including Defense in Depth, Least Privilege, and Zero Trust."}], "edges": [], "hyperedges": []}

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "docs_testing_pyramid", "label": "Testing Pyramid", "file_type": "concept", "source_file": "docs/TESTING.md", "rationale": "Distribution of tests: 70% Unit, 20% Integration, 10% E2E."}], "edges": [], "hyperedges": []}

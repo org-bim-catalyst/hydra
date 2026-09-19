@@ -1,0 +1,1 @@
+{"nodes": [{"id": "specs_026_floating_chat_assistant_research", "label": "Floating Assistant Research", "file_type": "document", "source_file": "specs/026-floating-chat-assistant/research.md", "rationale": "Justifies the move away from CircularAction for the chat widget to support the vertical analyzer."}], "edges": [], "hyperedges": []}
