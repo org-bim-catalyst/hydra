@@ -18,6 +18,22 @@ const server = setupServer(
     funnelEventsCallCount += 1
     return new HttpResponse(null, { status: 202 })
   }),
+  // useLogin's onSuccess also fires the post-login consent migration; an already-consented
+  // account short-circuits it before any further network calls, which is all this suite cares
+  // about (it isn't exercising consent behavior).
+  http.get('*/api/v1/users/me/cookie-consent', () =>
+    HttpResponse.json({
+      hasConsented: true,
+      requiresReconsent: false,
+      policyVersion: POLICY_VERSION,
+      currentPolicyVersion: POLICY_VERSION,
+      essential: true,
+      functional: false,
+      analytics: false,
+      marketing: false,
+      lastUpdatedAtUtc: '2026-01-01T00:00:00Z',
+    }),
+  ),
 )
 
 beforeAll(() => server.listen())

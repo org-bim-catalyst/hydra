@@ -22,6 +22,22 @@ const server = setupServer(
   http.get('*/api/v1/auth/session', () =>
     HttpResponse.json({ authenticated: true, userId: 'user-1', roles: [], permissions: [] }),
   ),
+  // useLogin's onSuccess also fires the post-login consent migration; an already-consented
+  // account short-circuits it before any further network calls, which is all this suite cares
+  // about (it isn't exercising consent behavior).
+  http.get('*/api/v1/users/me/cookie-consent', () =>
+    HttpResponse.json({
+      hasConsented: true,
+      requiresReconsent: false,
+      policyVersion: 'v1',
+      currentPolicyVersion: 'v1',
+      essential: true,
+      functional: false,
+      analytics: false,
+      marketing: false,
+      lastUpdatedAtUtc: '2026-01-01T00:00:00Z',
+    }),
+  ),
 )
 
 beforeAll(() => server.listen())
