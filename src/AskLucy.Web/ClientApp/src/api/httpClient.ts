@@ -143,7 +143,10 @@ export async function apiFetch<T>(path: string, init: ApiFetchInit = {}): Promis
 
     useAuthStore.getState().clear()
     window.location.assign('/login')
-    throw new ApiError(401, 'Authentication required')
+    // Never settle: the redirect above is the caller-visible outcome. If we threw here instead,
+    // the throw could reach a route's errorElement (ProtectedRoute/AdminRoute rethrow render-phase
+    // errors) before the navigation takes effect, flashing the generic ErrorPage instead of /login.
+    return new Promise<T>(() => {})
   }
 
   return parseResponse<T>(response)

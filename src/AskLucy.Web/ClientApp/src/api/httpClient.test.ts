@@ -44,16 +44,23 @@ describe('apiFetch — silent refresh on 401', () => {
     expect(assignSpy).not.toHaveBeenCalled()
   })
 
-  it('clears the session and redirects to /login when refresh also fails', async () => {
+  it('clears the session and redirects to /login when refresh also fails, without settling the call', async () => {
     server.use(
       http.get('*/api/v1/widgets', () => HttpResponse.json({ title: 'Authentication required' }, { status: 401 })),
       http.post('*/api/v1/auth/refresh', () => HttpResponse.json({ title: 'No refresh token present' }, { status: 401 })),
     )
 
-    await expect(apiFetch('/widgets')).rejects.toBeInstanceOf(ApiError)
+    // The call must never settle (resolve or reject) — otherwise a caller's render-phase rethrow
+    // (ProtectedRoute/AdminRoute) could win the race against the /login navigation below.
+    const settled = vi.fn()
+    void apiFetch('/widgets').then(settled, settled)
+
+    await vi.waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith('/login')
+    })
 
     expect(useAuthStore.getState().accessToken).toBeNull()
-    expect(assignSpy).toHaveBeenCalledWith('/login')
+    expect(settled).not.toHaveBeenCalled()
   })
 
   it('dedupes concurrent 401s into a single /auth/refresh call', async () => {
@@ -66,13 +73,13 @@ describe('apiFetch — silent refresh on 401', () => {
       }),
     )
 
-    await Promise.all([
-      apiFetch('/widgets').catch(() => undefined),
-      apiFetch('/widgets').catch(() => undefined),
-      apiFetch('/widgets').catch(() => undefined),
-    ])
+    void apiFetch('/widgets')
+    void apiFetch('/widgets')
+    void apiFetch('/widgets')
 
-    expect(refreshCallCount).toBe(1)
+    await vi.waitFor(() => {
+      expect(refreshCallCount).toBe(1)
+    })
   })
 
   it('does not attempt a refresh for an isAuthFlow call — the 401 is a normal outcome for the caller', async () => {
