@@ -399,3 +399,7 @@ src/AskLucy.Web/appsettings.Production.json
 # UserSecretsId), with this file reserved for non-secret local settings.
 src/AskLucy.Web/appsettings.Development.json
 !src/AskLucy.Web/appsettings.Development.json.example
+# Personal Claude Code permission grants. Untracked on 2026-09-19 after a live database/SMTP
+# password was found committed in 11 of its allow-rules (a permission entry stores the whole
+# literal command, credentials included). The shared `.claude/settings.json` stays tracked.
+.claude/settings.local.json
