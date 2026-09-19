@@ -8,6 +8,15 @@ internal sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpRespon
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         LastRequest = request;
-        return Task.FromResult(responder(request));
+        var response = responder(request);
+
+        // A real handler surfaces a cancelled token as OperationCanceledException rather than
+        // returning a response. Without this, a responder that outlives its caller's timeout
+        // still returns 200 and the call site sees a successful response instead of a cancelled
+        // one — which is only observable if some later await happens to check the token. That
+        // made the vision-budget test pass locally and fail on a loaded CI runner.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(response);
     }
 }
