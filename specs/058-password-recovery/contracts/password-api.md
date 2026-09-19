@@ -2,7 +2,7 @@
 
 **Feature**: 058-password-recovery | **Base**: `/api/v1/auth` | **Controller**: `AuthController`
 
-All four endpoints carry `[EnableRateLimiting("auth-endpoints")]`. Failures return RFC 7807
+All five endpoints carry `[EnableRateLimiting("auth-endpoints")]`. Failures return RFC 7807
 Problem Details from the global exception middleware, per constitution §6.
 
 ---
@@ -30,6 +30,36 @@ Note the asymmetry: the per-IP limiter may return 429, the per-email throttle ne
 
 The 202 is written **without awaiting email dispatch**; the reset message is enqueued as a
 background job. A caller therefore cannot infer account existence from response latency either.
+
+---
+
+## POST /auth/password/reset/validate — `[AllowAnonymous]`
+
+*(Added 2026-09-19 — post-release amendment, FR-019.)*
+
+Ask whether a link is still redeemable, **without consuming it**.
+
+```jsonc
+// Request
+{
+  "userId": "…",   // from the link
+  "token":  "…"    // from the link, URL-decoded by the client
+}
+```
+
+| Condition | Status | Body |
+|-----------|--------|------|
+| Link still redeemable | 204 | *(empty)* |
+| Token unknown, consumed, superseded, expired, or email changed since issue | 400 | Problem Details, `title: "Reset link is no longer valid"`, `detail: "This password reset link has expired or has already been used. Request a new one to continue."` |
+| Malformed request | 400 | Problem Details, `title: "Validation failed"` |
+
+Called by the reset page on mount, so a stale link is refused on arrival rather than after the user
+has chosen and confirmed a new password. Same single indistinguishable 400 as the redemption
+endpoint below — it reports on the link, never on the account behind it, so it is no more of an
+oracle than clicking the link itself would be.
+
+`POST`, not `GET`: a `GET` would put the token in a query string, which proxies, browser history and
+server access logs all record in full.
 
 ---
 

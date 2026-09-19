@@ -346,8 +346,9 @@ All protected endpoints require authentication unless explicitly marked public.
 
 | Endpoint | Auth | Success | Notes |
 |---|---|---|---|
-| `POST /auth/forgot-password` | anonymous | `202 Accepted` | Body and latency are identical for every input — an account that exists, one that does not, an unconfirmed address and a locked-out account are indistinguishable. Rate limited by IP, never by email address. |
-| `POST /auth/reset-password` | anonymous | `204 No Content` | `{ userId, token, newPassword }`. Never returns a session, so two-factor enrolment still applies on the next sign-in. |
+| `POST /auth/password/forgot` | anonymous | `202 Accepted` | Body and latency are identical for every input — an account that exists, one that does not, an unconfirmed address and a locked-out account are indistinguishable. Rate limited by IP, never by email address. |
+| `POST /auth/password/reset/validate` | anonymous | `204 No Content` | `{ userId, token }`. Asks whether a link is still redeemable **without consuming it**, so the reset page can say "this link is no longer valid" on load rather than after the user has typed and confirmed a new password. `POST`, not `GET`: a token in a query string is recorded in full by proxies and server logs. |
+| `POST /auth/password/reset` | anonymous | `204 No Content` | `{ userId, token, newPassword }`. Never returns a session, so two-factor enrolment still applies on the next sign-in. |
 | `POST /auth/change-password` | bearer | `204 No Content` | `{ currentPassword?, newPassword }`. The acting session is identified by the httpOnly refresh cookie, never by the body. |
 | `GET /auth/password/status` | bearer | `200 OK` | `{ hasPassword }` — tells the client whether to ask for a current password. |
 
@@ -362,6 +363,34 @@ Failure shapes:
 * Change-password failures return distinct titles — *"Current password is incorrect"*, *"Current
   password is required"*, *"New password must be different"* — because the caller is already
   authenticated and nothing is leaked by being specific.
+* `password/reset/validate` returns that same single `400` for a link that is no longer redeemable,
+  with the detail *"This password reset link has expired or has already been used. Request a new one
+  to continue."* It reports on the link, never on the account behind it.
+
+## Sign-in failure disclosure
+
+`POST /auth/login` distinguishes three refusals by status code, so the client can say what is
+actually wrong instead of showing "invalid username or password" for every case:
+
+| Status | Title | Client behaviour |
+|---|---|---|
+| `401 Unauthorized` | `Invalid credentials` | Generic message. Covers an unknown address and a wrong password alike — these two stay indistinguishable. |
+| `403 Forbidden` | `Email not confirmed` | Tells the user to check inbox/junk, and offers `POST /auth/confirm-email/resend`. |
+| `423 Locked` | `Account locked out` | Names the lockout and opens the contact-an-administrator form backed by `POST /auth/account-support`. |
+
+The `403` and `423` are a deliberate, bounded enumeration trade-off — see
+[ADR 0010](adr/0010-naming-sign-in-refusals.md). They are reachable only by someone who already holds
+the correct password, which is why the anonymous flows above (`password/forgot`,
+`confirm-email/resend`) stay uniformly silent.
+
+## Account recovery helpers
+
+| Endpoint | Auth | Success | Notes |
+|---|---|---|---|
+| `POST /auth/confirm-email/resend` | anonymous | `202 Accepted` | `{ email }`. Re-issues a confirmation link. Neutral response on exactly the same terms as `password/forgot` — identical body and latency whether or not the address exists. |
+| `POST /auth/account-support` | anonymous | `202 Accepted` | `{ email, message }`. Relays a locked-out user's message to the support mailbox. The destination is server-side configuration and never appears in the contract, so the sign-in page can offer "contact an administrator" without publishing an address. |
+
+Both carry `[EnableRateLimiting("auth-endpoints")]`, like every other anonymous auth endpoint.
 
 ---
 
@@ -819,19 +848,51 @@ POST /auth/register
 
 POST /auth/login
 
+POST /auth/login/2fa
+
 POST /auth/logout
 
 POST /auth/refresh
 
-POST /auth/forgot-password
+GET  /auth/session
 
-POST /auth/reset-password
+POST /auth/confirm-email
 
-POST /auth/verify-email
+POST /auth/confirm-email/resend
+
+POST /auth/account-support
+
+POST /auth/password/forgot
+
+POST /auth/password/reset/validate
+
+POST /auth/password/reset
+
+POST /auth/change-password
+
+GET  /auth/password/status
+
+POST /auth/change-email/request
+
+POST /auth/change-email/confirm
 
 POST /auth/2fa/enable
 
-POST /auth/2fa/verify
+POST /auth/2fa/disable
+
+POST /auth/2fa/recovery-codes
+
+GET  /auth/external/{provider}/challenge
+
+GET  /auth/external/{provider}/link
+
+POST /auth/external/link-ticket
+
+POST /auth/external/complete
+
+GET  /auth/external-logins
+
+DELETE /auth/external-logins/{provider}/{providerKey}
 ```
 
 ---

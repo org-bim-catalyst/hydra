@@ -94,12 +94,31 @@ Passwords must never be stored or transmitted in plain text.
 
 # 6. Password Policy
 
-Passwords SHOULD satisfy configurable requirements, such as:
+The policy in force is configured once, in `AskLucy.Persistence/DependencyInjection.cs`, and applies
+identically at registration, at password reset and at change-password:
 
-* Minimum length
-* Mixed character classes (if enabled)
-* Password history (future)
-* Account lockout after repeated failures
+| Rule | Value |
+|---|---|
+| Minimum length | 8 characters |
+| Uppercase letter | required |
+| Lowercase letter | required |
+| Digit | required |
+| Non-alphanumeric character | required |
+| Confirmed email before sign-in | required |
+| Failed attempts before lockout | **3** |
+| Lockout duration | 5 minutes |
+
+The lockout threshold was tightened from 5 to 3 once the sign-in page began naming the lockout
+explicitly and offering a way out (contact an administrator, or reset the password). A tighter
+threshold is only defensible when a locked-out user is told what happened — see
+[ADR 0010](adr/0010-naming-sign-in-refusals.md).
+
+Because the rules are enforced by a single Identity options block, the reset and registration
+screens can render the same live checklist from the same source of truth rather than restating it.
+
+Still future work:
+
+* Password history
 * Configurable expiration policies (enterprise option)
 
 Passwords are always hashed using the framework's recommended algorithms.

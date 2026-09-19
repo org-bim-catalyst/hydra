@@ -178,6 +178,32 @@ the flow, and confirm email-and-password sign-in now works alongside the provide
 - **FR-018**: All three screens MUST be keyboard-navigable, screen-reader labelled, and available in
   both light and dark themes, consistent with the existing sign-in screens.
 
+### Amendment 2026-09-19 — findings from the manual walkthrough (T061)
+
+Walking the quickstart scenarios by hand surfaced six defects that automated coverage had missed,
+because each is about what the user can *read and do* rather than what the API returns. The
+requirements below were added and implemented as a post-release follow-up (Phase 8 in
+[tasks.md](./tasks.md)).
+
+- **FR-019**: The reset screen MUST tell the user a link is no longer redeemable **on arrival**, and
+  offer a "request a new link" affordance — never after they have chosen and confirmed a new
+  password. Checking a link MUST NOT consume it.
+- **FR-020**: A sign-in refused because the account is locked out MUST say so, and MUST offer a way
+  to reach an administrator without exposing an administrator's address. A sign-in refused because
+  the email is unconfirmed MUST say so, name inbox/junk/spam, and offer a new confirmation link. A
+  wrong password and an unknown address MUST remain indistinguishable. See
+  [ADR 0010](../../docs/adr/0010-naming-sign-in-refusals.md).
+- **FR-021**: Lockout MUST take effect after 3 failed attempts, not 5 — permissible only because
+  FR-020 now tells the locked-out user what happened and how to recover.
+- **FR-022**: The password policy MUST be presented as a live checklist, one line per rule, each
+  marked met/unmet as the user types, accompanied by a segmented strength indicator. A single
+  run-on sentence is ambiguous: the user cannot tell whether it is a hint or an error.
+- **FR-023**: The registration screen MUST link to the sign-in screen, mirroring the existing link
+  in the other direction.
+- **FR-024**: Every text input on the auth screens MUST meet contrast requirements in both themes,
+  including the masked characters of a password field and text rendered on a fixed-light panel.
+  Colour choices MUST be resolved against the active theme, never hard-coded for one of them.
+
 ### Key Entities *(include if data involved)*
 
 - **Password Reset Request**: The issued right to set a new password for one account. Attributes:

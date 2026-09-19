@@ -488,6 +488,21 @@ index.ts
 
 All theme customization should live here.
 
+## Surfaces fixed to one theme
+
+A surface that is deliberately always-light or always-dark — the auth panel is the one such case —
+MUST wrap its subtree in its own `ThemeProvider`. Hard-coding the background alone is not enough:
+every descendant still resolves `text.primary`, `text.secondary`, `action.disabled` and the input
+underline against the *ambient* theme, so in dark mode the panel renders dark text tokens on a light
+background and inputs become unreadable — including the masked characters of a password field.
+
+Two follow-on traps in the same area:
+
+* A `& a` style rule inside such a panel also matches a `Button` rendered as a link, overriding the
+  button's own colour.
+* Contrast must be verified in **both** themes even for a surface that only ever shows one of them,
+  because it is the surrounding theme that decides what the descendants inherit.
+
 ---
 
 # 18. Component Categories

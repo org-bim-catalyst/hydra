@@ -191,6 +191,31 @@ test rather than papered over.
 
 ---
 
+## Phase 8: Post-release follow-up (manual walkthrough findings)
+
+**Purpose**: T061's hand-walkthrough against the running app surfaced six defects the automated
+suite could not catch, because each is about what the user can read and act on rather than what the
+API returns. Requirements FR-019–FR-024 were added to [spec.md](./spec.md) to cover them.
+
+Shipped as `29c641b9` and `097ca311`.
+
+- [X] T062 *(Amendment 2026-09-19, FR-024)* Fixed unreadable inputs on the reset, registration and change-email screens — `AuthLayout.tsx` hard-coded light backgrounds but took its text colours from the ambient app theme, so masked password characters and the "Go to sign in" button were near-invisible in dark mode. Fixed by scoping a `ThemeProvider` to the fixed-light panel; watch the `& a` rule, which also hits `Button`-as-link
+- [X] T063 *(Amendment 2026-09-19)* Fixed sign-in needing two clicks — the first submit errored in the console and stayed on the page; `useAuth.ts` plus coverage in `useAuth.test.tsx`
+- [X] T064 *(Amendment 2026-09-19)* Fixed registration failing silently — `RegisterPage.tsx` now surfaces the failure to the user (constitution §Error Handling), with a regression test
+- [X] T065 *(Amendment 2026-09-19, FR-019)* Added `ValidatePasswordResetTokenQuery`/`Handler` and `POST /auth/password/reset/validate`; `ResetPasswordPage` now checks the link on mount and shows "this link is no longer valid" with a request-a-new-link affordance instead of accepting a new password against a dead link. The check does not consume the token. Contract: [contracts/password-api.md](./contracts/password-api.md); tests in `ValidatePasswordResetTokenQueryHandlerTests.cs`
+- [X] T066 *(Amendment 2026-09-19, FR-020)* Sign-in now distinguishes its refusals: `AuthController.ToActionResult` maps `EmailNotConfirmed` → `403` and `LockedOut` → `423`, leaving wrong-password and unknown-address alike on `401`. `LoginPage` branches on status code and shows the matching message. Decision recorded in [ADR 0010](../../docs/adr/0010-naming-sign-in-refusals.md)
+- [X] T067 *(Amendment 2026-09-19, FR-020)* Added the two ways out each named refusal needs: `ResendEmailConfirmationCommand` behind `POST /auth/confirm-email/resend`, and `RequestAccountSupportCommand` behind `POST /auth/account-support` with `AccountSupportDialog.tsx` — the support address is server-side configuration and never reaches the contract. Both return a neutral `202` on the same terms as `password/forgot`. Delivery via the new `IAccountEmailJob`/`AccountEmailJob`; tests in `AccountRecoveryCommandHandlerTests.cs`
+- [X] T068 *(Amendment 2026-09-19, FR-021)* Lowered `Lockout.MaxFailedAccessAttempts` from 5 to 3 in `AskLucy.Persistence/DependencyInjection.cs` — defensible only because T066/T067 now tell the locked-out user what happened and how to recover
+- [X] T069 *(Amendment 2026-09-19, FR-022)* Replaced the run-on policy sentence with `PasswordRequirements.tsx` — a live per-rule checklist plus a segmented strength bar, driven by `passwordPolicy.ts`, used by both `RegisterPage` and `ResetPasswordPage`
+- [X] T070 *(Amendment 2026-09-19, FR-023)* Added a "go to sign in" link to the registration screen, mirroring the existing link in the other direction
+- [X] T071 *(Amendment 2026-09-19)* Updated the docs for all of the above: [docs/API_GUIDELINES.md](../../docs/API_GUIDELINES.md) §13 (the three new endpoints, the sign-in status-code table, and a correction to the `/auth/forgot-password`→`/auth/password/forgot` route drift that predated this phase), [docs/SECURITY.md](../../docs/SECURITY.md) §6 (the concrete policy and the new lockout threshold), and ADR 0010
+
+**Phase 8 complete.** Full gate re-run green: `dotnet build`, `dotnet format --verify-no-changes`,
+both backend test projects, `tsc -b --noEmit`, `npm run lint` and the full `npm test`
+(240 files / 1386 tests). No database migration — every change is behavioural or configuration.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
