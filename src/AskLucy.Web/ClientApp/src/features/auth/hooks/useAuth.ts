@@ -10,6 +10,23 @@ const EXTERNAL_LOGINS_QUERY_KEY = ['auth', 'external-logins']
 
 const PASSWORD_STATUS_QUERY_KEY = ['auth', 'password-status']
 
+/**
+ * Returned (not `void`ed) from the sign-in mutations' `onSuccess` so react-query awaits it and
+ * `mutateAsync` only resolves once the session query holds the *new* session.
+ *
+ * Signing in from `/login` leaves a cached 401 `ApiError` in `SESSION_QUERY_KEY` with a 60s
+ * `staleTime`. Firing the refresh without awaiting it meant the caller's `navigate('/studio')`
+ * ran first, ProtectedRoute read that stale error, and redirected straight back to `/login` —
+ * the "first click does nothing, second click works" bug, where the second click only worked
+ * because the background refetch had landed by then.
+ *
+ * `refetchQueries` rather than `invalidateQueries`: invalidation only refetches *active*
+ * queries by default, and nothing on the auth pages observes the session query.
+ */
+function refreshSession(queryClient: ReturnType<typeof useQueryClient>) {
+  return queryClient.refetchQueries({ queryKey: SESSION_QUERY_KEY })
+}
+
 export function useLogin() {
   const setSession = useAuthStore((s) => s.setSession)
   const queryClient = useQueryClient()
@@ -19,7 +36,7 @@ export function useLogin() {
     onSuccess: (result) => {
       if (!result.requiresTwoFactor && result.accessToken && result.userId) {
         setSession(result.accessToken, result.userId)
-        void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
+        return refreshSession(queryClient)
       }
     },
   })
@@ -35,7 +52,7 @@ export function useLoginTwoFactor() {
     onSuccess: (result) => {
       if (result.accessToken && result.userId) {
         setSession(result.accessToken, result.userId)
-        void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
+        return refreshSession(queryClient)
       }
     },
   })
@@ -133,7 +150,7 @@ export function useCompleteExternalLogin() {
     onSuccess: (result) => {
       if (result.accessToken && result.userId) {
         setSession(result.accessToken, result.userId)
-        void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
+        return refreshSession(queryClient)
       }
     },
   })

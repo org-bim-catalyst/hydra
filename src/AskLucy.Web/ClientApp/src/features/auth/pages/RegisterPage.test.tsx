@@ -92,4 +92,41 @@ describe('RegisterPage (spec.md FR-008/FR-017/FR-021, Clarifications)', () => {
 
     expect(await screen.findByText('Registration failed. Please try again.')).toBeInTheDocument()
   })
+
+  it("shows the server's reason for a rejected registration instead of a flat retry message", async () => {
+    // AuthController.Register puts the ASP.NET Identity failures in Problem Details `detail`.
+    // The page used to discard them, so a password that failed the uppercase/symbol rules —
+    // which the form itself never advertised — looked like an unexplained dead end.
+    server.use(
+      http.post('*/api/v1/auth/register', () =>
+        HttpResponse.json(
+          {
+            title: 'Registration failed',
+            detail: "Passwords must have at least one non-alphanumeric character.",
+            status: 400,
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    const user = userEvent.setup()
+    renderRegisterPage()
+
+    await submitValidForm(user)
+
+    expect(
+      await screen.findByText('Passwords must have at least one non-alphanumeric character.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Registration failed. Please try again.')).not.toBeInTheDocument()
+  })
+
+  it('states the full password policy up front, not just the length rule', () => {
+    renderRegisterPage()
+
+    expect(
+      screen.getByText(
+        'At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.',
+      ),
+    ).toBeInTheDocument()
+  })
 })

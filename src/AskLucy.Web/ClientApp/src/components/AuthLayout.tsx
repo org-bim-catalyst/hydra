@@ -1,9 +1,11 @@
-import { Box, Stack, Typography } from '@mui/material'
-import type { ReactNode } from 'react'
+import { Box, Stack, ThemeProvider, Typography } from '@mui/material'
+import { useMemo, type ReactNode } from 'react'
 import { BrandMark } from './BrandMark'
 import { LucyPortrait } from '../features/chat/branding/LucyPortrait'
 import { authBranding } from '../features/landing/content/copy'
 import { flumeriaColor, flumeriaRadius } from '../features/landing/theme/flumeriaPalette'
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
+import { createAppTheme } from '../theme'
 import { AppFooter } from './AppFooter'
 
 interface AuthLayoutProps {
@@ -31,107 +33,129 @@ const DEFAULT_TAGLINE = 'Design better urban spaces with AI.'
  * reference's own source image, downloaded directly rather than recreated.
  */
 export function AuthLayout({ title, subtitle, tagline, image, children }: AuthLayoutProps) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  // The Flumeria storefront identity is fixed-light by design (flumeriaPalette.ts), so this
+  // panel hard-codes a white background and a light input fill. Without its own theme context
+  // everything MUI colours from the palette — input text, contained-button labels, Alert,
+  // Checkbox — still resolved against the *workspace* theme, rendering near-white-on-near-white
+  // for anyone whose app theme is dark. Scoping a light theme here fixes the whole surface at
+  // once instead of patching `color` onto each component as it gets added (§III DRY).
+  const lightTheme = useMemo(() => createAppTheme('light', prefersReducedMotion), [prefersReducedMotion])
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: { xs: 'column', md: 'row' } }}>
-      {/* Photo panel */}
-      <Box sx={{ position: 'relative', flex: { md: '0 0 46%' }, minHeight: { xs: 220, md: 'auto' }, overflow: 'hidden' }}>
-        <Box
-          component="img"
-          src={image ?? authBranding.signIn.image}
-          alt=""
-          sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-        <Box
-          aria-hidden="true"
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, rgba(10,10,10,0.15) 0%, rgba(10,10,10,0.35) 55%, rgba(10,10,10,0.85) 100%)',
-          }}
-        />
-        <Stack direction="row" spacing={2} sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, px: { xs: 3, md: 5 }, py: { xs: 3, md: 5 }, alignItems: 'flex-end' }}>
-          {/* Lucy's portrait (spec 010-lucy-brand-refresh FR-011/FR-013 — preserved here,
-              not dropped, alongside the new Flumeria brand overlay) */}
-          <LucyPortrait variant="toggle" alt="Lucy" />
-          <Stack spacing={1.25}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <BrandMark size={24} color={flumeriaColor.white} />
-              <Typography variant="subtitle1" sx={{ color: flumeriaColor.white, fontWeight: 700 }}>
-                Flumeria
+    <ThemeProvider theme={lightTheme}>
+      <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: { xs: 'column', md: 'row' } }}>
+        {/* Photo panel */}
+        <Box sx={{ position: 'relative', flex: { md: '0 0 46%' }, minHeight: { xs: 220, md: 'auto' }, overflow: 'hidden' }}>
+          <Box
+            component="img"
+            src={image ?? authBranding.signIn.image}
+            alt=""
+            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <Box
+            aria-hidden="true"
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(10,10,10,0.15) 0%, rgba(10,10,10,0.35) 55%, rgba(10,10,10,0.85) 100%)',
+            }}
+          />
+          <Stack direction="row" spacing={2} sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, px: { xs: 3, md: 5 }, py: { xs: 3, md: 5 }, alignItems: 'flex-end' }}>
+            {/* Lucy's portrait (spec 010-lucy-brand-refresh FR-011/FR-013 — preserved here,
+                not dropped, alongside the new Flumeria brand overlay) */}
+            <LucyPortrait variant="toggle" alt="Lucy" />
+            <Stack spacing={1.25}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <BrandMark size={24} color={flumeriaColor.white} />
+                <Typography variant="subtitle1" sx={{ color: flumeriaColor.white, fontWeight: 700 }}>
+                  Flumeria
+                </Typography>
+              </Stack>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', maxWidth: 360 }}>
+                {tagline ?? DEFAULT_TAGLINE}
               </Typography>
             </Stack>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', maxWidth: 360 }}>
-              {tagline ?? DEFAULT_TAGLINE}
-            </Typography>
           </Stack>
-        </Stack>
-      </Box>
+        </Box>
 
-      {/* Form panel — TextField/Button overrides below apply the Flumeria style to every
-          auth page's form without needing per-page changes (constitution §III DRY). */}
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          p: { xs: 3, sm: 5 },
-          bgcolor: flumeriaColor.white,
-          '& .MuiOutlinedInput-root': {
-            bgcolor: flumeriaColor.inputFill,
-            borderRadius: `${flumeriaRadius.button}px`,
-            '& fieldset': { borderColor: 'transparent' },
-            '&:hover fieldset': { borderColor: flumeriaColor.border },
-            '&.Mui-focused fieldset': { borderColor: flumeriaColor.green },
-            // Browser autofill (Chrome/Edge) paints its own background via the
-            // :-webkit-autofill pseudo-class at a specificity our bgcolor can't beat, and
-            // does so without firing React's onChange — so MUI never learns the field is
-            // "filled" and leaves the label overlapping the value. The inset box-shadow
-            // trick repaints over the browser's autofill background instead of fighting it.
-            '& input:-webkit-autofill': {
-              WebkitBoxShadow: `0 0 0 100px ${flumeriaColor.inputFill} inset`,
-              WebkitTextFillColor: flumeriaColor.heading,
+        {/* Form panel — TextField/Button overrides below apply the Flumeria style to every
+            auth page's form without needing per-page changes (constitution §III DRY). */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            p: { xs: 3, sm: 5 },
+            bgcolor: flumeriaColor.white,
+            '& .MuiOutlinedInput-root': {
+              bgcolor: flumeriaColor.inputFill,
+              borderRadius: `${flumeriaRadius.button}px`,
+              // Explicit so the value (and password dots) stay legible on the light fill even
+              // if this panel is ever rendered outside the scoped light theme above.
+              color: flumeriaColor.heading,
               caretColor: flumeriaColor.heading,
-              borderRadius: 'inherit',
+              '& fieldset': { borderColor: 'transparent' },
+              '&:hover fieldset': { borderColor: flumeriaColor.border },
+              '&.Mui-focused fieldset': { borderColor: flumeriaColor.green },
+              // Browser autofill (Chrome/Edge) paints its own background via the
+              // :-webkit-autofill pseudo-class at a specificity our bgcolor can't beat, and
+              // does so without firing React's onChange — so MUI never learns the field is
+              // "filled" and leaves the label overlapping the value. The inset box-shadow
+              // trick repaints over the browser's autofill background instead of fighting it.
+              '& input:-webkit-autofill': {
+                WebkitBoxShadow: `0 0 0 100px ${flumeriaColor.inputFill} inset`,
+                WebkitTextFillColor: flumeriaColor.heading,
+                caretColor: flumeriaColor.heading,
+                borderRadius: 'inherit',
+              },
+              '& input:-webkit-autofill:hover, & input:-webkit-autofill:focus': {
+                WebkitBoxShadow: `0 0 0 100px ${flumeriaColor.inputFill} inset`,
+              },
+              '& input::placeholder, & textarea::placeholder': {
+                color: flumeriaColor.body,
+                opacity: 0.7,
+              },
             },
-            '& input:-webkit-autofill:hover, & input:-webkit-autofill:focus': {
-              WebkitBoxShadow: `0 0 0 100px ${flumeriaColor.inputFill} inset`,
+            '& .MuiButton-contained': {
+              bgcolor: flumeriaColor.green,
+              // The green fill is set here rather than via the palette, so MUI cannot derive a
+              // contrastText for it — the label would otherwise inherit the ambient palette's
+              // contrast colour and disappear against the green.
+              color: flumeriaColor.white,
+              borderRadius: `${flumeriaRadius.button}px`,
+              '&:hover': { bgcolor: flumeriaColor.greenDark, color: flumeriaColor.white },
             },
-            '& input::placeholder, & textarea::placeholder': {
-              color: flumeriaColor.body,
-              opacity: 0.7,
+            '& .MuiButton-outlined': {
+              borderRadius: `${flumeriaRadius.button}px`,
+              borderColor: flumeriaColor.border,
+              color: flumeriaColor.heading,
             },
-          },
-          '& .MuiButton-contained': {
-            bgcolor: flumeriaColor.green,
-            borderRadius: `${flumeriaRadius.button}px`,
-            '&:hover': { bgcolor: flumeriaColor.greenDark },
-          },
-          '& .MuiButton-outlined': {
-            borderRadius: `${flumeriaRadius.button}px`,
-            borderColor: flumeriaColor.border,
-            color: flumeriaColor.heading,
-          },
-          '& a': { color: flumeriaColor.green },
-        }}
-      >
-        <Box sx={{ width: '100%', maxWidth: 400 }}>
-          <Typography variant="h4" sx={{ letterSpacing: '-0.01em', color: flumeriaColor.heading, fontWeight: 800 }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body1" sx={{ mt: 1, mb: 4, color: flumeriaColor.body }}>
-              {subtitle}
+            // `:not(.MuiButtonBase-root)` matters: a `<Button component={RouterLink}>` renders an
+            // `<a>`, so an unqualified `& a` rule painted the "Go to sign in" label green on the
+            // green contained button and made it invisible.
+            '& a:not(.MuiButtonBase-root)': { color: flumeriaColor.green },
+          }}
+        >
+          <Box sx={{ width: '100%', maxWidth: 400 }}>
+            <Typography variant="h4" sx={{ letterSpacing: '-0.01em', color: flumeriaColor.heading, fontWeight: 800 }}>
+              {title}
             </Typography>
-          )}
-          {!subtitle && <Box sx={{ mb: 4 }} />}
-          {children}
-        </Box>
-        <Box sx={{ mt: 6, width: '100%' }}>
-          <AppFooter textColor={flumeriaColor.body} />
+            {subtitle && (
+              <Typography variant="body1" sx={{ mt: 1, mb: 4, color: flumeriaColor.body }}>
+                {subtitle}
+              </Typography>
+            )}
+            {!subtitle && <Box sx={{ mb: 4 }} />}
+            {children}
+          </Box>
+          <Box sx={{ mt: 6, width: '100%' }}>
+            <AppFooter textColor={flumeriaColor.body} />
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </ThemeProvider>
   )
 }

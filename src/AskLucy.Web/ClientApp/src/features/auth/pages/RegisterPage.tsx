@@ -1,8 +1,8 @@
-import { Alert, Box, Button, Divider, Link, Stack, Typography } from '@mui/material'
+import { Alert, Box, Button, Divider, Link, List, ListItem, Stack, Typography } from '@mui/material'
 import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router'
-import { API_BASE_URL } from '../../../api/httpClient'
+import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AuthLayout } from '../../../components/AuthLayout'
 import { FormField } from '../../../components/FormField'
 import { FacebookGlyph, GoogleGlyph } from '../../../components/OAuthGlyphs'
@@ -31,6 +31,17 @@ export function RegisterPage() {
   const { recordFunnelCompleted } = useFunnelAnalytics()
   const funnelEventSent = useRef(false)
 
+  // AuthController.Register returns the identity failures ("Passwords must have at least one
+  // non-alphanumeric character", "Email 'x' is already taken", ...) in Problem Details. A flat
+  // "Registration failed. Please try again." left the user retrying a password the server was
+  // never going to accept, so show what the server actually objected to.
+  const registerError = register.error instanceof ApiError ? register.error : null
+  const registerReasons = registerError?.errors
+    ? Object.values(registerError.errors).flat()
+    : registerError?.detail
+      ? [registerError.detail]
+      : []
+
   const onSubmit = form.handleSubmit(({ email, password, firstName, lastName }) =>
     register.mutate({ email, password, firstName, lastName }),
   )
@@ -56,7 +67,22 @@ export function RegisterPage() {
           <Box component="form" onSubmit={onSubmit}>
             <Stack spacing={3}>
               {register.isError && (
-                <Alert severity="error">Registration failed. Please try again.</Alert>
+                <Alert severity="error">
+                  {registerReasons.length > 0 ? (
+                    <>
+                      We couldn't create your account:
+                      <List dense sx={{ listStyleType: 'disc', pl: 3, py: 0 }}>
+                        {registerReasons.map((message) => (
+                          <ListItem key={message} sx={{ display: 'list-item', px: 0 }} disableGutters>
+                            {message}
+                          </ListItem>
+                        ))}
+                      </List>
+                    </>
+                  ) : (
+                    'Registration failed. Please try again.'
+                  )}
+                </Alert>
               )}
               <Stack direction="row" spacing={1.5}>
                 <FormField id="register-first-name" label="First name" {...form.register('firstName')} />
@@ -74,6 +100,11 @@ export function RegisterPage() {
                 label="Password"
                 type="password"
                 placeholder="Min. 8 characters"
+                // The authoritative policy is ASP.NET Identity's (Persistence/DependencyInjection.cs)
+                // and any rejection comes back in the alert above; this is the up-front hint, which
+                // previously advertised only the length rule and let people submit passwords the
+                // server was always going to refuse.
+                helperText="At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol."
                 {...form.register('password', { required: true, minLength: 8 })}
               />
               <FormField
