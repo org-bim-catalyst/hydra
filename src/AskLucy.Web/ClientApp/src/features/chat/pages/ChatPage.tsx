@@ -1,7 +1,6 @@
 import { RiChat3Line } from '@remixicon/react'
 import { Alert, Box, Button, CircularProgress, Grow, Snackbar, Toolbar } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
-import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useActiveConversationStore } from '../activeConversationStore'
 import { useChatPanelSizeStore } from '../chatPanelSizeStore'
@@ -11,7 +10,7 @@ import { ExpandedChatPanel } from '../components/ExpandedChatPanel'
 import type { VoiceAnalyzerState } from '../components/VoiceAnalyzer'
 import type { VoiceControlsProps } from '../components/CollapsedVoiceControls'
 import { ChatComposer } from '../components/ChatComposer'
-import { MessageBubble } from '../components/MessageBubble'
+import { VirtualizedMessageList } from '../components/VirtualizedMessageList'
 import { AiPresenceCard } from '../components/AiPresenceCard'
 import { LucyPortrait } from '../branding/LucyPortrait'
 import type { ChatMessage } from '../api/aiApi'
@@ -23,7 +22,6 @@ import { LocationWeatherWidget } from '../../viewer/components/LocationWeatherWi
 import { useGeolocation } from '../../viewer/hooks/useGeolocation'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
-import { ThinkingIndicator } from '../components/ThinkingIndicator'
 import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
 import { useChatDetail, useChatMessages } from '../hooks/useChats'
 import { useSiteAnalysisRehydration } from '../../siteAnalysis/hooks/useSiteAnalysisRehydration'
@@ -376,13 +374,6 @@ export function ConversationView({
   const scrollRef = useRef<HTMLDivElement>(null)
   const listParentRef = useRef<HTMLDivElement>(null)
 
-  const virtualizer = useVirtualizer({
-    count: messages.length,
-    getScrollElement: () => listParentRef.current,
-    estimateSize: () => 96,
-    overscan: 8,
-  })
-
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -491,13 +482,18 @@ export function ConversationView({
 
   // Clears playback-target state whenever playback ends — natural completion, an explicit
   // stop, or a playback error (`useVoiceOutput`'s `finally` block already sets `isSpeaking`
-  // false on error) — so no MessageBubble is left showing a stale Stop icon (FR-026).
+  // false on error) — so no MessageBubble is left showing a stale Stop icon (FR-026). This is
+  // synchronizing to `tts.isSpeaking`, an external audio-engine's state, not deriving from
+  // props/state owned by this component — the documented exception to "you might not need an
+  // effect" (react.dev) — so the setState-in-effect warning doesn't apply here.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!tts.isSpeaking) {
       setPlayingMessageId(null)
       setIsManualReplay(false)
     }
   }, [tts.isSpeaking])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // SPEC-013 US1 (FR-001/FR-003): keeps the extended useVoiceOutput's real-time mute gate
   // in sync with the persisted preference — store is the source of truth (ChatComposer's
@@ -519,14 +515,6 @@ export function ConversationView({
   // state, persisted to localStorage so it survives a reload (chatPanelSizeStore.ts).
   const isPanelFullHeight = useChatPanelSizeStore((s) => s.isFullHeight)
   const togglePanelHeight = useChatPanelSizeStore((s) => s.toggle)
-  useEffect(() => {
-    tts.setMuted(isMutedPreference)
-    // Keep the continuous-mode analyzer gain in sync with the same preference. Without this,
-    // the GainNode used by useVoiceAnalyzer (Lucy's voice in Continuous mode) is never muted —
-    // only the Push-to-Talk TTS engine (tts.setMuted above) was wired up.
-    conversationAudio.setMuted(isMutedPreference)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMutedPreference])
 
   const conversationMode = useVoicePreferencesStore((s) => s.conversationMode)
   const updateConversationMode = useVoicePreferencesStore((s) => s.update)
@@ -561,6 +549,15 @@ export function ConversationView({
     onAssistantTextDelta: () => {},
     onAssistantTurnComplete: () => {},
   })
+
+  useEffect(() => {
+    tts.setMuted(isMutedPreference)
+    // Keep the continuous-mode analyzer gain in sync with the same preference. Without this,
+    // the GainNode used by useVoiceAnalyzer (Lucy's voice in Continuous mode) is never muted —
+    // only the Push-to-Talk TTS engine (tts.setMuted above) was wired up.
+    conversationAudio.setMuted(isMutedPreference)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMutedPreference])
 
   const recorder = useVoiceRecorder()
   // specs/031-voice-controls-redesign FR-001/FR-002, research.md Decision 1 — finish() now
@@ -894,57 +891,22 @@ export function ConversationView({
                   />
                 </Box>
               ) : (
-                <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
-                  {virtualizer.getVirtualItems().map((virtualItem) => {
-                    const message = messages[virtualItem.index]
-                    // FR-006/FR-007: the in-flight assistant placeholder (empty content while
-                    // streaming) renders as the thinking indicator instead of an empty bubble.
-                    const isThinking =
-                      isStreaming && message.role === 'assistant' && message.content === ''
-                    return (
-                      <Box
-                        key={virtualItem.key}
-                        data-index={virtualItem.index}
-                        ref={virtualizer.measureElement}
-                        sx={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          transform: `translateY(${virtualItem.start}px)`,
-                        }}
-                      >
-                        {isThinking ? (
-                          <ThinkingIndicator label={pendingLabel ?? undefined} />
-                        ) : (
-                          <MessageBubble
-                            message={message}
-                            chatId={chatId}
-                            // All replay buttons are disabled while Lucy is actively
-                            // speaking — whether TTS (isSpeaking) or continuous mode
-                            // (isListening covers every non-Idle state including AiSpeaking).
-                            // The current manual-replay message shows a Stop button via
-                            // showStopIcon (always enabled, FR-024) and is therefore never
-                            // reached by isReplayDisabled at all.
-                            showStopIcon={message.id === playingMessageId && isManualReplay}
-                            isReplayDisabled={
-                              !message.id ||
-                              voiceControlsProps.isListening ||
-                              voiceControlsProps.isSpeaking ||
-                              (message.id === playingMessageId && !isManualReplay)
-                            }
-                            onReplay={handleReplay}
-                            onStopReplay={handleStopReplay}
-                            isLiveOffer={Boolean(message.id) && message.id === liveOfferMessageId}
-                            onSelectAction={selectAction}
-                            isSubmittingAction={isSelectingAction}
-                            actionError={actionError}
-                          />
-                        )}
-                      </Box>
-                    )
-                  })}
-                </Box>
+                <VirtualizedMessageList
+                  listParentRef={listParentRef}
+                  messages={messages}
+                  chatId={chatId}
+                  isStreaming={isStreaming}
+                  pendingLabel={pendingLabel}
+                  playingMessageId={playingMessageId}
+                  isManualReplay={isManualReplay}
+                  voiceControlsProps={voiceControlsProps}
+                  handleReplay={handleReplay}
+                  handleStopReplay={handleStopReplay}
+                  liveOfferMessageId={liveOfferMessageId}
+                  selectAction={selectAction}
+                  isSelectingAction={isSelectingAction}
+                  actionError={actionError}
+                />
               )}
               <div ref={scrollRef} />
             </Box>

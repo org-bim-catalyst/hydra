@@ -4,9 +4,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DownloadIcon from '@mui/icons-material/Download'
-import EditIcon from '@mui/icons-material/Edit'
 import FileCopyIcon from '@mui/icons-material/FileCopy'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
 import RestoreIcon from '@mui/icons-material/Restore'
 import SearchIcon from '@mui/icons-material/Search'
 import StarIcon from '@mui/icons-material/Star'
@@ -18,9 +16,7 @@ import {
   Box,
   Button,
   Chip,
-  IconButton,
   InputAdornment,
-  ListItemButton,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -28,10 +24,8 @@ import {
   Snackbar,
   Stack,
   TextField,
-  Typography,
 } from '@mui/material'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ConversationSort, ConversationSummary, ConversationView } from '../api/chatsApi'
 import * as chatsApi from '../api/chatsApi'
 import { useDeleteChat, useRenameChat, useSearchChats } from '../hooks/useChats'
@@ -47,8 +41,7 @@ import {
   useUnpinChat,
 } from '../hooks/useConversationActions'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
-import { EmptyState } from '../../../components/EmptyState'
-import { radius } from '../../../theme'
+import { VirtualizedChatRows, type Row } from './VirtualizedChatRows'
 
 interface ConversationListProps {
   selectedChatId: string | null
@@ -108,12 +101,6 @@ function dateGroupFor(dateIso: string | null, createdIso: string): string {
   if (daysAgo <= 7) return 'Previous 7 Days'
   if (daysAgo <= 30) return 'Previous 30 Days'
   return 'Older'
-}
-
-interface Row {
-  type: 'header' | 'item'
-  header?: string
-  chat?: ConversationSummary
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -199,22 +186,6 @@ export function ConversationList({
     }
     return result
   }, [chats, sort])
-
-  const listParentRef = useRef<HTMLDivElement>(null)
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => listParentRef.current,
-    estimateSize: (index) => (rows[index]?.type === 'header' ? 32 : 56),
-    overscan: 10,
-  })
-
-  const handleScroll = () => {
-    const el = listParentRef.current
-    if (!el || isFetchingNextPage || !hasNextPage) return
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
-      void fetchNextPage()
-    }
-  }
 
   const closeMenu = () => {
     setMenuAnchor(null)
@@ -302,88 +273,41 @@ export function ConversationList({
         </TextField>
       </Box>
 
-      <Box
-        ref={listParentRef}
-        onScroll={handleScroll}
-        data-testid="conversation-list"
-        sx={{ overflowY: 'auto', flex: 1, minHeight: 0, px: 1 }}
-      >
-        {chats.length === 0 && (
-          <EmptyState
-            icon={<ChatBubbleOutlineIcon fontSize="inherit" />}
-            title={searchInput.trim() || filter !== 'all' ? 'No matching conversations' : 'No conversations yet'}
-            description={
-              searchInput.trim() || filter !== 'all'
-                ? 'Try a different search term or filter.'
-                : 'Start a new chat to begin.'
-            }
-          />
-        )}
-        <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
-          {virtualizer.getVirtualItems().map((virtualItem) => {
-            const row = rows[virtualItem.index]
-            return (
-              <Box
-                key={virtualItem.key}
-                data-index={virtualItem.index}
-                ref={virtualizer.measureElement}
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualItem.start}px)`,
-                }}
-              >
-                {row.type === 'header' ? (
-                  <Typography
-                    variant="overline"
-                    color="text.secondary"
-                    sx={{ px: 1, display: 'block' }}
-                  >
-                    {row.header}
-                  </Typography>
-                ) : (
-                  <ConversationRow
-                    chat={row.chat!}
-                    selected={row.chat!.id === selectedChatId}
-                    editing={editingId === row.chat!.id}
-                    editingTitle={editingTitle}
-                    onEditingTitleChange={setEditingTitle}
-                    onSelect={() => onSelectChat(row.chat!.id)}
-                    onStartRename={() => {
-                      setEditingId(row.chat!.id)
-                      setEditingTitle(row.chat!.title)
-                    }}
-                    onCommitRename={() => {
-                      if (editingTitle.trim())
-                        renameChat.mutate({ id: row.chat!.id, title: editingTitle.trim() })
-                      setEditingId(null)
-                    }}
-                    onDelete={() => {
-                      deleteChat.mutate(row.chat!.id)
-                      if (row.chat!.id === selectedChatId) onNewChat()
-                    }}
-                    onOpenMenu={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuChat(row.chat!)
-                    }}
-                  />
-                )}
-              </Box>
-            )
-          })}
-        </Box>
-        {isFetchingNextPage && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ px: 2, py: 1, display: 'block' }}
-          >
-            Loading more…
-          </Typography>
-        )}
-      </Box>
+      <VirtualizedChatRows
+        rows={rows}
+        hasChats={chats.length > 0}
+        emptyIcon={<ChatBubbleOutlineIcon fontSize="inherit" />}
+        emptyTitle={searchInput.trim() || filter !== 'all' ? 'No matching conversations' : 'No conversations yet'}
+        emptyDescription={
+          searchInput.trim() || filter !== 'all'
+            ? 'Try a different search term or filter.'
+            : 'Start a new chat to begin.'
+        }
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        onFetchNextPage={() => void fetchNextPage()}
+        selectedChatId={selectedChatId}
+        editingId={editingId}
+        editingTitle={editingTitle}
+        onEditingTitleChange={setEditingTitle}
+        onSelectChat={onSelectChat}
+        onStartRename={(chat) => {
+          setEditingId(chat.id)
+          setEditingTitle(chat.title)
+        }}
+        onCommitRename={(chat) => {
+          if (editingTitle.trim()) renameChat.mutate({ id: chat.id, title: editingTitle.trim() })
+          setEditingId(null)
+        }}
+        onDeleteChat={(chat) => {
+          deleteChat.mutate(chat.id)
+          if (chat.id === selectedChatId) onNewChat()
+        }}
+        onOpenMenu={(chat, e) => {
+          setMenuAnchor(e.currentTarget)
+          setMenuChat(chat)
+        }}
+      />
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
         {menuChat?.isDeleted
@@ -578,120 +502,3 @@ export function ChatSidebar({ selectedChatId, onSelectChat, onNewChat }: ChatSid
   )
 }
 
-interface ConversationRowProps {
-  chat: ConversationSummary
-  selected: boolean
-  editing: boolean
-  editingTitle: string
-  onEditingTitleChange: (value: string) => void
-  onSelect: () => void
-  onStartRename: () => void
-  onCommitRename: () => void
-  onDelete: () => void
-  onOpenMenu: (event: React.MouseEvent<HTMLElement>) => void
-}
-
-function ConversationRow({
-  chat,
-  selected,
-  editing,
-  editingTitle,
-  onEditingTitleChange,
-  onSelect,
-  onStartRename,
-  onCommitRename,
-  onDelete,
-  onOpenMenu,
-}: ConversationRowProps) {
-  if (editing) {
-    return (
-      <Box sx={{ px: 1, py: 0.5 }}>
-        <TextField
-          size="small"
-          fullWidth
-          autoFocus
-          value={editingTitle}
-          onChange={(e) => onEditingTitleChange(e.target.value)}
-          onBlur={onCommitRename}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-          }}
-        />
-      </Box>
-    )
-  }
-
-  const lastActivity = chat.modifiedAtUtc ?? chat.createdAtUtc
-
-  return (
-    <ListItemButton
-      data-testid="conversation-item"
-      selected={selected}
-      onClick={onSelect}
-      sx={{ borderRadius: `${radius.md}px`, mb: 0.5, '&:hover .chat-item-actions': { opacity: 1 } }}
-    >
-      <ListItemText
-        primary={
-          <Stack
-            data-testid="conversation-title"
-            direction="row"
-            spacing={0.5}
-            sx={{ alignItems: 'center' }}
-          >
-            {chat.isPinned && (
-              <PushPinIcon fontSize="inherit" aria-hidden="true" sx={{ color: 'text.disabled', flexShrink: 0 }} />
-            )}
-            {chat.isFavorite && (
-              <StarIcon fontSize="inherit" aria-hidden="true" sx={{ color: 'warning.main', flexShrink: 0 }} />
-            )}
-            <Typography component="span" noWrap sx={{ display: 'block' }}>
-              {chat.title}
-            </Typography>
-          </Stack>
-        }
-        secondary={new Date(lastActivity).toLocaleString()}
-        slotProps={{ primary: { noWrap: true }, secondary: { variant: 'caption' } }}
-      />
-      <Stack
-        direction="row"
-        className="chat-item-actions"
-        sx={{ opacity: 0, transition: (t) => t.transitions.create('opacity') }}
-      >
-        {!chat.isDeleted && (
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation()
-              onStartRename()
-            }}
-            aria-label="Rename chat"
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-        )}
-        {!chat.isDeleted && (
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            aria-label="Delete chat"
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        )}
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation()
-            onOpenMenu(e)
-          }}
-          aria-label="More actions"
-        >
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
-      </Stack>
-    </ListItemButton>
-  )
-}
