@@ -152,6 +152,43 @@ Sessions SHALL support:
 
 Refresh token reuse must invalidate the session.
 
+## Revocation must be enforced, not only recorded
+
+An access token is a self-contained JWT: stateless validation checks its signature and its expiry
+and nothing else. Revoking server-side state therefore has **no effect on a token already issued**
+unless something checks it per request. Marking a refresh-token family revoked stops the client
+obtaining a *new* access token while the one it holds keeps working until it expires.
+
+That gap was real and user-visible: signing in on two browsers and changing the password from one
+left the other with full API access for the rest of its access-token lifetime. It looked fixed only
+because a page reload routes through the session endpoint, which does read the revoked cookie.
+
+Accordingly:
+
+* Every access token carries a `sid` claim naming the refresh-token family — the session — it was
+  issued for. `TokenIssuer` mints the refresh token first so that id exists to claim.
+* `ActiveSessionTokenValidator`, wired to `JwtBearerEvents.OnTokenValidated`, calls `context.Fail`
+  when that family is no longer active. `IClaimsTransformation` cannot serve this purpose: it can
+  alter a principal's claims but never refuse a request.
+* The check is a single indexed `EXISTS` behind a 30-second `IMemoryCache`. Each revocation path
+  evicts the affected keys immediately, *after* the database commit, so the cache is never cleared
+  for a revocation that then fails to commit and the 30 seconds is only a safety net.
+* A token with no `sid` is allowed through — tokens minted before the check existed carry none, and
+  refusing them would sign every active user out on deploy. That window closes on its own within one
+  access-token lifetime, and the case is logged rather than silently tolerated. A `sid` that will
+  not parse fails closed.
+* The acting session is deliberately exempt on a password *change*: the user is signing their other
+  devices out, not themselves.
+
+Any new way to end a session MUST evict alongside its database write, or it will be honoured up to
+a whole access-token lifetime late. The decision, and why Identity's `SecurityStamp` was rejected
+for this purpose, is recorded in
+[ADR 0012](adr/0012-enforcing-session-revocation-on-the-access-token.md).
+
+**Limitation**: the eviction cache is per-instance. On a multi-instance deployment only the instance
+that handled the revocation evicts, and the others fall back to the 30-second expiry. A distributed
+cache is required before scaling out.
+
 ---
 
 # 9. Authorization

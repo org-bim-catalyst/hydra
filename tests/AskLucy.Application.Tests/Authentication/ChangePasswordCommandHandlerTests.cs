@@ -32,6 +32,7 @@ public sealed class ChangePasswordCommandHandlerTests
     private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly ISessionRevocationCache _sessionRevocationCache = Substitute.For<ISessionRevocationCache>();
     private readonly ChangePasswordCommandHandler _handler;
 
     public ChangePasswordCommandHandlerTests()
@@ -46,7 +47,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(new IdentityOperationResult(IdentityResultStatus.Success));
 
         _handler = new ChangePasswordCommandHandler(
-            _identityService, _refreshTokens, _resetTokens, _tokenService, _backgroundJobClient, _unitOfWork,
+            _identityService, _refreshTokens, _resetTokens, _tokenService, _sessionRevocationCache, _backgroundJobClient, _unitOfWork,
             NullLogger<ChangePasswordCommandHandler>.Instance);
     }
 

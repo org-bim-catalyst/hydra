@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -100,6 +100,28 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
     expect(screen.getByRole('button', { name: 'Set password' })).toBeInTheDocument()
   })
 
+  it('ticks off each requirement as the new password satisfies it', async () => {
+    // FR-022: the policy is one rule set, so it is shown the same way here as on the registration
+    // and reset screens rather than as a sentence of prose the user has to parse.
+    const user = userEvent.setup()
+
+    renderSettings()
+    await screen.findByRole('heading', { name: 'Change password' })
+
+    const newPassword = screen.getByLabelText('New password')
+    await user.type(newPassword, 'lowercase')
+
+    // Assert on the visually-hidden state text rather than the icon: it is what a screen reader
+    // announces, and it is the only part of the row that changes.
+    const ruleRow = (label: string) => within(screen.getByText(label).closest('li')!)
+
+    expect(ruleRow('At least 8 characters').getByText('— met')).toBeInTheDocument()
+    expect(ruleRow('A number').getByText('— not met')).toBeInTheDocument()
+
+    await user.type(newPassword, '1')
+    expect(ruleRow('A number').getByText('— met')).toBeInTheDocument()
+  })
+
   it('refuses to submit when the two new passwords differ', async () => {
     const user = userEvent.setup()
     let submitted = false
@@ -123,6 +145,10 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
   })
 
   it('surfaces each policy rule the server rejected, rather than a generic message', async () => {
+    // The password below satisfies every rule the checklist can see, so it reaches the server —
+    // which is the point. The server is the authority on the policy and may enforce rules this
+    // build knows nothing about, so whatever reason it gives has to reach the user verbatim
+    // rather than being flattened into "password rejected".
     const user = userEvent.setup()
     server.use(
       http.post('*/api/v1/auth/change-password', () =>
@@ -130,7 +156,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
           {
             title: 'Password does not meet requirements',
             status: 400,
-            errors: { newPassword: ['Passwords must have at least one digit.'] },
+            errors: { newPassword: ['Passwords must use at least 6 different characters.'] },
           },
           { status: 400 },
         ),
@@ -141,11 +167,39 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
     await screen.findByRole('heading', { name: 'Change password' })
 
     await user.type(screen.getByLabelText('Current password'), 'Current-Passw0rd!')
+    await user.type(screen.getByLabelText('New password'), 'Aa1!Aa1!Aa1!')
+    await user.type(screen.getByLabelText('Confirm new password'), 'Aa1!Aa1!Aa1!')
+    await user.click(screen.getByRole('button', { name: 'Update password' }))
+
+    expect(
+      await screen.findByText('Passwords must use at least 6 different characters.'),
+    ).toBeInTheDocument()
+  })
+
+  it('refuses a new password that does not meet the checklist, without asking the server', async () => {
+    // FR-022: the same rule set that the checklist displays is also enforced before submitting, so
+    // an obviously-failing password gets an instant answer instead of a server round-trip.
+    const user = userEvent.setup()
+    let submitted = false
+    server.use(
+      http.post('*/api/v1/auth/change-password', () => {
+        submitted = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+
+    renderSettings()
+    await screen.findByRole('heading', { name: 'Change password' })
+
+    await user.type(screen.getByLabelText('Current password'), 'Current-Passw0rd!')
     await user.type(screen.getByLabelText('New password'), 'weakpassword')
     await user.type(screen.getByLabelText('Confirm new password'), 'weakpassword')
     await user.click(screen.getByRole('button', { name: 'Update password' }))
 
-    expect(await screen.findByText('Passwords must have at least one digit.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('This password does not meet every requirement below.'),
+    ).toBeInTheDocument()
+    expect(submitted).toBe(false)
   })
 
   it('surfaces a wrong current password as the server explained it', async () => {

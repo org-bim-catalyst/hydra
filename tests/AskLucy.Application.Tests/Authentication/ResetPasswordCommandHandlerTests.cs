@@ -31,6 +31,7 @@ public sealed class ResetPasswordCommandHandlerTests
     private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly ISessionRevocationCache _sessionRevocationCache = Substitute.For<ISessionRevocationCache>();
     private readonly ResetPasswordCommandHandler _handler;
 
     public ResetPasswordCommandHandlerTests()
@@ -45,7 +46,7 @@ public sealed class ResetPasswordCommandHandlerTests
             .Returns(new IdentityOperationResult(IdentityResultStatus.Success));
 
         _handler = new ResetPasswordCommandHandler(
-            _tokens, _refreshTokens, _identityService, _tokenService, _backgroundJobClient, _unitOfWork,
+            _tokens, _refreshTokens, _identityService, _tokenService, _sessionRevocationCache, _backgroundJobClient, _unitOfWork,
             NullLogger<ResetPasswordCommandHandler>.Instance);
     }
 

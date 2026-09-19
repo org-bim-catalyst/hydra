@@ -19,6 +19,7 @@ public sealed partial class ResetPasswordCommandHandler(
     IRefreshTokenRepository refreshTokenRepository,
     IIdentityService identityService,
     ITokenService tokenService,
+    ISessionRevocationCache sessionRevocationCache,
     IBackgroundJobClient backgroundJobClient,
     IUnitOfWork unitOfWork,
     ILogger<ResetPasswordCommandHandler> logger) : IRequestHandler<ResetPasswordCommand, PasswordResetResult>
@@ -85,6 +86,13 @@ public sealed partial class ResetPasswordCommandHandler(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // The access tokens those sessions already hold stay valid on their own signature until
+        // they expire, so revoking the refresh token is only half of signing them out.
+        foreach (var familyId in activeSessions.Select(s => s.TokenFamilyId).Distinct())
+        {
+            sessionRevocationCache.Evict(familyId);
+        }
 
         var email = eligibility.Email;
         var changedAtUtc = DateTime.UtcNow;

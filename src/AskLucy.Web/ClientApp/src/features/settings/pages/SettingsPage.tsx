@@ -25,7 +25,7 @@ import {
   Typography,
 } from '@mui/material'
 import { type ReactNode, useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router'
 import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AppShell } from '../../../components/AppShell'
@@ -41,6 +41,8 @@ import {
   useRemoveExternalLogin,
   useRequestEmailChange,
 } from '../../auth/hooks/useAuth'
+import { PasswordRequirements } from '../../auth/components/PasswordRequirements'
+import { isPasswordPolicyMet } from '../../auth/passwordPolicy'
 import { useDeleteAccount, useMyProfile } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
@@ -79,6 +81,10 @@ function PasswordSection() {
   const form = useForm<PasswordFormValues>({
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   })
+
+  // `useWatch`, not `form.watch`: the latter returns a fresh function every render, which makes
+  // React Compiler skip memoising the whole component.
+  const newPassword = useWatch({ control: form.control, name: 'newPassword' }) ?? ''
 
   const hasPassword = passwordStatus.data?.hasPassword ?? true
 
@@ -175,17 +181,24 @@ function PasswordSection() {
               {...form.register('currentPassword', { required: 'Enter your current password.' })}
             />
           )}
-          <TextField
-            label="New password"
-            type="password"
-            fullWidth
-            error={Boolean(form.formState.errors.newPassword)}
-            helperText={form.formState.errors.newPassword?.message ?? 'At least 8 characters'}
-            {...form.register('newPassword', {
-              required: 'Enter a new password.',
-              minLength: { value: 8, message: 'Use at least 8 characters.' },
-            })}
-          />
+          <Box>
+            <TextField
+              label="New password"
+              type="password"
+              fullWidth
+              error={Boolean(form.formState.errors.newPassword)}
+              helperText={form.formState.errors.newPassword?.message}
+              slotProps={{ htmlInput: { 'aria-describedby': 'settings-password-requirements' } }}
+              {...form.register('newPassword', {
+                required: 'Enter a new password.',
+                validate: (value) =>
+                  isPasswordPolicyMet(value) || 'This password does not meet every requirement below.',
+              })}
+            />
+            {/* Same checklist as the registration and reset screens (FR-022) — the policy is one
+                rule set, so it is shown one way everywhere it is enforced. */}
+            <PasswordRequirements password={newPassword} id="settings-password-requirements" />
+          </Box>
           <TextField
             label="Confirm new password"
             type="password"

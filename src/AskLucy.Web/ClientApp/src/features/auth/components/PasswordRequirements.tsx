@@ -1,7 +1,6 @@
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import RadioButtonUncheckedRoundedIcon from '@mui/icons-material/RadioButtonUncheckedRounded'
 import { Box, Stack, Typography } from '@mui/material'
-import { flumeriaColor } from '../../landing/theme/flumeriaPalette'
 import { evaluatePassword } from '../passwordPolicy'
 
 interface PasswordRequirementsProps {
@@ -10,7 +9,14 @@ interface PasswordRequirementsProps {
   id: string
 }
 
-const SEGMENT_COLORS = ['#DC2626', '#D97706', '#65A30D', flumeriaColor.green] as const
+/**
+ * A fixed four-step ramp rather than theme palette entries: the steps have to read as an ordered
+ * progression, and `error`/`warning`/`success` are three unrelated hues with no rung between the
+ * last two. The bar is `aria-hidden` decoration over the checklist below, so it carries no meaning
+ * a colour-blind or screen-reader user loses. Everything else here resolves from the active theme,
+ * so this component is legible on the dark Settings page and on the fixed-light auth panel alike.
+ */
+const SEGMENT_COLORS = ['#DC2626', '#D97706', '#65A30D', '#16A34A'] as const
 const STRENGTH_LABELS = { weak: 'Weak', fair: 'Fair', good: 'Good', strong: 'Strong' } as const
 
 /**
@@ -33,7 +39,7 @@ export function PasswordRequirements({ password, id }: PasswordRequirementsProps
               height: 4,
               flex: 1,
               borderRadius: 2,
-              bgcolor: segment < score ? SEGMENT_COLORS[score - 1] : flumeriaColor.border,
+              bgcolor: segment < score ? SEGMENT_COLORS[score - 1] : 'divider',
               transition: 'background-color 150ms ease',
             }}
           />
@@ -45,7 +51,7 @@ export function PasswordRequirements({ password, id }: PasswordRequirementsProps
       <Typography
         variant="caption"
         aria-live="polite"
-        sx={{ display: 'block', mb: 1, color: flumeriaColor.body, fontWeight: 600 }}
+        sx={{ display: 'block', mb: 1, color: 'text.secondary', fontWeight: 600 }}
       >
         {password.length === 0 ? 'Password strength' : `Password strength: ${STRENGTH_LABELS[label]}`}
       </Typography>
@@ -60,13 +66,13 @@ export function PasswordRequirements({ password, id }: PasswordRequirementsProps
             sx={{ alignItems: 'center' }}
           >
             {rule.met ? (
-              <CheckCircleRoundedIcon sx={{ fontSize: 16, color: flumeriaColor.green }} />
+              <CheckCircleRoundedIcon sx={{ fontSize: 16, color: 'success.main' }} />
             ) : (
-              <RadioButtonUncheckedRoundedIcon sx={{ fontSize: 16, color: flumeriaColor.border }} />
+              <RadioButtonUncheckedRoundedIcon sx={{ fontSize: 16, color: 'action.disabled' }} />
             )}
             <Typography
               variant="caption"
-              sx={{ color: rule.met ? flumeriaColor.greenLightText : flumeriaColor.body }}
+              sx={{ color: rule.met ? 'success.main' : 'text.secondary' }}
             >
               {rule.label}
             </Typography>

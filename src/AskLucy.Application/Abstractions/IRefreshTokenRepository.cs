@@ -15,5 +15,14 @@ public interface IRefreshTokenRepository
     /// </summary>
     Task<IReadOnlyList<RefreshToken>> ListActiveByUserAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Whether this session still has at least one live refresh token. Rotation keeps a family
+    /// alive (the old token is revoked and its replacement added in the same commit), so this goes
+    /// false only when the session itself is ended — logout, a reset/change signing other devices
+    /// out, or reuse detection killing the family. Read on every authenticated request via a cache,
+    /// so it must stay a single indexed lookup and never materialise the rows.
+    /// </summary>
+    Task<bool> IsFamilyActiveAsync(Guid tokenFamilyId, CancellationToken cancellationToken = default);
+
     void Add(RefreshToken token);
 }

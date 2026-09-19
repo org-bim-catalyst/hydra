@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AskLucy.Web.Auth;
+using AskLucy.Web.Contracts;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
@@ -41,6 +43,12 @@ public sealed class PasswordChangeSessionRevocationTests(ForgotPasswordWebApplic
     /// <summary>One client per session: the refresh cookie is what distinguishes the two families.</summary>
     private async Task<HttpClient> SignInAsync()
     {
+        var (client, _) = await SignInCapturingAccessTokenAsync();
+        return client;
+    }
+
+    private async Task<(HttpClient Client, string AccessToken)> SignInCapturingAccessTokenAsync()
+    {
         var client = CreateHttpsClient();
 
         var response = await client.PostAsJsonAsync(
@@ -51,7 +59,11 @@ public sealed class PasswordChangeSessionRevocationTests(ForgotPasswordWebApplic
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.GetValues("Set-Cookie").Should().Contain(c => c.StartsWith(RefreshTokenCookie.Name, StringComparison.Ordinal));
 
-        return client;
+        var body = await response.Content.ReadFromJsonAsync<AuthResponse>(TestContext.Current.CancellationToken);
+        body!.AccessToken.Should().NotBeNullOrEmpty();
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body.AccessToken);
+        return (client, body.AccessToken!);
     }
 
     [Fact]
@@ -75,6 +87,40 @@ public sealed class PasswordChangeSessionRevocationTests(ForgotPasswordWebApplic
 
         (await RefreshAsync(firstSession)).Should().Be(HttpStatusCode.Unauthorized);
         (await RefreshAsync(secondSession)).Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    /// <summary>
+    /// The regression the test above could not catch. It only ever asked <c>/auth/refresh</c>, which
+    /// reads the refresh cookie — so it passed while the access token the other browser already held
+    /// went on working for the rest of its 15-minute life. In practice that browser kept navigating
+    /// and calling the API normally, and only appeared signed out once a page reload forced it back
+    /// through the cookie. Assert against an ordinary bearer-authenticated call instead.
+    /// </summary>
+    [Fact]
+    public async Task ChangingThePassword_ShouldRefuseTheOtherSessionsAccessToken_OnItsNextRequest()
+    {
+        var (ownSession, _) = await SignInCapturingAccessTokenAsync();
+        var (otherSession, _) = await SignInCapturingAccessTokenAsync();
+
+        (await PasswordStatusAsync(otherSession)).Should().Be(HttpStatusCode.OK);
+
+        var change = await ownSession.PostAsJsonAsync(
+            "/api/v1/auth/change-password",
+            new { currentPassword = PasswordResetTestHelper.SeedPassword, newPassword = NewPassword },
+            TestContext.Current.CancellationToken);
+
+        change.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        (await PasswordStatusAsync(otherSession)).Should().Be(HttpStatusCode.Unauthorized);
+
+        // FR-010: the device that made the change stays signed in, access token included.
+        (await PasswordStatusAsync(ownSession)).Should().Be(HttpStatusCode.OK);
+    }
+
+    private static async Task<HttpStatusCode> PasswordStatusAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/api/v1/auth/password/status", TestContext.Current.CancellationToken);
+        return response.StatusCode;
     }
 
     private static async Task<HttpStatusCode> RefreshAsync(HttpClient client)

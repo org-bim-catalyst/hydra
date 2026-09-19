@@ -216,6 +216,34 @@ both backend test projects, `tsc -b --noEmit`, `npm run lint` and the full `npm 
 
 ---
 
+## Phase 9: Post-release follow-up (second walkthrough)
+
+**Purpose**: A two-browser walkthrough found that FR-022's checklist had not reached the one
+remaining screen that enforces the same policy, and — more seriously — that SC-007 was failing in
+production while its automated test passed. Requirements FR-025 and FR-026 were added to
+[spec.md](./spec.md) to cover the second finding.
+
+- [X] T072 *(Amendment 2026-09-19, FR-022)* Reused `PasswordRequirements` in the Settings → Security change-password form, which still showed the run-on policy sentence the rest of the product had dropped. The new-password field now also enforces the checklist client-side before submitting. `SettingsPage.tsx`; tests in `SettingsPage.test.tsx`
+- [X] T073 *(Amendment 2026-09-19, FR-024)* Converted `PasswordRequirements` off hard-coded `flumeriaColor` values onto theme tokens, so the same component is legible on the dark Settings page and on the fixed-light auth panel. The four strength-bar colours stay fixed: they must read as an ordered ramp, which no three palette hues provide, and the bar is `aria-hidden` decoration over the checklist
+- [X] T074 *(Amendment 2026-09-19, FR-026)* `TokenIssuer` now stamps each access token with a `sid` claim naming its refresh-token family, and issues the refresh token first so the family id exists to claim. `SessionClaims.cs`
+- [X] T075 *(Amendment 2026-09-19, FR-025)* Added `ActiveSessionTokenValidator` behind `JwtBearerEvents.OnTokenValidated`, which calls `context.Fail(...)` for a token whose family is no longer active. `IClaimsTransformation` could not be used — it can only alter claims, never refuse a request. Backed by `IRefreshTokenRepository.IsFamilyActiveAsync` (a single indexed `EXISTS`) behind a 30-second `IMemoryCache`, mirroring `CurrentAuthorizationClaimsTransformation`. Fails **open** on a token with no `sid` so the rollout does not sign every active user out, and **closed** on one that will not parse. Decision recorded in [ADR 0012](../../docs/adr/0012-enforcing-session-revocation-on-the-access-token.md)
+- [X] T076 *(Amendment 2026-09-19, FR-025)* Added `ISessionRevocationCache` and `MemoryCacheSessionRevocationCache` so revocation lands on the *next* request rather than waiting out the 30-second safety net, and wired eviction into all four revocation paths: `ChangePasswordCommandHandler` (skipping the acting family, per FR-010), `ResetPasswordCommandHandler`, `LogoutCommandHandler`, and the reuse-detection branch of `RefreshCommandHandler` — not its normal rotation, which keeps the family alive. Eviction runs *after* `SaveChangesAsync`, so the cache is never cleared for a revocation that then fails to commit
+- [X] T077 *(Amendment 2026-09-19, FR-025)* Added the regression test the original could not catch: `PasswordChangeSessionRevocationTests.ChangingThePassword_ShouldRefuseTheOtherSessionsAccessToken_OnItsNextRequest` asserts against a bearer-authenticated call rather than `/auth/refresh`, and confirms the acting session keeps working
+
+**Phase 9 complete.** Full gate re-run green: `dotnet format --verify-no-changes` (only the known
+local CRLF false positives; a raw-byte scan confirmed no stray `\r`), all four backend test
+projects (2,633 tests), `tsc -b --noEmit`, `npm run lint` (0 errors) and the full `npm test`
+(240 files / 1,388 tests). No database migration — the `sid` claim is minted per request and the
+lookup uses the existing `TokenFamilyId` index.
+
+**Known limitation.** `MemoryCacheSessionRevocationCache` is per-instance, so on a multi-instance
+deployment eviction reaches only the instance that handled the revocation and the others fall back
+to the 30-second expiry. The pre-existing `MemoryCacheAuthorizationCacheInvalidator` has the
+identical limitation and the current host is single-instance; a distributed cache is the fix if
+that changes.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

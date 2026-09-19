@@ -115,6 +115,20 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
 
                 return Task.CompletedTask;
             },
+
+            // A signature and an expiry are the only things JWT validation checks on its own, so
+            // a session revoked mid-token-lifetime would otherwise keep working until the token
+            // aged out. Checked here rather than in a claims transformation because only this
+            // hook can actually refuse the request.
+            OnTokenValidated = async context =>
+            {
+                var validator = context.HttpContext.RequestServices.GetRequiredService<ActiveSessionTokenValidator>();
+
+                if (!await validator.IsStillActiveAsync(context.Principal!, context.HttpContext.RequestAborted))
+                {
+                    context.Fail("This session has been signed out.");
+                }
+            },
         };
     });
 
@@ -168,6 +182,13 @@ builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHand
 builder.Services.AddScoped<IAuthorizationCacheInvalidator, MemoryCacheAuthorizationCacheInvalidator>();
 builder.Services.Replace(ServiceDescriptor.Scoped<IAuthorizationMiddlewareResultHandler, PermissionDeniedAuditResultHandler>());
 builder.Services.AddHostedService<PermissionCatalogReconciler>();
+
+// --- Session revocation enforced on the access token, not just the refresh cookie ---
+// Same shape as the role-claims gap directly above, and for the same reason: a JWT keeps working
+// on its own signature, so revoking a session has to be *checked* per request or it lands up to a
+// whole access-token lifetime late. See ActiveSessionTokenValidator.
+builder.Services.AddScoped<ActiveSessionTokenValidator>();
+builder.Services.AddScoped<ISessionRevocationCache, MemoryCacheSessionRevocationCache>();
 
 // --- Rate limiting, tiered by role (research.md Topic 3 / FR-023) ---
 builder.Services.AddRateLimiter(options =>

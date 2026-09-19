@@ -204,6 +204,30 @@ requirements below were added and implemented as a post-release follow-up (Phase
   including the masked characters of a password field and text rendered on a fixed-light panel.
   Colour choices MUST be resolved against the active theme, never hard-coded for one of them.
 
+### Amendment 2026-09-19b — revocation was recorded but not enforced
+
+A second walkthrough signed the same account in on two browsers and changed the password from one
+of them. The other browser went on working normally — menus, map style, ordinary API calls — and
+only appeared signed out after a page reload. This is **SC-007 failing in production while its
+automated test passed**: the test asked the session-refresh path, which reads the refresh cookie and
+did correctly refuse, but never asked an ordinary authenticated call.
+
+The underlying reason is that an access token is self-contained. Revoking a session stops the
+browser obtaining a *new* access token; the one it already holds remains valid on its own signature
+until it expires. "Signed out everywhere" was therefore true of the refresh cookie and false of
+everything the existing token could still reach, for up to a full access-token lifetime.
+
+- **FR-025**: An access token belonging to a revoked session MUST be refused on the next request
+  that carries it, not merely at its next refresh. Every revocation path — password change, password
+  reset, sign-out, and refresh-token reuse detection — MUST take effect on this basis.
+- **FR-026**: An access token MUST identify the session it was issued for, so that FR-025 can be
+  decided from the token itself. The session a request is acting under MUST survive its own password
+  change (FR-010), so the identifier MUST distinguish sessions, not merely accounts.
+
+SC-007 is amended accordingly: "stop working on their next request" MUST be verified by an ordinary
+authenticated API call, not only by a session refresh. See
+[ADR 0012](../../docs/adr/0012-enforcing-session-revocation-on-the-access-token.md).
+
 ### Key Entities *(include if data involved)*
 
 - **Password Reset Request**: The issued right to set a new password for one account. Attributes:

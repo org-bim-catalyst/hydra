@@ -15,6 +15,7 @@ public sealed partial class ChangePasswordCommandHandler(
     IRefreshTokenRepository refreshTokenRepository,
     IPasswordResetTokenRepository resetTokenRepository,
     ITokenService tokenService,
+    ISessionRevocationCache sessionRevocationCache,
     IBackgroundJobClient backgroundJobClient,
     IUnitOfWork unitOfWork,
     ILogger<ChangePasswordCommandHandler> logger) : IRequestHandler<ChangePasswordCommand, ChangePasswordResult>
@@ -66,6 +67,7 @@ public sealed partial class ChangePasswordCommandHandler(
 
         var actingFamilyId = await ResolveActingFamilyIdAsync(request.ActingRefreshToken, cancellationToken);
         var revoked = 0;
+        var revokedFamilyIds = new HashSet<Guid>();
 
         foreach (var session in await refreshTokenRepository.ListActiveByUserAsync(request.UserId, cancellationToken))
         {
@@ -75,10 +77,20 @@ public sealed partial class ChangePasswordCommandHandler(
             }
 
             session.Revoke();
+            revokedFamilyIds.Add(session.TokenFamilyId);
             revoked++;
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Only now the revocation is durable. Until this, the other device's access token stayed
+        // valid on its own signature for the rest of its lifetime — "your other devices have been
+        // signed out" was true of the refresh cookie and false of everything the token could still
+        // reach. The acting family is untouched, so this device keeps working (FR-010).
+        foreach (var familyId in revokedFamilyIds)
+        {
+            sessionRevocationCache.Evict(familyId);
+        }
 
         var email = eligibility.Email;
         var changedAtUtc = DateTime.UtcNow;

@@ -19,12 +19,13 @@ public sealed class RefreshCommandHandlerTests
     private readonly IRefreshTokenRepository _refreshTokenRepository = Substitute.For<IRefreshTokenRepository>();
     private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly ISessionRevocationCache _sessionRevocationCache = Substitute.For<ISessionRevocationCache>();
     private readonly RefreshCommandHandler _handler;
 
     public RefreshCommandHandlerTests()
     {
         var tokenIssuer = new TokenIssuer(_tokenService, _refreshTokenRepository, _unitOfWork);
-        _handler = new RefreshCommandHandler(_tokenService, _refreshTokenRepository, _identityService, _unitOfWork, tokenIssuer);
+        _handler = new RefreshCommandHandler(_tokenService, _refreshTokenRepository, _identityService, _sessionRevocationCache, _unitOfWork, tokenIssuer);
         _tokenService.Hash(Arg.Any<string>()).Returns(callInfo => $"hash-of-{callInfo.Arg<string>()}");
     }
 

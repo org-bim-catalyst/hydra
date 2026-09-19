@@ -11,6 +11,7 @@ public sealed class RefreshCommandHandler(
     ITokenService tokenService,
     IRefreshTokenRepository refreshTokenRepository,
     IIdentityService identityService,
+    ISessionRevocationCache sessionRevocationCache,
     IUnitOfWork unitOfWork,
     TokenIssuer tokenIssuer) : IRequestHandler<RefreshCommand, AuthResult>
 {
@@ -34,6 +35,7 @@ public sealed class RefreshCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            sessionRevocationCache.Evict(existing.TokenFamilyId);
             return new AuthResult(AuthOutcome.InvalidCredentials);
         }
 
