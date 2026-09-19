@@ -253,12 +253,12 @@ function SecurityTab() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
   return (
-    <Stack spacing={4}>
-      <PasswordSection />
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ alignItems: 'flex-start' }}>
+      <Paper variant="outlined" sx={{ p: 3, flex: 1, width: '100%' }}>
+        <PasswordSection />
+      </Paper>
 
-      <Divider />
-
-      <Box>
+      <Paper variant="outlined" sx={{ p: 3, flex: 1, width: '100%' }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
           <Typography variant="h6">Two-factor authentication</Typography>
           <Chip
@@ -272,7 +272,7 @@ function SecurityTab() {
         {enableTwoFactor.data && profile?.email && (
           <>
             <TwoFactorQrCode key={enableTwoFactor.data} email={profile.email} sharedKey={enableTwoFactor.data} />
-            <Alert severity="info" sx={{ mb: 2, maxWidth: 480 }}>
+            <Alert severity="info" sx={{ mb: 2 }}>
               Scan the QR code above, or add this key to your authenticator app manually:{' '}
               <strong>{enableTwoFactor.data}</strong>
             </Alert>
@@ -280,25 +280,17 @@ function SecurityTab() {
         )}
 
         {recoveryCodes && (
-          <Paper variant="outlined" sx={{ p: 2, mb: 2, maxWidth: 480 }}>
+          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
             <Typography variant="body2" sx={{ mb: 1 }}>
               Save these recovery codes somewhere safe. Each can be used once.
             </Typography>
-            <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+            <Stack spacing={0.5}>
               {recoveryCodes.map((code) => (
                 <Typography key={code} variant="body2" sx={{ fontFamily: codeFontFamily }}>
                   {code}
                 </Typography>
               ))}
             </Stack>
-            <Button
-              variant="text"
-              size="small"
-              onClick={() => downloadRecoveryCodesAsMarkdown(recoveryCodes)}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              Download as .md
-            </Button>
           </Paper>
         )}
 
@@ -321,15 +313,21 @@ function SecurityTab() {
               Enable 2FA
             </Button>
           )}
-          <Button
-            variant="text"
-            onClick={() => generateRecoveryCodes.mutate(undefined, { onSuccess: setRecoveryCodes })}
-            disabled={generateRecoveryCodes.isPending}
-          >
-            Generate recovery codes
-          </Button>
+          {recoveryCodes ? (
+            <Button variant="text" onClick={() => downloadRecoveryCodesAsMarkdown(recoveryCodes)}>
+              Download as .md
+            </Button>
+          ) : (
+            <Button
+              variant="text"
+              onClick={() => generateRecoveryCodes.mutate(undefined, { onSuccess: setRecoveryCodes })}
+              disabled={generateRecoveryCodes.isPending}
+            >
+              Generate recovery codes
+            </Button>
+          )}
         </Stack>
-      </Box>
+      </Paper>
     </Stack>
   )
 }
