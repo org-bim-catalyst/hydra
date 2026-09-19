@@ -33,7 +33,7 @@ public sealed class IssueHangfireDashboardSessionCommandHandlerTests
 
         _tokenService.Received(1).GenerateAccessToken(
             "user-1",
-            Arg.Is<IEnumerable<Claim>>(claims => claims.Any(c =>
+            Arg.Is<IEnumerable<Claim>>(claims => claims != null && claims.Any(c =>
                 c.Type == HangfireDashboardSessionClaims.PurposeClaimType &&
                 c.Value == HangfireDashboardSessionClaims.PurposeClaimValue)),
             HangfireDashboardSessionClaims.Lifetime);
@@ -54,7 +54,7 @@ public sealed class IssueHangfireDashboardSessionCommandHandlerTests
 
         _tokenService.Received(1).GenerateAccessToken(
             Arg.Any<string>(),
-            Arg.Is<IEnumerable<Claim>>(claims => claims.Any(c => c.Type == ClaimTypes.Role && c.Value == expectedRole)),
+            Arg.Is<IEnumerable<Claim>>(claims => claims != null && claims.Any(c => c.Type == ClaimTypes.Role && c.Value == expectedRole)),
             Arg.Any<TimeSpan>());
     }
 
