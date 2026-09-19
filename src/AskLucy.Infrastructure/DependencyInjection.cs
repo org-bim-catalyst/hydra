@@ -1,4 +1,4 @@
-﻿using AskLucy.Application.Abstractions;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.Locations;

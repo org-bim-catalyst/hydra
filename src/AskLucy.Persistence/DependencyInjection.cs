@@ -1,4 +1,4 @@
-﻿using AskLucy.Application.Abstractions;
+using AskLucy.Application.Abstractions;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Interceptors;
 using AskLucy.Persistence.Repositories;

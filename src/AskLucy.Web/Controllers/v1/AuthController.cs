@@ -1,4 +1,4 @@
-﻿using AskLucy.Application.Abstractions;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Authentication.Commands.ChangeEmail;
 using AskLucy.Application.Authentication.Commands.ChangePassword;

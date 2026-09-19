@@ -1,4 +1,4 @@
-﻿namespace AskLucy.Web.Contracts;
+namespace AskLucy.Web.Contracts;
 
 public sealed record RegisterRequest(string Email, string Password, string? FirstName, string? LastName);
 
