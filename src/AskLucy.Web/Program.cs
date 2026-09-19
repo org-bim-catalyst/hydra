@@ -8,6 +8,7 @@ using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Documents;
+using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Panels;
@@ -183,6 +184,23 @@ builder.Services.AddRateLimiter(options =>
         {
             Window = TimeSpan.FromMinutes(1),
             PermitLimit = isPrivileged ? 100 : 20,
+            QueueLimit = 0,
+        });
+    });
+
+    // Password recovery/management endpoints (specs/058-password-recovery). Partitioned on the
+    // client IP rather than identity: the forgot-password and reset endpoints are anonymous, and
+    // keying a visible 429 to an email address would itself be an account-existence oracle
+    // (FR-003). The per-email throttle that complements this lives in the handler, where it can
+    // silently no-op — see research.md Topic 3.
+    options.AddPolicy("auth-endpoints", context =>
+    {
+        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 10,
             QueueLimit = 0,
         });
     });
@@ -656,6 +674,11 @@ RecurringJob.AddOrUpdate<MemoryExtractionSweepJob>(
     "memory-extraction-sweep", job => job.RunAsync(CancellationToken.None), "*/15 * * * *");
 RecurringJob.AddOrUpdate<MemoryCleanupJob>(
     "memory-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily);
+
+// specs/058-password-recovery T054 — drops spent password reset tokens past their 90-day
+// retention. Retention housekeeping, not security: the tokens are already inert. Idempotent.
+RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob>(
+    "password-reset-token-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily);
 
 // spec 021-mcp-integration User Story 6 (research.md Decision 10) — a 5-minute cadence matching
 // McpRuntimeOptions.HealthCheckIntervalMinutes's own default; each run only actually

@@ -500,6 +500,12 @@ public static class DependencyInjection
             services.AddScoped<IEmailSender, SmtpEmailSender>();
         }
 
+        // Password recovery/management emails (specs/058-password-recovery). Registered against
+        // the interface so Hangfire resolves the job through the container.
+        services.AddSingleton<IPasswordTokenProtector, PasswordTokenProtector>();
+        services.AddScoped<IPasswordEmailJob, PasswordEmailJob>();
+        services.AddScoped<PasswordResetTokenCleanupJob>();
+
         return services;
     }
 }

@@ -10,8 +10,11 @@ using AskLucy.Application.Authentication.Commands.Logout;
 using AskLucy.Application.Authentication.Commands.Refresh;
 using AskLucy.Application.Authentication.Commands.Register;
 using AskLucy.Application.Authentication.Commands.RemoveExternalLogin;
+using AskLucy.Application.Authentication.Commands.RequestPasswordReset;
+using AskLucy.Application.Authentication.Commands.ResetPassword;
 using AskLucy.Application.Authentication.Commands.TwoFactor;
 using AskLucy.Application.Authentication.Queries.GetExternalLogins;
+using AskLucy.Application.Authentication.Queries.GetPasswordStatus;
 using AskLucy.Application.Authentication.Queries.GetSession;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Web.Auth;
@@ -22,6 +25,7 @@ using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace AskLucy.Web.Controllers.v1;
@@ -244,13 +248,102 @@ public sealed class AuthController(
         return confirmed ? NoContent() : Problem(title: "Email confirmation failed", statusCode: StatusCodes.Status400BadRequest);
     }
 
+    /// <summary>
+    /// Always answers 202, whatever the address turns out to be: the body, the status and — because
+    /// the handler enqueues rather than sends — the response time are identical for an account that
+    /// exists and one that does not (FR-003, SC-005).
+    /// </summary>
+    [HttpPost("password/forgot")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-endpoints")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new RequestPasswordResetCommand(request.Email, HttpContext.Connection.RemoteIpAddress?.ToString()),
+            cancellationToken);
+
+        return Accepted();
+    }
+
+    /// <summary>
+    /// Redeems an emailed reset link. Never returns tokens, so an account with two-factor
+    /// enrolment still has to satisfy it at the next sign-in (FR-012).
+    /// </summary>
+    [HttpPost("password/reset")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-endpoints")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new ResetPasswordCommand(request.UserId, request.Token, request.NewPassword),
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            PasswordResetOutcome.Success => NoContent(),
+            PasswordResetOutcome.PasswordPolicyViolation => ValidationProblem(
+                new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["newPassword"] = [.. result.Errors ?? []],
+                })
+                {
+                    Title = "Password does not meet requirements",
+                }),
+
+            // One response for every rejection cause — see ResetPasswordCommandHandler (FR-005).
+            _ => Problem(
+                title: "Reset link is no longer valid",
+                detail: "This password reset link has expired or has already been used. Request a new one to continue.",
+                statusCode: StatusCodes.Status400BadRequest),
+        };
+    }
+
     [HttpPost("change-password")]
     [Authorize]
+    [EnableRateLimiting("auth-endpoints")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstUserId();
-        var result = await mediator.Send(new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword), cancellationToken);
-        return ToActionResult(result);
+
+        // The caller's own refresh token identifies the session to spare (FR-010). Read from the
+        // cookie rather than the body: a client cannot nominate someone else's session that way.
+        Request.Cookies.TryGetValue(RefreshTokenCookie.Name, out var actingRefreshToken);
+
+        var result = await mediator.Send(
+            new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword, actingRefreshToken),
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            ChangePasswordOutcome.Success => NoContent(),
+            ChangePasswordOutcome.CurrentPasswordRequired => Problem(
+                title: "Current password is required", statusCode: StatusCodes.Status400BadRequest),
+            ChangePasswordOutcome.SameAsCurrentPassword => Problem(
+                title: "New password must differ from the current one", statusCode: StatusCodes.Status400BadRequest),
+            ChangePasswordOutcome.PasswordPolicyViolation => ValidationProblem(
+                new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["newPassword"] = [.. result.Errors ?? []],
+                })
+                {
+                    Title = "Password does not meet requirements",
+                }),
+            _ => Problem(title: "Current password is incorrect", statusCode: StatusCodes.Status400BadRequest),
+        };
+    }
+
+    /// <summary>
+    /// Lets Settings offer "set a password" instead of "change password" for an account created
+    /// through an external provider, without having to guess (FR-014).
+    /// </summary>
+    [HttpGet("password/status")]
+    [Authorize]
+    public async Task<ActionResult<PasswordStatusResponse>> GetPasswordStatus(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstUserId();
+        var hasPassword = await mediator.Send(new GetPasswordStatusQuery(userId), cancellationToken);
+
+        return Ok(new PasswordStatusResponse(hasPassword));
     }
 
     [HttpPost("change-email/request")]

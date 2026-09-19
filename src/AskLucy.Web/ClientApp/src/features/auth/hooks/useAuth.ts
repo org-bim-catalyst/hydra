@@ -8,6 +8,8 @@ const LOGGED_OUT_SESSION: SessionResponse = { authenticated: false, userId: null
 
 const EXTERNAL_LOGINS_QUERY_KEY = ['auth', 'external-logins']
 
+const PASSWORD_STATUS_QUERY_KEY = ['auth', 'password-status']
+
 export function useLogin() {
   const setSession = useAuthStore((s) => s.setSession)
   const queryClient = useQueryClient()
@@ -84,9 +86,24 @@ export function useConfirmEmail() {
 }
 
 export function useChangePassword() {
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword?: string; newPassword: string }) =>
       authApi.changePassword(currentPassword, newPassword),
+    // An account that had no password now has one, so the form must stop offering "Set password".
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PASSWORD_STATUS_QUERY_KEY }),
+  })
+}
+
+/**
+ * specs/058-password-recovery US4. Drives which password form Settings shows; an external-only
+ * account has no current password to ask for.
+ */
+export function usePasswordStatus() {
+  return useQuery({
+    queryKey: PASSWORD_STATUS_QUERY_KEY,
+    queryFn: () => authApi.getPasswordStatus(),
   })
 }
 

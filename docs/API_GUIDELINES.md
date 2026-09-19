@@ -342,6 +342,27 @@ POST /auth/logout
 
 All protected endpoints require authentication unless explicitly marked public.
 
+## Password recovery and management (specs/058-password-recovery)
+
+| Endpoint | Auth | Success | Notes |
+|---|---|---|---|
+| `POST /auth/forgot-password` | anonymous | `202 Accepted` | Body and latency are identical for every input — an account that exists, one that does not, an unconfirmed address and a locked-out account are indistinguishable. Rate limited by IP, never by email address. |
+| `POST /auth/reset-password` | anonymous | `204 No Content` | `{ userId, token, newPassword }`. Never returns a session, so two-factor enrolment still applies on the next sign-in. |
+| `POST /auth/change-password` | bearer | `204 No Content` | `{ currentPassword?, newPassword }`. The acting session is identified by the httpOnly refresh cookie, never by the body. |
+| `GET /auth/password/status` | bearer | `200 OK` | `{ hasPassword }` — tells the client whether to ask for a current password. |
+
+Failure shapes:
+
+* Reset rejection returns **one** `400` — *"Reset link is no longer valid"* — for all six causes
+  (unknown, expired, consumed, superseded, wrong user, tampered). The specific cause is logged, not
+  returned. Distinguishing them to the caller would reintroduce the oracle the 202 above closes.
+* A password that fails the policy returns a `validation-failed` `400` whose `errors` bag carries
+  one message per broken rule, so the client can list them rather than guess. A policy failure does
+  **not** consume the reset link.
+* Change-password failures return distinct titles — *"Current password is incorrect"*, *"Current
+  password is required"*, *"New password must be different"* — because the caller is already
+  authenticated and nothing is leaked by being specific.
+
 ---
 
 # 14. Authorization

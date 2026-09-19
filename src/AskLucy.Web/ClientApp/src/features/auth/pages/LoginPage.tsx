@@ -86,6 +86,11 @@ export function LoginPage() {
                 label="Password"
                 type="password"
                 placeholder="Enter your password"
+                action={
+                  <Link component={RouterLink} to="/forgot-password" variant="body2">
+                    Forgot password?
+                  </Link>
+                }
                 {...loginForm.register('password', { required: true })}
               />
               <Button

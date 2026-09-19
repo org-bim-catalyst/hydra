@@ -11,6 +11,12 @@ const LoginPage = lazy(() => import('../features/auth/pages/LoginPage').then((m)
 const RegisterPage = lazy(() =>
   import('../features/auth/pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
 )
+const ForgotPasswordPage = lazy(() =>
+  import('../features/auth/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
+)
+const ResetPasswordPage = lazy(() =>
+  import('../features/auth/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
+)
 const ConfirmEmailPage = lazy(() =>
   import('../features/auth/pages/ConfirmEmailPage').then((m) => ({ default: m.ConfirmEmailPage })),
 )
@@ -146,6 +152,24 @@ const router = createBrowserRouter([
     element: (
       <Lazy>
         <RegisterPage />
+      </Lazy>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/forgot-password',
+    element: (
+      <Lazy>
+        <ForgotPasswordPage />
+      </Lazy>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/reset-password',
+    element: (
+      <Lazy>
+        <ResetPasswordPage />
       </Lazy>
     ),
     errorElement: <ErrorPage />,

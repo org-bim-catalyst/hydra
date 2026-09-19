@@ -13,6 +13,7 @@ expect.extend(toHaveNoViolations)
 const server = setupServer(
   http.get('*/api/v1/profile', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
   http.get('*/api/v1/auth/external-logins', () => HttpResponse.json([])),
+  http.get('*/api/v1/auth/password/status', () => HttpResponse.json({ hasPassword: true })),
   http.get('*/api/v1/ai/providers', () =>
     HttpResponse.json([
       { id: 'provider-1', providerKey: 'openai', displayName: 'OpenAI', healthStatus: 'Healthy', healthStatusCheckedAtUtc: null },

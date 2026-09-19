@@ -12,6 +12,12 @@ public enum IdentityResultStatus
     Failed,
 }
 
+/// <summary>
+/// What the reset-eligibility gate (specs/058-password-recovery FR-002) needs to decide whether an
+/// account may be sent a reset link, without exposing <c>ApplicationUser</c> to Application.
+/// </summary>
+public sealed record PasswordResetEligibility(string Email, bool EmailConfirmed, bool IsLockedOut, bool HasPassword);
+
 public sealed record IdentityOperationResult(
     IdentityResultStatus Status,
     string? UserId = null,
@@ -67,6 +73,28 @@ public interface IIdentityService
     Task<bool> ConfirmEmailAsync(string userId, string token, CancellationToken cancellationToken = default);
 
     Task<IdentityOperationResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the account's password without knowing the old one, for the emailed-link reset
+    /// flow (specs/058-password-recovery FR-002). Authorization is the redeemed reset token; this
+    /// method performs none of its own, so callers MUST validate the token first.
+    /// </summary>
+    Task<IdentityOperationResult> ResetPasswordAsync(string userId, string newPassword, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets a first password on an account that has none — external-provider accounts gaining an
+    /// email-and-password fallback (FR-014).
+    /// </summary>
+    Task<IdentityOperationResult> SetPasswordAsync(string userId, string newPassword, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolves an email address to a user id, or null when no account exists. Callers in the
+    /// password-recovery flow MUST NOT let the difference reach the response (FR-003).
+    /// </summary>
+    Task<string?> FindIdByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>Account state the reset-eligibility gate needs, resolved in one round trip.</summary>
+    Task<PasswordResetEligibility?> GetPasswordResetEligibilityAsync(string userId, CancellationToken cancellationToken = default);
 
     Task<bool> VerifyPasswordAsync(string userId, string password, CancellationToken cancellationToken = default);
 

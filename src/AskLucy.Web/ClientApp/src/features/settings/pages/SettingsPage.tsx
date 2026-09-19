@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -26,7 +27,7 @@ import {
 import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router'
-import { API_BASE_URL } from '../../../api/httpClient'
+import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AppShell } from '../../../components/AppShell'
 import { codeFontFamily } from '../../../theme/tokens/typography'
 import {
@@ -36,6 +37,7 @@ import {
   useExternalLogins,
   useGenerateRecoveryCodes,
   useIssueExternalLoginLinkTicket,
+  usePasswordStatus,
   useRemoveExternalLogin,
   useRequestEmailChange,
 } from '../../auth/hooks/useAuth'
@@ -60,57 +62,165 @@ function TabPanel({
   return <Box sx={{ pt: 3 }}>{children}</Box>
 }
 
+interface PasswordFormValues {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+/**
+ * specs/058-password-recovery US3/US4. Two variants of one form: an account with a password proves
+ * it before changing it, an external-only account sets its first one and has nothing to prove.
+ */
+function PasswordSection() {
+  const passwordStatus = usePasswordStatus()
+  const changePassword = useChangePassword()
+
+  const form = useForm<PasswordFormValues>({
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+  })
+
+  const hasPassword = passwordStatus.data?.hasPassword ?? true
+
+  const error = changePassword.error instanceof ApiError ? changePassword.error : null
+  // A `validation-failed` body carries the per-rule policy messages; anything else is a single
+  // explanatory title (wrong current password, current password required, same as current).
+  const policyErrors = error?.errors ? Object.values(error.errors).flat() : []
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    try {
+      await changePassword.mutateAsync({
+        currentPassword: hasPassword ? values.currentPassword : undefined,
+        newPassword: values.newPassword,
+      })
+      form.reset()
+    } catch {
+      // Surfaced from `changePassword.error` in the alerts below — nothing is swallowed.
+    }
+  })
+
+  if (passwordStatus.isPending) {
+    return (
+      <Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Password
+        </Typography>
+        <CircularProgress size={24} aria-label="Loading password settings" />
+      </Box>
+    )
+  }
+
+  if (passwordStatus.isError) {
+    return (
+      <Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Password
+        </Typography>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => void passwordStatus.refetch()}>
+              Retry
+            </Button>
+          }
+        >
+          Could not load your password settings.
+        </Alert>
+      </Box>
+    )
+  }
+
+  return (
+    <Box>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        {hasPassword ? 'Change password' : 'Set a password'}
+      </Typography>
+      {!hasPassword && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 400 }}>
+          You sign in with an external provider. Setting a password lets you sign in with your email
+          address as well.
+        </Typography>
+      )}
+      <Box component="form" onSubmit={onSubmit} noValidate sx={{ maxWidth: 400 }}>
+        <Stack spacing={2}>
+          {policyErrors.length > 0 && (
+            <Alert severity="error">
+              That password does not meet the requirements:
+              <List dense sx={{ listStyleType: 'disc', pl: 3, py: 0 }}>
+                {policyErrors.map((message) => (
+                  <ListItem key={message} sx={{ display: 'list-item', px: 0 }} disableGutters>
+                    {message}
+                  </ListItem>
+                ))}
+              </List>
+            </Alert>
+          )}
+          {error && policyErrors.length === 0 && (
+            <Alert severity="error">{error.message}</Alert>
+          )}
+          {changePassword.isSuccess && (
+            <Alert severity="success">
+              {hasPassword
+                ? 'Password changed. Your other devices have been signed out.'
+                : 'Password set. You can now sign in with your email address.'}
+            </Alert>
+          )}
+          {hasPassword && (
+            <TextField
+              label="Current password"
+              type="password"
+              fullWidth
+              error={Boolean(form.formState.errors.currentPassword)}
+              helperText={form.formState.errors.currentPassword?.message}
+              {...form.register('currentPassword', { required: 'Enter your current password.' })}
+            />
+          )}
+          <TextField
+            label="New password"
+            type="password"
+            fullWidth
+            error={Boolean(form.formState.errors.newPassword)}
+            helperText={form.formState.errors.newPassword?.message ?? 'At least 8 characters'}
+            {...form.register('newPassword', {
+              required: 'Enter a new password.',
+              minLength: { value: 8, message: 'Use at least 8 characters.' },
+            })}
+          />
+          <TextField
+            label="Confirm new password"
+            type="password"
+            fullWidth
+            error={Boolean(form.formState.errors.confirmPassword)}
+            helperText={form.formState.errors.confirmPassword?.message}
+            {...form.register('confirmPassword', {
+              validate: (value) =>
+                value === form.getValues('newPassword') || 'Both passwords must match.',
+            })}
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={changePassword.isPending}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            {hasPassword ? 'Update password' : 'Set password'}
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
+  )
+}
+
 function SecurityTab() {
   const { data: profile } = useMyProfile()
-  const changePassword = useChangePassword()
   const enableTwoFactor = useEnableTwoFactor()
   const disableTwoFactor = useDisableTwoFactor()
   const generateRecoveryCodes = useGenerateRecoveryCodes()
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
-  const passwordForm = useForm<{ currentPassword: string; newPassword: string }>()
-  const onChangePassword = passwordForm.handleSubmit((values) => {
-    changePassword.mutate(values, { onSuccess: () => passwordForm.reset() })
-  })
-
   return (
     <Stack spacing={4}>
-      <Box>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Change password
-        </Typography>
-        <Box component="form" onSubmit={onChangePassword} sx={{ maxWidth: 400 }}>
-          <Stack spacing={2}>
-            {changePassword.isError && (
-              <Alert severity="error">
-                Could not change password. Check your current password.
-              </Alert>
-            )}
-            {changePassword.isSuccess && <Alert severity="success">Password changed.</Alert>}
-            <TextField
-              label="Current password"
-              type="password"
-              fullWidth
-              {...passwordForm.register('currentPassword', { required: true })}
-            />
-            <TextField
-              label="New password"
-              type="password"
-              fullWidth
-              helperText="At least 8 characters"
-              {...passwordForm.register('newPassword', { required: true, minLength: 8 })}
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={changePassword.isPending}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              Update password
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+      <PasswordSection />
 
       <Divider />
 

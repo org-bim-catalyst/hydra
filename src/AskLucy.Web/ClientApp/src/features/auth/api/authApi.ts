@@ -59,11 +59,20 @@ export function confirmEmail(userId: string, token: string) {
   })
 }
 
-export function changePassword(currentPassword: string, newPassword: string) {
+/**
+ * specs/058-password-recovery US3/US4. `currentPassword` is omitted by an external-provider account
+ * setting its first password (FR-014); the server, not the client, decides whether one was required.
+ */
+export function changePassword(currentPassword: string | undefined, newPassword: string) {
   return apiFetch<void>('/auth/change-password', {
     method: 'POST',
-    body: JSON.stringify({ currentPassword, newPassword }),
+    body: JSON.stringify({ currentPassword: currentPassword ?? null, newPassword }),
   })
+}
+
+/** specs/058-password-recovery T050 — tells Settings whether to ask for a current password. */
+export function getPasswordStatus() {
+  return apiFetch<{ hasPassword: boolean }>('/auth/password/status')
 }
 
 export function requestEmailChange(newEmail: string) {
@@ -120,4 +129,29 @@ export function disableTwoFactor() {
 
 export function generateRecoveryCodes() {
   return apiFetch<string[]>('/auth/2fa/recovery-codes', { method: 'POST' })
+}
+
+/**
+ * Requests a password reset link (specs/058-password-recovery). Always resolves for any
+ * well-formed address: the API deliberately answers identically whether or not an account exists,
+ * so the UI has nothing to branch on and must not pretend otherwise.
+ */
+export function requestPasswordReset(email: string) {
+  return apiFetch<void>('/auth/password/forgot', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    isAuthFlow: true,
+  })
+}
+
+/**
+ * Redeems a reset link (specs/058-password-recovery US2). A rejected link and a rejected password
+ * both arrive as an `ApiError`; the page tells them apart by `errors`, never by `status`.
+ */
+export function resetPassword(userId: string, token: string, newPassword: string) {
+  return apiFetch<void>('/auth/password/reset', {
+    method: 'POST',
+    body: JSON.stringify({ userId, token, newPassword }),
+    isAuthFlow: true,
+  })
 }

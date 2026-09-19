@@ -15,7 +15,14 @@ public sealed record SessionResponse(bool Authenticated, string? UserId, IReadOn
 
 public sealed record ConfirmEmailRequest(string UserId, string Token);
 
-public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+public sealed record ChangePasswordRequest(string? CurrentPassword, string NewPassword);
+
+/// <summary>Password recovery (specs/058-password-recovery).</summary>
+public sealed record ForgotPasswordRequest(string Email);
+
+public sealed record ResetPasswordRequest(string UserId, string Token, string NewPassword);
+
+public sealed record PasswordStatusResponse(bool HasPassword);
 
 public sealed record RequestEmailChangeRequest(string NewEmail);
 

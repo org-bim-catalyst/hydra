@@ -5,6 +5,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Images;
 using AskLucy.Application.Authentication;
+using AskLucy.Application.Authentication.PasswordReset;
 using AskLucy.Application.Behaviors;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
@@ -98,6 +99,10 @@ public static class DependencyInjection
         // idiom) — only the interface mapping is needed, unlike the plain recurring sweep/cleanup
         // jobs (Infrastructure) that Hangfire's RecurringJob.AddOrUpdate<T> resolves by concrete type.
         services.AddScoped<IMemoryExtractionJob, MemoryExtractionJob>();
+
+        // Password reset issuance runs on a worker so the request path costs the same for every
+        // address (specs/058-password-recovery, FR-003).
+        services.AddScoped<IPasswordResetIssuanceJob, PasswordResetIssuanceJob>();
         services.AddScoped<IMemoryExportGenerationJob, MemoryExportGenerationJob>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's

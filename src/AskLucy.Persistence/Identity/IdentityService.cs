@@ -242,6 +242,85 @@ public sealed class IdentityService(
             : new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
     }
 
+    /// <summary>
+    /// Resets without the old password, for the emailed-link flow (specs/058-password-recovery).
+    /// Removes then adds rather than using Identity's own reset token: authorization here is this
+    /// feature's own <c>PasswordResetToken</c>, already validated by the caller, and Identity's
+    /// stateless token is exactly what research.md Topic 1 rejected.
+    /// </summary>
+    public async Task<IdentityOperationResult> ResetPasswordAsync(
+        string userId, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        // Validate before mutating: RemovePasswordAsync followed by a rejected AddPasswordAsync
+        // would leave the account with no password at all.
+        foreach (var validator in userManager.PasswordValidators)
+        {
+            var validation = await validator.ValidateAsync(userManager, user, newPassword);
+            if (!validation.Succeeded)
+            {
+                return new IdentityOperationResult(
+                    IdentityResultStatus.Failed,
+                    Errors: [.. validation.Errors.Select(e => e.Description)]);
+            }
+        }
+
+        if (await userManager.HasPasswordAsync(user))
+        {
+            var removal = await userManager.RemovePasswordAsync(user);
+            if (!removal.Succeeded)
+            {
+                return new IdentityOperationResult(
+                    IdentityResultStatus.Failed,
+                    Errors: [.. removal.Errors.Select(e => e.Description)]);
+            }
+        }
+
+        var result = await userManager.AddPasswordAsync(user, newPassword);
+
+        return result.Succeeded
+            ? new IdentityOperationResult(IdentityResultStatus.Success, user.Id)
+            : new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
+    }
+
+    public async Task<IdentityOperationResult> SetPasswordAsync(
+        string userId, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        var result = await userManager.AddPasswordAsync(user, newPassword);
+
+        return result.Succeeded
+            ? new IdentityOperationResult(IdentityResultStatus.Success, user.Id)
+            : new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
+    }
+
+    public async Task<string?> FindIdByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+
+        return user?.Id;
+    }
+
+    public async Task<PasswordResetEligibility?> GetPasswordResetEligibilityAsync(
+        string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user?.Email is null)
+        {
+            return null;
+        }
+
+        return new PasswordResetEligibility(
+            user.Email,
+            await userManager.IsEmailConfirmedAsync(user),
+            await userManager.IsLockedOutAsync(user),
+            await userManager.HasPasswordAsync(user));
+    }
+
     public async Task<bool> VerifyPasswordAsync(string userId, string password, CancellationToken cancellationToken = default)
     {
         var user = await userManager.FindByIdAsync(userId)

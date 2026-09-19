@@ -14,5 +14,10 @@ public sealed class RefreshTokenRepository(AskLucyDbContext dbContext) : IRefres
             .Where(t => t.TokenFamilyId == tokenFamilyId)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<RefreshToken>> ListActiveByUserAsync(string userId, CancellationToken cancellationToken = default) =>
+        await dbContext.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAtUtc == null && t.ExpiresAtUtc > DateTime.UtcNow)
+            .ToListAsync(cancellationToken);
+
     public void Add(RefreshToken token) => dbContext.RefreshTokens.Add(token);
 }

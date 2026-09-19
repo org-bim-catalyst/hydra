@@ -730,6 +730,19 @@ Use Hosted Services for:
 
 Long-running tasks should not block HTTP requests.
 
+## Account recovery runs on a worker for a security reason, not a performance one
+
+`POST /auth/forgot-password` enqueues and returns immediately. That is not about response time —
+it is what makes the endpoint enumeration-resistant. Every step of issuing a reset link (eligibility
+read, throttle count, supersede sweep, save, send) costs database round trips against an address
+that has an account and nothing against an address that does not. On a remote database that
+difference is over a second: a timing oracle no amount of neutral response body can hide. Keeping
+all of it off the request thread is what makes the four account states indistinguishable.
+
+The token is protected with `IDataProtector` before it becomes a Hangfire job argument, because job
+arguments are serialised into the same database the design deliberately keeps hash-only. See
+[ADR 0009](adr/0009-owned-password-reset-token.md).
+
 ---
 
 # 19. Caching Strategy

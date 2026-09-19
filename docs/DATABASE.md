@@ -131,6 +131,23 @@ Stores:
 
 ---
 
+## PasswordResetTokens
+
+specs/058-password-recovery. Stores:
+
+* User
+* SHA-256 hash of the token (never the token itself)
+* The email address the link was issued to
+* Issue, expiry, consumption and supersession timestamps
+* Requesting IP
+
+The plaintext token exists only in the email that carries it, so reading this table yields nothing
+redeemable. A token is single-use, expires in one hour, and is superseded by a newer request, by a
+password change or by an email change. Spent rows are deleted after 90 days by the
+`password-reset-token-cleanup` recurring job.
+
+---
+
 ## ExternalLogins
 
 Google

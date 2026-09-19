@@ -9,7 +9,8 @@ namespace AskLucy.Web.Tests;
 /// (e.g. confirming the JWT auth gate rejects anonymous requests before any handler,
 /// let alone the database, is ever reached — FR-015, User Story 2).
 /// </summary>
-public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
+// Not sealed: ForgotPasswordEndpointTests derives from it to stub the password email job.
+public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
