@@ -923,6 +923,9 @@ GET /admin/system
 GET /admin/providers
 
 GET /admin/feature-flags
+
+# AdminHangfireController — Administrator/Super User only, api/v1/admin/hangfire
+POST /admin/hangfire/session                                       (specs/060-hangfire-dashboard-access; mints the /hangfire-scoped cookie, no request body, 204 No Content)
 ```
 
 All administrative endpoints require elevated authorization.

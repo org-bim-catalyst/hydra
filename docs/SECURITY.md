@@ -189,6 +189,21 @@ for this purpose, is recorded in
 that handled the revocation evicts, and the others fall back to the 30-second expiry. A distributed
 cache is required before scaling out.
 
+## The Hangfire dashboard cookie is deliberately narrower than the app's session cookies
+
+`askLucyHangfireSession` is a separate, purpose-bound cookie (`Path=/hangfire`, `SameSite=Lax`,
+`HttpOnly`, `Secure`, 30-minute lifetime) minted only for Administrator/Super User callers via
+`POST /api/v1/admin/hangfire/session`, distinct from both `RefreshTokenCookie` and
+`AccessTokenCookie`. Its token carries a dedicated `purpose=hangfire-dashboard` claim that the
+`/hangfire`-scoped `OnTokenValidated` check requires — an otherwise validly signed, currently
+active ordinary session token is refused. `Path=/hangfire` means the browser never attaches it to
+any bearer-authenticated API call, so it cannot widen the attack surface of the rest of the app
+even if read or replayed. `SameSite=Lax` (not `None`, unlike the refresh/access cookies, which
+need `None` for a genuinely cross-site `fetch()` case in dev) is sufficient because this cookie is
+only ever sent via a top-level browser navigation, and still blocks a forged cross-site POST
+against Hangfire's own job-mutating endpoints. See
+[ADR 0013](adr/0013-hangfire-dashboard-scoped-session-and-theming-gap.md).
+
 ---
 
 # 9. Authorization

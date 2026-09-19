@@ -772,6 +772,21 @@ gives up immediately rather than queueing behind its predecessor; nothing is los
 sweep is a full idempotent recompute and the next interval covers it. Apply the same attribute to
 any new recurring job that writes rows a sibling run would also write.
 
+## The Hangfire dashboard authenticates through a purpose-scoped cookie, not the SPA's bearer token
+
+`GET /hangfire` is a separate, server-rendered surface that a browser reaches via a genuine new
+top-level tab (`window.open`), so the SPA's bearer token cannot ride along. `POST
+/api/v1/admin/hangfire/session` (Administrator/Super User only) mints a token through the existing
+`ITokenService` carrying a `purpose=hangfire-dashboard` claim and sets it as an httpOnly,
+`Path=/hangfire` cookie; the default JWT Bearer scheme's `OnMessageReceived` reads it for
+`/hangfire` requests only, and rejects any token missing that claim — including an otherwise valid
+ordinary session token. No second authentication scheme was added. The dashboard's palette is
+themed to match Ask Lucy via two embedded stylesheets registered through `Hangfire.Dashboard.
+DashboardRoutes.AddStylesheet`/`AddStylesheetDarkMode`, but Hangfire 1.8.24 has no mechanism to
+select dark mode from anything other than the browser/OS `prefers-color-scheme` setting — the
+dashboard's colors always match Ask Lucy, but light/dark *selection* does not follow the admin
+panel's own theme toggle. See [ADR 0013](adr/0013-hangfire-dashboard-scoped-session-and-theming-gap.md).
+
 ---
 
 # 19. Caching Strategy
