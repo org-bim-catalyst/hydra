@@ -44,6 +44,14 @@ four handlers keep injecting `IAIProvider` directly and stay wired to OpenAI, un
 and the two-argument `ChatAsync`/`StreamChatAsync`/`GenerateImageAsync` overloads) alongside
 new model/parameter-aware overloads, so those four files needed zero code changes.
 
+> **Amendment (2026-09-18, specs/057).** The image half of that compatibility shim is gone.
+> `IAIProvider.ImageModel` and the two-argument `GenerateImageAsync` overload no longer exist:
+> image generation moved behind `IImageGenerationService`, and the model is chosen by the
+> `ImageGeneration` **capability assignment** rather than by a provider's own default property.
+> There is deliberately no fallback — an unassigned capability raises
+> `AiCapabilityNotConfiguredException` instead of guessing a model. The decision recorded above
+> still stands for chat; only the image members were retired. See ARCHITECTURE.md §33.
+
 ## Decision 2: Reuse `Message`/`UserChat` instead of new `MessageUsage`/`ConversationModelSettings` tables
 
 The spec's Key Entities list describes "Message Usage" and "Conversation Model Settings"

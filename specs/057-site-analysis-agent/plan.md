@@ -128,7 +128,9 @@ src/
 │   ├── Conversations/Capabilities/
 │   │   ├── RequestSiteAnalysisCapability.cs  # NEW
 │   │   └── IConversationCapability.cs        # MODIFIED — SubAgentArea.SiteAnalysis
-│   └── Options/SiteAnalysisOptions.cs        # NEW
+│   └── Ai/Images/                            # NEW (see "Superseded" below)
+│       ├── IImageGenerationService.cs + ImageGenerationService.cs
+│       └── GeneratedImageMaterializer.cs
 │
 ├── AskLucy.Infrastructure/
 │   ├── SiteAnalysis/

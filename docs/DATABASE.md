@@ -231,6 +231,47 @@ Models are data—not hardcoded.
 
 ---
 
+## AiCapabilityAssignments
+
+Which provider — and optionally which exact model — serves each `AiCapability` (chat, embeddings,
+transcription, image generation, and so on). `Capability` is unique, filtered on `DeletedAtUtc IS NULL`
+so a soft-deleted row never blocks a fresh assignment. Stored as a **string**, never an ordinal: an
+ordinal silently remaps if the enum is ever reordered, and this column decides which provider serves
+a capability.
+
+`ModelId` (nullable, added 2026-09-18) pins one specific model. Null means "follow the provider's
+default", which is what every capability except image generation does. `ImageGeneration` requires it
+and requires that model to have `SupportsImageOutput` — there is deliberately **no** fallback, because
+asking a chat model to draw is a broken request, not a degraded one; an unassigned capability raises
+`AiCapabilityNotConfiguredException` (HTTP 503) rather than quietly picking something.
+
+Both the provider and model FKs are `Restrict`, not `Cascade`: retiring a provider or model that a
+capability still points at must be a deliberate administrator decision, never a silent unassignment.
+
+---
+
+## SiteAnalyses / SiteAnalysisResults
+
+`SiteAnalyses` is one run of the Site Analysis Agent (specs/057): `UserId`, `UserChatId`, `SiteName`,
+`Latitude`/`Longitude`, optional `BoundaryGeoJson`, `Status`, `WorkflowExecutionId`,
+`ExpectedResultCount`, `ClosingOutcomeReportedAtUtc`, `StartedAtUtc`/`CompletedAtUtc`. Indexed on
+`(UserId, UserChatId, StartedAtUtc)` — the shape the chat rehydration query uses. Cascade-deletes with
+its user.
+
+`SiteAnalysisResults` is one specialist's finding, cascade-deleted with its analysis and **unique on
+`(SiteAnalysisId, AnalysisType)`** — a specialist reports exactly once per analysis. Holds
+`ContentJson` (the panel content blocks), `DataSource`, `ConfidenceLevel`, an optional `DocumentId`
+for image-bearing results, and `FailureReason`.
+
+Results exist as rows, rather than only as live SignalR pushes, so that navigating away mid-analysis
+or reloading does not lose findings that arrived while the user was elsewhere. Failed and rejected
+specialists are persisted too, with their `FailureReason` — the user is not shown a message for them,
+but the failure is recorded and retrievable rather than discarded.
+
+`Status` and every enum column here are stored as strings, for the same reason as above.
+
+---
+
 ## UserAISettings
 
 Stores per-user preferences.

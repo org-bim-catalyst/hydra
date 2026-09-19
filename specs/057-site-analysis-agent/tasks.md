@@ -49,8 +49,19 @@ add `[JsonConverter]` attributes and do not compare numerically on the client.
 
 **Purpose**: Configuration scaffolding needed by later phases.
 
-- [X] T001 Create `src/AskLucy.Application/Options/SiteAnalysisOptions.cs` with properties `ImageGenerationProviderKey` (string, default `"openai"`), `ImageGenerationModel` (string), and `SectionName = "SiteAnalysis"`. Mirror the shape of an existing options class such as `src/AskLucy.Application/Options/AgentRuntimeOptions.cs`.
-- [X] T002 Bind and validate `SiteAnalysisOptions` at startup in `src/AskLucy.Web/Program.cs` using the same `.Bind(...).ValidateOnStart()` pattern already used for other options classes there. Constitution §4 forbids reading `IConfiguration["Key"]` by raw string outside the binding layer.
+- [X] ~~T001 Create `src/AskLucy.Application/Options/SiteAnalysisOptions.cs`...~~ **Reverted (2026-09-18).**
+- [X] ~~T002 Bind and validate `SiteAnalysisOptions` at startup in `src/AskLucy.Web/Program.cs`...~~ **Reverted (2026-09-18).**
+
+> **Both tasks were done, then undone.** `SiteAnalysisOptions` put the image provider and model in
+> `appsettings`, bypassing the AI-capability assignments every other AI task already uses — an administrator
+> could not change the model without a redeploy, and the platform had two competing ways to pick a model.
+> The class and its binding were deleted; selection moved to the `ImageGeneration` capability assignment
+> (see research.md D7's superseded note). `Ai:OpenAI:ImageModel` was removed from `appsettings.json` for the
+> same reason. If you are following this file as a build order, skip both tasks.
+>
+> A required `IOptions<T>` with `ValidateOnStart()` and no default is also worth avoiding on its own terms:
+> it fails the entire host, not just its own feature, and that failure is invisible to `dotnet build` and to
+> unit tests — it only surfaces on a real host boot.
 
 ---
 
@@ -111,7 +122,7 @@ finding is ready, and the notice + panel appear on their own when the specialist
 ### The schematic image specialist
 
 - [X] T026 [US1] Verify `IDocumentFileValidator` accepts PNG. Locate its accepted-type set and confirm `DocumentFileType.Png` passes magic-byte validation; extend it if image uploads were previously restricted to document formats. This is the open verification item in [contracts/schematic-image-prompt.md](./contracts/schematic-image-prompt.md) and blocks T027.
-- [X] T027 [US1] Implement `src/AskLucy.Application/SiteAnalysis/Tools/SiteSchematicImageGenerationTool.cs` as an `IAgentTool` (`src/AskLucy.Application/Agents/Tools/IAgentTool.cs:56-71`). Sequence: read `siteAnalysisId`/`siteName`/`siteLocation` from the input JSON → build the prompt from the v1 template in [contracts/schematic-image-prompt.md](./contracts/schematic-image-prompt.md) (load it as a versioned artifact, **not** an inline literal — constitution §9) → `IAIProviderResolver.Resolve(options.ImageGenerationProviderKey)` → `GenerateImageAsync(prompt, model, ct)` → download the bytes → `DocumentUploadFinalizer.FinalizeAsync(ownerId: analysis.UserId, fileName, content, sizeBytes, actor, ct)` → compose content via `SiteAnalysisContentComposer` with an `image` block carrying the returned `fileId` and meaningful `alt` text → **call `ISiteAnalysisResultRelay.ReportSuccessAsync` inline** (rule 1) → return `AgentToolResult.Success`. Never return the provider URL (rule 4).
+- [X] T027 [US1] Implement `src/AskLucy.Application/SiteAnalysis/Tools/SiteSchematicImageGenerationTool.cs` as an `IAgentTool` (`src/AskLucy.Application/Agents/Tools/IAgentTool.cs:56-71`). Sequence: read `siteAnalysisId`/`siteName`/`siteLocation` from the input JSON → build the prompt from the v1 template in [contracts/schematic-image-prompt.md](./contracts/schematic-image-prompt.md) (load it as a versioned artifact, **not** an inline literal — constitution §9) → `IImageGenerationService.GenerateAsync(prompt, ct)` (which resolves the `ImageGeneration` capability assignment — provider **and** pinned model — and normalises whatever form the provider returns to bytes; see research.md D7's superseded note) → `DocumentUploadFinalizer.FinalizeAsync(ownerId: analysis.UserId, fileName, content, sizeBytes, actor, ct)` → compose content via `SiteAnalysisContentComposer` with an `image` block carrying the returned `fileId` and meaningful `alt` text → **call `ISiteAnalysisResultRelay.ReportSuccessAsync` inline** (rule 1) → return `AgentToolResult.Success`. Never return the provider URL (rule 4).
 - [X] T028 [US1] Register `SiteSchematicImageGenerationTool` in DI so `AgentToolCatalog` can resolve it by name — `NativeToolNodeExecutor` looks it up via `toolCatalog.Find(toolName)` (`NativeToolNodeExecutor.cs:36`). Follow how existing `IAgentTool` implementations are registered in `src/AskLucy.Infrastructure/DependencyInjection.cs`.
 
 ### Workflow provisioning

@@ -404,6 +404,23 @@ The AI Provider Engine selects the active provider based on user settings.
 
 Every provider must implement identical interfaces.
 
+## Credential resolution order: database first, configuration as fallback only
+
+Every provider resolves its API key from the administrator's stored `AiProvider.CredentialCiphertext`
+(decrypted through the credential protector) and reads configuration only when no stored credential
+exists. This is the platform-wide rule, not a per-provider choice — the long-term direction is that
+configuration keys disappear entirely and the database is the only source.
+
+It is written down because the two once disagreed: chat and image generation read `OpenAI:ApiKey`
+from configuration and never consulted the database, while embeddings preferred the database. Saving
+a bad key in the admin UI therefore broke memory and RAG with a 401 while chat carried on working
+from the config key — which presents as "OpenAI is half down" rather than "that key is wrong". A
+provider that adds a new capability must route it through the same resolver as the existing ones.
+
+A stored credential that cannot be decrypted (a Data Protection key-ring change) is reported as
+*credential unreadable* — it never silently falls back to configuration, because falling back would
+turn a recoverable, nameable state into a confusing "not configured" or a 401 from some other key.
+
 ## Failure classification
 
 Every provider-originated failure classifies to exactly one `AiProviderFailureKind`
@@ -743,6 +760,18 @@ The token is protected with `IDataProtector` before it becomes a Hangfire job ar
 arguments are serialised into the same database the design deliberately keeps hash-only. See
 [ADR 0009](adr/0009-owned-password-reset-token.md).
 
+## A recurring job whose runs can overlap must declare it
+
+A recurring job that can take longer than its own schedule interval will be started again while
+the previous run is still going. `DocumentStatisticsRecomputeJob` carries
+`[DisableConcurrentExecution(timeoutInSeconds: 0)]` for that reason: it sweeps every user's
+statistics against a remote database, so two overlapping sweeps load, refresh and save the same
+concurrency-checked rows and one always dies with a `DbUpdateConcurrencyException` — which is how
+three copies piled up stuck in `Processing`. The `0` timeout means a run that cannot take the lock
+gives up immediately rather than queueing behind its predecessor; nothing is lost, because each
+sweep is a full idempotent recompute and the next interval covers it. Apply the same attribute to
+any new recurring job that writes rows a sibling run would also write.
+
 ---
 
 # 19. Caching Strategy
@@ -816,6 +845,16 @@ Never log:
 * Refresh Tokens
 * Sensitive document contents
 
+## Request logging is Serilog's, not ASP.NET Core's
+
+`app.UseSerilogRequestLogging()` emits one compact structured summary per request (method, path,
+status, elapsed). ASP.NET Core's own hosting diagnostics would emit a "Request starting"/"Request
+finished" pair for the same request, so `Microsoft.AspNetCore.Hosting.Diagnostics` is pinned to
+`Warning` in `appsettings.json` while `Microsoft.AspNetCore` stays at `Information` — the rest of
+the framework's information-level events are still wanted, only the duplicated pair is not. If a
+request appears twice in the log, that override has been lost; do not solve it by removing
+`UseSerilogRequestLogging`.
+
 ---
 
 # 22. Error Handling
@@ -833,6 +872,31 @@ Include:
 * Timestamp
 
 Never expose stack traces in production.
+
+## Two cases where the handler must stand down
+
+`ProblemDetailsMiddleware` has exactly two escape hatches, and both exist because writing a
+problem response would make things worse than the original failure:
+
+* **The client disconnected.** An `OperationCanceledException` raised while this request's own
+  `HttpContext.RequestAborted` is signalled is the caller hanging up, not a server fault; it is
+  logged at its own level and not mapped. An `OperationCanceledException` from any *other* source
+  is a real failure and is still classified and reported — the `RequestAborted` check is what
+  keeps the two apart.
+* **The response has already started.** Once the status line and headers are on the wire — the
+  normal state of a streaming endpoint such as the chat SSE stream — setting `StatusCode` throws
+  a *second* exception from inside the error handler, which replaces the real one in the log and
+  escapes to Kestrel, which resets the connection. That reset is what a browser surfaces as
+  `ERR_HTTP2_PROTOCOL_ERROR` on an apparently-200 response. The middleware logs the path and
+  status it would have written and returns; the connection simply ends.
+
+Neither is a silent failure: both are recorded before the handler stands down. What is suppressed
+is only the attempt to *deliver* a response that cannot be delivered.
+
+Errors are written with `WriteAsJsonAsync(..., contentType: "application/problem+json")`. Setting
+`Response.ContentType` beforehand does not work — the no-content-type overload unconditionally
+overwrites it with `application/json`, which silently made every error response non-compliant
+until the explicit argument was added.
 
 ---
 
@@ -1161,6 +1225,17 @@ declared up front (`AgentToolPermission`) and enforced by the tool's own scoped 
 call, never a separate abstract permission registry — an agent's effective access is always the
 intersection of its configuration and the executing user's own authorization (FR-049), never
 broader (`AgentToolAccessBoundaryTests`).
+
+**Tool registration shape is load-bearing.** Register every tool directly —
+`services.AddScoped<IAgentTool, TheTool>()` — never as `services.AddScoped<IAgentTool>(sp =>
+sp.GetRequiredService<TheTool>())`. The factory shape re-enters `ServiceProvider.GetService` from
+inside a call-site visit that already holds the runtime resolver's lock; once the tool's own graph
+is deep enough for `StackGuard` to move the rest of the resolution onto another thread, the two
+deadlock and **every** request resolving `IEnumerable<IAgentTool>` hangs forever — no exception,
+no log entry, and invisible to startup DI validation. This is not hypothetical: it hung every chat
+turn during specs/057 and was only found with `dotnet-stack`. Add a concrete-type registration
+alongside it only when something genuinely resolves the tool that way (e.g. a `ScopeIsolated*`
+wrapper), never as the route through which `IAgentTool` itself is satisfied.
 
 **Approval gate**: a High/Critical-risk tool call pauses the execution
 (`AgentExecutionStatus.WaitingForApproval`, an `AgentApproval` row created `Pending`) unless an

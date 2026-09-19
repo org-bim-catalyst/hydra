@@ -140,14 +140,32 @@ plan:
 
 | Provider | `GenerateImageAsync` |
 |---|---|
-| `OpenAIProvider` | Real implementation, calls `images/generations` (`OpenAIProvider.cs:166-185`) |
-| `AnthropicProvider` | `throw new NotSupportedException` (`AnthropicProvider.cs:170-174`) |
-| `GoogleGeminiProvider` | `throw new NotSupportedException` (`GoogleGeminiProvider.cs:141-145`) |
-| `OpenRouterProvider` | `throw new NotSupportedException` (`OpenRouterProvider.cs:156-160`) |
+| `OpenAIProvider` | Real implementation, calls `images/generations` |
+| `GoogleGeminiProvider` | Real implementation (added during build — see below) |
+| `AnthropicProvider` | `throw new NotSupportedException` |
+| `OpenRouterProvider` | `throw new NotSupportedException` |
 
 `IAIProviderResolver.Resolve(providerKey)` takes an explicit key; there is no "find a provider that supports
-images" mechanism, so the key is configuration (`SiteAnalysisOptions`), not inference. Per constitution §9 this
-stays behind the provider abstraction — adding a future image-capable provider is a configuration change.
+images" mechanism, so the key has to be chosen, not inferred. Per constitution §9 this stays behind the
+provider abstraction — adding a future image-capable provider is a configuration change.
+
+> **Superseded (2026-09-18) — two corrections found while building:**
+>
+> 1. **The key is not configuration.** This decision originally put the provider key and model in a
+>    `SiteAnalysisOptions` config section. That bypassed the AI-capability assignments every other AI task
+>    already uses and hard-coded a model in `appsettings`, where an administrator could not change it. The
+>    options class was deleted; selection moved to the `ImageGeneration` capability assignment (provider **and**
+>    a pinned `SupportsImageOutput` model), resolved through `IImageGenerationService`. There is deliberately
+>    **no** platform-default fallback: asking a chat model to draw is a broken request, not a degraded one, so
+>    an unassigned capability throws `AiCapabilityNotConfiguredException`.
+> 2. **Gemini does generate images**, contrary to the table above as first written — it does so through
+>    `generateContent`, not a separate images endpoint, and was implemented during the build. Verified
+>    end-to-end with `gemini-3-pro-image-preview`.
+>
+> Also: `GenerateImageAsync` returns a `GeneratedImagePayload` union (hosted URL, base64, data URL, or raw
+> binary) rather than a URL string. A real billed OpenAI call failed with `KeyNotFoundException` because the
+> original code read only `data[0].url`, while GPT image models return `b64_json`. `GeneratedImageMaterializer`
+> now normalises every form to bytes and verifies PNG/JPEG/WebP from the signature bytes before storing.
 
 **Failure path**: catch `NotSupportedException` and the existing `AiProviderException` hierarchy and return
 `AgentToolResult.Failure` (FR-030). Do not introduce new exception types.

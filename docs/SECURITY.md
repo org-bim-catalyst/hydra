@@ -403,6 +403,22 @@ Rotate keys periodically.
 
 Support key replacement without redeployment.
 
+## The database is the source of truth; configuration is fallback only
+
+An AI provider key lives encrypted in `AiProvider.CredentialCiphertext` and is read from there
+first. A configuration value (`OpenAI:ApiKey` and its siblings) is consulted only when no stored
+credential exists, and the platform is moving toward removing those settings entirely.
+
+This ordering is a security property, not just plumbing. It is what makes "rotate a key without a
+redeployment" real: an administrator replacing a key in the admin UI must take effect for *every*
+consumer of that provider at once. When chat read configuration and embeddings read the database,
+rotating the stored key left chat running on the old one — a revoked credential still in active
+use, with nothing in the UI to indicate it.
+
+A stored credential that fails to decrypt is surfaced as *credential unreadable*. It must never
+fall back to a configuration key, because that silently substitutes a different credential for the
+one the administrator selected.
+
 ---
 
 # 25. Logging
