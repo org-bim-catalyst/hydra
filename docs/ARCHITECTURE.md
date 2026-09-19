@@ -934,6 +934,19 @@ Functional/Analytics/Marketing cookie activity before an explicit decision," spe
 FR-019) a real, enforceable gate rather than aspirational documentation — the enforcement
 point already exists even though nothing calls it yet.
 
+**Anonymous consent and the login-time merge** (specs/023-flumeria-landing-experience,
+ADR 0011): a second, parallel consent store exists for signed-out visitors, since
+`/users/me/cookie-consent` is `[Authorize]`-only. `PublicConsentGate`/`PublicConsentBanner`
+(`ClientApp/src/features/consent/{components,hooks}/*Public*`) read/write a first-party
+`flumeria_public_consent` browser cookie instead, keyed by policy version the same way the
+account-level record is. On `useLogin`/`useLoginTwoFactor`/`useCompleteExternalLogin`
+success, `migratePublicConsentToAccount()` promotes that cookie's decision into the
+account's DB record **only if the account has no record yet** — an existing account-level
+decision (e.g. from another device) always wins over this browser's anonymous one. This
+is what makes "ask once per browser, never twice for the same policy version" hold across
+the anonymous→authenticated boundary instead of `ConsentGate` re-blocking every new user
+immediately after their first sign-in.
+
 ---
 
 # 27. Document Intelligence Pipeline

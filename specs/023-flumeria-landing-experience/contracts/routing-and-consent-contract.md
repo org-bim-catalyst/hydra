@@ -42,10 +42,30 @@ Landing page (/) and restyled auth-flow pages:
         differ from what the visitor most recently chose (mirrors requiresReconsent semantics)
 
 Authenticated workspace (/chat and friends):
-  UNCHANGED — still wrapped in the existing <ConsentGate>, still calls the authenticated,
-  per-user /api/v1/cookie-consent/me endpoint. PublicConsentGate and ConsentGate never both
+  Still wrapped in the existing <ConsentGate>, still calls the authenticated, per-user
+  /api/v1/users/me/cookie-consent endpoint. PublicConsentGate and ConsentGate never both
   wrap the same route.
 ```
+
+### Post-login consent migration (2026-09-19, post-release follow-up, ADR 0011)
+
+`PublicConsentGate` and `ConsentGate` read/write independent stores (a browser cookie vs. a
+per-user DB record), so a fresh account's first `ConsentGate` load always found no record and
+re-blocked the user with a second, redundant prompt seconds after they had already answered
+one anonymously. `useLogin`/`useLoginTwoFactor`/`useCompleteExternalLogin` (`useAuth.ts`) now
+call `migratePublicConsentToAccount()` in `onSuccess`, alongside the existing session refresh:
+
+```text
+1. Account already has a consent record?  → do nothing (never overwrite a decision made
+   on another device with this browser's anonymous one).
+2. No account record, and this browser's flumeria_public_consent cookie is valid for the
+   current policy version?  → PUT it to /users/me/cookie-consent, seeding ConsentGate's
+   query cache with the result.
+3. Neither?  → unchanged: ConsentGate prompts as before.
+```
+
+Best-effort: a failed migration is swallowed and `ConsentGate` simply falls back to
+prompting, same as pre-migration behavior — it never fails the sign-in itself.
 
 ## `useFunnelAnalytics()` contract
 

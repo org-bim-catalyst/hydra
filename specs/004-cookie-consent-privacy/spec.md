@@ -137,3 +137,16 @@ Any visitor or user — logged in or not — can open a dedicated Privacy Page f
 - The Privacy Page's written content (legal copy) will be provided/reviewed by whoever owns compliance content for the platform; this specification defines where and how that content is presented and kept in sync with consent categories, not the legal wording itself.
 - Localization of the Privacy Page and consent banner into languages beyond English is out of scope for this feature; it is expected as a fast-follow once the platform's broader i18n framework is in place.
 - "Cookie Preferences section" (User Story 2) describes a distinct, dedicated area of Settings, not necessarily a separate route/URL — a tab or sub-panel within the existing Settings area satisfies FR-011 as long as it is reachable, viewable, and editable independently of the other Settings sections.
+
+## Post-Implementation Notes
+
+- **2026-09-19 (ADR 0011, post-release follow-up)**: specs/023-flumeria-landing-experience
+  later added a real, customizable consent decision on the pre-login pages (assumption above
+  and FR-018 originally treated those pages as Essential-only). That anonymous, browser-cookie
+  decision is now merged into the account's record on login if the account has none yet
+  (`migratePublicConsentToAccount()`), so FR-001/FR-006 are satisfied by the anonymous
+  decision rather than re-prompting — matching industry practice (Google/Microsoft/Amazon
+  scope cookie consent to the browser, not the login event) without weakening FR-005 / the
+  Assumptions section's "a decision made on one device is honored on all of the user's
+  devices" guarantee — an existing account-level decision (e.g. from another device) is
+  never silently overwritten by this browser's anonymous one.
