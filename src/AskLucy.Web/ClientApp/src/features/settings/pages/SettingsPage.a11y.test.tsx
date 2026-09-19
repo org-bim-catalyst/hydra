@@ -107,10 +107,10 @@ function renderSettings() {
 }
 
 describe('SettingsPage accessibility (FR-004, SPEC-017 T043)', () => {
-  it('has no automatically detectable a11y violations on the default (Security) tab', async () => {
+  it('has no automatically detectable a11y violations on the default (Profile) tab', async () => {
     const { container, findByRole } = renderSettings()
 
-    await findByRole('heading', { name: 'Settings' })
+    await findByRole('heading', { name: 'Account settings' })
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
@@ -138,7 +138,7 @@ describe('SettingsPage accessibility — full tab sweep (specs/025-chat-configur
       const user = userEvent.setup()
       const { container } = renderSettings()
 
-      await screen.findByRole('heading', { name: 'Settings' })
+      await screen.findByRole('heading', { name: 'Account settings' })
       await user.click(screen.getByRole('tab', { name: tabLabel }))
       // Chat History's settled marker is a form control's accessible label, not literal text
       // content — findByText wouldn't match a TextField's aria-label/placeholder.

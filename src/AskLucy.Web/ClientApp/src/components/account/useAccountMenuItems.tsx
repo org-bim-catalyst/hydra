@@ -45,7 +45,7 @@ export function useAccountMenuItems(): AccountMenuItem[] {
   const adminPath = isBuiltInAdmin ? '/admin/dashboard' : firstPermittedAdminPath(permissions)
 
   return [
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" />, path: '/settings' },
+    { id: 'settings', label: 'Account settings', icon: <SettingsIcon fontSize="small" />, path: '/settings' },
     { id: 'chat-settings', label: 'Chat settings', icon: <TuneOutlinedIcon fontSize="small" />, path: '/chat-settings' },
     { id: 'documents', label: 'Documents', icon: <DescriptionIcon fontSize="small" />, path: '/documents' },
     { id: 'knowledge-bases', label: 'Knowledge Bases', icon: <FolderIcon fontSize="small" />, path: '/knowledge-bases' },

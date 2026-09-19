@@ -38,7 +38,7 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
     // Configuration / Chat History to the Chat settings page, where they sit together instead of
     // beside password changes and cookie preferences.
     renderSettings()
-    await screen.findByRole('heading', { name: 'Settings' })
+    await screen.findByRole('heading', { name: 'Account settings' })
 
     for (const label of ['Profile', 'Security', 'Account', 'Data', 'Cookies', 'Viewer']) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
@@ -49,16 +49,16 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
     }
   })
 
-  it('defaults to the Security tab when no location.state.tab is provided', async () => {
+  it('defaults to the Profile tab when no location.state.tab is provided', async () => {
     renderSettings()
-    await screen.findByRole('heading', { name: 'Settings' })
+    await screen.findByRole('heading', { name: 'Account settings' })
 
-    expect(screen.getByRole('tab', { name: 'Security' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('seeds the initially active tab from location.state.tab', async () => {
     renderSettings(SETTINGS_TAB_INDEX.Data)
-    await screen.findByRole('heading', { name: 'Settings' })
+    await screen.findByRole('heading', { name: 'Account settings' })
 
     expect(screen.getByRole('tab', { name: 'Data' })).toHaveAttribute('aria-selected', 'true')
   })
@@ -69,7 +69,7 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
     // Chat History to Chat settings. Positional numbering would have shifted Viewer from 8 to 4
     // and silently repointed every SETTINGS_TAB_INDEX consumer.
     renderSettings(SETTINGS_TAB_INDEX.Viewer)
-    await screen.findByRole('heading', { name: 'Settings' })
+    await screen.findByRole('heading', { name: 'Account settings' })
 
     expect(screen.getByRole('tab', { name: 'Viewer' })).toHaveAttribute('aria-selected', 'true')
   })
@@ -79,7 +79,7 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
 // server's answer about the account, not a client guess.
 describe('SettingsPage password section (specs/058-password-recovery)', () => {
   it('asks for the current password and a confirmation when the account has a password', async () => {
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     expect(screen.getByLabelText('Current password')).toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       http.get('*/api/v1/auth/password/status', () => HttpResponse.json({ hasPassword: false })),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Set a password' })
 
     expect(screen.queryByLabelText('Current password')).not.toBeInTheDocument()
@@ -105,7 +105,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
     // and reset screens rather than as a sentence of prose the user has to parse.
     const user = userEvent.setup()
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     const newPassword = screen.getByLabelText('New password')
@@ -132,7 +132,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       }),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     await user.type(screen.getByLabelText('Current password'), 'Current-Passw0rd!')
@@ -163,7 +163,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       ),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     await user.type(screen.getByLabelText('Current password'), 'Current-Passw0rd!')
@@ -188,7 +188,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       }),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     await user.type(screen.getByLabelText('Current password'), 'Current-Passw0rd!')
@@ -210,7 +210,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       ),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     await user.type(screen.getByLabelText('Current password'), 'not-my-password')
@@ -227,7 +227,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       http.post('*/api/v1/auth/change-password', () => new HttpResponse(null, { status: 204 })),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await screen.findByRole('heading', { name: 'Change password' })
 
     await user.type(screen.getByLabelText('Current password'), 'Current-Passw0rd!')
@@ -245,7 +245,7 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
       http.get('*/api/v1/auth/password/status', () => new HttpResponse(null, { status: 500 })),
     )
 
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
 
     expect(await screen.findByText('Could not load your password settings.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
@@ -257,7 +257,7 @@ describe('SettingsPage two-factor authentication', () => {
     server.use(http.post('*/api/v1/auth/2fa/enable', () => HttpResponse.json('ABCD1234EFGH5678')))
 
     const user = userEvent.setup()
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await user.click(await screen.findByRole('button', { name: 'Enable 2FA' }))
 
     expect(await screen.findByText('ABCD1234EFGH5678')).toBeInTheDocument()
@@ -273,7 +273,7 @@ describe('SettingsPage two-factor authentication', () => {
     URL.revokeObjectURL = vi.fn()
 
     const user = userEvent.setup()
-    renderSettings()
+    renderSettings(SETTINGS_TAB_INDEX.Security)
     await user.click(await screen.findByRole('button', { name: 'Generate recovery codes' }))
     await screen.findByText('CODE1-AAAAA')
 

@@ -69,12 +69,12 @@ describe('UserMenu (specs/025-chat-configuration-settings FR-011)', () => {
     expect(screen.queryByText('Chat History')).not.toBeInTheDocument()
   })
 
-  it('still lists the plain Settings destination without a tab preselected', async () => {
+  it('still lists the plain Account settings destination without a tab preselected', async () => {
     const user = userEvent.setup()
     renderMenu()
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }))
-    await user.click(await screen.findByText('Settings'))
+    await user.click(await screen.findByText('Account settings'))
 
     expect(screen.getByTestId('location').textContent).toBe('/settingsnull')
   })

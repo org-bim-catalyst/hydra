@@ -250,7 +250,7 @@ function ProfileTab() {
   const onSubmit = handleSubmit((values) => updateProfile.mutate(values))
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
+    <Paper variant="outlined" sx={{ p: 3, width: '100%' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
         <Avatar src={avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
         <input
@@ -270,7 +270,7 @@ function ProfileTab() {
 
       <Divider sx={{ mb: 3 }} />
 
-      <Box component="form" onSubmit={onSubmit}>
+      <Box component="form" onSubmit={onSubmit} sx={{ maxWidth: 600 }}>
         <Stack spacing={2.5}>
           <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
           <TextField label="First name" fullWidth {...register('firstName')} />
@@ -749,7 +749,9 @@ export function SettingsPage() {
   // specs/025-chat-configuration-settings, research.md Decision 4 — lets both the account
   // menus and Chat Configuration's own entry-point links land on a specific tab, without
   // introducing per-tab routes.
-  const [tab, setTab] = useState(() => (location.state as { tab?: number } | null)?.tab ?? 0)
+  const [tab, setTab] = useState(
+    () => (location.state as { tab?: number } | null)?.tab ?? SETTINGS_TAB_INDEX.Profile,
+  )
   // `useState`'s initializer only runs on the very first mount — a navigation to `/settings`
   // while SettingsPage is *already* mounted (e.g. Chat Configuration's own "Go to AI
   // Providers"/"Go to Voice" links, both already on `/settings`) doesn't remount the
@@ -771,27 +773,13 @@ export function SettingsPage() {
   }, [location.key])
 
   return (
-    <AppShell title="Settings">
-      <Paper elevation={1} sx={{ width: '100%', display: 'flex' }}>
+    <AppShell title="Account settings">
+      <Paper elevation={1} sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Tabs
-          orientation="vertical"
           value={tab}
           onChange={(_, value: number) => setTab(value)}
-          sx={{
-            minWidth: 220,
-            alignSelf: 'stretch',
-            m: 2,
-            p: 1,
-            borderRadius: 2,
-            bgcolor: 'action.hover',
-            '& .MuiTab-root': {
-              alignItems: 'flex-start',
-              textAlign: 'left',
-              borderRadius: 1,
-              mb: 0.5,
-            },
-            '& .MuiTabs-indicator': { left: 0, width: 3, borderRadius: 1 },
-          }}
+          variant="fullWidth"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           {/*
             Explicit values, not positional indices. Tabs have been removed from the middle of
@@ -806,27 +794,25 @@ export function SettingsPage() {
           <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
           <Tab label="Viewer" value={SETTINGS_TAB_INDEX.Viewer} />
         </Tabs>
-        <Box sx={{ flex: 1, p: 3, display: 'flex', justifyContent: 'center' }}>
-          <Box sx={{ width: '100%', maxWidth: 720 }}>
-            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Profile}>
-              <ProfileTab />
-            </TabPanel>
-            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
-              <SecurityTab />
-            </TabPanel>
-            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
-              <AccountTab />
-            </TabPanel>
-            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
-              <DataTab />
-            </TabPanel>
-            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
-              <CookiePreferencesPanel />
-            </TabPanel>
-            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Viewer}>
-              <ViewerTab />
-            </TabPanel>
-          </Box>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Profile}>
+            <ProfileTab />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
+            <SecurityTab />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
+            <AccountTab />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
+            <DataTab />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
+            <CookiePreferencesPanel />
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Viewer}>
+            <ViewerTab />
+          </TabPanel>
         </Box>
       </Paper>
     </AppShell>
