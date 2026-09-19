@@ -1,1 +1,3 @@
-{"feature_directory":"specs/058-password-recovery"}
+{
+  "feature_directory": "specs/059-enforce-two-factor-signin"
+}
