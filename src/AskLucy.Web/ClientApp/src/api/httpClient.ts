@@ -97,7 +97,22 @@ function performFetch(path: string, init: ApiFetchInit): Promise<Response> {
 /** Shared across concurrent 401s so they trigger exactly one `/auth/refresh` call, not one each. */
 let refreshPromise: Promise<boolean> | null = null
 
-async function attemptSilentRefresh(): Promise<boolean> {
+/**
+ * Clears the session and sends the browser to `/login`, then never settles. Exported so raw-`fetch`
+ * callers that can't route through {@link apiFetch} (SSE streams, `multipart/form-data` uploads)
+ * can still take the same terminal path on a 401 instead of surfacing a misleading inline error.
+ */
+export function redirectToLogin<T>(): Promise<T> {
+  useAuthStore.getState().clear()
+  window.location.assign('/login')
+  // Never settle: the redirect above is the caller-visible outcome. If we resolved or rejected
+  // here instead, that could reach a route's errorElement (ProtectedRoute/AdminRoute rethrow on
+  // render) or an inline error UI before the navigation takes effect.
+  return new Promise<T>(() => {})
+}
+
+/** Exported for the same reason as {@link redirectToLogin} — shared with raw-`fetch` callers. */
+export async function attemptSilentRefresh(): Promise<boolean> {
   refreshPromise ??= (async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -141,12 +156,7 @@ export async function apiFetch<T>(path: string, init: ApiFetchInit = {}): Promis
       return parseResponse<T>(await performFetch(path, init))
     }
 
-    useAuthStore.getState().clear()
-    window.location.assign('/login')
-    // Never settle: the redirect above is the caller-visible outcome. If we threw here instead,
-    // the throw could reach a route's errorElement (ProtectedRoute/AdminRoute rethrow render-phase
-    // errors) before the navigation takes effect, flashing the generic ErrorPage instead of /login.
-    return new Promise<T>(() => {})
+    return redirectToLogin<T>()
   }
 
   return parseResponse<T>(response)

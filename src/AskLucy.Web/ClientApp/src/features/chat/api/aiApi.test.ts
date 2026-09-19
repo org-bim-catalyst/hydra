@@ -241,6 +241,50 @@ describe('streamChat', () => {
     expect(events).toContainEqual({ type: 'solarAnalysis', ...solarPayload })
   })
 
+  // specs/060: streamChat bypasses apiFetch (raw fetch, for SSE), so a revoked session used to
+  // surface only a generic "chat request failed" error instead of the sign-out/login flow.
+  it('retries once after a silent refresh when the chat request itself 401s', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'Authentication required' }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ userId: 'user-1', accessToken: 'new-token' }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(sseResponse(['data: Hello!\n\n', 'data: [DONE]\n\n']))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toEqual([{ type: 'content', delta: 'Hello!' }])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[1][0]).toContain('/auth/refresh')
+  })
+
+  it('redirects to /login and never settles when refresh also fails, instead of yielding a generic error', async () => {
+    const assignSpy = vi.fn()
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...window.location, assign: assignSpy } })
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'Authentication required' }), { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'No refresh token present' }), { status: 401 })),
+    )
+
+    const settled = vi.fn()
+    void streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)
+      .next()
+      .then(settled, settled)
+
+    await vi.waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith('/login')
+    })
+    expect(settled).not.toHaveBeenCalled()
+  })
+
   it('preserves the single meaningful space each streamed chunk carries', async () => {
     // Mirrors AiController.cs writing `data: {chunk}\n\n` — most word tokens from OpenAI
     // arrive with their own leading space (" I", " can", " hear"), which is the word boundary.
@@ -318,5 +362,42 @@ describe('transcribeAudio', () => {
     const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
 
     await expect(transcribeAudio(file)).rejects.toMatchObject({ message: 'Transcription failed', status: 500 })
+  })
+
+  it('retries once after a silent refresh when the transcription request itself 401s', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'Authentication required' }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ userId: 'user-1', accessToken: 'new-token' }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'hello world' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
+
+    await expect(transcribeAudio(file)).resolves.toBe('hello world')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('redirects to /login and never settles when refresh also fails, instead of throwing', async () => {
+    const assignSpy = vi.fn()
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...window.location, assign: assignSpy } })
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'Authentication required' }), { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'No refresh token present' }), { status: 401 })),
+    )
+
+    const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
+    const settled = vi.fn()
+    void transcribeAudio(file).then(settled, settled)
+
+    await vi.waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith('/login')
+    })
+    expect(settled).not.toHaveBeenCalled()
   })
 })

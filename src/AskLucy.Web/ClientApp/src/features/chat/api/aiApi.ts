@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from '../../../api/httpClient'
+import { apiFetch, ApiError, attemptSilentRefresh, redirectToLogin } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
@@ -203,17 +203,34 @@ export async function* streamChat(
   signal?: AbortSignal,
   selectedAction?: SelectedActionRequest,
 ): AsyncGenerator<ChatStreamEvent> {
-  const accessToken = useAuthStore.getState().accessToken
+  const sendRequest = () => {
+    const accessToken = useAuthStore.getState().accessToken
+    return fetch(`${API_BASE_URL}/ai/chat`, {
+      method: 'POST',
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters, selectedAction }),
+    })
+  }
 
-  const response = await fetch(`${API_BASE_URL}/ai/chat`, {
-    method: 'POST',
-    signal,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters, selectedAction }),
-  })
+  let response = await sendRequest()
+
+  // Bypasses `apiFetch`, so a revoked session (specs/060) needs its own silent-refresh-then-
+  // redirect handling — otherwise it falls through to the generic "chat request failed" error
+  // below instead of the sign-out/login flow every other authenticated call gets.
+  if (response.status === 401) {
+    if (await attemptSilentRefresh()) {
+      response = await sendRequest()
+    } else {
+      // Never settles — matches apiFetch's redirect-then-hang behavior so nothing downstream
+      // (useChatStream's catch) can render a "failed to send" error that outlives the navigation.
+      await redirectToLogin<never>()
+      return
+    }
+  }
 
   if (!response.ok || !response.body) {
     // RFC 7807 Problem Details (constitution §6) — surface the vendor-agnostic translated
@@ -443,15 +460,29 @@ export async function generateImage(chatId: string, prompt: string): Promise<str
 }
 
 export async function transcribeAudio(file: File): Promise<string> {
-  const accessToken = useAuthStore.getState().accessToken
   const form = new FormData()
   form.append('file', file)
 
-  const response = await fetch(`${API_BASE_URL}/ai/transcriptions`, {
-    method: 'POST',
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    body: form,
-  })
+  const sendRequest = () => {
+    const accessToken = useAuthStore.getState().accessToken
+    return fetch(`${API_BASE_URL}/ai/transcriptions`, {
+      method: 'POST',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      body: form,
+    })
+  }
+
+  let response = await sendRequest()
+
+  // Bypasses `apiFetch`, so a revoked session needs its own silent-refresh-then-redirect handling
+  // (see the matching comment in streamChat above).
+  if (response.status === 401) {
+    if (await attemptSilentRefresh()) {
+      response = await sendRequest()
+    } else {
+      return redirectToLogin<string>()
+    }
+  }
 
   if (!response.ok) {
     const problem = await response.json().catch(() => undefined)
