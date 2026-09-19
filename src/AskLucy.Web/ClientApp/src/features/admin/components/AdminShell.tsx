@@ -1,6 +1,7 @@
 import MenuOpenIcon from '@mui/icons-material/MenuOpen'
 import MenuIcon from '@mui/icons-material/Menu'
 import {
+  Alert,
   Box,
   Divider,
   IconButton,
@@ -9,11 +10,13 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Snackbar,
   Tooltip,
   Typography,
   alpha,
 } from '@mui/material'
 import type { ReactNode } from 'react'
+import type { Theme } from '@mui/material'
 import { useState } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
@@ -21,6 +24,7 @@ import { ADMIN_NAV } from '../adminNav'
 import { overlaySurface } from '../../../theme/tokens/overlaySurface'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
 import { usePermissions } from '../../auth/hooks/usePermissions'
+import { useOpenHangfireDashboard } from '../hooks/useOpenHangfireDashboard'
 
 const EXPANDED_WIDTH = 232
 const COLLAPSED_WIDTH = 60
@@ -50,13 +54,14 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
   const { pathname } = useLocation()
   const isBuiltInAdmin = useIsAdmin()
   const permissions = usePermissions()
+  const hangfireDashboard = useOpenHangfireDashboard()
   const visibleNav = ADMIN_NAV.filter((item) => {
     if (isBuiltInAdmin) return true
     if (item.builtInOnly) return false
     if (!item.permission) return true
     const keys = Array.isArray(item.permission) ? item.permission : [item.permission]
     return keys.some((key) => permissions.includes(key))
-  })
+  }).map((item) => (item.id === 'hangfire-dashboard' ? { ...item, onSelect: hangfireDashboard.open } : item))
   const [collapsed, setCollapsed] = useState(() => {
     // Per-browser convenience only, so a failure to read it must never break the page —
     // private windows and blocked site data both throw here.
@@ -117,39 +122,54 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
           <Divider />
           <List sx={{ p: 0.75 }}>
             {visibleNav.map((item) => {
-              const selected = pathname === item.path
+              const selected = item.path !== undefined && pathname === item.path
+              const itemSx = {
+                borderRadius: `${overlaySurface.itemRadius}px`,
+                mb: 0.25,
+                px: collapsed ? 0 : 1.5,
+                py: 1,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                '&.Mui-selected': {
+                  color: 'primary.main',
+                  bgcolor: (t: Theme) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.16 : 0.08),
+                },
+              }
               return (
                 // Each row wrapped in a ListItem so it renders an <li>: ListItemButton with
                 // component={RouterLink} is an <a>, and a <ul> may only contain <li> directly.
-                <ListItem key={item.path} disablePadding sx={{ display: 'block' }}>
+                <ListItem key={item.id ?? item.path} disablePadding sx={{ display: 'block' }}>
                   <Tooltip title={collapsed ? item.label : ''} placement="right">
-                    <ListItemButton
-                    component={RouterLink}
-                    to={item.path}
-                    selected={selected}
-                    aria-current={selected ? 'page' : undefined}
-                    sx={{
-                      borderRadius: `${overlaySurface.itemRadius}px`,
-                      mb: 0.25,
-                      px: collapsed ? 0 : 1.5,
-                      py: 1,
-                      justifyContent: collapsed ? 'center' : 'flex-start',
-                      '&.Mui-selected': {
-                        color: 'primary.main',
-                        bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.16 : 0.08),
-                      },
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    {!collapsed && (
-                      <ListItemText
-                        primary={item.label}
-                        slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
-                      />
+                    {item.onSelect ? (
+                      <ListItemButton onClick={item.onSelect} disabled={hangfireDashboard.isPending} sx={itemSx}>
+                        <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
+                          {item.icon}
+                        </ListItemIcon>
+                        {!collapsed && (
+                          <ListItemText
+                            primary={item.label}
+                            slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
+                          />
+                        )}
+                      </ListItemButton>
+                    ) : (
+                      <ListItemButton
+                        component={RouterLink}
+                        to={item.path ?? ''}
+                        selected={selected}
+                        aria-current={selected ? 'page' : undefined}
+                        sx={itemSx}
+                      >
+                        <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
+                          {item.icon}
+                        </ListItemIcon>
+                        {!collapsed && (
+                          <ListItemText
+                            primary={item.label}
+                            slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
+                          />
+                        )}
+                      </ListItemButton>
                     )}
-                    </ListItemButton>
                   </Tooltip>
                 </ListItem>
               )
@@ -159,6 +179,12 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
 
         <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
       </Box>
+
+      <Snackbar open={hangfireDashboard.errorMessage !== null} autoHideDuration={6000} onClose={hangfireDashboard.clearError}>
+        <Alert severity="error" variant="filled" onClose={hangfireDashboard.clearError}>
+          {hangfireDashboard.errorMessage}
+        </Alert>
+      </Snackbar>
     </AppShell>
   )
 }

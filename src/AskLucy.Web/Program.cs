@@ -1,8 +1,10 @@
 using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using AskLucy.Application;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Admin.Commands.IssueHangfireDashboardSession;
 using AskLucy.Application.Authorization;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
@@ -21,6 +23,7 @@ using AskLucy.Web.Auth;
 using AskLucy.Web.DevSeed;
 using AskLucy.Web.Middleware;
 using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -96,6 +99,23 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             // once the token it captured expires and is never re-read.
             OnMessageReceived = context =>
             {
+                if (context.HttpContext.Request.Path.StartsWithSegments("/hangfire"))
+                {
+                    // A plain browser navigation to /hangfire (the new tab the admin panel
+                    // opens) never carries an Authorization header, so this is the only way
+                    // that request can ever authenticate (specs/060-hangfire-dashboard-access,
+                    // research.md Decision 1). Read-only cookie name check here — the actual
+                    // "was this token minted FOR the dashboard" check is the purpose claim
+                    // below, checked after the framework validates the signature/expiry.
+                    if (context.Request.Cookies.TryGetValue(HangfireDashboardCookie.Name, out var dashboardToken)
+                        && !string.IsNullOrEmpty(dashboardToken))
+                    {
+                        context.Token = dashboardToken;
+                    }
+
+                    return Task.CompletedTask;
+                }
+
                 if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
                 {
                     return Task.CompletedTask;
@@ -122,6 +142,19 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             // hook can actually refuse the request.
             OnTokenValidated = async context =>
             {
+                // Runs after signature/expiry validation, so claims can be trusted here — unlike
+                // in OnMessageReceived above, which only decides *where* to read the token from.
+                // A validly signed token minted for any other purpose (e.g. the SPA's normal
+                // access token, replayed via this cookie) is rejected even though its signature
+                // checks out (specs/060-hangfire-dashboard-access, research.md Decision 2).
+                if (context.HttpContext.Request.Path.StartsWithSegments("/hangfire")
+                    && context.Principal?.FindFirstValue(HangfireDashboardSessionClaims.PurposeClaimType)
+                        != HangfireDashboardSessionClaims.PurposeClaimValue)
+                {
+                    context.Fail("Token is not valid for the Hangfire dashboard.");
+                    return;
+                }
+
                 var validator = context.HttpContext.RequestServices.GetRequiredService<ActiveSessionTokenValidator>();
 
                 if (!await validator.IsStillActiveAsync(context.Principal!, context.HttpContext.RequestAborted))
@@ -673,12 +706,26 @@ app.UseAuthorization();
 
 app.UseRateLimiter();
 
+// Overrides the dashboard's stock colors with the app's own palette tokens
+// (specs/060-hangfire-dashboard-access, research.md Decision 3). Hangfire has no
+// DashboardOptions.StylesheetFiles property in 1.8.x — custom stylesheets are registered once,
+// globally, as embedded resources via DashboardRoutes.Routes, keyed by manifest resource name
+// (see AskLucy.Web.csproj's <EmbeddedResource> for HangfireTheme/*.css). DarkModeEnabled=true
+// is a static on/off switch, not a per-request theme choice — Hangfire itself wraps the dark
+// stylesheet in `@media (prefers-color-scheme: dark)` and has no other toggle-persistence
+// mechanism (confirmed by inspecting Hangfire.Core.dll directly; no cookie/localStorage/query
+// param hook exists), so which one a browser renders follows the OS/browser color scheme, not
+// the SPA's own theme store.
+DashboardRoutes.AddStylesheet(typeof(Program).Assembly, "AskLucy.Web.HangfireTheme.hangfire-theme.css");
+DashboardRoutes.AddStylesheetDarkMode(typeof(Program).Assembly, "AskLucy.Web.HangfireTheme.hangfire-theme-dark.css");
+
 // Document Intelligence Pipeline's job dashboard (specs/015-document-intelligence-pipeline,
 // research.md Decision 2) — administrator/operator-only, see HangfireDashboardAuthorizationFilter
 // for why a direct browser visit won't authenticate on this JWT-Bearer-only host.
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = [new HangfireDashboardAuthorizationFilter()],
+    DarkModeEnabled = true,
 });
 
 // US6 — refreshes DocumentStatistics (dashboard aggregates) every minute; the dashboard's live

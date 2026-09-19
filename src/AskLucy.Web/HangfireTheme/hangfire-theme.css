@@ -1,0 +1,110 @@
+/* Ask Lucy palette applied to Hangfire's stock Bootstrap 3 dashboard markup
+   (specs/060-hangfire-dashboard-access). Registered as an embedded resource via
+   DashboardRoutes.Routes.AddStylesheet/AddStylesheetDarkMode in Program.cs — not served as a
+   static wwwroot file. Values pinned to
+   ClientApp/src/theme/tokens/palette.ts light mode — edit there first, mirror here.
+   Hangfire ships no CSS custom properties/theming hook, so this overrides its
+   class selectors directly; see research.md Decision 3 for why. */
+
+body {
+    background-color: #F7F6F2;
+    color: #171613;
+}
+
+a {
+    color: #1F4E5E;
+}
+
+a:hover,
+a:focus {
+    color: #123340;
+}
+
+.navbar-inverse {
+    background-color: #1F4E5E;
+    border-color: #123340;
+}
+
+.navbar-inverse .navbar-brand,
+.navbar-inverse .navbar-text {
+    color: #F7F6F2;
+}
+
+.navbar-inverse .navbar-nav > li > a {
+    color: rgba(247, 246, 242, 0.85);
+}
+
+.navbar-inverse .navbar-nav > .active > a,
+.navbar-inverse .navbar-nav > li > a:hover {
+    background-color: #123340;
+    color: #F7F6F2;
+}
+
+.sidebar-menu li.active {
+    border-left-color: #B8461F;
+}
+
+.sidebar-menu a {
+    color: #3B3833;
+}
+
+.sidebar-menu li.active a {
+    color: #1F4E5E;
+    font-weight: 600;
+}
+
+.page-header {
+    border-bottom-color: #DEDBD1;
+}
+
+.panel,
+.metric {
+    background-color: #FFFFFF;
+    border-color: #DEDBD1;
+}
+
+.table {
+    color: #171613;
+}
+
+.table > thead > tr > th {
+    border-bottom-color: #DEDBD1;
+    color: #524E46;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: #EEECE5;
+}
+
+.btn-primary {
+    background-color: #1F4E5E;
+    border-color: #123340;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #123340;
+    border-color: #123340;
+}
+
+.label-danger,
+.text-danger,
+.bg-danger {
+    color: #B23B2E;
+}
+
+.label-success,
+.text-success,
+.bg-success {
+    color: #3F7D4E;
+}
+
+.label-warning,
+.text-warning,
+.bg-warning {
+    color: #B8791F;
+}
+
+.breadcrumb {
+    background-color: transparent;
+}

@@ -36,6 +36,19 @@ public sealed class TokenServiceTests
     }
 
     [Fact]
+    public void GenerateAccessToken_ShouldExpireInTheExplicitLifetime_WhenOneIsProvided()
+    {
+        // specs/060-hangfire-dashboard-access research.md Decision 4: the Hangfire dashboard
+        // session needs a 30-minute window, distinct from the configured 15-minute default above.
+        var before = DateTime.UtcNow;
+        var result = _tokenService.GenerateAccessToken(
+            "user-1", [new Claim(ClaimTypes.NameIdentifier, "user-1")], TimeSpan.FromMinutes(30));
+
+        result.AccessToken.Should().NotBeNullOrEmpty();
+        result.ExpiresAtUtc.Should().BeCloseTo(before.AddMinutes(30), TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public void IssueRefreshToken_ShouldGenerateANewFamily_WhenNoneIsProvided()
     {
         var first = _tokenService.IssueRefreshToken();

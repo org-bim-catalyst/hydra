@@ -15,6 +15,14 @@ public interface ITokenService
 {
     AccessTokenResult GenerateAccessToken(string userId, IEnumerable<Claim> claims);
 
+    /// <summary>
+    /// Same as <see cref="GenerateAccessToken(string, IEnumerable{Claim})"/>, but with an
+    /// explicit expiry instead of the configured default (specs/060-hangfire-dashboard-access
+    /// research.md Decision 4 — the Hangfire dashboard session needs a longer window than the
+    /// SPA's normal access token).
+    /// </summary>
+    AccessTokenResult GenerateAccessToken(string userId, IEnumerable<Claim> claims, TimeSpan lifetime);
+
     IssuedRefreshToken IssueRefreshToken(Guid? existingTokenFamilyId = null);
 
     string Hash(string plainTextToken);

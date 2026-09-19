@@ -1,0 +1,112 @@
+/* Ask Lucy palette applied to Hangfire's stock Bootstrap 3 dashboard markup — dark mode
+   (specs/060-hangfire-dashboard-access). Registered as an embedded resource via
+   DashboardRoutes.Routes.AddStylesheet/AddStylesheetDarkMode in Program.cs — not served as a
+   static wwwroot file. Values pinned to
+   ClientApp/src/theme/tokens/palette.ts dark mode — edit there first, mirror here.
+   Hangfire wraps DashboardOptions.DarkModeStylesheetFiles content in its own
+   @media (prefers-color-scheme: dark) block, so this file must NOT add another one —
+   see research.md Decision 3 for why this only activates on the browser/OS dark
+   preference, not the SPA's in-app theme toggle. */
+
+body {
+    background-color: #14130F;
+    color: #EEECE5;
+}
+
+a {
+    color: #4C7B8B;
+}
+
+a:hover,
+a:focus {
+    color: #D97650;
+}
+
+.navbar-inverse {
+    background-color: #1D1B17;
+    border-color: #26241F;
+}
+
+.navbar-inverse .navbar-brand,
+.navbar-inverse .navbar-text {
+    color: #F7F6F2;
+}
+
+.navbar-inverse .navbar-nav > li > a {
+    color: rgba(247, 246, 242, 0.75);
+}
+
+.navbar-inverse .navbar-nav > .active > a,
+.navbar-inverse .navbar-nav > li > a:hover {
+    background-color: #26241F;
+    color: #F7F6F2;
+}
+
+.sidebar-menu li.active {
+    border-left-color: #D97650;
+}
+
+.sidebar-menu a {
+    color: #C3BFB1;
+}
+
+.sidebar-menu li.active a {
+    color: #4C7B8B;
+    font-weight: 600;
+}
+
+.page-header {
+    border-bottom-color: rgba(247, 246, 242, 0.1);
+}
+
+.panel,
+.metric {
+    background-color: #1D1B17;
+    border-color: rgba(247, 246, 242, 0.1);
+}
+
+.table {
+    color: #EEECE5;
+}
+
+.table > thead > tr > th {
+    border-bottom-color: rgba(247, 246, 242, 0.1);
+    color: #9A9587;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: #26241F;
+}
+
+.btn-primary {
+    background-color: #4C7B8B;
+    border-color: #123340;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #1F4E5E;
+    border-color: #123340;
+}
+
+.label-danger,
+.text-danger,
+.bg-danger {
+    color: #B23B2E;
+}
+
+.label-success,
+.text-success,
+.bg-success {
+    color: #3F7D4E;
+}
+
+.label-warning,
+.text-warning,
+.bg-warning {
+    color: #B8791F;
+}
+
+.breadcrumb {
+    background-color: transparent;
+}

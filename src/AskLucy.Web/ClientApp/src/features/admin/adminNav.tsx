@@ -9,10 +9,18 @@ import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import DnsOutlinedIcon from '@mui/icons-material/DnsOutlined'
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined'
+import WorkOutlineOutlinedIcon from '@mui/icons-material/WorkOutlineOutlined'
 import type { ReactNode } from 'react'
 
 export interface AdminNavItem {
-  path: string
+  /** Omitted for an action-triggered entry (see `id`/`onSelect`) — it never routes, so it has no location of its own. */
+  path?: string
+  /**
+   * Stable identity for an action-triggered entry, used by `AdminShell` to attach the actual
+   * `onSelect` handler at render time (some handlers need hook state — e.g. mutation/error
+   * state — that this static list, evaluated at module load, cannot hold itself).
+   */
+  id?: string
   label: string
   icon: ReactNode
   /**
@@ -23,6 +31,12 @@ export interface AdminNavItem {
    */
   permission?: string | string[]
   builtInOnly?: boolean
+  /**
+   * Renders this entry as a button rather than a `RouterLink` (specs/060-hangfire-dashboard-
+   * access) — for a row that triggers an action (mint a session, open a new tab) instead of
+   * navigating within the SPA. Mutually exclusive with `path`.
+   */
+  onSelect?: () => void
 }
 
 /**
@@ -54,4 +68,10 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { path: '/admin/system-agents', label: 'System agents', icon: <SupportAgentOutlinedIcon fontSize="small" />, permission: 'admin.system-agents.view' },
   { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
   { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },
+  {
+    id: 'hangfire-dashboard',
+    label: 'Jobs',
+    icon: <WorkOutlineOutlinedIcon fontSize="small" />,
+    builtInOnly: true,
+  },
 ]

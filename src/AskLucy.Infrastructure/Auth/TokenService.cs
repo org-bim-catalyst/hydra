@@ -16,9 +16,12 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
 {
     private readonly JwtOptions _options = options.Value;
 
-    public AccessTokenResult GenerateAccessToken(string userId, IEnumerable<Claim> claims)
+    public AccessTokenResult GenerateAccessToken(string userId, IEnumerable<Claim> claims) =>
+        GenerateAccessToken(userId, claims, TimeSpan.FromMinutes(_options.AccessTokenLifetimeMinutes));
+
+    public AccessTokenResult GenerateAccessToken(string userId, IEnumerable<Claim> claims, TimeSpan lifetime)
     {
-        var expiresAtUtc = DateTime.UtcNow.AddMinutes(_options.AccessTokenLifetimeMinutes);
+        var expiresAtUtc = DateTime.UtcNow.Add(lifetime);
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);

@@ -29,9 +29,13 @@ public static class TestJwtFactory
     public static string Create(string userId, params string[] roles) => Create(userId, roles, permissions: []);
 
     /// <summary>Same as <see cref="Create(string, string[])"/>, plus explicit <c>permission</c> claims — for a synthetic custom-role principal holding only a subset of the catalogue (e.g. <see cref="Admin.PermissionEnforcementMatrixTests"/>).</summary>
-    public static string Create(string userId, string[] roles, IEnumerable<string> permissions)
+    public static string Create(string userId, string[] roles, IEnumerable<string> permissions) =>
+        Create(userId, roles, permissions, extraClaims: []);
+
+    /// <summary>Same as <see cref="Create(string, string[], IEnumerable{string})"/>, plus arbitrary extra claims (e.g. the <c>purpose</c> claim specs/060-hangfire-dashboard-access tests need to mint a non-dashboard-session token to prove it's rejected on <c>/hangfire</c>).</summary>
+    public static string Create(string userId, string[] roles, IEnumerable<string> permissions, IEnumerable<Claim> extraClaims)
     {
-        List<Claim> claims = [new(ClaimTypes.NameIdentifier, userId), .. roles.Select(r => new Claim(ClaimTypes.Role, r))];
+        List<Claim> claims = [new(ClaimTypes.NameIdentifier, userId), .. roles.Select(r => new Claim(ClaimTypes.Role, r)), .. extraClaims];
 
         if (roles.Contains("Administrator") || roles.Contains("Super User"))
         {
