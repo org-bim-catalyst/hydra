@@ -43,16 +43,20 @@ export function PublicConsentBanner() {
       aria-label="Cookie preferences"
       sx={{
         position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        bottom: { xs: 16, sm: 24 },
+        width: '50%',
+        minWidth: { xs: '90vw', sm: 'auto' },
+        maxWidth: 960,
         zIndex: (theme) => theme.zIndex.snackbar,
         p: { xs: 2, sm: 3 },
-        borderTop: '1px solid',
+        border: '1px solid',
         borderColor: 'divider',
+        borderRadius: 2,
       }}
     >
-      <Stack spacing={2} sx={{ maxWidth: 960, mx: 'auto' }}>
+      <Stack spacing={2}>
         <Typography variant="body2" color="text.secondary">
           Flumeria uses cookies for essential functionality and, with your permission, for functional
           preferences, analytics, and marketing. Read our{' '}

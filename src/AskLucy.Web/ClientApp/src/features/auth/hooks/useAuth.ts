@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as authApi from '../api/authApi'
 import type { SessionResponse } from '../api/authApi'
+import { migratePublicConsentToAccount } from '../../consent/hooks/usePublicCookieConsent'
 import { useAuthStore } from '../../../store/authStore'
 import { SESSION_QUERY_KEY } from './useSession'
 
@@ -27,6 +28,14 @@ function refreshSession(queryClient: ReturnType<typeof useQueryClient>) {
   return queryClient.refetchQueries({ queryKey: SESSION_QUERY_KEY })
 }
 
+/**
+ * Best-effort: a failed promotion just means ConsentGate falls back to prompting the user
+ * again post-login, same as before this existed — it must never fail the sign-in itself.
+ */
+function migrateConsent(queryClient: ReturnType<typeof useQueryClient>) {
+  return migratePublicConsentToAccount(queryClient).catch(() => undefined)
+}
+
 export function useLogin() {
   const setSession = useAuthStore((s) => s.setSession)
   const queryClient = useQueryClient()
@@ -36,7 +45,7 @@ export function useLogin() {
     onSuccess: (result) => {
       if (!result.requiresTwoFactor && result.accessToken && result.userId) {
         setSession(result.accessToken, result.userId)
-        return refreshSession(queryClient)
+        return Promise.all([refreshSession(queryClient), migrateConsent(queryClient)])
       }
     },
   })
@@ -52,7 +61,7 @@ export function useLoginTwoFactor() {
     onSuccess: (result) => {
       if (result.accessToken && result.userId) {
         setSession(result.accessToken, result.userId)
-        return refreshSession(queryClient)
+        return Promise.all([refreshSession(queryClient), migrateConsent(queryClient)])
       }
     },
   })
@@ -166,7 +175,7 @@ export function useCompleteExternalLogin() {
     onSuccess: (result) => {
       if (result.accessToken && result.userId) {
         setSession(result.accessToken, result.userId)
-        return refreshSession(queryClient)
+        return Promise.all([refreshSession(queryClient), migrateConsent(queryClient)])
       }
     },
   })

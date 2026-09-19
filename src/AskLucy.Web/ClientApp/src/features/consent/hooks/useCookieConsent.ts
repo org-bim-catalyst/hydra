@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as consentApi from '../api/consentApi'
 import type { SaveCookieConsentInput } from '../api/consentApi'
 
-const COOKIE_CONSENT_QUERY_KEY = ['cookie-consent', 'me']
+export const COOKIE_CONSENT_QUERY_KEY = ['cookie-consent', 'me']
 
 export function useCookieConsent() {
   return useQuery({ queryKey: COOKIE_CONSENT_QUERY_KEY, queryFn: consentApi.getMyCookieConsent })

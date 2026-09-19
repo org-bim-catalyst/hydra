@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { getCookiePolicy } from '../../privacy/api/privacyApi'
+import { getMyCookieConsent, saveMyCookieConsent } from '../api/consentApi'
+import { COOKIE_CONSENT_QUERY_KEY } from './useCookieConsent'
 
 const PUBLIC_CONSENT_COOKIE_NAME = 'flumeria_public_consent'
 export const PUBLIC_CONSENT_QUERY_KEY = ['public-cookie-consent']
@@ -111,6 +113,33 @@ export function usePublicCookieConsent() {
  */
 export function ensurePublicConsentState(queryClient: QueryClient) {
   return queryClient.ensureQueryData({ queryKey: PUBLIC_CONSENT_QUERY_KEY, queryFn: loadPublicConsentState })
+}
+
+/**
+ * "Ask once per browser, never twice for the same policy version": called right after
+ * useAuth establishes a session (login, 2FA, OAuth completion) to promote an anonymous
+ * pre-login decision made on this browser into the account's record, so `ConsentGate`
+ * doesn't immediately re-block a brand-new user with a redundant second prompt.
+ *
+ * Never overwrites an existing account decision — a `latest` record already on the account
+ * (e.g. made from a different device) always wins over this browser's anonymous cookie.
+ */
+export async function migratePublicConsentToAccount(queryClient: QueryClient) {
+  const accountState = await queryClient.ensureQueryData({
+    queryKey: COOKIE_CONSENT_QUERY_KEY,
+    queryFn: getMyCookieConsent,
+  })
+  if (accountState.hasConsented) return
+
+  const publicState = await ensurePublicConsentState(queryClient)
+  if (!publicState.hasConsented || publicState.requiresReconsent) return
+
+  const status = await saveMyCookieConsent({
+    functional: publicState.functional,
+    analytics: publicState.analytics,
+    marketing: publicState.marketing,
+  })
+  queryClient.setQueryData(COOKIE_CONSENT_QUERY_KEY, status)
 }
 
 export function useSavePublicCookieConsent() {
