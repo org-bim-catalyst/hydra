@@ -176,6 +176,12 @@ const server = setupServer(
       isPlatformDefault: false,
     }),
   ),
+  // useSiteAnalysisRehydration fires for every conversation this page opens. Without a handler
+  // the request is bypassed to the real network, fails, and pops the "Some site analysis panels
+  // couldn't be restored." Snackbar — a second role="alert" that races every assertion in this
+  // file. It only lost the race on a loaded CI runner. An empty list is the normal case for a
+  // chat that has no site analyses; the suite that does exercise them overrides this handler.
+  http.get('*/api/v1/site-analyses', () => HttpResponse.json([])),
   http.get('*/api/v1/chats/:id', ({ params }) =>
     HttpResponse.json({
       id: params.id,
