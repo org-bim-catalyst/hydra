@@ -57,9 +57,6 @@ const AgentExecutionPage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
 )
-const ProfilePage = lazy(() =>
-  import('../features/profile/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
-)
 const SettingsPage = lazy(() =>
   import('../features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 )
@@ -384,15 +381,9 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
+    // Profile content merged into Settings — kept as a redirect for old bookmarks/links.
     path: '/profile',
-    element: (
-      <ProtectedRoute>
-        <Lazy>
-          <ProfilePage />
-        </Lazy>
-      </ProtectedRoute>
-    ),
-    errorElement: <ErrorPage />,
+    element: <Navigate to="/settings" replace />,
   },
   {
     path: '/settings',

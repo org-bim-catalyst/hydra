@@ -40,7 +40,7 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
     renderSettings()
     await screen.findByRole('heading', { name: 'Settings' })
 
-    for (const label of ['Security', 'Account', 'Data', 'Cookies', 'Viewer']) {
+    for (const label of ['Profile', 'Security', 'Account', 'Data', 'Cookies', 'Viewer']) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
     }
 

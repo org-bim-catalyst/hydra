@@ -24,4 +24,6 @@ export const SETTINGS_TAB_INDEX = {
   /** specs/028-ai-floating-panels — appended, not inserted, so existing tab indices never
    * shift (research.md Decision 6). */
   Viewer: 8,
+  /** Profile page merged into Settings — appended for the same reason as Viewer above. */
+  Profile: 9,
 } as const

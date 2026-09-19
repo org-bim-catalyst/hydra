@@ -3,7 +3,6 @@ import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import DescriptionIcon from '@mui/icons-material/Description'
 import FolderIcon from '@mui/icons-material/Folder'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
-import PersonIcon from '@mui/icons-material/Person'
 import PolicyIcon from '@mui/icons-material/Policy'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -46,7 +45,6 @@ export function useAccountMenuItems(): AccountMenuItem[] {
   const adminPath = isBuiltInAdmin ? '/admin/dashboard' : firstPermittedAdminPath(permissions)
 
   return [
-    { id: 'profile', label: 'Profile', icon: <PersonIcon fontSize="small" />, path: '/profile' },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" />, path: '/settings' },
     { id: 'chat-settings', label: 'Chat settings', icon: <TuneOutlinedIcon fontSize="small" />, path: '/chat-settings' },
     { id: 'documents', label: 'Documents', icon: <DescriptionIcon fontSize="small" />, path: '/documents' },

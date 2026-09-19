@@ -1,5 +1,6 @@
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -24,7 +25,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router'
 import { API_BASE_URL, ApiError } from '../../../api/httpClient'
@@ -43,7 +44,7 @@ import {
 } from '../../auth/hooks/useAuth'
 import { PasswordRequirements } from '../../auth/components/PasswordRequirements'
 import { isPasswordPolicyMet } from '../../auth/passwordPolicy'
-import { useDeleteAccount, useMyProfile } from '../../profile/hooks/useProfile'
+import { useDeleteAccount, useMyProfile, useUpdateProfile, useUploadAvatar } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
 import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
@@ -222,6 +223,64 @@ function PasswordSection() {
         </Stack>
       </Box>
     </Box>
+  )
+}
+
+interface ProfileFormValues {
+  firstName: string
+  lastName: string
+}
+
+function ProfileTab() {
+  const { data: profile } = useMyProfile()
+  const updateProfile = useUpdateProfile()
+  const uploadAvatar = useUploadAvatar()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  const { register, handleSubmit } = useForm<ProfileFormValues>({
+    values: { firstName: profile?.firstName ?? '', lastName: profile?.lastName ?? '' },
+  })
+
+  const handleAvatarChange = async (file: File) => {
+    const url = await uploadAvatar.mutateAsync(file)
+    setAvatarUrl(url)
+  }
+
+  const onSubmit = handleSubmit((values) => updateProfile.mutate(values))
+
+  return (
+    <Paper variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
+        <Avatar src={avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void handleAvatarChange(file)
+          }}
+        />
+        <Button variant="outlined" size="small" onClick={() => fileInputRef.current?.click()}>
+          Change avatar
+        </Button>
+      </Stack>
+
+      <Divider sx={{ mb: 3 }} />
+
+      <Box component="form" onSubmit={onSubmit}>
+        <Stack spacing={2.5}>
+          <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
+          <TextField label="First name" fullWidth {...register('firstName')} />
+          <TextField label="Last name" fullWidth {...register('lastName')} />
+          <Button type="submit" variant="contained" size="large" disabled={updateProfile.isPending}>
+            Save changes
+          </Button>
+        </Stack>
+      </Box>
+    </Paper>
   )
 }
 
@@ -713,11 +772,26 @@ export function SettingsPage() {
 
   return (
     <AppShell title="Settings">
-      <Paper elevation={1} sx={{ maxWidth: 720 }}>
+      <Paper elevation={1} sx={{ width: '100%', display: 'flex' }}>
         <Tabs
+          orientation="vertical"
           value={tab}
           onChange={(_, value: number) => setTab(value)}
-          sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+          sx={{
+            minWidth: 220,
+            alignSelf: 'stretch',
+            m: 2,
+            p: 1,
+            borderRadius: 2,
+            bgcolor: 'action.hover',
+            '& .MuiTab-root': {
+              alignItems: 'flex-start',
+              textAlign: 'left',
+              borderRadius: 1,
+              mb: 0.5,
+            },
+            '& .MuiTabs-indicator': { left: 0, width: 3, borderRadius: 1 },
+          }}
         >
           {/*
             Explicit values, not positional indices. Tabs have been removed from the middle of
@@ -725,28 +799,34 @@ export function SettingsPage() {
             to Chat settings. Positional numbering would have silently repointed
             SETTINGS_TAB_INDEX, both account menus and every saved deep link at the wrong tab.
           */}
+          <Tab label="Profile" value={SETTINGS_TAB_INDEX.Profile} />
           <Tab label="Security" value={SETTINGS_TAB_INDEX.Security} />
           <Tab label="Account" value={SETTINGS_TAB_INDEX.Account} />
           <Tab label="Data" value={SETTINGS_TAB_INDEX.Data} />
           <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
           <Tab label="Viewer" value={SETTINGS_TAB_INDEX.Viewer} />
         </Tabs>
-        <Box sx={{ p: 3 }}>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
-            <SecurityTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
-            <AccountTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
-            <DataTab />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
-            <CookiePreferencesPanel />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Viewer}>
-            <ViewerTab />
-          </TabPanel>
+        <Box sx={{ flex: 1, p: 3, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ width: '100%', maxWidth: 720 }}>
+            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Profile}>
+              <ProfileTab />
+            </TabPanel>
+            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
+              <SecurityTab />
+            </TabPanel>
+            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
+              <AccountTab />
+            </TabPanel>
+            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
+              <DataTab />
+            </TabPanel>
+            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
+              <CookiePreferencesPanel />
+            </TabPanel>
+            <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Viewer}>
+              <ViewerTab />
+            </TabPanel>
+          </Box>
         </Box>
       </Paper>
     </AppShell>

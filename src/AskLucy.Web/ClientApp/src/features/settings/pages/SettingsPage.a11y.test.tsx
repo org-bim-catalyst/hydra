@@ -11,7 +11,7 @@ import { SettingsPage } from './SettingsPage'
 expect.extend(toHaveNoViolations)
 
 const server = setupServer(
-  http.get('*/api/v1/profile', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
+  http.get('*/api/v1/users/me', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
   http.get('*/api/v1/auth/external-logins', () => HttpResponse.json([])),
   http.get('*/api/v1/auth/password/status', () => HttpResponse.json({ hasPassword: true })),
   http.get('*/api/v1/ai/providers', () =>
@@ -124,6 +124,7 @@ describe('SettingsPage accessibility (FR-004, SPEC-017 T043)', () => {
 // assertion reflects each tab's real (data-loaded) content rather than a transient loading
 // state — SettingsPage's `TabPanel` doesn't render an ARIA `tabpanel` role to key off of.
 const SETTLED_CONTENT_BY_TAB: Record<string, string> = {
+  Profile: 'Change avatar',
   Security: 'Change password',
   Account: 'Email address',
   Data: 'Download your data',

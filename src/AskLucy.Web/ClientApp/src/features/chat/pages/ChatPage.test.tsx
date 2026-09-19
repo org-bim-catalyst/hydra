@@ -425,7 +425,6 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     const labels = openAccountMenuLabels()
 
     for (const label of [
-      'Profile',
       'Settings',
       'Chat settings',
       'Documents',
