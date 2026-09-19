@@ -57,8 +57,9 @@ function renderRegisterPage() {
 
 async function submitValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Email address'), 'new-visitor@example.com')
-  await user.type(screen.getByLabelText('Password'), 'a-strong-password')
-  await user.type(screen.getByLabelText('Confirm password'), 'a-strong-password')
+  // Has to satisfy the client-side checklist, which now gates submission.
+  await user.type(screen.getByLabelText('Password'), 'A-strong-passw0rd')
+  await user.type(screen.getByLabelText('Confirm password'), 'A-strong-passw0rd')
   await user.click(screen.getByRole('button', { name: 'Create Account' }))
 }
 
@@ -120,13 +121,49 @@ describe('RegisterPage (spec.md FR-008/FR-017/FR-021, Clarifications)', () => {
     expect(screen.queryByText('Registration failed. Please try again.')).not.toBeInTheDocument()
   })
 
-  it('states the full password policy up front, not just the length rule', () => {
+  it('states the full password policy up front as a checklist, not one run-on sentence', () => {
     renderRegisterPage()
 
-    expect(
-      screen.getByText(
-        'At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.',
-      ),
-    ).toBeInTheDocument()
+    for (const rule of ['At least 8 characters', 'An uppercase letter', 'A lowercase letter', 'A number']) {
+      expect(screen.getByText(rule)).toBeInTheDocument()
+    }
+    expect(screen.getByText(/A symbol/)).toBeInTheDocument()
+  })
+
+  it('ticks rules off and reports strength as the password is typed', async () => {
+    const user = userEvent.setup()
+    renderRegisterPage()
+
+    // Anchored: "— not met" also ends in "met", so an unanchored match would pass either way.
+    const digitRule = () => screen.getByText('A number').closest('li')
+    expect(digitRule()).toHaveTextContent(/— not met$/)
+    expect(screen.getByText('Password strength')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Password'), 'A-strong-passw0rd')
+
+    expect(digitRule()).toHaveTextContent(/— met$/)
+    expect(screen.getByText(/Password strength: /)).toBeInTheDocument()
+  })
+
+  it('refuses to submit a password that has not met every rule', async () => {
+    const user = userEvent.setup()
+    renderRegisterPage()
+
+    await user.type(screen.getByLabelText('Email address'), 'new-visitor@example.com')
+    await user.type(screen.getByLabelText('Password'), 'alllowercase')
+    await user.type(screen.getByLabelText('Confirm password'), 'alllowercase')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(screen.queryByText('Check your email to confirm your account.')).not.toBeInTheDocument()
+  })
+
+  it('offers a way to sign in from the confirmation-pending state', async () => {
+    const user = userEvent.setup()
+    renderRegisterPage()
+
+    await submitValidForm(user)
+    await screen.findByText('Check your email to confirm your account.')
+
+    expect(screen.getByRole('link', { name: 'Go to sign in' })).toHaveAttribute('href', '/login')
   })
 })

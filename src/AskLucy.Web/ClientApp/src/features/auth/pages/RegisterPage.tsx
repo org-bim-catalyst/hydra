@@ -10,7 +10,9 @@ import { PublicConsentGate } from '../../consent/components/PublicConsentGate'
 import { useFunnelAnalytics } from '../../analytics/hooks/useFunnelAnalytics'
 import { authBranding } from '../../landing/content/copy'
 import { flumeriaColor } from '../../landing/theme/flumeriaPalette'
+import { PasswordRequirements } from '../components/PasswordRequirements'
 import { useRegister } from '../hooks/useAuth'
+import { isPasswordPolicyMet } from '../passwordPolicy'
 
 interface RegisterFormValues {
   email: string
@@ -42,6 +44,9 @@ export function RegisterPage() {
       ? [registerError.detail]
       : []
 
+  // Watched so the checklist and strength bar update on every keystroke.
+  const password = form.watch('password') ?? ''
+
   const onSubmit = form.handleSubmit(({ email, password, firstName, lastName }) =>
     register.mutate({ email, password, firstName, lastName }),
   )
@@ -62,7 +67,14 @@ export function RegisterPage() {
         image={authBranding.signUp.image}
       >
         {register.isSuccess ? (
-          <Alert severity="success">Check your email to confirm your account.</Alert>
+          <Stack spacing={3}>
+            <Alert severity="success">Check your email to confirm your account.</Alert>
+            {/* The success state used to be a dead end — no navigation at all, so the only way on
+                was the browser's back button. */}
+            <Button component={RouterLink} to="/login" variant="contained" size="large" fullWidth>
+              Go to sign in
+            </Button>
+          </Stack>
         ) : (
           <Box component="form" onSubmit={onSubmit}>
             <Stack spacing={3}>
@@ -95,18 +107,29 @@ export function RegisterPage() {
                 placeholder="you@example.com"
                 {...form.register('email', { required: true })}
               />
-              <FormField
-                id="register-password"
-                label="Password"
-                type="password"
-                placeholder="Min. 8 characters"
-                // The authoritative policy is ASP.NET Identity's (Persistence/DependencyInjection.cs)
-                // and any rejection comes back in the alert above; this is the up-front hint, which
-                // previously advertised only the length rule and let people submit passwords the
-                // server was always going to refuse.
-                helperText="At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol."
-                {...form.register('password', { required: true, minLength: 8 })}
-              />
+              <Box>
+                <FormField
+                  id="register-password"
+                  label="Password"
+                  type="password"
+                  placeholder="Choose a password"
+                  // Via slotProps, not a bare prop: TextField forwards unknown props to the
+                  // FormControl wrapper, so `aria-describedby` would land on a div and describe
+                  // nothing. `htmlInput` puts it on the <input> itself.
+                  slotProps={{ htmlInput: { 'aria-describedby': 'register-password-requirements' } }}
+                  // No helperText: the message would duplicate the checklist directly below it.
+                  // The red field plus the unticked rows say which rule is outstanding.
+                  error={!!form.formState.errors.password}
+                  {...form.register('password', {
+                    required: true,
+                    // The authoritative policy is ASP.NET Identity's (Persistence/DependencyInjection.cs);
+                    // this only spares a round trip that would fail for the reasons already ticked off
+                    // in the checklist below.
+                    validate: (value) => isPasswordPolicyMet(value) || 'Your password does not meet all the requirements yet.',
+                  })}
+                />
+                <PasswordRequirements id="register-password-requirements" password={password} />
+              </Box>
               <FormField
                 id="register-confirm-password"
                 label="Confirm password"

@@ -77,6 +77,22 @@ export function useRegister() {
   })
 }
 
+/**
+ * Re-sends the account-confirmation link, offered on the sign-in page when a sign-in is refused
+ * because the address was never confirmed.
+ */
+export function useResendEmailConfirmation() {
+  return useMutation({ mutationFn: (email: string) => authApi.resendEmailConfirmation(email) })
+}
+
+/** Sends a locked-out user's message to support. The destination address never reaches the client. */
+export function useRequestAccountSupport() {
+  return useMutation({
+    mutationFn: ({ email, message }: { email: string; message: string }) =>
+      authApi.requestAccountSupport(email, message),
+  })
+}
+
 export function useLogout() {
   const clear = useAuthStore((s) => s.clear)
   const queryClient = useQueryClient()

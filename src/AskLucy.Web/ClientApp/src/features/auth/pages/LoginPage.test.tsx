@@ -95,6 +95,58 @@ describe('LoginPage (spec.md FR-007/FR-009/FR-017/FR-021)', () => {
     expect(await screen.findByRole('heading', { name: 'Verify your identity' })).toBeInTheDocument()
   })
 
+  async function signIn(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText('Email address'), 'someone@example.com')
+    await user.type(screen.getByLabelText('Password'), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: 'Sign In' }))
+  }
+
+  it('names the lockout and offers a way to reach an administrator (423)', async () => {
+    server.use(
+      http.post('*/api/v1/auth/login', () => HttpResponse.json({ title: 'Account locked' }, { status: 423 })),
+    )
+    server.use(http.post('*/api/v1/auth/account-support', () => new HttpResponse(null, { status: 202 })))
+    const user = userEvent.setup()
+    renderLoginPage()
+
+    await signIn(user)
+
+    expect(await screen.findByText(/Your account is locked/)).toBeInTheDocument()
+    expect(screen.queryByText('Invalid email or password.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Contact admin' }))
+    // Regex: the field is `required`, so MUI appends an asterisk to the label text.
+    await user.type(await screen.findByLabelText(/Message/), 'Please unlock my account.')
+    // `getByText`, not `getByRole`: a role query walks the whole tree through `getComputedStyle`,
+    // and jsdom's font-size resolver throws on the portalled Dialog subtree.
+    await user.click(screen.getByText('Send message'))
+
+    expect(await screen.findByText(/Your message has been sent/)).toBeInTheDocument()
+  })
+
+  it('explains an unconfirmed address and re-sends the link on request (403)', async () => {
+    let resendCount = 0
+    server.use(
+      http.post('*/api/v1/auth/login', () => HttpResponse.json({ title: 'Email not confirmed' }, { status: 403 })),
+      http.post('*/api/v1/auth/confirm-email/resend', () => {
+        resendCount += 1
+        return new HttpResponse(null, { status: 202 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderLoginPage()
+
+    await signIn(user)
+
+    expect(await screen.findByText(/Your email is not confirmed/)).toBeInTheDocument()
+    expect(screen.queryByText('Invalid email or password.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'click here' }))
+
+    expect(await screen.findByText(/A new confirmation link is on its way/)).toBeInTheDocument()
+    expect(resendCount).toBe(1)
+  })
+
   it('records a FunnelCompleted/SignIn analytics event on successful sign-in, once consent is granted (FR-021)', async () => {
     grantAnalyticsConsent()
     server.use(

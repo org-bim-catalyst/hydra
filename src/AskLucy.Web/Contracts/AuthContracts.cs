@@ -1,4 +1,4 @@
-namespace AskLucy.Web.Contracts;
+﻿namespace AskLucy.Web.Contracts;
 
 public sealed record RegisterRequest(string Email, string Password, string? FirstName, string? LastName);
 
@@ -20,7 +20,13 @@ public sealed record ChangePasswordRequest(string? CurrentPassword, string NewPa
 /// <summary>Password recovery (specs/058-password-recovery).</summary>
 public sealed record ForgotPasswordRequest(string Email);
 
+public sealed record ResendEmailConfirmationRequest(string Email);
+
+public sealed record AccountSupportRequest(string Email, string Message);
+
 public sealed record ResetPasswordRequest(string UserId, string Token, string NewPassword);
+
+public sealed record ValidateResetTokenRequest(string UserId, string Token);
 
 public sealed record PasswordStatusResponse(bool HasPassword);
 

@@ -155,3 +155,33 @@ export function resetPassword(userId: string, token: string, newPassword: string
     isAuthFlow: true,
   })
 }
+
+/**
+ * Checks a reset link on page load so a spent link says so before the user picks a password.
+ * Resolves for a usable link and rejects with an `ApiError` otherwise; does not consume it.
+ */
+export function validateResetToken(userId: string, token: string) {
+  return apiFetch<void>('/auth/password/reset/validate', {
+    method: 'POST',
+    body: JSON.stringify({ userId, token }),
+    isAuthFlow: true,
+  })
+}
+
+/** Re-issues an account-confirmation link. Accepted for any address — see the controller. */
+export function resendEmailConfirmation(email: string) {
+  return apiFetch<void>('/auth/confirm-email/resend', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    isAuthFlow: true,
+  })
+}
+
+/** Relays a locked-out user's message to the support mailbox, whose address never reaches us. */
+export function requestAccountSupport(email: string, message: string) {
+  return apiFetch<void>('/auth/account-support', {
+    method: 'POST',
+    body: JSON.stringify({ email, message }),
+    isAuthFlow: true,
+  })
+}

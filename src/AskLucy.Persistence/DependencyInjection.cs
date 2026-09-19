@@ -1,4 +1,4 @@
-using AskLucy.Application.Abstractions;
+﻿using AskLucy.Application.Abstractions;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Interceptors;
 using AskLucy.Persistence.Repositories;
@@ -42,7 +42,10 @@ public static class DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireNonAlphanumeric = true;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-                options.Lockout.MaxFailedAccessAttempts = 5;
+                // Three, not five: the sign-in page now names the lockout explicitly and offers a
+                // way out (contact support / reset the password), so a tighter threshold no longer
+                // leaves a locked-out user guessing what happened.
+                options.Lockout.MaxFailedAccessAttempts = 3;
             })
             .AddRoles<ApplicationRole>()
             .AddSignInManager()

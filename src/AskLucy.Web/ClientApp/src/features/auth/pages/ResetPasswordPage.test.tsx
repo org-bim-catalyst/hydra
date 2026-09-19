@@ -14,6 +14,7 @@ const server = setupServer(
   http.get('*/api/v1/cookie-policy', () =>
     HttpResponse.json({ version: POLICY_VERSION, effectiveAtUtc: '2026-07-30T00:00:00Z' }),
   ),
+  http.post('*/api/v1/auth/password/reset/validate', () => new HttpResponse(null, { status: 204 })),
   http.post('*/api/v1/auth/password/reset', () => new HttpResponse(null, { status: 204 })),
 )
 
@@ -37,7 +38,8 @@ async function submit(
   newPassword: string,
   confirmPassword = newPassword,
 ) {
-  await user.type(screen.getByLabelText('New password'), newPassword)
+  // `find`, not `get`: the page holds the form back until the link has been checked on load.
+  await user.type(await screen.findByLabelText('New password'), newPassword)
   await user.type(screen.getByLabelText('Confirm new password'), confirmPassword)
   await user.click(screen.getByRole('button', { name: 'Set new password' }))
 }
@@ -63,6 +65,8 @@ describe('ResetPasswordPage (specs/058-password-recovery US2)', () => {
     expect(screen.queryByText(/Your password has been changed/)).not.toBeInTheDocument()
   })
 
+  // The password below satisfies the client-side checklist: the point is that the server stays
+  // authoritative and can still refuse a password the client was willing to send.
   it('renders each failed policy rule the server reports (FR-007)', async () => {
     server.use(
       http.post('*/api/v1/auth/password/reset', () =>
@@ -79,7 +83,7 @@ describe('ResetPasswordPage (specs/058-password-recovery US2)', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await submit(user, 'passwordpassword')
+    await submit(user, 'N3w-Passw0rd!')
 
     expect(await screen.findByText('Passwords must have at least one digit.')).toBeInTheDocument()
     expect(screen.getByText('Passwords must have at least one uppercase letter.')).toBeInTheDocument()
@@ -98,6 +102,34 @@ describe('ResetPasswordPage (specs/058-password-recovery US2)', () => {
 
     expect(await screen.findByText(/no longer valid/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Request a new link' })).toBeInTheDocument()
+  })
+
+  it('rejects an already-used link on arrival instead of showing the form', async () => {
+    server.use(
+      http.post('*/api/v1/auth/password/reset/validate', () =>
+        HttpResponse.json({ title: 'Reset link is no longer valid', status: 400 }, { status: 400 }),
+      ),
+    )
+    renderPage()
+
+    expect(await screen.findByText(/has expired, has already been used/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Request a new link' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument()
+  })
+
+  it('ticks each policy rule off as the password satisfies it', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const field = await screen.findByLabelText('New password')
+    // Anchored: "— not met" also ends in "met", so an unanchored match would pass either way.
+    const uppercaseRule = () => screen.getByText('An uppercase letter').closest('li')
+    expect(uppercaseRule()).toHaveTextContent(/— not met$/)
+
+    await user.type(field, 'N3w-Passw0rd!')
+
+    expect(uppercaseRule()).toHaveTextContent(/— met$/)
+    expect(screen.getByText(/Password strength: /)).toBeInTheDocument()
   })
 
   it('does not even show the form when the link is missing its query parameters', () => {

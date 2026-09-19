@@ -1,5 +1,21 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import * as authApi from '../api/authApi'
+
+/**
+ * Validates the link the reset page was opened with, so an already-used or expired one is
+ * reported on arrival rather than after the user has chosen and confirmed a password.
+ *
+ * `retry: false` matters: a rejected link is a 400, and retrying it would only delay the message.
+ */
+export function useValidateResetToken(userId: string | null, token: string | null) {
+  return useQuery({
+    queryKey: ['auth', 'reset-token', userId, token],
+    queryFn: () => authApi.validateResetToken(userId!, token!).then(() => true),
+    enabled: Boolean(userId && token),
+    retry: false,
+    staleTime: Infinity,
+  })
+}
 
 /**
  * Requests a reset link (specs/058-password-recovery US1).

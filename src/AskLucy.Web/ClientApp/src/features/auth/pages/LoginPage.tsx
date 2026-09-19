@@ -2,7 +2,7 @@ import { Alert, Box, Button, Divider, Link, Stack, TextField, Typography } from 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link as RouterLink, useNavigate } from 'react-router'
-import { API_BASE_URL } from '../../../api/httpClient'
+import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AuthLayout } from '../../../components/AuthLayout'
 import { FormField } from '../../../components/FormField'
 import { FacebookGlyph, GoogleGlyph } from '../../../components/OAuthGlyphs'
@@ -10,7 +10,21 @@ import { useFunnelAnalytics } from '../../analytics/hooks/useFunnelAnalytics'
 import { PublicConsentGate } from '../../consent/components/PublicConsentGate'
 import { authBranding } from '../../landing/content/copy'
 import { flumeriaColor } from '../../landing/theme/flumeriaPalette'
-import { useLogin, useLoginTwoFactor } from '../hooks/useAuth'
+import { AccountSupportDialog } from '../components/AccountSupportDialog'
+import { useLogin, useLoginTwoFactor, useResendEmailConfirmation } from '../hooks/useAuth'
+
+/**
+ * The API already distinguishes these outcomes (AuthController.ToActionResult): 423 for a locked
+ * account, 403 for an unconfirmed address, 401 for anything else. The page used to collapse all
+ * three into "Invalid email or password", which left a locked-out or unconfirmed user retyping a
+ * password that was never the problem.
+ *
+ * Telling a caller that an address is locked or unconfirmed does disclose that it exists, but a
+ * user who cannot get past sign-in has no other way to learn why — and the *forgot password* and
+ * *resend confirmation* flows already stay silent, so enumeration through them is unchanged.
+ */
+const LOCKED_OUT = 423
+const EMAIL_NOT_CONFIRMED = 403
 
 interface LoginFormValues {
   email: string
@@ -27,9 +41,22 @@ export function LoginPage() {
   const loginTwoFactor = useLoginTwoFactor()
   const { recordFunnelCompleted } = useFunnelAnalytics()
   const [pendingUserId, setPendingUserId] = useState<string | null>(null)
+  const [supportOpen, setSupportOpen] = useState(false)
+  const resendConfirmation = useResendEmailConfirmation()
 
   const loginForm = useForm<LoginFormValues>()
   const twoFactorForm = useForm<TwoFactorFormValues>()
+
+  const loginStatus = login.error instanceof ApiError ? login.error.status : null
+  const attemptedEmail = loginForm.getValues('email') ?? ''
+
+  const onResendConfirmation = async () => {
+    try {
+      await resendConfirmation.mutateAsync(attemptedEmail)
+    } catch {
+      // `resendConfirmation.isError` renders the failure inline; nothing is swallowed.
+    }
+  }
 
   const onSubmitLogin = loginForm.handleSubmit(async (values) => {
     try {
@@ -73,7 +100,41 @@ export function LoginPage() {
         {!pendingUserId ? (
           <Box component="form" onSubmit={onSubmitLogin}>
             <Stack spacing={3}>
-              {login.isError && <Alert severity="error">Invalid email or password.</Alert>}
+              {login.isError && loginStatus === LOCKED_OUT && (
+                <Alert
+                  severity="error"
+                  action={
+                    <Button color="inherit" size="small" onClick={() => setSupportOpen(true)}>
+                      Contact admin
+                    </Button>
+                  }
+                >
+                  Your account is locked. Contact an administrator to have it unlocked.
+                </Alert>
+              )}
+              {login.isError && loginStatus === EMAIL_NOT_CONFIRMED && (
+                <Alert severity="warning">
+                  Your email is not confirmed. Please check your inbox, junk or spam folder. If you
+                  need a new link,{' '}
+                  <Link component="button" type="button" onClick={onResendConfirmation} disabled={resendConfirmation.isPending}>
+                    click here
+                  </Link>
+                  .
+                  {resendConfirmation.isSuccess && (
+                    <Box component="span" sx={{ display: 'block', mt: 1, fontWeight: 600 }}>
+                      A new confirmation link is on its way.
+                    </Box>
+                  )}
+                  {resendConfirmation.isError && (
+                    <Box component="span" sx={{ display: 'block', mt: 1, fontWeight: 600 }}>
+                      We couldn't send a new link. Please try again in a moment.
+                    </Box>
+                  )}
+                </Alert>
+              )}
+              {login.isError && loginStatus !== LOCKED_OUT && loginStatus !== EMAIL_NOT_CONFIRMED && (
+                <Alert severity="error">Invalid email or password.</Alert>
+              )}
               <FormField
                 id="login-email"
                 label="Email address"
@@ -153,6 +214,11 @@ export function LoginPage() {
             </Stack>
           </Box>
         )}
+        <AccountSupportDialog
+          open={supportOpen}
+          onClose={() => setSupportOpen(false)}
+          email={attemptedEmail}
+        />
       </AuthLayout>
     </PublicConsentGate>
   )

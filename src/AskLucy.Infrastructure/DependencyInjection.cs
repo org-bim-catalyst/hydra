@@ -1,4 +1,4 @@
-using AskLucy.Application.Abstractions;
+﻿using AskLucy.Application.Abstractions;
 using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.Locations;
@@ -504,6 +504,7 @@ public static class DependencyInjection
         // the interface so Hangfire resolves the job through the container.
         services.AddSingleton<IPasswordTokenProtector, PasswordTokenProtector>();
         services.AddScoped<IPasswordEmailJob, PasswordEmailJob>();
+        services.AddScoped<IAccountEmailJob, AccountEmailJob>();
         services.AddScoped<PasswordResetTokenCleanupJob>();
 
         return services;

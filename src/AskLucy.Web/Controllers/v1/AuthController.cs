@@ -1,4 +1,4 @@
-using AskLucy.Application.Abstractions;
+﻿using AskLucy.Application.Abstractions;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Authentication.Commands.ChangeEmail;
 using AskLucy.Application.Authentication.Commands.ChangePassword;
@@ -10,12 +10,15 @@ using AskLucy.Application.Authentication.Commands.Logout;
 using AskLucy.Application.Authentication.Commands.Refresh;
 using AskLucy.Application.Authentication.Commands.Register;
 using AskLucy.Application.Authentication.Commands.RemoveExternalLogin;
+using AskLucy.Application.Authentication.Commands.RequestAccountSupport;
 using AskLucy.Application.Authentication.Commands.RequestPasswordReset;
+using AskLucy.Application.Authentication.Commands.ResendEmailConfirmation;
 using AskLucy.Application.Authentication.Commands.ResetPassword;
 using AskLucy.Application.Authentication.Commands.TwoFactor;
 using AskLucy.Application.Authentication.Queries.GetExternalLogins;
 using AskLucy.Application.Authentication.Queries.GetPasswordStatus;
 using AskLucy.Application.Authentication.Queries.GetSession;
+using AskLucy.Application.Authentication.Queries.ValidatePasswordResetToken;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
@@ -249,6 +252,39 @@ public sealed class AuthController(
     }
 
     /// <summary>
+    /// Re-issues a confirmation link, offered by the sign-in page when a sign-in is refused for an
+    /// unconfirmed email. Neutral 202 on the same terms as <see cref="ForgotPassword"/>.
+    /// </summary>
+    [HttpPost("confirm-email/resend")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-endpoints")]
+    public async Task<IActionResult> ResendEmailConfirmation(
+        ResendEmailConfirmationRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new ResendEmailConfirmationCommand(request.Email), cancellationToken);
+        return Accepted();
+    }
+
+    /// <summary>
+    /// Relays a locked-out user's message to the support mailbox. The destination is server-side
+    /// configuration and never appears in the contract, so the page can offer "contact an
+    /// administrator" without publishing an address.
+    /// </summary>
+    [HttpPost("account-support")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-endpoints")]
+    public async Task<IActionResult> RequestAccountSupport(
+        AccountSupportRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new RequestAccountSupportCommand(
+                request.Email, request.Message, HttpContext.Connection.RemoteIpAddress?.ToString()),
+            cancellationToken);
+
+        return Accepted();
+    }
+
+    /// <summary>
     /// Always answers 202, whatever the address turns out to be: the body, the status and — because
     /// the handler enqueues rather than sends — the response time are identical for an account that
     /// exists and one that does not (FR-003, SC-005).
@@ -263,6 +299,30 @@ public sealed class AuthController(
             cancellationToken);
 
         return Accepted();
+    }
+
+    /// <summary>
+    /// Whether a reset link is still redeemable, so the reset page can show "this link is no
+    /// longer valid" on load instead of after the user has typed and confirmed a new password.
+    /// Does not consume the token.
+    /// </summary>
+    [HttpPost("password/reset/validate")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-endpoints")]
+    public async Task<IActionResult> ValidateResetToken(
+        ValidateResetTokenRequest request, CancellationToken cancellationToken)
+    {
+        var valid = await mediator.Send(
+            new ValidatePasswordResetTokenQuery(request.UserId, request.Token), cancellationToken);
+
+        // POST, not GET: the token would otherwise sit in the query string of a request that
+        // proxies and server logs record in full.
+        return valid
+            ? NoContent()
+            : Problem(
+                title: "Reset link is no longer valid",
+                detail: "This password reset link has expired or has already been used. Request a new one to continue.",
+                statusCode: StatusCodes.Status400BadRequest);
     }
 
     /// <summary>
