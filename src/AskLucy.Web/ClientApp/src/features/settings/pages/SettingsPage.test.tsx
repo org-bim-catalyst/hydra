@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from './SettingsPage'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 
 const server = setupServer(
-  http.get('*/api/v1/profile', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
+  http.get('*/api/v1/users/me', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
   http.get('*/api/v1/ai/providers', () => HttpResponse.json([])),
   http.get('*/api/v1/auth/password/status', () => HttpResponse.json({ hasPassword: true })),
 )
@@ -249,5 +249,37 @@ describe('SettingsPage password section (specs/058-password-recovery)', () => {
 
     expect(await screen.findByText('Could not load your password settings.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+})
+
+describe('SettingsPage two-factor authentication', () => {
+  it('shows a scannable QR code alongside the manual key after enabling 2FA', async () => {
+    server.use(http.post('*/api/v1/auth/2fa/enable', () => HttpResponse.json('ABCD1234EFGH5678')))
+
+    const user = userEvent.setup()
+    renderSettings()
+    await user.click(await screen.findByRole('button', { name: 'Enable 2FA' }))
+
+    expect(await screen.findByText('ABCD1234EFGH5678')).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Scan this QR code with your authenticator app' })).toBeInTheDocument()
+  })
+
+  it('offers a markdown download once recovery codes are generated', async () => {
+    server.use(
+      http.post('*/api/v1/auth/2fa/recovery-codes', () => HttpResponse.json(['CODE1-AAAAA', 'CODE2-BBBBB'])),
+    )
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    URL.createObjectURL = vi.fn(() => 'blob:mock')
+    URL.revokeObjectURL = vi.fn()
+
+    const user = userEvent.setup()
+    renderSettings()
+    await user.click(await screen.findByRole('button', { name: 'Generate recovery codes' }))
+    await screen.findByText('CODE1-AAAAA')
+
+    await user.click(screen.getByRole('button', { name: 'Download as .md' }))
+
+    expect(clickSpy).toHaveBeenCalled()
+    clickSpy.mockRestore()
   })
 })

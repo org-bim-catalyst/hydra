@@ -49,6 +49,7 @@ import { CookiePreferencesPanel } from '../../consent/components/CookiePreferenc
 import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
+import { TwoFactorQrCode } from '../components/TwoFactorQrCode'
 import { ViewerTab } from './ViewerTab'
 
 function TabPanel({
@@ -224,6 +225,26 @@ function PasswordSection() {
   )
 }
 
+/** Client-side only — the codes never leave the browser other than into this file. */
+function downloadRecoveryCodesAsMarkdown(codes: string[]) {
+  const markdown = [
+    '# Ask Lucy — Two-factor recovery codes',
+    '',
+    'Save this file somewhere safe. Each code can be used once, in place of your authenticator app.',
+    '',
+    ...codes.map((code) => `- ${code}`),
+    '',
+  ].join('\n')
+
+  const blob = new Blob([markdown], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'ask-lucy-recovery-codes.md'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function SecurityTab() {
   const { data: profile } = useMyProfile()
   const enableTwoFactor = useEnableTwoFactor()
@@ -248,10 +269,14 @@ function SecurityTab() {
           />
         </Stack>
 
-        {enableTwoFactor.data && (
-          <Alert severity="info" sx={{ mb: 2, maxWidth: 480 }}>
-            Add this key to your authenticator app: <strong>{enableTwoFactor.data}</strong>
-          </Alert>
+        {enableTwoFactor.data && profile?.email && (
+          <>
+            <TwoFactorQrCode key={enableTwoFactor.data} email={profile.email} sharedKey={enableTwoFactor.data} />
+            <Alert severity="info" sx={{ mb: 2, maxWidth: 480 }}>
+              Scan the QR code above, or add this key to your authenticator app manually:{' '}
+              <strong>{enableTwoFactor.data}</strong>
+            </Alert>
+          </>
         )}
 
         {recoveryCodes && (
@@ -259,13 +284,21 @@ function SecurityTab() {
             <Typography variant="body2" sx={{ mb: 1 }}>
               Save these recovery codes somewhere safe. Each can be used once.
             </Typography>
-            <Stack spacing={0.5}>
+            <Stack spacing={0.5} sx={{ mb: 1.5 }}>
               {recoveryCodes.map((code) => (
                 <Typography key={code} variant="body2" sx={{ fontFamily: codeFontFamily }}>
                   {code}
                 </Typography>
               ))}
             </Stack>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => downloadRecoveryCodesAsMarkdown(recoveryCodes)}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              Download as .md
+            </Button>
           </Paper>
         )}
 
