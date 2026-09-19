@@ -25,7 +25,7 @@ public sealed class EffectivePermissionResolverTests
     {
         _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([roleName]);
 
-        var result = await _sut.ResolveAsync("user-1");
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.Should().Be(PermissionSet.Full);
         await _roleRepository.DidNotReceive().GetByNormalizedNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -39,7 +39,7 @@ public sealed class EffectivePermissionResolverTests
         _roleRepository.GetByNormalizedNameAsync("MODERATOR", Arg.Any<CancellationToken>())
             .Returns(new RoleRecord("role-1", "Moderator", null, false, storedPermissions, 1, null, "stamp-1"));
 
-        var result = await _sut.ResolveAsync("user-1");
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.Contains("admin.mcp-servers.manage").Should().BeTrue();
         result.Contains("admin.mcp-servers.view").Should().BeTrue();
@@ -52,7 +52,7 @@ public sealed class EffectivePermissionResolverTests
         _roleRepository.GetByNormalizedNameAsync("LEGACY ADMIN", Arg.Any<CancellationToken>())
             .Returns(new RoleRecord("role-2", "Legacy Admin", null, true, PermissionSet.Create("admin.dashboard.view"), 1, null, "stamp-2"));
 
-        var result = await _sut.ResolveAsync("user-1");
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.Should().Be(PermissionSet.Full);
     }
@@ -62,7 +62,7 @@ public sealed class EffectivePermissionResolverTests
     {
         _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([]);
 
-        var result = await _sut.ResolveAsync("user-1");
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.IsEmpty.Should().BeTrue();
     }
@@ -73,7 +73,7 @@ public sealed class EffectivePermissionResolverTests
         _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns(["Ghost"]);
         _roleRepository.GetByNormalizedNameAsync("GHOST", Arg.Any<CancellationToken>()).Returns((RoleRecord?)null);
 
-        var result = await _sut.ResolveAsync("user-1");
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.IsEmpty.Should().BeTrue();
     }

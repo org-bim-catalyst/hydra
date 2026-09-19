@@ -50,7 +50,7 @@ public sealed class AssignRoleCommandHandlerTests
         var act = () => _handler.Handle(new AssignRoleCommand("target-1", "su-id", null), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _assignmentRepository.DidNotReceiveWithAnyArgs().ReplaceRoleAsync(default!, default, default, default!, default);
+        await _assignmentRepository.DidNotReceiveWithAnyArgs().ReplaceRoleAsync(default!, default, default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class AssignRoleCommandHandlerTests
         var act = () => _handler.Handle(new AssignRoleCommand("target-1", null, "su-id"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        await _assignmentRepository.DidNotReceiveWithAnyArgs().ReplaceRoleAsync(default!, default, default, default!, default);
+        await _assignmentRepository.DidNotReceiveWithAnyArgs().ReplaceRoleAsync(default!, default, default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

@@ -91,7 +91,7 @@ public sealed class SiteAnalysisResultRelayTests
 
         analysis.Results.Should().ContainSingle(r => r.Status == SiteAnalysisResultStatus.Failed && r.FailureReason == "provider unavailable");
         await _notifier.DidNotReceive().ResultReceivedAsync(Arg.Any<string>(), Arg.Any<SiteAnalysisResultReceivedDto>(), Arg.Any<CancellationToken>());
-        await _panelNotifier.DidNotReceiveWithAnyArgs().PanelRequestedAsync(default!, default!);
+        await _panelNotifier.DidNotReceiveWithAnyArgs().PanelRequestedAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class SiteAnalysisResultRelayTests
         var relay = BuildRelay();
         await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
 
-        await _notifier.DidNotReceiveWithAnyArgs().AnalysisCompletedAsync(default!, default!);
+        await _notifier.DidNotReceiveWithAnyArgs().AnalysisCompletedAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

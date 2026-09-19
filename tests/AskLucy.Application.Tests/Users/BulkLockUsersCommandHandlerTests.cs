@@ -76,7 +76,7 @@ public sealed class BulkLockUsersCommandHandlerTests
     [Fact]
     public async Task Handle_AllMatching_ReResolvesIdsAtExecutionTime()
     {
-        _mediator.Send(Arg.Is<GetUsersEligibleIdsQuery>(q => q.Action == UserBulkAction.Lock && q.Search == "ana"), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Is<GetUsersEligibleIdsQuery>(q => q != null && q.Action == UserBulkAction.Lock && q.Search == "ana"), Arg.Any<CancellationToken>())
             .Returns(["user-9"]);
         _userAdminRepository.GetByIdAsync("user-9", Arg.Any<CancellationToken>()).Returns(MakeUser("user-9"));
 

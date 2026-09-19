@@ -47,7 +47,7 @@ public sealed class RequestSiteAnalysisCapabilityTests
         result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeTrue();
 
         // FR-001 — coordinates skip geocoding entirely.
-        await _geocodingProvider.DidNotReceiveWithAnyArgs().SearchAsync(default!, default);
+        await _geocodingProvider.DidNotReceiveWithAnyArgs().SearchAsync(default!, TestContext.Current.CancellationToken);
         await _dispatcher.Received(1).DispatchAsync(Arg.Any<Guid>(), UserId, Arg.Any<string>(), Arg.Any<string>(), 25.09, 55.20, Arg.Any<CancellationToken>());
     }
 
@@ -63,7 +63,7 @@ public sealed class RequestSiteAnalysisCapabilityTests
         var output = result.Output!.RootElement;
         output.GetProperty("started").GetBoolean().Should().BeFalse();
         output.GetProperty("reason").GetString().Should().Be("site-not-identified");
-        await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class RequestSiteAnalysisCapabilityTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeTrue();
-        await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -92,6 +92,6 @@ public sealed class RequestSiteAnalysisCapabilityTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeFalse();
-        await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, TestContext.Current.CancellationToken);
     }
 }

@@ -6,16 +6,14 @@ import {
 } from '../../../features/solar/components/CameraAttitudeWidget'
 import { EXTENSION_ID, makeSolarAnalysisOverlay } from '../../../features/solar/components/SolarAnalysisOverlay'
 import { copy } from '../../../features/solar/copy'
+import { BuildingCorrectionsPanel } from '../../../features/solar/panels/BuildingCorrectionsPanel'
 import {
-  BuildingCorrectionsPanel,
   SOLAR_CORRECTIONS_TYPE_KEY,
-  solarCorrectionsDataSchema,
-} from '../../../features/solar/panels/BuildingCorrectionsPanel'
-import {
   SOLAR_TIME_CONTROL_TYPE_KEY,
-  SolarTimeControlPanel,
+  solarCorrectionsDataSchema,
   solarTimeControlDataSchema,
-} from '../../../features/solar/panels/SolarTimeControlPanel'
+} from '../../../features/solar/panels/panelContracts'
+import { SolarTimeControlPanel } from '../../../features/solar/panels/SolarTimeControlPanel'
 import { SolarScene } from '../../../features/solar/scene/SolarScene'
 import { useSolarAnalysisStore } from '../../../features/solar/store/solarAnalysisStore'
 import { DEFAULT_CONTENT_CHROME } from '../../panels/chrome/chrome'

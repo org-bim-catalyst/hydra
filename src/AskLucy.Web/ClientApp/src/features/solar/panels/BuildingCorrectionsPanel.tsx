@@ -1,6 +1,5 @@
 import { Alert, Box, Button, InputBase, Typography } from '@mui/material'
 import { useState } from 'react'
-import { z } from 'zod'
 import {
   compactAlertSx,
   compactButtonSx,
@@ -10,11 +9,6 @@ import {
 import { copy } from '../copy'
 import { useCorrectionsStore } from '../store/correctionsStore'
 import { useSolarAnalysisStore } from '../store/solarAnalysisStore'
-
-export const SOLAR_CORRECTIONS_TYPE_KEY = 'solar.corrections'
-
-export const solarCorrectionsDataSchema = z.object({})
-export type SolarCorrectionsData = z.infer<typeof solarCorrectionsDataSchema>
 
 const sectionTitleSx = { fontSize: 12, fontWeight: 600, lineHeight: 1.4 } as const
 

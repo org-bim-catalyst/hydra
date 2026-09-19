@@ -1,7 +1,6 @@
 import { Box, IconButton, InputBase, Slider, Typography } from '@mui/material'
 import { RiPauseFill, RiPlayFill } from '@remixicon/react'
 import { useId } from 'react'
-import { z } from 'zod'
 import {
   COMPACT_ACCENT,
   COMPACT_MONO_FONT,
@@ -10,15 +9,6 @@ import {
 } from '../../../viewer/panels/chrome/compactStyles'
 import { copy } from '../copy'
 import { useSolarAnalysisStore } from '../store/solarAnalysisStore'
-
-export const SOLAR_TIME_CONTROL_TYPE_KEY = 'solar.time-control'
-
-/** contracts/solar-panels.md — this live panel is driven entirely by `solarAnalysisStore`
- * (research D12: "interactive code with their own state", which is exactly why it is a live
- * panel and not content). `data` carries nothing the store doesn't already own; the schema exists
- * only to satisfy `PanelTypeDefinition`'s contract. */
-export const solarTimeControlDataSchema = z.object({})
-export type SolarTimeControlData = z.infer<typeof solarTimeControlDataSchema>
 
 const ROW_LABEL_WIDTH = 34
 

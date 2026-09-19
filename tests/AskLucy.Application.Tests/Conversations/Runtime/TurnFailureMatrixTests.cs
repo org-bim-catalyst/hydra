@@ -105,7 +105,7 @@ public sealed class TurnFailureMatrixTests
         _provider.StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable([new StreamChunk("Here is a direct answer.")]));
 
-        var chunks = await CollectAsync(BuildOrchestrator(), Request("do something ambiguous"));
+        var chunks = await CollectAsync(BuildOrchestrator(), Request("do something ambiguous"), TestContext.Current.CancellationToken);
 
         var content = string.Concat(chunks.Select(c => c.ContentDelta));
         content.Should().Contain("Here is a direct answer.");
@@ -121,7 +121,7 @@ public sealed class TurnFailureMatrixTests
         _provider.StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable([new StreamChunk("Sure, here you go.")]));
 
-        var chunks = await CollectAsync(BuildOrchestrator(), Request("what's the weather like generally"));
+        var chunks = await CollectAsync(BuildOrchestrator(), Request("what's the weather like generally"), TestContext.Current.CancellationToken);
 
         var content = string.Concat(chunks.Select(c => c.ContentDelta));
         content.Should().NotContain("I couldn't work out a plan");
@@ -137,7 +137,7 @@ public sealed class TurnFailureMatrixTests
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("It failed unexpectedly.", new ChatUsage(null, null, null, null, null)));
 
-        var chunks = await CollectAsync(BuildOrchestrator(capability), Request("do the thing"));
+        var chunks = await CollectAsync(BuildOrchestrator(capability), Request("do the thing"), TestContext.Current.CancellationToken);
 
         var content = string.Concat(chunks.Select(c => c.ContentDelta));
         content.Should().Contain("It failed unexpectedly.");
@@ -153,7 +153,7 @@ public sealed class TurnFailureMatrixTests
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("That took longer than expected.", new ChatUsage(null, null, null, null, null)));
 
-        var chunks = await CollectAsync(BuildOrchestrator(capability, briefTimeoutSeconds: 1), Request("do the slow thing"));
+        var chunks = await CollectAsync(BuildOrchestrator(capability, briefTimeoutSeconds: 1), Request("do the slow thing"), TestContext.Current.CancellationToken);
 
         var content = string.Concat(chunks.Select(c => c.ContentDelta));
         content.Should().Contain("That took longer than expected.");
@@ -181,7 +181,7 @@ public sealed class TurnFailureMatrixTests
                 return new ChatCompletionResult("Done.", new ChatUsage(null, null, null, null, null));
             });
 
-        var chunks = await CollectAsync(BuildTwoCapabilityOrchestrator(first, second, maxTurnDurationSeconds: 0), Request("do two things"));
+        var chunks = await CollectAsync(BuildTwoCapabilityOrchestrator(first, second, maxTurnDurationSeconds: 0), Request("do two things"), TestContext.Current.CancellationToken);
 
         var content = string.Concat(chunks.Select(c => c.ContentDelta));
         content.Should().Contain("I've stopped there");

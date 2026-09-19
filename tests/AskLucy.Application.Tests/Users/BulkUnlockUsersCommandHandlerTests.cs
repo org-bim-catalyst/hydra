@@ -41,7 +41,7 @@ public sealed class BulkUnlockUsersCommandHandlerTests
         outcome.SucceededCount.Should().Be(1);
         outcome.Skipped.Should().BeEmpty();
         await _identityService.Received(1).SetLockoutAsync("super-1", false, Arg.Any<CancellationToken>());
-        await _identityService.DidNotReceiveWithAnyArgs().GetRolesAsync(default!, default);
+        await _identityService.DidNotReceiveWithAnyArgs().GetRolesAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class BulkUnlockUsersCommandHandlerTests
     [Fact]
     public async Task Handle_AllMatching_ReResolvesViaEligibleIdsQuery()
     {
-        _mediator.Send(Arg.Is<GetUsersEligibleIdsQuery>(q => q.Action == UserBulkAction.Unlock), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Is<GetUsersEligibleIdsQuery>(q => q != null && q.Action == UserBulkAction.Unlock), Arg.Any<CancellationToken>())
             .Returns(["user-9"]);
         _userAdminRepository.GetByIdAsync("user-9", Arg.Any<CancellationToken>()).Returns(MakeUser("user-9"));
 

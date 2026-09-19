@@ -25,6 +25,6 @@ public sealed class GetSiteBuildingsQueryHandlerTests
 
         result.Should().Be(expected);
         await provider.Received(1).SearchAsync(
-            Arg.Is<GeoPoint>(p => p.Latitude == 25.2 && p.Longitude == 55.3), 200, Arg.Any<CancellationToken>());
+            Arg.Is<GeoPoint>(p => p != null && p.Latitude == 25.2 && p.Longitude == 55.3), 200, Arg.Any<CancellationToken>());
     }
 }

@@ -62,6 +62,6 @@ public sealed class BulkDeleteRolesCommandHandlerTests
 
         result.Outcome.SucceededCount.Should().Be(1);
         await _mediator.Received(1).Send(
-            Arg.Is<GetRolesEligibleIdsQuery>(q => q.Search == "custom"), Arg.Any<CancellationToken>());
+            Arg.Is<GetRolesEligibleIdsQuery>(q => q != null && q.Search == "custom"), Arg.Any<CancellationToken>());
     }
 }

@@ -1,6 +1,6 @@
 import { Alert, Box, Button, CircularProgress, Link, List, ListItem, Stack, Typography } from '@mui/material'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { Link as RouterLink, useSearchParams } from 'react-router'
 import { ApiError } from '../../../api/httpClient'
 import { AuthLayout } from '../../../components/AuthLayout'
@@ -27,7 +27,9 @@ export function ResetPasswordPage() {
   const [done, setDone] = useState(false)
 
   const form = useForm<ResetPasswordFormValues>({ defaultValues: { newPassword: '', confirmPassword: '' } })
-  const newPassword = form.watch('newPassword')
+  // `useWatch`, not `form.watch`: the latter returns a fresh function every render, which
+  // makes React Compiler skip memoising the whole page.
+  const newPassword = useWatch({ control: form.control, name: 'newPassword' })
 
   const error = resetPassword.error instanceof ApiError ? resetPassword.error : null
   const policyErrors = error?.errors ? Object.values(error.errors).flat() : []

@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Chip, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { getAllModels, getEnabledProviders } from '../../chat/api/aiProvidersApi'
@@ -51,7 +51,7 @@ export function AgentBuilder({ agent }: AgentBuilderProps) {
   const { data: providers } = useQuery({ queryKey: ['ai-providers'], queryFn: getEnabledProviders })
   const { data: models } = useQuery({ queryKey: ['ai-models'], queryFn: getAllModels })
 
-  const { register, handleSubmit, watch } = useForm<AgentFormValues>({
+  const { register, handleSubmit, control } = useForm<AgentFormValues>({
     values: {
       name: agent?.name ?? '',
       description: agent?.description ?? '',
@@ -69,7 +69,9 @@ export function AgentBuilder({ agent }: AgentBuilderProps) {
     },
   })
 
-  const selectedProviderId = watch('modelProviderId')
+  // `useWatch`, not `form.watch`: the latter returns a fresh function every render, which
+  // makes React Compiler skip memoising the whole component.
+  const selectedProviderId = useWatch({ control, name: 'modelProviderId' })
   const modelsForProvider = (models ?? []).filter((m) => m.providerId === selectedProviderId)
   const submitting = createAgent.isPending || updateAgent.isPending
 

@@ -212,7 +212,7 @@ internal sealed class OverpassBuildingFootprintProvider(
 
     /// <summary>FR-013 — excludes a footprint with fewer than 4 points (already filtered by the
     /// caller), that is not a closed ring, has zero/near-zero area, or is self-intersecting.</summary>
-    private static bool IsUsableRing(IReadOnlyList<GeoPoint> ring)
+    private static bool IsUsableRing(List<GeoPoint> ring)
     {
         var first = ring[0];
         var last = ring[^1];

@@ -1,6 +1,6 @@
 import { Alert, Box, Button, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import type { PromptDetail, PromptType, PromptVariable, SavePromptInput } from '../api/promptsApi'
 import { NO_REQUIRED_CAPABILITIES } from '../api/promptsApi'
@@ -67,7 +67,7 @@ export function PromptEditor({ prompt }: PromptEditorProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [variables, setVariables] = useState<PromptVariable[]>(prompt?.variables ?? [])
 
-  const { register, handleSubmit, watch } = useForm<PromptFormValues>({
+  const { register, handleSubmit, control } = useForm<PromptFormValues>({
     values: {
       name: prompt?.name ?? '',
       description: prompt?.description ?? '',
@@ -82,15 +82,20 @@ export function PromptEditor({ prompt }: PromptEditorProps) {
     },
   })
 
-  const watchedFields = watch([
-    'systemInstructions',
-    'developerInstructions',
-    'userInstructions',
-    'contextText',
-    'examplesText',
-    'outputInstructions',
-    'constraints',
-  ])
+  // `useWatch`, not `form.watch`: the latter returns a fresh function every render, which
+  // makes React Compiler skip memoising the whole component.
+  const watchedFields = useWatch({
+    control,
+    name: [
+      'systemInstructions',
+      'developerInstructions',
+      'userInstructions',
+      'contextText',
+      'examplesText',
+      'outputInstructions',
+      'constraints',
+    ],
+  })
 
   const detectedNames = useMemo(() => detectPlaceholders(...watchedFields), [watchedFields])
   const syncedVariables = useMemo(() => syncVariablesWithPlaceholders(variables, detectedNames), [variables, detectedNames])

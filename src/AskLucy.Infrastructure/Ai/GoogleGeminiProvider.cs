@@ -34,6 +34,9 @@ public sealed class GoogleGeminiProvider(
     private const string ProviderKey = "google-gemini";
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>Hoisted out of the request payload so every image call reuses one array (CA1861).</summary>
+    private static readonly string[] ImageResponseModalities = ["TEXT", "IMAGE"];
+
     /// <summary>specs/043 FR-028a - the vendor's documented maximum, so the common catalog fits in one round trip.</summary>
     private const int MaxModelPageSize = 1000;
 
@@ -152,7 +155,7 @@ public sealed class GoogleGeminiProvider(
             var payload = new
             {
                 contents = new[] { new { role = "user", parts = new[] { new { text = prompt } } } },
-                generationConfig = new { responseModalities = new[] { "TEXT", "IMAGE" } },
+                generationConfig = new { responseModalities = ImageResponseModalities },
             };
 
             using var response = await httpClient.PostAsJsonAsync($"models/{model}:generateContent?key={apiKey}", payload, ct);

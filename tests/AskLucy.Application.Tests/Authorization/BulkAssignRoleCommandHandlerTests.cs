@@ -26,7 +26,7 @@ public sealed class BulkAssignRoleCommandHandlerTests
     public async Task Handle_ExplicitIds_DelegatesDirectlyToBulkReplaceRoleAsync()
     {
         var expectedIds = new[] { "user-1", "user-2" };
-        _roleAssignmentRepository.BulkReplaceRoleAsync("role-1", Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(expectedIds)), "actor-1", Arg.Any<CancellationToken>())
+        _roleAssignmentRepository.BulkReplaceRoleAsync("role-1", Arg.Is<IReadOnlyList<string>>(ids => ids != null && ids.SequenceEqual(expectedIds)), "actor-1", Arg.Any<CancellationToken>())
             .Returns(new BulkAssignResult(2, []));
 
         var outcome = await _handler.Handle(
@@ -40,10 +40,10 @@ public sealed class BulkAssignRoleCommandHandlerTests
     [Fact]
     public async Task Handle_AllMatching_ReResolvesIdsAtExecutionTime()
     {
-        _mediator.Send(Arg.Is<GetRoleAssignmentsEligibleIdsQuery>(q => q.RoleId == "role-1" && q.Search == "ana"), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Is<GetRoleAssignmentsEligibleIdsQuery>(q => q != null && q.RoleId == "role-1" && q.Search == "ana"), Arg.Any<CancellationToken>())
             .Returns(["user-9"]);
         var expectedIds = new[] { "user-9" };
-        _roleAssignmentRepository.BulkReplaceRoleAsync("role-1", Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(expectedIds)), "actor-1", Arg.Any<CancellationToken>())
+        _roleAssignmentRepository.BulkReplaceRoleAsync("role-1", Arg.Is<IReadOnlyList<string>>(ids => ids != null && ids.SequenceEqual(expectedIds)), "actor-1", Arg.Any<CancellationToken>())
             .Returns(new BulkAssignResult(1, []));
 
         var outcome = await _handler.Handle(

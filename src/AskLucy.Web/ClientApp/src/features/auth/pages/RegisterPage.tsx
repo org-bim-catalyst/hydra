@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Divider, Link, List, ListItem, Stack, Typography } from '@mui/material'
 import { useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router'
 import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AuthLayout } from '../../../components/AuthLayout'
@@ -45,7 +45,9 @@ export function RegisterPage() {
       : []
 
   // Watched so the checklist and strength bar update on every keystroke.
-  const password = form.watch('password') ?? ''
+  // `useWatch`, not `form.watch`: the latter returns a fresh function every render, which
+  // makes React Compiler skip memoising the whole page.
+  const password = useWatch({ control: form.control, name: 'password' }) ?? ''
 
   const onSubmit = form.handleSubmit(({ email, password, firstName, lastName }) =>
     register.mutate({ email, password, firstName, lastName }),
