@@ -39,8 +39,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<Message> Messages => Set<Message>();
 
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     public DbSet<CookieConsentRecord> CookieConsentRecords => Set<CookieConsentRecord>();

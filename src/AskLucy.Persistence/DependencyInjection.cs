@@ -60,7 +60,7 @@ public static class DependencyInjection
         services.AddHostedService<SystemAccountProvisioningHostedService>();
         services.AddScoped<IUserChatRepository, UserChatRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
-        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IUserCookieConsentRepository, UserCookieConsentRepository>();
