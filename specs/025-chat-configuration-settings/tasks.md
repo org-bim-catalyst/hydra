@@ -220,3 +220,13 @@ AI providers configured, which correctly exercises (and confirms) every "no AI p
 enabled yet" empty-state path across Chat Configuration, but means the "happy path with a
 real provider" (selecting/switching an actual model) could not be exercised live — that
 remains covered only by the mocked automated tests.
+
+## Post-Implementation Note (2026-09-20 — Voice entry point removed)
+
+Voice moved to its own tab on the dedicated Chat/Application Settings page in later work
+(specs 029-033 and beyond), making the "Go to Voice" link T012 added to `ChatConfigurationTab.tsx`
+a redundant hop to a tab the user is already one click away from. The link, its `goToChatSettingsTab`
+helper, and the "Voice, speech-to-text & text-to-speech" section were removed, along with the
+now-stale `ChatConfigurationTab.test.tsx` coverage for that navigation. The "Go to AI Providers"
+entry point (T012, FR-002) is unaffected. See spec.md's Amendment 2026-09-20 for the corresponding
+requirements update (FR-003 superseded).

@@ -138,3 +138,21 @@ A user in the middle of a chat session realizes they want to change the model, t
 - No new backend preference storage is required for the AI Providers, Voice, or current-conversation model controls; only the current-conversation model control is a genuinely new UI surface (its underlying per-conversation model data already exists today). Chat History is a relocation of the existing conversation list's UI, not a new data feature.
 - Removing the live in-conversation provider/model switcher and the in-workspace conversation-history panel from the chat toolbar are intentional behavior changes confirmed by the requester: reaching full model/voice management or history browsing now requires a trip to Settings (except for the lightweight current-conversation switch, which stays one hop away via Chat Configuration), in exchange for a cleaner default workspace view.
 - Mobile/responsive behavior for both new sections follows the same standard already applied to the rest of the Settings experience.
+
+### Amendment 2026-09-20 — Voice entry point removed from Chat Configuration
+
+Voice moved off the general Settings page onto its own tab on the dedicated Chat/Application
+Settings page in earlier, later work (see [spec 029-033 series](../029-fix-chat-widget-bugs/spec.md)
+and beyond). With Voice reachable directly as a sibling tab there, the "Go to Voice" link this
+feature originally added to Chat Configuration became a redundant hop to a section the user is
+already one tab away from, so it was removed from `ChatConfigurationTab.tsx`.
+
+- **FR-003 is superseded**: Chat Configuration no longer provides an entry point into Voice. Voice
+  is reached the same way every other tab on its page is reached — no link-out is needed or
+  provided.
+- **FR-012/FR-013** still hold for the remaining contents (current-conversation model control,
+  entry point to AI Providers): Chat Configuration now hosts only those two items, not three.
+- Acceptance Scenario 2 (User Story 1) and Acceptance Scenario 4 no longer apply to Voice; they
+  remain accurate for the AI Providers entry point.
+- The edge case on microphone/speaker permission denial ("opens the Voice tab via a Chat
+  Configuration entry point or directly") now only applies to opening Voice directly.
