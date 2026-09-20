@@ -18,13 +18,13 @@ public sealed class SmtpEmailSender(IOptions<SmtpOptions> options) : IEmailSende
 {
     private readonly SmtpOptions _options = options.Value;
 
-    public async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
+    public async Task SendAsync(string toEmail, string subject, string htmlBody, string textBody, CancellationToken cancellationToken = default)
     {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_options.FromName, _options.FromTransactional));
         message.To.Add(MailboxAddress.Parse(toEmail));
         message.Subject = subject;
-        message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
+        message.Body = new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody }.ToMessageBody();
 
         var secureSocketOptions = _options.UseSsl
             ? SecureSocketOptions.SslOnConnect

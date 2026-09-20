@@ -488,6 +488,11 @@ public static class DependencyInjection
         services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();
         services.AddScoped<IVoiceProviderHealthRecorder, VoiceProviderHealthRecorder>();
 
+        // specs/061-branded-email-templates — shared branded HTML/text shell for every account
+        // email; Infrastructure-owned since rendering has no I/O but groups with the senders it
+        // composes bodies for (research.md Topic 1).
+        services.AddScoped<IEmailTemplateRenderer, BrandedAccountEmailTemplateRenderer>();
+
         // Dev-only: lets a fresh clone complete first registration/login without real SMTP
         // credentials (spec.md convergence note) — Production/Testing/every other environment
         // always uses the real sender.

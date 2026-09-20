@@ -14,6 +14,7 @@ namespace AskLucy.Infrastructure.Email;
 /// </summary>
 [AutomaticRetry(Attempts = 3)]
 public sealed partial class PasswordEmailJob(
+    IEmailTemplateRenderer templateRenderer,
     IEmailSender emailSender,
     IPasswordTokenProtector tokenProtector,
     IOptions<AppOptions> appOptions,
@@ -39,15 +40,21 @@ public sealed partial class PasswordEmailJob(
         var resetLink =
             $"{appOptions.Value.FrontendBaseUrl}/reset-password?userId={Uri.EscapeDataString(userId)}&token={Uri.EscapeDataString(plaintextToken)}";
 
-        var body =
-            $"""
-             <p>Hi {WebUtility.HtmlEncode(email)},</p>
-             <p>We received a request to reset your Ask Lucy password. Use the link below to choose a new one:</p>
-             <p><a href="{resetLink}">Reset my password</a></p>
-             <p>This link expires in one hour and can be used once. If you did not ask for it, you can ignore this email — your password has not changed.</p>
-             """;
+        const string subject = "Reset your Ask Lucy password";
+        var content = new AccountEmailContent(
+            Subject: subject,
+            PreheaderText: "Use this link to choose a new Ask Lucy password.",
+            Heading: "Reset your password",
+            BodyParagraphs:
+            [
+                $"Hi {WebUtility.HtmlEncode(email)},",
+                "We received a request to reset your Ask Lucy password. Use the button below to choose a new one."
+            ],
+            SafetyNote: "This link expires in one hour and can be used once. If you did not ask for it, you can ignore this email — your password has not changed.",
+            PrimaryAction: new EmailAction("Reset my password", resetLink));
 
-        await emailSender.SendAsync(email, "Reset your Ask Lucy password", body, cancellationToken);
+        var (htmlBody, textBody) = templateRenderer.Render(content);
+        await emailSender.SendAsync(email, subject, htmlBody, textBody, cancellationToken);
 
         LogResetLinkSent(logger, userId);
     }
@@ -55,14 +62,20 @@ public sealed partial class PasswordEmailJob(
     public async Task SendPasswordChangedNoticeAsync(
         string email, DateTime changedAtUtc, CancellationToken cancellationToken = default)
     {
-        var body =
-            $"""
-             <p>Hi {WebUtility.HtmlEncode(email)},</p>
-             <p>Your Ask Lucy password was changed on {changedAtUtc:yyyy-MM-dd HH:mm} UTC.</p>
-             <p>If this was you, nothing further is needed. If it was not, reset your password immediately and review your active sessions.</p>
-             """;
+        const string subject = "Your Ask Lucy password was changed";
+        var content = new AccountEmailContent(
+            Subject: subject,
+            PreheaderText: "Your Ask Lucy password was just changed.",
+            Heading: "Your password was changed",
+            BodyParagraphs:
+            [
+                $"Hi {WebUtility.HtmlEncode(email)},",
+                $"Your Ask Lucy password was changed on {changedAtUtc:yyyy-MM-dd HH:mm} UTC."
+            ],
+            SafetyNote: "If this was you, nothing further is needed. If it was not, reset your password immediately and review your active sessions.");
 
-        await emailSender.SendAsync(email, "Your Ask Lucy password was changed", body, cancellationToken);
+        var (htmlBody, textBody) = templateRenderer.Render(content);
+        await emailSender.SendAsync(email, subject, htmlBody, textBody, cancellationToken);
 
         LogChangeNoticeSent(logger);
     }

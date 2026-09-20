@@ -13,6 +13,7 @@ namespace AskLucy.Infrastructure.Email;
 /// </summary>
 [AutomaticRetry(Attempts = 3)]
 public sealed partial class AccountEmailJob(
+    IEmailTemplateRenderer templateRenderer,
     IEmailSender emailSender,
     IIdentityService identityService,
     IOptions<AppOptions> appOptions,
@@ -42,15 +43,21 @@ public sealed partial class AccountEmailJob(
         var confirmationLink =
             $"{appOptions.Value.FrontendBaseUrl}/confirm-email?userId={Uri.EscapeDataString(userId)}&token={Uri.EscapeDataString(token)}";
 
-        var body =
-            $"""
-             <p>Hi {WebUtility.HtmlEncode(email)},</p>
-             <p>Here is a fresh link to confirm your Ask Lucy account:</p>
-             <p><a href="{confirmationLink}">Confirm my email</a></p>
-             <p>If you did not ask for this, you can ignore this email.</p>
-             """;
+        const string subject = "Confirm your Ask Lucy account";
+        var content = new AccountEmailContent(
+            Subject: subject,
+            PreheaderText: "Here is a fresh link to confirm your Ask Lucy account.",
+            Heading: "Confirm your account",
+            BodyParagraphs:
+            [
+                $"Hi {WebUtility.HtmlEncode(email)},",
+                "Here is a fresh link to confirm your Ask Lucy account."
+            ],
+            SafetyNote: "If you did not ask for this, you can ignore this email.",
+            PrimaryAction: new EmailAction("Confirm my email", confirmationLink));
 
-        await emailSender.SendAsync(email, "Confirm your Ask Lucy account", body, cancellationToken);
+        var (htmlBody, textBody) = templateRenderer.Render(content);
+        await emailSender.SendAsync(email, subject, htmlBody, textBody, cancellationToken);
 
         LogConfirmationResent(logger, userId);
     }
@@ -73,7 +80,19 @@ public sealed partial class AccountEmailJob(
              <blockquote>{WebUtility.HtmlEncode(message).ReplaceLineEndings("<br />")}</blockquote>
              """;
 
-        await emailSender.SendAsync(supportMailbox, "Account access request", body, cancellationToken);
+        // Internal staff-facing relay — out of scope for the branded template (spec.md
+        // Assumptions); a plain-text mirror of the same fields is sufficient here.
+        var textBody =
+            $"""
+             A signed-out user asked for help getting back into their account.
+             Account: {fromEmail}
+             Received: {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC
+             Origin IP: {requestedFromIp ?? "unknown"}
+             Message:
+             {message}
+             """;
+
+        await emailSender.SendAsync(supportMailbox, "Account access request", body, textBody, cancellationToken);
 
         LogSupportRequestSent(logger);
     }

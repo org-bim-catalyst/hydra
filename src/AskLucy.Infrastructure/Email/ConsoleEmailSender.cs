@@ -11,15 +11,15 @@ namespace AskLucy.Infrastructure.Email;
 /// </summary>
 public sealed class ConsoleEmailSender(ILogger<ConsoleEmailSender> logger) : IEmailSender
 {
-    public Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
+    public Task SendAsync(string toEmail, string subject, string htmlBody, string textBody, CancellationToken cancellationToken = default)
     {
-        ConsoleEmailSenderLog.EmailNotSent(logger, toEmail, subject, htmlBody);
+        ConsoleEmailSenderLog.EmailNotSent(logger, toEmail, subject, htmlBody, textBody);
         return Task.CompletedTask;
     }
 }
 
 internal static partial class ConsoleEmailSenderLog
 {
-    [LoggerMessage(Level = LogLevel.Information, Message = "[DEV] Email not actually sent. To: {ToEmail}, Subject: {Subject}\n{HtmlBody}")]
-    public static partial void EmailNotSent(ILogger logger, string toEmail, string subject, string htmlBody);
+    [LoggerMessage(Level = LogLevel.Information, Message = "[DEV] Email not actually sent. To: {ToEmail}, Subject: {Subject}\nHTML:\n{HtmlBody}\nText:\n{TextBody}")]
+    public static partial void EmailNotSent(ILogger logger, string toEmail, string subject, string htmlBody, string textBody);
 }

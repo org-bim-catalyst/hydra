@@ -14,6 +14,7 @@ namespace AskLucy.Application.Authentication.Commands.Register;
 /// </summary>
 public sealed class RegisterCommandHandler(
     IIdentityService identityService,
+    IEmailTemplateRenderer templateRenderer,
     IEmailSender emailSender,
     IOptions<AppOptions> appOptions) : IRequestHandler<RegisterCommand, AuthResult>
 {
@@ -32,14 +33,21 @@ public sealed class RegisterCommandHandler(
             $"{appOptions.Value.FrontendBaseUrl}/confirm-email?userId={Uri.EscapeDataString(result.UserId)}&token={Uri.EscapeDataString(token)}";
 
         var displayName = string.IsNullOrWhiteSpace(request.FirstName) ? request.Email : request.FirstName;
-        var body =
-            $"""
-             <p>Hi {WebUtility.HtmlEncode(displayName)},</p>
-             <p>Please confirm your Ask Lucy account by clicking the link below:</p>
-             <p><a href="{confirmationLink}">Confirm my email</a></p>
-             """;
+        const string subject = "Confirm your Ask Lucy account";
+        var content = new AccountEmailContent(
+            Subject: subject,
+            PreheaderText: "Confirm your email to finish setting up your Ask Lucy account.",
+            Heading: "Confirm your account",
+            BodyParagraphs:
+            [
+                $"Hi {WebUtility.HtmlEncode(displayName)},",
+                "Please confirm your Ask Lucy account by clicking the button below."
+            ],
+            SafetyNote: "If you didn't create an Ask Lucy account, you can safely ignore this email.",
+            PrimaryAction: new EmailAction("Confirm my email", confirmationLink));
 
-        await emailSender.SendAsync(request.Email, "Confirm your Ask Lucy account", body, cancellationToken);
+        var (htmlBody, textBody) = templateRenderer.Render(content);
+        await emailSender.SendAsync(request.Email, subject, htmlBody, textBody, cancellationToken);
 
         return new AuthResult(AuthOutcome.Success, result.UserId);
     }
