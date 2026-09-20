@@ -149,7 +149,7 @@ public sealed class BrandedAccountEmailTemplateRendererTests
 
         // Exactly the one visible, non-1x1, alt-labelled brand logo — never a hidden tracking pixel.
         CountOccurrences(htmlBody, "<img").Should().Be(1);
-        htmlBody.Should().Contain("src=\"https://asklucy.io/brandmark.png\"");
+        htmlBody.Should().Contain("src=\"https://asklucy.io/lucy-portrait.png\"");
         htmlBody.Should().NotContain("width=\"1\" height=\"1\"");
 
         var hrefs = System.Text.RegularExpressions.Regex.Matches(htmlBody, "href=\"([^\"]*)\"")

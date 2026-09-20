@@ -81,10 +81,10 @@ public sealed class BrandedAccountEmailTemplateRenderer(IOptions<AppOptions> app
         // Header — brand logo (hosted at the frontend's own static root, never a third-party or
         // tracking-analytics domain) plus the wordmark, in a table cell so it lays out identically
         // in clients that block remote images (the alt text still reads "Ask Lucy").
-        var logoUrl = $"{appOptions.Value.FrontendBaseUrl}/brandmark.png";
+        var logoUrl = $"{appOptions.Value.FrontendBaseUrl}/lucy-portrait.png";
         sb.Append("<tr><td class=\"al-padded\" style=\"padding:32px 32px 24px 32px; text-align:left;\">\n");
         sb.Append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\"><tr>\n");
-        sb.Append(CultureInfo.InvariantCulture, $"<td style=\"padding-right:8px;\"><img src=\"{Encode(logoUrl)}\" width=\"24\" height=\"24\" alt=\"\" style=\"display:block; border:0; width:24px; height:24px;\"></td>\n");
+        sb.Append(CultureInfo.InvariantCulture, $"<td style=\"padding-right:8px;\"><img src=\"{Encode(logoUrl)}\" width=\"28\" height=\"28\" alt=\"\" style=\"display:block; border:0; width:28px; height:28px; border-radius:50%;\"></td>\n");
         sb.Append(CultureInfo.InvariantCulture, $"<td><span style=\"font-family:Segoe UI,Helvetica,Arial,sans-serif; font-size:20px; font-weight:700; color:{BrandGreen};\">Ask Lucy</span></td>\n");
         sb.Append("</tr></table>\n");
         sb.Append("</td></tr>\n");
