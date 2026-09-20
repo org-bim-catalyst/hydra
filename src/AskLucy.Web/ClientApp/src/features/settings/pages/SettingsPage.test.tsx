@@ -277,7 +277,7 @@ describe('SettingsPage two-factor authentication', () => {
     await user.click(await screen.findByRole('button', { name: 'Generate recovery codes' }))
     await screen.findByText('CODE1-AAAAA')
 
-    await user.click(screen.getByRole('button', { name: 'Download as .md' }))
+    await user.click(screen.getByText('Download as .md'))
 
     expect(clickSpy).toHaveBeenCalled()
     clickSpy.mockRestore()

@@ -272,9 +272,15 @@ function ProfileTab() {
   const uploadAvatar = useUploadAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { register, handleSubmit } = useForm<ProfileFormValues>({
+  const { register, handleSubmit, control } = useForm<ProfileFormValues>({
     values: { firstName: profile?.firstName ?? '', lastName: profile?.lastName ?? '' },
   })
+
+  // `values` resets these fields by writing the DOM input directly rather than through a
+  // React re-render, so MUI's uncontrolled shrink detection never sees them as filled and the
+  // label sits on top of the loaded name. `useWatch` gives a value to force `shrink` with.
+  const firstName = useWatch({ control, name: 'firstName' })
+  const lastName = useWatch({ control, name: 'lastName' })
 
   // No local avatar-URL state: `useUploadAvatar` invalidates the shared profile query on
   // success, so `profile.avatarUrl` refetches with the new signed URL and every reader of
@@ -308,8 +314,18 @@ function ProfileTab() {
       <Box component="form" onSubmit={onSubmit} sx={{ maxWidth: 600 }}>
         <Stack spacing={2.5}>
           <TextField label="Email" value={profile?.email ?? ''} disabled fullWidth />
-          <TextField label="First name" fullWidth {...register('firstName')} />
-          <TextField label="Last name" fullWidth {...register('lastName')} />
+          <TextField
+            label="First name"
+            fullWidth
+            slotProps={{ inputLabel: { shrink: Boolean(firstName) } }}
+            {...register('firstName')}
+          />
+          <TextField
+            label="Last name"
+            fullWidth
+            slotProps={{ inputLabel: { shrink: Boolean(lastName) } }}
+            {...register('lastName')}
+          />
           <Button type="submit" variant="contained" size="large" disabled={updateProfile.isPending}>
             Save changes
           </Button>
@@ -373,21 +389,6 @@ function SecurityTab() {
           </>
         )}
 
-        {recoveryCodes && (
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Save these recovery codes somewhere safe. Each can be used once.
-            </Typography>
-            <Stack spacing={0.5}>
-              {recoveryCodes.map((code) => (
-                <Typography key={code} variant="body2" sx={{ fontFamily: codeFontFamily }}>
-                  {code}
-                </Typography>
-              ))}
-            </Stack>
-          </Paper>
-        )}
-
         <Stack direction="row" spacing={1.5}>
           {profile?.twoFactorEnabled ? (
             <Button
@@ -407,21 +408,40 @@ function SecurityTab() {
               Enable 2FA
             </Button>
           )}
-          {recoveryCodes ? (
-            <Button variant="text" onClick={() => downloadRecoveryCodesAsMarkdown(recoveryCodes)}>
-              Download as .md
-            </Button>
-          ) : (
-            <Button
-              variant="text"
-              onClick={() => generateRecoveryCodes.mutate(undefined, { onSuccess: setRecoveryCodes })}
-              disabled={generateRecoveryCodes.isPending}
-            >
-              Generate recovery codes
-            </Button>
-          )}
+          <Button
+            variant="text"
+            onClick={() => generateRecoveryCodes.mutate(undefined, { onSuccess: setRecoveryCodes })}
+            disabled={generateRecoveryCodes.isPending}
+          >
+            Generate recovery codes
+          </Button>
         </Stack>
       </Paper>
+
+      {/* A dialog rather than an inline card: showing/downloading codes used to swap the
+          Generate/Download buttons in place, which resized this card against its sibling
+          every time — Security's two cards are meant to stay equal height (SecurityTab). */}
+      <Dialog open={Boolean(recoveryCodes)} onClose={() => setRecoveryCodes(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Recovery codes</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Save these recovery codes somewhere safe. Each can be used once.
+          </DialogContentText>
+          <Stack spacing={0.5}>
+            {recoveryCodes?.map((code) => (
+              <Typography key={code} variant="body2" sx={{ fontFamily: codeFontFamily }}>
+                {code}
+              </Typography>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => recoveryCodes && downloadRecoveryCodesAsMarkdown(recoveryCodes)}>
+            Download as .md
+          </Button>
+          <Button onClick={() => setRecoveryCodes(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }
