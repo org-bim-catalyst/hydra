@@ -79,7 +79,9 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
         renderTrigger({ onClick: openMenu, open })
       ) : (
         <IconButton onClick={openMenu} aria-label="Account menu" size="small">
-          <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: 'primary.main' }}>{initials}</Avatar>
+          <Avatar src={profile?.avatarUrl ?? undefined} sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: 'primary.main' }}>
+            {initials}
+          </Avatar>
         </IconButton>
       )}
       <Menu
@@ -124,7 +126,10 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
             borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
           }}
         >
-          <Avatar sx={{ width: 40, height: 40, fontSize: '0.875rem', fontWeight: 600, bgcolor: 'primary.main' }}>
+          <Avatar
+            src={profile?.avatarUrl ?? undefined}
+            sx={{ width: 40, height: 40, fontSize: '0.875rem', fontWeight: 600, bgcolor: 'primary.main' }}
+          >
             {initials}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>

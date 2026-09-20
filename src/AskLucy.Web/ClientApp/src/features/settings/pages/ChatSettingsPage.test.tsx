@@ -8,9 +8,10 @@ import { ChatSettingsPage } from './ChatSettingsPage'
 import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 
 const server = setupServer(
-  http.get('*/api/v1/profile', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
+  http.get('*/api/v1/users/me', () => HttpResponse.json({ email: 'lucy@example.com', firstName: 'Lucy' })),
   http.get('*/api/v1/ai/providers', () => HttpResponse.json([])),
   http.get('*/api/v1/ai/preferences', () => HttpResponse.json(null)),
+  http.get('*/api/v1/panels/preferences', () => HttpResponse.json({ opacityPercent: 60 })),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
@@ -33,30 +34,30 @@ function renderPage(initialTab?: number) {
 }
 
 /**
- * Voice, Chat Configuration and Chat History were three tabs inside general Settings, sitting
- * beside password changes and cookie preferences — related to each other and to nothing around
- * them. They are one page now, reached from a single "Chat settings" item in the account menu.
+ * Voice, Chat Configuration, Chat History and Viewer describe how a conversation behaves and
+ * belong together, not beside password changes and cookie preferences. They are one page now,
+ * reached from a single "Application settings" item in the account menu.
  */
 describe('ChatSettingsPage', () => {
-  it('gathers the three conversation tabs onto one page', async () => {
+  it('gathers the four conversation tabs onto one page', async () => {
     renderPage()
-    await screen.findByRole('heading', { name: 'Chat settings' })
+    await screen.findByRole('heading', { name: 'Application settings' })
 
-    for (const label of ['Voice', 'Chat Configuration', 'Chat History']) {
+    for (const label of ['Voice', 'Chat Configuration', 'Chat History', 'Viewer']) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
     }
   })
 
   it('opens on Voice when no tab is requested', async () => {
     renderPage()
-    await screen.findByRole('heading', { name: 'Chat settings' })
+    await screen.findByRole('heading', { name: 'Application settings' })
 
     expect(screen.getByRole('tab', { name: 'Voice' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('seeds the active tab from location.state.tab, so the account menu can deep-link', async () => {
     renderPage(CHAT_SETTINGS_TAB_INDEX.ChatHistory)
-    await screen.findByRole('heading', { name: 'Chat settings' })
+    await screen.findByRole('heading', { name: 'Application settings' })
 
     expect(screen.getByRole('tab', { name: 'Chat History' })).toHaveAttribute('aria-selected', 'true')
   })

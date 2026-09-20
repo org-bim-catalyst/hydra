@@ -78,7 +78,7 @@ function renderTab() {
               </>
             }
           />
-          {/* The Voice link leaves this page now — Voice is a tab on Chat settings. */}
+          {/* The Voice link leaves this page now — Voice is a tab on Application settings. */}
           <Route path="/chat-settings" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -240,7 +240,7 @@ describe('ChatConfigurationTab', () => {
     expect(screen.queryByRole('button', { name: 'Go to AI Providers' })).not.toBeInTheDocument()
   })
 
-  it('the Voice entry point navigates to Chat settings with the Voice tab selected', async () => {
+  it('the Voice entry point navigates to Application settings with the Voice tab selected', async () => {
     // Voice is a sibling tab on the same page now, not a tab inside general Settings.
     const user = userEvent.setup()
     renderTab()

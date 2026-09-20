@@ -7,4 +7,7 @@ export const CHAT_SETTINGS_TAB_INDEX = {
   Voice: 0,
   ChatConfiguration: 1,
   ChatHistory: 2,
+  /** Moved here from Settings (SETTINGS_TAB_INDEX) — appended, not inserted, so existing tab
+   * indices never shift. */
+  Viewer: 3,
 } as const

@@ -51,7 +51,16 @@ import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQu
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 import { TwoFactorQrCode } from '../components/TwoFactorQrCode'
-import { ViewerTab } from './ViewerTab'
+
+/**
+ * Bootstrap-style col-10 (one card) / col-5 + col-5 (two side-by-side cards) sizing for tab
+ * content, so a tab's card(s) use most of the available width instead of shrinking to their
+ * form's intrinsic size — a single child fills the whole 83.3%, two children (e.g. SecurityTab's
+ * password/2FA cards) split it evenly via their own `flex: 1`.
+ */
+export function TabContentContainer({ children }: { children: ReactNode }) {
+  return <Box sx={{ width: { xs: '100%', md: '83.3333%' }, mx: 'auto' }}>{children}</Box>
+}
 
 function TabPanel({
   value,
@@ -236,23 +245,23 @@ function ProfileTab() {
   const updateProfile = useUpdateProfile()
   const uploadAvatar = useUploadAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<ProfileFormValues>({
     values: { firstName: profile?.firstName ?? '', lastName: profile?.lastName ?? '' },
   })
 
-  const handleAvatarChange = async (file: File) => {
-    const url = await uploadAvatar.mutateAsync(file)
-    setAvatarUrl(url)
-  }
+  // No local avatar-URL state: `useUploadAvatar` invalidates the shared profile query on
+  // success, so `profile.avatarUrl` refetches with the new signed URL and every reader of
+  // that query (this tab, UserMenu, …) picks it up — a component-local copy would go stale
+  // the moment this tab unmounts, which read as "the avatar isn't saved".
+  const handleAvatarChange = (file: File) => uploadAvatar.mutateAsync(file)
 
   const onSubmit = handleSubmit((values) => updateProfile.mutate(values))
 
   return (
     <Paper variant="outlined" sx={{ p: 3, width: '100%' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
-        <Avatar src={avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
+        <Avatar src={profile?.avatarUrl ?? undefined} sx={{ width: 64, height: 64 }} />
         <input
           ref={fileInputRef}
           type="file"
@@ -774,7 +783,7 @@ export function SettingsPage() {
 
   return (
     <AppShell title="Account settings">
-      <Paper elevation={1} sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper elevation={1} sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Tabs
           value={tab}
           onChange={(_, value: number) => setTab(value)}
@@ -783,35 +792,48 @@ export function SettingsPage() {
         >
           {/*
             Explicit values, not positional indices. Tabs have been removed from the middle of
-            this list — AI Providers to the admin panel, and Voice/Chat Configuration/Chat History
-            to Chat settings. Positional numbering would have silently repointed
-            SETTINGS_TAB_INDEX, both account menus and every saved deep link at the wrong tab.
+            this list — AI Providers to the admin panel, and Voice/Chat Configuration/Chat
+            History/Viewer to Application settings. Positional numbering would have silently
+            repointed SETTINGS_TAB_INDEX, both account menus and every saved deep link at the
+            wrong tab.
           */}
           <Tab label="Profile" value={SETTINGS_TAB_INDEX.Profile} />
           <Tab label="Security" value={SETTINGS_TAB_INDEX.Security} />
           <Tab label="Account" value={SETTINGS_TAB_INDEX.Account} />
           <Tab label="Data" value={SETTINGS_TAB_INDEX.Data} />
           <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
-          <Tab label="Viewer" value={SETTINGS_TAB_INDEX.Viewer} />
         </Tabs>
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Profile}>
-            <ProfileTab />
+            <TabContentContainer>
+              <ProfileTab />
+            </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
-            <SecurityTab />
+            <TabContentContainer>
+              <SecurityTab />
+            </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
-            <AccountTab />
+            <TabContentContainer>
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <AccountTab />
+              </Paper>
+            </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Data}>
-            <DataTab />
+            <TabContentContainer>
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <DataTab />
+              </Paper>
+            </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Cookies}>
-            <CookiePreferencesPanel />
-          </TabPanel>
-          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Viewer}>
-            <ViewerTab />
+            <TabContentContainer>
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <CookiePreferencesPanel />
+              </Paper>
+            </TabContentContainer>
           </TabPanel>
         </Box>
       </Paper>

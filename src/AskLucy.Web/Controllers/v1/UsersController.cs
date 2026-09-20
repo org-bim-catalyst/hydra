@@ -40,8 +40,27 @@ public sealed class UsersController(
     private static readonly JsonSerializerOptions PersonalDataExportOptions = new() { WriteIndented = true };
 
     [HttpGet("me")]
-    public async Task<ActionResult<UserProfileDto>> GetMe(CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(new GetMyProfileQuery(), cancellationToken));
+    public async Task<ActionResult<MyProfileResponse>> GetMe(CancellationToken cancellationToken)
+    {
+        var profile = await mediator.Send(new GetMyProfileQuery(), cancellationToken);
+        return Ok(new MyProfileResponse(
+            profile.Id,
+            profile.Email,
+            profile.FirstName,
+            profile.LastName,
+            profile.BirthDate,
+            profile.TwoFactorEnabled,
+            profile.AvatarFileName,
+            BuildAvatarUrl(profile)));
+    }
+
+    private string? BuildAvatarUrl(UserProfileDto profile)
+    {
+        if (profile.AvatarFileName is null) return null;
+
+        var (expires, signature) = signedUrlService.Sign(profile.Id, AvatarUrlLifetime);
+        return Url.Action(nameof(GetAvatar), new { userId = profile.Id, exp = expires, sig = signature });
+    }
 
     [HttpPatch("me")]
     public async Task<IActionResult> UpdateMe(UpdateProfileRequest request, CancellationToken cancellationToken)

@@ -425,8 +425,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     const labels = openAccountMenuLabels()
 
     for (const label of [
-      'Account settings',
-      'Chat settings',
+      'Application settings',
       'Documents',
       'Knowledge Bases',
       'Memory Center',
@@ -445,12 +444,12 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeInTheDocument()
   })
 
-  it('reaches Chat settings from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
+  it('reaches Application settings from the workspace in two clicks or fewer (specs/025-chat-configuration-settings FR-011)', () => {
     renderChatPage()
 
     // Click 1: open the account menu. Click 2: the destination itself. Chat Configuration and
     // Chat History are tabs on that one page now, so the workspace lists it once.
-    expect(openAccountMenuLabels()).toContain('Chat settings')
+    expect(openAccountMenuLabels()).toContain('Application settings')
   })
 
   it('shows real icon actions (not placeholder text) for layers/navigation/selection/analysis, opening a "coming soon" dialog on click (FR-012/FR-021)', () => {

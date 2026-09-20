@@ -33,18 +33,18 @@ function renderSettings(initialTab?: number) {
 
 describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () => {
   it('renders only the tabs that still belong here', async () => {
-    // Four tabs left this page: "AI Providers" to the admin panel (which model answers a user is
+    // Five tabs left this page: "AI Providers" to the admin panel (which model answers a user is
     // a platform decision, configured there as the Chat capability), and Voice / Chat
-    // Configuration / Chat History to the Chat settings page, where they sit together instead of
-    // beside password changes and cookie preferences.
+    // Configuration / Chat History / Viewer to the Application settings page, where they describe
+    // how a conversation behaves instead of sitting beside password changes and cookie preferences.
     renderSettings()
     await screen.findByRole('heading', { name: 'Account settings' })
 
-    for (const label of ['Profile', 'Security', 'Account', 'Data', 'Cookies', 'Viewer']) {
+    for (const label of ['Profile', 'Security', 'Account', 'Data', 'Cookies']) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
     }
 
-    for (const moved of ['AI Providers', 'Voice', 'Chat Configuration', 'Chat History']) {
+    for (const moved of ['AI Providers', 'Voice', 'Chat Configuration', 'Chat History', 'Viewer']) {
       expect(screen.queryByRole('tab', { name: moved })).not.toBeInTheDocument()
     }
   })
@@ -64,14 +64,14 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
   })
 
   it('keeps every remaining tab on its original index, so saved deep links still land', async () => {
-    // The tabs carry explicit values rather than positional indices. Four tabs were removed from
+    // The tabs carry explicit values rather than positional indices. Five tabs were removed from
     // the middle of this list — AI Providers to the admin panel, and Voice/Chat Configuration/
-    // Chat History to Chat settings. Positional numbering would have shifted Viewer from 8 to 4
+    // Chat History/Viewer to Application settings. Positional numbering would have shifted Profile
     // and silently repointed every SETTINGS_TAB_INDEX consumer.
-    renderSettings(SETTINGS_TAB_INDEX.Viewer)
+    renderSettings(SETTINGS_TAB_INDEX.Cookies)
     await screen.findByRole('heading', { name: 'Account settings' })
 
-    expect(screen.getByRole('tab', { name: 'Viewer' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Cookies' })).toHaveAttribute('aria-selected', 'true')
   })
 })
 

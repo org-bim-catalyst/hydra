@@ -5,7 +5,6 @@ import FolderIcon from '@mui/icons-material/Folder'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import PolicyIcon from '@mui/icons-material/Policy'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
-import SettingsIcon from '@mui/icons-material/Settings'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import type { ReactNode } from 'react'
@@ -45,8 +44,9 @@ export function useAccountMenuItems(): AccountMenuItem[] {
   const adminPath = isBuiltInAdmin ? '/admin/dashboard' : firstPermittedAdminPath(permissions)
 
   return [
-    { id: 'settings', label: 'Account settings', icon: <SettingsIcon fontSize="small" />, path: '/settings' },
-    { id: 'chat-settings', label: 'Chat settings', icon: <TuneOutlinedIcon fontSize="small" />, path: '/chat-settings' },
+    // "Account settings" was dropped here — the AppShell header now carries a dedicated gear
+    // icon for it, making a second entry in this menu redundant.
+    { id: 'chat-settings', label: 'Application settings', icon: <TuneOutlinedIcon fontSize="small" />, path: '/chat-settings' },
     { id: 'documents', label: 'Documents', icon: <DescriptionIcon fontSize="small" />, path: '/documents' },
     { id: 'knowledge-bases', label: 'Knowledge Bases', icon: <FolderIcon fontSize="small" />, path: '/knowledge-bases' },
     { id: 'memory', label: 'Memory Center', icon: <PsychologyOutlinedIcon fontSize="small" />, path: '/memory' },

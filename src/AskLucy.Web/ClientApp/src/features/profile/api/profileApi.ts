@@ -9,6 +9,7 @@ export interface UserProfile {
   birthDate: string
   twoFactorEnabled: boolean
   avatarFileName: string | null
+  avatarUrl: string | null
 }
 
 export const getMyProfile = () => apiFetch<UserProfile>('/users/me')

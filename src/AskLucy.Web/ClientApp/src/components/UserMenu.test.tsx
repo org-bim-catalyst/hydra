@@ -46,14 +46,14 @@ function renderMenu() {
 }
 
 describe('UserMenu (specs/025-chat-configuration-settings FR-011)', () => {
-  it('offers one Chat settings destination in place of the two tab deep links', async () => {
+  it('offers one Application settings destination in place of the two tab deep links', async () => {
     // Voice, Chat Configuration and Chat History moved onto a page of their own, so the menu
     // names the page rather than pointing at two tabs inside general Settings.
     const user = userEvent.setup()
     renderMenu()
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }))
-    await user.click(await screen.findByText('Chat settings'))
+    await user.click(await screen.findByText('Application settings'))
 
     expect(screen.getByTestId('location').textContent ?? '').toContain('/chat-settings')
   })
@@ -63,20 +63,20 @@ describe('UserMenu (specs/025-chat-configuration-settings FR-011)', () => {
     renderMenu()
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }))
-    await screen.findByText('Chat settings')
+    await screen.findByText('Application settings')
 
     expect(screen.queryByText('Chat Configuration')).not.toBeInTheDocument()
     expect(screen.queryByText('Chat History')).not.toBeInTheDocument()
   })
 
-  it('still lists the plain Account settings destination without a tab preselected', async () => {
+  it('no longer lists a separate Account settings destination — the AppShell gear icon owns it now', async () => {
     const user = userEvent.setup()
     renderMenu()
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }))
-    await user.click(await screen.findByText('Account settings'))
+    await screen.findByText('Application settings')
 
-    expect(screen.getByTestId('location').textContent).toBe('/settingsnull')
+    expect(screen.queryByText('Account settings')).not.toBeInTheDocument()
   })
 
   it('shows who is signed in, the identity header the Studio card had and this one did not', async () => {

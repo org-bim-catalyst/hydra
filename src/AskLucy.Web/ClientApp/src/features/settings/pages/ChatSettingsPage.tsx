@@ -6,7 +6,8 @@ import { AppShell } from '../../../components/AppShell'
 import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
 import { ChatHistoryTab } from './ChatHistoryTab'
-import { VoiceTab } from './SettingsPage'
+import { TabContentContainer, VoiceTab } from './SettingsPage'
+import { ViewerTab } from './ViewerTab'
 
 function TabPanel({ value, index, children }: { value: number; index: number; children: ReactNode }) {
   if (value !== index) return null
@@ -15,9 +16,9 @@ function TabPanel({ value, index, children }: { value: number; index: number; ch
 
 /**
  * Everything about how a conversation behaves, on one page: how Lucy speaks and listens, which
- * model and knowledge a conversation uses, and the conversations themselves. These were three
- * separate tabs inside general Settings, sitting beside password changes and cookie preferences
- * — related to each other and to nothing around them.
+ * model and knowledge a conversation uses, the conversations themselves, and the floating-panel
+ * viewer preferences that moved here from Settings. These describe how a conversation behaves
+ * and belong together, not beside password changes and cookie preferences.
  */
 export function ChatSettingsPage() {
   const location = useLocation()
@@ -37,26 +38,39 @@ export function ChatSettingsPage() {
   }, [location.key])
 
   return (
-    <AppShell title="Chat settings">
-      <Paper elevation={1} sx={{ maxWidth: 720 }}>
+    <AppShell title="Application settings">
+      <Paper elevation={1} sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Tabs
           value={tab}
           onChange={(_, value: number) => setTab(value)}
-          sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+          variant="fullWidth"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab label="Voice" value={CHAT_SETTINGS_TAB_INDEX.Voice} />
           <Tab label="Chat Configuration" value={CHAT_SETTINGS_TAB_INDEX.ChatConfiguration} />
           <Tab label="Chat History" value={CHAT_SETTINGS_TAB_INDEX.ChatHistory} />
+          <Tab label="Viewer" value={CHAT_SETTINGS_TAB_INDEX.Viewer} />
         </Tabs>
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Voice}>
-            <VoiceTab />
+            <TabContentContainer>
+              <VoiceTab />
+            </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.ChatConfiguration}>
-            <ChatConfigurationTab />
+            <TabContentContainer>
+              <ChatConfigurationTab />
+            </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.ChatHistory}>
-            <ChatHistoryTab />
+            <TabContentContainer>
+              <ChatHistoryTab />
+            </TabContentContainer>
+          </TabPanel>
+          <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Viewer}>
+            <TabContentContainer>
+              <ViewerTab />
+            </TabContentContainer>
           </TabPanel>
         </Box>
       </Paper>

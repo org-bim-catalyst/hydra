@@ -12,7 +12,7 @@ export const SETTINGS_TAB_INDEX = {
    * gaps hold:
    *   2 — "AI Providers", the per-user default provider/model, moved to the admin panel. Which
    *       model answers a user is a platform decision, configured there as the Chat capability.
-   *   3, 4, 5 — Voice, Chat Configuration and Chat History, moved to Chat settings
+   *   3, 4, 5 — Voice, Chat Configuration and Chat History, moved to Application settings
    *       (see CHAT_SETTINGS_TAB_INDEX). They describe how a conversation behaves and belong
    *       together, not beside password changes and cookie preferences.
    * Renumbering after a removal would silently repoint every saved deep link and both account
@@ -21,9 +21,8 @@ export const SETTINGS_TAB_INDEX = {
    */
   Data: 6,
   Cookies: 7,
-  /** specs/028-ai-floating-panels — appended, not inserted, so existing tab indices never
-   * shift (research.md Decision 6). */
-  Viewer: 8,
-  /** Profile page merged into Settings — appended for the same reason as Viewer above. */
+  // 8 was Viewer, moved to Application settings (CHAT_SETTINGS_TAB_INDEX) — left unused rather
+  // than reused, for the same drift-avoidance reason the gaps above exist.
+  /** Profile page merged into Settings — appended for the same reason as the gaps above. */
   Profile: 9,
 } as const
