@@ -724,7 +724,7 @@ export function VoiceTab() {
         <Typography variant="h6" sx={{ mb: 2 }}>
           Devices
         </Typography>
-        <Stack direction="row" spacing={2} sx={{ maxWidth: 480 }}>
+        <Stack spacing={2} sx={{ maxWidth: 480 }}>
           <TextField
             select
             label="Microphone"
