@@ -40,7 +40,14 @@ public sealed partial class ActiveSessionTokenValidator(
 
         if (string.IsNullOrEmpty(raw))
         {
-            LogMissingSessionClaim(logger, principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? "(unknown)");
+            // Claim lookup only runs when Debug is actually enabled — CA1873, and this scans every
+            // claim on every legacy-token request otherwise.
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? "(unknown)";
+                LogMissingSessionClaim(logger, userId);
+            }
+
             return true;
         }
 
