@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as aiProvidersApi from '../../chat/api/aiProvidersApi'
@@ -8,7 +7,6 @@ import * as chatsApi from '../../chat/api/chatsApi'
 import * as voiceApi from '../../chat/api/voiceApi'
 import { useActiveConversationStore } from '../../chat/activeConversationStore'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
-import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
 
 vi.mock('../../chat/api/chatsApi')
@@ -78,7 +76,6 @@ function renderTab() {
               </>
             }
           />
-          {/* The Voice link leaves this page now — Voice is a tab on Application settings. */}
           <Route path="/chat-settings" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -236,18 +233,7 @@ describe('ChatConfigurationTab', () => {
     // Chat capability. A link here would lead to a tab that no longer exists.
     renderTab()
 
-    await screen.findByRole('button', { name: 'Go to Voice' })
+    await screen.findByRole('heading', { name: 'Default language' })
     expect(screen.queryByRole('button', { name: 'Go to AI Providers' })).not.toBeInTheDocument()
-  })
-
-  it('the Voice entry point navigates to Application settings with the Voice tab selected', async () => {
-    // Voice is a sibling tab on the same page now, not a tab inside general Settings.
-    const user = userEvent.setup()
-    renderTab()
-
-    await user.click(await screen.findByRole('button', { name: 'Go to Voice' }))
-
-    const state = JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')
-    expect(state).toEqual({ tab: CHAT_SETTINGS_TAB_INDEX.Voice })
   })
 })

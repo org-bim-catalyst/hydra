@@ -1,7 +1,6 @@
 import {
   Alert,
   Box,
-  Button,
   CircularProgress,
   Divider,
   MenuItem,
@@ -11,7 +10,6 @@ import {
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import { EmptyState } from '../../../components/EmptyState'
 import { ErrorState } from '../../../components/ErrorState'
 import { useActiveConversationStore } from '../../chat/activeConversationStore'
@@ -21,16 +19,14 @@ import { useAiProviders } from '../../chat/hooks/useAiCatalog'
 import { useChatDetail } from '../../chat/hooks/useChats'
 import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
-import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 
 /**
  * specs/025-chat-configuration-settings — a hub, not an embedded-controls tab (Clarifications
  * Q1): hosts only the one genuinely new control (changing the model of the conversation
- * currently open, FR-004), and links out to the unmodified "AI Providers" and "Voice" tabs
- * (FR-002/FR-003) rather than duplicating their controls inline (FR-012).
+ * currently open, FR-004), and links out to the unmodified "AI Providers" tab (FR-002) rather
+ * than duplicating its controls inline (FR-012). Voice is reached from its own tab instead.
  */
 export function ChatConfigurationTab() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const activeChatId = useActiveConversationStore((s) => s.activeChatId)
   const { data: providers, isPending: isProvidersPending } = useAiProviders()
@@ -60,8 +56,6 @@ export function ChatConfigurationTab() {
         setSaveError(err instanceof Error ? err.message : 'Failed to save the model selection.')
       })
   }
-
-  const goToChatSettingsTab = (tab: number) => navigate('/chat-settings', { state: { tab } })
 
   const renderCurrentConversationControl = () => {
     // FR-005/spec.md Edge Cases: reuses AiProvidersTab's exact "no providers configured"
@@ -157,21 +151,6 @@ export function ChatConfigurationTab() {
             </MenuItem>
           ))}
         </TextField>
-      </Box>
-
-      <Divider />
-
-      <Box>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Voice, speech-to-text &amp; text-to-speech
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Manage voice conversation mode, mute, selected voice, speed, style, and microphone/speaker
-          devices.
-        </Typography>
-        <Button variant="outlined" onClick={() => goToChatSettingsTab(CHAT_SETTINGS_TAB_INDEX.Voice)}>
-          Go to Voice
-        </Button>
       </Box>
     </Stack>
   )

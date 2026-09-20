@@ -301,7 +301,7 @@ export function ConversationList({
         </>
       )}
 
-      <Divider />
+      <Divider sx={{ mb: '8px' }} />
 
       <VirtualizedChatRows
         rows={rows}

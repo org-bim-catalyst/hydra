@@ -3,7 +3,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import PushPinIcon from '@mui/icons-material/PushPin'
 import StarIcon from '@mui/icons-material/Star'
-import { Box, IconButton, ListItemButton, ListItemText, Stack, TextField, Typography } from '@mui/material'
+import { alpha, Box, IconButton, ListItemButton, ListItemText, Stack, TextField, Typography } from '@mui/material'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ReactNode } from 'react'
 import { useRef } from 'react'
@@ -88,7 +88,15 @@ export function VirtualizedChatRows({
       ref={listParentRef}
       onScroll={handleScroll}
       data-testid="conversation-list"
-      sx={{ overflowY: 'auto', flex: 1, minHeight: 0, px: 1 }}
+      sx={{
+        overflowY: 'auto',
+        flex: 1,
+        minHeight: 0,
+        pl: '5px',
+        pr: '5px',
+        border: (t) => `1px solid ${alpha(t.palette.text.primary, 0.18)}`,
+        borderRadius: '7px',
+      }}
     >
       {!hasChats && <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />}
       <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
