@@ -76,6 +76,12 @@ export const changeUserRole = (userId: string, role: UserRole) =>
 export const forceReset2fa = (userId: string) =>
   apiFetch<void>(`/users/${userId}/actions/force-2fa-reset`, { method: 'POST' })
 
+export const sendPasswordReset = (userId: string) =>
+  apiFetch<void>(`/users/${userId}/actions/send-password-reset`, { method: 'POST' })
+
+export const resendConfirmationEmail = (userId: string) =>
+  apiFetch<void>(`/users/${userId}/actions/resend-confirmation`, { method: 'POST' })
+
 export const deleteUser = (userId: string) => apiFetch<void>(`/users/${userId}`, { method: 'DELETE' })
 
 export type UserBulkAction = 'Lock' | 'Unlock' | 'ForceReset2fa' | 'Delete'

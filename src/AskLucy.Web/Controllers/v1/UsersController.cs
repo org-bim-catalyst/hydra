@@ -1,6 +1,8 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Users;
+using AskLucy.Application.Users.Commands.AdminResendConfirmation;
+using AskLucy.Application.Users.Commands.AdminSendPasswordReset;
 using AskLucy.Application.Users.Commands.BulkDeleteUsers;
 using AskLucy.Application.Users.Commands.BulkForceReset2fa;
 using AskLucy.Application.Users.Commands.BulkLockUsers;
@@ -198,6 +200,26 @@ public sealed class UsersController(
     public async Task<IActionResult> ForceReset2fa(string userId, CancellationToken cancellationToken)
     {
         await mediator.Send(new ForceReset2faCommand(userId), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Admin-triggered password reset link, reusing the self-service forgot-password flow.</summary>
+    [HttpPost("{userId}/actions/send-password-reset")]
+    [RequirePermission("admin.users.manage")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<IActionResult> SendPasswordReset(string userId, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new AdminSendPasswordResetCommand(userId), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Admin-triggered confirmation-link resend for a not-yet-confirmed account.</summary>
+    [HttpPost("{userId}/actions/resend-confirmation")]
+    [RequirePermission("admin.users.manage")]
+    [EnableRateLimiting("admin-endpoints")]
+    public async Task<IActionResult> ResendConfirmation(string userId, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new AdminResendConfirmationCommand(userId), cancellationToken);
         return NoContent();
     }
 
