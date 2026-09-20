@@ -16,6 +16,7 @@ import {
   Box,
   Button,
   Chip,
+  Divider,
   InputAdornment,
   ListItemIcon,
   ListItemText,
@@ -299,6 +300,8 @@ export function ConversationList({
           {filterChips}
         </>
       )}
+
+      <Divider />
 
       <VirtualizedChatRows
         rows={rows}

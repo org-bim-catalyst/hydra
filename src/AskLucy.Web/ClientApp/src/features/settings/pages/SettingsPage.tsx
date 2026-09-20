@@ -206,12 +206,21 @@ function PasswordSection() {
               fullWidth
               error={Boolean(form.formState.errors.newPassword)}
               helperText={form.formState.errors.newPassword?.message}
-              slotProps={{ htmlInput: { 'aria-describedby': 'settings-password-requirements' } }}
+              slotProps={{
+                htmlInput: {
+                  'aria-describedby': 'settings-password-requirements settings-password-requirements-checklist',
+                },
+              }}
               {...form.register('newPassword', {
                 required: 'Enter a new password.',
                 validate: (value) =>
                   isPasswordPolicyMet(value) || 'This password does not meet every requirement below.',
               })}
+            />
+            <PasswordRequirements
+              password={newPassword}
+              id="settings-password-requirements"
+              section="strength"
             />
             <TextField
               label="Confirm new password"
@@ -236,8 +245,15 @@ function PasswordSection() {
 
           {/* Same checklist as the registration and reset screens (FR-022) — the policy is one
               rule set, so it is shown one way everywhere it is enforced. */}
-          <Box sx={{ flex: 1, minWidth: 0, '& > *': { mt: '0 !important' } }}>
-            <PasswordRequirements password={newPassword} id="settings-password-requirements" />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Password requirements
+            </Typography>
+            <PasswordRequirements
+              password={newPassword}
+              id="settings-password-requirements-checklist"
+              section="checklist"
+            />
           </Box>
         </Stack>
       </Box>
@@ -741,6 +757,7 @@ export function VoiceTab() {
               </MenuItem>
             ))}
           </TextField>
+          <Divider />
           <TextField
             select
             label="Speaker"

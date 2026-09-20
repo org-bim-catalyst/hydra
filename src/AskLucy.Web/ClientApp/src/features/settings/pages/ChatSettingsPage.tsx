@@ -38,7 +38,7 @@ export function ChatSettingsPage() {
   }, [location.key])
 
   return (
-    <AppShell title="Application settings">
+    <AppShell title="Application Settings">
       <Paper elevation={1} sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Tabs
           value={tab}
@@ -53,7 +53,9 @@ export function ChatSettingsPage() {
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Voice}>
             <TabContentContainer>
-              <VoiceTab />
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <VoiceTab />
+              </Paper>
             </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Chat}>
@@ -70,7 +72,9 @@ export function ChatSettingsPage() {
           </TabPanel>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Viewer}>
             <TabContentContainer>
-              <ViewerTab />
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <ViewerTab />
+              </Paper>
             </TabContentContainer>
           </TabPanel>
         </Box>

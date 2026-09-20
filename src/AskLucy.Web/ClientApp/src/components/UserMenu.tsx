@@ -1,4 +1,5 @@
 import LogoutIcon from '@mui/icons-material/Logout'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import { Avatar, Box, IconButton, Menu, MenuItem, Typography, alpha } from '@mui/material'
 import type { Theme } from '@mui/material'
 import { useState } from 'react'
@@ -120,28 +121,37 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
           sx={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: 1.5,
             px: 2,
             py: 1.75,
             borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
           }}
         >
-          <Avatar
-            src={profile?.avatarUrl ?? undefined}
-            sx={{ width: 40, height: 40, fontSize: '0.875rem', fontWeight: 600, bgcolor: 'primary.main' }}
-          >
-            {initials}
-          </Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }} noWrap>
-              {displayName || 'Signed in'}
-            </Typography>
-            {profile?.email && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
-                {profile.email}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            <Avatar
+              src={profile?.avatarUrl ?? undefined}
+              sx={{ width: 40, height: 40, fontSize: '0.875rem', fontWeight: 600, bgcolor: 'primary.main' }}
+            >
+              {initials}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }} noWrap>
+                {displayName || 'Signed in'}
               </Typography>
-            )}
+              {profile?.email && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                  {profile.email}
+                </Typography>
+              )}
+            </Box>
           </Box>
+          {/* One-click shortcut to Account settings, inside the identity header rather than the
+              AppShell top bar — this is the one place every caller of UserMenu (top bar, Studio's
+              floating cluster) already renders, so it reaches both without duplicating the icon. */}
+          <IconButton onClick={() => goTo('/settings')} aria-label="Account settings" size="small">
+            <SettingsOutlinedIcon fontSize="small" />
+          </IconButton>
         </Box>
 
         {/* `p-1.5` well, so each row's rounded hover sits inset from the card edge. */}

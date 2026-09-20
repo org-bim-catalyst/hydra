@@ -7,6 +7,12 @@ interface PasswordRequirementsProps {
   password: string
   /** Ties the checklist to its field for screen readers via the field's `aria-describedby`. */
   id: string
+  /**
+   * Which part to render. Registration and reset screens want the whole thing together
+   * (`'full'`, the default); Settings' Security tab instead splits the strength bar under the
+   * password field from the checklist beside it, so it needs each part on its own.
+   */
+  section?: 'full' | 'strength' | 'checklist'
 }
 
 /**
@@ -26,11 +32,11 @@ const STRENGTH_LABELS = { weak: 'Weak', fair: 'Fair', good: 'Good', strong: 'Str
  * matters: the user could not tell whether it was advice or a complaint about what they had just
  * typed. Ticking each rule off as it is satisfied answers that without a submit.
  */
-export function PasswordRequirements({ password, id }: PasswordRequirementsProps) {
+export function PasswordRequirements({ password, id, section = 'full' }: PasswordRequirementsProps) {
   const { score, label, rules } = evaluatePassword(password)
 
-  return (
-    <Box id={id} sx={{ mt: 1.5 }}>
+  const strengthBar = (
+    <>
       <Stack direction="row" spacing={0.75} sx={{ mb: 1 }} aria-hidden="true">
         {[0, 1, 2, 3].map((segment) => (
           <Box
@@ -55,35 +61,44 @@ export function PasswordRequirements({ password, id }: PasswordRequirementsProps
       >
         {password.length === 0 ? 'Password strength' : `Password strength: ${STRENGTH_LABELS[label]}`}
       </Typography>
+    </>
+  )
 
-      <Stack component="ul" spacing={0.25} sx={{ listStyle: 'none', m: 0, p: 0 }}>
-        {rules.map((rule) => (
-          <Stack
-            key={rule.id}
-            component="li"
-            direction="row"
-            spacing={0.75}
-            sx={{ alignItems: 'center' }}
+  const checklist = (
+    <Stack component="ul" spacing={0.25} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+      {rules.map((rule) => (
+        <Stack
+          key={rule.id}
+          component="li"
+          direction="row"
+          spacing={0.75}
+          sx={{ alignItems: 'center' }}
+        >
+          {rule.met ? (
+            <CheckCircleRoundedIcon sx={{ fontSize: 16, color: 'success.main' }} />
+          ) : (
+            <RadioButtonUncheckedRoundedIcon sx={{ fontSize: 16, color: 'action.disabled' }} />
+          )}
+          <Typography
+            variant="caption"
+            sx={{ color: rule.met ? 'success.main' : 'text.secondary' }}
           >
-            {rule.met ? (
-              <CheckCircleRoundedIcon sx={{ fontSize: 16, color: 'success.main' }} />
-            ) : (
-              <RadioButtonUncheckedRoundedIcon sx={{ fontSize: 16, color: 'action.disabled' }} />
-            )}
-            <Typography
-              variant="caption"
-              sx={{ color: rule.met ? 'success.main' : 'text.secondary' }}
-            >
-              {rule.label}
-            </Typography>
-            {/* The icon carries the state visually; this carries it to a screen reader without
-                repeating the rule text in the accessible name of every row. */}
-            <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-              {rule.met ? ' — met' : ' — not met'}
-            </Box>
-          </Stack>
-        ))}
-      </Stack>
+            {rule.label}
+          </Typography>
+          {/* The icon carries the state visually; this carries it to a screen reader without
+              repeating the rule text in the accessible name of every row. */}
+          <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+            {rule.met ? ' — met' : ' — not met'}
+          </Box>
+        </Stack>
+      ))}
+    </Stack>
+  )
+
+  return (
+    <Box id={id} sx={{ mt: 1.5 }}>
+      {section !== 'checklist' && strengthBar}
+      {section !== 'strength' && checklist}
     </Box>
   )
 }

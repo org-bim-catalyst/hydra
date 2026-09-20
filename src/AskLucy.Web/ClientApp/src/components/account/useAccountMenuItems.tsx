@@ -44,9 +44,9 @@ export function useAccountMenuItems(): AccountMenuItem[] {
   const adminPath = isBuiltInAdmin ? '/admin/dashboard' : firstPermittedAdminPath(permissions)
 
   return [
-    // "Account settings" was dropped here — the AppShell header now carries a dedicated gear
-    // icon for it, making a second entry in this menu redundant.
-    { id: 'chat-settings', label: 'Application settings', icon: <TuneOutlinedIcon fontSize="small" />, path: '/chat-settings' },
+    // "Account settings" was dropped here — this menu's own identity header now carries a
+    // dedicated gear icon for it, making a second entry in this list redundant.
+    { id: 'chat-settings', label: 'Application Settings', icon: <TuneOutlinedIcon fontSize="small" />, path: '/chat-settings' },
     { id: 'documents', label: 'Documents', icon: <DescriptionIcon fontSize="small" />, path: '/documents' },
     { id: 'knowledge-bases', label: 'Knowledge Bases', icon: <FolderIcon fontSize="small" />, path: '/knowledge-bases' },
     { id: 'memory', label: 'Memory Center', icon: <PsychologyOutlinedIcon fontSize="small" />, path: '/memory' },

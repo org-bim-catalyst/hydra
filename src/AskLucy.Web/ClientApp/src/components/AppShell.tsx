@@ -1,11 +1,10 @@
 import { Box, Button, IconButton, Stack, Typography, useTheme } from '@mui/material'
 import type { ReactNode } from 'react'
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
+import { Link as RouterLink, useLocation } from 'react-router'
 import { BrandMark } from './BrandMark'
 import { UserMenu } from './UserMenu'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { createGlassTokens } from '../theme/tokens/glass'
@@ -35,7 +34,6 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const isDark = useThemeStore((s) => s.mode) === 'dark'
   const isAuthenticated = useAuthStore((s) => Boolean(s.accessToken))
   const { pathname } = useLocation()
-  const navigate = useNavigate()
   const isHome = pathname === '/studio'
 
   return (
@@ -84,15 +82,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             {isDark ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
           </IconButton>
           {isAuthenticated ? (
-            <>
-              {/* One-click shortcut to the account-settings destination the account menu also
-                  lists — the menu's own "Account settings" entry was removed as redundant once
-                  this existed. */}
-              <IconButton onClick={() => navigate('/settings')} aria-label="Account settings" size="small">
-                <SettingsOutlinedIcon fontSize="small" />
-              </IconButton>
-              <UserMenu />
-            </>
+            <UserMenu />
           ) : (
             <Button component={RouterLink} to="/login" size="small">
               Sign in

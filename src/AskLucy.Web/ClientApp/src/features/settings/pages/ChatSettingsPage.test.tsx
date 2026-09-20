@@ -36,12 +36,12 @@ function renderPage(initialTab?: number) {
 /**
  * Voice, Chat (Configuration + History merged) and Viewer describe how a conversation behaves
  * and belong together, not beside password changes and cookie preferences. They are one page
- * now, reached from a single "Application settings" item in the account menu.
+ * now, reached from a single "Application Settings" item in the account menu.
  */
 describe('ChatSettingsPage', () => {
   it('gathers the three conversation tabs onto one page', async () => {
     renderPage()
-    await screen.findByRole('heading', { name: 'Application settings' })
+    await screen.findByRole('heading', { name: 'Application Settings' })
 
     for (const label of ['Voice', 'Chat', 'Viewer']) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
@@ -50,14 +50,14 @@ describe('ChatSettingsPage', () => {
 
   it('opens on Voice when no tab is requested', async () => {
     renderPage()
-    await screen.findByRole('heading', { name: 'Application settings' })
+    await screen.findByRole('heading', { name: 'Application Settings' })
 
     expect(screen.getByRole('tab', { name: 'Voice' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('seeds the active tab from location.state.tab, so the account menu can deep-link', async () => {
     renderPage(CHAT_SETTINGS_TAB_INDEX.Chat)
-    await screen.findByRole('heading', { name: 'Application settings' })
+    await screen.findByRole('heading', { name: 'Application Settings' })
 
     expect(screen.getByRole('tab', { name: 'Chat' })).toHaveAttribute('aria-selected', 'true')
   })
