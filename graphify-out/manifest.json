@@ -222,10 +222,10 @@
     "semantic_hash": "1a83f572b0b309aad49304aa895171ce"
   },
   "src/AskLucy.Application/Abstractions/IEmailSender.cs": {
-    "mtime": 1785179415.0428815,
-    "seen": 1789743955.9326727,
-    "ast_hash": "04cf3bffdd8e89760f9ecd228bc3d805",
-    "semantic_hash": "04cf3bffdd8e89760f9ecd228bc3d805"
+    "mtime": 1789905550.387684,
+    "seen": 1789910687.298828,
+    "ast_hash": "c0c316dfe1d07d98dd61e66f6f02a686",
+    "semantic_hash": ""
   },
   "src/AskLucy.Application/Abstractions/IEmbeddingProviderRepository.cs": {
     "mtime": 1789364328.874223,
@@ -1902,10 +1902,10 @@
     "semantic_hash": "df9875c407096fd9fdd93bdca77c3913"
   },
   "src/AskLucy.Application/Authentication/Commands/ChangeEmail/RequestEmailChangeCommandHandler.cs": {
-    "mtime": 1785214229.231518,
-    "seen": 1789743955.9330866,
-    "ast_hash": "f6c4e396e77022ac60f78f29b1d9d354",
-    "semantic_hash": "f6c4e396e77022ac60f78f29b1d9d354"
+    "mtime": 1789905550.387684,
+    "seen": 1789910687.2994921,
+    "ast_hash": "5701c109e3b696199e3cd3c17eec0abd",
+    "semantic_hash": ""
   },
   "src/AskLucy.Application/Authentication/Commands/ChangeEmail/RequestEmailChangeCommandValidator.cs": {
     "mtime": 1785214229.231518,
@@ -2052,10 +2052,10 @@
     "semantic_hash": "305fa4124538de7ee89d5379c6ab54f7"
   },
   "src/AskLucy.Application/Authentication/Commands/Register/RegisterCommandHandler.cs": {
-    "mtime": 1785179415.0569127,
-    "seen": 1789743955.933129,
-    "ast_hash": "356c14473944c02bbc60064773cca89e",
-    "semantic_hash": "356c14473944c02bbc60064773cca89e"
+    "mtime": 1789905550.388684,
+    "seen": 1789910687.2995434,
+    "ast_hash": "0d5411898b89b23f747f6d987fa9927e",
+    "semantic_hash": ""
   },
   "src/AskLucy.Application/Authentication/Commands/Register/RegisterCommandValidator.cs": {
     "mtime": 1785179415.0569127,
@@ -8136,9 +8136,9 @@
     "semantic_hash": "95d716cb3ecaa4e2fd9e03a93f097f94"
   },
   "src/AskLucy.Infrastructure/DependencyInjection.cs": {
-    "mtime": 1789810946.3971071,
-    "seen": 1789811214.2437084,
-    "ast_hash": "c6905539ac28830889b4f553c2329765",
+    "mtime": 1789905550.389684,
+    "seen": 1789910687.3016932,
+    "ast_hash": "d9aebafee5115d36e3e38921347143d2",
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Documents/AiDocumentLanguageAndClassifier.cs": {
@@ -8226,16 +8226,16 @@
     "semantic_hash": "2422d1218d485d5aefe6016232530bcc"
   },
   "src/AskLucy.Infrastructure/Email/ConsoleEmailSender.cs": {
-    "mtime": 1788102662.020761,
-    "seen": 1789743955.9344642,
-    "ast_hash": "92b77980677665b9b41127ca5dbdee91",
-    "semantic_hash": "92b77980677665b9b41127ca5dbdee91"
+    "mtime": 1789905550.3906841,
+    "seen": 1789910687.3017292,
+    "ast_hash": "f55bdd356aa6867e3f9851f6c42d0d6a",
+    "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Email/SmtpEmailSender.cs": {
-    "mtime": 1788102662.020761,
-    "seen": 1789743955.934465,
-    "ast_hash": "12ae7c57d908621551a0cc6fc62fb05e",
-    "semantic_hash": "12ae7c57d908621551a0cc6fc62fb05e"
+    "mtime": 1789905550.3916838,
+    "seen": 1789910687.3017387,
+    "ast_hash": "3033d298577dad64c9758eee2d375ef0",
+    "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Email/SmtpOptions.cs": {
     "mtime": 1788102662.020761,
@@ -10626,10 +10626,10 @@
     "semantic_hash": "f81243eb7601756c34e376a292458168"
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/api/adminApi.ts": {
-    "mtime": 1789484618.1597168,
-    "seen": 1789743955.934741,
-    "ast_hash": "e647f3edb5d749d3b2ef08f9a8dd0dc4",
-    "semantic_hash": "e647f3edb5d749d3b2ef08f9a8dd0dc4"
+    "mtime": 1789909180.1749015,
+    "seen": 1789910687.3024964,
+    "ast_hash": "4c00578f64434605e875352decede7a4",
+    "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/api/adminRolesApi.ts": {
     "mtime": 1789485039.6263459,
@@ -10830,10 +10830,10 @@
     "semantic_hash": "66d2a2be0830d15cabfcf5e8984a608e"
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/components/UserActionMenu.tsx": {
-    "mtime": 1789411947.9320273,
-    "seen": 1789743955.934765,
-    "ast_hash": "27ff59d9ba8f1adc41895be9cab083da",
-    "semantic_hash": "27ff59d9ba8f1adc41895be9cab083da"
+    "mtime": 1789909245.0273821,
+    "seen": 1789910687.3025706,
+    "ast_hash": "14e319a03dc39ae450c2b86912c06d90",
+    "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/components/VoiceFailoverPanel.test.tsx": {
     "mtime": 1788128445.5311663,
@@ -10980,10 +10980,10 @@
     "semantic_hash": "451390a7d4c05c64db136b9010781ca0"
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminUsersPage.tsx": {
-    "mtime": 1789536156.5371523,
-    "seen": 1789743955.9347832,
-    "ast_hash": "3d04e00ab2eca7aa997ae4ad741bc391",
-    "semantic_hash": "3d04e00ab2eca7aa997ae4ad741bc391"
+    "mtime": 1789918118.0589752,
+    "seen": 1789918395.800012,
+    "ast_hash": "2ffdb2e584d3895442d3335cccc33f76",
+    "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/agents/api/agentExecutionsApi.ts": {
     "mtime": 1787081185.3909116,
@@ -14868,9 +14868,9 @@
     "semantic_hash": "f8532c784444f369564a0c006d49a979"
   },
   "src/AskLucy.Web/Controllers/v1/UsersController.cs": {
-    "mtime": 1789879018.1397262,
-    "seen": 1789880132.3727553,
-    "ast_hash": "42b780d3c6ad0d89a97811cbfe77636e",
+    "mtime": 1789909174.748336,
+    "seen": 1789910687.3040075,
+    "ast_hash": "e1b2977985688899f7af4fe4052e84e6",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/Controllers/v1/WeatherController.cs": {
@@ -15330,16 +15330,16 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Application.Tests/Authentication/RegisterCommandHandlerTests.cs": {
-    "mtime": 1788110340.2211597,
-    "seen": 1789743955.9354599,
-    "ast_hash": "08b2846ccb2fb40e3b43b6bd3ef4bcd8",
-    "semantic_hash": "08b2846ccb2fb40e3b43b6bd3ef4bcd8"
+    "mtime": 1789905550.392711,
+    "seen": 1789910687.304163,
+    "ast_hash": "913e79017a702a3ae523bc79abcce460",
+    "semantic_hash": ""
   },
   "tests/AskLucy.Application.Tests/Authentication/RequestEmailChangeCommandHandlerTests.cs": {
-    "mtime": 1785214229.2385154,
-    "seen": 1789743955.9354606,
-    "ast_hash": "bb26ce43df51fba9065d0d21cab9f295",
-    "semantic_hash": "bb26ce43df51fba9065d0d21cab9f295"
+    "mtime": 1789905550.3937004,
+    "seen": 1789910687.3041651,
+    "ast_hash": "d2b9f307b749f370f3979b7d0dac8b64",
+    "semantic_hash": ""
   },
   "tests/AskLucy.Application.Tests/Authorization/AssignRoleCommandHandlerTests.cs": {
     "mtime": 1789812038.0873947,
@@ -18276,10 +18276,10 @@
     "semantic_hash": "8075ec496bef131327dc061a91e3df06"
   },
   "specs/001-admin-dashboard/tasks.md": {
-    "mtime": 1785306903.2410252,
-    "seen": 1789743955.9358408,
-    "ast_hash": "c47099f29919a66b0180684181304ab1",
-    "semantic_hash": "c47099f29919a66b0180684181304ab1"
+    "mtime": 1789923166.990868,
+    "seen": 1789923255.6155105,
+    "ast_hash": "8af79993faef949090fc7a54768f60e9",
+    "semantic_hash": ""
   },
   "specs/004-cookie-consent-privacy/research.md": {
     "mtime": 1785734853.0948536,
@@ -18594,16 +18594,16 @@
     "semantic_hash": "503ee753f7de62e8be3da94a0f0ae6e7"
   },
   "specs/025-chat-configuration-settings/spec.md": {
-    "mtime": 1787141487.8918347,
-    "seen": 1789743955.9358768,
-    "ast_hash": "e887c172e1945d28e3aa4ff3cbbe0145",
-    "semantic_hash": "e887c172e1945d28e3aa4ff3cbbe0145"
+    "mtime": 1789896647.392699,
+    "seen": 1789910687.3059635,
+    "ast_hash": "b7af06a32303e38ac96cdf8d0c62a09c",
+    "semantic_hash": ""
   },
   "specs/025-chat-configuration-settings/tasks.md": {
-    "mtime": 1787141487.8918347,
-    "seen": 1789743955.9358773,
-    "ast_hash": "7d43d44d805744c22e888e3205fa1b8f",
-    "semantic_hash": "7d43d44d805744c22e888e3205fa1b8f"
+    "mtime": 1789896663.5030515,
+    "seen": 1789910687.305965,
+    "ast_hash": "8509029a12a9ae3fac848799983ad392",
+    "semantic_hash": ""
   },
   "specs/026-floating-chat-assistant/contracts/chat-widget-components.md": {
     "mtime": 1787141487.8938446,
@@ -19614,9 +19614,9 @@
     "semantic_hash": ""
   },
   ".specify/feature.json": {
-    "mtime": 1789830609.8862424,
-    "seen": 1789836993.4224224,
-    "ast_hash": "a582d9b8b59c83e5471cd61e933b941e",
+    "mtime": 1789905550.386679,
+    "seen": 1789910687.2986536,
+    "ast_hash": "2632aef41b0073ee5a75a5f819410e8c",
     "semantic_hash": ""
   },
   ".specify/init-options.json": {
@@ -19782,9 +19782,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Email/PasswordEmailJob.cs": {
-    "mtime": 1789765092.163455,
-    "seen": 1789805041.2306693,
-    "ast_hash": "32b577a1a2bca0242add0ca1e8eca97c",
+    "mtime": 1789905550.3906841,
+    "seen": 1789910687.301732,
+    "ast_hash": "9aa18fac48dda491dfc25326a7182139",
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Email/PasswordResetTokenCleanupJob.cs": {
@@ -21420,9 +21420,9 @@
     "semantic_hash": ""
   },
   "specs/001-admin-dashboard/spec.md": {
-    "mtime": 1785249432.2585344,
-    "seen": 1789805041.2328026,
-    "ast_hash": "0862f5255d2d273fbf19c4c6b0d99ced",
+    "mtime": 1789923157.2664442,
+    "seen": 1789923255.6155086,
+    "ast_hash": "5b2e1812cf73ab6f3eb1671e765715e2",
     "semantic_hash": ""
   },
   "specs/002-chat-history-management/checklists/requirements.md": {
@@ -23898,9 +23898,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Email/AccountEmailJob.cs": {
-    "mtime": 1789808422.0763283,
-    "seen": 1789810062.50349,
-    "ast_hash": "622bbbe9cb83bbf249509d0513102c5b",
+    "mtime": 1789905550.389684,
+    "seen": 1789910687.301725,
+    "ast_hash": "1c4128481babb93b41d0c15b8fb78ea4",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/auth/components/AccountSupportDialog.tsx": {
@@ -24135,6 +24135,132 @@
     "mtime": 1789844860.9424882,
     "seen": 1789846234.352485,
     "ast_hash": "474320ec9d0c1a93ad8e8786a488a2fa",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Abstractions/IEmailTemplateRenderer.cs": {
+    "mtime": 1789905550.4543102,
+    "seen": 1789910687.298831,
+    "ast_hash": "7ee64dfa6481f1abd89ad5426ca8d10a",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Users/Commands/AdminResendConfirmation/AdminResendConfirmationCommand.cs": {
+    "mtime": 1789909151.391152,
+    "seen": 1789910687.3008962,
+    "ast_hash": "38e26e2ea80ad6c7b07743771d0b2473",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Users/Commands/AdminResendConfirmation/AdminResendConfirmationCommandHandler.cs": {
+    "mtime": 1789909162.9740362,
+    "seen": 1789910687.3008988,
+    "ast_hash": "f332712916a86b6db1e9cab7ea1a236a",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Users/Commands/AdminResendConfirmation/AdminResendConfirmationCommandValidator.cs": {
+    "mtime": 1789909155.6012752,
+    "seen": 1789910687.3009007,
+    "ast_hash": "2a181a667d9088320210788ea25dfb1a",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Users/Commands/AdminSendPasswordReset/AdminSendPasswordResetCommand.cs": {
+    "mtime": 1789909133.9569042,
+    "seen": 1789910687.3009026,
+    "ast_hash": "8abd20d882cabf4da8ca838ca3c6fcb6",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Users/Commands/AdminSendPasswordReset/AdminSendPasswordResetCommandHandler.cs": {
+    "mtime": 1789909147.1006563,
+    "seen": 1789910687.3009043,
+    "ast_hash": "ce46195a40395526214d93d0ea56d09d",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Users/Commands/AdminSendPasswordReset/AdminSendPasswordResetCommandValidator.cs": {
+    "mtime": 1789909138.2818341,
+    "seen": 1789910687.300906,
+    "ast_hash": "0b494f1b773b5152b3ca8bf403c9a3ae",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Infrastructure/Email/BrandedAccountEmailTemplateRenderer.cs": {
+    "mtime": 1789921687.099826,
+    "seen": 1789921774.302142,
+    "ast_hash": "8468604733f6113e696077d1f8c4f25f",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Infrastructure.Tests/Email/AccountEmailJobTests.cs": {
+    "mtime": 1789905550.455309,
+    "seen": 1789910687.3048303,
+    "ast_hash": "1c4cbc5d2e30eea9dfdaad829f133c86",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Infrastructure.Tests/Email/BrandedAccountEmailTemplateRendererTests.cs": {
+    "mtime": 1789921691.3945315,
+    "seen": 1789921774.303803,
+    "ast_hash": "db2b9bc37656e2e5a6f1b928729fbac9",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Infrastructure.Tests/Email/ConsoleEmailSenderTests.cs": {
+    "mtime": 1789905550.4563086,
+    "seen": 1789910687.304834,
+    "ast_hash": "7980225adacea662769e3dd08f7db0ff",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Infrastructure.Tests/Email/PasswordEmailJobTests.cs": {
+    "mtime": 1789905550.4563086,
+    "seen": 1789910687.3048348,
+    "ast_hash": "660cf936f14e1fe0d6e0a47829a2a9f3",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/checklists/requirements.md": {
+    "mtime": 1789905550.4448688,
+    "seen": 1789910687.3065758,
+    "ast_hash": "046a133a65f6f4adb54be94ddcf93a78",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/contracts/email-template-renderer.md": {
+    "mtime": 1789905550.4448688,
+    "seen": 1789910687.3065774,
+    "ast_hash": "b1f3d79c5f280ffd29a99f007eb745ea",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/data-model.md": {
+    "mtime": 1789905550.4458702,
+    "seen": 1789910687.3065786,
+    "ast_hash": "1605f0583c037d154bb235407cfa9dc8",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/plan.md": {
+    "mtime": 1789905550.4458702,
+    "seen": 1789910687.3065798,
+    "ast_hash": "480bd2751d3d704ec9cdb2ed3aaba796",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/quickstart.md": {
+    "mtime": 1789905550.4458702,
+    "seen": 1789910687.306581,
+    "ast_hash": "601f6165f9a8382bdc0bee567230607c",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/research.md": {
+    "mtime": 1789905550.447374,
+    "seen": 1789910687.306582,
+    "ast_hash": "0a653cc4dd4dbeda5aa92ec8dc3dfcc2",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/spec.md": {
+    "mtime": 1789923177.0403311,
+    "seen": 1789923255.6160233,
+    "ast_hash": "44342cb4d8834ba88c40aa228c226d16",
+    "semantic_hash": ""
+  },
+  "specs/061-branded-email-templates/tasks.md": {
+    "mtime": 1789923186.007086,
+    "seen": 1789923255.6160243,
+    "ast_hash": "4c82d54d1dee7d1ee1c19ee41c9ed48f",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/public/lucy-portrait.png": {
+    "mtime": 1789921620.418458,
+    "seen": 1789921774.3047285,
+    "ast_hash": "366859012386852cc7e61463be127fa2",
     "semantic_hash": ""
   }
 }
