@@ -25,11 +25,12 @@ export function ChatHistoryTab() {
   }
 
   return (
-    <Box sx={{ height: 560, maxWidth: 480 }}>
+    <Box sx={{ height: 480 }}>
       <ConversationList
         selectedChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
+        showNewChatButton={false}
       />
     </Box>
   )

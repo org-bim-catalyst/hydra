@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Box, Paper, Tab, Tabs } from '@mui/material'
+import { Box, Paper, Stack, Tab, Tabs } from '@mui/material'
 import { useLocation } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
 import { CHAT_SETTINGS_TAB_INDEX } from '../chatSettingsTabs'
 import { ChatConfigurationTab } from './ChatConfigurationTab'
 import { ChatHistoryTab } from './ChatHistoryTab'
-import { TabContentContainer, VoiceTab } from './SettingsPage'
+import { TabContentContainer, TwoColumnTabContentContainer, VoiceTab } from './SettingsPage'
 import { ViewerTab } from './ViewerTab'
 
 function TabPanel({ value, index, children }: { value: number; index: number; children: ReactNode }) {
@@ -47,8 +47,7 @@ export function ChatSettingsPage() {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab label="Voice" value={CHAT_SETTINGS_TAB_INDEX.Voice} />
-          <Tab label="Chat Configuration" value={CHAT_SETTINGS_TAB_INDEX.ChatConfiguration} />
-          <Tab label="Chat History" value={CHAT_SETTINGS_TAB_INDEX.ChatHistory} />
+          <Tab label="Chat" value={CHAT_SETTINGS_TAB_INDEX.Chat} />
           <Tab label="Viewer" value={CHAT_SETTINGS_TAB_INDEX.Viewer} />
         </Tabs>
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
@@ -57,15 +56,17 @@ export function ChatSettingsPage() {
               <VoiceTab />
             </TabContentContainer>
           </TabPanel>
-          <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.ChatConfiguration}>
-            <TabContentContainer>
-              <ChatConfigurationTab />
-            </TabContentContainer>
-          </TabPanel>
-          <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.ChatHistory}>
-            <TabContentContainer>
-              <ChatHistoryTab />
-            </TabContentContainer>
+          <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Chat}>
+            <TwoColumnTabContentContainer>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ alignItems: 'stretch' }}>
+                <Paper variant="outlined" sx={{ p: 3, flex: 1, width: '100%' }}>
+                  <ChatConfigurationTab />
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 3, flex: 1, width: '100%' }}>
+                  <ChatHistoryTab />
+                </Paper>
+              </Stack>
+            </TwoColumnTabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={CHAT_SETTINGS_TAB_INDEX.Viewer}>
             <TabContentContainer>

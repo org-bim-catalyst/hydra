@@ -53,12 +53,19 @@ import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 import { TwoFactorQrCode } from '../components/TwoFactorQrCode'
 
 /**
- * Bootstrap-style col-10 (one card) / col-5 + col-5 (two side-by-side cards) sizing for tab
- * content, so a tab's card(s) use most of the available width instead of shrinking to their
- * form's intrinsic size — a single child fills the whole 83.3%, two children (e.g. SecurityTab's
- * password/2FA cards) split it evenly via their own `flex: 1`.
+ * Bootstrap-style centered col-5 sizing for single-column tab content, so a tab's one card
+ * reads as a focused column instead of stretching edge-to-edge.
  */
 export function TabContentContainer({ children }: { children: ReactNode }) {
+  return <Box sx={{ width: { xs: '100%', md: '41.6667%' }, mx: 'auto' }}>{children}</Box>
+}
+
+/**
+ * Wider col-10 sizing for tabs with two side-by-side cards (e.g. SecurityTab's password/2FA
+ * cards, the merged Chat tab's Configuration/History cards) — each child splits it evenly via
+ * its own `flex: 1`, which a col-5 container is too narrow to do.
+ */
+export function TwoColumnTabContentContainer({ children }: { children: ReactNode }) {
   return <Box sx={{ width: { xs: '100%', md: '83.3333%' }, mx: 'auto' }}>{children}</Box>
 }
 
@@ -148,7 +155,7 @@ function PasswordSection() {
   }
 
   return (
-    <Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         {hasPassword ? 'Change password' : 'Set a password'}
       </Typography>
@@ -158,41 +165,41 @@ function PasswordSection() {
           address as well.
         </Typography>
       )}
-      <Box component="form" onSubmit={onSubmit} noValidate sx={{ maxWidth: 400 }}>
-        <Stack spacing={2}>
-          {policyErrors.length > 0 && (
-            <Alert severity="error">
-              That password does not meet the requirements:
-              <List dense sx={{ listStyleType: 'disc', pl: 3, py: 0 }}>
-                {policyErrors.map((message) => (
-                  <ListItem key={message} sx={{ display: 'list-item', px: 0 }} disableGutters>
-                    {message}
-                  </ListItem>
-                ))}
-              </List>
-            </Alert>
-          )}
-          {error && policyErrors.length === 0 && (
-            <Alert severity="error">{error.message}</Alert>
-          )}
-          {changePassword.isSuccess && (
-            <Alert severity="success">
-              {hasPassword
-                ? 'Password changed. Your other devices have been signed out.'
-                : 'Password set. You can now sign in with your email address.'}
-            </Alert>
-          )}
-          {hasPassword && (
-            <TextField
-              label="Current password"
-              type="password"
-              fullWidth
-              error={Boolean(form.formState.errors.currentPassword)}
-              helperText={form.formState.errors.currentPassword?.message}
-              {...form.register('currentPassword', { required: 'Enter your current password.' })}
-            />
-          )}
-          <Box>
+      <Box component="form" onSubmit={onSubmit} noValidate>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} divider={<Divider orientation="vertical" flexItem />}>
+          <Stack spacing={2} sx={{ maxWidth: 400, flex: 1 }}>
+            {policyErrors.length > 0 && (
+              <Alert severity="error">
+                That password does not meet the requirements:
+                <List dense sx={{ listStyleType: 'disc', pl: 3, py: 0 }}>
+                  {policyErrors.map((message) => (
+                    <ListItem key={message} sx={{ display: 'list-item', px: 0 }} disableGutters>
+                      {message}
+                    </ListItem>
+                  ))}
+                </List>
+              </Alert>
+            )}
+            {error && policyErrors.length === 0 && (
+              <Alert severity="error">{error.message}</Alert>
+            )}
+            {changePassword.isSuccess && (
+              <Alert severity="success">
+                {hasPassword
+                  ? 'Password changed. Your other devices have been signed out.'
+                  : 'Password set. You can now sign in with your email address.'}
+              </Alert>
+            )}
+            {hasPassword && (
+              <TextField
+                label="Current password"
+                type="password"
+                fullWidth
+                error={Boolean(form.formState.errors.currentPassword)}
+                helperText={form.formState.errors.currentPassword?.message}
+                {...form.register('currentPassword', { required: 'Enter your current password.' })}
+              />
+            )}
             <TextField
               label="New password"
               type="password"
@@ -206,29 +213,32 @@ function PasswordSection() {
                   isPasswordPolicyMet(value) || 'This password does not meet every requirement below.',
               })}
             />
-            {/* Same checklist as the registration and reset screens (FR-022) — the policy is one
-                rule set, so it is shown one way everywhere it is enforced. */}
+            <TextField
+              label="Confirm new password"
+              type="password"
+              fullWidth
+              error={Boolean(form.formState.errors.confirmPassword)}
+              helperText={form.formState.errors.confirmPassword?.message}
+              {...form.register('confirmPassword', {
+                validate: (value) =>
+                  value === form.getValues('newPassword') || 'Both passwords must match.',
+              })}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={changePassword.isPending}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {hasPassword ? 'Update password' : 'Set password'}
+            </Button>
+          </Stack>
+
+          {/* Same checklist as the registration and reset screens (FR-022) — the policy is one
+              rule set, so it is shown one way everywhere it is enforced. */}
+          <Box sx={{ flex: 1, minWidth: 0, '& > *': { mt: '0 !important' } }}>
             <PasswordRequirements password={newPassword} id="settings-password-requirements" />
           </Box>
-          <TextField
-            label="Confirm new password"
-            type="password"
-            fullWidth
-            error={Boolean(form.formState.errors.confirmPassword)}
-            helperText={form.formState.errors.confirmPassword?.message}
-            {...form.register('confirmPassword', {
-              validate: (value) =>
-                value === form.getValues('newPassword') || 'Both passwords must match.',
-            })}
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={changePassword.isPending}
-            sx={{ alignSelf: 'flex-start' }}
-          >
-            {hasPassword ? 'Update password' : 'Set password'}
-          </Button>
         </Stack>
       </Box>
     </Box>
@@ -321,7 +331,7 @@ function SecurityTab() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
   return (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ alignItems: 'flex-start' }}>
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ alignItems: 'stretch' }}>
       <Paper variant="outlined" sx={{ p: 3, flex: 1, width: '100%' }}>
         <PasswordSection />
       </Paper>
@@ -810,9 +820,9 @@ export function SettingsPage() {
             </TabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Security}>
-            <TabContentContainer>
+            <TwoColumnTabContentContainer>
               <SecurityTab />
-            </TabContentContainer>
+            </TwoColumnTabContentContainer>
           </TabPanel>
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Account}>
             <TabContentContainer>

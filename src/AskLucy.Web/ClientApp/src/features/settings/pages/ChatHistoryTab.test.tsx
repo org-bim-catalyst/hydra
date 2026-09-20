@@ -78,8 +78,10 @@ describe('ChatHistoryTab', () => {
     renderTab()
 
     expect(await screen.findByText('Trip planning')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New chat' })).toBeInTheDocument()
+    // No "New chat" button here — this card has no route to land a new chat on.
+    expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Search conversations')).toBeInTheDocument()
+    expect(screen.getByLabelText('Sort conversations')).toBeInTheDocument()
     for (const label of ['All', 'Favorites', 'Pinned', 'Archived', 'Recently Deleted']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
@@ -95,18 +97,6 @@ describe('ChatHistoryTab', () => {
     await user.click(await screen.findByTestId('conversation-title'))
 
     expect(useActiveConversationStore.getState().activeChatId).toBe('a')
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/studio'))
-  })
-
-  it('starting a new chat clears the active conversation and navigates to the workspace', async () => {
-    server.use(http.get('*/api/v1/chats*', () => HttpResponse.json(page([]))))
-    useActiveConversationStore.setState({ activeChatId: 'previous-chat' })
-    const user = userEvent.setup()
-    renderTab()
-
-    await user.click(await screen.findByRole('button', { name: 'New chat' }))
-
-    expect(useActiveConversationStore.getState().activeChatId).toBeNull()
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/studio'))
   })
 

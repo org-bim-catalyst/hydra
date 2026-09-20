@@ -5,9 +5,12 @@
  */
 export const CHAT_SETTINGS_TAB_INDEX = {
   Voice: 0,
-  ChatConfiguration: 1,
-  ChatHistory: 2,
+  // 1 and 2 were the separate "Chat Configuration" and "Chat History" tabs, merged into the
+  // single "Chat" tab below — left unused rather than reused, so no stale deep link at either
+  // old index silently lands on the wrong tab.
   /** Moved here from Settings (SETTINGS_TAB_INDEX) — appended, not inserted, so existing tab
    * indices never shift. */
   Viewer: 3,
+  /** Merged "Chat Configuration" + "Chat History" — appended for the same reason as Viewer. */
+  Chat: 4,
 } as const

@@ -47,6 +47,12 @@ interface ConversationListProps {
   selectedChatId: string | null
   onSelectChat: (id: string) => void
   onNewChat: () => void
+  /**
+   * Settings' Chat History card has no route to land a new chat on, so it hides this button
+   * entirely rather than rendering one that does nothing useful there — the main workspace
+   * sidebar (its only other caller) always passes the default.
+   */
+  showNewChatButton?: boolean
 }
 
 type FilterChip = 'all' | 'favorite' | 'archived' | 'pinned' | 'deleted'
@@ -132,6 +138,7 @@ export function ConversationList({
   selectedChatId,
   onSelectChat,
   onNewChat,
+  showNewChatButton = true,
 }: ConversationListProps) {
   const [filter, setFilter] = useState<FilterChip>('all')
   const [sort, setSort] = useState<ConversationSort>('Newest')
@@ -209,69 +216,89 @@ export function ConversationList({
     }
   }
 
+  const sortField = (
+    <TextField
+      select
+      fullWidth
+      size="small"
+      label="Sort"
+      aria-label="Sort conversations"
+      value={sort}
+      onChange={(e) => setSort(e.target.value as ConversationSort)}
+    >
+      {SORTS.map((s) => (
+        <MenuItem key={s.value} value={s.value}>
+          {s.label}
+        </MenuItem>
+      ))}
+    </TextField>
+  )
+
+  const searchField = (
+    <TextField
+      fullWidth
+      size="small"
+      placeholder="Search conversations"
+      aria-label="Search conversations"
+      value={searchInput}
+      onChange={(e) => setSearchInput(e.target.value)}
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        },
+      }}
+    />
+  )
+
+  const filterChips = (
+    <Stack direction="row" spacing={0.5} sx={{ px: 1.5, pb: 1, flexWrap: 'wrap', rowGap: 0.5 }}>
+      {FILTERS.map((f) => (
+        <Chip
+          key={f.value}
+          label={f.label}
+          size="small"
+          color={filter === f.value ? 'primary' : 'default'}
+          onClick={() => setFilter(f.value)}
+        />
+      ))}
+    </Stack>
+  )
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <Box sx={{ p: 1.5 }}>
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={onNewChat}
-          sx={{ justifyContent: 'flex-start', bgcolor: 'background.paper' }}
-        >
-          New chat
-        </Button>
-      </Box>
+      {showNewChatButton ? (
+        <>
+          <Box sx={{ p: 1.5 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={onNewChat}
+              sx={{ justifyContent: 'flex-start', bgcolor: 'background.paper' }}
+            >
+              New chat
+            </Button>
+          </Box>
 
-      <Box sx={{ px: 1.5, pb: 1 }}>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder="Search conversations"
-          aria-label="Search conversations"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-      </Box>
+          <Box sx={{ px: 1.5, pb: 1 }}>{searchField}</Box>
 
-      <Stack direction="row" spacing={0.5} sx={{ px: 1.5, pb: 1, flexWrap: 'wrap', rowGap: 0.5 }}>
-        {FILTERS.map((f) => (
-          <Chip
-            key={f.value}
-            label={f.label}
-            size="small"
-            color={filter === f.value ? 'primary' : 'default'}
-            onClick={() => setFilter(f.value)}
-          />
-        ))}
-      </Stack>
+          {filterChips}
 
-      <Box sx={{ px: 1.5, pb: 1 }}>
-        <TextField
-          select
-          fullWidth
-          size="small"
-          label="Sort"
-          aria-label="Sort conversations"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as ConversationSort)}
-        >
-          {SORTS.map((s) => (
-            <MenuItem key={s.value} value={s.value}>
-              {s.label}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Box>
+          <Box sx={{ px: 1.5, pb: 1 }}>{sortField}</Box>
+        </>
+      ) : (
+        <>
+          <Box sx={{ p: 1.5 }}>{sortField}</Box>
+
+          <Box sx={{ px: 1.5, pb: 1 }}>{searchField}</Box>
+
+          {filterChips}
+        </>
+      )}
 
       <VirtualizedChatRows
         rows={rows}
