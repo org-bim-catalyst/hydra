@@ -1,7 +1,9 @@
 using System.Linq;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Options;
 using AskLucy.Infrastructure.Email;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.Email;
@@ -9,7 +11,8 @@ namespace AskLucy.Infrastructure.Tests.Email;
 /// <summary>specs/061-branded-email-templates T006/T016/T018/T019.</summary>
 public sealed class BrandedAccountEmailTemplateRendererTests
 {
-    private readonly BrandedAccountEmailTemplateRenderer _renderer = new();
+    private readonly BrandedAccountEmailTemplateRenderer _renderer =
+        new(Options.Create(new AppOptions { FrontendBaseUrl = "https://asklucy.io" }));
 
     private static AccountEmailContent ContentWithAction() => new(
         Subject: "Confirm your Ask Lucy account",
@@ -62,9 +65,9 @@ public sealed class BrandedAccountEmailTemplateRendererTests
         var (htmlBody, textBody) = _renderer.Render(ContentWithAction());
 
         htmlBody.Should().Contain("Ask Lucy");
-        htmlBody.Should().Contain("need help? Contact support.");
+        htmlBody.Should().Contain("This is an automated message, please do not reply to this email.");
         textBody.Should().Contain("Ask Lucy");
-        textBody.Should().Contain("need help? Contact support.");
+        textBody.Should().Contain("This is an automated message, please do not reply to this email.");
     }
 
     [Fact]
@@ -140,11 +143,14 @@ public sealed class BrandedAccountEmailTemplateRendererTests
 
     [Theory]
     [MemberData(nameof(AllContentVariants))]
-    public void Render_ShouldEmitNoTrackingPixelOrUnexpectedLinks(AccountEmailContent content)
+    public void Render_ShouldEmitExactlyOneVisibleLogoImage_AndNoTrackingPixelOrUnexpectedLinks(AccountEmailContent content)
     {
         var (htmlBody, _) = _renderer.Render(content);
 
-        htmlBody.Should().NotContain("<img");
+        // Exactly the one visible, non-1x1, alt-labelled brand logo — never a hidden tracking pixel.
+        CountOccurrences(htmlBody, "<img").Should().Be(1);
+        htmlBody.Should().Contain("src=\"https://asklucy.io/brandmark.png\"");
+        htmlBody.Should().NotContain("width=\"1\" height=\"1\"");
 
         var hrefs = System.Text.RegularExpressions.Regex.Matches(htmlBody, "href=\"([^\"]*)\"")
             .Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value));

@@ -220,6 +220,7 @@ export function AdminUsersPage() {
                 <TableCell>Last name</TableCell>
                 <TableCell>Role</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Email confirmed</TableCell>
                 <TableCell>2FA enabled</TableCell>
                 <TableCell
                   sortDirection={
@@ -265,6 +266,14 @@ export function AdminUsersPage() {
                       size="small"
                       label={user.isLockedOut ? 'Locked' : 'Active'}
                       color={user.isLockedOut ? 'error' : 'success'}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={user.emailConfirmed ? 'Confirmed' : 'Pending'}
+                      color={user.emailConfirmed ? 'success' : 'warning'}
                       variant="outlined"
                     />
                   </TableCell>

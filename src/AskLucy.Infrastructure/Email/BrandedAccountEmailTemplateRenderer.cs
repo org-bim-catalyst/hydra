@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Options;
+using Microsoft.Extensions.Options;
 
 namespace AskLucy.Infrastructure.Email;
 
@@ -9,10 +11,11 @@ namespace AskLucy.Infrastructure.Email;
 /// Renders every account email through one Flumeria-branded, table-based HTML shell that is
 /// legible in both light and dark mode across Gmail, Apple Mail, and Outlook (research.md Topic
 /// 2), plus a plain-text alternative derived from the same content so the two bodies can never
-/// drift apart (research.md Topic 4). Purely presentational — no tracking pixel, click-redirect,
-/// or analytics mechanism is ever emitted (FR-010).
+/// drift apart (research.md Topic 4). Purely presentational beyond the single visible brand logo
+/// in the header — no tracking pixel, click-redirect, or analytics mechanism is ever emitted
+/// (FR-010).
 /// </summary>
-public sealed class BrandedAccountEmailTemplateRenderer : IEmailTemplateRenderer
+public sealed class BrandedAccountEmailTemplateRenderer(IOptions<AppOptions> appOptions) : IEmailTemplateRenderer
 {
     // Light-mode palette — Flumeria auth-flow tokens (research.md Topic 3 / flumeriaPalette.ts).
     private const string LightBackground = "#FAFAF8";
@@ -35,7 +38,7 @@ public sealed class BrandedAccountEmailTemplateRenderer : IEmailTemplateRenderer
     public (string HtmlBody, string TextBody) Render(AccountEmailContent content) =>
         (RenderHtml(content), RenderText(content));
 
-    private static string RenderHtml(AccountEmailContent content)
+    private string RenderHtml(AccountEmailContent content)
     {
         var sb = new StringBuilder();
 
@@ -75,9 +78,15 @@ public sealed class BrandedAccountEmailTemplateRenderer : IEmailTemplateRenderer
         sb.Append("<tr><td align=\"center\" style=\"padding:32px 16px;\">\n");
         sb.Append($"<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" class=\"al-container al-card\" style=\"max-width:600px; width:100%; background-color:{LightCardBackground}; border:1px solid {LightBorder}; border-radius:8px;\">\n");
 
-        // Header — text wordmark only, per FR-007 (no logo image dependency).
+        // Header — brand logo (hosted at the frontend's own static root, never a third-party or
+        // tracking-analytics domain) plus the wordmark, in a table cell so it lays out identically
+        // in clients that block remote images (the alt text still reads "Ask Lucy").
+        var logoUrl = $"{appOptions.Value.FrontendBaseUrl}/brandmark.png";
         sb.Append("<tr><td class=\"al-padded\" style=\"padding:32px 32px 24px 32px; text-align:left;\">\n");
-        sb.Append($"<span style=\"font-family:Segoe UI,Helvetica,Arial,sans-serif; font-size:20px; font-weight:700; color:{BrandGreen};\">Ask Lucy</span>\n");
+        sb.Append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\"><tr>\n");
+        sb.Append(CultureInfo.InvariantCulture, $"<td style=\"padding-right:8px;\"><img src=\"{Encode(logoUrl)}\" width=\"24\" height=\"24\" alt=\"\" style=\"display:block; border:0; width:24px; height:24px;\"></td>\n");
+        sb.Append(CultureInfo.InvariantCulture, $"<td><span style=\"font-family:Segoe UI,Helvetica,Arial,sans-serif; font-size:20px; font-weight:700; color:{BrandGreen};\">Ask Lucy</span></td>\n");
+        sb.Append("</tr></table>\n");
         sb.Append("</td></tr>\n");
 
         // Body.
@@ -110,7 +119,7 @@ public sealed class BrandedAccountEmailTemplateRenderer : IEmailTemplateRenderer
 
         // Footer.
         sb.Append(CultureInfo.InvariantCulture, $"<tr><td class=\"al-padded\" style=\"padding:24px 32px 32px 32px; border-top:1px solid {LightBorder};\">\n");
-        sb.Append(CultureInfo.InvariantCulture, $"<p class=\"al-footer al-body\" style=\"margin:0; font-family:Segoe UI,Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:{LightBody};\">Ask Lucy &mdash; need help? Contact support.</p>\n");
+        sb.Append(CultureInfo.InvariantCulture, $"<p class=\"al-footer al-body\" style=\"margin:0; font-family:Segoe UI,Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:{LightBody};\">This is an automated message, please do not reply to this email.</p>\n");
         if (!string.IsNullOrWhiteSpace(content.FooterNote))
         {
             sb.Append(CultureInfo.InvariantCulture, $"<p class=\"al-footer al-body\" style=\"margin:8px 0 0 0; font-family:Segoe UI,Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:{LightBody};\">{content.FooterNote}</p>\n");
@@ -151,7 +160,7 @@ public sealed class BrandedAccountEmailTemplateRenderer : IEmailTemplateRenderer
 
         sb.AppendLine(Decode(content.SafetyNote));
         sb.AppendLine();
-        sb.AppendLine("Ask Lucy -- need help? Contact support.");
+        sb.AppendLine("This is an automated message, please do not reply to this email.");
 
         if (!string.IsNullOrWhiteSpace(content.FooterNote))
         {
