@@ -213,3 +213,14 @@ Task: "Create StatusSplitChart.tsx in frontend/src/features/admin/charts/StatusS
 ### Parallel Team Strategy
 
 With two-plus developers: complete Setup + Foundational together, then split US1/US2/US3 across developers. Flag the shared-file note above (`UsersController.cs`, `AdminUsersPage.tsx`) between whoever takes US2 and whoever takes US3 to avoid overwriting each other's edits.
+
+## Post-Implementation Note (2026-09-20 — Send password reset / resend confirmation, Email Confirmed column)
+
+Added `AdminSendPasswordResetCommandHandler` and `AdminResendConfirmationCommandHandler` (delegating
+to the existing `IPasswordResetIssuanceJob`/`IAccountEmailJob` used by the self-service flows), two
+new `POST /users/{userId}/actions/{send-password-reset|resend-confirmation}` endpoints, and matching
+`UserActionMenu.tsx` menu items — the resend item only renders when `emailConfirmed` is false. Added
+an "Email confirmed" column to `AdminUsersPage.tsx`. See spec.md's Amendment 2026-09-20 (FR-024
+through FR-026, extended FR-017) for the corresponding requirements. Verified against production: an
+admin-triggered reset for an unconfirmed-email account correctly returns a 400 (not a silent no-op),
+surfaced to the admin via the existing error Snackbar.

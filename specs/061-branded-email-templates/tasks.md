@@ -194,3 +194,14 @@ Task: "Write PasswordEmailJobTests in tests/AskLucy.Infrastructure.Tests/Email/P
 - Verify tests fail before implementing.
 - Commit after each task or logical group.
 - No database, endpoint, or frontend changes exist in this feature — every task is backend-only within `Application`/`Infrastructure`.
+
+## Post-Implementation Note (2026-09-20 — Image brand mark, footer wording)
+
+Following production testing, the header gained an image (`lucy-portrait.png`, reused from
+`LucyPortrait.tsx`, copied into `ClientApp/public/` for a stable email-safe URL — it previously
+existed only as a Vite-bundled, content-hashed asset) alongside the text wordmark, and the footer's
+"need help? Contact support." line was replaced with a standard do-not-reply disclaimer. The
+renderer went from `static` to an instance method taking `IOptions<AppOptions>` to build the
+absolute logo URL from `FrontendBaseUrl`. `BrandedAccountEmailTemplateRendererTests` was updated:
+the anti-tracking-pixel test now asserts exactly one `<img>` (the visible logo, non-1x1) rather
+than zero, and the footer-wording assertion was updated. See spec.md's Amendment 2026-09-20.

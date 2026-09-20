@@ -137,3 +137,26 @@ An Administrator/Super User with a growing user base needs to locate a specific 
 - **No new roles or audit-log UI.** Only the existing Administrator/Super User roles are used; a dedicated audit-log viewing screen is explicitly out of scope (per the feature's stated non-goals), even though individual actions are logged (FR-021) for existing operational/security-log tooling to consume.
 - **Charting implementation is a stated stakeholder constraint, not left to planning.** The feature description explicitly mandates that dashboard charts be built directly with d3.js rather than a higher-level charting wrapper library; this is recorded here as a binding constraint for the planning phase rather than an open technical decision.
 - **Self-action safeguard.** An administrator is assumed to still need some way to manage their own account (e.g., through the existing profile/settings screens); this feature only hard-blocks the *admin-console* actions (lock/2FA-reset/delete) against one's own currently-authenticated account (FR-022, confirmed 2026-07-28), not all self-service account management.
+
+### Amendment 2026-09-20 — Send password reset / resend confirmation actions, Email Confirmed column
+
+Two more row-level admin actions were added alongside lock/unlock/force-2FA-reset/delete, plus an
+Email Confirmed column, in response to production feedback that admins had no way to help a user
+who lost a confirmation or reset email and no visibility into who was still unconfirmed.
+
+- **FR-024** (new): System MUST allow an Administrator/Super User to trigger a password reset
+  email for a target user, subject to the same eligibility rules as the existing self-service
+  "forgot password" flow (target email confirmed, account not locked) — rejected with a
+  caller-visible error otherwise, never a silent no-op, since an admin-triggered action must
+  surface *why* nothing was sent (constitution §VIII, no silent failures). This intentionally
+  preserves the self-service flow's existing account-takeover safeguard (an unconfirmed address
+  cannot receive a password reset) rather than relaxing it for admin-triggered resets.
+- **FR-025** (new): System MUST allow an Administrator/Super User to resend the registration
+  confirmation email for a target user whose email is not yet confirmed. The action is only
+  offered (UI) for accounts with `emailConfirmed = false`, matching FR-026's new visibility.
+- **FR-026** (new): The user-management table MUST display each user's email-confirmed status
+  (confirmed/pending) as its own column, so an admin does not need to open a detail view or guess
+  before choosing FR-024/FR-025.
+- **FR-017 extended**: The confirmation requirement for destructive actions (lock, force 2FA
+  reset, delete) does not apply to FR-024/FR-025 — sending an email is non-destructive and
+  reversible, so both fire immediately from the row action menu.

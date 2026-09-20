@@ -108,3 +108,25 @@ A member who needs to confirm an email address or reset a password can identify,
 - "Dark mode" support means the email adapts to the recipient's email client's light/dark setting automatically (e.g., via the client's native dark-mode handling or CSS media queries where supported) — it does not require a manual light/dark toggle inside the email itself.
 - A plain-text (or minimally styled) fallback experience is acceptable and expected for clients that strip styling entirely; the requirement is that the email stays usable and on-message, not that it looks identical everywhere.
 - No new account email types are being introduced by this feature — only the presentation of the five existing ones changes.
+
+### Amendment 2026-09-20 — Image-based brand mark, revised footer wording
+
+Production feedback (a member comparing the delivered email against the in-app Lucy character)
+led to two presentation changes on top of the original text/CSS-only header:
+
+- **FR-002/FR-007 refined**: The header now includes Lucy's actual character portrait
+  (`lucy-portrait.png`, the same asset used in the chat toggle and auth pages, per
+  `LucyPortrait.tsx`) next to the "Ask Lucy" text wordmark, rather than a text-only wordmark. FR-007
+  still holds: the image has empty alt text and sits beside the always-rendered text wordmark, so
+  brand identity survives entirely on text/CSS alone if the client blocks remote images — the image
+  is additive, not load-bearing. This is a deliberate, narrow exception to the original
+  "no image-based logo" framing in the Edge Cases section, not a reversal of it: the button and
+  every other brand cue remain non-image.
+- **FR-006 refined**: The footer no longer includes a "need help? Contact support." line. It now
+  reads "This is an automated message, please do not reply to this email." — standard
+  do-not-reply wording, since these are all system-triggered security emails, not a support
+  channel. "Identifying the sender (Ask Lucy)" is still satisfied by the header, not the footer.
+- The renderer (`BrandedAccountEmailTemplateRenderer`) now takes `IOptions<AppOptions>` to build
+  the logo's absolute URL from `AppOptions.FrontendBaseUrl`; the image is served as a static asset
+  from the frontend's own public root (`ClientApp/public/lucy-portrait.png`), never a third-party
+  or tracking-analytics domain, consistent with FR-010's no-tracking requirement.
