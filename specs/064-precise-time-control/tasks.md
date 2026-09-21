@@ -63,18 +63,21 @@ minute.
 - [ ] T009 [P] [US1] In the same file, assert a rejected entry retains the typed text, retains the previous time, and renders a visible reason (FR-003, FR-005, FR-024)
 - [ ] T010 [P] [US1] In the same file, assert committing stops playback (FR-009), and that changing the date clears an uncommitted draft (FR-010)
 - [ ] T011 [P] [US1] In the same file, assert a spring-forward gap time on an Africa/Cairo date is stated rather than silently resolved to the neighbouring instant, and that a fold time resolves **consistently** across repeated commits without asserting which of the two instants is chosen (FR-007, FR-008)
+- [ ] T012 [P] [US1] In the same file, assert the field **follows the store**: moving the slider while the field is idle updates the displayed text, and after a typed commit a subsequent slider drag takes over with no reversion to the typed value (US1 scenario 6) — the assertion that stops the draft becoming a stale second reading of the time
+- [ ] T013 [P] [US1] In the same file, assert an entered time is interpreted in the **site's** timezone, not the browser's: committing `09:00` against the Asia/Dubai fixture must produce an `instantUtc` of 05:00Z (FR-006)
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement `parseLocalTimeEntry` in `panels/timeEntry.ts` returning the discriminated union from [contracts/time-entry.md](./contracts/time-entry.md), never throwing, never clamping
-- [ ] T013 [US1] Add the three rejection strings to `copy.ts` — malformed, out of range, nonexistent local time — each following the neighbouring `invalidHeight` / `invalidGroundOffset` pattern of naming the bound and saying the previous value was kept (§7, research D7)
-- [ ] T014 [US1] In `panels/SolarTimeControlPanel.tsx`, replace the read-only `Typography` readout with an editable field holding draft state, retaining the monospace compact styling (FR-022)
-- [ ] T015 [US1] Implement commit on Enter and on blur, writing through the existing `setLocalMinuteOfDay` — no new store action, no second time value (FR-002, FR-020, research D1)
-- [ ] T016 [US1] Detect a nonexistent local time by round-tripping the candidate through the existing `fromLocalParts` and `toLocalParts` in `solar/timeZone.ts` and comparing the returned minute; write **no new timezone logic** (FR-007, research D2)
-- [ ] T017 [US1] Render the rejection inline beneath the row with the field in an error state, keeping the user's text in place (FR-003, FR-005)
-- [ ] T018 [US1] Stop playback on commit (FR-009, research D8)
-- [ ] T019 [US1] Clear the draft when `moment.localDate` changes (FR-010, research D9) — the only path by which a draft could apply a time to a date the user did not choose it for
-- [ ] T020 [US1] Confirm `aria-valuetext` still carries the local time after a typed commit, not only after slider movement (FR-021)
+- [ ] T014 [US1] Implement `parseLocalTimeEntry` in `panels/timeEntry.ts` returning the discriminated union from [contracts/time-entry.md](./contracts/time-entry.md), never throwing, never clamping
+- [ ] T015 [US1] Add the three rejection strings to `copy.ts` — malformed, out of range, nonexistent local time — each following the neighbouring `invalidHeight` / `invalidGroundOffset` pattern of naming the bound and saying the previous value was kept (§7, research D7)
+- [ ] T016 [US1] In `panels/SolarTimeControlPanel.tsx`, replace the read-only `Typography` readout with an editable field holding draft state, retaining the monospace compact styling (FR-022)
+- [ ] T017 [US1] Implement commit on Enter and on blur, writing through the existing `setLocalMinuteOfDay` — no new store action, no second time value (FR-002, FR-020, research D1)
+- [ ] T018 [US1] In `panels/SolarTimeControlPanel.tsx`, display `moment.localMinuteOfDay` formatted whenever the field is **not** being edited, so slider, keyboard and playback changes all reach the field — the Idle state of [data-model.md](./data-model.md) (US1 scenario 6)
+- [ ] T019 [US1] Detect a nonexistent local time by round-tripping the candidate through the existing `fromLocalParts` and `toLocalParts` in `solar/timeZone.ts` and comparing the returned minute; write **no new timezone logic** (FR-007, research D2)
+- [ ] T020 [US1] Render the rejection inline beneath the row with the field in an error state, keeping the user's text in place (FR-003, FR-005)
+- [ ] T021 [US1] Stop playback on commit (FR-009, research D8)
+- [ ] T022 [US1] Clear the draft when `moment.localDate` changes (FR-010, research D9) — the only path by which a draft could apply a time to a date the user did not choose it for
+- [ ] T023 [US1] Confirm `aria-valuetext` still carries the local time after a typed commit, not only after slider movement (FR-021)
 
 **Checkpoint**: US1 is independently shippable, and unblocks specs/063's verification.
 
@@ -89,17 +92,17 @@ a grey band, and degrading sensibly as the panel narrows.
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] In `panels/timeEntry.test.ts`, assert `buildTimeSliderMarks(null)` returns the **Full** tier — unmeasured is normal, not broken (research D5), and jsdom never measures
-- [ ] T022 [P] [US2] In the same file, assert tier selection derives from `MIN_TICK_SPACING_PX` and `MIN_LABEL_SPACING_PX`: a width giving ≥ 6 px quarter-hour spacing yields Full, a narrower one yields hour-only, a narrower one still yields none (FR-014)
-- [ ] T023 [P] [US2] In the same file, assert hour marks are distinguishable from quarter-hour marks in the returned data, that marks span the full day inclusive of both ends, and that labels appear only at the chosen interval (FR-012)
-- [ ] T024 [P] [US2] In `panels/SolarTimeControlPanel.test.tsx`, assert marks render on the slider and do not disturb the existing `aria-valuetext` or the panel's two-row structure (FR-013, FR-022)
+- [ ] T024 [P] [US2] In `panels/timeEntry.test.ts`, assert `buildTimeSliderMarks(null)` returns the **Full** tier — unmeasured is normal, not broken (research D5), and jsdom never measures
+- [ ] T025 [P] [US2] In the same file, assert tier selection derives from `MIN_TICK_SPACING_PX` and `MIN_LABEL_SPACING_PX`: a width giving ≥ 6 px quarter-hour spacing yields Full, a narrower one yields hour-only, a narrower one still yields none (FR-014)
+- [ ] T026 [P] [US2] In the same file, assert the Full tier emits marks at **exactly 15-minute intervals** — 97 marks from 0 to 1440 inclusive, every value a multiple of `SNAP_MINUTES` — that hour marks are distinguishable from quarter-hour marks in the returned data, and that labels appear only at the chosen interval (FR-011, FR-012)
+- [ ] T027 [P] [US2] In `panels/SolarTimeControlPanel.test.tsx`, assert marks render on the slider and do not disturb the existing `aria-valuetext` or the panel's two-row structure (FR-013, FR-022)
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Implement `buildTimeSliderMarks` in `panels/timeEntry.ts` per the tier table in [data-model.md](./data-model.md), returning MUI's mark shape plus an `isHour` distinction
-- [ ] T026 [US2] In `panels/SolarTimeControlPanel.tsx`, measure the slider track width with `ResizeObserver`, guarded by `typeof ResizeObserver === 'undefined'` and defaulting to unmeasured, following the precedent in `hooks/useWholeRowScroll.ts:30` (research D5)
-- [ ] T027 [US2] Pass the marks to the Slider and style hour marks more prominently than quarter-hour marks, deriving colour from the theme rather than fixing it, so both themes stay legible (FR-012, FR-015)
-- [ ] T028 [US2] Confirm in `panels/SolarTimeControlPanel.tsx` that marks do not obscure the handle or the readout at the panel's normal width (FR-013)
+- [ ] T028 [US2] Implement `buildTimeSliderMarks` in `panels/timeEntry.ts` per the tier table in [data-model.md](./data-model.md), returning MUI's mark shape plus an `isHour` distinction
+- [ ] T029 [US2] In `panels/SolarTimeControlPanel.tsx`, measure the slider track width with `ResizeObserver`, guarded by `typeof ResizeObserver === 'undefined'` and defaulting to unmeasured, following the precedent in `hooks/useWholeRowScroll.ts:30` (research D5)
+- [ ] T030 [US2] Pass the marks to the Slider and style hour marks more prominently than quarter-hour marks, deriving colour from the theme rather than fixing it, so both themes stay legible (FR-012, FR-015)
+- [ ] T031 [US2] Confirm in `panels/SolarTimeControlPanel.tsx` that marks do not obscure the handle or the readout at the panel's normal width (FR-013)
 
 **Checkpoint**: The slider is readable. US1 + US2 together cover everything the user asked for.
 
@@ -114,16 +117,17 @@ once — moves exactly one minute.
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] In `panels/timeEntry.test.ts`, assert `snapToQuarterHour` returns the nearest multiple of `SNAP_MINUTES`, that `1433` yields `1425` and never `1440`, and that tie-rounding is consistent (FR-018)
-- [ ] T030 [P] [US3] In `panels/SolarTimeControlPanel.test.tsx`, assert an arrow-key press moves exactly one minute and is **not** snapped — the regression research D3 predicts if source discrimination is dropped (FR-017, SC-006)
-- [ ] T031 [P] [US3] In the same file, assert slider movement stops at both ends of the day rather than wrapping (FR-018)
+- [ ] T032 [P] [US3] In `panels/timeEntry.test.ts`, assert `snapToQuarterHour` returns the nearest multiple of `SNAP_MINUTES`, that `1433` yields `1425` and never `1440`, and that tie-rounding is consistent (FR-018)
+- [ ] T033 [P] [US3] In `panels/SolarTimeControlPanel.test.tsx`, assert an arrow-key press moves exactly one minute and is **not** snapped — the regression research D3 predicts if source discrimination is dropped (FR-017, SC-006)
+- [ ] T034 [P] [US3] In the same file, assert **repeated** arrow-key presses each move exactly one minute with none snapped, starting from a value off a 15-minute boundary — the auto-repeat case, where `onChangeCommitted` fires per key-up and a single-press test would not notice a drift (US3 scenario 3, SC-006)
+- [ ] T035 [P] [US3] In the same file, assert slider movement stops at both ends of the day rather than wrapping (FR-018)
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Implement `snapToQuarterHour` in `panels/timeEntry.ts`, clamped within the day
-- [ ] T033 [US3] In `panels/SolarTimeControlPanel.tsx`, record the interaction source on `pointerdown` / `keydown` in a **ref**, not state — it must not cause a render and is not part of the component's output (research D3)
-- [ ] T034 [US3] Snap in `onChangeCommitted` **only** when the source was a pointer, keeping `step={1}` so MUI's keyboard handling and `aria-valuetext` are untouched (FR-016, FR-017)
-- [ ] T035 [US3] Confirm in `panels/SolarTimeControlPanel.tsx` that `onChange` remains unsnapped so a drag does not jump when it begins, only settles when it ends (FR-019)
+- [ ] T036 [US3] Implement `snapToQuarterHour` in `panels/timeEntry.ts`, clamped within the day
+- [ ] T037 [US3] In `panels/SolarTimeControlPanel.tsx`, record the interaction source on `pointerdown` / `keydown` in a **ref**, not state — it must not cause a render and is not part of the component's output (research D3)
+- [ ] T038 [US3] Snap in `onChangeCommitted` **only** when the source was a pointer, keeping `step={1}` so MUI's keyboard handling and `aria-valuetext` are untouched (FR-016, FR-017)
+- [ ] T039 [US3] Confirm in `panels/SolarTimeControlPanel.tsx` that `onChange` remains unsnapped so a drag does not jump when it begins, only settles when it ends (FR-019)
 
 **Checkpoint**: All three stories complete.
 
@@ -131,12 +135,12 @@ once — moves exactly one minute.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T036 [P] Update `features/solar/README.md`'s module map with `panels/timeEntry.ts` and a note that the panel's time formatting now lives there
-- [ ] T037 [P] Add a pointer in `specs/052-solar-analysis/spec.md` recording that this feature supersedes its read-only time readout (documentation is part of implementation)
-- [ ] T038 Run the full frontend suite — `npx vitest run` from `src/AskLucy.Web/ClientApp` — not just the touched files, because page-level tests carry their own assertions about components they render
-- [ ] T039 Run `npx tsc -b --noEmit` from `src/AskLucy.Web/ClientApp`; the bare `tsc --noEmit` is a silent no-op under this project's references
-- [ ] T040 Verify FR-023 by inspection: no solar calculation, scene object, shadow or figure behaviour was touched by any task above
-- [ ] T041 Produce the numbered verification steps from [quickstart.md](./quickstart.md) Part 2 for screenshot-based review, leading with Check 1 — typing the reported sunrise in one attempt
+- [ ] T040 [P] Update `features/solar/README.md`'s module map with `panels/timeEntry.ts` and a note that the panel's time formatting now lives there
+- [ ] T041 [P] Add a pointer in `specs/052-solar-analysis/spec.md` recording that this feature supersedes its read-only time readout (documentation is part of implementation)
+- [ ] T042 Run the full frontend suite — `npx vitest run` from `src/AskLucy.Web/ClientApp` — not just the touched files, because page-level tests carry their own assertions about components they render
+- [ ] T043 Run `npx tsc -b --noEmit` from `src/AskLucy.Web/ClientApp`; the bare `tsc --noEmit` is a silent no-op under this project's references
+- [ ] T044 Verify FR-023 by inspection: no solar calculation, scene object, shadow or figure behaviour was touched by any task above. T042's full run, which includes the specs/052 and specs/063 solar suites, is the executable half of SC-008
+- [ ] T045 Produce the numbered verification steps from [quickstart.md](./quickstart.md) Part 2 for screenshot-based review, leading with Check 1 — typing the reported sunrise in one attempt
 
 ---
 
@@ -157,6 +161,11 @@ The three stories are independent in *behaviour* but all three edit `panels/time
 the file level, even though each is separately testable and separately shippable. Run the story
 phases in sequence; parallelise within them.
 
+### One ordering constraint inside US1
+
+T018 (the field follows the store) must land before T022 (clear the draft on date change). Clearing
+a draft is only meaningful once there is a defined idle display to fall back to.
+
 ### Within each phase
 
 Tests before implementation. Tasks marked [P] touch different files or different regions of a test
@@ -166,10 +175,12 @@ file and may be written together.
 
 ## Parallel Execution Examples
 
-**Phase 3 tests**: T005–T011 are seven assertions across two test files — all [P].
+**Phase 3 tests**: T005–T013 are nine assertions across two test files — all [P].
 
-**Phase 4 tests**: T021, T022 and T023 are three assertions in one test file, independent of each
-other; T024 is in the component's file.
+**Phase 4 tests**: T024, T025 and T026 are three assertions in one test file, independent of each
+other; T027 is in the component's file.
+
+**Phase 5 tests**: T032–T035 are all [P].
 
 **Across stories**: not recommended — see the file-level coupling above.
 
@@ -179,7 +190,7 @@ other; T024 is in the component's file.
 
 ### MVP
 
-**Phase 2 + Phase 3 (US1)** — 20 tasks. That alone delivers the missing capability: a user can name
+**Phase 2 + Phase 3 (US1)** — 23 tasks. That alone delivers the missing capability: a user can name
 an exact minute. It is what unblocks specs/063's verification, and it is independently shippable.
 
 ### Incremental delivery
