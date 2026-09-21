@@ -787,6 +787,19 @@ select dark mode from anything other than the browser/OS `prefers-color-scheme` 
 dashboard's colors always match Ask Lucy, but light/dark *selection* does not follow the admin
 panel's own theme toggle. See [ADR 0013](adr/0013-hangfire-dashboard-scoped-session-and-theming-gap.md).
 
+## Provider-sourced avatar sync runs off the sign-in path, and its fetch is host-restricted
+
+Google/Facebook sign-in and account-linking populate `FirstName`/`LastName` synchronously (a
+cheap read-then-write against the profile already being resolved), but the profile picture is
+fetched and stored by `ExternalProfilePictureSyncJob`, enqueued via `IBackgroundJobClient` the
+same way `IPasswordEmailJob`/`IPasswordResetIssuanceJob` are elsewhere in the Authentication
+feature area. A slow or failing picture fetch must never add latency to, or fail, sign-in itself.
+The job validates the claim-supplied picture URL's host against a small per-provider allow-list
+before fetching, and both it and `UploadAvatarCommandHandler` now share `IImageContentValidator`
+for magic-byte content validation — a claim value from a third party's OAuth response is still
+external input driving a server-side fetch. See
+[ADR 0014](adr/0014-external-profile-picture-fetch-hardening.md).
+
 ---
 
 # 19. Caching Strategy

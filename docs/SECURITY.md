@@ -357,6 +357,18 @@ Store uploads outside the web root.
 
 Generate random file names.
 
+## Content-based validation applies equally to provider-sourced files, not just direct user uploads
+
+A file does not need to arrive via a multipart form to need content validation — a URL supplied
+in a third party's OAuth claim (e.g. a Google/Facebook profile-picture URL) is still external
+input driving a server-side fetch and write. `IImageContentValidator` (magic-byte signature
+check: JPEG/PNG/GIF/WebP) is shared between `UploadAvatarCommandHandler` (manual upload) and
+`ExternalProfilePictureSyncJob` (provider-sourced sync) so neither path trusts an extension or
+`Content-Type` header alone, and the outbound fetch itself is restricted to each provider's known
+image-CDN hosts before any request is made, closing the SSRF surface a malformed or compromised
+claim value would otherwise open. See
+[ADR 0014](adr/0014-external-profile-picture-fetch-hardening.md).
+
 ---
 
 # 20. File Download Security
