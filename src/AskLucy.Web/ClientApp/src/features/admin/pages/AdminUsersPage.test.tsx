@@ -238,4 +238,15 @@ describe('AdminUsersPage', () => {
 
     expect(await screen.findByText('2 items succeeded.')).toBeInTheDocument()
   })
+
+  // specs/062 US2/US3 — this page has no info/hint banner, so its layout must be unaffected by
+  // the full-height flex wiring and hint-anchoring changes made to pages that do have one.
+  it('renders the table with no hint banner, unaffected by the full-height layout changes', async () => {
+    renderPage()
+
+    await screen.findByText('alice@example.com')
+
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })

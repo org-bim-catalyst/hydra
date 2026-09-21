@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
@@ -45,5 +46,27 @@ describe('AdminShell accessibility', () => {
     jobsButton.focus()
 
     expect(jobsButton).toHaveFocus()
+  })
+
+  // specs/062 US5 — the divider grouping "System agents" is a non-interactive <hr>-style
+  // element (role="separator", not in the tab sequence), so Tab must skip straight from "Role
+  // assignments" to "System agents" without an extra stop.
+  it('the divider after System agents introduces no a11y violations and keeps tab order intact', async () => {
+    const { container } = renderShell()
+    const nav = screen.getByRole('navigation', { name: 'Admin sections' })
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+
+    const roleAssignmentsLink = within(nav).getByRole('link', { name: /Role assignments/ })
+    const systemAgentsLink = within(nav).getByRole('link', { name: /System agents/ })
+
+    const user = userEvent.setup()
+    roleAssignmentsLink.focus()
+    expect(roleAssignmentsLink).toHaveFocus()
+
+    await user.tab()
+
+    expect(systemAgentsLink).toHaveFocus()
   })
 })

@@ -21,15 +21,17 @@ interface ProviderDefaultModelRowProps {
 
 /**
  * One provider's default model. Its own component because the model list is a per-provider
- * query — a single component for the whole table would have to fetch every provider's models
- * at once, or fetch inside a loop, neither of which React or TanStack Query allow cleanly.
+ * query, and a row must keep reading its own even after the page has drawn.
  *
  * Only Available models are offered: DefaultProviderResolver requires IsSelectable, so a
  * Deprecated or Unavailable default would be skipped at runtime and the capability assigned to
  * this provider would quietly fall back somewhere else.
  */
 export function ProviderDefaultModelRow({ provider, disabled, onChange }: ProviderDefaultModelRowProps) {
-  const { data: models } = useQuery({
+  // The page issues this exact query for every row it is about to draw, so that it can hold its
+  // skeleton until all of them have settled. Sharing the key means this is that same request, not
+  // a second one — and the row keeps working when its provider changes after first paint.
+  const { data: models, isError: modelsFailed } = useQuery({
     queryKey: ['admin', 'ai-providers', provider.id, 'models'],
     queryFn: () => adminAiProvidersApi.getModels(provider.id),
   })
@@ -75,10 +77,21 @@ export function ProviderDefaultModelRow({ provider, disabled, onChange }: Provid
             ))}
           </Select>
         </FormControl>
-        {available.length === 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-            No Available models — mark one Available on the Providers page first.
+        {/*
+          constitution VIII: a failed fetch leaves the same empty list as a provider with nothing
+          marked Available, and the advice below would send the administrator to a page where
+          everything already looks correct. Say which of the two it is.
+        */}
+        {modelsFailed ? (
+          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+            Couldn&apos;t load this provider&apos;s models. Reload the page to try again.
           </Typography>
+        ) : (
+          available.length === 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              No Available models — mark one Available on the Providers page first.
+            </Typography>
+          )
         )}
       </TableCell>
     </TableRow>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Divider, Stack, Typography } from '@mui/material'
+import { Box, Divider, Stack, Typography } from '@mui/material'
 import { AdminShell } from '../../admin/components/AdminShell'
 import { McpServerList } from '../components/McpServerList'
 import { McpHealthBadge } from '../components/McpHealthBadge'
@@ -15,21 +15,27 @@ export function McpAdministrationPage() {
 
   return (
     <AdminShell title="MCP servers" subtitle="Register, monitor, and review tools exposed by Model Context Protocol servers">
-      <McpServerList selectedServerId={selectedServerId} onSelectServer={setSelectedServerId} />
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <McpServerList
+          selectedServerId={selectedServerId}
+          onSelectServer={setSelectedServerId}
+          fillHeight={selectedServerId === null}
+        />
 
-      {selectedServerId && (
-        <>
-          <Divider sx={{ my: 3 }} />
-          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">{selectedServer?.name ?? 'Selected server'}</Typography>
-            <McpHealthBadge health={health} />
-          </Stack>
-          <Stack spacing={3}>
-            <McpToolActivationPanel serverId={selectedServerId} />
-            <McpAuditLogTable serverId={selectedServerId} />
-          </Stack>
-        </>
-      )}
+        {selectedServerId && (
+          <>
+            <Divider sx={{ my: 3 }} />
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">{selectedServer?.name ?? 'Selected server'}</Typography>
+              <McpHealthBadge health={health} />
+            </Stack>
+            <Stack spacing={3}>
+              <McpToolActivationPanel serverId={selectedServerId} />
+              <McpAuditLogTable serverId={selectedServerId} />
+            </Stack>
+          </>
+        )}
+      </Box>
     </AdminShell>
   )
 }

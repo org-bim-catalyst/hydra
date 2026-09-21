@@ -18,12 +18,9 @@ const base: AdminAiProvider = {
   healthStaleAfterUtc: '2026-08-29T09:13:49Z',
 }
 
-const NOW_FRESH = new Date('2026-08-29T09:10:00Z')
-const NOW_STALE = new Date('2026-08-31T09:10:00Z')
-
 describe('ProviderHealthCell (specs/043 US2)', () => {
   it('shows a healthy provider as healthy, with when that was confirmed', () => {
-    render(<ProviderHealthCell provider={base} now={NOW_FRESH} />)
+    render(<ProviderHealthCell provider={base} />)
 
     expect(screen.getByText('Healthy')).toBeInTheDocument()
     expect(screen.getByText(/Checked/)).toBeInTheDocument()
@@ -40,7 +37,6 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
           healthFailureKind: 'QuotaExhausted',
           healthFailureReason: 'Google Gemini is configured correctly, but its usage quota is exhausted.',
         }}
-        now={NOW_FRESH}
       />,
     )
 
@@ -55,7 +51,6 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
       render(
         <ProviderHealthCell
           provider={{ ...base, healthStatus: 'Unhealthy', healthFailureKind: kind, healthFailureReason: 'Limited.' }}
-          now={NOW_FRESH}
         />,
       )
 
@@ -72,7 +67,6 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
           healthFailureKind: 'CredentialRejected',
           healthFailureReason: 'Google Gemini rejected the configured credential.',
         }}
-        now={NOW_FRESH}
       />,
     )
 
@@ -84,7 +78,6 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
     render(
       <ProviderHealthCell
         provider={{ ...base, healthStatus: 'Unknown', healthStatusCheckedAtUtc: null, healthStaleAfterUtc: null }}
-        now={NOW_FRESH}
       />,
     )
 
@@ -94,10 +87,7 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
 
   it('shows a provider with no credential as not configured (FR-021)', () => {
     render(
-      <ProviderHealthCell
-        provider={{ ...base, hasCredential: false, healthStatus: 'Unknown', healthStaleAfterUtc: null }}
-        now={NOW_FRESH}
-      />,
+      <ProviderHealthCell provider={{ ...base, hasCredential: false, healthStatus: 'Unknown', healthStaleAfterUtc: null }} />,
     )
 
     expect(screen.getByText('Not configured')).toBeInTheDocument()
@@ -107,7 +97,6 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
     render(
       <ProviderHealthCell
         provider={{ ...base, isEnabled: false, healthStatus: 'Unhealthy', healthFailureKind: 'Unavailable' }}
-        now={NOW_FRESH}
       />,
     )
 
@@ -115,27 +104,8 @@ describe('ProviderHealthCell (specs/043 US2)', () => {
     expect(screen.getByText(/Not checked while disabled/)).toBeInTheDocument()
   })
 
-  it('flags a result older than its freshness horizon as possibly out of date (FR-019/SC-005)', () => {
-    // The reported bug showed a status two days old rendering as current fact.
-    render(<ProviderHealthCell provider={base} now={NOW_STALE} />)
-
-    expect(screen.getByText('Possibly out of date')).toBeInTheDocument()
-  })
-
-  it('does not flag a result inside its freshness horizon', () => {
-    render(<ProviderHealthCell provider={base} now={NOW_FRESH} />)
-
-    expect(screen.queryByText('Possibly out of date')).not.toBeInTheDocument()
-  })
-
-  it('never flags a never-checked provider as stale', () => {
-    // No horizon means no claim was made, so there is nothing to go out of date.
-    render(
-      <ProviderHealthCell
-        provider={{ ...base, healthStatus: 'Unknown', healthStatusCheckedAtUtc: null, healthStaleAfterUtc: null }}
-        now={NOW_STALE}
-      />,
-    )
+  it('never renders the staleness chip — that now lives in ProviderStalenessCell (specs/062 US1)', () => {
+    render(<ProviderHealthCell provider={base} />)
 
     expect(screen.queryByText('Possibly out of date')).not.toBeInTheDocument()
   })

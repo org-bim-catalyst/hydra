@@ -17,8 +17,11 @@ import {
   Typography,
 } from '@mui/material'
 import { visuallyHidden } from '@mui/utils'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { ApiError } from '../../../api/httpClient'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AdminAiProvider, AiCapability, AiCapabilityAssignment } from '../api/adminAiProvidersApi'
 
@@ -85,10 +88,29 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
   const queryClient = useQueryClient()
   const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
 
-  const { data: assignments } = useQuery({
+  const { data: assignments, isLoading: assignmentsLoading } = useQuery({
     queryKey: CAPABILITY_QUERY_KEY,
     queryFn: adminAiProvidersApi.getCapabilityAssignments,
   })
+
+  /**
+   * The model list behind every already-assigned row, fetched here rather than left to each row.
+   * The rows read theirs through the same query key, so this adds no request — what it adds is one
+   * place that knows when the table is *finished*. A skeleton covers the wait until content can
+   * appear in its final shape; holding it only until the assignments arrived meant rows appeared
+   * with "Loading models…" in every model dropdown and settled one by one afterwards.
+   */
+  const assignedProviderIds = [...new Set((assignments ?? []).map((a) => a.providerId).filter((id) => id !== null))]
+  const modelQueries = useQueries({
+    queries: assignedProviderIds.map((providerId) => ({
+      queryKey: ['admin', 'ai-models', providerId],
+      queryFn: () => adminAiProvidersApi.getModels(providerId),
+    })),
+  })
+
+  // A failed fetch ends the wait like a successful one does; the row that needed it says so
+  // itself, in the caption under its model dropdown.
+  const isLoading = assignmentsLoading || modelQueries.some((query) => query.isLoading)
 
   const assignMutation = useMutation({
     mutationFn: ({ capability, providerId, modelId }: AssignVariables) =>
@@ -109,8 +131,6 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
     },
   })
 
-  const providerName = (id: string | null) => providers.find((p) => p.id === id)?.displayName ?? null
-
   /**
    * A provider is offerable only once all three prerequisites hold: enabled, credentialled, and
    * carrying a default model. The model is what the capability actually runs on, so a provider
@@ -121,127 +141,88 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
    * its own: Default models, the step between Providers and this one.
    */
   const selectable = providers.filter((p) => p.isEnabled && p.hasCredential && p.defaultModelId)
-  const hasNoProviders = selectable.length === 0
+
+  // While the body holds only the empty-state row, stretch the table over the whole container so
+  // that row centres in it instead of hugging the header. Not while loading: the skeleton rows
+  // fill the body themselves, and stretching would smear six of them over the page.
+  const showsStatusRow = !isLoading && (assignments ?? []).length === 0
+
+  // Keeps the container's bottom edge on a row boundary: no half-visible last row.
+  const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll()
 
   return (
-    <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Capabilities
-      </Typography>
-      <Alert severity="info" sx={{ mb: 2 }}>
-        Each capability runs on the provider assigned here, using that provider&apos;s default
-        model — except image generation, which runs on the image model you pick for it.
-      </Alert>
-
-      {selectable.length === 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          No provider can be assigned yet. Enable a provider with its credential on the Providers
-          page, then give it a default model on the Default models page.
-        </Alert>
-      )}
-
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
+    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <TableContainer ref={tableRef} component={Paper} variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight, mb: 2 }}>
+        <Table size="small" sx={{ height: showsStatusRow ? '100%' : undefined }}>
           <TableHead>
             <TableRow>
               <TableCell>Capability</TableCell>
               <TableCell>Assigned provider</TableCell>
-              <TableCell>Actually running on</TableCell>
+              <TableCell>Model</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {assignments?.map((assignment) => {
-              // Never index straight into the copy table: the server enumerates the
-              // capability enum, so a capability added there before this table knows about it
-              // would otherwise throw during render and take the whole page to the error
-              // boundary. That is exactly what "Chat" did.
-              const copy = CAPABILITY_COPY[assignment.capability] ?? {
-                label: assignment.capability,
-                consequence: 'No description available for this capability yet.',
-              }
-              const effective = providerName(assignment.effectiveProviderId)
-              if (assignment.capability === 'ImageGeneration') {
+            {isLoading && <TableLoadingRow colSpan={3} />}
+            {!isLoading && (assignments ?? []).length === 0 && (
+              <TableEmptyRow colSpan={3} message="No capabilities found." />
+            )}
+            {/*
+              Gated on the same flag as the skeleton, not just on having data: the assignments
+              arrive before the model lists do, and without this the rows painted under the
+              skeleton that was still covering their wait.
+            */}
+            {!isLoading &&
+              assignments?.map((assignment) => {
+                // Never index straight into the copy table: the server enumerates the
+                // capability enum, so a capability added there before this table knows about it
+                // would otherwise throw during render and take the whole page to the error
+                // boundary. That is exactly what "Chat" did.
+                const copy = CAPABILITY_COPY[assignment.capability] ?? {
+                  label: assignment.capability,
+                  consequence: 'No description available for this capability yet.',
+                }
                 return (
-                  <ImageGenerationRow
+                  <CapabilityRow
                     key={assignment.capability}
                     assignment={assignment}
                     label={copy.label}
                     consequence={copy.consequence}
-                    providers={providers.filter((p) => p.isEnabled && p.hasCredential)}
+                    // Image generation pins its own model, so a provider without a default model is
+                    // still usable for it; every other capability falls back to that default and
+                    // would otherwise store a setting that silently does nothing.
+                    providers={
+                      assignment.capability === 'ImageGeneration'
+                        ? providers.filter((p) => p.isEnabled && p.hasCredential)
+                        : selectable
+                    }
                     disabled={assignMutation.isPending}
                     onAssign={(providerId, modelId) =>
-                      assignMutation.mutate({ capability: 'ImageGeneration', providerId, modelId })
+                      assignMutation.mutate({
+                        capability: assignment.capability,
+                        providerId,
+                        modelId: modelId ?? undefined,
+                      })
                     }
                   />
                 )
-              }
-              return (
-                <TableRow key={assignment.capability}>
-                  <TableCell>
-                    <Typography variant="body2">{copy.label}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {copy.consequence}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {/*
-                      A real InputLabel wired through labelId, kept visually hidden: MUI names the
-                      combobox from it, so the control has an accessible name for a screen reader
-                      instead of an aria-label stranded on the hidden native input.
-                    */}
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
-                      <InputLabel id={`${assignment.capability}-label`} sx={visuallyHidden}>
-                        {`Provider for ${copy.label}`}
-                      </InputLabel>
-                      <Select
-                        labelId={`${assignment.capability}-label`}
-                        size="small"
-                        value={assignment.providerId ?? ''}
-                        displayEmpty
-                        disabled={hasNoProviders || assignMutation.isPending}
-                        onChange={(event) =>
-                          assignMutation.mutate({
-                            capability: assignment.capability,
-                            providerId: event.target.value === '' ? null : event.target.value,
-                          })
-                        }
-                        // The empty value is a placeholder, never a choice — there is no
-                        // "platform default" to pick. Until a provider is chosen the control
-                        // says so, and with nothing to choose from it says that instead.
-                        renderValue={(value) => {
-                          const chosen = providerName(value as string)
-                          if (chosen) return chosen
-                          return (
-                            <Typography component="span" variant="body2" color="text.secondary">
-                              {hasNoProviders ? 'No AI provider available' : 'Please select AI provider'}
-                            </Typography>
-                          )
-                        }}
-                        sx={{ minWidth: 200 }}
-                      >
-                        {selectable.map((provider) => (
-                          <MenuItem key={provider.id} value={provider.id}>
-                            {provider.displayName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </TableCell>
-                  <TableCell>
-                    {assignment.providerId && effective ? (
-                      <Typography variant="body2">{effective}</Typography>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Not assigned
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+              })}
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Alert severity="info">
+        Each capability runs on the provider assigned here. Leave its model on &ldquo;Provider
+        default&rdquo; to follow that provider&apos;s default model, or pick a different one of
+        its models for this capability alone. Image generation must pick an image-capable model:
+        a provider&apos;s default is a chat model and cannot draw.
+      </Alert>
+
+      {selectable.length === 0 && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          No provider can be assigned yet. Enable a provider with its credential on the Providers
+          page, then give it a default model on the Default models page.
+        </Alert>
+      )}
 
       <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
         <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
@@ -252,44 +233,73 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
   )
 }
 
-interface ImageGenerationRowProps {
+interface CapabilityRowProps {
   assignment: AiCapabilityAssignment
   label: string
   consequence: string
-  /** Enabled and credentialled — a default model is irrelevant here, since this row pins its own. */
+  /** The providers offerable for this capability. */
   providers: AdminAiProvider[]
   disabled: boolean
-  onAssign: (providerId: string, modelId: string) => void
+  onAssign: (providerId: string | null, modelId: string | null) => void
 }
 
 /**
- * Image generation is the one capability a provider's default model cannot serve (it is a chat
- * model), so this row pins a model as well. Choosing a provider only narrows the model list —
- * nothing is saved until a model is chosen, because the server rejects an image assignment
- * without one rather than store a setting that could never work.
+ * One capability: which provider serves it, and which of that provider's models it runs on.
+ *
+ * The model is chosen per capability rather than once per provider, because the same provider
+ * serves different capabilities best with different models — chat on a fast, cheap chat model,
+ * image generation on an image model no chat model could stand in for. Leaving the model unset
+ * falls back to the provider's own default, which is what the dropdown shows as its placeholder.
+ *
+ * Image generation is the one capability that cannot fall back: a provider's default model is a
+ * chat model, and the server rejects an image assignment with no image-capable model pinned. So
+ * there the provider choice is held locally until a model is picked, and "Provider default" is
+ * not offered at all.
  */
-function ImageGenerationRow({ assignment, label, consequence, providers, disabled, onAssign }: ImageGenerationRowProps) {
+function CapabilityRow({ assignment, label, consequence, providers, disabled, onAssign }: CapabilityRowProps) {
+  const needsPinnedModel = assignment.capability === 'ImageGeneration'
   const [providerId, setProviderId] = useState<string>(assignment.providerId ?? '')
 
-  const { data: models, isLoading, isError } = useQuery({
+  const {
+    data: models,
+    isLoading: modelsLoading,
+    isError: modelsFailed,
+  } = useQuery({
     queryKey: ['admin', 'ai-models', providerId],
     queryFn: () => adminAiProvidersApi.getModels(providerId),
     enabled: providerId !== '',
   })
 
-  // Available and able to produce images — the same two rules the server validates.
-  const imageModels = (models ?? []).filter((m) => m.status === 'Available' && m.capabilities.imageOutput)
-  const assignedModelId = providerId === assignment.providerId ? (assignment.modelId ?? '') : ''
-  const runningModel = assignment.effectiveModelId
-    ? ((models ?? []).find((m) => m.id === assignment.effectiveModelId)?.displayName ?? null)
-    : null
-  const runningProvider = providers.find((p) => p.id === assignment.effectiveProviderId)?.displayName ?? null
+  // The same two rules the server validates, plus image output where the capability demands it.
+  const selectableModels = (models ?? []).filter(
+    (model) => model.status === 'Available' && (!needsPinnedModel || model.capabilities.imageOutput),
+  )
 
-  const modelPlaceholder = isLoading
+  // Only meaningful while the row still shows the saved provider: after switching, the saved pin
+  // belongs to the provider that was replaced.
+  const pinnedModelId = providerId === assignment.providerId ? (assignment.modelId ?? '') : ''
+  const provider = providers.find((p) => p.id === providerId)
+  const providerDefaultModel = provider?.defaultModelId
+    ? ((models ?? []).find((m) => m.id === provider.defaultModelId)?.displayName ?? null)
+    : null
+
+  const providerDefaultLabel = providerDefaultModel ? `Provider default · ${providerDefaultModel}` : 'Provider default'
+  const modelPlaceholder = modelsLoading
     ? 'Loading models…'
-    : imageModels.length === 0
-      ? 'No image-capable model'
-      : 'Please select image model'
+    : selectableModels.length === 0
+      ? needsPinnedModel
+        ? 'No image-capable model'
+        : 'No model available'
+      : needsPinnedModel
+        ? 'Please select image model'
+        : providerDefaultLabel
+
+  const handleProviderChange = (value: string) => {
+    setProviderId(value)
+    // Nothing to save yet for image generation — without a model the server rejects it outright.
+    if (needsPinnedModel) return
+    onAssign(value === '' ? null : value, null)
+  }
 
   return (
     <TableRow>
@@ -300,82 +310,87 @@ function ImageGenerationRow({ assignment, label, consequence, providers, disable
         </Typography>
       </TableCell>
       <TableCell>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel id="ImageGeneration-label" sx={visuallyHidden}>
-              {`Provider for ${label}`}
-            </InputLabel>
-            <Select
-              labelId="ImageGeneration-label"
-              size="small"
-              value={providerId}
-              displayEmpty
-              disabled={providers.length === 0 || disabled}
-              onChange={(event) => setProviderId(event.target.value)}
-              renderValue={(value) =>
-                providers.find((p) => p.id === value)?.displayName ?? (
-                  <Typography component="span" variant="body2" color="text.secondary">
-                    {providers.length === 0 ? 'No AI provider available' : 'Please select AI provider'}
-                  </Typography>
-                )
-              }
-            >
-              {providers.map((provider) => (
-                <MenuItem key={provider.id} value={provider.id}>
-                  {provider.displayName}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {providerId !== '' && (
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel id="ImageGeneration-model-label" sx={visuallyHidden}>
-                {`Image model for ${label}`}
+        {/*
+          A real InputLabel wired through labelId, kept visually hidden: MUI names the combobox
+          from it, so the control has an accessible name for a screen reader instead of an
+          aria-label stranded on the hidden native input.
+        */}
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel id={`${assignment.capability}-label`} sx={visuallyHidden}>
+            {`Provider for ${label}`}
+          </InputLabel>
+          <Select
+            labelId={`${assignment.capability}-label`}
+            size="small"
+            value={providerId}
+            displayEmpty
+            disabled={providers.length === 0 || disabled}
+            onChange={(event) => handleProviderChange(event.target.value)}
+            // The empty value is a placeholder, never a choice — there is no "platform default"
+            // to pick. Until a provider is chosen the control says so, and with nothing to choose
+            // from it says that instead.
+            renderValue={(value) =>
+              providers.find((p) => p.id === value)?.displayName ?? (
+                <Typography component="span" variant="body2" color="text.secondary">
+                  {providers.length === 0 ? 'No AI provider available' : 'Please select AI provider'}
+                </Typography>
+              )
+            }
+          >
+            {providers.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {option.displayName}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </TableCell>
+      <TableCell>
+        {providerId === '' ? (
+          <Typography variant="body2" color="text.secondary">
+            Assign a provider first
+          </Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel id={`${assignment.capability}-model-label`} sx={visuallyHidden}>
+                {`Model for ${label}`}
               </InputLabel>
               <Select
-                labelId="ImageGeneration-model-label"
+                labelId={`${assignment.capability}-model-label`}
                 size="small"
-                value={assignedModelId}
+                value={pinnedModelId}
                 displayEmpty
-                disabled={disabled || isLoading || imageModels.length === 0}
-                onChange={(event) => onAssign(providerId, event.target.value)}
+                disabled={disabled || modelsLoading || selectableModels.length === 0}
+                onChange={(event) => onAssign(providerId, event.target.value === '' ? null : event.target.value)}
                 renderValue={(value) =>
-                  imageModels.find((m) => m.id === value)?.displayName ?? (
+                  selectableModels.find((m) => m.id === value)?.displayName ?? (
                     <Typography component="span" variant="body2" color="text.secondary">
                       {modelPlaceholder}
                     </Typography>
                   )
                 }
               >
-                {imageModels.map((model) => (
+                {!needsPinnedModel && <MenuItem value="">{providerDefaultLabel}</MenuItem>}
+                {selectableModels.map((model) => (
                   <MenuItem key={model.id} value={model.id}>
                     {model.displayName}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-          )}
 
-          {isError && (
-            <Typography variant="caption" color="error">
-              Couldn&apos;t load this provider&apos;s models.
-            </Typography>
-          )}
-          {!isLoading && !isError && providerId !== '' && imageModels.length === 0 && (
-            <Typography variant="caption" color="text.secondary">
-              This provider has no Available model marked as able to produce images. Add or enable one on the Models page.
-            </Typography>
-          )}
-        </Box>
-      </TableCell>
-      <TableCell>
-        {assignment.effectiveProviderId && runningProvider ? (
-          <Typography variant="body2">{runningModel ? `${runningProvider} · ${runningModel}` : runningProvider}</Typography>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            Not configured
-          </Typography>
+            {modelsFailed && (
+              <Typography variant="caption" color="error">
+                Couldn&apos;t load this provider&apos;s models.
+              </Typography>
+            )}
+            {needsPinnedModel && !modelsLoading && !modelsFailed && selectableModels.length === 0 && (
+              <Typography variant="caption" color="text.secondary">
+                This provider has no Available model marked as able to produce images. Add or enable one on the Models page.
+              </Typography>
+            )}
+          </Box>
         )}
       </TableCell>
     </TableRow>

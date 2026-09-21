@@ -11,6 +11,8 @@ import {
   Typography,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import { getVoiceProviderHealth } from '../../chat/api/voiceApi'
 
 const DIRECTION_LABEL: Record<string, string> = {
@@ -25,7 +27,7 @@ const DIRECTION_LABEL: Record<string, string> = {
  * already checks here (last 24h, same window the backend defaults to when unspecified).
  */
 export function VoiceFailoverPanel() {
-  const { data: health } = useQuery({
+  const { data: health, isLoading } = useQuery({
     queryKey: ['admin', 'voice-provider-health'],
     queryFn: () => getVoiceProviderHealth(),
   })
@@ -57,6 +59,7 @@ export function VoiceFailoverPanel() {
             </TableRow>
           </TableHead>
           <TableBody>
+            {isLoading && <TableLoadingRow colSpan={3} />}
             {health?.events.map((event, index) => (
               <TableRow key={`${event.occurredAtUtc}-${index}`}>
                 <TableCell>{new Date(event.occurredAtUtc).toLocaleString()}</TableCell>
@@ -64,14 +67,8 @@ export function VoiceFailoverPanel() {
                 <TableCell>{event.reason ?? '—'}</TableCell>
               </TableRow>
             ))}
-            {health?.events.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3}>
-                  <Typography variant="body2" color="text.secondary">
-                    No failovers in the last 24 hours.
-                  </Typography>
-                </TableCell>
-              </TableRow>
+            {!isLoading && health?.events.length === 0 && (
+              <TableEmptyRow colSpan={3} message="No failovers in the last 24 hours." />
             )}
           </TableBody>
         </Table>

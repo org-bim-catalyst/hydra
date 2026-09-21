@@ -85,6 +85,29 @@ describe('AdminShell', () => {
     expect(screen.getByText('section content')).toBeInTheDocument()
   })
 
+  // specs/062 US2 — the sidebar and content pane must stretch to the full viewport height, like
+  // the Account Settings page, and the content pane scrolls independently of the sidebar.
+  it('stretches the sidebar and content pane to fill the available height', () => {
+    renderShell()
+
+    const nav = screen.getByRole('navigation', { name: 'Admin sections' })
+    const row = nav.parentElement
+    expect(row).toHaveStyle({ alignItems: 'stretch' })
+
+    const content = screen.getByText('section content').parentElement
+    expect(content).toHaveStyle({ display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 1 0%' })
+  })
+
+  it('keeps the sidebar stretched to match the content pane when collapsed', () => {
+    renderShell()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+
+    const nav = screen.getByRole('navigation', { name: 'Admin sections' })
+    const row = nav.parentElement
+    expect(row).toHaveStyle({ alignItems: 'stretch' })
+  })
+
   // specs/060-hangfire-dashboard-access: the "Jobs" entry is `builtInOnly` (Administrator/Super
   // User only), same gate as Roles/Role assignments — asserted directly here since, unlike those,
   // it renders as a button rather than a link and so isn't covered by the link-count assertion
@@ -98,6 +121,31 @@ describe('AdminShell', () => {
     renderShell()
     const navs = screen.getAllByRole('navigation', { name: 'Admin sections' })
     expect(within(navs[navs.length - 1]).queryByText('Jobs')).not.toBeInTheDocument()
+  })
+
+  // specs/062 US5 — "System agents" sits right after "Role assignments", set off from the rest
+  // of the nav by a single divider.
+  it('orders System agents right after Role assignments, separated by one divider', () => {
+    renderShell()
+
+    const nav = screen.getByRole('navigation', { name: 'Admin sections' })
+    const labels = ADMIN_NAV.map((item) => item.label)
+    const roleAssignmentsIndex = labels.indexOf('Role assignments')
+    expect(labels[roleAssignmentsIndex + 1]).toBe('System agents')
+
+    // The sidebar's own header divider (above the list) plus this one grouping divider — two
+    // total, not one — so scope the assertion to the <List> itself. The divider row is its own
+    // <li> wrapping an <hr> (an <hr> can't be a direct sibling of the row <li>s in a <ul> once it
+    // carries role="separator" — see AdminShell.tsx), so a divider row is identified by having no
+    // link/button of its own.
+    const list = nav.querySelector('ul')
+    const children = Array.from(list?.children ?? [])
+    const dividerRows = children.filter((child) => child.querySelector('.MuiDivider-root'))
+    expect(dividerRows).toHaveLength(1)
+
+    const dividerIndex = children.indexOf(dividerRows[0])
+    const systemAgentsChildIndex = children.findIndex((child) => child.textContent?.includes('System agents'))
+    expect(dividerIndex).toBe(systemAgentsChildIndex + 1)
   })
 
   it('mints a dashboard session and opens a new tab when Jobs is clicked', async () => {

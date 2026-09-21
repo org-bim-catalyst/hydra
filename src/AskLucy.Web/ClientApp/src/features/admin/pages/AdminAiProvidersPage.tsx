@@ -16,10 +16,14 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { visuallyHidden } from '@mui/utils'
 import { useQuery } from '@tanstack/react-query'
+import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import { AdminShell } from '../components/AdminShell'
 import { AiProviderActionsMenu } from '../components/AiProviderActionsMenu'
 import { ProviderHealthCell } from '../components/ProviderHealthCell'
+import { ProviderStalenessCell } from '../components/ProviderStalenessCell'
 import { ProviderModelsSection } from '../components/ProviderModelsSection'
 
 const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
@@ -30,11 +34,19 @@ const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
  * (specs/005-multi-provider-ai-engine). Mirrors AdminUsersPage.tsx's table shape.
  */
 export function AdminAiProvidersPage() {
-  const { data: providers } = useQuery({
+  const { data: providers, isLoading } = useQuery({
     queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY,
     queryFn: adminAiProvidersApi.getProviders,
   })
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null)
+
+  // While the body holds only the empty-state row, stretch the table over the whole container so
+  // that row centres in it instead of hugging the header. Not while loading: the skeleton rows
+  // fill the body themselves, and stretching would smear six of them over the page.
+  const showsStatusRow = !isLoading && (providers ?? []).length === 0
+
+  // Keeps the container's bottom edge on a row boundary: no half-visible last row.
+  const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll()
 
   return (
     <AdminShell
@@ -42,9 +54,9 @@ export function AdminAiProvidersPage() {
       subtitle="Enable a provider, configure its credential, and mark which of its models are available"
 
     >
-      <Paper elevation={1}>
-        <TableContainer>
-          <Table>
+      <Paper elevation={1} sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <TableContainer ref={tableRef} sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }}>
+          <Table sx={{ height: showsStatusRow ? '100%' : undefined }}>
             <TableHead>
               <TableRow>
                 <TableCell>
@@ -56,10 +68,15 @@ export function AdminAiProvidersPage() {
                 <TableCell>Enabled</TableCell>
                 <TableCell>Credential</TableCell>
                 <TableCell>Health</TableCell>
+                <TableCell>Last confirmed</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
+              {isLoading && <TableLoadingRow colSpan={7} />}
+              {!isLoading && (providers ?? []).length === 0 && (
+                <TableEmptyRow colSpan={7} message="No AI providers found." />
+              )}
               {providers?.map((provider) => {
                 const isExpanded = expandedProviderId === provider.id
                 return (
@@ -102,13 +119,16 @@ export function AdminAiProvidersPage() {
                       <TableCell>
                         <ProviderHealthCell provider={provider} />
                       </TableCell>
+                      <TableCell>
+                        <ProviderStalenessCell provider={provider} />
+                      </TableCell>
                       <TableCell align="right">
                         <AiProviderActionsMenu provider={provider} />
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={7}
                         sx={{ p: 0, borderBottom: isExpanded ? undefined : 'none' }}
                       >
                         <Collapse in={isExpanded} unmountOnExit>

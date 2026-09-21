@@ -17,6 +17,8 @@ import {
 } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import type { AgentToolRiskLevel, McpToolActivationStatus } from '../api/mcpServersApi'
 import { useMcpServerTools } from '../hooks/useMcpServers'
 import { useActivateMcpTool, useDeactivateMcpTool } from '../hooks/useMcpServerMutations'
@@ -71,15 +73,9 @@ export function McpToolActivationPanel({ serverId }: { serverId: string }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell colSpan={5}>Loading…</TableCell>
-              </TableRow>
-            )}
+            {isLoading && <TableLoadingRow colSpan={5} />}
             {!isLoading && (tools ?? []).length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5}>No tools discovered yet. Refresh capabilities to discover them.</TableCell>
-              </TableRow>
+              <TableEmptyRow colSpan={5} message="No tools discovered yet. Refresh capabilities to discover them." />
             )}
             {(tools ?? []).map((tool) => (
               <TableRow key={tool.id}>

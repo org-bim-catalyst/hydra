@@ -159,4 +159,18 @@ describe('AdminDefaultModelsPage', () => {
 
     expect(await screen.findByText(/Something went wrong/)).toBeInTheDocument()
   })
+
+  // specs/062 US2/US3 — the table fills the available height and the hint sits below it
+  // (rather than above it), with breathing room between the two rather than sitting flush.
+  it('renders the hint after the table, with space between them', async () => {
+    renderPage([model({})])
+
+    const table = await screen.findByRole('table')
+    const hint = await screen.findByText(/Only providers that are enabled with a credential/)
+
+    expect(table.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const tableWrapper = table.closest('.MuiTableContainer-root')
+    expect(tableWrapper).not.toHaveStyle({ marginBottom: '0px' })
+  })
 })

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import { useMcpAuditLog } from '../hooks/useMcpServers'
 
 /** spec.md FR-058 — cursor-paginated audit trail for one MCP server. */
@@ -25,15 +27,9 @@ export function McpAuditLogTable({ serverId }: { serverId: string }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell colSpan={4}>Loading…</TableCell>
-              </TableRow>
-            )}
+            {isLoading && <TableLoadingRow colSpan={4} />}
             {!isLoading && (data?.items ?? []).length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>No audit entries yet.</TableCell>
-              </TableRow>
+              <TableEmptyRow colSpan={4} message="No audit entries yet." />
             )}
             {(data?.items ?? []).map((entry) => (
               <TableRow key={entry.id}>

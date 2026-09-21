@@ -21,7 +21,7 @@ export function AdminAiCapabilitiesPage() {
   return (
     <AdminShell
       title="AI capabilities"
-      subtitle="Choose which provider serves each capability — the model follows from that provider's default"
+      subtitle="Choose which provider and model serves each capability"
 
     >
       <CapabilityAssignmentsSection providers={providers ?? []} />

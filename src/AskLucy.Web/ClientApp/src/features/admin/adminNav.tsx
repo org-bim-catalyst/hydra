@@ -31,6 +31,8 @@ export interface AdminNavItem {
    */
   permission?: string | string[]
   builtInOnly?: boolean
+  /** specs/062 US5 — renders a horizontal divider immediately after this entry. */
+  dividerAfter?: boolean
   /**
    * Renders this entry as a button rather than a `RouterLink` (specs/060-hangfire-dashboard-
    * access) — for a row that triggers an action (mint a session, open a new tab) instead of
@@ -57,6 +59,13 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { path: '/admin/roles', label: 'Roles', icon: <BadgeOutlinedIcon fontSize="small" />, builtInOnly: true },
   { path: '/admin/role-assignments', label: 'Role assignments', icon: <AssignmentIndOutlinedIcon fontSize="small" />, builtInOnly: true },
   {
+    path: '/admin/system-agents',
+    label: 'System agents',
+    icon: <SupportAgentOutlinedIcon fontSize="small" />,
+    permission: 'admin.system-agents.view',
+    dividerAfter: true,
+  },
+  {
     path: '/admin/ai-providers',
     label: 'AI providers',
     icon: <HubOutlinedIcon fontSize="small" />,
@@ -65,7 +74,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
   { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
   { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
-  { path: '/admin/system-agents', label: 'System agents', icon: <SupportAgentOutlinedIcon fontSize="small" />, permission: 'admin.system-agents.view' },
   { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
   { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },
   {

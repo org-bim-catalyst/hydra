@@ -137,6 +137,32 @@ describe('AdminAiProvidersPage accessibility', () => {
     expect(results).toHaveNoViolations()
   })
 
+  it('renders the staleness indicator in its own column, never sharing a cell with the health chip (specs/062 FR-001/FR-002/SC-001)', async () => {
+    // Regression coverage for the original bug: the staleness chip used to share one
+    // flex-wrap cell with the health status chip, causing it to wrap onto a second line and
+    // its tooltip to overlap the row below at narrow viewport widths. Asserting the two chips
+    // live in different table cells structurally guarantees no shared container remains for
+    // that wrap to happen in, independent of any single viewport width.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { findByText } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdminAiProvidersPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const healthChip = await findByText('Configured — temporarily limited')
+    const stalenessChip = await findByText('Possibly out of date')
+
+    const healthCell = healthChip.closest('td')
+    const stalenessCell = stalenessChip.closest('td')
+
+    expect(healthCell).not.toBeNull()
+    expect(stalenessCell).not.toBeNull()
+    expect(healthCell).not.toBe(stalenessCell)
+  })
+
   it('has no automatically detectable a11y violations with a provider row expanded — model table, status menu, and sync dialog open (constitution §10)', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { container, findByText, findByRole, getByText } = render(

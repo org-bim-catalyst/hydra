@@ -11,15 +11,17 @@ import {
   ListItemIcon,
   ListItemText,
   Snackbar,
+  Stack,
   Tooltip,
   Typography,
   alpha,
 } from '@mui/material'
 import type { ReactNode } from 'react'
 import type { Theme } from '@mui/material'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
+import { AdminSectionActionsContext } from './adminSectionActionsContext'
 import { ADMIN_NAV } from '../adminNav'
 import { overlaySurface } from '../../../theme/tokens/overlaySurface'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
@@ -62,6 +64,9 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
     const keys = Array.isArray(item.permission) ? item.permission : [item.permission]
     return keys.some((key) => permissions.includes(key))
   }).map((item) => (item.id === 'hangfire-dashboard' ? { ...item, onSelect: hangfireDashboard.open } : item))
+  // State rather than a ref: a section's controls portal into this node, and the portal must
+  // re-render once the node exists.
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
   const [collapsed, setCollapsed] = useState(() => {
     // Per-browser convenience only, so a failure to read it must never break the page —
     // private windows and blocked site data both throw here.
@@ -85,8 +90,18 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
   }
 
   return (
-    <AppShell title={title} subtitle={subtitle} actions={actions}>
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', minHeight: 0 }}>
+    <AppShell
+      title={title}
+      subtitle={subtitle}
+      actions={
+        <Stack ref={setActionsSlot} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          {actions}
+        </Stack>
+      }
+      fillViewport
+    >
+      <AdminSectionActionsContext.Provider value={actionsSlot}>
+      <Box sx={{ display: 'flex', flex: 1, gap: 2, alignItems: 'stretch', minHeight: 0 }}>
         <Box
           component="nav"
           aria-label="Admin sections"
@@ -137,48 +152,60 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
               return (
                 // Each row wrapped in a ListItem so it renders an <li>: ListItemButton with
                 // component={RouterLink} is an <a>, and a <ul> may only contain <li> directly.
-                <ListItem key={item.id ?? item.path} disablePadding sx={{ display: 'block' }}>
-                  <Tooltip title={collapsed ? item.label : ''} placement="right">
-                    {item.onSelect ? (
-                      <ListItemButton onClick={item.onSelect} disabled={hangfireDashboard.isPending} sx={itemSx}>
-                        <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
-                          {item.icon}
-                        </ListItemIcon>
-                        {!collapsed && (
-                          <ListItemText
-                            primary={item.label}
-                            slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
-                          />
-                        )}
-                      </ListItemButton>
-                    ) : (
-                      <ListItemButton
-                        component={RouterLink}
-                        to={item.path ?? ''}
-                        selected={selected}
-                        aria-current={selected ? 'page' : undefined}
-                        sx={itemSx}
-                      >
-                        <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
-                          {item.icon}
-                        </ListItemIcon>
-                        {!collapsed && (
-                          <ListItemText
-                            primary={item.label}
-                            slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
-                          />
-                        )}
-                      </ListItemButton>
-                    )}
-                  </Tooltip>
-                </ListItem>
+                // A dividerAfter entry's <hr> is likewise wrapped in its own <li> — MUI's Divider
+                // sets role="separator" on itself whenever it isn't rendered as a bare <hr>, and
+                // an element with that role isn't a valid direct child of a <ul> (axe's list
+                // rule), so the <hr> must nest inside a plain <li> rather than replace one.
+                <Fragment key={item.id ?? item.path}>
+                  <ListItem disablePadding sx={{ display: 'block' }}>
+                    <Tooltip title={collapsed ? item.label : ''} placement="right">
+                      {item.onSelect ? (
+                        <ListItemButton onClick={item.onSelect} disabled={hangfireDashboard.isPending} sx={itemSx}>
+                          <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
+                            {item.icon}
+                          </ListItemIcon>
+                          {!collapsed && (
+                            <ListItemText
+                              primary={item.label}
+                              slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
+                            />
+                          )}
+                        </ListItemButton>
+                      ) : (
+                        <ListItemButton
+                          component={RouterLink}
+                          to={item.path ?? ''}
+                          selected={selected}
+                          aria-current={selected ? 'page' : undefined}
+                          sx={itemSx}
+                        >
+                          <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
+                            {item.icon}
+                          </ListItemIcon>
+                          {!collapsed && (
+                            <ListItemText
+                              primary={item.label}
+                              slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
+                            />
+                          )}
+                        </ListItemButton>
+                      )}
+                    </Tooltip>
+                  </ListItem>
+                  {item.dividerAfter && (
+                    <ListItem component="li" disablePadding sx={{ display: 'block' }}>
+                      <Divider sx={{ my: 0.75 }} />
+                    </ListItem>
+                  )}
+                </Fragment>
               )
             })}
           </List>
         </Box>
 
-        <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
       </Box>
+      </AdminSectionActionsContext.Provider>
 
       <Snackbar open={hangfireDashboard.errorMessage !== null} autoHideDuration={6000} onClose={hangfireDashboard.clearError}>
         <Alert severity="error" variant="filled" onClose={hangfireDashboard.clearError}>

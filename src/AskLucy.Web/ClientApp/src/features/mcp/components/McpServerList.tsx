@@ -10,7 +10,6 @@ import {
   DialogTitle,
   IconButton,
   Paper,
-  Stack,
   Switch,
   Table,
   TableBody,
@@ -20,14 +19,17 @@ import {
   TableRow,
   TextField,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import NetworkCheckIcon from '@mui/icons-material/NetworkCheck'
 import KeyIcon from '@mui/icons-material/Key'
+import { AdminSectionActions } from '../../admin/components/AdminSectionActions'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import type { McpServer, RegisterMcpServerInput } from '../api/mcpServersApi'
+import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { useMcpServers } from '../hooks/useMcpServers'
 import {
   useDeleteMcpServer,
@@ -44,10 +46,16 @@ import { McpServerForm } from './McpServerForm'
 interface McpServerListProps {
   selectedServerId: string | null
   onSelectServer: (id: string) => void
+  /**
+   * Fill the page rather than shrink-wrapping the rows, so the registry card looks the same
+   * height whether it holds twenty servers or none. Switched off once a server is selected,
+   * where the detail panels below need the room more than an empty gap does.
+   */
+  fillHeight?: boolean
 }
 
 /** spec.md User Story 1 — MCP server registry administration (register/edit/enable/disable/remove/test/refresh). */
-export function McpServerList({ selectedServerId, onSelectServer }: McpServerListProps) {
+export function McpServerList({ selectedServerId, onSelectServer, fillHeight = false }: McpServerListProps) {
   const { data: servers, isLoading } = useMcpServers()
 
   const [formOpen, setFormOpen] = useState(false)
@@ -119,14 +127,21 @@ export function McpServerList({ selectedServerId, onSelectServer }: McpServerLis
 
   const isSaving = registerServer.isPending || updateServer.isPending
 
+  // While the body holds only the empty-state row, stretch the table over the whole container so
+  // that row centres in it instead of hugging the header. Not while loading: the skeleton rows
+  // fill the body themselves, and stretching would smear six of them over the page.
+  const showsStatusRow = !isLoading && (servers?.items ?? []).length === 0
+
+  // Keeps the container's bottom edge on a row boundary: no half-visible last row.
+  const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll(fillHeight ? undefined : 480)
+
   return (
-    <Box>
-      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6">MCP Servers</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, ...(fillHeight && { flex: 1 }) }}>
+      <AdminSectionActions>
         <Button variant="contained" onClick={openRegisterForm}>
           Register server
         </Button>
-      </Stack>
+      </AdminSectionActions>
 
       {errorMessage && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMessage(null)}>
@@ -134,8 +149,16 @@ export function McpServerList({ selectedServerId, onSelectServer }: McpServerLis
         </Alert>
       )}
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer
+        ref={tableRef}
+        component={Paper}
+        sx={
+          fillHeight
+            ? { flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }
+            : { maxHeight: tableMaxHeight ?? 480, overflow: 'auto' }
+        }
+      >
+        <Table sx={{ '& tr:last-child td': { border: 0 }, height: showsStatusRow ? '100%' : undefined }}>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -146,15 +169,9 @@ export function McpServerList({ selectedServerId, onSelectServer }: McpServerLis
             </TableRow>
           </TableHead>
           <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell colSpan={5}>Loading…</TableCell>
-              </TableRow>
-            )}
+            {isLoading && <TableLoadingRow colSpan={5} />}
             {!isLoading && (servers?.items ?? []).length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5}>No MCP servers registered yet.</TableCell>
-              </TableRow>
+              <TableEmptyRow colSpan={5} message="No MCP servers registered yet." />
             )}
             {(servers?.items ?? []).map((server) => (
               <TableRow

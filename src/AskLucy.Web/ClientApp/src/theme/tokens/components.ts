@@ -36,6 +36,17 @@ export function createComponents(): Components<Theme> {
         }
       },
     },
+    // Dropdown surfaces never lock body scroll. MUI's default lock adds a compensating
+    // `padding-right` to <body> equal to the scrollbar width whenever it removes the
+    // scrollbar, which visibly shoved the whole page left every time the account menu
+    // opened. Dialogs and drawers keep the lock (a modal task genuinely should not scroll
+    // the page behind it); a menu is transient enough that scrolling it away is fine.
+    MuiPopover: {
+      defaultProps: { disableScrollLock: true },
+    },
+    MuiMenu: {
+      defaultProps: { disableScrollLock: true },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {

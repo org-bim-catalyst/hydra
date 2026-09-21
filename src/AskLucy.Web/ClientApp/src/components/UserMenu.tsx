@@ -97,6 +97,9 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
         // `animate-scale-in origin-top-right` — 300ms ease-out, growing out of the corner it
         // is anchored to.
         transitionDuration={overlaySurface.enterDurationMs}
+        // Belt-and-braces over the theme default: opening this menu must never re-pad <body>
+        // and nudge the page sideways.
+        disableScrollLock
         slotProps={{
           list: { sx: { p: 0 } },
           paper: {

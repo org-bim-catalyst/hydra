@@ -109,7 +109,8 @@ describe('CapabilityAssignmentsSection', () => {
     // present that as configuration: an unassigned capability is a decision not yet made.
     renderSection([unassigned])
 
-    expect(await screen.findByText('Not assigned')).toBeInTheDocument()
+    expect(await screen.findByText('Please select AI provider')).toBeInTheDocument()
+    expect(screen.getByText('Assign a provider first')).toBeInTheDocument()
   })
 
   it('lists every provider that is enabled, credentialled and has a default model', async () => {
@@ -187,6 +188,20 @@ describe('CapabilityAssignmentsSection', () => {
 
     expect(await screen.findByText(/Something went wrong/)).toBeInTheDocument()
   })
+
+  // specs/062 US3 — the table stretches to fill height and the hint sits below it (rather
+  // than above it), regardless of row count, with breathing room between the two.
+  it('renders the hint after the table, with space between them', async () => {
+    renderSection([unassigned])
+
+    const table = await screen.findByRole('table')
+    const hint = await screen.findByText(/Each capability runs on the provider assigned here/)
+
+    expect(table.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const tableWrapper = table.closest('.MuiTableContainer-root')
+    expect(tableWrapper).not.toHaveStyle({ marginBottom: '0px' })
+  })
 })
 
 describe('CapabilityAssignmentsSection — image generation (specs/057 follow-up)', () => {
@@ -226,13 +241,13 @@ describe('CapabilityAssignmentsSection — image generation (specs/057 follow-up
     vi.mocked(adminAiProvidersApi.setCapabilityAssignment).mockResolvedValue(undefined)
     renderSection([imageUnassigned])
 
-    expect(await screen.findByText('Not configured')).toBeInTheDocument()
+    expect(await screen.findByText('Please select AI provider')).toBeInTheDocument()
 
     const providerMenu = await openProviderMenu('Image generation')
     fireEvent.click(providerMenu.getByText('OpenAI'))
     expect(adminAiProvidersApi.setCapabilityAssignment).not.toHaveBeenCalled()
 
-    const modelSelect = await screen.findByRole('combobox', { name: 'Image model for Image generation' })
+    const modelSelect = await screen.findByRole('combobox', { name: 'Model for Image generation' })
     // Disabled while the provider's models load — MUI ignores a press on a disabled select.
     await waitFor(() => expect(modelSelect).not.toHaveAttribute('aria-disabled', 'true'))
     fireEvent.mouseDown(modelSelect)

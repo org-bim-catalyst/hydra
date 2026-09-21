@@ -1,11 +1,8 @@
-import { Box, Chip, Tooltip, Typography } from '@mui/material'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import { Box, Chip, Typography } from '@mui/material'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 
 interface ProviderHealthCellProps {
   provider: AdminAiProvider
-  /** Injectable for deterministic tests; defaults to the real clock. */
-  now?: Date
 }
 
 type Presentation = {
@@ -24,31 +21,16 @@ type Presentation = {
  * indistinguishable, which made the page actively misleading rather than merely unhelpful.
  *
  * Presentation precedence follows contracts/admin-provider-health-api.md §1.
+ *
+ * The "possibly out of date" staleness indicator lives in its own column — see
+ * ProviderStalenessCell (specs/062 US1).
  */
-export function ProviderHealthCell({ provider, now = new Date() }: ProviderHealthCellProps) {
+export function ProviderHealthCell({ provider }: ProviderHealthCellProps) {
   const presentation = present(provider)
-
-  // FR-019: computed here, against the current clock, so a page left open turns stale on its
-  // own rather than showing a verdict frozen when it was rendered.
-  const isStale =
-    provider.healthStaleAfterUtc !== null && now.getTime() > new Date(provider.healthStaleAfterUtc).getTime()
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-        <Chip size="small" label={presentation.label} color={presentation.color} variant="outlined" />
-        {isStale && (
-          <Tooltip title="This result has not been confirmed recently — the background health check may not be running.">
-            <Chip
-              size="small"
-              icon={<WarningAmberIcon fontSize="small" />}
-              label="Possibly out of date"
-              color="warning"
-              variant="outlined"
-            />
-          </Tooltip>
-        )}
-      </Box>
+      <Chip size="small" label={presentation.label} color={presentation.color} variant="outlined" />
       {presentation.reason && (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
           {presentation.reason}

@@ -12,6 +12,8 @@ import {
 } from '@mui/material'
 import SyncIcon from '@mui/icons-material/Sync'
 import { useQuery } from '@tanstack/react-query'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AdminAiModel, AdminAiProvider } from '../api/adminAiProvidersApi'
 import { AiModelStatusMenu } from './AiModelStatusMenu'
@@ -57,7 +59,7 @@ interface ProviderModelsSectionProps {
 /** specs/008-ai-model-catalog-management US1-US3 — the expanded content for one provider row. */
 export function ProviderModelsSection({ provider }: ProviderModelsSectionProps) {
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
-  const { data: models } = useQuery({
+  const { data: models, isLoading } = useQuery({
     queryKey: ['admin', 'ai-providers', provider.id, 'models'],
     queryFn: () => adminAiProvidersApi.getModels(provider.id),
   })
@@ -86,6 +88,10 @@ export function ProviderModelsSection({ provider }: ProviderModelsSectionProps) 
           </TableRow>
         </TableHead>
         <TableBody>
+          {isLoading && <TableLoadingRow colSpan={6} />}
+          {!isLoading && (models ?? []).length === 0 && (
+            <TableEmptyRow colSpan={6} message="No models found. Sync from the provider to populate this list." />
+          )}
           {models?.map((model) => (
             <TableRow key={model.id}>
               <TableCell>

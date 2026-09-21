@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   Chip,
@@ -24,8 +25,11 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import AddIcon from '@mui/icons-material/Add'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { ApiError } from '../../../api/httpClient'
 import * as adminRolesApi from '../api/adminRolesApi'
+import { TableEmptyRow } from '../../../components/TableEmptyRow'
+import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import type { RoleSummary } from '../api/adminRolesApi'
 import { AdminShell } from '../components/AdminShell'
 import { RoleEditorDialog } from '../components/RoleEditorDialog'
@@ -50,7 +54,7 @@ export function AdminRolesPage() {
 
   const queryClient = useQueryClient()
 
-  const { data, error, refetch, isError } = useQuery({
+  const { data, error, refetch, isError, isLoading } = useQuery({
     queryKey: ['admin', 'roles', { search, page, pageSize }],
     queryFn: () => adminRolesApi.getRoles({ search, page: page + 1, pageSize }),
     placeholderData: (previous) => previous,
@@ -126,6 +130,14 @@ export function AdminRolesPage() {
     setMenuAnchor(null)
   }
 
+  // While the body holds only the empty-state row, stretch the table over the whole container so
+  // that row centres in it instead of hugging the header. Not while loading: the skeleton rows
+  // fill the body themselves, and stretching would smear six of them over the page.
+  const showsStatusRow = !isLoading && (data?.items ?? []).length === 0
+
+  // Keeps the container's bottom edge on a row boundary: no half-visible last row.
+  const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll()
+
   return (
     <AdminShell
       title="Roles"
@@ -136,117 +148,141 @@ export function AdminRolesPage() {
         </Button>
       }
     >
-      <TextField
-        label="Search by name"
-        size="small"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value)
-          setPage(0)
-        }}
-        sx={{ mb: 2, width: { xs: '100%', sm: 320 } }}
-      />
-
-      {isError && (
-        <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={() => refetch()}>Retry</Button>}>
-          {error instanceof ApiError ? (error.detail ?? error.message) : 'Could not load roles.'}
-        </Alert>
-      )}
-
-      {selection.selectedCount(allMatchingTotal) > 0 && (
-        <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
-          <Typography variant="body2" sx={{ mr: 1 }}>
-            {selection.selectedCount(allMatchingTotal)} selected
-          </Typography>
-          <Button size="small" variant="outlined" color="error" onClick={beginBulkDelete}>
-            Delete selected
-          </Button>
-        </Toolbar>
-      )}
-      <Paper elevation={1}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    checked={selection.pageState(selectableIds) === 'all'}
-                    indeterminate={selection.pageState(selectableIds) === 'partial'}
-                    disabled={selectableIds.length === 0}
-                    onChange={handleHeaderCheckboxChange}
-                    slotProps={{ input: { 'aria-label': 'Select all custom roles on this page' } }}
-                  />
-                </TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Permissions</TableCell>
-                <TableCell align="right">Users</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data?.items.map((role) => (
-                <TableRow key={role.id} hover>
-                  <TableCell padding="checkbox">
-                    {!role.isBuiltIn && (
-                      <Checkbox
-                        checked={selection.isSelected(role.id)}
-                        onChange={() => selection.toggleOne(role.id)}
-                        slotProps={{ input: { 'aria-label': `Select ${role.name}` } }}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {role.name}{' '}
-                    {role.isBuiltIn && <Chip size="small" label="Built-in" variant="outlined" sx={{ ml: 0.5 }} />}
-                  </TableCell>
-                  <TableCell>{role.description}</TableCell>
-                  <TableCell>
-                    <Tooltip title={role.permissionKeys.join(', ')}>
-                      <span>{role.permissionKeys.length} permission{role.permissionKeys.length === 1 ? '' : 's'}</span>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell align="right">{role.userCount}</TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="View permissions">
-                      <IconButton
-                        size="small"
-                        aria-label={`View permissions for ${role.name}`}
-                        onClick={() => setViewingPermissionsRole(role)}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    {!role.isBuiltIn && (
-                      <IconButton
-                        size="small"
-                        aria-label={`Actions for ${role.name}`}
-                        onClick={(e) => setMenuAnchor({ el: e.currentTarget, role })}
-                      >
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          component="div"
-          count={data?.totalCount ?? 0}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={pageSize}
-          onRowsPerPageChange={(e) => {
-            setPageSize(Number(e.target.value))
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <TextField
+          label="Search by name"
+          size="small"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
             setPage(0)
           }}
-          rowsPerPageOptions={[10, 20, 50]}
+          sx={{ mb: 2, width: { xs: '100%', sm: 320 } }}
         />
-      </Paper>
 
-      <Menu anchorEl={menuAnchor?.el} open={menuAnchor !== null} onClose={() => setMenuAnchor(null)}>
+        {isError && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            action={<Button onClick={() => refetch()}>Retry</Button>}
+          >
+            {error instanceof ApiError ? (error.detail ?? error.message) : 'Could not load roles.'}
+          </Alert>
+        )}
+
+        {selection.selectedCount(allMatchingTotal) > 0 && (
+          <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
+            <Typography variant="body2" sx={{ mr: 1 }}>
+              {selection.selectedCount(allMatchingTotal)} selected
+            </Typography>
+            <Button size="small" variant="outlined" color="error" onClick={beginBulkDelete}>
+              Delete selected
+            </Button>
+          </Toolbar>
+        )}
+        <Paper
+          elevation={1}
+          sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+        >
+          <TableContainer ref={tableRef} sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }}>
+            <Table sx={{ height: showsStatusRow ? '100%' : undefined }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selection.pageState(selectableIds) === 'all'}
+                      indeterminate={selection.pageState(selectableIds) === 'partial'}
+                      disabled={selectableIds.length === 0}
+                      onChange={handleHeaderCheckboxChange}
+                      slotProps={{
+                        input: { 'aria-label': 'Select all custom roles on this page' },
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Permissions</TableCell>
+                  <TableCell align="right">Users</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {isLoading && <TableLoadingRow colSpan={6} />}
+                {!isLoading && (data?.items ?? []).length === 0 && (
+                  <TableEmptyRow colSpan={6} message="No roles found." />
+                )}
+                {data?.items.map((role) => (
+                  <TableRow key={role.id} hover>
+                    <TableCell padding="checkbox">
+                      {!role.isBuiltIn && (
+                        <Checkbox
+                          checked={selection.isSelected(role.id)}
+                          onChange={() => selection.toggleOne(role.id)}
+                          slotProps={{ input: { 'aria-label': `Select ${role.name}` } }}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {role.name}{' '}
+                      {role.isBuiltIn && (
+                        <Chip size="small" label="Built-in" variant="outlined" sx={{ ml: 0.5 }} />
+                      )}
+                    </TableCell>
+                    <TableCell>{role.description}</TableCell>
+                    <TableCell>
+                      <Tooltip title={role.permissionKeys.join(', ')}>
+                        <span>
+                          {role.permissionKeys.length} permission
+                          {role.permissionKeys.length === 1 ? '' : 's'}
+                        </span>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="right">{role.userCount}</TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="View permissions">
+                        <IconButton
+                          size="small"
+                          aria-label={`View permissions for ${role.name}`}
+                          onClick={() => setViewingPermissionsRole(role)}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {!role.isBuiltIn && (
+                        <IconButton
+                          size="small"
+                          aria-label={`Actions for ${role.name}`}
+                          onClick={(e) => setMenuAnchor({ el: e.currentTarget, role })}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            component="div"
+            count={data?.totalCount ?? 0}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={pageSize}
+            onRowsPerPageChange={(e) => {
+              setPageSize(Number(e.target.value))
+              setPage(0)
+            }}
+            rowsPerPageOptions={[10, 20, 50]}
+          />
+        </Paper>
+      </Box>
+
+      <Menu
+        anchorEl={menuAnchor?.el}
+        open={menuAnchor !== null}
+        onClose={() => setMenuAnchor(null)}
+      >
         <MenuItem onClick={() => menuAnchor && openEdit(menuAnchor.role)}>Edit&hellip;</MenuItem>
         <MenuItem
           onClick={() => {
@@ -263,7 +299,11 @@ export function AdminRolesPage() {
         <DeleteRoleDialog open onClose={() => setDeletingRole(null)} role={deletingRole} />
       )}
       {viewingPermissionsRole && (
-        <RolePermissionsDialog open onClose={() => setViewingPermissionsRole(null)} role={viewingPermissionsRole} />
+        <RolePermissionsDialog
+          open
+          onClose={() => setViewingPermissionsRole(null)}
+          role={viewingPermissionsRole}
+        />
       )}
 
       {scopeDialog && (

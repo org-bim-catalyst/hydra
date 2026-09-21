@@ -15,6 +15,16 @@ interface AppShellProps {
   title?: string
   subtitle?: string
   actions?: ReactNode
+  /**
+   * Caps the shell to exactly the viewport height instead of merely flooring it there
+   * (`height` vs `minHeight`). A `minHeight` floor lets tall content just grow the whole
+   * document past the viewport — nothing ever hits an edge for `overflow: auto` to act on, so
+   * a `flex: 1, minHeight: 0` descendant scrolls internally only when content happens to be
+   * short. Admin pages (specs/062) need that scrolling to be real regardless of content length,
+   * so `AdminShell` opts in; every other page keeps the floor to avoid changing established
+   * page-scroll behavior it wasn't built against.
+   */
+  fillViewport?: boolean
 }
 
 /** Persistent navigation chrome, primarily for authenticated pages (research.md #1) — a
@@ -27,7 +37,7 @@ interface AppShellProps {
  * Also used by `PrivacyPage`, which is reachable both signed-in and pre-login — the
  * account menu (Log out, Profile, Settings) would be actively misleading to show a
  * signed-out visitor, so it's swapped for a plain "Sign in" link based on auth state. */
-export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
+export function AppShell({ children, title, subtitle, actions, fillViewport = false }: AppShellProps) {
   const theme = useTheme()
   const glass = createGlassTokens(theme.palette.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
@@ -37,7 +47,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const isHome = pathname === '/studio'
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ [fillViewport ? 'height' : 'minHeight']: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Box
         component="header"
         sx={{
