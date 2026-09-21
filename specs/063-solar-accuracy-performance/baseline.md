@@ -31,9 +31,17 @@ the expected figure. **These three values are expected to shift by up to ~1 minu
 
 | Time | Azimuth | Altitude | Shadows |
 |---|---|---|---|
+| 06:41 (reported sunrise) | 88.7° | **−0.8°** | None — below-horizon message shown |
 | 12:00 | 157.4° | 58.5° | Cast; very short (sun near its highest) |
 | 17:51 | 263.4° | 12.2° | Cast; long, running ENE |
 | 19:50 | 278.7° | −13.6° | None — below-horizon message shown |
+
+### The defect, captured
+
+At 06:41 the panel simultaneously reports **"Sunrise 06:41"** and **"The sun is below the horizon —
+no shadows are cast."** Two statements from the same module contradicting each other on screen, at
+the instant the module itself nominates. This is the self-consistency failure FR-002 repairs, and
+it is the single clearest before/after comparison in the feature.
 
 **Expected after the fix**:
 
@@ -42,7 +50,9 @@ the expected figure. **These three values are expected to shift by up to ~1 minu
 - **17:51** — altitude rises by roughly 0.07°, invisible in a figure rounded to one decimal.
   Azimuth unchanged. Shadows equally or more sharply defined.
 - **19:50** — still no shadows, still a stated reason.
-- **06:41** (the reported sunrise) — currently reads about **−0.83°**; must read **−0.27°** after.
+- **06:41** — must read **−0.27°**, and the below-horizon message must be **gone**: at the reported
+  sunrise the sun's upper edge is on the horizon, so it has risen. The reported rise time itself may
+  shift by a few tens of seconds; re-read it from the panel rather than reusing 06:41.
 
 ## Observation carried into implementation
 
