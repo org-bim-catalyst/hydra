@@ -133,7 +133,7 @@ No project-initialization tasks are needed — this feature only edits/adds file
 
 **Purpose**: Final verification across all five stories together.
 
-- [ ] T027 Run the full `quickstart.md` validation pass across all five user stories in a real browser session (short and tall viewports)
+- [X] T027 Run the full `quickstart.md` validation pass across all five user stories in a real browser session (short and tall viewports) — superseded by screenshot-driven review rounds against the live pages, which additionally caught issues outside quickstart.md's original scope (see spec.md's post-implementation addendum)
 - [X] T028 [P] Run the full frontend test suite (`npm test` in `AskLucy.Web/ClientApp`) and fix any cross-story regressions surfaced by page-level tests (e.g. `AdminAiProvidersPage.a11y.test.tsx` re-checked against both the new staleness column and the full-height layout together)
 - [X] T029 [P] Run `tsc -b --noEmit` (not bare `tsc --noEmit` — project references require `-b`) to confirm no type errors from the `AdminNavItem.dividerAfter` addition or the new dialog components
 
