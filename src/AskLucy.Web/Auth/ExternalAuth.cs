@@ -65,7 +65,13 @@ public static class ExternalAuth
             context.Properties.Items.TryGetValue(LinkUserIdKey, out linkToUserId);
         }
 
-        var code = await mediator.Send(new ProcessExternalLoginCallbackCommand(provider, providerKey, email, emailVerified, linkToUserId));
+        var firstName = principal?.FindFirstValue(ClaimTypes.GivenName);
+        var lastName = principal?.FindFirstValue(ClaimTypes.Surname);
+        var pictureUrl = principal?.FindFirstValue(
+            provider == GoogleDefaults.AuthenticationScheme ? "urn:google:picture" : "urn:facebook:picture");
+
+        var code = await mediator.Send(new ProcessExternalLoginCallbackCommand(
+            provider, providerKey, email, emailVerified, linkToUserId, firstName, lastName, pictureUrl));
 
         context.Response.Redirect(code is not null
             ? $"{frontendBaseUrl}/auth/external-complete?code={Uri.EscapeDataString(code)}"

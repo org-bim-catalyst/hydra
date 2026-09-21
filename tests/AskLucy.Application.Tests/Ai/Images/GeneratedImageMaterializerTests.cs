@@ -66,7 +66,7 @@ public sealed class GeneratedImageMaterializerTests
     public async Task MaterializeAsync_ShouldDownloadARemoteUrl()
     {
         var url = new Uri("https://files.example/img.png");
-        _downloader.DownloadAsync(url, Arg.Any<CancellationToken>()).Returns(new DownloadedFile(new MemoryStream(Png), "image/png"));
+        _downloader.DownloadAsync(url, cancellationToken: Arg.Any<CancellationToken>()).Returns(new DownloadedFile(new MemoryStream(Png), "image/png"));
 
         var image = await CreateSut().MaterializeAsync(new GeneratedImagePayload.RemoteUrl(url), TestContext.Current.CancellationToken);
 

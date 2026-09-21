@@ -86,7 +86,7 @@ public sealed class GeneratedImageMaterializer(IRemoteFileDownloader remoteFileD
 
     private async Task<byte[]> DownloadAsync(Uri url, CancellationToken cancellationToken)
     {
-        var downloaded = await remoteFileDownloader.DownloadAsync(url, cancellationToken);
+        var downloaded = await remoteFileDownloader.DownloadAsync(url, cancellationToken: cancellationToken);
         await using var content = downloaded.Content;
         using var buffer = new MemoryStream();
         await content.CopyToAsync(buffer, cancellationToken);

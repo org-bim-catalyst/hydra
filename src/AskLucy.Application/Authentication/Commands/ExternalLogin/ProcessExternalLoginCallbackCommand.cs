@@ -10,4 +10,11 @@ namespace AskLucy.Application.Authentication.Commands.ExternalLogin;
 /// or null if resolution failed.
 /// </summary>
 public sealed record ProcessExternalLoginCallbackCommand(
-    string Provider, string ProviderKey, string? Email, bool EmailVerified, string? LinkToUserId) : IRequest<string?>;
+    string Provider,
+    string ProviderKey,
+    string? Email,
+    bool EmailVerified,
+    string? LinkToUserId,
+    string? FirstName,
+    string? LastName,
+    string? PictureUrl) : IRequest<string?>;

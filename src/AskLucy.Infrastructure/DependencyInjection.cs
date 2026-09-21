@@ -17,6 +17,7 @@ using AskLucy.Infrastructure.Documents.Preview;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.Geocoding;
+using AskLucy.Infrastructure.Identity;
 using AskLucy.Infrastructure.KnowledgeBases;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
@@ -311,6 +312,15 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // specs/062-external-login-profile-sync: downloading an OAuth provider's profile-picture
+        // claim URL off the sign-in/link request path (Hangfire job). Same 30s reasoning as the
+        // other outbound-fetch clients above — a short timeout here would turn a slow-but-fine
+        // CDN response into a false failure, silently leaving the avatar unset.
+        services.AddHttpClient("ExternalProfilePictureDownload", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         // Imagery for the Gemini vision cross-check. Google Static Maps is the primary provider:
         // it is what the viewer renders on, so a boundary read off this image is measured in the
         // same reference frame it will be drawn in. 30s matches the vision step's own budget.
@@ -446,7 +456,14 @@ public static class DependencyInjection
         // its own hub because chat itself streams over SSE per turn, not SignalR. SiteAnalysisHub/
         // SiteAnalysisNotifier live here for the same reason PanelHub/PanelNotifier do.
         services.AddScoped<ISiteAnalysisNotifier, SiteAnalysisNotifier>();
-        services.AddScoped<IRemoteFileDownloader, RemoteFileDownloader>();
+        services.AddScoped<IRemoteFileDownloader>(sp =>
+            new RemoteFileDownloader(sp.GetRequiredService<IHttpClientFactory>(), "SiteAnalysisImageDownload"));
+
+        // specs/062-external-login-profile-sync (research.md Decision 5): a second, keyed
+        // registration of the same RemoteFileDownloader against the "ExternalProfilePictureDownload"
+        // client so its host restriction/size cap/timeout stay independent of SiteAnalysis's.
+        services.AddKeyedScoped<IRemoteFileDownloader>("ExternalProfilePictureDownload", (sp, _) =>
+            new RemoteFileDownloader(sp.GetRequiredService<IHttpClientFactory>(), "ExternalProfilePictureDownload"));
 
         // MCP Integration (specs/021-mcp-integration) — Foundational. IMcpClientFactory is a
         // singleton (research.md Decision 2, corrected during implementation — see plan.md): its
@@ -511,6 +528,11 @@ public static class DependencyInjection
         services.AddScoped<IPasswordEmailJob, PasswordEmailJob>();
         services.AddScoped<IAccountEmailJob, AccountEmailJob>();
         services.AddScoped<PasswordResetTokenCleanupJob>();
+
+        // specs/062-external-login-profile-sync: shared content validation (also used by
+        // UploadAvatarCommandHandler) and the Hangfire-dispatched picture-sync job.
+        services.AddSingleton<IImageContentValidator, ImageContentValidator>();
+        services.AddScoped<IExternalProfilePictureSyncJob, ExternalProfilePictureSyncJob>();
 
         return services;
     }

@@ -13,5 +13,11 @@ public sealed record DownloadedFile(Stream Content, string? ContentType);
 /// </summary>
 public interface IRemoteFileDownloader
 {
-    Task<DownloadedFile> DownloadAsync(Uri uri, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// When <paramref name="maxContentLength"/> is supplied, the download is aborted (throwing)
+    /// as soon as either a declared <c>Content-Length</c> or the actual streamed byte count
+    /// exceeds it — added for specs/062-external-login-profile-sync's provider-sourced picture
+    /// fetch (research.md Decision 7), reusing this interface rather than adding a new one.
+    /// </summary>
+    Task<DownloadedFile> DownloadAsync(Uri uri, long? maxContentLength = null, CancellationToken cancellationToken = default);
 }

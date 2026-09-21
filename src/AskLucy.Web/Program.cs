@@ -185,7 +185,9 @@ if (!string.IsNullOrEmpty(googleClientId))
         options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? string.Empty;
         options.SignInScheme = ExternalAuth.TransientScheme;
         options.CallbackPath = "/api/v1/auth/external/google/callback";
+        options.Scope.Add("profile");
         options.ClaimActions.MapJsonKey("email_verified", "email_verified");
+        options.ClaimActions.MapJsonKey("urn:google:picture", "picture");
         options.Events.OnTicketReceived = ExternalAuth.HandleTicketReceivedAsync;
     });
 }
@@ -199,6 +201,16 @@ if (!string.IsNullOrEmpty(facebookAppId))
         options.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"] ?? string.Empty;
         options.SignInScheme = ExternalAuth.TransientScheme;
         options.CallbackPath = "/api/v1/auth/external/facebook/callback";
+        options.Fields.Add("first_name");
+        options.Fields.Add("last_name");
+        options.Fields.Add("picture");
+        options.ClaimActions.MapJsonKey(ClaimTypes.GivenName, "first_name");
+        options.ClaimActions.MapJsonKey(ClaimTypes.Surname, "last_name");
+        options.ClaimActions.MapCustomJson("urn:facebook:picture", user => user
+            .GetProperty("picture")
+            .GetProperty("data")
+            .GetProperty("url")
+            .GetString());
         options.Events.OnTicketReceived = ExternalAuth.HandleTicketReceivedAsync;
     });
 }
