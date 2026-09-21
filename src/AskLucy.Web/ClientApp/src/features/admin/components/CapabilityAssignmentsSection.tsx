@@ -28,6 +28,15 @@ import type { AdminAiProvider, AiCapability, AiCapabilityAssignment } from '../a
 const CAPABILITY_QUERY_KEY = ['admin', 'ai-capabilities']
 
 /**
+ * Both control columns are pinned rather than left to the table's own sizing. Their contents
+ * differ per row — a dropdown on one row, a sentence explaining why there is none on the next —
+ * and an auto-sized column re-measures against the widest of those, so the whole table slid
+ * sideways whenever a selection changed.
+ */
+const PROVIDER_CONTROL_WIDTH = 200
+const MODEL_CONTROL_WIDTH = 260
+
+/**
  * Plain-language names and, more usefully, what breaks when the assigned provider stops working.
  * "LocationIntent" tells an administrator nothing; "the viewer never moves" tells them why they
  * are on this screen.
@@ -157,8 +166,8 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
           <TableHead>
             <TableRow>
               <TableCell>Capability</TableCell>
-              <TableCell>Assigned provider</TableCell>
-              <TableCell>Model</TableCell>
+              <TableCell sx={{ width: PROVIDER_CONTROL_WIDTH }}>Assigned provider</TableCell>
+              <TableCell sx={{ width: MODEL_CONTROL_WIDTH }}>Model</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -286,13 +295,24 @@ function CapabilityRow({ assignment, label, consequence, providers, disabled, on
   const providerDefaultLabel = providerDefaultModel ? `Provider default · ${providerDefaultModel}` : 'Provider default'
   const modelPlaceholder = modelsLoading
     ? 'Loading models…'
-    : selectableModels.length === 0
-      ? needsPinnedModel
-        ? 'No image-capable model'
-        : 'No model available'
-      : needsPinnedModel
-        ? 'Please select image model'
-        : providerDefaultLabel
+    : needsPinnedModel
+      ? 'Please select image model'
+      : providerDefaultLabel
+
+  /**
+   * Why this provider can serve nothing here, or null while it still can. A row in this state
+   * gets a sentence instead of a dropdown — there is no choice left to make, and the reason is
+   * the only thing worth showing.
+   */
+  const unusableReason = modelsLoading
+    ? null
+    : modelsFailed
+      ? "Couldn't load this provider's models. Reload the page to try again."
+      : selectableModels.length > 0
+        ? null
+        : needsPinnedModel
+          ? 'This provider has no Available model marked as able to produce images. Add or enable one on the Models page.'
+          : 'This provider has no Available model. Mark one Available on the Models page.'
 
   const handleProviderChange = (value: string) => {
     setProviderId(value)
@@ -315,7 +335,7 @@ function CapabilityRow({ assignment, label, consequence, providers, disabled, on
           from it, so the control has an accessible name for a screen reader instead of an
           aria-label stranded on the hidden native input.
         */}
-        <FormControl size="small" sx={{ minWidth: 200 }}>
+        <FormControl size="small" fullWidth>
           <InputLabel id={`${assignment.capability}-label`} sx={visuallyHidden}>
             {`Provider for ${label}`}
           </InputLabel>
@@ -345,14 +365,28 @@ function CapabilityRow({ assignment, label, consequence, providers, disabled, on
           </Select>
         </FormControl>
       </TableCell>
-      <TableCell>
+      <TableCell sx={{ width: MODEL_CONTROL_WIDTH }}>
         {providerId === '' ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ width: MODEL_CONTROL_WIDTH }}>
             Assign a provider first
           </Typography>
+        ) : unusableReason !== null ? (
+          /*
+            No dropdown at all when there is nothing it could ever offer: a disabled control that
+            opens onto an empty list is a dead end dressed as a choice. The explanation takes the
+            control's own width and wraps, rather than running the column wider than every other
+            row's and shifting the whole table sideways as the selection changes.
+          */
+          <Typography
+            variant="body2"
+            color={modelsFailed ? 'error' : 'text.secondary'}
+            sx={{ width: MODEL_CONTROL_WIDTH }}
+          >
+            {unusableReason}
+          </Typography>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: MODEL_CONTROL_WIDTH }}>
+            <FormControl size="small" fullWidth>
               <InputLabel id={`${assignment.capability}-model-label`} sx={visuallyHidden}>
                 {`Model for ${label}`}
               </InputLabel>
@@ -361,7 +395,7 @@ function CapabilityRow({ assignment, label, consequence, providers, disabled, on
                 size="small"
                 value={pinnedModelId}
                 displayEmpty
-                disabled={disabled || modelsLoading || selectableModels.length === 0}
+                disabled={disabled || modelsLoading}
                 onChange={(event) => onAssign(providerId, event.target.value === '' ? null : event.target.value)}
                 renderValue={(value) =>
                   selectableModels.find((m) => m.id === value)?.displayName ?? (
@@ -379,17 +413,6 @@ function CapabilityRow({ assignment, label, consequence, providers, disabled, on
                 ))}
               </Select>
             </FormControl>
-
-            {modelsFailed && (
-              <Typography variant="caption" color="error">
-                Couldn&apos;t load this provider&apos;s models.
-              </Typography>
-            )}
-            {needsPinnedModel && !modelsLoading && !modelsFailed && selectableModels.length === 0 && (
-              <Typography variant="caption" color="text.secondary">
-                This provider has no Available model marked as able to produce images. Add or enable one on the Models page.
-              </Typography>
-            )}
           </Box>
         )}
       </TableCell>
