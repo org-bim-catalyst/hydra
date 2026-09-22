@@ -24,6 +24,7 @@ export function resetViewerSession(): void {
     viewerSession.mapContentId = null
   }
   viewerSession.camera = null
+  viewerSession.framedLocationKey = null
   useViewerEngineStore.getState().setContentMode('placeholder')
 }
 

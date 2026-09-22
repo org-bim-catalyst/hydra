@@ -56,8 +56,11 @@ describe('useMapStyleControl', () => {
   beforeEach(() => {
     useViewerEngineStore.setState(initialViewerEngineState, true)
     // specs/048-buildings-only-map-style FR-006: unset (raster rendering) unless a test opts
-    // into the vector-rendering case below.
+    // into the vector-rendering case below. Both are stubbed, not just the base Map ID: a
+    // developer's local .env may carry a real buildings-only Map ID, which would otherwise
+    // leak in and make the "vector, no alternate style" case unreachable.
     vi.stubEnv('VITE_GOOGLE_MAPS_MAP_ID', '')
+    vi.stubEnv('VITE_GOOGLE_MAPS_BUILDINGS_ONLY_MAP_ID', '')
   })
 
   afterEach(() => {

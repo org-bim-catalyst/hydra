@@ -103,7 +103,7 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
     consoleError.mockRestore()
   })
 
-  it('applies the persisted "buildings-only" map style on initial mount (specs/048-buildings-only-map-style US2)', async () => {
+  it('builds the map at the persisted "buildings-only" style rather than correcting it afterwards (specs/048-buildings-only-map-style US2)', async () => {
     useViewerEngineStore.setState({ mapStyle: 'buildings-only' })
     const engine = new ViewerEngine()
     render(
@@ -115,7 +115,13 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
       />,
     )
 
-    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
+    expect(createGoogleMapsGisLayerMock.mock.calls[0][0]).toMatchObject({ mapStyle: 'buildings-only' })
+    // The style must arrive as a construction option, never as a post-creation correction: on a
+    // vector map an assignment through setMapTypeId resets the camera (heading and tilt to 0,
+    // fractional zoom snapped to a whole level), which would destroy the camera this component
+    // restores on mount.
+    expect(fakeHandle.setMapTypeId).not.toHaveBeenCalled()
   })
 
   it('keeps "buildings-only" in effect across an unrelated store update, without redundantly re-issuing it (US2 persistence)', async () => {
@@ -129,8 +135,7 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
         onError={() => {}}
       />,
     )
-    await waitFor(() => expect(fakeHandle.setMapTypeId).toHaveBeenCalledWith('buildings-only'))
-    fakeHandle.setMapTypeId.mockClear()
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
 
     // An unrelated command (view mode, not map style) still runs applyStoreState, which
     // deliberately skips re-issuing setMapTypeId when mapStyle itself hasn't changed (avoids

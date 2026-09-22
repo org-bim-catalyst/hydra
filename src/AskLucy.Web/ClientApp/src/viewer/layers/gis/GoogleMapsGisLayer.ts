@@ -14,7 +14,16 @@ import type { BorderConfidenceLevel } from '../../effects/AnimatedBorderHighligh
 export interface GoogleMapsGisLayerOptions {
   apiKey: string
   container: HTMLElement
+  /** The active location — where the current-location marker is planted and the scene anchor
+   * falls back to. Not necessarily where the camera opens: see `cameraStart`. */
   center: { latitude: number; longitude: number }
+  /** Where the camera opens, when that differs from `center`. `MapRenderTarget` passes the
+   * previous map's live position here so a recreation (theme toggle, Map ID change, returning to
+   * the route) reopens where the user left off. Kept separate from `center` because the marker
+   * marks a place in the world, not wherever the camera happens to be pointing — passing the
+   * restored position as `center` planted the marker at it, moving "your location" to a spot the
+   * user had merely been looking at. */
+  cameraStart?: { latitude: number; longitude: number }
   zoom?: number
   /** A vector-rendering-enabled Map ID from Google Cloud Console (Maps Platform → Map
    * Management), with "Tilt" and "Rotation" turned on for that Map ID. `WebGLOverlayView`
@@ -24,6 +33,12 @@ export interface GoogleMapsGisLayerOptions {
    * layer doesn't duplicate that warning). Never hardcode a fake value here — an invalid Map
    * ID produces a real `InvalidKeyMapError`, which is worse than omitting it. */
   mapId?: string
+  /** The map style the map should *open* at. Applying a style after construction is not
+   * equivalent: Google's `setOptions({mapTypeId})` resets the vector camera — heading and tilt
+   * to 0 and fractional zoom snapped to the nearest whole level — so a map built at the default
+   * style and corrected a moment later loses whatever camera it was just restored to. Passing
+   * the style here means `setMapTypeId` is only ever called for a genuine style *change*. */
+  mapStyle?: MapStyleId
   /** FR-005a/SC-004a (research.md Decision, T032a): starts with reduced overlay complexity
    * and auto-rotation paused on detected low-end/mobile devices. */
   reducedQuality: boolean
@@ -61,6 +76,9 @@ export interface GoogleMapsGisLayerHandle {
   zoomBy(direction: 'in' | 'out'): void
   setHeading(heading: number): void
   setTilt(tilt: number): void
+  /** One atomic camera write for the fields given — the form `CameraRestoreGuard` uses to put a
+   * restored camera back after Maps JS's post-construction initialisation has overwritten it. */
+  setCamera(camera: { zoom?: number; heading?: number }): void
   /** Switches the map's base rendering style — `map.setMapTypeId(google.maps.MapTypeId.*)`. */
   setMapTypeId(mapStyle: MapStyleId): void
   /** US5 (FR-018): the current-location marker's `elementId`, for `viewerEngine.registerSelectableElement`. */
@@ -133,22 +151,60 @@ export async function createGoogleMapsGisLayer(
   const { Map } = (await loader.importLibrary('maps')) as google.maps.MapsLibrary
   const { AdvancedMarkerElement, PinElement } = (await loader.importLibrary('marker')) as google.maps.MarkerLibrary
 
+  // Built here (not module scope) — `google.maps.MapTypeId` only exists once the Maps script has
+  // loaded, which the `importLibrary` calls above have already awaited.
+  // specs/048-buildings-only-map-style: 'buildings-only' isn't a real MapTypeId — it rides on
+  // ROADMAP with BUILDINGS_ONLY_STYLE layered on top.
+  const MAP_STYLE_TO_GOOGLE_TYPE_ID: Record<MapStyleId, google.maps.MapTypeId> = {
+    roadmap: google.maps.MapTypeId.ROADMAP,
+    satellite: google.maps.MapTypeId.SATELLITE,
+    hybrid: google.maps.MapTypeId.HYBRID,
+    'buildings-only': google.maps.MapTypeId.ROADMAP,
+  }
+
+  /** The `MapOptions` for a style, shared by construction and `setMapTypeId` so both express the
+   * style the same way. `styles` is omitted entirely on a vector deployment: Google ignores a
+   * client-side `styles` array when a Map ID is present and logs a warning for every call
+   * (specs/048 research Decision 4 — buildings-only comes from a second cloud-styled Map ID
+   * there, not from this array). */
+  const mapStyleOptions = (mapStyle: MapStyleId): google.maps.MapOptions =>
+    options.mapId
+      ? { mapTypeId: MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle] }
+      : {
+          mapTypeId: MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle],
+          styles: mapStyle === 'buildings-only' ? BUILDINGS_ONLY_STYLE : [],
+        }
+
+  const cameraStart = options.cameraStart ?? options.center
   const map = new Map(options.container, {
-    center: { lat: options.center.latitude, lng: options.center.longitude },
+    ...(options.mapStyle ? mapStyleOptions(options.mapStyle) : {}),
+    center: { lat: cameraStart.latitude, lng: cameraStart.longitude },
     zoom: options.zoom ?? 15,
     tilt: options.tilt ?? 45,
     heading: options.heading ?? 0,
     ...(options.mapId ? { mapId: options.mapId } : {}),
+    // Vector is requested explicitly, never inherited from the Map ID's Cloud Console
+    // configuration. Without this the deployment silently depends on a console setting no code
+    // or test can see: a Map ID configured as Raster still constructs, still accepts
+    // `setTilt`/`setHeading` and still reports them back, but renders raster -- which supports
+    // neither tilt nor a free heading. The camera this app restores on every mount was being
+    // dismantled in three steps as Maps JS reconciled it with those limits (heading snapped to
+    // the nearest 90 degrees, then tilt forced to 0, then heading forced to 0, accompanied by
+    // Google's own "45 degree imagery on raster maps is no longer available" notice).
+    ...(options.mapId ? { renderingType: google.maps.RenderingType.VECTOR } : {}),
     colorScheme:
       options.colorScheme === 'dark' ? google.maps.ColorScheme.DARK : google.maps.ColorScheme.LIGHT,
     disableDefaultUI: true,
     gestureHandling: 'greedy',
-    // On a vector map (a Map ID configured), Google defaults both of these to true — a two-finger
-    // drag/ctrl-drag can tilt or spin the camera outside the app's own Isometric/Plan and rotation
-    // controls, leaving `viewerEngineStore.camera` out of sync with what the map is actually
-    // showing. Tilt/heading here are only ever meant to change through this app's own controls.
+    // Tilt stays off (adae059d): Google's vector map lets a gesture tilt the camera outside the
+    // app's own Isometric/Plan control, and its 45°-imagery auto-engagement compounds that — the
+    // `tilt_changed` listener in MapRenderTarget actively corrects both, so allowing the gesture
+    // would only mean fighting it. Heading is different: nothing reasserts it the way view mode
+    // reasserts tilt, and `heading_changed` already announces it to `viewerEngineStore`, so
+    // rotating by hand stays in sync. Turning it off took away the only way to rotate the camera
+    // directly, which is worth more here than uniformity between the two flags.
     tiltInteractionEnabled: false,
-    headingInteractionEnabled: false,
+    headingInteractionEnabled: true,
   })
 
   // US5 (FR-018): the current-location marker is this feature's one addressable, selectable
@@ -222,8 +278,11 @@ export async function createGoogleMapsGisLayer(
   // RotationDriver's RAF loop) stores the value here; onDraw applies it to the Maps camera
   // once per draw cycle so there is no competing RAF loop calling moveCamera directly. This
   // eliminates the frame-contention that caused dropped frames during continuous rotation.
-  let desiredHeading = 0
-  let appliedHeading = 0
+  // Seeded from the heading the map is actually being constructed at, not 0. Left at 0 while the
+  // map opened at a restored heading, these two agreed with each other but not with the map, so
+  // `onDraw` below saw nothing to apply and the first real rotation frame jumped the camera.
+  let desiredHeading = options.heading ?? 0
+  let appliedHeading = desiredHeading
 
   const overlay = new google.maps.WebGLOverlayView()
 
@@ -411,17 +470,6 @@ export async function createGoogleMapsGisLayer(
     })
   }
 
-  // Built here (not module scope) — `google.maps.MapTypeId` only exists once the Maps script
-  // has loaded, which `loader.importLibrary` above has already awaited by this point.
-  // specs/048-buildings-only-map-style: 'buildings-only' isn't a real MapTypeId — it rides on
-  // ROADMAP with BUILDINGS_ONLY_STYLE layered on top (see setMapTypeId below).
-  const MAP_STYLE_TO_GOOGLE_TYPE_ID: Record<MapStyleId, google.maps.MapTypeId> = {
-    roadmap: google.maps.MapTypeId.ROADMAP,
-    satellite: google.maps.MapTypeId.SATELLITE,
-    hybrid: google.maps.MapTypeId.HYBRID,
-    'buildings-only': google.maps.MapTypeId.ROADMAP,
-  }
-
   return {
     map,
     scene,
@@ -446,13 +494,27 @@ export async function createGoogleMapsGisLayer(
     },
     setHeading: (heading) => { desiredHeading = heading },
     setTilt: (tilt) => map.moveCamera({ tilt }),
-    // specs/048-buildings-only-map-style: setOptions (not the narrower setMapTypeId) for all
-    // four values, uniformly — leaving 'buildings-only' for any other style must clear its
-    // `styles` array, not just change the base MapTypeId, or the hidden categories would linger.
-    setMapTypeId: (mapStyle) => map.setOptions({
-      mapTypeId: MAP_STYLE_TO_GOOGLE_TYPE_ID[mapStyle],
-      styles: mapStyle === 'buildings-only' ? BUILDINGS_ONLY_STYLE : [],
-    }),
+    setCamera: (camera) => {
+      // Written straight through `moveCamera` rather than deferred to `onDraw` like `setHeading`:
+      // a restore has to land on the settle it was triggered by, and unlike continuous rotation
+      // it happens a handful of times, so it cannot contend for frames. The heading bookkeeping
+      // is kept in step so the rotation driver's next frame continues from here instead of
+      // replaying a stale heading.
+      map.moveCamera(camera)
+      if (camera.heading !== undefined) {
+        desiredHeading = camera.heading
+        appliedHeading = camera.heading
+      }
+    },
+    // specs/048-buildings-only-map-style: setOptions (not the narrower setMapTypeId) — leaving
+    // 'buildings-only' for any other style must clear its `styles` array, not just change the
+    // base MapTypeId, or the hidden categories would linger.
+    //
+    // Callers must only invoke this for a real style *change*: on a vector map Google treats a
+    // mapTypeId assignment as a camera-affecting event, resetting heading and tilt to 0 and
+    // snapping fractional zoom to a whole level. `mapStyle` in the options above exists so
+    // construction never has to route through here.
+    setMapTypeId: (mapStyle) => map.setOptions(mapStyleOptions(mapStyle)),
     setMarkerHighlighted: (highlighted) => {
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1

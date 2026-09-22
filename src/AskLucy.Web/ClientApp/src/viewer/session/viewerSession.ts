@@ -19,7 +19,14 @@ export interface SessionCamera {
  * Deliberately import-free, so `MapRenderTarget` can read it without pulling in the engine and
  * extension modules `resetViewerSession` needs.
  */
-export const viewerSession: { mapContentId: string | null; camera: SessionCamera | null } = {
+export const viewerSession: {
+  mapContentId: string | null
+  camera: SessionCamera | null
+  /** Identifies the location the camera was last framed for. Framing runs when this changes, so
+   * remounting the surface (returning to /studio) re-frames nothing the user has since adjusted. */
+  framedLocationKey: string | null
+} = {
   mapContentId: null,
   camera: null,
+  framedLocationKey: null,
 }

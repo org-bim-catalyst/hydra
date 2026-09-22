@@ -1,6 +1,7 @@
 import { Box } from '@mui/material'
 import { useEffect, useRef } from 'react'
 import type { GoogleMapsGisLayerHandle } from '../layers/gis/GoogleMapsGisLayer'
+import { CameraRestoreGuard } from '../camera/cameraRestoreGuard'
 import { applyCameraViewMode } from '../camera/cameraViewMode'
 import { RotationDriver } from '../camera/rotationDriver'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
@@ -77,12 +78,14 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
     const container = containerRef.current
     if (!container) return
 
+
     let handle: GoogleMapsGisLayerHandle | undefined
     let rotationDriver: RotationDriver | undefined
     let unregister: (() => void) | undefined
     let unsubscribeStore: (() => void) | undefined
     let reducedQuality = false
     let cancelled = false
+    let creationMapStyle: MapStyleId | undefined
 
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
     if (!apiKey) {
@@ -104,11 +107,17 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         if (cancelled) return
 
         reducedQuality = shouldReduceMapQuality()
+        // Read at creation time rather than closing over the render's value — this effect
+        // deliberately doesn't re-run on a style change, so the store is the only reliable
+        // source for "the style the map is being built at".
+        creationMapStyle = useViewerEngineStore.getState().mapStyle
         handle = await createGoogleMapsGisLayer({
           apiKey,
           mapId: effectiveMapId,
           container,
-          center: viewerSession.camera ?? center,
+          center,
+          mapStyle: creationMapStyle,
+          cameraStart: viewerSession.camera ?? undefined,
           zoom: viewerSession.camera?.zoom ?? zoom,
           heading: viewerSession.camera?.heading,
           tilt: viewerSession.camera?.tilt,
@@ -147,12 +156,48 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // specs/051 FR-026/research D6 — announces on the map's own 'idle' event (fires once
       // movement settles, not per frame), never a per-frame poll. Optional chaining: the map
       // instance in existing tests is a lightweight stub without Maps SDK event methods.
+      // Passing the restored camera as construction options is not enough to restore it: Maps JS
+      // finishes wiring the map's camera after the constructor returns and overwrites them (see
+      // `CameraRestoreGuard` for the verified stacks). The guard puts them back on the settles
+      // that follow, and releases as soon as the map agrees or the user takes over.
+      const restored = viewerSession.camera
+      const restoreGuard =
+        restored?.zoom !== undefined
+          ? new CameraRestoreGuard(
+              {
+                getCamera: () => {
+                  const camera = getCameraStateFromHandle(handle!)
+                  return camera && { zoom: camera.zoom, heading: camera.heading }
+                },
+                setCamera: (camera) => handle!.setCamera(camera),
+              },
+              { zoom: restored.zoom, heading: restored.heading ?? 0 },
+              {
+                // While auto-rotation is running it is already restoring heading from the same
+                // seed, one frame at a time; two writers would only fight each other.
+                shouldEnforceHeading: () =>
+                  !useViewerEngineStore.getState().camera.rotationEnabled || reducedQuality,
+              },
+            )
+          : null
+
       const announceCamera = () => {
         const camera = getCameraStateFromHandle(handle!)
         if (camera) viewerEngine.notifyCameraChanged(camera)
       }
 
-      const idleListener = handle.map.addListener?.('idle', announceCamera)
+      // Enforced on 'idle' alone, never on the per-property events: 'idle' is the map's own
+      // "movement has settled" signal, so a correction issued here is compared against a stable
+      // camera, and the correction's own movement raises exactly one more 'idle' to re-check.
+      const idleListener = handle.map.addListener?.('idle', () => {
+        announceCamera()
+        restoreGuard?.enforce()
+      })
+
+      // The first deliberate gesture ends the restore — from here the camera is the user's.
+      const releaseGuard = () => restoreGuard?.release()
+      const dragListener = handle.map.addListener?.('dragstart', releaseGuard)
+      container.addEventListener('wheel', releaseGuard, { passive: true })
 
       // 'idle' alone is too coarse for anything that tracks orientation continuously — it fires
       // only once movement settles, so a compass or level indicator driven by it would sit still
@@ -177,7 +222,13 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // US5 (FR-018): the marker becomes selectable only once it actually exists on the map.
       const unregisterSelectable = viewerEngine.registerSelectableElement(layerId, handle.currentLocationMarkerId)
 
-      let lastAppliedMapStyle: MapStyleId | undefined
+      // Seeded with the style the map was *built* at, not left undefined. Left undefined, the
+      // first `applyStoreState()` below always saw a "change" and re-applied the style the map
+      // already had — and on a vector map that assignment resets the camera (heading and tilt to
+      // 0, fractional zoom snapped to a whole level), destroying the camera this component had
+      // just restored. That is why returning to /studio appeared to zoom in or out at random:
+      // whichever way the fractional zoom happened to round.
+      let lastAppliedMapStyle: MapStyleId | undefined = creationMapStyle
 
       const applyStoreState = () => {
         if (!handle || !rotationDriver) return
@@ -228,7 +279,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       unregister = () => {
         unregisterRenderTarget()
         unregisterSelectable()
-        for (const listener of [idleListener, headingListener, tiltListener]) {
+        container.removeEventListener('wheel', releaseGuard)
+        for (const listener of [idleListener, headingListener, tiltListener, dragListener]) {
           if (listener) google.maps.event.removeListener(listener)
         }
       }

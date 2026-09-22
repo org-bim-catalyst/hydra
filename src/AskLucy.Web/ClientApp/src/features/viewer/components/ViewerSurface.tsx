@@ -100,33 +100,25 @@ export function ViewerSurface() {
   const viewport = useActiveLocationStore((s) => s.viewport)
   const locationType = useActiveLocationStore((s) => s.locationType)
 
+  // Content lifecycle only — this effect never moves the camera. `useGeolocation`'s watchPosition
+  // runs for the whole session to detect revocation, so coordinates keep arriving with a few
+  // metres of GPS drift long after the page settled. Acting on them here dragged the camera off
+  // wherever the user had put it, every time one landed. The camera belongs to the user; a fresh
+  // reading of the place already shown is not a reason to take it back.
   useEffect(() => {
     const store = useViewerEngineStore.getState()
 
     if (source !== null && latitude !== null && longitude !== null) {
-      const center = { latitude, longitude }
       // FR-007: replaces the placeholder as the active view once a location is set. Only added
-      // once — a coordinate update (user physically moved, or agent confirmed a new location)
-      // just re-centers via zoomToLocation below, it doesn't re-add the layer. Also loads when the
-      // mode says 'map' but no map content is tracked, so a mismatch can never strand the user on
-      // the placeholder.
+      // once — a coordinate update doesn't re-add the layer. Also loads when the mode says 'map'
+      // but no map content is tracked, so a mismatch can never strand the user on the placeholder.
       if (store.contentMode !== 'map' || !viewerSession.mapContentId) {
+        const center = { latitude, longitude }
         const result = viewerEngine.loadContent({ kind: 'gis', provider: 'google-maps', center, zoom: DEFAULT_MAP_ZOOM })
         if (result.ok && result.data) {
           viewerSession.mapContentId = result.data.contentId
         }
         useViewerEngineStore.getState().setContentMode('map')
-      }
-      // specs/038-viewer-poi-zoom: priority — fitBounds > zoomToAltitude > legacy zoomToLocation.
-      if (viewport !== null) {
-        viewerEngine.fitBounds(
-          { lat: viewport.northeastLat, lng: viewport.northeastLng },
-          { lat: viewport.southwestLat, lng: viewport.southwestLng },
-        )
-      } else if (locationType !== null) {
-        viewerEngine.zoomToAltitude(LOCATION_TYPE_ALTITUDE[locationType] ?? DEFAULT_ALTITUDE)
-      } else {
-        viewerEngine.zoomToLocation(center.latitude, center.longitude, DEFAULT_MAP_ZOOM)
       }
     } else if (source === null && store.contentMode === 'map') {
       // FR-012: location became unavailable after the map was already active (e.g. permission
@@ -134,7 +126,46 @@ export function ViewerSurface() {
       // contentMode is already 'placeholder' and this branch is never reached.
       revertToPlaceholder()
     }
-  }, [source, latitude, longitude, viewport, locationType])
+  }, [source, latitude, longitude])
+
+  // Identifies a *deliberately* established location, as opposed to passive tracking of the one
+  // already shown. The device establishes a location once and then keeps reporting it, so every
+  // geolocation fix shares one key; the agent naming a place is a deliberate act every time, so
+  // its coordinates and framing hints are all part of its key.
+  const framingKey =
+    source === null
+      ? null
+      : source === 'geolocation'
+        ? 'geolocation'
+        : `agent:${latitude},${longitude},${locationType ?? ''},${
+            viewport === null
+              ? ''
+              : `${viewport.northeastLat},${viewport.northeastLng},${viewport.southwestLat},${viewport.southwestLng}`
+          }`
+
+  // Camera framing, deliberately separate from the content effect above: it answers "a new place
+  // is being shown, put the camera where that place is visible", which is not what a fresh reading
+  // of the place already shown calls for. Coordinates are read at call time rather than depended
+  // on, so drift cannot re-trigger it, and the last framed key lives on the session so returning
+  // to /studio re-frames nothing the user has since adjusted.
+  useEffect(() => {
+    if (framingKey === null || framingKey === viewerSession.framedLocationKey) return
+    const location = useActiveLocationStore.getState()
+    if (location.latitude === null || location.longitude === null) return
+    viewerSession.framedLocationKey = framingKey
+
+    // specs/038-viewer-poi-zoom: priority — fitBounds > zoomToAltitude > legacy zoomToLocation.
+    if (location.viewport !== null) {
+      viewerEngine.fitBounds(
+        { lat: location.viewport.northeastLat, lng: location.viewport.northeastLng },
+        { lat: location.viewport.southwestLat, lng: location.viewport.southwestLng },
+      )
+    } else if (location.locationType !== null) {
+      viewerEngine.zoomToAltitude(LOCATION_TYPE_ALTITUDE[location.locationType] ?? DEFAULT_ALTITUDE)
+    } else {
+      viewerEngine.zoomToLocation(location.latitude, location.longitude, DEFAULT_MAP_ZOOM)
+    }
+  }, [framingKey])
 
   return (
     <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
