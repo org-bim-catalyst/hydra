@@ -165,12 +165,12 @@ furniture never flickers, moves or changes.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T046 [P] Update `features/solar/README.md`'s module map and constraint notes for the split builders, the merged geometry, the derived radius and the new 1° floor — the README records the binding constraints and is part of the deliverable, not documentation of it
-- [ ] T047 [P] Update `specs/052-solar-analysis/spec.md` with a pointer recording which of its behaviours this feature supersedes (constitution: documentation is part of implementation)
-- [ ] T048 Run the full frontend suite, not just the touched files — `npx vitest run` from `src/AskLucy.Web/ClientApp` — because page-level tests carry their own assertions about components they render
-- [ ] T049 Run `npx tsc -b --noEmit` from `src/AskLucy.Web/ClientApp`; the bare `tsc --noEmit` is a silent no-op under this project's references
-- [ ] T050 Re-verify every FR-026 preservation item: the five README constraints, unchanged basemap compositing, unchanged `/api/v1/site-buildings` usage
-- [ ] T051 Produce the post-implementation verification instructions from [quickstart.md](./quickstart.md) Part 2 as numbered mechanical steps with expected values, for screenshot-based verification against [baseline.md](./baseline.md)
+- [X] T046 [P] Update `features/solar/README.md`'s module map and constraint notes for the split builders, the merged geometry, the derived radius and the new 1° floor — the README records the binding constraints and is part of the deliverable, not documentation of it
+- [X] T047 [P] Update `specs/052-solar-analysis/spec.md` with a pointer recording which of its behaviours this feature supersedes (constitution: documentation is part of implementation)
+- [X] T048 Run the full frontend suite, not just the touched files — `npx vitest run` from `src/AskLucy.Web/ClientApp` — because page-level tests carry their own assertions about components they render
+- [X] T049 Run `npx tsc -b --noEmit` from `src/AskLucy.Web/ClientApp`; the bare `tsc --noEmit` is a silent no-op under this project's references
+- [X] T050 Re-verify every FR-026 preservation item: the five README constraints, unchanged basemap compositing, unchanged `/api/v1/site-buildings` usage
+- [X] T051 Produce the post-implementation verification instructions from [quickstart.md](./quickstart.md) Part 2 as numbered mechanical steps with expected values, for screenshot-based verification against [baseline.md](./baseline.md) — written to [verification.md](./verification.md)
 
 ---
 

@@ -8,6 +8,20 @@
 
 **Input**: User description: "Sun path, real building shadows and time scrubbing over a site — the first capability built entirely on the viewer extension framework."
 
+## Later amendments
+
+This specification shipped and remains in force. Two later features changed behaviour it defines,
+in place rather than by replacing it. Where a requirement below carries a pointer, read the pointer
+with it — the requirement is still binding, but the behaviour that satisfies it has moved.
+
+| Feature | What it supersedes here |
+|---|---|
+| [specs/063-solar-accuracy-performance](../063-solar-accuracy-performance/spec.md) | FR-001 and FR-002 (reported altitude is now corrected for atmospheric refraction, and the rise/set definition is split from it); FR-010 and FR-013 (footprints are merged into one shadow-casting body, and excluded ones are counted and stated); FR-016 and FR-018 (the shadow area is derived from the footprints present and the current sun elevation, not from a fixed multiple of the query radius); FR-019 and FR-023 (sub-quarter-degree sun movement is skipped during continuous playback only) |
+| [specs/064-precise-time-control](../064-precise-time-control/spec.md) | FR-020 (typed exact-time entry, 15-minute tick marks, drag-snapping) |
+
+Neither amendment changes this feature's scope: it remains visual and qualitative, per the
+2026-09-12 clarification below.
+
 ## Context
 
 An architect or engineer looking at a site wants to know where the sun goes. Which facades get morning light. How far the building across the street throws its shadow at four in the afternoon in December. Whether the courtyard sees any sun at all in winter. These are among the first questions asked at the start of a project, and answering them today means leaving the workspace for a separate tool.
@@ -138,8 +152,8 @@ The user asks Lucy about sunlight on the site in plain language. She runs the an
 
 ### Solar Position
 
-- **FR-001**: The system MUST compute the sun's position — its compass direction and its height above the horizon — for a given location, date and time, to a stated accuracy.
-- **FR-002**: The system MUST compute sunrise, sunset and day length for a given location and date, and MUST state plainly when the sun does not rise or does not set.
+- **FR-001**: The system MUST compute the sun's position — its compass direction and its height above the horizon — for a given location, date and time, to a stated accuracy. specs/063-solar-accuracy-performance supersedes the height reported here: it is now the *apparent* altitude, corrected for atmospheric refraction, checked against NOAA's own published full-day table rather than against this codebase's output.
+- **FR-002**: The system MUST compute sunrise, sunset and day length for a given location and date, and MUST state plainly when the sun does not rise or does not set. specs/063-solar-accuracy-performance supersedes how rise and set are defined: the single bundled −0.833° threshold is split into refraction (a property of the reported altitude) and the sun's angular radius (the definition of rise and set), so the altitude reported at sunrise is the same number at every site and date.
 - **FR-003**: All times MUST be presented and entered in the site's local time, with the time basis in use stated, including when it cannot be determined.
 - **FR-004**: Local times MUST remain correct and unambiguous across daylight-saving transitions.
 
@@ -153,26 +167,26 @@ The user asks Lucy about sunlight on the site in plain language. She runs the an
 ### Surrounding Buildings
 
 - **FR-009**: The system MUST retrieve building footprints within a bounded distance of the site, through the platform rather than directly from the browser.
-- **FR-010**: Building footprints MUST take part in the analysis as shadow-casting forms at their recorded height, using a stated default where no height is recorded. They MUST NOT be drawn over the buildings the basemap already displays; a developer-facing toggle MUST be able to reveal the massing for verification.
+- **FR-010**: Building footprints MUST take part in the analysis as shadow-casting forms at their recorded height, using a stated default where no height is recorded. They MUST NOT be drawn over the buildings the basemap already displays; a developer-facing toggle MUST be able to reveal the massing for verification. specs/063-solar-accuracy-performance supersedes the per-building form: every footprint is merged into one shadow-casting body, which makes the developer toggle necessarily all-or-nothing rather than per-building.
 - **FR-011**: The user MUST be able to see, for the building being analysed, whether its height was recorded in the source or assumed.
 - **FR-012**: The system MUST identify which building the site sits in or nearest to, by a stated rule.
-- **FR-013**: Footprints that cannot be used MUST be excluded without failing the whole analysis.
+- **FR-013**: Footprints that cannot be used MUST be excluded without failing the whole analysis. specs/063-solar-accuracy-performance strengthens this: exclusions are counted and stated to the user, not silently dropped.
 - **FR-014**: When no buildings are found, or building data cannot be retrieved, the user MUST be told, and the sun path MUST still work.
 - **FR-015**: The number of buildings retrieved MUST be bounded, and the user MUST be told when data was limited.
 
 ### Shadows
 
-- **FR-016**: Buildings MUST cast shadows consistent with the sun's computed position, onto the ground and onto each other.
+- **FR-016**: Buildings MUST cast shadows consistent with the sun's computed position, onto the ground and onto each other. Still satisfied after specs/063-solar-accuracy-performance merged the footprints into one body — that one body both casts and receives, which is what keeps building-on-building shadows possible.
 - **FR-017**: No shadows MUST be cast when the sun is below the horizon, and this MUST be evident to the user.
-- **FR-018**: The area within which shadows are computed MUST be defined and sized to the analysis area, so that no spurious shadowed region appears outside it.
-- **FR-019**: Shadows MUST update whenever the sun's position, the buildings or their heights change.
+- **FR-018**: The area within which shadows are computed MUST be defined and sized to the analysis area, so that no spurious shadowed region appears outside it. specs/063-solar-accuracy-performance supersedes how that size is chosen: it is derived from the ground the retrieved footprints actually occupy plus the longest shadow they can cast at the *current* sun elevation, rather than from a fixed multiple of the distance they were queried within — a tighter area over the same shadow detail budget, so shadows are sharper at every elevation.
+- **FR-019**: Shadows MUST update whenever the sun's position, the buildings or their heights change. specs/063-solar-accuracy-performance adds one bounded exception, and only one: during *continuous playback*, a sun movement smaller than a quarter of a degree is skipped. Scrubbing, typing a time, changing the date, correcting a height and receiving new building data are never skipped, and the skipped movement cannot accumulate — each comparison is made against the position last actually drawn.
 
 ### Time Control
 
 - **FR-020**: The user MUST be able to choose the date and move through the time of day. specs/064-precise-time-control adds a typed exact-time entry, 15-minute tick marks, and drag-snapping to this control, without changing this requirement or FR-022's single-source-of-truth rule.
 - **FR-021**: The user MUST be able to play the day through continuously and stop it, leaving the display at the moment it stopped.
 - **FR-022**: The sun position, shadows and figures MUST update together and remain consistent with one another as time changes.
-- **FR-023**: The viewer MUST remain responsive while the user moves through time or plays the day through.
+- **FR-023**: The viewer MUST remain responsive while the user moves through time or plays the day through. specs/063-solar-accuracy-performance is the feature that makes this hold on a dense site, through the merged footprints, the derived shadow area and the playback skip described under FR-019.
 - **FR-024**: Closing solar analysis MUST stop playback and remove everything it was drawing.
 
 ### Corrections
