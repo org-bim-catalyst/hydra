@@ -1,9 +1,14 @@
 import * as THREE from 'three'
 import type { DrawingSpaceHandle } from '../../../viewer/scene/DrawingSpaceRegistry'
-import { buildFootprintMesh, setShowMass } from '../buildings/footprintGeometry'
+import { buildFootprintMeshes, setShowMass } from '../buildings/footprintGeometry'
 import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { ShadowGround } from './shadowGround'
-import { SunLight } from './sunLight'
+import {
+  MIN_SHADOW_ELEVATION_DEGREES,
+  NO_BUILDINGS_FALLBACK_EXTENT_METRES,
+  SunLight,
+  shadowRadiusMetres,
+} from './sunLight'
 import { buildSunPath, updateCurrentPositionMarker } from './sunPathCurve'
 
 /**
@@ -30,7 +35,12 @@ export class SolarScene {
   private sunLight: SunLight | null = null
   private shadowGround: ShadowGround | null = null
   private showBuildingMass = false
-  private currentRadiusMetres = 200
+  private currentRadiusMetres = NO_BUILDINGS_FALLBACK_EXTENT_METRES
+  private contentExtentMetres = NO_BUILDINGS_FALLBACK_EXTENT_METRES
+  private tallestBuildingMetres = 0
+  /** The elevation the radius was last sized for, so `setContentBounds` can resize without waiting
+   * for the next tick. Starts high: overhead sun, shortest shadows, tightest fit. */
+  private lastAltitudeDegrees = 90
   private currentMarker: THREE.Mesh | null = null
   /** T051 — a `date|lat|lng` key identifying what the dome was last built for; the dome is
    * rebuilt only when this changes (a new date OR a new site), never on every time-of-day tick
@@ -42,41 +52,50 @@ export class SolarScene {
     drawingSpace.group.add(this.sunPathGroup, this.buildingsGroup, this.groundGroup, this.lightGroup)
   }
 
-  /** T037/T038, US2 — (re)builds the light and ground plane sized to `radiusMetres`, per research
-   * D16's single-radius rule. Called once buildings are known (or the radius otherwise changes) —
-   * never on every time-of-day tick (T051, FR-019/FR-023: only the light's aim moves on scrub). */
-  ensureShadowRig(radiusMetres: number, tallestBuildingMetres: number): void {
-    this.currentRadiusMetres = radiusMetres
-    if (!this.sunLight) {
-      this.sunLight = new SunLight(radiusMetres, tallestBuildingMetres)
-      this.sunLight.addTo(this.lightGroup)
-    } else {
-      this.sunLight.configureShadowCamera(radiusMetres, tallestBuildingMetres)
-    }
-    // Rebuilt (not just left in place) when the radius changes, for the same single-radius reason
-    // the frustum is reconfigured above: the light's frustum tracks `radiusMetres` but the ground
-    // plane's geometry is fixed at construction, so leaving a stale plane behind after a SMALLER
-    // radius would put the plane outside the new, tighter frustum — research D16's clamped-lookup
-    // grey blob, arrived at from the opposite direction.
-    if (!this.shadowGround) {
-      this.shadowGround = new ShadowGround(radiusMetres)
-      this.shadowGround.addTo(this.groundGroup)
-    } else if (this.shadowGround.radiusMetres !== radiusMetres) {
-      const wasVisible = this.shadowGround.mesh.visible
-      this.shadowGround.dispose()
-      this.groundGroup.remove(this.shadowGround.mesh)
-      this.shadowGround = new ShadowGround(radiusMetres)
-      this.shadowGround.setVisible(wasVisible)
-      this.shadowGround.addTo(this.groundGroup)
-    }
+  /**
+   * T023/T024, US2, FR-008, FR-013 — records what the footprints actually occupy, and (re)builds
+   * the light and ground plane around it. Called when the buildings or their heights change, never
+   * on a time-of-day tick.
+   *
+   * The radius itself is no longer an argument: it is *derived* from these bounds and the sun's
+   * current elevation, in `aimSun`, so there is still exactly one radius (FR-009) but it is a
+   * function of content rather than of the radius the buildings were queried with. An empty site
+   * gets the stated fallback extent and nothing casting.
+   */
+  setContentBounds(extentMetres: number, tallestBuildingMetres: number): void {
+    this.contentExtentMetres = extentMetres > 0 ? extentMetres : NO_BUILDINGS_FALLBACK_EXTENT_METRES
+    this.tallestBuildingMetres = tallestBuildingMetres
+    this.applyShadowRadius(this.lastAltitudeDegrees)
   }
 
-  /** FR-016, FR-017, FR-019, FR-022, FR-023 — moves only the light direction and the ground
-   * plane's visibility; never rebuilds geometry. This is what keeps time scrubbing cheap enough to
-   * read as continuous motion (SC-004). */
+  /** FR-016, FR-017, FR-019, FR-022, FR-023 — moves the light direction and resizes the one radius
+   * to the new elevation. Both are arithmetic plus a scale assignment; no geometry is built, which
+   * is what keeps time scrubbing cheap enough to read as continuous motion (SC-004). */
   aimSun(azimuthDegrees: number, altitudeDegrees: number): void {
+    this.lastAltitudeDegrees = altitudeDegrees
+    this.applyShadowRadius(altitudeDegrees)
     this.sunLight?.aimAt(azimuthDegrees, altitudeDegrees)
-    this.shadowGround?.setVisible(altitudeDegrees > 0)
+    this.shadowGround?.setVisible(altitudeDegrees > MIN_SHADOW_ELEVATION_DEGREES)
+  }
+
+  /** The single radius of FR-009, computed in one place and handed to both consumers. */
+  private applyShadowRadius(altitudeDegrees: number): void {
+    const radius = shadowRadiusMetres(this.contentExtentMetres, this.tallestBuildingMetres, altitudeDegrees)
+    this.currentRadiusMetres = radius
+
+    if (!this.sunLight) {
+      this.sunLight = new SunLight(radius, this.tallestBuildingMetres)
+      this.sunLight.addTo(this.lightGroup)
+    } else {
+      this.sunLight.configureShadowCamera(radius, this.tallestBuildingMetres)
+    }
+
+    if (!this.shadowGround) {
+      this.shadowGround = new ShadowGround(radius)
+      this.shadowGround.addTo(this.groundGroup)
+    } else {
+      this.shadowGround.setRadius(radius)
+    }
   }
 
   /** T017, T051, FR-005…FR-008, FR-019, FR-022, FR-023, SC-004 — rebuilds the sun-path dome (the
@@ -117,14 +136,15 @@ export class SolarScene {
   }
 
   /** T040, T042 — rebuilds the buildings group from a fresh footprint list. Rebuilt only when
-   * buildings or heights change (FR-019), never on a time-of-day tick. */
+   * buildings or heights change (FR-019), never on a time-of-day tick. T033/T023: the extent and
+   * tallest height measured while building feed the shadow radius directly, so the caller never has
+   * to walk the footprints a second time to size the rig. */
   rebuildBuildings(buildings: SiteBuildingDto[], showMass: boolean = this.showBuildingMass): void {
     this.showBuildingMass = showMass
     this.disposeGroupContents(this.buildingsGroup)
-    for (const building of buildings) {
-      const mesh = buildFootprintMesh(building, showMass)
-      if (mesh) this.buildingsGroup.add(mesh)
-    }
+    const built = buildFootprintMeshes(buildings, showMass)
+    for (const mesh of built.meshes) this.buildingsGroup.add(mesh)
+    this.setContentBounds(built.extentMetres, built.tallestHeightMetres)
   }
 
   /** T041 — the developer-only toggle that reveals massing without rebuilding geometry. */

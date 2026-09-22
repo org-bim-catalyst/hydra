@@ -21,6 +21,15 @@ export const copy = {
   // Below horizon (FR-017)
   belowHorizonNotice: 'The sun is below the horizon — no shadows are cast.',
 
+  /**
+   * FR-012, research D7, T026 — the sun is up but too low for shadows to be drawn. Without this
+   * the window just after sunrise and just before sunset reads as a broken renderer: daylight on
+   * screen, buildings present, no shadows. The threshold is interpolated from the constant the
+   * light itself is gated on, so the sentence cannot drift from the behaviour it describes.
+   */
+  lowSunNoShadowsNotice: (minimumElevationDegrees: number) =>
+    `The sun is less than ${minimumElevationDegrees}° above the horizon — shadows are not drawn at this elevation, where they would stretch for kilometres.`,
+
   // Buildings (FR-013, FR-014, FR-015)
   noBuildingsFound: 'No buildings found near this site — the sun path still applies.',
   buildingDataUnavailable: 'Building data is temporarily unavailable — the sun path still applies.',

@@ -6,7 +6,8 @@ import { buildFootprintMesh } from '../buildings/footprintGeometry'
 import { copy } from '../copy'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import { daySummary } from '../solar/daySummary'
-import { solarPosition } from '../solar/solarPosition'
+import { geometricAltitudeForApparentDegrees, HORIZON_REFRACTION_DEGREES } from '../solar/refraction'
+import { solarPosition, solarPositionToEnuUnitVector, SOLAR_POSITION_TOLERANCE_DEGREES } from '../solar/solarPosition'
 import { SunLight } from './sunLight'
 
 /**
@@ -93,5 +94,54 @@ describe('No shadows when the sun is below the horizon (FR-017, US2 scenario 3)'
     })
     const textBlock = content.blocks.find((b) => (b as { kind: string }).kind === 'text') as unknown as { text: string }
     expect(textBlock.text).toContain(copy.belowHorizonNotice)
+  })
+})
+
+/**
+ * T021, FR-027, SC-009 — the one sanctioned reason a shadow may sit anywhere other than where the
+ * previous release put it is the refraction correction FR-007 requires; nothing in this release's
+ * performance or frustum work may move a shadow for any other reason.
+ *
+ * The previous release aimed the light at the *geometric* altitude. `geometricAltitudeForApparent`
+ * recovers exactly that baseline from the apparent altitude now reported, so the two light
+ * directions can be compared directly — the angle between them IS the refraction correction, and
+ * asserting it bounds the shadow movement without needing a rendered pixel.
+ */
+function angleBetweenDegrees(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number {
+  const dot = Math.min(1, Math.max(-1, a.x * b.x + a.y * b.y + a.z * b.z))
+  return (Math.acos(dot) * 180) / Math.PI
+}
+
+describe('Shadow direction vs the previous release (T021, FR-027, SC-009)', () => {
+  const AZIMUTH = 137.4
+
+  it('is unchanged, within the stated position tolerance, above 15° elevation', () => {
+    for (const apparentAltitude of [15, 20, 30, 45, 60, 75, 89]) {
+      const current = solarPositionToEnuUnitVector(AZIMUTH, apparentAltitude)
+      const baseline = solarPositionToEnuUnitVector(AZIMUTH, geometricAltitudeForApparentDegrees(apparentAltitude))
+
+      expect(angleBetweenDegrees(current, baseline)).toBeLessThanOrEqual(SOLAR_POSITION_TOLERANCE_DEGREES)
+    }
+  })
+
+  it('differs near the horizon by no more than the refraction correction itself — about half a degree', () => {
+    for (const apparentAltitude of [0, 0.5, 1, 2, 5, 10]) {
+      const current = solarPositionToEnuUnitVector(AZIMUTH, apparentAltitude)
+      const baseline = solarPositionToEnuUnitVector(AZIMUTH, geometricAltitudeForApparentDegrees(apparentAltitude))
+
+      expect(angleBetweenDegrees(current, baseline)).toBeLessThanOrEqual(HORIZON_REFRACTION_DEGREES + 1e-9)
+    }
+    expect(HORIZON_REFRACTION_DEGREES).toBeLessThan(0.6)
+  })
+
+  it('moves the shadow only vertically: the compass bearing a shadow falls along is untouched by refraction (FR-005)', () => {
+    const apparentAltitude = 3
+    const current = solarPositionToEnuUnitVector(AZIMUTH, apparentAltitude)
+    const baseline = solarPositionToEnuUnitVector(AZIMUTH, geometricAltitudeForApparentDegrees(apparentAltitude))
+
+    // The shadow's ground bearing is the horizontal component of the light direction, negated.
+    const currentBearing = Math.atan2(current.x, current.y)
+    const baselineBearing = Math.atan2(baseline.x, baseline.y)
+    expect(currentBearing).toBeCloseTo(baselineBearing, 10)
   })
 })

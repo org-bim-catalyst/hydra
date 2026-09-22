@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { solarPosition, solarPositionToEnuUnitVector } from '../solar/solarPosition'
-import { SunLight } from './sunLight'
+import { MIN_SHADOW_ELEVATION_DEGREES, SHADOW_FRUSTUM_MARGIN, SunLight, shadowRadiusMetres } from './sunLight'
 
 describe('SunLight — direction and shadow-casting behaviour (FR-016, FR-017)', () => {
-  it('aims the light along the sun ENU unit vector, scaled by SUN_LIGHT_DISTANCE_METRES', () => {
+  it('aims the light along the sun ENU unit vector, scaled by the light distance', () => {
     const light = new SunLight(200)
     const az = 247.3
     const alt = 41.8
@@ -46,12 +46,95 @@ describe('SunLight — direction and shadow-casting behaviour (FR-016, FR-017)',
     expect(shadowAzimuth).toBeLessThan(135) // east-southeast through east-northeast
   })
 
-  it('configures the orthographic shadow camera frustum to radius * 1.3', () => {
+  it('configures the orthographic shadow camera frustum to radius * the ground-clearance margin', () => {
     const light = new SunLight(200, 30)
     const camera = light.directionalLight.shadow.camera as THREE.OrthographicCamera
-    expect(camera.right).toBeCloseTo(260, 5)
-    expect(camera.left).toBeCloseTo(-260, 5)
-    expect(camera.top).toBeCloseTo(260, 5)
-    expect(camera.bottom).toBeCloseTo(-260, 5)
+    const expected = 200 * SHADOW_FRUSTUM_MARGIN
+    expect(camera.right).toBeCloseTo(expected, 5)
+    expect(camera.left).toBeCloseTo(-expected, 5)
+    expect(camera.top).toBeCloseTo(expected, 5)
+    expect(camera.bottom).toBeCloseTo(-expected, 5)
+  })
+})
+
+/**
+ * T019, FR-014, SC-006 — fitting the frustum to the content is only safe if the fit still reaches
+ * the end of the longest shadow that content can cast. These assert that directly, in metres,
+ * rather than asserting the formula back to itself.
+ */
+describe('shadowRadiusMetres — fitting tightly without truncating (T019, FR-014, SC-006)', () => {
+  it('reaches the tip of the tallest building’s shadow at any elevation it is asked about', () => {
+    const extent = 120
+    const tallest = 45
+
+    for (const elevation of [90, 60, 45, 30, 15, 5, 2, MIN_SHADOW_ELEVATION_DEGREES]) {
+      const radius = shadowRadiusMetres(extent, tallest, elevation)
+      // Worst case: a building standing at the far edge of the content, casting directly outward.
+      const longestShadow = tallest / Math.tan((elevation * Math.PI) / 180)
+      expect(radius).toBeGreaterThanOrEqual(extent + longestShadow - 1e-9)
+    }
+  })
+
+  it('reaches further as the sun drops, because the shadow it has to contain gets longer', () => {
+    const atNoon = shadowRadiusMetres(120, 45, 70)
+    const atMidMorning = shadowRadiusMetres(120, 45, 25)
+    const atFloor = shadowRadiusMetres(120, 45, MIN_SHADOW_ELEVATION_DEGREES)
+
+    expect(atNoon).toBeLessThan(atMidMorning)
+    expect(atMidMorning).toBeLessThan(atFloor)
+  })
+
+  it('fits far tighter than a radius fixed at the floor elevation would, which is the resolution gain (SC-005)', () => {
+    // The Badr measurement behind the deviation recorded in shadowRadiusMetres' own documentation:
+    // ~200 m of content, tallest 9 m. A radius held at the floor elevation all day is 3x wider than
+    // one that tracks the sun, spread over the same 2048-square shadow map.
+    const heldAtFloor = shadowRadiusMetres(200, 9, MIN_SHADOW_ELEVATION_DEGREES)
+    const atFortyFive = shadowRadiusMetres(200, 9, 45)
+
+    expect(heldAtFloor).toBeGreaterThan(700)
+    expect(atFortyFive).toBeLessThan(215)
+    expect(heldAtFloor / atFortyFive).toBeGreaterThan(3)
+  })
+})
+
+/**
+ * T020, FR-012 — the low-sun cut-off. Two separate claims: the light stops casting at the same
+ * threshold the radius is floored at, and the radius itself stays finite as elevation approaches
+ * zero, where `height / tan(elevation)` would otherwise diverge.
+ */
+describe('Low-sun cut-off (T020, FR-012)', () => {
+  it('disables the light at and below the minimum shadow elevation, not only below the horizon', () => {
+    const light = new SunLight(200, 30)
+
+    for (const elevation of [-10, -0.5, 0, 0.5, MIN_SHADOW_ELEVATION_DEGREES]) {
+      light.aimAt(120, elevation)
+      expect(light.directionalLight.visible).toBe(false)
+      expect(light.directionalLight.intensity).toBe(0)
+    }
+
+    light.aimAt(120, MIN_SHADOW_ELEVATION_DEGREES + 0.5)
+    expect(light.directionalLight.visible).toBe(true)
+    expect(light.directionalLight.intensity).toBeGreaterThan(0)
+  })
+
+  it('keeps the radius finite and bounded as the sun approaches the horizon', () => {
+    const atFloor = shadowRadiusMetres(200, 60, MIN_SHADOW_ELEVATION_DEGREES)
+
+    for (const elevation of [1, 0.5, 0.1, 0.001, 0, -5, -30]) {
+      const radius = shadowRadiusMetres(200, 60, elevation)
+      expect(Number.isFinite(radius)).toBe(true)
+      // Floored, not extrapolated: below the cut-off nothing casts, so the radius stops growing.
+      expect(radius).toBeCloseTo(atFloor, 6)
+    }
+  })
+
+  it('keeps the shadow camera frustum finite at the cut-off, so a near-horizon sun cannot produce a degenerate projection', () => {
+    const light = new SunLight(shadowRadiusMetres(200, 60, 0), 60)
+    const camera = light.directionalLight.shadow.camera as THREE.OrthographicCamera
+
+    expect(Number.isFinite(camera.right)).toBe(true)
+    expect(camera.far).toBeGreaterThan(camera.near)
+    // Every point of content lies between the light and the far plane, not behind either.
+    expect(camera.far).toBeGreaterThan(light.lightDistanceMetres)
   })
 })

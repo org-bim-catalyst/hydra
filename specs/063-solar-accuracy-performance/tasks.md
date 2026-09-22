@@ -92,19 +92,19 @@ no shadow is truncated; no grey patch appears at any sun position.
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] In `scene/shadowGround.test.ts`, extend the existing ground-inside-frustum invariant to content-derived radii: a tight cluster, a lone tall building, an off-centre cluster, and the no-buildings fallback (FR-009, FR-010, SC-007)
-- [ ] T019 [P] [US2] In `scene/sunLight.test.ts`, assert the derived radius accommodates the longest shadow the tallest present building casts at `MIN_SHADOW_ELEVATION_DEGREES`, so tighter fitting cannot truncate it (FR-014, SC-006)
-- [ ] T020 [P] [US2] In `scene/sunLight.test.ts`, assert the light is disabled at and below 1° exactly as it already is below the horizon, and that the radius never diverges as elevation approaches zero (FR-012)
-- [ ] T021 [P] [US2] In `scene/shadows.integration.test.ts`, assert shadow direction at a fixed instant is unchanged from baseline above 15° elevation and differs by no more than the refraction correction at the horizon (FR-027, SC-009)
+- [X] T018 [P] [US2] In `scene/shadowGround.test.ts`, extend the existing ground-inside-frustum invariant to content-derived radii: a tight cluster, a lone tall building, an off-centre cluster, and the no-buildings fallback (FR-009, FR-010, SC-007)
+- [X] T019 [P] [US2] In `scene/sunLight.test.ts`, assert the derived radius accommodates the longest shadow the tallest present building casts at `MIN_SHADOW_ELEVATION_DEGREES`, so tighter fitting cannot truncate it (FR-014, SC-006)
+- [X] T020 [P] [US2] In `scene/sunLight.test.ts`, assert the light is disabled at and below 1° exactly as it already is below the horizon, and that the radius never diverges as elevation approaches zero (FR-012)
+- [X] T021 [P] [US2] In `scene/shadows.integration.test.ts`, assert shadow direction at a fixed instant is unchanged from baseline above 15° elevation and differs by no more than the refraction correction at the horizon (FR-027, SC-009)
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] In `scene/sunLight.ts`, remove `SHADOW_FRUSTUM_RATIO` and add `MIN_SHADOW_ELEVATION_DEGREES = 1.0` with a TSDoc note recording the divergence reasoning from research D7
-- [ ] T023 [US2] In `scene/sunLight.ts`, derive the shadow radius as `buildingExtent + tallestHeight / tan(MIN_SHADOW_ELEVATION_DEGREES)`, keeping it a **single scalar** that feeds both the shadow camera extent and `scene/shadowGround.ts` (FR-008, FR-009)
-- [ ] T024 [US2] In `scene/sunLight.ts`, apply the defined fallback radius when no buildings are present, and keep `near`/`far` bracketing the tallest building as today (FR-013)
-- [ ] T025 [US2] In `scene/sunLight.ts`, disable the directional light at or below 1° elevation, using the same path that already handles below-horizon (FR-012)
-- [ ] T026 [US2] In `copy.ts` and `panels/solarFiguresContent.ts`, state why no shadows are drawn in the new 1°-to-horizon window, so the sun being visibly up with no shadows reads as intended rather than broken (FR-012, FR-028)
-- [ ] T027 [US2] Confirm no code path added here writes `renderer.shadowMap.*`, `scene.environment`, or calls `sceneAnchor.set(...)` (FR-024, README constraints 2 and 3)
+- [X] T022 [US2] In `scene/sunLight.ts`, remove `SHADOW_FRUSTUM_RATIO` and add `MIN_SHADOW_ELEVATION_DEGREES = 1.0` with a TSDoc note recording the divergence reasoning from research D7
+- [X] T023 [US2] In `scene/sunLight.ts`, derive the shadow radius as `buildingExtent + tallestHeight / tan(MIN_SHADOW_ELEVATION_DEGREES)`, keeping it a **single scalar** that feeds both the shadow camera extent and `scene/shadowGround.ts` (FR-008, FR-009)
+- [X] T024 [US2] In `scene/sunLight.ts`, apply the defined fallback radius when no buildings are present, and keep `near`/`far` bracketing the tallest building as today (FR-013)
+- [X] T025 [US2] In `scene/sunLight.ts`, disable the directional light at or below 1° elevation, using the same path that already handles below-horizon (FR-012)
+- [X] T026 [US2] In `copy.ts` and `panels/solarFiguresContent.ts`, state why no shadows are drawn in the new 1°-to-horizon window, so the sun being visibly up with no shadows reads as intended rather than broken (FR-012, FR-028)
+- [X] T027 [US2] Confirm no code path added here writes `renderer.shadowMap.*`, `scene.environment`, or calls `sceneAnchor.set(...)` (FR-024, README constraints 2 and 3)
 
 **Checkpoint**: US1 + US2 deliverable together — the two P1 stories, and everything user-visible in the release.
 
@@ -128,7 +128,7 @@ the camera; motion stays continuous and the viewer stays usable.
 
 - [ ] T031 [US3] In `buildings/footprintGeometry.ts`, merge all footprint extrusions into one `BufferGeometry` with one shared material via `BufferGeometryUtils.mergeGeometries` (FR-015)
 - [ ] T032 [US3] In `buildings/footprintGeometry.ts`, route excluded degenerate rings through the existing excluded-count surface rather than dropping them silently (FR-028)
-- [ ] T033 [US3] In `buildings/footprintGeometry.ts`, expose the merged extent and tallest height so T023's radius derivation does not re-traverse the source data
+- [X] T033 [US3] In `buildings/footprintGeometry.ts`, expose the merged extent and tallest height so T023's radius derivation does not re-traverse the source data
 - [ ] T034 [US3] In `buildings/footprintGeometry.ts`, reimplement the mass toggle as a `colorWrite` flip on the single shared material (FR-016)
 - [ ] T035 [US3] Add `SHADOW_GATE_DEGREES = 0.25` and apply the gate in `scene/SolarScene.ts` and `viewer/extensions/builtin/solarAnalysisExtension.tsx` by withholding the recomputation inputs — **never** by touching `renderer.shadowMap.autoUpdate` or any renderer-global flag (FR-018, FR-024)
 - [ ] T036 [US3] Restrict the gate to continuous playback only; scrubbing and single-step time changes are never gated (FR-020)

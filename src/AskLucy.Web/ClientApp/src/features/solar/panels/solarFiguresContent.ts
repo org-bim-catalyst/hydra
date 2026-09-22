@@ -1,5 +1,6 @@
 import { CONTENT_VOCABULARY_VERSION, type PanelContent } from '../../../viewer/panels/content/blocks'
 import { copy } from '../copy'
+import { MIN_SHADOW_ELEVATION_DEGREES } from '../scene/sunLight'
 import type { DaySummary } from '../solar/daySummary'
 import { SOLAR_SEMIDIAMETER_DEGREES } from '../solar/refraction'
 import { SOLAR_POSITION_TOLERANCE_DEGREES, type SolarPositionResult } from '../solar/solarPosition'
@@ -121,6 +122,10 @@ export function buildSolarFiguresContent(input: SolarFiguresInput): PanelContent
   const upperEdgeAltitudeDegrees = solarPosition.altitudeDegrees + SOLAR_SEMIDIAMETER_DEGREES
   if (upperEdgeAltitudeDegrees < 0) {
     closingStatements.unshift(copy.belowHorizonNotice)
+  } else if (solarPosition.altitudeDegrees <= MIN_SHADOW_ELEVATION_DEGREES) {
+    // FR-012, T026 — the sun is up, but below the elevation at which shadows are drawn. Same
+    // reasoning as the notice above it: an absent result with a stated reason is not a silent one.
+    closingStatements.unshift(copy.lowSunNoShadowsNotice(MIN_SHADOW_ELEVATION_DEGREES))
   }
 
   const blocks: PanelContent['blocks'] = [

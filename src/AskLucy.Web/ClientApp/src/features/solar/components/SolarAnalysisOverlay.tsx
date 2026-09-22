@@ -14,7 +14,6 @@ import { useSolarAnalysisStore } from '../store/solarAnalysisStore'
 
 export const EXTENSION_ID = 'viewer.solar-analysis'
 export const FIGURES_PANEL_REQUEST_ID = 'solar-analysis-figures'
-const DEFAULT_TALLEST_BUILDING_METRES = 50
 
 /** contracts/open-solar-analysis-capability.md — Lucy's optional requested date/time, applied
  * once the analysis opens for the active site. `activate(mode?)` only carries a single optional
@@ -80,7 +79,6 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
     const moment = useSolarAnalysisStore((s) => s.moment)
     const status = useSolarAnalysisStore((s) => s.status)
     const siteBuildings = useSolarAnalysisStore((s) => s.siteBuildings)
-    const siteBuildingsRadiusMetres = useSolarAnalysisStore((s) => s.siteBuildingsRadiusMetres)
     // FR-025, FR-026, research D11 — reactive: a correction edit (a different object reference
     // for this site key) re-triggers the geometry-rebuild effect below, without depending on
     // corrections for any OTHER site re-rendering this overlay.
@@ -182,10 +180,9 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
       )
 
       try {
-        const tallest = correctedBuildings.length
-          ? Math.max(...correctedBuildings.map((b) => b.heightMetres))
-          : DEFAULT_TALLEST_BUILDING_METRES
-        solarScene.ensureShadowRig(siteBuildingsRadiusMetres, tallest)
+        // T023/T033 — the shadow rig is sized from the footprints themselves, measured as they are
+        // built, not from the radius they were queried with. `rebuildBuildings` reports those
+        // bounds to the scene, so there is nothing to compute here.
         solarScene.rebuildBuildings(correctedBuildings)
         solarScene.setGroundOffset(corrections?.groundOffsetMetres ?? 0)
         solarScene.invalidate()
@@ -196,7 +193,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         // (constitution §2.VIII: the failure surfaced must describe what actually failed).
         useSolarAnalysisStore.getState().markFailed(copy.viewerUnavailable)
       }
-    }, [activation, siteBuildings, siteBuildingsRadiusMetres, corrections, anchorVersion])
+    }, [activation, siteBuildings, corrections, anchorVersion])
 
     // Rebuilds the sun-path geometry, aims the shadow light, and refreshes the figures panel
     // whenever the instant or the site changes (FR-005…FR-008, FR-016, FR-017, FR-031).
