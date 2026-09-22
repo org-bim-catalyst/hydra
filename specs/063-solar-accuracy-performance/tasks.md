@@ -40,14 +40,14 @@ every other story would otherwise be built against a value that is about to chan
 
 **⚠️ CRITICAL**: No user story phase may begin until T005 passes.
 
-- [ ] T001 [P] Create `solar/refraction.ts` with `refractionCorrectionDegrees()` implementing the NOAA piecewise correction per [contracts/solar-position.md](./contracts/solar-position.md), and export `SOLAR_SEMIDIAMETER_DEGREES = 0.2667` with a TSDoc note recording that the ±1.7% annual variation is deliberately not modelled
-- [ ] T002 [P] Create `solar/refraction.test.ts` asserting: zero above 85°, continuity across each band boundary within tolerance, defined output below the horizon, and the published NOAA correction values at 0°, 5°, 15° and 45°
-- [ ] T003 In `solar/solarPosition.ts`, apply `refractionCorrectionDegrees()` so `altitudeDegrees` is the corrected apparent altitude, keeping the geometric value as a local intermediate that is not returned or exported (FR-007)
-- [ ] T004 In `solar/solarPosition.test.ts`, assert azimuth is bit-unchanged and altitude above 15° is within tolerance of the pre-change values recorded in [baseline.md](./baseline.md) (FR-005, US1 scenario 3)
-- [ ] T005 In `solar/daySummary.ts`, replace the `Math.sin(toRad(-0.833))` threshold with a Newton solve for `solarPosition().altitudeDegrees + SOLAR_SEMIDIAMETER_DEGREES = 0`, seeded from the existing closed form, with a stated iteration cap and convergence threshold (FR-002a)
-- [ ] T006 In `solar/daySummary.ts`, evaluate the existing `cosH0 > 1` / `cosH0 < -1` polar branches **before** any iteration, and return the existing never-rises / never-sets results unchanged (FR-004)
-- [ ] T007 In `solar/daySummary.ts`, surface solver non-convergence to the caller as an explicit undetermined result rather than returning the seed or the last iterate, and in `panels/solarFiguresContent.ts` render it as a stated "could not be determined" alongside the existing polar wording (FR-028, constitution §2 VIII)
-- [ ] T008 Add `solar/daySummary.test.ts` coverage for T007's non-convergence path by injecting a forced failure, asserting the undetermined result reaches the panel as visible text and is never a plausible-looking time
+- [X] T001 [P] Create `solar/refraction.ts` with `refractionCorrectionDegrees()` implementing the NOAA piecewise correction per [contracts/solar-position.md](./contracts/solar-position.md), and export `SOLAR_SEMIDIAMETER_DEGREES = 0.2667` with a TSDoc note recording that the ±1.7% annual variation is deliberately not modelled
+- [X] T002 [P] Create `solar/refraction.test.ts` asserting: zero above 85°, continuity across each band boundary within tolerance, defined output below the horizon, and the published NOAA correction values at 0°, 5°, 15° and 45°
+- [X] T003 In `solar/solarPosition.ts`, apply `refractionCorrectionDegrees()` so `altitudeDegrees` is the corrected apparent altitude, keeping the geometric value as a local intermediate that is not returned or exported (FR-007)
+- [X] T004 In `solar/solarPosition.test.ts`, assert azimuth is bit-unchanged and altitude above 15° is within tolerance of the pre-change values recorded in [baseline.md](./baseline.md) (FR-005, US1 scenario 3)
+- [X] T005 In `solar/daySummary.ts`, replace the `Math.sin(toRad(-0.833))` threshold with a Newton solve for `solarPosition().altitudeDegrees + SOLAR_SEMIDIAMETER_DEGREES = 0`, seeded from the existing closed form, with a stated iteration cap and convergence threshold (FR-002a)
+- [X] T006 In `solar/daySummary.ts`, evaluate the existing `cosH0 > 1` / `cosH0 < -1` polar branches **before** any iteration, and return the existing never-rises / never-sets results unchanged (FR-004)
+- [X] T007 In `solar/daySummary.ts`, surface solver non-convergence to the caller as an explicit undetermined result rather than returning the seed or the last iterate, and in `panels/solarFiguresContent.ts` render it as a stated "could not be determined" alongside the existing polar wording (FR-028, constitution §2 VIII)
+- [X] T008 Add `solar/daySummary.test.ts` coverage for T007's non-convergence path by injecting a forced failure, asserting the undetermined result reaches the panel as visible text and is never a plausible-looking time
 
 **Checkpoint**: The corrected altitude is the system's only altitude, and rise/set is solved rather than approximated.
 

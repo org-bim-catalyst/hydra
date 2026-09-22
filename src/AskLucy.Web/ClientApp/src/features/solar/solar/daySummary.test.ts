@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { copy } from '../copy'
+import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import { daySummary } from './daySummary'
+import { SOLAR_SEMIDIAMETER_DEGREES } from './refraction'
 import {
   HIGH_LATITUDE_THRESHOLD_DEGREES,
   RISE_SET_TOLERANCE_SECONDS,
@@ -10,8 +13,15 @@ import {
 /**
  * SC-001 / quickstart Scenario 1. The sunrise/sunset instants `daySummary` produces are checked
  * for internal consistency against the *same* solar-position function they are derived from: the
- * sun's altitude at the computed sunrise/sunset instant must sit at the standard −0.833° reference
- * altitude (atmospheric refraction + solar radius) NOAA's rise/set formula targets. This does not
+ * sun's apparent altitude at the computed sunrise/sunset instant must sit at exactly
+ * `-SOLAR_SEMIDIAMETER_DEGREES`.
+ *
+ * specs/063 replaced the old `-0.833 degrees` expectation here. That number bundled refraction and
+ * the sun's angular radius together, and because it was applied through a hour-angle formula
+ * evaluated once at noon, the altitude actually observed at the returned instant drifted between
+ * -0.77 and -0.96 degrees depending on site and season. Now refraction lives in `solarPosition`
+ * and the radius alone defines rise and set, so this assertion has a single exact target that does
+ * not move (research D1/D3, FR-002). This does not
  * independently verify the NOAA formula itself (solarPosition.test.ts's solar-noon identity does
  * that) — it verifies that `daySummary.ts`'s own arithmetic (solving for the hour angle at that
  * reference altitude, converting to UTC minutes) is faithful to the value the shared
@@ -29,7 +39,7 @@ function altitudeToleranceForSeconds(seconds: number): number {
 }
 
 describe('daySummary — rise/set self-consistency (SC-001)', () => {
-  it('places London sunrise/sunset altitude at the standard -0.833° reference altitude', () => {
+  it('places London sunrise/sunset altitude at exactly minus the solar semidiameter', () => {
     const summary = daySummary(new Date(Date.UTC(2026, 5, 21)), 51.5, -0.1)
     expect(summary.polarCondition).toBe('none')
     expect(summary.sunriseUtc).not.toBeNull()
@@ -37,16 +47,22 @@ describe('daySummary — rise/set self-consistency (SC-001)', () => {
 
     const riseAltitude = solarPosition(summary.sunriseUtc!, 51.5, -0.1).altitudeDegrees
     const setAltitude = solarPosition(summary.sunsetUtc!, 51.5, -0.1).altitudeDegrees
-    expect(Math.abs(riseAltitude - -0.833)).toBeLessThanOrEqual(altitudeToleranceForSeconds(RISE_SET_TOLERANCE_SECONDS))
-    expect(Math.abs(setAltitude - -0.833)).toBeLessThanOrEqual(altitudeToleranceForSeconds(RISE_SET_TOLERANCE_SECONDS))
+    expect(Math.abs(riseAltitude - -SOLAR_SEMIDIAMETER_DEGREES)).toBeLessThanOrEqual(
+      altitudeToleranceForSeconds(RISE_SET_TOLERANCE_SECONDS),
+    )
+    expect(Math.abs(setAltitude - -SOLAR_SEMIDIAMETER_DEGREES)).toBeLessThanOrEqual(
+      altitudeToleranceForSeconds(RISE_SET_TOLERANCE_SECONDS),
+    )
   })
 
-  it('places Dubai sunrise/sunset altitude at the standard reference altitude across the year', () => {
+  it('places Dubai sunrise/sunset altitude at minus the solar semidiameter across the year', () => {
     for (const month of [2, 5, 8, 11]) {
       const summary = daySummary(new Date(Date.UTC(2026, month, 20)), 25.2, 55.3)
       expect(summary.polarCondition).toBe('none')
       const riseAltitude = solarPosition(summary.sunriseUtc!, 25.2, 55.3).altitudeDegrees
-      expect(Math.abs(riseAltitude - -0.833)).toBeLessThanOrEqual(altitudeToleranceForSeconds(RISE_SET_TOLERANCE_SECONDS))
+      expect(Math.abs(riseAltitude - -SOLAR_SEMIDIAMETER_DEGREES)).toBeLessThanOrEqual(
+        altitudeToleranceForSeconds(RISE_SET_TOLERANCE_SECONDS),
+      )
     }
   })
 
@@ -95,5 +111,71 @@ describe('daySummary — Ushuaia, southern hemisphere seasons inverted', () => {
     const june = daySummary(new Date(Date.UTC(2026, 5, 21)), -54.8, -68.3)
     const december = daySummary(new Date(Date.UTC(2026, 11, 21)), -54.8, -68.3)
     expect(december.dayLengthMinutes!).toBeGreaterThan(june.dayLengthMinutes!)
+  })
+})
+
+/**
+ * T008 / FR-028, constitution §2 VIII — the solver's failure path.
+ *
+ * Non-convergence is not reachable with real inputs: the closed-form seed lands within minutes of
+ * the answer and Newton closes that in about five evaluations against a twelve-evaluation cap.
+ * `maxIterations: 0` exists so the path can still be exercised, because an unreachable failure
+ * path and an unhandled one look identical until someone checks.
+ */
+describe('daySummary — non-convergence surfaces rather than guesses (T008, FR-028)', () => {
+  const dubaiSeptember = () => daySummary(new Date(Date.UTC(2026, 8, 21)), 25.2, 55.3, { maxIterations: 0 })
+
+  it('reports the failure explicitly instead of returning a time', () => {
+    const summary = dubaiSeptember()
+    expect(summary.riseSetUndetermined).toBe(true)
+    expect(summary.sunriseUtc).toBeNull()
+    expect(summary.sunsetUtc).toBeNull()
+    expect(summary.dayLengthMinutes).toBeNull()
+  })
+
+  it('does not disguise the failure as a polar condition — the sun does rise at Dubai in September', () => {
+    expect(dubaiSeptember().polarCondition).toBe('none')
+    expect(daySummary(new Date(Date.UTC(2026, 8, 21)), 25.2, 55.3).riseSetUndetermined).toBe(false)
+  })
+
+  it('never returns the seed, which is a plausible-looking time that is minutes wrong', () => {
+    const solved = daySummary(new Date(Date.UTC(2026, 8, 21)), 25.2, 55.3)
+    const failed = dubaiSeptember()
+    // The seed is within ~3 minutes of `solved`, so "returned the seed" would be indistinguishable
+    // from success at the panel's one-minute display precision. There must be no Date at all.
+    expect(failed.sunriseUtc).toBeNull()
+    expect(solved.sunriseUtc).toBeInstanceOf(Date)
+  })
+
+  it('reaches the figures panel as visible text saying the times could not be determined', () => {
+    const summary = dubaiSeptember()
+    const content = buildSolarFiguresContent({
+      localDate: '2026-09-21',
+      localMinuteOfDay: 720,
+      timeZoneId: 'Asia/Dubai',
+      timeBasisLabel: 'Asia/Dubai',
+      solarPosition: solarPosition(new Date(Date.UTC(2026, 8, 21, 8, 0, 0)), 25.2, 55.3),
+      daySummary: summary,
+      siteBuildingHeightAssumed: null,
+    })
+
+    const keyValue = content.blocks.find((block) => block.kind === 'keyValue')
+    expect(keyValue).toBeDefined()
+    const rendered = JSON.stringify(keyValue)
+    expect(rendered).toContain(copy.riseSetUndetermined)
+
+    // And nothing in those rows that reads like a time — no "06:41", no day length, no polar
+    // wording. (The heading legitimately carries the analysis moment, which is why this looks at
+    // the key/value rows rather than the whole document.)
+    expect(rendered).not.toMatch(/\d{2}:\d{2}/)
+    expect(rendered).not.toContain(copy.dayLengthLabel)
+    expect(rendered).not.toContain(copy.sunNeverRises)
+    expect(rendered).not.toContain(copy.sunNeverSets)
+  })
+
+  it('leaves the polar cases untouched — they are a different answer, not a failure', () => {
+    const polarNight = daySummary(new Date(Date.UTC(2026, 11, 21)), 69.6, 18.9)
+    expect(polarNight.polarCondition).toBe('polar-night')
+    expect(polarNight.riseSetUndetermined).toBe(false)
   })
 })

@@ -1,3 +1,5 @@
+import { refractionCorrectionDegrees } from './refraction'
+
 /**
  * research D1 — the NOAA solar-position algorithm (public-domain formulas), ported from the
  * reference implementation (`sunpath-osm-shadows-13.html`) rather than adopted as a runtime
@@ -24,9 +26,19 @@ export const RISE_SET_TOLERANCE_SECONDS_HIGH_LATITUDE = 600
 export const HIGH_LATITUDE_THRESHOLD_DEGREES = 72
 
 export interface SolarPositionResult {
-  /** Compass direction, clockwise from true north, 0…360. */
+  /** Compass direction, clockwise from true north, 0…360. Unaffected by the refraction correction
+   * (FR-005) — refraction raises the apparent position vertically, it does not rotate it. */
   azimuthDegrees: number
-  /** Height above the horizon, −90…90. Negative means below the horizon. */
+  /**
+   * **Apparent** (refraction-corrected) height of the sun's *centre* above the horizon, −90…90.
+   * Negative means below the horizon.
+   *
+   * research D4 / FR-007 — this is the system's *only* altitude. The light direction, the shadows,
+   * the sun-path marker and the figures panel all consume this one value; the uncorrected
+   * geometric altitude exists solely as a local intermediate inside `solarPosition` and is not
+   * exposed here or anywhere else. Two altitudes that are supposed to agree is precisely how the
+   * defect this feature repairs came about.
+   */
   altitudeDegrees: number
   /** Apparent solar declination for the instant, in degrees — an intermediate NOAA quantity
    * `daySummary.ts` reuses rather than recomputing. */
@@ -79,7 +91,14 @@ export function solarPosition(instantUtc: Date, latitude: number, longitude: num
       1.25 * e * e * Math.sin(2 * Mrad),
   ) * 4
 
-  const utcMinutes = instantUtc.getUTCHours() * 60 + instantUtc.getUTCMinutes() + instantUtc.getUTCSeconds() / 60
+  // Milliseconds are carried, not truncated: `daySummary.ts`'s rise/set solver (FR-002a) narrows
+  // the crossing instant well below one second, and a clock quantised to whole seconds would turn
+  // the function it is solving into a staircase that no convergence threshold could cross.
+  const utcMinutes =
+    instantUtc.getUTCHours() * 60 +
+    instantUtc.getUTCMinutes() +
+    instantUtc.getUTCSeconds() / 60 +
+    instantUtc.getUTCMilliseconds() / 60_000
   let trueSolarTime = (utcMinutes + eqTime + 4 * longitude) % 1440
   if (trueSolarTime < 0) trueSolarTime += 1440
   const hourAngle = trueSolarTime / 4 - 180
@@ -88,7 +107,9 @@ export function solarPosition(instantUtc: Date, latitude: number, longitude: num
   const zenithRad = Math.acos(
     Math.sin(latRad) * Math.sin(declRad) + Math.cos(latRad) * Math.cos(declRad) * Math.cos(toRad(hourAngle)),
   )
-  const altitudeDegrees = 90 - toDeg(zenithRad)
+  // FR-007 — the geometric altitude is a local intermediate and goes no further than this scope.
+  const geometricAltitudeDegrees = 90 - toDeg(zenithRad)
+  const altitudeDegrees = geometricAltitudeDegrees + refractionCorrectionDegrees(geometricAltitudeDegrees)
   const cosAz =
     (Math.sin(latRad) * Math.cos(zenithRad) - Math.sin(declRad)) / (Math.cos(latRad) * Math.sin(zenithRad))
   const azAcos = toDeg(Math.acos(Math.min(1, Math.max(-1, cosAz))))

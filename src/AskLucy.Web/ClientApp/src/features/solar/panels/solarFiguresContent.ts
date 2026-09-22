@@ -49,8 +49,9 @@ export interface SolarFiguresInput {
 /**
  * contracts/solar-panels.md "Solar Figures" — composes the figures as specs/049 content blocks,
  * client-side (research D12). FR-031 requires this be panel content, not a bespoke component;
- * FR-043/FR-044/SC-010 require the closing statement always be present; FR-002/FR-017 require the
- * polar and below-horizon cases replace/augment the normal rows rather than showing a blank.
+ * FR-043/FR-044/SC-010 require the closing statement always be present; FR-002/FR-017/FR-028
+ * require the polar, below-horizon and solver-failed cases replace/augment the normal rows rather
+ * than showing a blank.
  *
  * The accuracy figure is never hand-typed — it comes from `SOLAR_POSITION_TOLERANCE_DEGREES`,
  * the same constant `solarPosition.test.ts` asserts the implementation against (research D1), so
@@ -62,7 +63,11 @@ export function buildSolarFiguresContent(input: SolarFiguresInput): PanelContent
   const localTime = formatLocalTime(localMinuteOfDay)
   const keyValueItems: { label: string; value: string } [] = []
 
-  if (daySummary.polarCondition === 'polar-night') {
+  if (daySummary.riseSetUndetermined) {
+    // FR-028 — the solver failed. Say so, in the same place the times would have been. Leaving the
+    // rows out, or showing the unconverged estimate, would both present a failure as an answer.
+    keyValueItems.push({ label: copy.sunriseLabel, value: copy.riseSetUndetermined })
+  } else if (daySummary.polarCondition === 'polar-night') {
     keyValueItems.push({ label: copy.sunriseLabel, value: copy.sunNeverRises })
   } else if (daySummary.polarCondition === 'midnight-sun') {
     keyValueItems.push({ label: copy.sunsetLabel, value: copy.sunNeverSets })

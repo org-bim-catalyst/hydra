@@ -13,6 +13,11 @@ export const copy = {
   sunNeverRises: 'The sun does not rise on this date.',
   sunNeverSets: 'The sun does not set on this date.',
 
+  // Rise/set solver non-convergence (FR-028, constitution §2 VIII). Stated in the same place and
+  // the same voice as the polar cases, because from the user's side it is the same kind of answer:
+  // there is no time to show. What it must never read as is a time that happens to be wrong.
+  riseSetUndetermined: 'Sunrise and sunset could not be determined for this date.',
+
   // Below horizon (FR-017)
   belowHorizonNotice: 'The sun is below the horizon — no shadows are cast.',
 
