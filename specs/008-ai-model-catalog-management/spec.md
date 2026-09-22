@@ -46,28 +46,41 @@ clear "pricing unknown" indication), and status.
 
 ### User Story 2 - Administrator manually curates a model's status (Priority: P1)
 
-An administrator marks a model Deprecated (a vendor is retiring it), Unavailable (it
-should stop being offered for another reason), or Available (reinstating it) — and end
-users immediately stop (or start) being able to select it, without affecting any
-conversation that already used it.
+An administrator marks a model Unavailable (it should stop being offered) or Available
+(reinstating it) via a direct toggle — and end users immediately stop (or start) being
+able to select it, without affecting any conversation that already used it. Marking a
+model Deprecated is not exposed as a same-click toggle action: retiring a model because a
+vendor is dropping it has a larger blast radius (see Note below) and is deferred to a
+dedicated deprecation workflow, not this control.
+
+> **Note (2026-09-22)**: The original version of this story described Deprecated as a
+> third state reachable through the same manual control as Available/Unavailable. In
+> practice, deprecating a model turned out to need more than a status flip — the
+> administrator must be notified, any end users actively depending on that model need
+> notice, and if the deprecated model was a provider's default, a same-tier replacement
+> must be assigned so in-flight processes don't break. That workflow is intentionally out
+> of scope here and tracked as a follow-up feature; until it ships, a model already in
+> Deprecated status (however it got there) cannot be re-enabled through this control.
 
 **Why this priority**: This is the direct fix for the reported problem — an administrator
 today cannot curate the catalog at all. This alone, without the sync capability in User
-Story 3, already lets an administrator retire a model the moment they learn a vendor has
-discontinued it.
+Story 3, already lets an administrator stop offering a model the moment they learn a
+vendor has discontinued it.
 
-**Independent Test**: Mark an Available model Deprecated, confirm it's no longer offered
+**Independent Test**: Mark an Available model Unavailable, confirm it's no longer offered
 to end users for a new selection, and confirm a past conversation that already used it is
 completely unaffected.
 
 **Acceptance Scenarios**:
 
-1. **Given** an Available model, **When** an administrator marks it Deprecated or
-   Unavailable and confirms, **Then** it immediately stops being offered to end users for
-   any new selection.
-2. **Given** a Deprecated or Unavailable model, **When** an administrator marks it
-   Available again and confirms, **Then** it immediately becomes selectable again.
-3. **Given** a model that has already been used in past conversations, **When** its status
+1. **Given** an Available model, **When** an administrator marks it Unavailable and
+   confirms, **Then** it immediately stops being offered to end users for any new
+   selection.
+2. **Given** an Unavailable model, **When** an administrator marks it Available again and
+   confirms, **Then** it immediately becomes selectable again.
+3. **Given** a Deprecated model, **When** an administrator views its row, **Then** the
+   toggle is disabled — re-enabling it is not available from this control.
+4. **Given** a model that has already been used in past conversations, **When** its status
    later changes in either direction, **Then** every past message that used it keeps
    showing exactly the provider/model that actually produced it, unaffected by the status
    change.
@@ -135,8 +148,10 @@ administrator explicitly confirms it; confirm the catalog matches the diff after
 - **FR-001**: System MUST let an administrator view every model in a given provider's
   catalog regardless of status, each showing its capability flags, pricing (or an
   explicit "unknown" indication when unset), and current status.
-- **FR-002**: System MUST let an administrator change a model's status among Available,
-  Deprecated, and Unavailable, in any direction.
+- **FR-002**: System MUST let an administrator toggle a model's status between Available
+  and Unavailable, in either direction. A model in Deprecated status MUST NOT be
+  re-enabled through this control (see User Story 2 note) — that transition is deferred to
+  a dedicated deprecation workflow, not yet built.
 - **FR-003**: A model whose status is Deprecated or Unavailable MUST NOT be offered to any
   end user as a selectable choice from the moment its status changes.
 - **FR-004**: Changing a model's status MUST NOT alter any already-recorded message's

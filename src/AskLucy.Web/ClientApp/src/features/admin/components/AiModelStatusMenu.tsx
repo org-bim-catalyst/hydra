@@ -11,8 +11,7 @@ import {
   Snackbar,
   Tooltip,
 } from '@mui/material'
-import ToggleOnIcon from '@mui/icons-material/ToggleOn'
-import ToggleOffIcon from '@mui/icons-material/ToggleOff'
+import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
@@ -39,8 +38,9 @@ const CONFIRM_COPY: Record<AvailabilityStatus, { title: string; body: string }> 
 
 /**
  * specs/008-ai-model-catalog-management US2 — per-model availability toggle, confirm-gated
- * per FR-010. A "Deprecated" model reads as Unavailable here (dimmed, tooltip "Mark available")
- * since this control is about availability, not the full three-state status.
+ * per FR-010. A "Deprecated" model's toggle is disabled: re-enabling a vendor-retired model
+ * isn't a simple flip back to Available — it needs its own review workflow (notify affected
+ * users, reassign any default-model pointer), which is not yet built.
  */
 export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps) {
   const queryClient = useQueryClient()
@@ -59,9 +59,14 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
     },
   })
 
+  const isDeprecated = model.status === 'Deprecated'
   const isAvailable = model.status === 'Available'
   const nextStatus: AvailabilityStatus = isAvailable ? 'Unavailable' : 'Available'
-  const toggleLabel = isAvailable ? 'Mark unavailable' : 'Mark available'
+  const toggleLabel = isDeprecated
+    ? 'Deprecated by the vendor — cannot be re-enabled from here'
+    : isAvailable
+      ? 'Mark unavailable'
+      : 'Mark available'
 
   const handleConfirm = () => {
     if (pendingStatus) mutation.mutate(pendingStatus)
@@ -71,17 +76,20 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
   return (
     <>
       <Tooltip title={toggleLabel}>
-        <IconButton
-          size="small"
-          aria-label={`${toggleLabel} for ${model.displayName}`}
-          onClick={() => setPendingStatus(nextStatus)}
-        >
-          {isAvailable ? (
-            <ToggleOnIcon fontSize="small" color="success" />
-          ) : (
-            <ToggleOffIcon fontSize="small" sx={{ opacity: 0.4 }} />
-          )}
-        </IconButton>
+        <span>
+          <IconButton
+            size="small"
+            aria-label={`${toggleLabel} for ${model.displayName}`}
+            disabled={isDeprecated}
+            onClick={() => setPendingStatus(nextStatus)}
+          >
+            <PowerSettingsNewIcon
+              fontSize="small"
+              color={isAvailable ? 'success' : 'inherit'}
+              sx={isAvailable ? undefined : { opacity: 0.4 }}
+            />
+          </IconButton>
+        </span>
       </Tooltip>
 
       <Dialog open={pendingStatus !== null} onClose={() => setPendingStatus(null)}>

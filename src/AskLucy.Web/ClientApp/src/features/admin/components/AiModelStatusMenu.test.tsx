@@ -74,14 +74,16 @@ describe('AiModelStatusMenu', () => {
     await waitFor(() => expect(adminAiProvidersApi.updateModelStatus).toHaveBeenCalledWith('model-1', 'Unavailable'))
   })
 
-  it('shows a "Mark available" toggle for a Deprecated model and confirms with Available', async () => {
+  it('disables the toggle for a Deprecated model', () => {
     renderMenu({ ...baseModel, status: 'Deprecated' })
 
-    fireEvent.click(screen.getByRole('button', { name: /mark available for gpt-4.1/i }))
-    expect(await screen.findByText('Mark this model Available?')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Confirm'))
+    const toggle = screen.getByRole('button', {
+      name: /deprecated by the vendor — cannot be re-enabled from here for gpt-4.1/i,
+    })
+    expect(toggle).toBeDisabled()
 
-    await waitFor(() => expect(adminAiProvidersApi.updateModelStatus).toHaveBeenCalledWith('model-1', 'Available'))
+    fireEvent.click(toggle)
+    expect(adminAiProvidersApi.updateModelStatus).not.toHaveBeenCalled()
   })
 
   it('shows a "Mark available" toggle for an Unavailable model', () => {
