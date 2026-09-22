@@ -169,7 +169,7 @@ The user asks Lucy about sunlight on the site in plain language. She runs the an
 
 ### Time Control
 
-- **FR-020**: The user MUST be able to choose the date and move through the time of day.
+- **FR-020**: The user MUST be able to choose the date and move through the time of day. specs/064-precise-time-control adds a typed exact-time entry, 15-minute tick marks, and drag-snapping to this control, without changing this requirement or FR-022's single-source-of-truth rule.
 - **FR-021**: The user MUST be able to play the day through continuously and stop it, leaving the display at the moment it stopped.
 - **FR-022**: The sun position, shadows and figures MUST update together and remain consistent with one another as time changes.
 - **FR-023**: The viewer MUST remain responsive while the user moves through time or plays the day through.

@@ -103,7 +103,16 @@ export const solarAnalysisExtension: ViewerExtension = {
       typeKey: SOLAR_TIME_CONTROL_TYPE_KEY,
       renderer: SolarTimeControlPanel,
       schema: solarTimeControlDataSchema,
-      chrome: { ...DEFAULT_CONTENT_CHROME, density: 'compact', defaultSize: { width: 420, height: 160 } },
+      // minSize.width — the floor below which buildTimeSliderMarks (specs/064) can no longer fit
+      // even the sparsest (every-6-hours) label without overlap; see timeEntry.ts's
+      // MIN_LABEL_SPACING_PX. Keeps the panel's own resize handle from ever producing that state,
+      // rather than relying on ticks silently dropping out at an arbitrary width.
+      chrome: {
+        ...DEFAULT_CONTENT_CHROME,
+        density: 'compact',
+        defaultSize: { width: 420, height: 160 },
+        minSize: { width: 1080, height: 160 },
+      },
     })
 
     // FR-030 — building corrections are likewise interactive code with their own state.

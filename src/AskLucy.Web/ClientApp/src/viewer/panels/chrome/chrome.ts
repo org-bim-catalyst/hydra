@@ -14,6 +14,10 @@ export interface PanelChrome {
   defaultSize: { width: number; height: number }
   /** Optional so every existing chrome declaration keeps its meaning; absent means `comfortable`. */
   density?: PanelDensity
+  /** Optional per-kind resize floor, above the framework-wide `MIN_PANEL_WIDTH`/`MIN_PANEL_HEIGHT`
+   * — for content (e.g. solar's tick-marked time slider) that degrades below a size the generic
+   * floor allows. Absent means the panel is only bound by the framework-wide minimum. */
+  minSize?: { width: number; height: number }
 }
 
 export const DEFAULT_CONTENT_CHROME: PanelChrome = {
@@ -26,15 +30,19 @@ export const DEFAULT_CONTENT_CHROME: PanelChrome = {
  * the existing minimum-size floor (spec Edge Cases: "resize below a usable minimum size") — a
  * request cannot ask for a panel smaller than the framework already guarantees is usable. */
 export function resolveChrome(override: Partial<PanelChrome> | null | undefined, base: PanelChrome = DEFAULT_CONTENT_CHROME): PanelChrome {
+  const minSize = override?.minSize ?? base.minSize
+  const minWidth = Math.max(minSize?.width ?? MIN_PANEL_WIDTH, MIN_PANEL_WIDTH)
+  const minHeight = Math.max(minSize?.height ?? MIN_PANEL_HEIGHT, MIN_PANEL_HEIGHT)
   const merged: PanelChrome = {
     titleBar: override?.titleBar ?? base.titleBar,
     resizable: override?.resizable ?? base.resizable,
     defaultSize: {
-      width: Math.max(override?.defaultSize?.width ?? base.defaultSize.width, MIN_PANEL_WIDTH),
-      height: Math.max(override?.defaultSize?.height ?? base.defaultSize.height, MIN_PANEL_HEIGHT),
+      width: Math.max(override?.defaultSize?.width ?? base.defaultSize.width, minWidth),
+      height: Math.max(override?.defaultSize?.height ?? base.defaultSize.height, minHeight),
     },
   }
   const density = override?.density ?? base.density
   if (density) merged.density = density
+  if (minSize) merged.minSize = minSize
   return merged
 }

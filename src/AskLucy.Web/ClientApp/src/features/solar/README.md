@@ -24,7 +24,8 @@ features/solar/
 │   ├── solarAnalysisStore.ts      site, analysis moment (instantUtc canonical), buildings, status
 │   └── correctionsStore.ts        session-scoped, site-keyed height/offset overrides (research D11)
 ├── panels/
-│   ├── SolarTimeControlPanel.tsx  live panel: date, time slider, play/stop
+│   ├── SolarTimeControlPanel.tsx  live panel: date, time slider/entry field, play/stop
+│   ├── timeEntry.ts               pure decision logic for the entry field + tick marks (specs/064)
 │   ├── BuildingCorrectionsPanel.tsx live panel: height correction, ground offset, reset
 │   └── solarFiguresContent.ts     content-panel document (specs/049 blocks), not a component
 ├── components/SolarAnalysisOverlay.tsx  site-following, building fetch, scene/panel refresh

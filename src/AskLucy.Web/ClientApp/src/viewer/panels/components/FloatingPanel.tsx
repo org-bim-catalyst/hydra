@@ -244,8 +244,8 @@ export function FloatingPanel({ panel, onDragStart, onDragMove, onDragEnd }: Flo
       bounds="parent"
       dragHandleClassName={DRAG_HANDLE_CLASS}
       enableResizing={panel.chrome.resizable}
-      minWidth={MIN_PANEL_WIDTH}
-      minHeight={MIN_PANEL_HEIGHT}
+      minWidth={Math.max(panel.chrome.minSize?.width ?? MIN_PANEL_WIDTH, MIN_PANEL_WIDTH)}
+      minHeight={Math.max(panel.chrome.minSize?.height ?? MIN_PANEL_HEIGHT, MIN_PANEL_HEIGHT)}
       style={{ zIndex: panel.zOrder, pointerEvents: 'auto' }}
       onMouseDown={() => focusPanel(panel.id)}
       onDragStart={() => onDragStart?.()}

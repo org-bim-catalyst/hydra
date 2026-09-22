@@ -58,6 +58,14 @@ export const copy = {
   timeLabel: 'Time',
   speedLabel: 'Speed',
 
+  // Time entry (specs/064 FR-003, FR-004, FR-007)
+  timeEntryMalformed: 'Enter a time as HH:MM, such as 06:41. The previous value was kept.',
+  timeEntryOutOfRange: 'Time must be between 00:00 and 23:59. The previous value was kept.',
+  timeIncreaseLabel: 'Increase time by one minute',
+  timeDecreaseLabel: 'Decrease time by one minute',
+  timeEntryNonexistent:
+    'That local time does not exist on this date because of a daylight-saving change. The previous value was kept.',
+
   // Corrections panel (FR-025, FR-026, FR-028)
   siteBuildingHeightLabel: 'Site building height',
   groundOffsetLabel: 'Ground offset',
