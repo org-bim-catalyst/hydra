@@ -92,17 +92,29 @@ Keep these. Steps 4 and 5 are the comparison baseline.
 2. Set the time control to exactly that time — **type it into the time field** in the Time of Day
    panel and press Enter. Do not drag the slider: dragging snaps to 15 minutes, and even
    unsnapped it cannot reliably land on a named minute (specs/064).
-3. Read the **altitude**.
+3. Read the **altitude**, and read the closing paragraph.
 
-**Expect: −0.27°.**
+**Expect three things:**
 
-Repeat at a different site and a different date. **Expect: −0.27° again** — the same number, every
-time. That constancy *is* the fix; a value that drifts between sites means it is not fixed.
+- The altitude is between **−0.3° and 0.0°** — just below the horizon, never further down.
+- **No "The sun is below the horizon" line** in the closing paragraph.
+- The closing paragraph says the altitude shown is *the sun's centre, corrected for atmospheric
+  refraction*.
 
-Repeat for sunset. Expect −0.27°.
+Repeat at a different site and a different date. **Expect the same three things every time.**
+
+*Why a range and not a single number.* The exact value at sunrise is −0.27° at every site on every
+date, and that constancy is the fix. But the panel shows times to the minute and the time field
+accepts only HH:MM, so the instant you can actually type is up to 59 seconds after the true
+sunrise, and near the equator the sun climbs a quarter of a degree in that minute. The exact figure
+is therefore not observable by hand; it is asserted at millisecond precision by the automated tests
+(`daySummary.test.ts`, T009/T010), which is where a claim that tight belongs. What this manual
+check proves is the part that was actually broken: the panel no longer contradicts itself.
 
 *Why not zero:* sunrise is when the sun's upper edge appears, so its centre — the point being
-reported — is still one sun-radius below the horizon. −0.27° is that radius.
+reported — is still up to one sun-radius below the horizon. 0.27° is that radius.
+
+Repeat for sunset. The displayed sunset is rounded the other way, so expect the same range.
 
 ### Check 2 — nothing moved at midday
 
@@ -116,9 +128,10 @@ visible shadow movement at midday is a defect — the correction is negligible w
 
 Compare the rise and set times against your "before" figures-panel screenshot.
 
-**Expect: a shift of up to about a minute** at mid latitudes, less in the tropics. This is intended
-— the new times are the more accurate ones. A shift of more than ~3 minutes anywhere outside the
-Arctic is worth reporting.
+**Expect: a shift of up to about a minute**, in either direction, at any latitude. This is intended
+— the new times were measured against NOAA's published annual tables at five sites across four
+dates and land within 41 seconds of them everywhere, where the previous release drifted up to 97
+seconds at Tromsø. A shift of more than ~3 minutes anywhere is worth reporting.
 
 ### Check 4 — shadows at low sun
 
