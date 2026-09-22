@@ -9,6 +9,7 @@ const base: AdminAiProvider = {
   displayName: 'Google Gemini',
   isEnabled: true,
   hasCredential: true,
+  credentialHint: 'sk-p...33IA',
   credentialLastRotatedAtUtc: null,
   defaultModelId: null,
   healthStatus: 'Healthy',

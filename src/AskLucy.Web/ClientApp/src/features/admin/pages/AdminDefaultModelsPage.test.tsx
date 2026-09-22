@@ -17,6 +17,7 @@ const openai: AdminAiProvider = {
   displayName: 'OpenAI',
   isEnabled: true,
   hasCredential: true,
+  credentialHint: 'sk-p...33IA',
   credentialLastRotatedAtUtc: null,
   defaultModelId: null,
   healthStatus: 'Healthy',

@@ -17,6 +17,7 @@ function makeProvider(overrides: Partial<AdminAiProvider>): AdminAiProvider {
     displayName: 'OpenAI',
     isEnabled: true,
     hasCredential: true,
+    credentialHint: 'sk-p...33IA',
     credentialLastRotatedAtUtc: null,
     defaultModelId: 'model-gpt41',
     healthStatus: 'Healthy',
