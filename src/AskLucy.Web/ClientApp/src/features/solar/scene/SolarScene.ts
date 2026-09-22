@@ -10,7 +10,7 @@ import {
   shadowRadiusMetres,
 } from './sunLight'
 import { solarPositionToEnuUnitVector } from '../solar/solarPosition'
-import { buildSunPath, updateCurrentPositionMarker } from './sunPathCurve'
+import { buildDatedPath, buildFixedFurniture, updateCurrentPositionMarker } from './sunPathCurve'
 
 /**
  * T035, research D8 — during continuous playback, a sun movement smaller than this is not drawn.
@@ -34,9 +34,18 @@ export const SHADOW_GATE_DEGREES = 0.25
 export class SolarScene {
   readonly drawingSpace: DrawingSpaceHandle
 
-  /** Sub-groups children are organized under, so each concern (T017 sun path, T037 light, T038
-   * ground, T040 buildings) can replace its own contents without disturbing another's. */
-  readonly sunPathGroup = new THREE.Group()
+  /**
+   * Sub-groups children are organized under, so each concern (T017 sun path, T037 light, T038
+   * ground, T040 buildings) can replace its own contents without disturbing another's.
+   *
+   * T043, FR-023, contracts/solar-scene.md — the dome is TWO sibling groups, each its own disposal
+   * scope, rather than one. The fixed group holds what depends only on the site and the year; the
+   * dated group holds what depends on the chosen date and instant. Keeping them apart is what lets
+   * a date change dispose and rebuild the arcs while the compass dial — and its baked 2048²
+   * texture — is left entirely untouched (FR-021, SC-008).
+   */
+  readonly sunPathFixedGroup = new THREE.Group()
+  readonly sunPathDatedGroup = new THREE.Group()
   readonly buildingsGroup = new THREE.Group()
   readonly groundGroup = new THREE.Group()
   readonly lightGroup = new THREE.Group()
@@ -55,14 +64,16 @@ export class SolarScene {
    * the geometry changed and FR-019 requires the next update to go through. */
   private lastAppliedSunDirection: THREE.Vector3 | null = null
   private currentMarker: THREE.Mesh | null = null
-  /** T051 — a `date|lat|lng` key identifying what the dome was last built for; the dome is
-   * rebuilt only when this changes (a new date OR a new site), never on every time-of-day tick
-   * (FR-019, FR-022, FR-023, SC-004, research D10). */
-  private sunPathBuiltForKey: string | null = null
+  /** T044 — a `lat|lng|year` key for the FIXED furniture. It changes only on a site change or a
+   * year change, which are the only two things permitted to rebuild it (FR-022). */
+  private fixedFurnitureBuiltForKey: string | null = null
+  /** T051, T044 — a `date|lat|lng` key for the DATED path; rebuilt only when this changes, never on
+   * a time-of-day tick, which just moves the marker (FR-019, FR-021, FR-023, SC-004, research D10). */
+  private datedPathBuiltForKey: string | null = null
 
   constructor(drawingSpace: DrawingSpaceHandle) {
     this.drawingSpace = drawingSpace
-    drawingSpace.group.add(this.sunPathGroup, this.buildingsGroup, this.groundGroup, this.lightGroup)
+    drawingSpace.group.add(this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup)
   }
 
   /**
@@ -139,48 +150,57 @@ export class SolarScene {
     }
   }
 
-  /** T017, T051, FR-005…FR-008, FR-019, FR-022, FR-023, SC-004 — rebuilds the sun-path dome (the
-   * chosen day's arc, the seasonal extremes, the hour marks) only when the LOCAL DATE changes;
-   * every other call just repositions/recolors the existing current-position marker in place. This
-   * is the mechanism that keeps time-of-day scrubbing cheap: nothing here depends on `instantUtc`
-   * except the marker.
+  /**
+   * T017, T042, T044, T051, FR-005…FR-008, FR-021, FR-022, FR-023, SC-004, SC-008 — updates the
+   * dome, rebuilding as little of it as the change requires:
    *
-   * Returns whether the dome was rebuilt. T035's playback gate decides whether the SUN moved
-   * enough to redraw; a rebuilt dome is new geometry and must be drawn regardless, so the caller
-   * needs to tell the two cases apart (a date change near a solstice can move the sun by less
-   * than the gate while replacing every object in the group). */
+   * - the fixed furniture (dial, mount post, shell, monthly lattice) only when the SITE or the
+   *   YEAR changes;
+   * - the dated path (day arc, seasonal extremes, hour marks, marker) only when the local DATE or
+   *   the site changes;
+   * - on every other call, nothing is rebuilt at all — the existing marker is repositioned in
+   *   place, which is what keeps time-of-day scrubbing cheap.
+   *
+   * Returns whether anything was rebuilt. T035's playback gate decides whether the SUN moved
+   * enough to redraw; new geometry has to be drawn regardless, so the caller needs to tell the two
+   * cases apart (a date change near a solstice can move the sun by less than the gate while
+   * replacing every arc in the group).
+   */
   updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number): boolean {
-    const key = `${localDate}|${latitude.toFixed(6)}|${longitude.toFixed(6)}`
-    if (this.sunPathBuiltForKey !== key || !this.currentMarker) {
-      this.disposeGroupContents(this.sunPathGroup)
-      const dateForArc = (() => {
-        const [year, month, day] = localDate.split('-').map(Number)
-        return new Date(Date.UTC(year, month - 1, day))
-      })()
-      const sunPath = buildSunPath(dateForArc, latitude, longitude, currentInstantUtc)
-      const objects: (THREE.Object3D | null)[] = [
-        // Furniture first so the dial and lattice sit behind the arcs in draw order.
-        sunPath.dial,
-        sunPath.mountPost,
-        ...sunPath.monthlyArcs,
-        sunPath.chosenDay,
-        sunPath.summerExtreme,
-        sunPath.winterExtreme,
-        ...sunPath.hourMarks,
-        sunPath.currentPositionMarker,
-        // Transparent shell last: it writes no depth, so it must draw over what it encloses.
-        sunPath.shell,
-      ]
-      for (const object of objects) {
-        if (object) this.sunPathGroup.add(object)
-      }
-      this.currentMarker = sunPath.currentPositionMarker
-      this.sunPathBuiltForKey = key
-      return true
+    const [year] = localDate.split('-').map(Number)
+    const site = `${latitude.toFixed(6)}|${longitude.toFixed(6)}`
+    const fixedKey = `${site}|${year}`
+    const datedKey = `${localDate}|${site}`
+    let rebuilt = false
+
+    if (this.fixedFurnitureBuiltForKey !== fixedKey) {
+      this.disposeGroupContents(this.sunPathFixedGroup)
+      const furniture = buildFixedFurniture(latitude, longitude, year)
+      // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
+      // them; the shell carries its own `renderOrder` because it must still draw last of all.
+      this.sunPathFixedGroup.add(furniture.dial, furniture.mountPost, ...furniture.monthlyArcs, furniture.shell)
+      this.fixedFurnitureBuiltForKey = fixedKey
+      rebuilt = true
     }
 
-    updateCurrentPositionMarker(this.currentMarker, azimuthDegrees, altitudeDegrees)
-    return false
+    if (this.datedPathBuiltForKey !== datedKey || !this.currentMarker) {
+      this.disposeGroupContents(this.sunPathDatedGroup)
+      const dateForArc = (() => {
+        const [y, month, day] = localDate.split('-').map(Number)
+        return new Date(Date.UTC(y, month - 1, day))
+      })()
+      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc)
+      for (const object of [dated.chosenDay, dated.summerExtreme, dated.winterExtreme, ...dated.hourMarks, dated.currentPositionMarker]) {
+        if (object) this.sunPathDatedGroup.add(object)
+      }
+      this.currentMarker = dated.currentPositionMarker
+      this.datedPathBuiltForKey = datedKey
+      rebuilt = true
+    } else {
+      updateCurrentPositionMarker(this.currentMarker, azimuthDegrees, altitudeDegrees)
+    }
+
+    return rebuilt
   }
 
   /** T040, T042 — rebuilds the buildings group from a fresh footprint list. Rebuilt only when
@@ -251,7 +271,7 @@ export class SolarScene {
    * disposes the whole group when the extension stops (FR-040), so a unit test that constructs a
    * `SolarScene` around a bare `THREE.Group` (no registry) needs its own way to clean up. */
   disposeAll(): void {
-    for (const group of [this.sunPathGroup, this.buildingsGroup, this.groundGroup, this.lightGroup]) {
+    for (const group of [this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup]) {
       group.traverse((child) => {
         const mesh = child as THREE.Mesh
         mesh.geometry?.dispose()

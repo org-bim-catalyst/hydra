@@ -147,17 +147,17 @@ furniture never flickers, moves or changes.
 
 ### Tests for User Story 4
 
-- [ ] T038 [P] [US4] In `scene/sunPathCurve.test.ts`, assert a date change rebuilds only the dated group and leaves the fixed group's object identities untouched (FR-021, SC-008)
-- [ ] T039 [P] [US4] In `scene/sunPathCurve.test.ts`, assert a site change and a year change both rebuild the fixed group, and that `buildDomeShell` remains built but **not assembled into the scene** (FR-022, README constraint 5)
-- [ ] T040 [P] [US4] In `scene/sunPathCurve.test.ts`, assert arcs remain `TubeGeometry`/`CylinderGeometry` and no `THREE.Line` is introduced (README constraint 5)
-- [ ] T041 [P] [US4] In `scene/SolarScene.ts`'s test coverage, assert repeated date changes, site changes and open/close cycles leave nothing accumulated in either disposal scope (FR-023, SC-010)
+- [X] T038 [P] [US4] In `scene/sunPathCurve.test.ts`, assert a date change rebuilds only the dated group and leaves the fixed group's object identities untouched (FR-021, SC-008)
+- [X] T039 [P] [US4] In `scene/sunPathCurve.test.ts`, assert a site change and a year change both rebuild the fixed group, and that `buildDomeShell` stays a plain transparent material with no `transmission`/`envMap` and keeps its last-drawn `renderOrder` (FR-022, README constraint 5) — the task's original wording ("built but **not assembled into the scene**") did not match what specs/052 shipped; see the correction in [contracts/solar-scene.md](./contracts/solar-scene.md)
+- [X] T040 [P] [US4] In `scene/sunPathCurve.test.ts`, assert arcs remain `TubeGeometry`/`CylinderGeometry` and no `THREE.Line` is introduced (README constraint 5)
+- [X] T041 [P] [US4] In `scene/SolarScene.ts`'s test coverage, assert repeated date changes, site changes and open/close cycles leave nothing accumulated in either disposal scope (FR-023, SC-010)
 
 ### Implementation for User Story 4
 
-- [ ] T042 [US4] In `scene/sunPathCurve.ts`, split `buildSunPath` into a fixed-furniture builder (dial, mount post, monthly lattice) and a dated-path builder (day arc, hour marks, seasonal extremes, current marker) per [contracts/solar-scene.md](./contracts/solar-scene.md)
-- [ ] T043 [US4] In `scene/SolarScene.ts`, hold the two as sibling groups under the extension's Drawing Space group, each with its own disposal scope, reusing the existing deep `disposeGroupContents` rather than reimplementing it (FR-023)
-- [ ] T044 [US4] In `scene/SolarScene.ts`, dispose and rebuild the dated group on date or instant change and the fixed group only on site change, year change or extension stop; ensure `disposeAll` covers both (FR-021, FR-022)
-- [ ] T045 [US4] Confirm `setGroundOffset` still moves the extension's own group and does not call `sceneAnchor.set(...)` (README constraint 3)
+- [X] T042 [US4] In `scene/sunPathCurve.ts`, split `buildSunPath` into a fixed-furniture builder (dial, mount post, monthly lattice) and a dated-path builder (day arc, hour marks, seasonal extremes, current marker) per [contracts/solar-scene.md](./contracts/solar-scene.md)
+- [X] T043 [US4] In `scene/SolarScene.ts`, hold the two as sibling groups under the extension's Drawing Space group, each with its own disposal scope, reusing the existing deep `disposeGroupContents` rather than reimplementing it (FR-023)
+- [X] T044 [US4] In `scene/SolarScene.ts`, dispose and rebuild the dated group on date or instant change and the fixed group only on site change, year change or extension stop; ensure `disposeAll` covers both (FR-021, FR-022)
+- [X] T045 [US4] Confirm `setGroundOffset` still moves the extension's own group and does not call `sceneAnchor.set(...)` (README constraint 3)
 
 **Checkpoint**: All four stories complete.
 

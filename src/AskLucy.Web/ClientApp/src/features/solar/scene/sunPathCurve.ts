@@ -249,33 +249,77 @@ export function buildMonthlyGridArcs(latitude: number, longitude: number, year: 
   return arcs
 }
 
-export interface SunPathObjects {
-  /** `null` only when the chosen day never rises above the horizon at all (deep polar night). */
-  chosenDay: THREE.Mesh | null
-  summerExtreme: THREE.Mesh | null
-  winterExtreme: THREE.Mesh | null
-  hourMarks: THREE.Sprite[]
-  currentPositionMarker: THREE.Mesh
-  /** The dome's fixed furniture — compass dial, mount post, shell and the monthly lattice. Built
-   * alongside the arcs so the whole instrument is created and disposed as one unit. */
+/**
+ * T042, FR-021, FR-022, contracts/solar-scene.md — the dome's FIXED FURNITURE: everything whose
+ * shape depends only on where you are and which year it is, and which must therefore not so much
+ * as flicker when the date changes.
+ */
+export interface FixedFurnitureObjects {
   dial: THREE.Mesh
   mountPost: THREE.Group
   shell: THREE.Mesh
   monthlyArcs: THREE.Mesh[]
 }
 
-/** contracts/solar-extension.md, FR-005, FR-006, FR-007 — the chosen day's arc, the two seasonal
- * extremes (in distinguishable materials — FR-006) and hour marks along the chosen day, plus the
- * sun's current position marker. Each is returned as a distinct object rather than merged into one
- * mesh, so a caller (and `sunPathCurve.test.ts`) can tell them apart. No `scene.environment`, no
- * glass dome shell (research D17 — dropped, not reproduced). */
-export function buildSunPath(
+/**
+ * T042, FR-021 — the DATED PATH: everything that depends on the chosen date or the current
+ * instant, and is therefore the only thing a date change is allowed to rebuild.
+ */
+export interface DatedPathObjects {
+  /** `null` only when the chosen day never rises above the horizon at all (deep polar night). */
+  chosenDay: THREE.Mesh | null
+  summerExtreme: THREE.Mesh | null
+  winterExtreme: THREE.Mesh | null
+  hourMarks: THREE.Sprite[]
+  currentPositionMarker: THREE.Mesh
+}
+
+/**
+ * T042, FR-022, contracts/solar-scene.md — builds the compass dial, the mount post, the enclosing
+ * shell and the monthly lattice. Depends on latitude, longitude, year and radius; deliberately NOT
+ * on the date or the instant, which is the whole point of the split (FR-021, SC-008).
+ *
+ * The year is a parameter rather than being read off a date so the caller's own rebuild key and
+ * this function's dependencies cannot drift apart: what the key says the furniture was built for
+ * is exactly what was passed in.
+ */
+export function buildFixedFurniture(
+  latitude: number,
+  longitude: number,
+  year: number,
+  radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
+): FixedFurnitureObjects {
+  const shell = buildDomeShell(radiusMetres)
+  // The shell writes no depth and encloses everything else, so it has to draw last or the arcs
+  // inside it come out tinted by nothing. It used to get that ordering for free by being appended
+  // last to a single group; now that it lives in the fixed group and the arcs live in a sibling
+  // group, the ordering has to be stated rather than inherited from assembly order.
+  shell.renderOrder = 1
+
+  return {
+    dial: buildCompassDial(radiusMetres),
+    mountPost: buildMountPost(),
+    shell,
+    monthlyArcs: buildMonthlyGridArcs(latitude, longitude, year, radiusMetres),
+  }
+}
+
+/**
+ * T042, FR-005, FR-006, FR-007, FR-021 — the chosen day's arc, the two seasonal extremes (in
+ * distinguishable materials — FR-006), the hour marks along the chosen day, and the sun's current
+ * position marker. Each is returned as a distinct object rather than merged into one mesh, so a
+ * caller (and `sunPathCurve.test.ts`) can tell them apart.
+ *
+ * Replaces the fixed-plus-dated `buildSunPath` bag: rebuilding this no longer drags the compass
+ * dial's 2048² baked texture and the twelve monthly arcs along with it.
+ */
+export function buildDatedPath(
   dateUtc: Date,
   latitude: number,
   longitude: number,
   currentInstantUtc: Date,
   radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
-): SunPathObjects {
+): DatedPathObjects {
   const chosenDayPoints = sampleDayArcPoints(dateUtc, latitude, longitude, radiusMetres)
   const chosenDay = buildTubeFromPoints(chosenDayPoints, 0.7, 0xff5a3c, 1)
 
@@ -302,24 +346,14 @@ export function buildSunPath(
   )
   currentPositionMarker.position.copy(sphericalToVec(currentPosition.azimuthDegrees, clampedAltitude, radiusMetres))
 
-  return {
-    chosenDay,
-    summerExtreme,
-    winterExtreme,
-    hourMarks,
-    currentPositionMarker,
-    dial: buildCompassDial(radiusMetres),
-    mountPost: buildMountPost(),
-    shell: buildDomeShell(radiusMetres),
-    monthlyArcs: buildMonthlyGridArcs(latitude, longitude, dateUtc.getUTCFullYear(), radiusMetres),
-  }
+  return { chosenDay, summerExtreme, winterExtreme, hourMarks, currentPositionMarker }
 }
 
 /** T051, FR-019, FR-022, FR-023, SC-004 — repositions and recolors an EXISTING current-position
  * marker in place, without touching the dome's tube geometry. This is what makes scrubbing cheap
  * enough to read as continuous motion: the chosen day's arc, the seasonal extremes and the hour
  * marks depend only on the calendar date, not the time of day, so they are rebuilt once per date
- * change (`buildSunPath`) while this function runs on every tick. */
+ * change (`buildDatedPath`) while this function runs on every tick. */
 export function updateCurrentPositionMarker(
   marker: THREE.Mesh,
   azimuthDegrees: number,

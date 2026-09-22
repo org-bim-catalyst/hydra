@@ -95,9 +95,14 @@ content-derived radii too, including the no-buildings fallback and the tall-lone
 - A date change MUST rebuild only the dated path. The fixed furniture MUST NOT flicker, move or
   change (FR-021, SC-008).
 - A site change or a year change MUST rebuild both (FR-022).
-- `buildDomeShell` remains exported and remains **not assembled into the scene** — README
-  constraint 5 dropped the prototype's glass dome deliberately, because it was the one element
-  requiring `scene.environment`. Classifying it as fixed furniture MUST NOT reintroduce it.
+- `buildDomeShell` is fixed furniture and **is** assembled into the scene — corrected during
+  implementation: this contract originally said the shell was "not assembled", which is not what
+  specs/052 shipped. What README constraint 5 actually dropped is the prototype's *glass* dome,
+  which read as glass only through `MeshPhysicalMaterial.transmission` against a
+  `scene.environment` the extension may not assign (FR-038). Research D17 sanctioned the plain
+  transparent replacement that ships today. Classifying it as fixed furniture MUST NOT reintroduce
+  `transmission` or an `envMap`, and MUST preserve its `renderOrder` — it encloses everything else
+  and writes no depth, so it has to draw last even now that the arcs live in a sibling group.
 - Arcs remain `TubeGeometry`/`CylinderGeometry`, never `THREE.Line` (README constraint 5).
 - Arc sampling and the marker use the corrected altitude (see `solar-position.md`).
 
