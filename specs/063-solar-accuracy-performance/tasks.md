@@ -63,18 +63,18 @@ the altitude reads −0.27° every time, and the below-horizon message is gone.
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] In `solar/daySummary.test.ts`, add the feature's central assertion: at both returned rise and set instants, `solarPosition().altitudeDegrees` equals `-SOLAR_SEMIDIAMETER_DEGREES` within `SOLAR_POSITION_TOLERANCE_DEGREES`, across Dubai, London, Singapore, Tromsø and Reykjavík × March, June, September and December (SC-001)
-- [ ] T010 [P] [US1] In the same file, assert the value is **identical** across all of those site/date pairs, so a site-dependent residual fails even if each individual value is within tolerance (FR-002)
-- [ ] T011 [P] [US1] In `solar/daySummary.test.ts`, assert rise/set against published NOAA values within the existing 60 s / 600 s tolerances, with a comment recording that the current release's output is explicitly **not** the reference (FR-004a, SC-003)
-- [ ] T012 [P] [US1] In `solar/solarPosition.test.ts`, assert full-day altitude against NOAA's published **corrected-for-refraction** column at every test location (SC-002)
-- [ ] T013 [P] [US1] In `solar/daySummary.test.ts`, assert the polar never-rises and never-sets cases are unchanged and are decided by the same upper-edge definition as rise and set (FR-004, US1 scenario 6)
+- [X] T009 [P] [US1] In `solar/daySummary.test.ts`, add the feature's central assertion: at both returned rise and set instants, `solarPosition().altitudeDegrees` equals `-SOLAR_SEMIDIAMETER_DEGREES` within `SOLAR_POSITION_TOLERANCE_DEGREES`, across Dubai, London, Singapore, Tromsø and Reykjavík × March, June, September and December (SC-001)
+- [X] T010 [P] [US1] In the same file, assert the value is **identical** across all of those site/date pairs, so a site-dependent residual fails even if each individual value is within tolerance (FR-002)
+- [X] T011 [P] [US1] In `solar/daySummary.test.ts`, assert rise/set against published NOAA values within the existing 60 s / 600 s tolerances, with a comment recording that the current release's output is explicitly **not** the reference (FR-004a, SC-003)
+- [X] T012 [P] [US1] In `solar/solarPosition.test.ts`, assert full-day altitude against NOAA's published **corrected-for-refraction** column at every test location (SC-002)
+- [X] T013 [P] [US1] In `solar/daySummary.test.ts`, assert the polar never-rises and never-sets cases are unchanged and are decided by the same upper-edge definition as rise and set (FR-004, US1 scenario 6)
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Measure the corrected altitude's maximum deviation from NOAA's published corrected column across the test locations, and set `SOLAR_POSITION_TOLERANCE_DEGREES` in `solar/solarPosition.ts` to the measured value rather than the inherited `0.1` (FR-006, research D10)
-- [ ] T015 [US1] In `copy.ts` and `panels/solarFiguresContent.ts`, state which altitude quantity the figure shows, so a user comparing against an external reference knows which of its two published columns to use (FR-003, US1 scenario 5)
-- [ ] T016 [US1] In `panels/solarFiguresContent.test.ts`, assert the quantity label is present and that the tolerance wording reads from the exported constant rather than a literal, so T014's re-measurement propagates automatically
-- [ ] T017 [US1] Verify the below-horizon message no longer appears at the reported sunrise, and add a regression assertion pinning that — the exact contradiction captured in [baseline.md](./baseline.md)
+- [X] T014 [US1] Measure the corrected altitude's maximum deviation from NOAA's published corrected column across the test locations, and set `SOLAR_POSITION_TOLERANCE_DEGREES` in `solar/solarPosition.ts` to the measured value rather than the inherited `0.1` (FR-006, research D10)
+- [X] T015 [US1] In `copy.ts` and `panels/solarFiguresContent.ts`, state which altitude quantity the figure shows, so a user comparing against an external reference knows which of its two published columns to use (FR-003, US1 scenario 5)
+- [X] T016 [US1] In `panels/solarFiguresContent.test.ts`, assert the quantity label is present and that the tolerance wording reads from the exported constant rather than a literal, so T014's re-measurement propagates automatically
+- [X] T017 [US1] Verify the below-horizon message no longer appears at the reported sunrise, and add a regression assertion pinning that — the exact contradiction captured in [baseline.md](./baseline.md)
 
 **Checkpoint**: US1 is independently shippable. The correctness defect is closed.
 

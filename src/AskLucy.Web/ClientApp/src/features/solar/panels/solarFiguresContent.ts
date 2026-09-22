@@ -1,6 +1,7 @@
 import { CONTENT_VOCABULARY_VERSION, type PanelContent } from '../../../viewer/panels/content/blocks'
 import { copy } from '../copy'
 import type { DaySummary } from '../solar/daySummary'
+import { SOLAR_SEMIDIAMETER_DEGREES } from '../solar/refraction'
 import { SOLAR_POSITION_TOLERANCE_DEGREES, type SolarPositionResult } from '../solar/solarPosition'
 
 const MONTH_NAMES = [
@@ -23,6 +24,29 @@ function formatUtcAsLocalTime(instantUtc: Date, timeZoneId: string): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: timeZoneId, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
     instantUtc,
   )
+}
+
+/**
+ * T017 — rise and set are solved to the millisecond but shown to the minute, and the user's
+ * verification workflow types the shown time straight back into the time field (quickstart Check 1,
+ * specs/064). So the shown minute has to be a minute on which the claim it carries is true:
+ * sunrise rounds **up** and sunset rounds **down**, making the printed pair the whole minutes
+ * during which the sun is up.
+ *
+ * Rounding to nearest, or truncating, would put the printed sunrise up to a minute *before* the
+ * sun actually rises — and at the equator the sun climbs 0.25° in that minute, more than twice the
+ * whole position tolerance. Retyping it would then correctly report the sun as still down, and the
+ * panel would be back to contradicting itself in exactly the way baseline.md records. The cost is
+ * that the printed time can sit up to 59 s after the true crossing; that is inside
+ * `RISE_SET_TOLERANCE_SECONDS`, and it errs toward a statement that is true rather than one that
+ * is not.
+ */
+function formatUtcAsLocalMinuteAtOrAfter(instantUtc: Date, timeZoneId: string): string {
+  return formatUtcAsLocalTime(new Date(Math.ceil(instantUtc.getTime() / 60_000) * 60_000), timeZoneId)
+}
+
+function formatUtcAsLocalMinuteAtOrBefore(instantUtc: Date, timeZoneId: string): string {
+  return formatUtcAsLocalTime(new Date(Math.floor(instantUtc.getTime() / 60_000) * 60_000), timeZoneId)
 }
 
 function formatDayLength(minutes: number): string {
@@ -74,17 +98,28 @@ export function buildSolarFiguresContent(input: SolarFiguresInput): PanelContent
   } else {
     const effectiveZone = timeZoneId ?? 'UTC'
     keyValueItems.push(
-      { label: copy.sunriseLabel, value: formatUtcAsLocalTime(daySummary.sunriseUtc!, effectiveZone) },
-      { label: copy.sunsetLabel, value: formatUtcAsLocalTime(daySummary.sunsetUtc!, effectiveZone) },
+      { label: copy.sunriseLabel, value: formatUtcAsLocalMinuteAtOrAfter(daySummary.sunriseUtc!, effectiveZone) },
+      { label: copy.sunsetLabel, value: formatUtcAsLocalMinuteAtOrBefore(daySummary.sunsetUtc!, effectiveZone) },
       { label: copy.dayLengthLabel, value: formatDayLength(daySummary.dayLengthMinutes!) },
     )
   }
 
   keyValueItems.push({ label: copy.timesShownInLabel, value: timeBasisLabel })
 
-  const closingStatements = [copy.designStageStudyStatement, copy.accuracyStatement(SOLAR_POSITION_TOLERANCE_DEGREES), copy.assumedHeightsStatement]
-  const isAboveHorizon = solarPosition.altitudeDegrees > 0
-  if (!isAboveHorizon) {
+  const closingStatements = [
+    copy.designStageStudyStatement,
+    copy.altitudeQuantityStatement,
+    copy.accuracyStatement(SOLAR_POSITION_TOLERANCE_DEGREES),
+    copy.assumedHeightsStatement,
+  ]
+
+  // FR-004 / T017 — the horizon is defined once, by the sun's upper edge, and the same definition
+  // decides this notice as decides rise and set. Testing the *centre* against zero, as this did,
+  // made the panel print "Sunrise 06:41" and "the sun is below the horizon" at 06:41 together
+  // (baseline.md): at sunrise the centre is one solar radius down by definition, and always will
+  // be, so the old test could never agree with the time printed beside it.
+  const upperEdgeAltitudeDegrees = solarPosition.altitudeDegrees + SOLAR_SEMIDIAMETER_DEGREES
+  if (upperEdgeAltitudeDegrees < 0) {
     closingStatements.unshift(copy.belowHorizonNotice)
   }
 

@@ -53,6 +53,41 @@ source `solarPosition.ts` was ported from. Piecewise in the true elevation `te`,
 | `te > −0.575°` | `1735 + te(−518.2 + te(103.4 + te(−12.79 + 0.711·te)))` |
 | otherwise | `−20.772/tan` |
 
+### D2a — correction to D2, found by measurement during US1
+
+**The fourth band is not used.** Implemented literally, `−20.772/tan(te)` makes refraction
+*decrease* as the sun sinks — 0.5749° at −0.575°, 0.4569° at −0.724°, 0.3968° at −0.833°, reaching
+zero at the nadir — which is not how refraction behaves. It is an extrapolation outside the range
+the fit covers, and the rise/set root falls inside it.
+
+NOAA's page states the two treatments side by side without reconciling them: *"For sunrise and
+sunset calculations, we assume 0.833° of atmospheric refraction. In the solar position calculator,
+atmospheric refraction is modeled as: [the piecewise model]"*. At −0.833° the piecewise model
+yields 0.397°, not the 0.567° the rise/set constant assumes. Both cannot be honoured.
+
+Measured consequence of honouring the band: the upper-edge solve lands at a geometric −0.7236°
+rather than the conventional −0.833°, and every rise came out late and every set early against
+NOAA's published annual tables, by 26–60 s at Dubai, London and Singapore, 82–99 s at Tromsø and up
+to **200 s at Reykjavík** — outside FR-004a's 60 s at latitudes well inside the ±72° band, and
+worse than the release this feature replaces.
+
+**Decision**: hold the near-horizon fit at its boundary value for all `te ≤ −0.575°`. Horizon
+refraction becomes a constant 0.5749° (34.5′), agreeing with the Astronomical Almanac's standard
+34′ and with the −0.833° convention NOAA's published times rest on. The rise/set threshold becomes
+a derived −0.8416°, and the reported altitude at rise and set stays exactly −0.2667°.
+
+**Measured after the change**, against published NOAA tables:
+
+| Reference | Result |
+|---|---|
+| Rise/set, 5 sites × 4 dates (18 pairs, 36 values) | worst 40.2 s, all inside the 60 s tolerance |
+| Full-day corrected elevation, 150 above-horizon samples | agrees to 5e-7°, the transcription precision |
+| Full-day azimuth, all 240 samples | agrees to 5e-7° |
+| Full-day corrected elevation, 90 below-horizon samples | diverges by up to 0.563°, deliberately |
+
+The last row is the accepted cost, and it is confined to altitudes at which the sun is already
+down. Pinned in `refraction.test.ts` and `solarPosition.test.ts` so it cannot grow unnoticed.
+
 **Rationale**: Same provenance as the existing port, so the feature keeps a single citable source
 and remains checkable against NOAA's published "corrected for refraction" column. It is a
 standard-atmosphere model; FR-006's tolerance is measured against it rather than assumed.

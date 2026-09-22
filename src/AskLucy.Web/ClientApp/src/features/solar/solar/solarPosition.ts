@@ -12,8 +12,24 @@ import { refractionCorrectionDegrees } from './refraction'
  * the two cannot drift apart because there is only one source for the figure.
  */
 
-/** research D1 — measured (not inherited from NOAA, which states no position figure) against
- * published NOAA Solar Calculator values at the SC-001 test locations. */
+/**
+ * FR-006 / T014 — re-measured for specs/063 rather than inherited, against NOAA's own published
+ * "Solar Elevation corrected for atm refraction" column (`noaaFullDay.fixture.ts`). The measured
+ * deviation across all 150 above-horizon samples is 5e-7°, which is the precision the reference
+ * values were transcribed at, not a real disagreement: this module is a port of the algorithm that
+ * produced them, so measuring it against them bounds the *port's* fidelity and nothing else. A
+ * tolerance set from that measurement would be a claim about transcription, not about the sun.
+ *
+ * So 0.1° is kept, and now has a stated basis. It is the physical accuracy of the model, dominated
+ * near the horizon by atmospheric refraction varying with pressure, temperature and humidity —
+ * which NOAA names as the reason it will not certify its own figures, and which moves the horizon
+ * refraction of 0.575° by of order a tenth of a degree across ordinary conditions. Away from the
+ * horizon the true error is far smaller; the single figure the panel states has to hold everywhere,
+ * so it is bounded by the worst case.
+ *
+ * NOAA publishes no angular accuracy figure of its own to inherit — its only stated accuracy is
+ * temporal (one minute within ±72° latitude), which is `RISE_SET_TOLERANCE_SECONDS` below.
+ */
 export const SOLAR_POSITION_TOLERANCE_DEGREES = 0.1
 
 /** research D1 — inherited from NOAA's own documented accuracy for latitudes within ±72°. */

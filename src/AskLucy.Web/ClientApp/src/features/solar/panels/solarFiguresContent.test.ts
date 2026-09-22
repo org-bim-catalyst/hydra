@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { panelContentSchema } from '../../../viewer/panels/content/blocks'
 import { copy } from '../copy'
 import { daySummary } from '../solar/daySummary'
-import { solarPosition } from '../solar/solarPosition'
+import { SOLAR_POSITION_TOLERANCE_DEGREES, solarPosition } from '../solar/solarPosition'
 import { buildSolarFiguresContent } from './solarFiguresContent'
 
 const DUBAI = { latitude: 25.2, longitude: 55.3 }
@@ -75,5 +75,81 @@ describe('buildSolarFiguresContent (contracts/solar-panels.md, FR-031)', () => {
     const content = buildFor(new Date(Date.UTC(2026, 8, 13, 10, 0)), '2026-09-13', 14 * 60) // midday
     const textBlock = content.blocks.find((b) => (b as { kind: string }).kind === 'text') as unknown as { text: string }
     expect(textBlock.text).not.toContain(copy.belowHorizonNotice)
+  })
+})
+
+describe('buildSolarFiguresContent — the altitude quantity is named (T016, FR-003)', () => {
+  const closingTextOf = (content: ReturnType<typeof buildFor>): string =>
+    (content.blocks.find((b) => (b as { kind: string }).kind === 'text') as unknown as { text: string }).text
+
+  it('states that the altitude shown is the refraction-corrected centre of the sun', () => {
+    const content = buildFor(new Date(Date.UTC(2026, 8, 13, 10, 0)), '2026-09-13', 14 * 60)
+    expect(closingTextOf(content)).toContain(copy.altitudeQuantityStatement)
+  })
+
+  it('names it whatever the sun is doing — a user checking against a reference needs it at any hour', () => {
+    for (const hour of [0, 3, 6, 12, 18, 23]) {
+      const content = buildFor(new Date(Date.UTC(2026, 8, 13, hour, 0)), '2026-09-13', hour * 60)
+      expect(closingTextOf(content)).toContain(copy.altitudeQuantityStatement)
+    }
+  })
+
+  it('reads the accuracy figure from SOLAR_POSITION_TOLERANCE_DEGREES rather than a literal', () => {
+    // T014 re-measures that constant. This asserts the panel's wording follows it automatically:
+    // the expected string is *built from* the constant, so a hand-typed figure in copy.ts or a
+    // stale number in the panel fails here rather than shipping a claim the tests do not check.
+    const content = buildFor(new Date(Date.UTC(2026, 8, 13, 10, 0)), '2026-09-13', 14 * 60)
+    expect(closingTextOf(content)).toContain(copy.accuracyStatement(SOLAR_POSITION_TOLERANCE_DEGREES))
+    expect(copy.accuracyStatement(SOLAR_POSITION_TOLERANCE_DEGREES)).toContain(String(SOLAR_POSITION_TOLERANCE_DEGREES))
+  })
+})
+
+describe('buildSolarFiguresContent — no below-horizon notice at the reported sunrise (T017)', () => {
+  /**
+   * The exact contradiction captured in baseline.md: at the sunrise the panel itself reported, the
+   * same panel also said the sun was below the horizon. It is pinned here at the reported *minute*,
+   * not the solved millisecond, because the displayed minute is what a user can act on — it is the
+   * value they read off the screen and type back into the time field.
+   */
+  const SITES = [
+    { name: 'Dubai', latitude: 25.2, longitude: 55.3, timeZoneId: 'Asia/Dubai' },
+    { name: 'London', latitude: 51.5, longitude: -0.1, timeZoneId: 'Europe/London' },
+    { name: 'Reykjavík', latitude: 64.13, longitude: -21.9, timeZoneId: 'Atlantic/Reykjavik' },
+  ] as const
+
+  const closingTextAt = (instantUtc: Date, site: (typeof SITES)[number]): string => {
+    const content = buildSolarFiguresContent({
+      localDate: '2026-09-21',
+      localMinuteOfDay: 6 * 60,
+      timeZoneId: site.timeZoneId,
+      timeBasisLabel: site.timeZoneId,
+      solarPosition: solarPosition(instantUtc, site.latitude, site.longitude),
+      daySummary: daySummary(instantUtc, site.latitude, site.longitude),
+      siteBuildingHeightAssumed: null,
+    })
+    return (content.blocks.find((b) => (b as { kind: string }).kind === 'text') as unknown as { text: string }).text
+  }
+
+  for (const site of SITES) {
+    for (const month of [2, 5, 8, 11]) {
+      it(`does not claim the sun is below the horizon at ${site.name}'s own reported sunrise minute (month ${month + 1})`, () => {
+        const summary = daySummary(new Date(Date.UTC(2026, month, 21)), site.latitude, site.longitude)
+        if (summary.polarCondition !== 'none') return
+
+        const reportedMinute = new Date(Math.ceil(summary.sunriseUtc!.getTime() / 60_000) * 60_000)
+        expect(closingTextAt(reportedMinute, site)).not.toContain(copy.belowHorizonNotice)
+      })
+    }
+  }
+
+  it('still says so at night, when the sun really is below the horizon', () => {
+    const midnight = new Date(Date.UTC(2026, 8, 21, 20, 0))
+    expect(closingTextAt(midnight, SITES[0])).toContain(copy.belowHorizonNotice)
+  })
+
+  it('still says so an hour before sunrise — the notice is narrowed, not removed', () => {
+    const summary = daySummary(new Date(Date.UTC(2026, 8, 21)), SITES[0].latitude, SITES[0].longitude)
+    const anHourEarlier = new Date(summary.sunriseUtc!.getTime() - 60 * 60_000)
+    expect(closingTextAt(anHourEarlier, SITES[0])).toContain(copy.belowHorizonNotice)
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  HORIZON_REFRACTION_DEGREES,
   RISE_SET_GEOMETRIC_ALTITUDE_DEGREES,
   SOLAR_SEMIDIAMETER_DEGREES,
   geometricAltitudeForApparentDegrees,
@@ -115,8 +116,54 @@ describe('RISE_SET_GEOMETRIC_ALTITUDE_DEGREES — the one horizon definition (FR
     expect(apparent).toBeCloseTo(-SOLAR_SEMIDIAMETER_DEGREES, 9)
   })
 
-  it('sits near -0.724°, not at the bundled -0.833° the port inherited (research D1)', () => {
-    expect(RISE_SET_GEOMETRIC_ALTITUDE_DEGREES).toBeCloseTo(-0.7236, 3)
-    expect(RISE_SET_GEOMETRIC_ALTITUDE_DEGREES).not.toBeCloseTo(-0.833, 3)
+  it('sits at -0.8416°, derived rather than assumed', () => {
+    // Close to the -0.833° the port inherited, and that is the point: -0.833° is the conventional
+    // rounding of the same physical statement, -(34' refraction + 16' semidiameter). What changed
+    // is that this number is now *computed* from the two separated terms rather than typed in as
+    // one bundle, so the altitude reported at the instants it produces is exactly minus the
+    // semidiameter at every site and date, which the bundle could not deliver (research D1).
+    expect(RISE_SET_GEOMETRIC_ALTITUDE_DEGREES).toBeCloseTo(-0.8416, 3)
+    expect(Math.abs(RISE_SET_GEOMETRIC_ALTITUDE_DEGREES - -0.833)).toBeLessThan(0.01)
+  })
+
+  it('is minus the semidiameter minus the standard horizon refraction, and nothing else', () => {
+    expect(RISE_SET_GEOMETRIC_ALTITUDE_DEGREES).toBeCloseTo(
+      -SOLAR_SEMIDIAMETER_DEGREES - HORIZON_REFRACTION_DEGREES,
+      9,
+    )
+  })
+})
+
+describe('refractionCorrectionDegrees — below the horizon (the D2 band-table correction)', () => {
+  /**
+   * research D2's fourth expression, -20.772/tan(te), decreases as the altitude falls and reaches
+   * zero at the nadir. Refraction does not do that. Evaluated there, the rise/set solve landed at
+   * a geometric -0.7236 instead of the conventional -0.833, and rise/set drifted from NOAA's
+   * published tables by up to 200 s at Reykjavik. These assertions pin the repair so the band
+   * cannot quietly return.
+   */
+  it('holds at the standard horizon value all the way down, rather than decaying to zero', () => {
+    expect(HORIZON_REFRACTION_DEGREES).toBeCloseTo(0.5749, 4)
+    for (const elevation of [-0.575, -0.6, -0.7236, -0.833, -1, -10, -45, -90]) {
+      expect(refractionCorrectionDegrees(elevation)).toBe(HORIZON_REFRACTION_DEGREES)
+    }
+  })
+
+  it('is within an arcminute of the Astronomical Almanac standard 34 arcminutes at the horizon', () => {
+    expect(Math.abs(HORIZON_REFRACTION_DEGREES - 34 / 60)).toBeLessThan(1 / 60)
+  })
+
+  it('joins the near-horizon fit exactly at -0.575, with no step at all', () => {
+    const above = refractionCorrectionDegrees(-0.575 + 1e-9)
+    expect(Math.abs(above - HORIZON_REFRACTION_DEGREES)).toBeLessThan(1e-8)
+  })
+
+  it('never decreases as the sun sinks — the failure mode that made the band wrong', () => {
+    let previous = refractionCorrectionDegrees(5)
+    for (let elevation = 5; elevation >= -5; elevation -= 0.05) {
+      const value = refractionCorrectionDegrees(elevation)
+      expect(value).toBeGreaterThanOrEqual(previous - 1e-9)
+      previous = value
+    }
   })
 })

@@ -49,6 +49,15 @@ export const copy = {
   accuracyStatement: (positionToleranceDegrees: number) =>
     `Sun position accurate to within ${positionToleranceDegrees}°.`,
   assumedHeightsStatement: 'Building heights marked "assumed" were not recorded in the source data.',
+  /**
+   * FR-003 — which altitude is on screen. Published references print two elevation columns, a
+   * geometric one and a refraction-corrected one, and they differ by more than this feature's whole
+   * position tolerance near the horizon. Without naming the quantity, a user checking the figure
+   * against a reference cannot tell whether a disagreement is an error or a comparison against the
+   * wrong column (research D4).
+   */
+  altitudeQuantityStatement:
+    "Altitude is the sun's centre, corrected for atmospheric refraction.",
 
   // Toolbar / panels
   toolbarLabel: 'Solar Analysis',

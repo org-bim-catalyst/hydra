@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { refractionCorrectionDegrees } from './refraction'
+import { HORIZON_REFRACTION_DEGREES, refractionCorrectionDegrees } from './refraction'
+import { NOAA_FULL_DAY_SAMPLES, NOAA_FULL_DAY_SITE } from './noaaFullDay.fixture'
 import {
   HIGH_LATITUDE_THRESHOLD_DEGREES,
   SOLAR_POSITION_TOLERANCE_DEGREES,
@@ -198,5 +199,74 @@ describe('solarPosition — sub-second resolution (FR-002a prerequisite)', () =>
     const b = solarPosition(new Date(Date.UTC(2026, 8, 21, 3, 41, 18, 900)), 30.15, 31.72)
     expect(a.altitudeDegrees).not.toBe(b.altitudeDegrees)
     expect(b.altitudeDegrees).toBeGreaterThan(a.altitudeDegrees)
+  })
+})
+
+describe('solarPosition — full day against NOAA published values (T012, SC-002)', () => {
+  const instantFor = (minutesPastLocalMidnight: number): Date =>
+    new Date(
+      NOAA_FULL_DAY_SITE.dateUtc + (minutesPastLocalMidnight - NOAA_FULL_DAY_SITE.utcOffsetHours * 60) * 60_000,
+    )
+
+  it('covers a whole day at six-minute steps, both sides of the horizon', () => {
+    expect(NOAA_FULL_DAY_SAMPLES.length).toBe(240)
+    expect(NOAA_FULL_DAY_SAMPLES.filter(([, elevation]) => elevation > 0).length).toBe(150)
+    expect(NOAA_FULL_DAY_SAMPLES.filter(([, elevation]) => elevation <= 0).length).toBe(90)
+  })
+
+  it('agrees with the published corrected-for-refraction elevation whenever the sun is up', () => {
+    for (const [minute, elevation] of NOAA_FULL_DAY_SAMPLES) {
+      if (elevation <= 0) continue
+      const { altitudeDegrees } = solarPosition(instantFor(minute), NOAA_FULL_DAY_SITE.latitude, NOAA_FULL_DAY_SITE.longitude)
+      expect(Math.abs(altitudeDegrees - elevation)).toBeLessThanOrEqual(SOLAR_POSITION_TOLERANCE_DEGREES)
+    }
+  })
+
+  it('agrees far more tightly than the stated tolerance — 5e-7°, the precision the reference was transcribed at', () => {
+    // This is what makes T014's reasoning checkable rather than asserted: the port reproduces the
+    // published column exactly, so the 0.1° the panel states is a claim about the physical model,
+    // not about this implementation's fidelity to NOAA.
+    let worst = 0
+    for (const [minute, elevation] of NOAA_FULL_DAY_SAMPLES) {
+      if (elevation <= 0) continue
+      const { altitudeDegrees } = solarPosition(instantFor(minute), NOAA_FULL_DAY_SITE.latitude, NOAA_FULL_DAY_SITE.longitude)
+      worst = Math.max(worst, Math.abs(altitudeDegrees - elevation))
+    }
+    expect(worst).toBeLessThan(1e-6)
+  })
+
+  it('agrees with the published azimuth across the entire day, above and below the horizon', () => {
+    for (const [minute, , azimuth] of NOAA_FULL_DAY_SAMPLES) {
+      const { azimuthDegrees } = solarPosition(instantFor(minute), NOAA_FULL_DAY_SITE.latitude, NOAA_FULL_DAY_SITE.longitude)
+      expect(Math.abs(azimuthDegrees - azimuth)).toBeLessThan(1e-6)
+    }
+  })
+
+  it('departs from the published elevation below the horizon, deliberately and by a bounded amount', () => {
+    /**
+     * The one place this module does not reproduce NOAA's published column, and it is a choice
+     * rather than an error. NOAA's spreadsheet extrapolates refraction below −0.575° with
+     * `−20.772/tan(te)`, which *decreases* as the sun sinks and reaches zero at the nadir; NOAA's
+     * own rise/set constant contradicts that, assuming a full 0.833° at an altitude where the
+     * extrapolation yields 0.397°. NOAA's page states both treatments side by side:
+     * "For sunrise and sunset calculations, we assume 0.833° of atmospheric refraction. In the
+     * solar position calculator, atmospheric refraction is modeled as: [piecewise]".
+     *
+     * They cannot both be honoured. This feature honours the rise/set one, because that is what
+     * FR-002 and SC-003 rest on — rise and set land within 45 s of NOAA's published tables at
+     * every test site, and the altitude reported at them is exactly −0.2667° everywhere. The cost
+     * is confined to altitudes where the sun is already down, and it is bounded here so it cannot
+     * grow unnoticed.
+     */
+    let worst = 0
+    for (const [minute, elevation] of NOAA_FULL_DAY_SAMPLES) {
+      if (elevation > 0) continue
+      const { altitudeDegrees } = solarPosition(instantFor(minute), NOAA_FULL_DAY_SITE.latitude, NOAA_FULL_DAY_SITE.longitude)
+      worst = Math.max(worst, Math.abs(altitudeDegrees - elevation))
+      // Never below the published value: the change only ever lifts the sun, never sinks it.
+      expect(altitudeDegrees).toBeGreaterThanOrEqual(elevation - 1e-9)
+    }
+    expect(worst).toBeGreaterThan(0.5)
+    expect(worst).toBeLessThan(HORIZON_REFRACTION_DEGREES)
   })
 })

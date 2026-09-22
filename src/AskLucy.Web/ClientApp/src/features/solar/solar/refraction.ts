@@ -37,28 +37,61 @@ export const SOLAR_SEMIDIAMETER_DEGREES = 0.2667
  *
  * Pure: it never clamps to the caller's expectations and is defined for every finite input,
  * including altitudes below the horizon — `daySummary.ts`'s rise/set solver evaluates it there,
- * where the geometric altitude of a sun whose upper edge is on the horizon sits near −0.72°.
+ * where the geometric altitude of a sun whose upper edge is on the horizon sits near −0.84°.
  *
- * Continuity: the band boundaries do not join exactly, because NOAA's four expressions are
- * independent fits rather than a spline. The largest step is 0.0014° at 85°, then 0.0005° at 5°
- * and 0.000001° at −0.575° — all far inside `SOLAR_POSITION_TOLERANCE_DEGREES`, which is what the
- * contract requires and what `refraction.test.ts` pins.
+ * **Below −0.575° the fit is not used.** research D2 lists a fourth expression, `−20.772/tan(te)`,
+ * for that range, and taking it literally is wrong here. It *decreases* as the altitude falls —
+ * 0.5749° at −0.575°, 0.4569° at −0.724°, 0.3968° at −0.833°, reaching zero at the nadir — whereas
+ * refraction physically keeps increasing as the ray grazes lower through more atmosphere. That
+ * expression is not a sub-horizon refraction model; NOAA's own rise/set constant contradicts it,
+ * using 34′ (0.5667°) of horizon refraction at −0.833° where the expression yields 0.3968°.
+ *
+ * This mattered, and was caught by measurement rather than by reading. Evaluated inside that band,
+ * the upper-edge rise/set solve lands at a geometric −0.7236° instead of the conventional −0.833°,
+ * and that 0.11° offset showed up as a systematic error against NOAA's published tables that grows
+ * as the sun's ascent flattens: every rise late and every set early, by 26–60 s at Dubai, London
+ * and Singapore, 82–99 s at Tromsø, and up to 200 s at Reykjavík — outside the tolerance FR-004a
+ * requires, at latitudes well inside the ±72° band.
+ *
+ * So the fit is held at its boundary value outside the range it was fitted for, which is the
+ * ordinary treatment of an extrapolation with no physical validity. Horizon refraction then
+ * becomes a constant 0.5749° (34.5′), agreeing with the Astronomical Almanac's standard 34′ and
+ * with the −0.833° convention NOAA's published times are built on, while the rise/set altitude
+ * this feature reports stays exactly −`SOLAR_SEMIDIAMETER_DEGREES`. Both of the spec's criteria
+ * hold at once; evaluating the fourth band satisfies only the first.
+ *
+ * Continuity: the band boundaries do not join exactly, because NOAA's expressions are independent
+ * fits rather than a spline. The largest step is 0.0014° at 85° and 0.0005° at 5° — both far
+ * inside `SOLAR_POSITION_TOLERANCE_DEGREES`, which is what the contract requires and what
+ * `refraction.test.ts` pins. The −0.575° boundary now joins exactly, since holding the boundary
+ * value is continuous by construction.
  */
+/** The lowest true elevation NOAA's near-horizon polynomial was fitted for. */
+const NEAR_HORIZON_FIT_FLOOR_DEGREES = -0.575
+
+function nearHorizonFitDegrees(te: number): number {
+  return (1735 + te * (-518.2 + te * (103.4 + te * (-12.79 + 0.711 * te)))) / ARCSECONDS_PER_DEGREE
+}
+
+/**
+ * Refraction at and below the horizon, held constant — see the note above. 0.5749°, or 34.5′,
+ * which is the standard horizon refraction the −0.833° rise/set convention is built on.
+ */
+export const HORIZON_REFRACTION_DEGREES = nearHorizonFitDegrees(NEAR_HORIZON_FIT_FLOOR_DEGREES)
+
 export function refractionCorrectionDegrees(geometricAltitudeDegrees: number): number {
   if (geometricAltitudeDegrees > 85) return 0
 
-  const tangent = Math.tan(toRad(geometricAltitudeDegrees))
-
   if (geometricAltitudeDegrees > 5) {
+    const tangent = Math.tan(toRad(geometricAltitudeDegrees))
     return (58.1 / tangent - 0.07 / tangent ** 3 + 0.000086 / tangent ** 5) / ARCSECONDS_PER_DEGREE
   }
 
-  if (geometricAltitudeDegrees > -0.575) {
-    const te = geometricAltitudeDegrees
-    return (1735 + te * (-518.2 + te * (103.4 + te * (-12.79 + 0.711 * te)))) / ARCSECONDS_PER_DEGREE
+  if (geometricAltitudeDegrees > NEAR_HORIZON_FIT_FLOOR_DEGREES) {
+    return nearHorizonFitDegrees(geometricAltitudeDegrees)
   }
 
-  return -20.772 / tangent / ARCSECONDS_PER_DEGREE
+  return HORIZON_REFRACTION_DEGREES
 }
 
 /** Bisection steps used to invert the refraction correction. 60 halvings of a 1° bracket leave a
