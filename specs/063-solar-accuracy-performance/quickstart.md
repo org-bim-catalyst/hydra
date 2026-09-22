@@ -89,7 +89,9 @@ Keep these. Steps 4 and 5 are the comparison baseline.
 ### Check 1 — the numbers agree (the main repair)
 
 1. Read the **sunrise** time in the figures panel.
-2. Set the time control to exactly that time.
+2. Set the time control to exactly that time — **type it into the time field** in the Time of Day
+   panel and press Enter. Do not drag the slider: dragging snaps to 15 minutes, and even
+   unsnapped it cannot reliably land on a named minute (specs/064).
 3. Read the **altitude**.
 
 **Expect: −0.27°.**
@@ -129,7 +131,7 @@ last one is the failure the prototype hit, and is the single most important thin
 
 ### Check 5 — the new no-shadow window
 
-1. Set the time to a minute or two after sunrise.
+1. Set the time to a minute or two after sunrise (type it into the time field — see Check 1).
 
 **Expect:** the sun is up, no shadows are drawn, and **a message on screen says why.** Shadows are
 suppressed below 1° elevation because their length diverges. If shadows vanish with no explanation,

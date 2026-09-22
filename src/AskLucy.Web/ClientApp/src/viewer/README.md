@@ -13,13 +13,17 @@ contracts this package implements — this file is a quick orientation, not a du
   (pub/sub), `viewerEngineInstance.ts` (the shared singleton), `PlaceholderRenderTarget.tsx`/
   `ViewerFallback.tsx`/`MapRenderTarget.tsx` (the three things the viewer can currently show).
 - `camera/` — isometric/plan view-mode application and continuous-rotation driving, applied to
-  whichever real render target is active.
+  whichever real render target is active, plus `cameraRestoreGuard.ts` (see *Camera ownership*
+  below).
 - `layers/gis/` — `GoogleMapsGisLayer.ts`, bridging a Google Maps `WebGLOverlayView` to a
   Three.js scene (research.md Decision 3).
 - `layers/model/` — reserved for future model/drawing content (contract-only today).
 - `selection/` — `resolveSelection.ts`, the deterministic overlap-resolution rule.
 - `overlays/` — the `Overlay` type alias for `RenderLayer`s with `kind: 'overlay'`.
 - `store/` — `viewerEngineStore.ts`, the session-scoped Zustand store `ViewerEngine` reads/writes.
+- `session/` — the state that outlives a mount: `viewerSession.ts` (a deliberately import-free
+  module-level record of the active map content, the last camera, and the last framed location) and
+  `resetViewerSession.ts`, which is called on sign-out and nowhere else.
 
 ## Using the viewer from a future AI-agent integration
 
@@ -61,6 +65,44 @@ const unsubscribe = viewerEngine.on('selectionChanged', (event) => {
 `layerAdded`, `layerRemoved`, `contentLoaded`, `selectionChanged`, `viewModeChanged`,
 `rotationChanged` — see `api/events.ts` for exact payload shapes.
 
+## Camera ownership and session continuity
+
+The camera belongs to the user. Leaving `/studio` and coming back is not a reason to move it, and
+neither is a fresh reading of the place already on screen. Only sign-out ends a viewer session.
+Two mechanisms hold that line, and both exist because it was broken in practice.
+
+**Maps JS overwrites the camera it was constructed with.** Passing zoom/heading/tilt as
+construction options does not restore a camera: `google.maps.Map` finishes wiring its camera
+*after* the constructor returns, and that wiring discards them. Verified from call stacks against
+Maps JS 3.66 — heading is zeroed via `MVCObject.bindTo` → `heading_changed`, tilt via `bindTo` →
+`mapTypeId_changed` → `actualTilt_changed`, and fractional zoom is snapped to a whole level
+(17.526 → 18) by the map's internal zoom handling. No application frame appears in any of them, so
+there is nothing to "stop doing" — the restore has to be re-asserted afterwards.
+
+Tilt already survived, because `MapRenderTarget` re-applies the view mode's tilt on every
+`tilt_changed`. Heading survived only by accident, when auto-rotation happened to be on. Zoom had
+no defence at all, which is why returning to the workspace changed the zoom every time.
+`camera/cameraRestoreGuard.ts` gives zoom and heading the same durability: it re-applies the
+restored camera on each `idle`, **releases the moment the map matches**, and is abandoned outright
+by the first drag or wheel. Both release paths matter — a guard that stayed armed would be
+indistinguishable from a broken map the next time the user moved. It leaves heading to
+`rotationDriver` while that is running, and gives up after 20 attempts rather than looping.
+`GoogleMapsGisLayerHandle.setCamera` exists for it: one atomic zoom+heading write.
+
+**Framing is separate from content.** `ViewerSurface` runs two effects. The content effect loads
+or reverts the map layer and never touches the camera. The framing effect answers a different
+question — *a new place is being shown, put the camera where it is visible* — and is keyed on a
+**deliberately established** location, not on coordinates. `useGeolocation`'s `watchPosition` runs
+for the whole session to detect revocation, so fixes keep arriving with a few metres of drift; a
+camera effect that depended on them re-ran `fitBounds` periodically and dragged the camera back off
+wherever the user had put it. The device establishes a location once, so every geolocation fix
+shares one framing key; an agent naming a place is a deliberate act each time, so its coordinates
+and framing hints all form part of its key. Coordinates are read at call time rather than depended
+on, and the last framed key lives on `viewerSession`, so a remount re-frames nothing.
+
+Anything new that moves the camera on its own should decide which of these it is: a response to the
+user (fine), or a response to data arriving (almost never fine).
+
 ## Panels (`panels/`)
 
 The floating panel framework (specs/028), reshaped by specs/049 into a content model. See
@@ -80,7 +122,11 @@ The floating panel framework (specs/028), reshaped by specs/049 into a content m
   the shared presentation every actionable entry renders through; an action that fails validation
   is rendered inert, never merely refused on click.
 - `chrome/` — `PanelChrome` (title bar / resizable / default size / density — `compact` is the reference page's dense look, carried to content through `PanelDensityContext`; a resizable panel gets a footer with a status cell and the resize grip) and `resolveChrome`, applying a
-  request's override on top of a base chrome and clamping to the minimum usable size.
+  request's override on top of a base chrome and clamping to the minimum usable size. A kind whose
+  content stops working below some width — solar's tick-marked time slider (specs/064) is the first
+  — declares its own `minSize`, which raises both the default size and the live resize floor; it is
+  still clamped by the framework-wide `MIN_PANEL_WIDTH`/`MIN_PANEL_HEIGHT`, so a declaration can
+  only ever be stricter, never laxer.
 - `registry.ts` — narrowed by specs/049 to hold only **live panel kinds**: panels whose content is
   code rather than data (continuous state, an owned drawing surface, or values flowing back into
   them live). No content panel needs registration. Nothing registers here today — the four

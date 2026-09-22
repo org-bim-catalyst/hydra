@@ -100,6 +100,27 @@ binding on this implementation. Losing any of them is a regression, not a style 
 building's height and provenance (FR-011) without a prop-drilling path between two independent
 panel-framework-mounted React trees. One store, read by both, is what keeps them from disagreeing.
 
+## Naming a moment: three controls, one stored value (specs/064)
+
+The Time of Day panel offers a slider, a typed entry field and playback. All three write
+`instantUtc` through the existing `solarAnalysisStore` setters — FR-022's single-source-of-truth
+rule means there is never a second time value to reconcile, and the entry field's draft text is not
+one: it exists only while the field has focus, and the field otherwise displays
+`moment.localMinuteOfDay`, so slider, keyboard and playback changes all reach it.
+
+`panels/timeEntry.ts` holds the decision logic as pure functions, which is why it can be tested
+without rendering: `parseLocalTimeEntry` returns a discriminated union and **never throws and never
+clamps** (`25:00` is rejected, not quietly turned into `23:59`), and `buildTimeSliderMarks` decides
+which ticks and labels survive at a given pixel width. A nonexistent local time (a DST gap) is
+detected by round-tripping the candidate through `timeZone.ts`'s existing `fromLocalParts` /
+`toLocalParts` and comparing the minute that comes back — there is no second timezone
+implementation here, and there must not be.
+
+Rejections keep the typed text in place, keep the previous time, and say why, following the
+`invalidHeight` / `invalidGroundOffset` pattern in `copy.ts`. Dragging snaps to 15 minutes; arrow
+keys still step one minute, so the slider handles coarse aiming and the keyboard and entry field
+handle precision.
+
 ## Testing
 
 Run the whole feature: `npx vitest run src/features/solar` (frontend) and

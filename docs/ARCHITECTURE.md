@@ -288,6 +288,18 @@ validators/
 
 Avoid a large shared components folder.
 
+## The viewer is a platform, not a feature
+
+`src/viewer/` sits alongside `features/` rather than inside it. It is the extensible rendering
+platform behind the Flumeria workspace (specs/027, 049-052) — engine, camera, layers, panels,
+extensions — and features consume it through the published `IViewerEngine` surface rather than
+reaching into it. `src/AskLucy.Web/ClientApp/src/viewer/README.md` is its orientation document.
+
+One rule from that package is worth stating here, because violating it is easy and the symptom is
+remote from the cause: **the viewer camera belongs to the user.** Only an explicit user action or a
+deliberately established location may move it — never a remount, and never new data arriving about
+the place already on screen. See [ADR 0015](adr/0015-viewer-camera-belongs-to-the-user.md).
+
 ---
 
 # 7. Feature-Based Backend Organization
