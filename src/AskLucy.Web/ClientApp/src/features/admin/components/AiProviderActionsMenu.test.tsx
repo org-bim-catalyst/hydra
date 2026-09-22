@@ -10,7 +10,7 @@ import { AiProviderActionsMenu } from './AiProviderActionsMenu'
 // render an inline `--Paper-shadow` custom property that jsdom's CSS length parser cannot
 // resolve, which crashes testing-library's role-based accessibility check for any element
 // inside that subtree. Interactions below use fireEvent + text/DOM queries instead of
-// getByRole for anything rendered inside a Menu/Dialog.
+// getByRole for anything rendered inside a Dialog.
 vi.mock('../api/adminAiProvidersApi', async () => {
   const actual = await vi.importActual<typeof adminAiProvidersApi>('../api/adminAiProvidersApi')
   return {
@@ -28,6 +28,7 @@ const disabledNoCredential: AdminAiProvider = {
   displayName: 'Anthropic',
   isEnabled: false,
   hasCredential: false,
+  credentialHint: null,
   credentialLastRotatedAtUtc: null,
   defaultModelId: null,
   healthStatus: 'Unknown',
@@ -62,8 +63,7 @@ describe('AiProviderActionsMenu', () => {
   it('opens a dialog to set a credential; Cancel does not call the API', async () => {
     renderMenu(disabledNoCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Set credential'))
+    fireEvent.click(screen.getByRole('button', { name: /set credential for anthropic/i }))
 
     expect(await screen.findByText('Set credential for Anthropic')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
@@ -74,8 +74,7 @@ describe('AiProviderActionsMenu', () => {
   it('submits the typed credential on Confirm, and never renders it again afterward', async () => {
     renderMenu(disabledNoCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Set credential'))
+    fireEvent.click(screen.getByRole('button', { name: /set credential for anthropic/i }))
 
     const input = await screen.findByLabelText('API key')
     fireEvent.change(input, { target: { value: 'sk-super-secret-value' } })
@@ -89,8 +88,7 @@ describe('AiProviderActionsMenu', () => {
   it('rejects an empty credential without calling the API', async () => {
     renderMenu(disabledNoCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Set credential'))
+    fireEvent.click(screen.getByRole('button', { name: /set credential for anthropic/i }))
     fireEvent.click(screen.getByText('Confirm'))
 
     expect(adminAiProvidersApi.setCredential).not.toHaveBeenCalled()
@@ -99,8 +97,7 @@ describe('AiProviderActionsMenu', () => {
   it('shows a "needs a credential" explanation immediately when Enable is clicked with no credential configured — no API call, no confirmation dialog (FR-003)', async () => {
     renderMenu(disabledNoCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Enable'))
+    fireEvent.click(screen.getByRole('button', { name: /enable anthropic/i }))
 
     expect(await screen.findByText(/needs a credential/i)).toBeInTheDocument()
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument()
@@ -110,8 +107,7 @@ describe('AiProviderActionsMenu', () => {
   it('opens a confirm dialog for Enable when a credential is already configured, and calls the API only on Confirm', async () => {
     renderMenu(disabledWithCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Enable'))
+    fireEvent.click(screen.getByRole('button', { name: /enable anthropic/i }))
 
     expect(await screen.findByText('Enable this provider?')).toBeInTheDocument()
     expect(adminAiProvidersApi.updateProvider).not.toHaveBeenCalled()
@@ -124,8 +120,7 @@ describe('AiProviderActionsMenu', () => {
   it('does not call the API if the Enable confirmation is cancelled', async () => {
     renderMenu(disabledWithCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Enable'))
+    fireEvent.click(screen.getByRole('button', { name: /enable anthropic/i }))
     fireEvent.click(screen.getByText('Cancel'))
 
     expect(adminAiProvidersApi.updateProvider).not.toHaveBeenCalled()
@@ -134,8 +129,7 @@ describe('AiProviderActionsMenu', () => {
   it('shows a confirm dialog for Disable, and calls updateProvider(isEnabled: false) only on Confirm', async () => {
     renderMenu(enabledWithCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Disable'))
+    fireEvent.click(screen.getByRole('button', { name: /disable anthropic/i }))
     expect(await screen.findByText('Disable this provider?')).toBeInTheDocument()
     expect(adminAiProvidersApi.updateProvider).not.toHaveBeenCalled()
 
@@ -147,8 +141,7 @@ describe('AiProviderActionsMenu', () => {
   it("clearing a credential's confirmation explicitly states it will also disable the provider, and Cancel does not call the API", async () => {
     renderMenu(enabledWithCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Clear credential'))
+    fireEvent.click(screen.getByRole('button', { name: /clear credential for anthropic/i }))
 
     expect(await screen.findByText(/will also disable/i)).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
@@ -159,27 +152,81 @@ describe('AiProviderActionsMenu', () => {
   it('calls clearCredential only on Confirm', async () => {
     renderMenu(enabledWithCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    fireEvent.click(await screen.findByText('Clear credential'))
+    fireEvent.click(screen.getByRole('button', { name: /clear credential for anthropic/i }))
     fireEvent.click(screen.getByText('Confirm'))
 
     await waitFor(() => expect(adminAiProvidersApi.clearCredential).toHaveBeenCalledWith('provider-1'))
   })
 
-  it('disables the "Clear credential" item when there is no credential to clear', async () => {
+  it('disables the "Clear credential" icon button when there is no credential to clear', () => {
     renderMenu(disabledNoCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    const clearItem = (await screen.findByText('Clear credential')).closest('li')
-    expect(clearItem).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: /clear credential for anthropic/i })).toBeDisabled()
   })
 
-  it('offers "Replace credential" (reusing the same dialog) instead of "Set credential" when a credential already exists', async () => {
+  it('offers "Replace credential" (reusing the same dialog) instead of "Set credential" when a credential already exists', () => {
     renderMenu(disabledWithCredential)
 
-    fireEvent.click(screen.getByRole('button', { name: /actions for anthropic/i }))
-    expect(await screen.findByText('Replace credential')).toBeInTheDocument()
-    expect(screen.queryByText('Set credential')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /replace credential for anthropic/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /set credential for anthropic/i })).not.toBeInTheDocument()
+  })
+
+  it('shows placeholder text and no pre-filled value when replacing an existing credential (spec 065 US2)', async () => {
+    renderMenu(disabledWithCredential)
+
+    fireEvent.click(screen.getByRole('button', { name: /replace credential for anthropic/i }))
+
+    const input = await screen.findByLabelText('API key')
+    expect(input).toHaveValue('')
+    expect(input).toHaveAttribute('placeholder', 'Please insert API key here')
+  })
+
+  it('hides the show/hide toggle when the API key field is empty, and reveals/re-hides typed input without changing its value (spec 065 US1)', async () => {
+    renderMenu(disabledNoCredential)
+
+    fireEvent.click(screen.getByRole('button', { name: /set credential for anthropic/i }))
+
+    const input = await screen.findByLabelText('API key')
+    expect(screen.queryByLabelText('Show API key')).not.toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: 'sk-super-secret-value' } })
+    expect(input).toHaveAttribute('type', 'password')
+    const showToggle = await screen.findByLabelText('Show API key')
+
+    fireEvent.click(showToggle)
+    expect(input).toHaveAttribute('type', 'text')
+    expect(input).toHaveValue('sk-super-secret-value')
+    const hideToggle = await screen.findByLabelText('Hide API key')
+
+    fireEvent.click(hideToggle)
+    expect(input).toHaveAttribute('type', 'password')
+    expect(input).toHaveValue('sk-super-secret-value')
+
+    fireEvent.change(input, { target: { value: '' } })
+    expect(screen.queryByLabelText('Show API key')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Hide API key')).not.toBeInTheDocument()
+  })
+
+  it('resets the reveal toggle and masking back to their defaults when the dialog is closed and reopened (spec 065 FR-010)', async () => {
+    renderMenu(disabledNoCredential)
+
+    fireEvent.click(screen.getByRole('button', { name: /set credential for anthropic/i }))
+
+    const firstInput = await screen.findByLabelText('API key')
+    fireEvent.change(firstInput, { target: { value: 'sk-super-secret-value' } })
+    fireEvent.click(await screen.findByLabelText('Show API key'))
+    expect(firstInput).toHaveAttribute('type', 'text')
+
+    fireEvent.click(screen.getByText('Cancel'))
+    await waitFor(() => expect(screen.queryByText('Set credential for Anthropic')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByLabelText(/set credential for anthropic/i))
+
+    const reopenedInput = await screen.findByLabelText('API key')
+    expect(reopenedInput).toHaveValue('')
+    expect(reopenedInput).toHaveAttribute('type', 'password')
+    expect(screen.queryByLabelText('Show API key')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Hide API key')).not.toBeInTheDocument()
   })
 })
 
@@ -194,8 +241,7 @@ describe('Check now (specs/043 US3)', () => {
     })
     renderMenu(enabledWithCredential)
 
-    fireEvent.click(screen.getByLabelText(/Actions for/))
-    fireEvent.click(screen.getByText('Check now'))
+    fireEvent.click(screen.getByRole('button', { name: /check now for anthropic/i }))
 
     await waitFor(() => expect(screen.getByText(/is healthy/)).toBeInTheDocument())
     expect(adminAiProvidersApi.checkProviderHealth).toHaveBeenCalledWith(enabledWithCredential.id)
@@ -211,8 +257,7 @@ describe('Check now (specs/043 US3)', () => {
     })
     renderMenu(enabledWithCredential)
 
-    fireEvent.click(screen.getByLabelText(/Actions for/))
-    fireEvent.click(screen.getByText('Check now'))
+    fireEvent.click(screen.getByRole('button', { name: /check now for anthropic/i }))
 
     await waitFor(() => expect(screen.getByText(/Billing may be disabled/)).toBeInTheDocument())
     // The misdirection this feature removes: never tell an administrator to check a key that
@@ -226,8 +271,7 @@ describe('Check now (specs/043 US3)', () => {
     )
     renderMenu(enabledWithCredential)
 
-    fireEvent.click(screen.getByLabelText(/Actions for/))
-    fireEvent.click(screen.getByText('Check now'))
+    fireEvent.click(screen.getByRole('button', { name: /check now for anthropic/i }))
 
     await waitFor(() => expect(screen.getByText('Something broke.')).toBeInTheDocument())
   })
@@ -235,9 +279,6 @@ describe('Check now (specs/043 US3)', () => {
   it('is unavailable for a provider with no credential to check', () => {
     renderMenu(disabledNoCredential)
 
-    fireEvent.click(screen.getByLabelText(/Actions for/))
-
-    expect(screen.getByText('Check now').closest('li')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: /check now for anthropic/i })).toBeDisabled()
   })
 })
-

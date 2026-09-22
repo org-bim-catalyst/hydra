@@ -22,6 +22,10 @@ public sealed class AIProviderConfiguration : IEntityTypeConfiguration<AIProvide
         // outbound HTTP call — enforced at the Application layer, not by EF configuration
         // (data-model.md).
         builder.Property(p => p.CredentialCiphertext);
+
+        // Unlike CredentialCiphertext above, safe to project into read DTOs — a vendor-style
+        // fingerprint, never the raw credential (specs/066 data-model.md).
+        builder.Property(p => p.CredentialHint).HasMaxLength(20);
         builder.Property(p => p.CredentialLastRotatedAtUtc);
 
         builder.Property(p => p.HealthStatus).HasConversion<string>().HasMaxLength(20).IsRequired();

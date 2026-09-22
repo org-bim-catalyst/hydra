@@ -43,7 +43,7 @@ public sealed class GeminiBoundaryVisionAnalyzerTests
     public GeminiBoundaryVisionAnalyzerTests()
     {
         var provider = AIProvider.Create("google-gemini", "Google Gemini", "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         UseProvider(provider);
         _credentialProtector.Unprotect("ciphertext").Returns("raw-api-key");
     }

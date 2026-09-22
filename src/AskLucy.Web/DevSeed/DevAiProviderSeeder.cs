@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Domain.Ai;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +55,7 @@ public static class DevAiProviderSeeder
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             var protector = scope.ServiceProvider.GetRequiredService<IAiCredentialProtector>();
-            provider.SetCredential(protector.Protect(apiKey), SeedActor);
+            provider.SetCredential(protector.Protect(apiKey), CredentialHintFormatter.Format(apiKey), SeedActor);
             provider.Enable(SeedActor);
         }
 

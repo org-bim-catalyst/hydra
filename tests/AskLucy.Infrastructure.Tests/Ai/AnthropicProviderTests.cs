@@ -22,7 +22,7 @@ public sealed class AnthropicProviderTests
     public AnthropicProviderTests()
     {
         _provider = AIProvider.Create("anthropic", "Anthropic", "test");
-        _provider.SetCredential("ciphertext", "test");
+        _provider.SetCredential("ciphertext", null, "test");
         _providers.GetByKeyAsync("anthropic", Arg.Any<CancellationToken>()).Returns(_provider);
         _credentialProtector.Unprotect("ciphertext").Returns("raw-api-key");
     }

@@ -21,7 +21,7 @@ public sealed class GoogleGeminiProviderTests
     public GoogleGeminiProviderTests()
     {
         _provider = AIProvider.Create("google-gemini", "Google Gemini", "test");
-        _provider.SetCredential("ciphertext", "test");
+        _provider.SetCredential("ciphertext", null, "test");
         _providers.GetByKeyAsync("google-gemini", Arg.Any<CancellationToken>()).Returns(_provider);
         _credentialProtector.Unprotect("ciphertext").Returns("raw-api-key");
     }

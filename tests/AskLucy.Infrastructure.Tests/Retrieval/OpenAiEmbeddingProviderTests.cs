@@ -58,7 +58,7 @@ public sealed class OpenAiEmbeddingProviderTests
         var provider = AIProvider.Create("openai", "OpenAI", "test");
         if (ciphertext is not null)
         {
-            provider.SetCredential(ciphertext, "test");
+            provider.SetCredential(ciphertext, null, "test");
             _protector.Unprotect(ciphertext).Returns("key-from-the-admin-page");
         }
 
@@ -96,7 +96,7 @@ public sealed class OpenAiEmbeddingProviderTests
     public async Task EmbedBatchAsync_ShouldFail_RatherThanFallBack_WhenTheCredentialCannotBeDecrypted()
     {
         var provider = AIProvider.Create("openai", "OpenAI", "test");
-        provider.SetCredential("corrupt", "test");
+        provider.SetCredential("corrupt", null, "test");
         _providers.GetByKeyAsync("openai", Arg.Any<CancellationToken>()).Returns(provider);
         _protector.Unprotect("corrupt").Throws(new System.Security.Cryptography.CryptographicException("bad key ring"));
 

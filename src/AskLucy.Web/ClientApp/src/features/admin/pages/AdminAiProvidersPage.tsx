@@ -11,6 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -69,13 +70,14 @@ export function AdminAiProvidersPage() {
                 <TableCell>Credential</TableCell>
                 <TableCell>Health</TableCell>
                 <TableCell>Last confirmed</TableCell>
+                <TableCell>Credential hint</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {isLoading && <TableLoadingRow colSpan={7} />}
+              {isLoading && <TableLoadingRow colSpan={8} />}
               {!isLoading && (providers ?? []).length === 0 && (
-                <TableEmptyRow colSpan={7} message="No AI providers found." />
+                <TableEmptyRow colSpan={8} message="No AI providers found." />
               )}
               {providers?.map((provider) => {
                 const isExpanded = expandedProviderId === provider.id
@@ -122,13 +124,18 @@ export function AdminAiProvidersPage() {
                       <TableCell>
                         <ProviderStalenessCell provider={provider} />
                       </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color={provider.credentialHint ? 'text.primary' : 'text.secondary'}>
+                          {provider.credentialHint ?? 'Not set'}
+                        </Typography>
+                      </TableCell>
                       <TableCell align="right">
                         <AiProviderActionsMenu provider={provider} />
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={8}
                         sx={{ p: 0, borderBottom: isExpanded ? undefined : 'none' }}
                       >
                         <Collapse in={isExpanded} unmountOnExit>

@@ -83,7 +83,7 @@ public sealed class GetAdminAiProvidersQueryHandlerTests
     {
         // Pre-existing rule (FR-004/FR-031 of specs/005), restated here because this DTO grew.
         var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
-        provider.SetCredential("ciphertext", "admin-1");
+        provider.SetCredential("ciphertext", null, "admin-1");
         _providers.ListAllAsync(Arg.Any<CancellationToken>()).Returns([provider]);
 
         var result = await _handler.Handle(new GetAdminAiProvidersQuery(), CancellationToken.None);

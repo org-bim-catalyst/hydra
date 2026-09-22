@@ -22,6 +22,7 @@ using AskLucy.Persistence.HealthChecks;
 using AskLucy.Web.Auth;
 using AskLucy.Web.DevSeed;
 using AskLucy.Web.Middleware;
+using AskLucy.Web.StartupTasks;
 using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication;
@@ -866,6 +867,22 @@ if (app.Environment.IsDevelopment())
         app.Logger.LogWarning(ex, "Dev baseline seed skipped — could not reach the database.");
 #pragma warning restore CA1848
     }
+}
+
+// specs/066 FR-009: backfills CredentialHint for any provider credential configured before this
+// feature shipped. Unlike the dev-only seeders above, this must run in every environment —
+// production credentials predate the feature too — so it sits outside the IsDevelopment() guard.
+// Wrapped the same way: a missing/unreachable database at startup degrades to a logged warning,
+// not a crashed host.
+try
+{
+    await CredentialHintBackfillService.RunAsync(app.Services, app.Logger);
+}
+catch (Exception ex)
+{
+#pragma warning disable CA1848
+    app.Logger.LogWarning(ex, "Credential hint backfill skipped — could not reach the database.");
+#pragma warning restore CA1848
 }
 
 // Which geocoding provider is live is decided silently by whether Geocoding:GoogleMapsApiKey

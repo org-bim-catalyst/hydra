@@ -25,6 +25,14 @@ public sealed class AIProvider : BaseEntity
     /// <summary>Data-Protection-encrypted API key (research.md Decision 4). Never serialized into any DTO.</summary>
     public string? CredentialCiphertext { get; private set; }
 
+    /// <summary>
+    /// Vendor-style fingerprint (<c>first4...last4</c>, or <c>****</c> for a short key) of the
+    /// plaintext key as of the last <see cref="SetCredential"/> call — specs/066 data-model.md.
+    /// Unlike <see cref="CredentialCiphertext"/>, this is deliberately safe to return to the
+    /// client.
+    /// </summary>
+    public string? CredentialHint { get; private set; }
+
     public DateTime? CredentialLastRotatedAtUtc { get; private set; }
 
     public Guid? DefaultModelId { get; private set; }
@@ -93,8 +101,13 @@ public sealed class AIProvider : BaseEntity
         ModifiedBy = actor;
     }
 
-    /// <summary>FR-004. The plaintext key is encrypted by the caller (Infrastructure) before reaching this method — Domain never sees it.</summary>
-    public void SetCredential(string ciphertext, string actor)
+    /// <summary>
+    /// FR-004. The plaintext key is encrypted by the caller (Infrastructure) before reaching this
+    /// method — Domain never sees it. <paramref name="hint"/> is likewise computed by that same
+    /// caller (specs/066 research.md Decision 1) and stored alongside the ciphertext so the two
+    /// can never observably disagree.
+    /// </summary>
+    public void SetCredential(string ciphertext, string? hint, string actor)
     {
         if (string.IsNullOrWhiteSpace(ciphertext))
         {
@@ -102,6 +115,7 @@ public sealed class AIProvider : BaseEntity
         }
 
         CredentialCiphertext = ciphertext;
+        CredentialHint = hint;
         CredentialLastRotatedAtUtc = DateTime.UtcNow;
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
@@ -111,10 +125,22 @@ public sealed class AIProvider : BaseEntity
     public void ClearCredential(string actor)
     {
         CredentialCiphertext = null;
+        CredentialHint = null;
         CredentialLastRotatedAtUtc = null;
         IsEnabled = false;
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
+    }
+
+    /// <summary>
+    /// specs/066 FR-009 backfill only: populates <see cref="CredentialHint"/> for a row whose
+    /// credential was set before this feature existed, without touching
+    /// <see cref="CredentialLastRotatedAtUtc"/> or the audit fields — no actual credential change
+    /// occurred, so nothing about "when/who last changed the credential" should move.
+    /// </summary>
+    public void BackfillCredentialHint(string hint)
+    {
+        CredentialHint = hint;
     }
 
     public void SetDefaultModel(Guid? modelId, string actor)

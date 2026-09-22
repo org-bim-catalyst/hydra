@@ -8,6 +8,8 @@ export interface AdminAiProvider {
   displayName: string
   isEnabled: boolean
   hasCredential: boolean
+  /** Vendor-style fingerprint (`sk-p...33IA`) of the configured key, or `null` when `hasCredential` is `false`. Never the full key. */
+  credentialHint: string | null
   credentialLastRotatedAtUtc: string | null
   defaultModelId: string | null
   healthStatus: 'Unknown' | 'Healthy' | 'Unhealthy'

@@ -31,7 +31,7 @@ public sealed class OpenAIProviderTests
     public OpenAIProviderTests()
     {
         var provider = AIProvider.Create("openai", "OpenAI", "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         _providers.GetByKeyAsync("openai", Arg.Any<CancellationToken>()).Returns(provider);
         _credentialProtector.Unprotect("ciphertext").Returns("stored-api-key");
     }

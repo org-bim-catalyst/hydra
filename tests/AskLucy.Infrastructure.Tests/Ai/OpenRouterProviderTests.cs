@@ -21,7 +21,7 @@ public sealed class OpenRouterProviderTests
     public OpenRouterProviderTests()
     {
         _provider = AIProvider.Create("openrouter", "OpenRouter", "test");
-        _provider.SetCredential("ciphertext", "test");
+        _provider.SetCredential("ciphertext", null, "test");
         _providers.GetByKeyAsync("openrouter", Arg.Any<CancellationToken>()).Returns(_provider);
         _credentialProtector.Unprotect("ciphertext").Returns("raw-api-key");
     }

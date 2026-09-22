@@ -44,7 +44,7 @@ public sealed class AIProviderTests
     public void Enable_ShouldSucceed_AfterCredentialIsSet()
     {
         var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
-        provider.SetCredential("ciphertext", "admin-1");
+        provider.SetCredential("ciphertext", "sk-t...est1", "admin-1");
 
         provider.Enable("admin-1");
 
@@ -56,7 +56,7 @@ public sealed class AIProviderTests
     {
         // contracts/admin.md: a provider cannot stay enabled with no credential.
         var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
-        provider.SetCredential("ciphertext", "admin-1");
+        provider.SetCredential("ciphertext", "sk-t...est1", "admin-1");
         provider.Enable("admin-1");
 
         provider.ClearCredential("admin-1");
@@ -66,14 +66,37 @@ public sealed class AIProviderTests
     }
 
     [Fact]
+    public void ClearCredential_ShouldAlsoNullTheCredentialHint()
+    {
+        // specs/066 FR-006/data-model.md: the ciphertext and its hint can never observably
+        // disagree — clearing one clears both.
+        var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
+        provider.SetCredential("ciphertext", "sk-t...est1", "admin-1");
+
+        provider.ClearCredential("admin-1");
+
+        provider.CredentialHint.Should().BeNull();
+    }
+
+    [Fact]
     public void SetCredential_ShouldRecordRotationTimestamp()
     {
         var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
 
-        provider.SetCredential("ciphertext", "admin-1");
+        provider.SetCredential("ciphertext", "sk-t...est1", "admin-1");
 
         provider.CredentialCiphertext.Should().Be("ciphertext");
         provider.CredentialLastRotatedAtUtc.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SetCredential_ShouldStoreTheHintAlongsideTheCiphertext()
+    {
+        var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
+
+        provider.SetCredential("ciphertext", "sk-t...est1", "admin-1");
+
+        provider.CredentialHint.Should().Be("sk-t...est1");
     }
 
     [Fact]
@@ -83,7 +106,7 @@ public sealed class AIProviderTests
         // changes (data-model.md) — ModifiedBy/ModifiedAtUtc must stay whatever an admin
         // last set them to.
         var provider = AIProvider.Create("openai", "OpenAI", "admin-1");
-        provider.SetCredential("ciphertext", "admin-1");
+        provider.SetCredential("ciphertext", null, "admin-1");
         var modifiedAtAfterCredentialSet = provider.ModifiedAtUtc;
 
         provider.UpdateHealthStatus(isHealthy: true, DateTime.UtcNow);

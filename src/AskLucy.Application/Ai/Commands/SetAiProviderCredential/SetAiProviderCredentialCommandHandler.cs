@@ -18,7 +18,8 @@ public sealed class SetAiProviderCredentialCommandHandler(
             ?? throw new KeyNotFoundException("Provider not found.");
 
         var ciphertext = credentialProtector.Protect(request.ApiKey);
-        provider.SetCredential(ciphertext, actorUserId);
+        var hint = CredentialHintFormatter.Format(request.ApiKey);
+        provider.SetCredential(ciphertext, hint, actorUserId);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

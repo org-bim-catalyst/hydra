@@ -33,7 +33,7 @@ public sealed class AiCapabilityProviderResolverTests
     private AIProvider Configured(string key, string displayName, out AIModel model)
     {
         var provider = AIProvider.Create(key, displayName, "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         provider.Enable("test");
         model = AvailableModel(provider.Id, $"{key}-default");
         provider.SetDefaultModel(model.Id, "test");

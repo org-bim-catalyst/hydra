@@ -27,7 +27,7 @@ public sealed class PlatformDefaultModelTests
     private static AIProvider EnabledProvider(string key, string displayName)
     {
         var provider = AIProvider.Create(key, displayName, "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         provider.Enable("test");
         return provider;
     }

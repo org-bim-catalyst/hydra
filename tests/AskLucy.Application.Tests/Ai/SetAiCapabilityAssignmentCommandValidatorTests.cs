@@ -23,7 +23,7 @@ public sealed class SetAiCapabilityAssignmentCommandValidatorTests
     public SetAiCapabilityAssignmentCommandValidatorTests()
     {
         _openai = AIProvider.Create("openai", "OpenAI", "test");
-        _openai.SetCredential("ciphertext", "test");
+        _openai.SetCredential("ciphertext", null, "test");
         _openai.Enable("test");
         _chatModel = AIModel.Create(_openai.Id, "gpt-5", "GPT-5", null, null,
             new AIModelCapabilities(true, true, true, true, false, false, true, false, false), null, null, "test");

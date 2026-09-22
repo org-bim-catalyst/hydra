@@ -33,7 +33,7 @@ public sealed class ImageGenerationServiceTests
     public async Task GenerateAsync_ShouldCallTheAssignedProvider_WithTheAssignedImageModel_AndReportAttribution()
     {
         var provider = AIProvider.Create("google-gemini", "Google Gemini", "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         provider.Enable("test");
         var model = AIModel.Create(provider.Id, "gemini-3-pro-image-preview", "Gemini Image", null, null,
             new AIModelCapabilities(false, false, false, false, false, false, false, true, false), null, null, "test");

@@ -29,7 +29,7 @@ public sealed class AiDocumentLanguageAndClassifierTests
     public AiDocumentLanguageAndClassifierTests()
     {
         _provider = AIProvider.Create("openai", "OpenAI", "system");
-        _provider.SetCredential("ciphertext", "system");
+        _provider.SetCredential("ciphertext", null, "system");
         _provider.Enable("system");
 
         _model = AIModel.Create(

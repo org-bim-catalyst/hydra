@@ -27,7 +27,7 @@ public sealed class DefaultProviderResolverTests
     public async Task ResolveAsync_ShouldUseTheSavedPreference_WhenItsProviderAndModelAreStillValid()
     {
         var provider = AIProvider.Create("openai", "OpenAI", "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         provider.Enable("test");
         var model = MakeModel(provider.Id);
 
@@ -53,7 +53,7 @@ public sealed class DefaultProviderResolverTests
         _models.GetByIdAsync(disabledModel.Id, Arg.Any<CancellationToken>()).Returns(disabledModel);
 
         var fallbackProvider = AIProvider.Create("anthropic", "Anthropic", "test");
-        fallbackProvider.SetCredential("ciphertext", "test");
+        fallbackProvider.SetCredential("ciphertext", null, "test");
         fallbackProvider.Enable("test");
         var fallbackModel = MakeModel(fallbackProvider.Id);
         fallbackProvider.SetDefaultModel(fallbackModel.Id, "test");
@@ -75,7 +75,7 @@ public sealed class DefaultProviderResolverTests
     public async Task ResolveAsync_ShouldFallBackToTheFirstAvailableModel_WhenNoEnabledProviderHasADefaultModelId()
     {
         var provider = AIProvider.Create("openai", "OpenAI", "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         provider.Enable("test");
         var model = MakeModel(provider.Id);
 

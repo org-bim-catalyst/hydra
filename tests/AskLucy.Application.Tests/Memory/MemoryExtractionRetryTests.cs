@@ -47,7 +47,7 @@ public sealed class MemoryExtractionRetryTests
         var aiProvider = Substitute.For<IAIProvider>();
 
         var provider = AIProvider.Create("openai", "OpenAI", "test");
-        provider.SetCredential("ciphertext", "test");
+        provider.SetCredential("ciphertext", null, "test");
         provider.Enable("test");
         var model = AIModel.Create(
             provider.Id, "gpt-4.1", "GPT-4.1", 128000, 16384,

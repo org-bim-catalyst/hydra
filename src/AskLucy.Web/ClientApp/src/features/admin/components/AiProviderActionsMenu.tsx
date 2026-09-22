@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -8,18 +9,17 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
+  InputAdornment,
   Snackbar,
   TextField,
+  Tooltip,
 } from '@mui/material'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
 import KeyIcon from '@mui/icons-material/Key'
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import DeleteIcon from '@mui/icons-material/Delete'
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
@@ -57,10 +57,10 @@ const CONFIRM_COPY: Record<Exclude<PendingAction, null>, { title: string; body: 
  */
 export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) {
   const queryClient = useQueryClient()
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [credentialDialogOpen, setCredentialDialogOpen] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
+  const [showApiKey, setShowApiKey] = useState(false)
   const [feedback, setFeedback] = useState<Feedback>(null)
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY })
@@ -122,10 +122,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
     onError,
   })
 
-  const closeMenu = () => setAnchorEl(null)
-
   const handleEnableDisableClick = () => {
-    closeMenu()
     if (!provider.isEnabled && !provider.hasCredential) {
       // FR-003: already known client-side from the fetched row — no API call, no
       // confirmation dialog, just the explanation immediately.
@@ -143,14 +140,15 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
   }
 
   const openCredentialDialog = () => {
-    closeMenu()
     setApiKeyInput('')
+    setShowApiKey(false)
     setCredentialDialogOpen(true)
   }
 
   const closeCredentialDialog = () => {
     setCredentialDialogOpen(false)
     setApiKeyInput('')
+    setShowApiKey(false)
   }
 
   const handleCredentialConfirm = () => {
@@ -162,49 +160,52 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
     closeCredentialDialog()
   }
 
+  const credentialLabel = provider.hasCredential ? 'Replace credential' : 'Set credential'
+  const enableDisableLabel = provider.isEnabled ? 'Disable' : 'Enable'
+  const checkNowLabel = checkHealthMutation.isPending ? 'Checking…' : 'Check now'
+
   return (
     <>
-      <IconButton size="small" aria-label={`Actions for ${provider.displayName}`} onClick={(e) => setAnchorEl(e.currentTarget)}>
-        <MoreVertIcon fontSize="small" />
-      </IconButton>
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeMenu}>
-        <MenuItem onClick={openCredentialDialog}>
-          <ListItemIcon>
+      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+        <Tooltip title={credentialLabel}>
+          <IconButton size="small" aria-label={`${credentialLabel} for ${provider.displayName}`} onClick={openCredentialDialog}>
             <KeyIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{provider.hasCredential ? 'Replace credential' : 'Set credential'}</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleEnableDisableClick}>
-          <ListItemIcon>
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={enableDisableLabel}>
+          <IconButton
+            size="small"
+            aria-label={`${enableDisableLabel} ${provider.displayName}`}
+            onClick={handleEnableDisableClick}
+          >
             <PowerSettingsNewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{provider.isEnabled ? 'Disable' : 'Enable'}</ListItemText>
-        </MenuItem>
-        <MenuItem
-          disabled={!provider.hasCredential || checkHealthMutation.isPending}
-          onClick={() => {
-            closeMenu()
-            checkHealthMutation.mutate()
-          }}
-        >
-          <ListItemIcon>
-            <HealthAndSafetyIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{checkHealthMutation.isPending ? 'Checking…' : 'Check now'}</ListItemText>
-        </MenuItem>
-        <MenuItem
-          disabled={!provider.hasCredential}
-          onClick={() => {
-            closeMenu()
-            setPendingAction('clearCredential')
-          }}
-        >
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color={provider.hasCredential ? 'error' : undefined} />
-          </ListItemIcon>
-          <ListItemText>Clear credential</ListItemText>
-        </MenuItem>
-      </Menu>
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={checkNowLabel}>
+          <span>
+            <IconButton
+              size="small"
+              aria-label={`Check now for ${provider.displayName}`}
+              disabled={!provider.hasCredential || checkHealthMutation.isPending}
+              onClick={() => checkHealthMutation.mutate()}
+            >
+              <HealthAndSafetyIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Clear credential">
+          <span>
+            <IconButton
+              size="small"
+              aria-label={`Clear credential for ${provider.displayName}`}
+              disabled={!provider.hasCredential}
+              onClick={() => setPendingAction('clearCredential')}
+            >
+              <DeleteIcon fontSize="small" color={provider.hasCredential ? 'error' : undefined} />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
 
       <Dialog open={pendingAction !== null} onClose={() => setPendingAction(null)}>
         {pendingAction && (
@@ -223,7 +224,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
         )}
       </Dialog>
 
-      <Dialog open={credentialDialogOpen} onClose={closeCredentialDialog}>
+      <Dialog open={credentialDialogOpen} onClose={closeCredentialDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           {provider.hasCredential ? 'Replace credential for' : 'Set credential for'} {provider.displayName}
         </DialogTitle>
@@ -233,11 +234,27 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
           </DialogContentText>
           <TextField
             label="API key"
-            type="password"
+            type={showApiKey ? 'text' : 'password'}
+            placeholder="Please insert API key here"
             fullWidth
             autoFocus
             value={apiKeyInput}
             onChange={(e) => setApiKeyInput(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: apiKeyInput.length > 0 && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                      onClick={() => setShowApiKey((prev) => !prev)}
+                      edge="end"
+                    >
+                      {showApiKey ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
         </DialogContent>
         <DialogActions>

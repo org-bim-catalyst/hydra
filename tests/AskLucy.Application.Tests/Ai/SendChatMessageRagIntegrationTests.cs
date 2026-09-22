@@ -43,7 +43,7 @@ public sealed class SendChatMessageRagIntegrationTests
     public SendChatMessageRagIntegrationTests()
     {
         _openAiProvider = AIProvider.Create("openai", "OpenAI", "test");
-        _openAiProvider.SetCredential("ciphertext", "test");
+        _openAiProvider.SetCredential("ciphertext", null, "test");
         _openAiProvider.Enable("test");
 
         _gpt41 = AIModel.Create(
