@@ -8,6 +8,9 @@ import { panelTypeRegistry } from '../../viewer/panels/registry'
 import type { DrawingSpaceHandle } from '../../viewer/scene/DrawingSpaceRegistry'
 import { drawingSpaceRegistry } from '../../viewer/scene/DrawingSpaceRegistry'
 import { useSolarAnalysisStore } from './store/solarAnalysisStore'
+import { sceneAnchor } from '../../viewer/scene/SceneAnchor'
+import type { SiteBuildingDto } from './api/siteBuildingsApi'
+import { SHADOW_GATE_DEGREES, SolarScene } from './scene/SolarScene'
 
 /**
  * T047, research D9, FR-039 — the ONE place this feature's redraw discipline is directly
@@ -117,5 +120,119 @@ describe('solarAnalysisExtension — fifty activate/deactivate/stop cycles accum
     ).toHaveLength(0)
     expect(panelTypeRegistry.resolve('solar.time-control')).toBeUndefined()
     expect(panelTypeRegistry.resolve('solar.corrections')).toBeUndefined()
+  })
+})
+
+
+/**
+ * T030, T035, T036, FR-018, FR-019, FR-020, FR-024 — the playback gate.
+ *
+ * `aimSun` returns whether the sun moved enough to be worth a frame; the overlay withholds its
+ * `invalidate()` when it returns false, and the viewer's on-demand renderer therefore never runs a
+ * frame — and never runs the shadow-map pass — for that tick. That return value IS the gate, so it
+ * is what these tests assert. Nothing in this feature touches `renderer.shadowMap.autoUpdate` or
+ * any other renderer-global flag, which FR-024 forbids it from owning.
+ *
+ * Altitude, not azimuth, is varied to size the movements: for two directions sharing an azimuth,
+ * the angle between them is exactly the altitude difference, so "0.2° of sun movement" needs no
+ * trigonometry to set up and the threshold is tested where it actually sits.
+ */
+function gateTestBuilding(id: string, heightMetres: number): SiteBuildingDto {
+  const size = 0.0003
+  return {
+    id,
+    ring: [
+      { latitude: 25.1556, longitude: 55.2216 },
+      { latitude: 25.1556, longitude: 55.2216 + size },
+      { latitude: 25.1556 - size, longitude: 55.2216 + size },
+      { latitude: 25.1556 - size, longitude: 55.2216 },
+    ],
+    heightMetres,
+    heightProvenance: 'assumed',
+    name: id,
+    isSiteBuilding: true,
+  }
+}
+
+describe('Shadow recomputation gate during playback (T030, FR-018, FR-019, FR-020)', () => {
+  beforeEach(() => {
+    sceneAnchor.set({ latitude: 25.1555, longitude: 55.2215 })
+  })
+
+  function sceneWithBuildings(heightMetres = 9): SolarScene {
+    const { handle } = makeFakeDrawingSpace()
+    const scene = new SolarScene(handle)
+    scene.rebuildBuildings([gateTestBuilding('osm_way_1', heightMetres)])
+    return scene
+  }
+
+  it('skips recomputation for sun movement below 0.25°, and allows it at or above', () => {
+    expect(SHADOW_GATE_DEGREES).toBe(0.25)
+    const scene = sceneWithBuildings()
+
+    // The first update can never be gated — there is no previously applied direction to measure
+    // against, and something has to be drawn.
+    expect(scene.aimSun(180, 45, true)).toBe(true)
+
+    expect(scene.aimSun(180, 45.1, true)).toBe(false) // 0.1°
+    expect(scene.aimSun(180, 45.2, true)).toBe(false) // 0.2°, still measured from 45
+    expect(scene.aimSun(180, 45.3, true)).toBe(true) // 0.3° — over the threshold, so it is drawn
+
+    // ...and the next comparison is against 45.3, the direction actually applied, never against
+    // the ticks that were skipped. Otherwise the skipped movement would accumulate unbounded.
+    expect(scene.aimSun(180, 45.4, true)).toBe(false)
+    expect(scene.aimSun(180, 45.6, true)).toBe(true)
+
+    scene.disposeAll()
+  })
+
+  it('never gates a scrub or a single-step change, however small (FR-020)', () => {
+    const scene = sceneWithBuildings()
+    expect(scene.aimSun(180, 45, false)).toBe(true)
+
+    // The same 0.1° step that was skipped during playback above. A deliberate user action must
+    // always produce a frame, or the control feels broken rather than smooth.
+    expect(scene.aimSun(180, 45.1, false)).toBe(true)
+    expect(scene.aimSun(180, 45.1, false)).toBe(true) // even zero movement
+
+    scene.disposeAll()
+  })
+
+  it('clears the gate immediately on a height correction (FR-019)', () => {
+    const scene = sceneWithBuildings(9)
+    expect(scene.aimSun(180, 45, true)).toBe(true)
+    expect(scene.aimSun(180, 45.05, true)).toBe(false)
+
+    scene.rebuildBuildings([gateTestBuilding('osm_way_1', 120)])
+
+    // The sun has moved 0.05° — far below the threshold — but the geometry changed, so the very
+    // next update must go through or the shadow would keep the old height until the sun caught up.
+    expect(scene.aimSun(180, 45.1, true)).toBe(true)
+
+    scene.disposeAll()
+  })
+
+  it('clears the gate immediately on a ground-offset change (FR-019)', () => {
+    const scene = sceneWithBuildings()
+    expect(scene.aimSun(180, 45, true)).toBe(true)
+    expect(scene.aimSun(180, 45.05, true)).toBe(false)
+
+    scene.setGroundOffset(3)
+    expect(scene.aimSun(180, 45.1, true)).toBe(true)
+
+    scene.disposeAll()
+  })
+
+  it('clears the gate immediately when new building data arrives (FR-019)', () => {
+    const { handle } = makeFakeDrawingSpace()
+    const scene = new SolarScene(handle)
+    scene.rebuildBuildings([]) // nothing fetched yet
+    expect(scene.aimSun(180, 45, true)).toBe(true)
+    expect(scene.aimSun(180, 45.05, true)).toBe(false)
+
+    scene.rebuildBuildings([gateTestBuilding('osm_way_1', 30), gateTestBuilding('osm_way_2', 18)])
+    expect(scene.aimSun(180, 45.1, true)).toBe(true)
+
+    scene.disposeAll()
   })
 })

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
 import type { SiteBuildingDto } from '../api/siteBuildingsApi'
-import { buildFootprintMesh } from '../buildings/footprintGeometry'
+import { buildFootprintGeometry, buildFootprintMeshes } from '../buildings/footprintGeometry'
 import { copy } from '../copy'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import { daySummary } from '../solar/daySummary'
@@ -14,10 +14,14 @@ import { SunLight } from './sunLight'
  * specs/052-solar-analysis T045, FR-016, FR-017, US2 scenario 3 — this test suite cannot render
  * actual pixels (no GPU in this environment, consistent with the quickstart's own "not measured
  * in this environment" policy for shadow-pixel correctness). What IS asserted here is the
- * structural mechanism that makes both FR-016 requirements possible: every building mesh carries
+ * structural mechanism that makes both FR-016 requirements possible: the building mesh carries
  * both `castShadow` and `receiveShadow`, which is what allows a taller building's shadow to land
  * on a shorter neighbour in three.js's shadow-map pass — and that the light is fully disabled
  * (casting nothing) when the sun is below the horizon, with that fact stated in the figures.
+ *
+ * specs/063 T031 merged every footprint into ONE mesh, so "each building casts and receives" is
+ * now a property of the single merged mesh they all live in — the flags still have to hold, and a
+ * taller building still has to extrude further, or inter-building shadows stop being possible.
  */
 
 const TALL_BUILDING: SiteBuildingDto = {
@@ -53,23 +57,32 @@ beforeEach(() => {
 })
 
 describe('Inter-building shadows — structural mechanism (FR-016 "onto the ground and onto each other")', () => {
-  it('every building mesh both casts AND receives shadows, which is what allows one to shadow another', () => {
-    const tallMesh = buildFootprintMesh(TALL_BUILDING, false)!
-    const shortMesh = buildFootprintMesh(SHORT_NEIGHBOUR, false)!
+  it('the merged building mesh both casts AND receives shadows, which is what allows one building to shadow another', () => {
+    const { mesh } = buildFootprintMeshes([TALL_BUILDING, SHORT_NEIGHBOUR], false)
 
-    for (const mesh of [tallMesh, shortMesh]) {
-      expect(mesh.castShadow).toBe(true)
-      expect(mesh.receiveShadow).toBe(true)
-    }
+    expect(mesh).not.toBeNull()
+    expect(mesh!.castShadow).toBe(true)
+    expect(mesh!.receiveShadow).toBe(true)
+
+    // Both buildings really are inside that one mesh — otherwise the flags above would be true of
+    // a mesh containing only one of them, and nothing would shadow anything.
+    const tallOnly = buildFootprintMeshes([TALL_BUILDING], false)
+    expect(mesh!.geometry.attributes.position.count).toBeGreaterThan(tallOnly.mesh!.geometry.attributes.position.count)
+
+    mesh!.geometry.dispose()
+    tallOnly.mesh!.geometry.dispose()
   })
 
   it('a taller building extrudes to a greater depth than a shorter neighbour (the geometric precondition for it to cast further/higher)', () => {
-    const tallMesh = buildFootprintMesh(TALL_BUILDING, false)!
-    const shortMesh = buildFootprintMesh(SHORT_NEIGHBOUR, false)!
+    const tall = buildFootprintGeometry(TALL_BUILDING)!
+    const short = buildFootprintGeometry(SHORT_NEIGHBOUR)!
 
-    const tallDepth = (tallMesh.geometry as THREE.ExtrudeGeometry).parameters.options.depth as number
-    const shortDepth = (shortMesh.geometry as THREE.ExtrudeGeometry).parameters.options.depth as number
+    const tallDepth = (tall as THREE.ExtrudeGeometry).parameters.options.depth as number
+    const shortDepth = (short as THREE.ExtrudeGeometry).parameters.options.depth as number
     expect(tallDepth).toBeGreaterThan(shortDepth)
+
+    tall.dispose()
+    short.dispose()
   })
 })
 

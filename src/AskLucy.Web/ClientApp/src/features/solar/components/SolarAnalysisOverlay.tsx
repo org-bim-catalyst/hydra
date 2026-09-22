@@ -183,9 +183,17 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         // T023/T033 — the shadow rig is sized from the footprints themselves, measured as they are
         // built, not from the radius they were queried with. `rebuildBuildings` reports those
         // bounds to the scene, so there is nothing to compute here.
-        solarScene.rebuildBuildings(correctedBuildings)
+        const built = solarScene.rebuildBuildings(correctedBuildings)
         solarScene.setGroundOffset(corrections?.groundOffsetMetres ?? 0)
         solarScene.invalidate()
+
+        // T032, FR-028 — a footprint whose ring is too degenerate to extrude is visible on the
+        // basemap but casts nothing, so it is counted and stated rather than quietly missing. The
+        // fetch effect already reports the server's own exclusions; this covers the ones only the
+        // geometry pass can find.
+        if (built.excludedCount > 0) {
+          useSolarAnalysisStore.getState().markPartial(copy.buildingsExcluded(built.excludedCount))
+        }
       } catch {
         // Geometry construction (worldToLocal, extrusion) is deliberately isolated from the
         // network call's own failure branch above — an exception building geometry from a
@@ -206,9 +214,19 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
 
       // T051, FR-019, FR-022, FR-023, SC-004 — rebuilds the dome only on a date/site change;
       // every other tick just moves the marker and the light, never rebuilding tube geometry.
-      solarScene.updateSunPath(moment.localDate, site.latitude, site.longitude, moment.instantUtc, position.azimuthDegrees, position.altitudeDegrees)
-      solarScene.aimSun(position.azimuthDegrees, position.altitudeDegrees)
-      solarScene.invalidate()
+      const domeRebuilt = solarScene.updateSunPath(moment.localDate, site.latitude, site.longitude, moment.instantUtc, position.azimuthDegrees, position.altitudeDegrees)
+
+      // T035, T036, FR-018, FR-020, FR-024 — during continuous playback only, a sun movement too
+      // small to change the picture is skipped: `aimSun` returns false and no `invalidate()` is
+      // issued, so the framework's on-demand renderer never runs a frame — and never runs the
+      // shadow-map pass — for that tick. Withholding the redraw is the entire mechanism; nothing
+      // here touches renderer-global state (FR-024). Scrubbing and single-step changes pass
+      // `isPlaying: false` and are therefore never gated.
+      const sunMoved = solarScene.aimSun(position.azimuthDegrees, position.altitudeDegrees, moment.isPlaying)
+      if (domeRebuilt || sunMoved) solarScene.invalidate()
+
+      // The figures below are rebuilt unconditionally — US3 requires the readout to keep pace with
+      // playback even on a tick whose frame was skipped, and it costs no drawing.
 
       const summary = daySummary(dateForArc, site.latitude, site.longitude)
       const siteBuilding = siteBuildings.find((b) => b.isSiteBuilding)

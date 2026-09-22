@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { DrawingSpaceHandle } from '../../../viewer/scene/DrawingSpaceRegistry'
-import { buildFootprintMeshes, setShowMass } from '../buildings/footprintGeometry'
+import { buildFootprintMeshes, setShowMass, type FootprintBuildResult } from '../buildings/footprintGeometry'
 import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { ShadowGround } from './shadowGround'
 import {
@@ -9,7 +9,16 @@ import {
   SunLight,
   shadowRadiusMetres,
 } from './sunLight'
+import { solarPositionToEnuUnitVector } from '../solar/solarPosition'
 import { buildSunPath, updateCurrentPositionMarker } from './sunPathCurve'
+
+/**
+ * T035, research D8 — during continuous playback, a sun movement smaller than this is not drawn.
+ * 0.25° is below the angular resolution of a shadow edge at any plausible viewing distance, and
+ * the sun covers it in about one minute of real solar time, so a useful fraction of playback
+ * frames is skipped without the shadows ever visibly lagging the sun-path marker (FR-018, FR-020).
+ */
+export const SHADOW_GATE_DEGREES = 0.25
 
 /**
  * Owns the extension's own `DrawingSpaceHandle` and everything drawn inside it — the sun-path
@@ -41,6 +50,10 @@ export class SolarScene {
   /** The elevation the radius was last sized for, so `setContentBounds` can resize without waiting
    * for the next tick. Starts high: overhead sun, shortest shadows, tightest fit. */
   private lastAltitudeDegrees = 90
+  /** T035 — the sun direction the light was last actually aimed at, and so the one the playback
+   * gate measures against. `null` means "cannot be gated": either nothing has been drawn yet, or
+   * the geometry changed and FR-019 requires the next update to go through. */
+  private lastAppliedSunDirection: THREE.Vector3 | null = null
   private currentMarker: THREE.Mesh | null = null
   /** T051 — a `date|lat|lng` key identifying what the dome was last built for; the dome is
    * rebuilt only when this changes (a new date OR a new site), never on every time-of-day tick
@@ -66,16 +79,44 @@ export class SolarScene {
     this.contentExtentMetres = extentMetres > 0 ? extentMetres : NO_BUILDINGS_FALLBACK_EXTENT_METRES
     this.tallestBuildingMetres = tallestBuildingMetres
     this.applyShadowRadius(this.lastAltitudeDegrees)
+    this.clearShadowGate()
   }
 
-  /** FR-016, FR-017, FR-019, FR-022, FR-023 — moves the light direction and resizes the one radius
-   * to the new elevation. Both are arithmetic plus a scale assignment; no geometry is built, which
-   * is what keeps time scrubbing cheap enough to read as continuous motion (SC-004). */
-  aimSun(azimuthDegrees: number, altitudeDegrees: number): void {
+  /**
+   * T035, T036, FR-018, FR-019, FR-020, research D8 — moves the light direction and resizes the
+   * one radius to the new elevation, and reports whether anything actually moved.
+   *
+   * During continuous playback ONLY, a sun movement below `SHADOW_GATE_DEGREES` is skipped
+   * entirely and `false` is returned, so the caller withholds its `invalidate()` and no frame —
+   * and therefore no shadow-map pass — is drawn for it. This is the whole gate: nothing here
+   * touches `renderer.shadowMap`, `scene.environment` or any other renderer-global state, which
+   * FR-024 and the viewer's own constraints forbid this feature from owning.
+   *
+   * Scrubbing and single-step time changes pass `isContinuousPlayback: false` and are never
+   * gated (FR-020): a deliberate user action must always produce a frame.
+   */
+  aimSun(azimuthDegrees: number, altitudeDegrees: number, isContinuousPlayback = false): boolean {
+    const enu = solarPositionToEnuUnitVector(azimuthDegrees, altitudeDegrees)
+    const direction = new THREE.Vector3(enu.x, enu.y, enu.z)
+
+    if (isContinuousPlayback && this.lastAppliedSunDirection) {
+      const dot = Math.min(1, Math.max(-1, this.lastAppliedSunDirection.dot(direction)))
+      if ((Math.acos(dot) * 180) / Math.PI < SHADOW_GATE_DEGREES) return false
+    }
+
     this.lastAltitudeDegrees = altitudeDegrees
+    this.lastAppliedSunDirection = direction
     this.applyShadowRadius(altitudeDegrees)
     this.sunLight?.aimAt(azimuthDegrees, altitudeDegrees)
     this.shadowGround?.setVisible(altitudeDegrees > MIN_SHADOW_ELEVATION_DEGREES)
+    return true
+  }
+
+  /** FR-019 — any geometry change must update shadows immediately, however little the sun has
+   * moved. Forgetting the last applied direction is what guarantees the next `aimSun` cannot be
+   * gated away. */
+  private clearShadowGate(): void {
+    this.lastAppliedSunDirection = null
   }
 
   /** The single radius of FR-009, computed in one place and handed to both consumers. */
@@ -102,8 +143,13 @@ export class SolarScene {
    * chosen day's arc, the seasonal extremes, the hour marks) only when the LOCAL DATE changes;
    * every other call just repositions/recolors the existing current-position marker in place. This
    * is the mechanism that keeps time-of-day scrubbing cheap: nothing here depends on `instantUtc`
-   * except the marker. */
-  updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number): void {
+   * except the marker.
+   *
+   * Returns whether the dome was rebuilt. T035's playback gate decides whether the SUN moved
+   * enough to redraw; a rebuilt dome is new geometry and must be drawn regardless, so the caller
+   * needs to tell the two cases apart (a date change near a solstice can move the sun by less
+   * than the gate while replacing every object in the group). */
+  updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number): boolean {
     const key = `${localDate}|${latitude.toFixed(6)}|${longitude.toFixed(6)}`
     if (this.sunPathBuiltForKey !== key || !this.currentMarker) {
       this.disposeGroupContents(this.sunPathGroup)
@@ -130,21 +176,26 @@ export class SolarScene {
       }
       this.currentMarker = sunPath.currentPositionMarker
       this.sunPathBuiltForKey = key
-    } else {
-      updateCurrentPositionMarker(this.currentMarker, azimuthDegrees, altitudeDegrees)
+      return true
     }
+
+    updateCurrentPositionMarker(this.currentMarker, azimuthDegrees, altitudeDegrees)
+    return false
   }
 
   /** T040, T042 — rebuilds the buildings group from a fresh footprint list. Rebuilt only when
    * buildings or heights change (FR-019), never on a time-of-day tick. T033/T023: the extent and
    * tallest height measured while building feed the shadow radius directly, so the caller never has
    * to walk the footprints a second time to size the rig. */
-  rebuildBuildings(buildings: SiteBuildingDto[], showMass: boolean = this.showBuildingMass): void {
+  rebuildBuildings(buildings: SiteBuildingDto[], showMass: boolean = this.showBuildingMass): FootprintBuildResult {
     this.showBuildingMass = showMass
     this.disposeGroupContents(this.buildingsGroup)
     const built = buildFootprintMeshes(buildings, showMass)
-    for (const mesh of built.meshes) this.buildingsGroup.add(mesh)
+    if (built.mesh) this.buildingsGroup.add(built.mesh)
     this.setContentBounds(built.extentMetres, built.tallestHeightMetres)
+    // T032, FR-028 — returned rather than swallowed: footprints dropped here are buildings the
+    // user can see on the basemap but which cast no shadow, and the caller has to say so.
+    return built
   }
 
   /** T041 — the developer-only toggle that reveals massing without rebuilding geometry. */
@@ -188,6 +239,7 @@ export class SolarScene {
    * Never calls anything that sets the viewer's single reference point. */
   setGroundOffset(groundOffsetMetres: number): void {
     this.drawingSpace.group.position.z = groundOffsetMetres
+    this.clearShadowGate() // FR-019 — a geometry change always redraws, however still the sun is.
   }
 
   invalidate(): void {

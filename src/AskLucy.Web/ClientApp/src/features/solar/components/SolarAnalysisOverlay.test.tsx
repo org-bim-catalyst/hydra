@@ -280,3 +280,66 @@ describe('requestSolarAnalysisMoment (FR-033, Lucy asking for a specific moment)
     expect(useSolarAnalysisStore.getState().moment!.localDate).toBe('2026-12-01')
   })
 })
+
+
+/**
+ * T030, T035, T036, FR-018, FR-020, FR-024 — the gate's end: the overlay has to actually WITHHOLD
+ * `invalidate()` on a gated tick. `SolarScene.aimSun` only decides; if the overlay invalidated
+ * anyway the viewer would draw the frame regardless and the gate would buy nothing. Asserted here,
+ * against the real wiring, rather than by re-deriving the overlay's own condition in a unit test.
+ */
+describe('SolarAnalysisOverlay withholds the redraw on a gated playback tick (T030, FR-018)', () => {
+  beforeEach(() => {
+    useActiveLocationStore.setState({
+      source: null,
+      latitude: null,
+      longitude: null,
+      locationName: null,
+      confidence: null,
+      locationType: null,
+      viewport: null,
+    })
+    useSolarAnalysisStore.setState({ site: null, moment: null, status: 'idle', failureReason: null, buildingsNotice: null })
+    useViewerExtensionStore.setState({ extensions: {}, contributions: [] })
+    // Re-armed here: an earlier suite in this file leaves one-shot rejections queued on the mock.
+    vi.mocked(siteBuildingsApi.getSiteBuildings).mockReset()
+    vi.mocked(siteBuildingsApi.getSiteBuildings).mockResolvedValue({ buildings: [], limited: false, excludedCount: 0, radiusMetres: 200 })
+  })
+
+  it('skips invalidate for a sub-threshold tick while playing, and issues it for a real move', async () => {
+    useActiveLocationStore.setState({ latitude: 25.2, longitude: 55.3 })
+    const context = makeFakeContext()
+    const drawingSpace = drawingSpaceRegistry.acquire('overlay-gate-test')
+    const solarScene = new SolarScene(drawingSpace)
+    const Overlay = makeSolarAnalysisOverlay(context, { current: solarScene })
+
+    setActivation(true)
+    render(<Overlay />)
+    await waitFor(() => expect(useSolarAnalysisStore.getState().site).not.toBeNull())
+
+    const noon = new Date(Date.UTC(2026, 8, 22, 8, 0)) // midday at Dubai
+    act(() => {
+      useSolarAnalysisStore.getState().setInstantUtc(noon)
+      useSolarAnalysisStore.getState().setPlaying(true)
+    })
+    await waitFor(() => expect(useSolarAnalysisStore.getState().moment!.isPlaying).toBe(true))
+
+    const invalidate = vi.spyOn(solarScene, 'invalidate')
+
+    // Ten seconds of solar time — well under 0.25° of movement, and under a pixel of shadow edge.
+    act(() => {
+      useSolarAnalysisStore.getState().setInstantUtc(new Date(noon.getTime() + 10_000))
+    })
+    await waitFor(() => expect(context.openPanel).toHaveBeenCalled()) // figures still keep pace
+    expect(invalidate).not.toHaveBeenCalled()
+
+    // Half an hour later the sun has moved several degrees, so the frame must be drawn.
+    act(() => {
+      useSolarAnalysisStore.getState().setInstantUtc(new Date(noon.getTime() + 30 * 60_000))
+    })
+    await waitFor(() => expect(invalidate).toHaveBeenCalled())
+
+    invalidate.mockRestore()
+    drawingSpaceRegistry.release('overlay-gate-test')
+  })
+})

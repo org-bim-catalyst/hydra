@@ -120,19 +120,19 @@ the camera; motion stays continuous and the viewer stays usable.
 
 ### Tests for User Story 3
 
-- [ ] T028 [P] [US3] In `buildings/footprintGeometry.test.ts`, assert N buildings produce exactly one geometry and one material, that the mass toggle still reveals **all** of them, and that a degenerate ring is excluded without failing the merge (FR-015, FR-016)
-- [ ] T029 [P] [US3] In `buildings/footprintGeometry.test.ts`, assert an empty building list produces no mesh rather than an empty-geometry mesh, and that `castShadow` / `colorWrite: false` / `depthWrite: false` semantics are unchanged (FR-017)
-- [ ] T030 [P] [US3] In `solarAnalysisExtension.test.ts`, assert the playback gate skips recomputation below 0.25° of sun movement, and that a height correction, a ground-offset change and newly arrived building data each clear it immediately (FR-018, FR-019)
+- [X] T028 [P] [US3] In `buildings/footprintGeometry.test.ts`, assert N buildings produce exactly one geometry and one material, that the mass toggle still reveals **all** of them, and that a degenerate ring is excluded without failing the merge (FR-015, FR-016)
+- [X] T029 [P] [US3] In `buildings/footprintGeometry.test.ts`, assert an empty building list produces no mesh rather than an empty-geometry mesh, and that `castShadow` / `colorWrite: false` / `depthWrite: false` semantics are unchanged (FR-017)
+- [X] T030 [P] [US3] In `solarAnalysisExtension.test.ts`, assert the playback gate skips recomputation below 0.25° of sun movement, and that a height correction, a ground-offset change and newly arrived building data each clear it immediately (FR-018, FR-019)
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] In `buildings/footprintGeometry.ts`, merge all footprint extrusions into one `BufferGeometry` with one shared material via `BufferGeometryUtils.mergeGeometries` (FR-015)
-- [ ] T032 [US3] In `buildings/footprintGeometry.ts`, route excluded degenerate rings through the existing excluded-count surface rather than dropping them silently (FR-028)
+- [X] T031 [US3] In `buildings/footprintGeometry.ts`, merge all footprint extrusions into one `BufferGeometry` with one shared material via `BufferGeometryUtils.mergeGeometries` (FR-015)
+- [X] T032 [US3] In `buildings/footprintGeometry.ts`, route excluded degenerate rings through the existing excluded-count surface rather than dropping them silently (FR-028)
 - [X] T033 [US3] In `buildings/footprintGeometry.ts`, expose the merged extent and tallest height so T023's radius derivation does not re-traverse the source data
-- [ ] T034 [US3] In `buildings/footprintGeometry.ts`, reimplement the mass toggle as a `colorWrite` flip on the single shared material (FR-016)
-- [ ] T035 [US3] Add `SHADOW_GATE_DEGREES = 0.25` and apply the gate in `scene/SolarScene.ts` and `viewer/extensions/builtin/solarAnalysisExtension.tsx` by withholding the recomputation inputs — **never** by touching `renderer.shadowMap.autoUpdate` or any renderer-global flag (FR-018, FR-024)
-- [ ] T036 [US3] Restrict the gate to continuous playback only; scrubbing and single-step time changes are never gated (FR-020)
-- [ ] T037 [US3] If the gate cannot be achieved within FR-024, stop and record a `DrawingRequirement` against specs/051 as an SC-009 finding — do **not** reach into renderer state, and ship without the gate (research D8)
+- [X] T034 [US3] In `buildings/footprintGeometry.ts`, reimplement the mass toggle as a `colorWrite` flip on the single shared material (FR-016)
+- [X] T035 [US3] Add `SHADOW_GATE_DEGREES = 0.25` and apply the gate in `scene/SolarScene.ts` and `viewer/extensions/builtin/solarAnalysisExtension.tsx` by withholding the recomputation inputs — **never** by touching `renderer.shadowMap.autoUpdate` or any renderer-global flag (FR-018, FR-024)
+- [X] T036 [US3] Restrict the gate to continuous playback only; scrubbing and single-step time changes are never gated (FR-020)
+- [X] T037 [US3] ~~If the gate cannot be achieved within FR-024, stop and record a `DrawingRequirement` against specs/051 as an SC-009 finding~~ — **not needed**. The viewer renders on demand (`DrawingSpaceHandle.invalidate()` → `RedrawScheduler`), so withholding `invalidate()` skips the frame, and with it the shadow-map pass, without touching any renderer-global flag. No `DrawingRequirement` raised and no SC-009 finding recorded.
 
 **Checkpoint**: Dense sites scrub smoothly. The release is complete except for the dome split.
 
