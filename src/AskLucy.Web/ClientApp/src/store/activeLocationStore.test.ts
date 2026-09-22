@@ -33,6 +33,43 @@ describe('activeLocationStore', () => {
       expect(s.longitude).toBe(56.0)
     })
 
+    it('ignores a re-report of the place already shown, however often it arrives', () => {
+      // The defect this guards: `watchPosition` runs all session, so fixes keep landing that
+      // disagree by tens of metres. Each one used to move the scene's reference point, sliding
+      // the whole solar analysis across a basemap that had not moved.
+      useActiveLocationStore.getState().setFromGeolocation(30.13, 31.72)
+      // ~34 m north, ~48 m east — the scale of drift observed on a stationary desktop.
+      useActiveLocationStore.getState().setFromGeolocation(30.1303, 31.7205)
+      useActiveLocationStore.getState().setFromGeolocation(30.1298, 31.7196)
+      const s = useActiveLocationStore.getState()
+      expect(s.latitude).toBe(30.13)
+      expect(s.longitude).toBe(31.72)
+    })
+
+    it('accepts the first fix even though there is nothing to compare it against', () => {
+      useActiveLocationStore.getState().setFromGeolocation(30.13, 31.72)
+      expect(useActiveLocationStore.getState().latitude).toBe(30.13)
+    })
+
+    it('accepts a GPS fix that supersedes a coarse WiFi/IP estimate of the same place', () => {
+      // These are far enough apart to be a genuine correction rather than drift, and letting it
+      // through is the point: one corrective move, then stable.
+      useActiveLocationStore.getState().setFromGeolocation(30.13, 31.72)
+      useActiveLocationStore.getState().setFromGeolocation(30.16, 31.75)
+      expect(useActiveLocationStore.getState().latitude).toBe(30.16)
+    })
+
+    it('re-establishes after clear even from the same coordinates (FR-012 revocation recovery)', () => {
+      // The guard must never be what keeps a revoked-then-restored location null: after clear()
+      // there is no established location, so the identical fix has to be accepted.
+      useActiveLocationStore.getState().setFromGeolocation(30.13, 31.72)
+      useActiveLocationStore.getState().clear()
+      useActiveLocationStore.getState().setFromGeolocation(30.13, 31.72)
+      const s = useActiveLocationStore.getState()
+      expect(s.source).toBe('geolocation')
+      expect(s.latitude).toBe(30.13)
+    })
+
     it('is a no-op when source is agent (FR-012 priority rule — quickstart.md Scenario 6)', () => {
       useActiveLocationStore.getState().setFromAgent(25.2048, 55.2708, 'Al Safa 2 Park', 0.97)
       useActiveLocationStore.getState().setFromGeolocation(25.0819, 55.1367)

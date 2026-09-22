@@ -22,8 +22,48 @@ interface ActiveLocationState {
   viewport: ViewportBounds | null
 }
 
+/**
+ * How far a later device fix must land from the established one before it is treated as the user
+ * being somewhere else rather than the same place re-reported.
+ *
+ * `useGeolocation` keeps a low-accuracy `watchPosition` running for the whole session to detect
+ * revocation, so fixes keep arriving indefinitely, disagreeing with each other by however much
+ * WiFi/GPS happen to disagree that minute. Every such update used to be written straight through.
+ * `ViewerSurface` already refuses to move the *camera* on them ("a fresh reading of the place
+ * already shown is not a reason to take it back") — but the scene's reference point had no such
+ * rule, and since specs/051 that point is the origin every drawn thing is positioned from. A
+ * 30-metre re-fix therefore slid the whole solar analysis — dome, dial, footprints, boundary ring
+ * — that far across a basemap that had not moved at all, seconds after the user did something
+ * unrelated. It also re-keyed the solar site, re-resolving its time zone and re-fetching its
+ * buildings each time.
+ *
+ * 500 m is chosen to sit above any disagreement between two fixes *of the same place* — including
+ * the large one between an IP/WiFi estimate and the GPS fix that supersedes it, which this
+ * deliberately still lets through as a single corrective move — and far below any distance at
+ * which the user is meaningfully somewhere else. A genuine relocation still updates.
+ */
+export const GEOLOCATION_RELOCATION_THRESHOLD_METRES = 500
+
+const EARTH_RADIUS_METRES = 6_371_008.8
+
+/** Equirectangular approximation — exact enough by orders of magnitude at the scale being
+ * compared against, and it avoids pulling the viewer's coordinate frame into a plain store. */
+function approximateDistanceMetres(
+  fromLatitude: number,
+  fromLongitude: number,
+  toLatitude: number,
+  toLongitude: number,
+): number {
+  const toRadians = Math.PI / 180
+  const meanLatitude = ((fromLatitude + toLatitude) / 2) * toRadians
+  const deltaLatitude = (toLatitude - fromLatitude) * toRadians
+  const deltaLongitude = (toLongitude - fromLongitude) * toRadians * Math.cos(meanLatitude)
+  return Math.hypot(deltaLatitude, deltaLongitude) * EARTH_RADIUS_METRES
+}
+
 interface ActiveLocationActions {
-  /** Sets the active location from device geolocation. No-op when source === 'agent' (FR-012). */
+  /** Sets the active location from device geolocation. No-op when source === 'agent' (FR-012), and
+   * a no-op for a re-report of the place already shown (see the threshold above). */
   setFromGeolocation(latitude: number, longitude: number): void
   /** Sets the active location from an agent-confirmed resolution. Always wins (FR-012).
    * specs/038-viewer-poi-zoom: extended with optional locationType and viewport. */
@@ -55,8 +95,20 @@ export const useActiveLocationStore = create<ActiveLocationState & ActiveLocatio
     viewport: null,
 
     setFromGeolocation(latitude, longitude) {
+      const current = get()
       // FR-012: agent-confirmed location is higher priority — startup detection cannot displace it.
-      if (get().source === 'agent') return
+      if (current.source === 'agent') return
+      // The device establishes a location once and then keeps reporting it. Writing every report
+      // through moved everything anchored to the reference point; see the threshold's own note.
+      if (
+        current.source === 'geolocation' &&
+        current.latitude !== null &&
+        current.longitude !== null &&
+        approximateDistanceMetres(current.latitude, current.longitude, latitude, longitude) <
+          GEOLOCATION_RELOCATION_THRESHOLD_METRES
+      ) {
+        return
+      }
       set({ source: 'geolocation', latitude, longitude, confidence: null, locationType: null, viewport: null })
     },
 
