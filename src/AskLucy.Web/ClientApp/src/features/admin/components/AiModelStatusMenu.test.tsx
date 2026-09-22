@@ -8,7 +8,7 @@ import { AiModelStatusMenu } from './AiModelStatusMenu'
 // Same reasoning as AiProviderActionsMenu.test.tsx: MUI's Paper-based Popper/Dialog
 // surfaces render an inline `--Paper-shadow` custom property jsdom's CSS length parser
 // cannot resolve, which crashes role-based a11y checks on children — use fireEvent +
-// text/DOM queries instead of getByRole for anything inside a Menu/Dialog.
+// text/DOM queries instead of getByRole for anything inside an open Dialog.
 vi.mock('../api/adminAiProvidersApi', async () => {
   const actual = await vi.importActual<typeof adminAiProvidersApi>('../api/adminAiProvidersApi')
   return {
@@ -17,7 +17,7 @@ vi.mock('../api/adminAiProvidersApi', async () => {
   }
 })
 
-const availableModel: AdminAiModel = {
+const baseModel: AdminAiModel = {
   id: 'model-1',
   modelKey: 'gpt-4.1',
   displayName: 'GPT-4.1',
@@ -51,23 +51,22 @@ function renderMenu(model: AdminAiModel) {
 describe('AiModelStatusMenu', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('opens a confirm dialog for each target status; Cancel does not call the API', async () => {
-    renderMenu(availableModel)
+  it('shows a "Mark unavailable" toggle for an Available model; Cancel does not call the API', async () => {
+    renderMenu(baseModel)
 
-    fireEvent.click(screen.getByRole('button', { name: /change status for gpt-4.1/i }))
-    fireEvent.click(await screen.findByText('Mark Deprecated'))
+    expect(screen.getByRole('button', { name: /mark unavailable for gpt-4.1/i })).toBeInTheDocument()
 
-    expect(await screen.findByText('Mark this model Deprecated?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /mark unavailable for gpt-4.1/i }))
+    expect(await screen.findByText('Mark this model Unavailable?')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
 
     expect(adminAiProvidersApi.updateModelStatus).not.toHaveBeenCalled()
   })
 
-  it('calls updateModelStatus only on Confirm', async () => {
-    renderMenu(availableModel)
+  it('calls updateModelStatus with Unavailable only on Confirm', async () => {
+    renderMenu(baseModel)
 
-    fireEvent.click(screen.getByRole('button', { name: /change status for gpt-4.1/i }))
-    fireEvent.click(await screen.findByText('Mark Unavailable'))
+    fireEvent.click(screen.getByRole('button', { name: /mark unavailable for gpt-4.1/i }))
     expect(adminAiProvidersApi.updateModelStatus).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByText('Confirm'))
@@ -75,12 +74,19 @@ describe('AiModelStatusMenu', () => {
     await waitFor(() => expect(adminAiProvidersApi.updateModelStatus).toHaveBeenCalledWith('model-1', 'Unavailable'))
   })
 
-  it('does not offer the model\'s current status as a menu option', async () => {
-    renderMenu(availableModel)
+  it('shows a "Mark available" toggle for a Deprecated model and confirms with Available', async () => {
+    renderMenu({ ...baseModel, status: 'Deprecated' })
 
-    fireEvent.click(screen.getByRole('button', { name: /change status for gpt-4.1/i }))
+    fireEvent.click(screen.getByRole('button', { name: /mark available for gpt-4.1/i }))
+    expect(await screen.findByText('Mark this model Available?')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Confirm'))
 
-    expect(await screen.findByText('Mark Deprecated')).toBeInTheDocument()
-    expect(screen.queryByText('Mark Available')).not.toBeInTheDocument()
+    await waitFor(() => expect(adminAiProvidersApi.updateModelStatus).toHaveBeenCalledWith('model-1', 'Available'))
+  })
+
+  it('shows a "Mark available" toggle for an Unavailable model', () => {
+    renderMenu({ ...baseModel, status: 'Unavailable' })
+
+    expect(screen.getByRole('button', { name: /mark available for gpt-4.1/i })).toBeInTheDocument()
   })
 })

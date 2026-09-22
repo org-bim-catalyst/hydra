@@ -5,6 +5,7 @@ import {
   Button,
   Checkbox,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -117,13 +118,14 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
     onError,
   })
 
+  // Reset only after the dialog's close transition finishes (slotProps.transition.onExited
+  // below) — resetting synchronously here cleared `diff` back to null while the dialog was
+  // still fading out, so the fetching spinner flashed back on top of the closing diff review.
   const handleDismiss = () => {
-    resetReviewState()
     onClose()
   }
 
   const handleClose = () => {
-    resetReviewState()
     onClose()
   }
 
@@ -175,7 +177,20 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
 
   return (
     <>
-      <Dialog open={open} onClose={handleDismiss} maxWidth="sm" fullWidth>
+      <Dialog
+        open={open}
+        onClose={handleDismiss}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          transition: {
+            onEntered: () => {
+              if (diff === null && !applyResult) syncMutation.mutate()
+            },
+            onExited: () => resetReviewState(),
+          },
+        }}
+      >
         <DialogTitle>Sync {providerDisplayName}'s catalog from the provider</DialogTitle>
         <DialogContent>
           {applyResult && (
@@ -202,9 +217,20 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
             </Box>
           )}
           {!applyResult && diff === null && (
-            <DialogContentText>
-              This checks the provider's own model list and shows you a diff to review — nothing changes until you confirm.
-            </DialogContentText>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              {syncMutation.isError ? (
+                <DialogContentText align="center" color="error">
+                  Could not fetch {providerDisplayName}'s model list. See the notification for details.
+                </DialogContentText>
+              ) : (
+                <>
+                  <CircularProgress size={32} />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    Fetching models … please wait
+                  </Typography>
+                </>
+              )}
+            </Box>
           )}
           {!applyResult && diff !== null && hasNothingToReview && (
             <DialogContentText>Nothing to review — the catalog already matches the provider.</DialogContentText>
@@ -303,9 +329,9 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
           ) : (
             <>
               <Button onClick={handleDismiss}>{diff === null ? 'Cancel' : 'Dismiss'}</Button>
-              {diff === null && (
-                <Button onClick={() => syncMutation.mutate()} variant="contained" disabled={syncMutation.isPending}>
-                  Check for updates
+              {diff === null && syncMutation.isError && (
+                <Button onClick={() => syncMutation.mutate()} variant="contained">
+                  Try again
                 </Button>
               )}
               {diff !== null && !hasNothingToReview && (

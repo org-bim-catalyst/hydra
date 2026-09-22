@@ -70,8 +70,14 @@ export function ProviderModelsSection({ provider }: ProviderModelsSectionProps) 
         <Typography variant="subtitle1">Models</Typography>
         <Button
           size="small"
+          variant="outlined"
           startIcon={<SyncIcon fontSize="small" />}
           onClick={() => setSyncDialogOpen(true)}
+          sx={{
+            color: 'text.primary',
+            borderColor: 'divider',
+            '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
+          }}
         >
           Sync from provider
         </Button>

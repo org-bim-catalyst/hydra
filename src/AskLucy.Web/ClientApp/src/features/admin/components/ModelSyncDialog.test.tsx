@@ -57,10 +57,11 @@ function renderDialog(onClose = vi.fn()) {
   }
 }
 
+// Fetching now starts automatically once the dialog has finished opening (the Fade
+// transition's onEntered) rather than waiting for a "Check for updates" click.
 async function openDiff() {
   vi.mocked(adminAiProvidersApi.syncModels).mockResolvedValue(diffWithChanges)
   renderDialog()
-  fireEvent.click(screen.getByText('Check for updates'))
   await screen.findByText('GPT-5')
 }
 
@@ -70,7 +71,21 @@ describe('ModelSyncDialog', () => {
     vi.mocked(adminAiProvidersApi.applyModelSync).mockResolvedValue(emptyResult)
   })
 
-  it('shows the diff after checking for updates', async () => {
+  it('shows a spinner and "Fetching models" while the sync is in flight', async () => {
+    vi.mocked(adminAiProvidersApi.syncModels).mockReturnValue(new Promise(() => {}))
+    renderDialog()
+
+    expect(await screen.findByText(/fetching models/i)).toBeInTheDocument()
+  })
+
+  it('starts fetching automatically once opened, with no confirmation click required', async () => {
+    await openDiff()
+
+    expect(adminAiProvidersApi.syncModels).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/fetching models/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the diff after fetching completes', async () => {
     await openDiff()
 
     expect(screen.getByText('GPT-3.5')).toBeInTheDocument()
@@ -81,8 +96,6 @@ describe('ModelSyncDialog', () => {
     vi.mocked(adminAiProvidersApi.syncModels).mockResolvedValue(emptyDiff)
     renderDialog()
 
-    fireEvent.click(screen.getByText('Check for updates'))
-
     expect(await screen.findByText(/nothing to review/i)).toBeInTheDocument()
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument()
   })
@@ -92,7 +105,6 @@ describe('ModelSyncDialog', () => {
     vi.mocked(adminAiProvidersApi.syncModels).mockResolvedValue(diffWithChanges)
     renderDialog(onClose)
 
-    fireEvent.click(screen.getByText('Check for updates'))
     await screen.findByText('GPT-5')
     fireEvent.click(screen.getByText('Dismiss'))
 
@@ -268,8 +280,6 @@ describe('classified provider failures (specs/043 US1)', () => {
     )
     renderDialog()
 
-    fireEvent.click(screen.getByText('Check for updates'))
-
     await waitFor(() => expect(screen.getByText(detail)).toBeInTheDocument())
     // SC-002: the string this whole feature exists to eliminate.
     expect(screen.queryByText(/An unexpected error occurred/i)).not.toBeInTheDocument()
@@ -285,8 +295,6 @@ describe('classified provider failures (specs/043 US1)', () => {
     )
     renderDialog()
 
-    fireEvent.click(screen.getByText('Check for updates'))
-
     await waitFor(() => expect(screen.getByText(/needs an administrator to fix it/)).toBeInTheDocument())
   })
 
@@ -299,8 +307,6 @@ describe('classified provider failures (specs/043 US1)', () => {
       }),
     )
     renderDialog()
-
-    fireEvent.click(screen.getByText('Check for updates'))
 
     await waitFor(() => expect(screen.getByText(/try again in about 30 seconds/)).toBeInTheDocument())
   })
@@ -315,10 +321,25 @@ describe('classified provider failures (specs/043 US1)', () => {
     )
     renderDialog()
 
-    fireEvent.click(screen.getByText('Check for updates'))
-
     await waitFor(() => expect(screen.getByText(/try again later/)).toBeInTheDocument())
     expect(screen.queryByText(/seconds/)).not.toBeInTheDocument()
   })
-})
 
+  it('offers a "Try again" retry button after a failed fetch', async () => {
+    vi.mocked(adminAiProvidersApi.syncModels).mockRejectedValueOnce(
+      new ApiError(502, 'AI provider failure', 'Credential rejected.', undefined, {
+        kind: 'CredentialRejected',
+        canAdministratorAct: true,
+        retryAfterSeconds: null,
+      }),
+    )
+    vi.mocked(adminAiProvidersApi.syncModels).mockResolvedValueOnce(diffWithChanges)
+    renderDialog()
+
+    const retryButton = await screen.findByText('Try again')
+    fireEvent.click(retryButton)
+
+    await screen.findByText('GPT-5')
+    expect(adminAiProvidersApi.syncModels).toHaveBeenCalledTimes(2)
+  })
+})

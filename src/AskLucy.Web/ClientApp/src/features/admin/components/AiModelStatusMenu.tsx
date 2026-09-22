@@ -8,15 +8,15 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  Menu,
-  MenuItem,
   Snackbar,
+  Tooltip,
 } from '@mui/material'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
+import ToggleOnIcon from '@mui/icons-material/ToggleOn'
+import ToggleOffIcon from '@mui/icons-material/ToggleOff'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import type { AdminAiModel, AdminAiModelStatus } from '../api/adminAiProvidersApi'
+import type { AdminAiModel } from '../api/adminAiProvidersApi'
 
 interface AiModelStatusMenuProps {
   model: AdminAiModel
@@ -24,17 +24,12 @@ interface AiModelStatusMenuProps {
 }
 
 type Feedback = { severity: 'success' | 'error'; message: string } | null
+type AvailabilityStatus = 'Available' | 'Unavailable'
 
-const STATUS_OPTIONS: AdminAiModelStatus[] = ['Available', 'Deprecated', 'Unavailable']
-
-const CONFIRM_COPY: Record<AdminAiModelStatus, { title: string; body: string }> = {
+const CONFIRM_COPY: Record<AvailabilityStatus, { title: string; body: string }> = {
   Available: {
     title: 'Mark this model Available?',
     body: 'End users will be able to select it again as soon as you confirm.',
-  },
-  Deprecated: {
-    title: 'Mark this model Deprecated?',
-    body: 'End users will no longer be able to select it. Conversations that already used it keep their history and attribution.',
   },
   Unavailable: {
     title: 'Mark this model Unavailable?',
@@ -43,20 +38,17 @@ const CONFIRM_COPY: Record<AdminAiModelStatus, { title: string; body: string }> 
 }
 
 /**
- * specs/008-ai-model-catalog-management US2 — per-model status-change menu, confirm-gated
- * per FR-010. Mirrors AiProviderActionsMenu.tsx's pendingAction/CONFIRM_COPY/Snackbar
- * composition (FR-011 feedback on every success/error).
+ * specs/008-ai-model-catalog-management US2 — per-model availability toggle, confirm-gated
+ * per FR-010. A "Deprecated" model reads as Unavailable here (dimmed, tooltip "Mark available")
+ * since this control is about availability, not the full three-state status.
  */
 export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps) {
   const queryClient = useQueryClient()
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-  const [pendingStatus, setPendingStatus] = useState<AdminAiModelStatus | null>(null)
+  const [pendingStatus, setPendingStatus] = useState<AvailabilityStatus | null>(null)
   const [feedback, setFeedback] = useState<Feedback>(null)
 
-  const closeMenu = () => setAnchorEl(null)
-
   const mutation = useMutation({
-    mutationFn: (status: AdminAiModelStatus) => adminAiProvidersApi.updateModelStatus(model.id, status),
+    mutationFn: (status: AvailabilityStatus) => adminAiProvidersApi.updateModelStatus(model.id, status),
     onSuccess: (_, status) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'ai-providers', providerId, 'models'] })
       setFeedback({ severity: 'success', message: `${model.displayName} marked ${status}.` })
@@ -67,6 +59,10 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
     },
   })
 
+  const isAvailable = model.status === 'Available'
+  const nextStatus: AvailabilityStatus = isAvailable ? 'Unavailable' : 'Available'
+  const toggleLabel = isAvailable ? 'Mark unavailable' : 'Mark available'
+
   const handleConfirm = () => {
     if (pendingStatus) mutation.mutate(pendingStatus)
     setPendingStatus(null)
@@ -74,22 +70,19 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
 
   return (
     <>
-      <IconButton size="small" aria-label={`Change status for ${model.displayName}`} onClick={(e) => setAnchorEl(e.currentTarget)}>
-        <MoreVertIcon fontSize="small" />
-      </IconButton>
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeMenu}>
-        {STATUS_OPTIONS.filter((status) => status !== model.status).map((status) => (
-          <MenuItem
-            key={status}
-            onClick={() => {
-              closeMenu()
-              setPendingStatus(status)
-            }}
-          >
-            Mark {status}
-          </MenuItem>
-        ))}
-      </Menu>
+      <Tooltip title={toggleLabel}>
+        <IconButton
+          size="small"
+          aria-label={`${toggleLabel} for ${model.displayName}`}
+          onClick={() => setPendingStatus(nextStatus)}
+        >
+          {isAvailable ? (
+            <ToggleOnIcon fontSize="small" color="success" />
+          ) : (
+            <ToggleOffIcon fontSize="small" sx={{ opacity: 0.4 }} />
+          )}
+        </IconButton>
+      </Tooltip>
 
       <Dialog open={pendingStatus !== null} onClose={() => setPendingStatus(null)}>
         {pendingStatus && (

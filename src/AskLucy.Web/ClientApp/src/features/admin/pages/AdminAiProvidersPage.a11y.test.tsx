@@ -17,6 +17,7 @@ const providers: AdminAiProvider[] = [
     displayName: 'OpenAI',
     isEnabled: true,
     hasCredential: true,
+    credentialHint: 'sk-p...33IA',
     credentialLastRotatedAtUtc: '2026-07-30T00:00:00Z',
     defaultModelId: null,
     healthStatus: 'Healthy',
@@ -31,6 +32,7 @@ const providers: AdminAiProvider[] = [
     displayName: 'Anthropic',
     isEnabled: false,
     hasCredential: false,
+    credentialHint: null,
     credentialLastRotatedAtUtc: null,
     defaultModelId: null,
     healthStatus: 'Unknown',
@@ -48,6 +50,7 @@ const providers: AdminAiProvider[] = [
     displayName: 'Google Gemini',
     isEnabled: true,
     hasCredential: true,
+    credentialHint: 'sk-a...ygAA',
     credentialLastRotatedAtUtc: '2026-07-30T00:00:00Z',
     defaultModelId: null,
     healthStatus: 'Unhealthy',
@@ -63,6 +66,7 @@ const providers: AdminAiProvider[] = [
     displayName: 'OpenRouter',
     isEnabled: true,
     hasCredential: true,
+    credentialHint: 'sk-o...ROUT',
     credentialLastRotatedAtUtc: '2026-07-30T00:00:00Z',
     defaultModelId: null,
     healthStatus: 'Unhealthy',
@@ -178,7 +182,7 @@ describe('AdminAiProvidersPage accessibility', () => {
     await findByText('GPT-4.1')
 
     fireEvent.click(getByText('Sync from provider'))
-    await findByText('Check for updates')
+    await findByText(/fetching models/i)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
@@ -199,7 +203,6 @@ describe('AdminAiProvidersPage accessibility', () => {
     await findByText('GPT-4.1')
 
     fireEvent.click(getByText('Sync from provider'))
-    fireEvent.click(await findByText('Check for updates'))
     await findByText('GPT-5')
 
     fireEvent.change(getByLabelText('Filter by name or key'), { target: { value: 'gpt' } })
