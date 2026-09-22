@@ -43,9 +43,12 @@ feature):
 
 ## State transitions (unchanged — restated for traceability to spec.md)
 
-- `Available` ⇄ `Deprecated` ⇄ `Unavailable`, any direction, admin-triggered (FR-002) —
-  `AIModel.SetStatus` already permits any transition (data-model.md from spec 005:
-  "any transition is allowed").
+- `Available` ⇄ `Deprecated` ⇄ `Unavailable`, any direction, at the domain level —
+  `AIModel.SetStatus` still permits any transition (data-model.md from spec 005:
+  "any transition is allowed"). **Note (2026-09-22)**: FR-002 no longer exposes the
+  `Deprecated` direction through this feature's admin control — see spec.md's User
+  Story 2 note. `AiModelStatusMenu` only ever calls `SetStatus` with `Available` or
+  `Unavailable`; nothing in this feature calls it with `Deprecated`.
 - A model added via a confirmed sync starts `Unavailable` (FR-008, Decision 2) — an
   administrator must separately call `SetStatus(Available, ...)` (FR-002) to activate it.
 - A model marked `Unavailable` because the vendor stopped listing it (sync-apply,

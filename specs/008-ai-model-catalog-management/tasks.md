@@ -82,10 +82,13 @@ that started this whole feature).
 
 ## Phase 4: User Story 2 - Administrator manually curates a model's status (Priority: P1)
 
-**Goal**: An administrator can change a model's status (Available/Deprecated/Unavailable),
-confirm-gated, and end users immediately stop/start being able to select it.
+**Goal**: An administrator can toggle a model's status between Available and Unavailable,
+confirm-gated, and end users immediately stop/start being able to select it. (Note,
+2026-09-22: delivered as a binary Available/Unavailable toggle, not a 3-way
+Available/Deprecated/Unavailable control — see spec.md's User Story 2 note. Deprecated
+is vendor-driven and its toggle is disabled.)
 
-**Independent Test**: Deprecate an Available model, confirm; confirm it's no longer
+**Independent Test**: Mark an Available model Unavailable, confirm; confirm it's no longer
 end-user-selectable and past conversations are unaffected; reinstate it (quickstart
 Scenario 2).
 

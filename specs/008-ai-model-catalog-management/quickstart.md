@@ -19,10 +19,16 @@ Validates the feature end-to-end once implemented.
 
 ## Scenario 2 — Manually curate a model's status (User Story 2)
 
-1. Mark an Available model Deprecated, confirming the action. Expect: it disappears from
+> **Note (2026-09-22)**: Deprecated is no longer a manual toggle target — see spec.md's
+> User Story 2 note. Steps below cover the Available ⇄ Unavailable toggle only.
+
+1. Mark an Available model Unavailable, confirming the action. Expect: it disappears from
    what end users can newly select (check the chat provider/model picker or Settings → AI
    Providers), while any past conversation that already used it is unaffected.
 2. Mark it Available again, confirming. Expect: it's selectable again immediately.
+3. Find a model already in Deprecated status (set by a vendor sync, not by this control).
+   Expect: its toggle is disabled with a tooltip explaining it can't be re-enabled from
+   here.
 
 ## Scenario 3 — Sync from the vendor (User Story 3)
 

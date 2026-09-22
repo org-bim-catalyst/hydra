@@ -9,8 +9,9 @@
 Administrators can enable providers and configure credentials (specs 005/007), but the
 model catalog under each provider is a fixed, hand-seeded set with no way to curate it.
 This plan adds: an admin view of a provider's full model catalog (any status), the
-ability to manually change a model's status (Available/Deprecated/Unavailable), and a
-"sync from provider" action that calls each provider's already-implemented
+ability to manually toggle a model's status between Available and Unavailable (see
+spec.md's 2026-09-22 note — Deprecated is vendor-driven, not a manual toggle target,
+and is deferred to a future workflow), and a "sync from provider" action that calls each provider's already-implemented
 `ListAvailableModelsAsync()` and produces a reviewable diff — applied only on explicit
 confirmation, per the two clarifications resolved in spec.md (diff compares against the
 *entire* catalog regardless of status, so a deliberately-deprecated model is never
