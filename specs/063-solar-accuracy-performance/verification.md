@@ -92,8 +92,22 @@ Screenshot the whole viewer.
 
 **Step 9.** Type **`19:50`**. Screenshot the figures panel.
 
-> **Expected: altitude `−13.6°`** unchanged from baseline (refraction is zero this far down), no
-> shadows, and **"The sun is below the horizon — no shadows are cast."** present.
+> **Expected: altitude about `−12.9°`**, no shadows, and **"The sun is below the horizon — no
+> shadows are cast."** present.
+>
+> This is **0.7° higher than the baseline's −13.6°, and both parts of that gap are expected.**
+> Refraction is *not* zero this far down: `refractionCorrectionDegrees` holds the horizon value
+> `HORIZON_REFRACTION_DEGREES` (0.5749°) for every geometric altitude below −0.575°, so the
+> apparent altitude the panel now reports sits 0.575° above the geometric altitude the baseline
+> reported, at any depth. The remaining ~0.13° is not a model change at all: the sun drops
+> 0.214° per minute here, and the baseline's instant carried ~20–40 s past the displayed minute,
+> where a time typed into the field lands on :00. The same offset shows in the **azimuth**
+> (baseline 278.7°, now 278.6°), which refraction cannot move by construction — it raises the
+> apparent position vertically, it does not rotate it. A single ~30 s offset plus the held
+> refraction reproduces the baseline pair exactly.
+>
+> **A defect here would be a below-horizon altitude that does _not_ sit ~0.575° above the
+> geometric value, or a missing below-horizon notice.**
 
 ---
 
