@@ -77,7 +77,8 @@ interface ActiveLocationActions {
   ): void
   /** Updates locationName once the weather API response arrives. Only applies when coordinates
    * still match the current active location — guards against a stale weather response landing
-   * after a location change. */
+   * after a location change — and never to an agent-confirmed location, whose name is the
+   * agent's own. */
   setLocationName(latitude: number, longitude: number, locationName: string): void
   /** Resets to no-location state (e.g. permission denied, revoked mid-session). After clear(),
    * setFromGeolocation can re-establish a location (FR-012 revocation recovery). */
@@ -119,6 +120,9 @@ export const useActiveLocationStore = create<ActiveLocationState & ActiveLocatio
     setLocationName(latitude, longitude, locationName) {
       const s = get()
       if (s.latitude !== latitude || s.longitude !== longitude) return
+      // The agent named the place it resolved; the weather lookup's reverse-geocoded area name
+      // ("Umm Suqeim, Dubai") is a coarser answer to the same question and must not replace it.
+      if (s.source === 'agent') return
       set({ locationName })
     },
 

@@ -82,10 +82,7 @@ export function LocationWeatherWidget() {
     }
   }, [data, latitude, longitude, setLocationName])
 
-  // FR-008/FR-012: no current location means no widget, full stop — regardless of whatever a
-  // prior location's cached reading (`placeholderData`, see useCurrentWeather.ts) might still
-  // be holding onto, which exists to survive a same-location refetch *failure* (FR-011), not
-  // to keep showing a reading for a location that's no longer active.
+  // FR-008/FR-012: no current location means no widget, full stop.
   if (latitude === null || longitude === null) return null
 
   // A failed lookup used to render nothing at all, so the widget simply vanished and the user

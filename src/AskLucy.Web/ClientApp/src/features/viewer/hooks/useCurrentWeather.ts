@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import * as weatherApi from '../api/weatherApi'
 
@@ -20,10 +20,11 @@ export function useCurrentWeather(latitude: number | null, longitude: number | n
     queryFn: () => weatherApi.getCurrentWeather(latitude as number, longitude as number),
     enabled: latitude !== null && longitude !== null,
     staleTime: STALE_AFTER_MS,
-    // FR-011: a failed background refresh must not blank out an already-showing reading —
-    // keeps the last successful snapshot in `data` (surfaced as stale below) instead of
-    // clearing it just because the latest refetch attempt failed.
-    placeholderData: keepPreviousData,
+    // FR-011 (a failed refresh must not blank an already-showing reading) needs nothing extra:
+    // a failed refetch of the same key keeps its last successful `data`, surfaced as stale below.
+    // `keepPreviousData` was deliberately removed (2026-09-23): it only ever acted across a key
+    // change, where it handed the *previous location's* reading to the new one — the widget
+    // then wrote "بدر، مصر" (the device's location) onto the agent's Al Safa Park 2 marker.
   })
 
   // `Date.now()` is impure and can't be called during render (react-hooks/purity) — tracked as

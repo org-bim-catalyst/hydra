@@ -80,6 +80,34 @@ describe('useCurrentWeather (specs/036 T019 — no timer refresh)', () => {
     expect(requestCount).toBe(2)
   })
 
+  it("never hands the previous location's reading to a new location while it loads", async () => {
+    let releaseSecond: () => void = () => {}
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve
+    })
+    let requestCount = 0
+    server.use(
+      http.get('*/api/v1/weather/current', async () => {
+        requestCount += 1
+        if (requestCount > 1) await secondGate
+        return HttpResponse.json(snapshot)
+      }),
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result, rerender } = renderHook(
+      ({ lat, lon }: { lat: number; lon: number }) => useCurrentWeather(lat, lon),
+      { wrapper: wrapper(queryClient), initialProps: { lat: 30.1493, lon: 31.6809 } },
+    )
+    await waitFor(() => expect(result.current.data).toBeDefined())
+
+    rerender({ lat: 25.1906, lon: 55.2388 })
+    await waitFor(() => expect(requestCount).toBe(2))
+
+    expect(result.current.data).toBeUndefined()
+    releaseSecond()
+    await waitFor(() => expect(result.current.data).toBeDefined())
+  })
+
   it('has no refetchInterval configured (T019 — only coordinate changes trigger refetch)', async () => {
     // The hook must not have refetchInterval — verified by checking TanStack Query's options
     // rather than waiting for a spurious timer tick (which would take 15 min in real time and

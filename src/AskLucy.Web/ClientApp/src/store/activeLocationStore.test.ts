@@ -124,6 +124,12 @@ describe('activeLocationStore', () => {
       useActiveLocationStore.getState().setLocationName(25.0, 55.0, 'This Should Be Ignored')
       expect(useActiveLocationStore.getState().locationName).toBe('First Place')
     })
+
+    it('never renames an agent-confirmed location (production, 2026-09-23: the marker read "بدر، مصر")', () => {
+      useActiveLocationStore.getState().setFromAgent(25.1906, 55.2388, 'Al Safa Park 2', 0.9)
+      useActiveLocationStore.getState().setLocationName(25.1906, 55.2388, 'بدر، مصر')
+      expect(useActiveLocationStore.getState().locationName).toBe('Al Safa Park 2')
+    })
   })
 
   describe('clear', () => {
