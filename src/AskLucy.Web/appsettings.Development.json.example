@@ -67,6 +67,16 @@
     "IndexHost": "<index-host>"
   },
 
+  "//Ftp": "specs/072 Custom Models deployment target. TEMPORARY until spec 071 Connectors. RootPath must start with '/'. AllowPlainFtp downgrades to unencrypted FTP; leave it false unless the host refuses AUTH TLS.",
+  "Ftp": {
+    "Host": "<ftp host>",
+    "Port": 21,
+    "Username": "<ftp user>",
+    "Password": "<SECRET — prefer: dotnet user-secrets set \"Ftp:Password\" ...>",
+    "RootPath": "/hydra",
+    "AllowPlainFtp": false
+  },
+
   "//Geocoding": "Not present in the tracked template because it already lives in user-secrets: Geocoding:GoogleMapsApiKey. Listed here so its existence is discoverable.",
   "//AlsoInUserSecrets": [ "Geocoding:GoogleMapsApiKey" ]
 }

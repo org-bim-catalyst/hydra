@@ -2201,6 +2201,190 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("CookieConsentRecords", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.CustomModels.CustomModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Availability")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("BackgroundJobId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("CancellationRequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CancelledByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("CompletedFileCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("CurrentFileBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CurrentFilePath")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<long?>("CurrentFileTotalBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DeploymentState")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)")
+                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
+
+                    b.Property<string>("FailureKind")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("FinishedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsInProgress")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
+
+                    b.Property<int>("OverwrittenFileCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RepositoryId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
+
+                    b.Property<string>("ResolvedCommitSha")
+                        .HasMaxLength(40)
+                        .HasColumnType("nchar(40)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Revision")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubmittedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<long?>("TotalBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("TotalFileCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TransferredBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("Destination")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomModels_Destination_InProgress")
+                        .HasFilter("[IsInProgress] = 1");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomModels_Name")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("RepositoryId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomModels_Repository_Available")
+                        .HasFilter("[Availability] = 'Available' AND [DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("RepositoryId", "DeploymentState");
+
+                    b.ToTable("CustomModels", (string)null);
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.CustomModels.CustomModelOverwrittenFile", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("CustomModelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("OverwrittenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("PreviousSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomModelId");
+
+                    b.ToTable("CustomModelOverwrittenFiles", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Documents.Document", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8570,6 +8754,15 @@ namespace AskLucy.Persistence.Migrations
                     b.HasOne("AskLucy.Persistence.Identity.ApplicationUser", null)
                         .WithMany("CookieConsentRecords")
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AskLucy.Domain.CustomModels.CustomModelOverwrittenFile", b =>
+                {
+                    b.HasOne("AskLucy.Domain.CustomModels.CustomModel", null)
+                        .WithMany()
+                        .HasForeignKey("CustomModelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

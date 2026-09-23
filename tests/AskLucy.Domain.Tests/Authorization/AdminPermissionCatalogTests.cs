@@ -7,16 +7,16 @@ namespace AskLucy.Domain.Tests.Authorization;
 public sealed class AdminPermissionCatalogTests
 {
     [Fact]
-    public void All_ShouldContainExactly16Permissions()
+    public void All_ShouldContainExactly18Permissions()
     {
-        AdminPermissionCatalog.All.Should().HaveCount(16);
+        AdminPermissionCatalog.All.Should().HaveCount(18);
     }
 
     [Fact]
     public void All_ShouldHaveUniqueKeys()
     {
         var keys = AdminPermissionCatalog.All.Select(p => p.Key).ToList();
-        keys.Distinct().Should().HaveCount(16, "all permission keys must be unique");
+        keys.Distinct().Should().HaveCount(18, "all permission keys must be unique");
     }
 
     [Theory]
@@ -36,12 +36,36 @@ public sealed class AdminPermissionCatalogTests
     [InlineData("admin.workflow-policies.manage")]
     [InlineData("admin.mcp-servers.view")]
     [InlineData("admin.mcp-servers.manage")]
+    [InlineData("admin.custom-models.view")]
+    [InlineData("admin.custom-models.manage")]
     public void TryGet_ShouldReturnTrueForAllCatalogueKeys(string key)
     {
         var result = AdminPermissionCatalog.TryGet(key, out var permission);
         result.Should().BeTrue($"{key} should be in the catalogue");
         permission.Should().NotBeNull();
         permission!.Key.Should().Be(key);
+    }
+
+    [Theory]
+    [InlineData("admin.custom-models.view", AdminPermissionLevel.View)]
+    [InlineData("admin.custom-models.manage", AdminPermissionLevel.Manage)]
+    public void CustomModelsPermissions_ShouldSitUnderTheirOwnArea(string key, AdminPermissionLevel level)
+    {
+        AdminPermissionCatalog.TryGet(key, out var permission).Should().BeTrue();
+        permission!.Area.Should().Be(AdminArea.CustomModels);
+        permission.Level.Should().Be(level);
+    }
+
+    [Fact]
+    public void CustomModelsPermissions_ShouldNotBeImpliedByAnyAiProvidersKey()
+    {
+        // specs/072 FR-025: holding admin.ai-providers.* must not grant custom-model deployment.
+        var aiProviders = AdminPermissionCatalog.ByArea(AdminArea.AiProviders).ToList();
+        aiProviders.Should().NotBeEmpty();
+        aiProviders.Should().OnlyContain(p => p.Implies == null || !p.Implies.Key.StartsWith("admin.custom-models."));
+
+        var customModels = AdminPermissionCatalog.ByArea(AdminArea.CustomModels).ToList();
+        customModels.Should().OnlyContain(p => p.Implies == null || p.Implies.Key.StartsWith("admin.custom-models."));
     }
 
     [Fact]
@@ -88,6 +112,7 @@ public sealed class AdminPermissionCatalogTests
     [InlineData(AdminArea.SystemAgents, 1)]
     [InlineData(AdminArea.WorkflowPolicies, 2)]
     [InlineData(AdminArea.McpServers, 2)]
+    [InlineData(AdminArea.CustomModels, 2)]
     public void ByArea_ShouldReturnCorrectCount(AdminArea area, int expected)
     {
         AdminPermissionCatalog.ByArea(area).Should().HaveCount(expected);
@@ -116,6 +141,7 @@ public sealed class AdminPermissionCatalogTests
         AdminArea.SystemAgents => "system-agents",
         AdminArea.WorkflowPolicies => "workflow-policies",
         AdminArea.McpServers => "mcp-servers",
+        AdminArea.CustomModels => "custom-models",
         _ => throw new System.ArgumentOutOfRangeException(nameof(area))
     };
 }

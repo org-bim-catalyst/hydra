@@ -6,6 +6,7 @@ using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Authorization;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Consent;
+using AskLucy.Domain.CustomModels;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Mcp;
@@ -266,6 +267,10 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<WorkflowUserExecutionLimit> WorkflowUserExecutionLimits => Set<WorkflowUserExecutionLimit>();
 
     public DbSet<WorkflowAuditLog> WorkflowAuditLogs => Set<WorkflowAuditLog>();
+
+    public DbSet<CustomModel> CustomModels => Set<CustomModel>();
+
+    public DbSet<CustomModelOverwrittenFile> CustomModelOverwrittenFiles => Set<CustomModelOverwrittenFile>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

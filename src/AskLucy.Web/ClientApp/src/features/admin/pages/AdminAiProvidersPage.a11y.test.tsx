@@ -115,6 +115,17 @@ const syncDiff = {
 }
 
 const server = setupServer(
+  http.get('*/api/v1/auth/session', () =>
+    HttpResponse.json({
+      authenticated: true,
+      userId: 'admin-1',
+      roles: [],
+      permissions: ['admin.ai-providers.view', 'admin.ai-providers.manage', 'admin.custom-models.view'],
+    }),
+  ),
+  http.get('*/api/v1/admin/custom-models', () =>
+    HttpResponse.json({ items: [], page: 1, pageSize: 50, totalCount: 0 }),
+  ),
   http.get('*/api/v1/admin/ai/providers', () => HttpResponse.json(providers)),
   http.get('*/api/v1/admin/ai/providers/:providerId/models', () => HttpResponse.json(models)),
   http.post('*/api/v1/admin/ai/providers/:providerId/models/actions/sync', () => HttpResponse.json(syncDiff)),

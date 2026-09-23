@@ -3,7 +3,9 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 using Xunit;
 
@@ -88,6 +90,25 @@ public sealed class VoiceProviderRouterTests
         call.Settings.VoiceId.Should().Be("rachel", "the failover speaks with its own voice, not the primary's");
         call.Settings.Language.Should().Be("ar");
         call.ApiKey.Should().Be("key-1");
+    }
+
+    [Fact]
+    public async Task StreamSpeechAsync_ShouldFailOver_AndLogIt_WhenSupertonicsCustomModelIsUnavailable()
+    {
+        // specs/072 FR-037 / SC-009 — the Supertonic model throws this once its custom model is made Unavailable.
+        const string reason = "The Supertonic model is marked unavailable in Custom Models.";
+        var primary = FakeEngine.Failing("Supertonic", new AiProviderUnavailableException(reason));
+        var failover = FakeEngine.Speaking("ElevenLabs", [7]);
+        Configure(Row("Supertonic", 0, "F1"), Row("ElevenLabs", 1, "rachel", "protected:key-1"));
+        var logger = new FakeLogger<VoiceProviderRouter>();
+        var router = new VoiceProviderRouter(_repository, [primary, failover], _protector, logger);
+
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+        var audio = await DrainAsync(router.StreamSpeechAsync("Hello", settings, CancellationToken.None));
+
+        audio.Should().Equal(7);
+        logger.Collector.GetSnapshot().Should().ContainSingle(r => r.Level == LogLevel.Warning)
+            .Which.Message.Should().Contain("Supertonic").And.Contain(reason);
     }
 
     [Fact]

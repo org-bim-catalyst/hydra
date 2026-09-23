@@ -64,9 +64,9 @@ public sealed class PermissionSetTests
     }
 
     [Fact]
-    public void Full_ShouldContainAll16CatalogueKeys()
+    public void Full_ShouldContainAll18CatalogueKeys()
     {
-        PermissionSet.Full.Keys.Should().HaveCount(16);
+        PermissionSet.Full.Keys.Should().HaveCount(18);
 
         foreach (var catalogKey in AdminPermissionCatalog.All.Select(p => p.Key))
             PermissionSet.Full.Contains(catalogKey).Should().BeTrue();

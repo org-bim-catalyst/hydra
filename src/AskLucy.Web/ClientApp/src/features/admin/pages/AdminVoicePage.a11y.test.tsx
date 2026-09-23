@@ -21,6 +21,8 @@ const providers: AdminVoiceProvider[] = [
     requiresCredential: true,
     hasCredential: false,
     credentialHint: null,
+    modelStatus: 'Ready',
+    modelStatusReason: null,
   },
   {
     id: 'provider-supertonic',
@@ -32,6 +34,8 @@ const providers: AdminVoiceProvider[] = [
     requiresCredential: false,
     hasCredential: false,
     credentialHint: null,
+    modelStatus: 'Ready',
+    modelStatusReason: null,
   },
 ]
 
@@ -60,6 +64,38 @@ describe('AdminVoicePage accessibility', () => {
       </QueryClientProvider>,
     )
 
+    await waitFor(() =>
+      expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Rachel'),
+    )
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no violations with the "model unavailable" chip showing (specs/072 FR-037)', async () => {
+    server.use(
+      http.get('*/api/v1/admin/voice/providers', () =>
+        HttpResponse.json([
+          {
+            ...providers[1],
+            priority: 0,
+            isPrimary: true,
+            modelStatus: 'ModelUnavailable',
+            modelStatusReason: 'The Supertonic model is marked unavailable in Custom Models.',
+          },
+        ]),
+      ),
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdminVoicePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await screen.findByText('Model unavailable')
     await waitFor(() =>
       expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Rachel'),
     )

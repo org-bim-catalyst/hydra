@@ -9,7 +9,7 @@ public static class AdminPermissionCatalog
 {
     public static IReadOnlyCollection<AdminPermission> All { get; }
 
-    private static readonly List<AdminPermission> _allList = new(16);
+    private static readonly List<AdminPermission> _allList = new(18);
 
     static AdminPermissionCatalog()
     {
@@ -46,6 +46,10 @@ public static class AdminPermissionCatalog
         // MCP servers
         _allList.Add(Permission("admin.mcp-servers.view", AdminArea.McpServers, AdminPermissionLevel.View, "View MCP servers", "View registered Model Context Protocol servers."));
         _allList.Add(Permission("admin.mcp-servers.manage", AdminArea.McpServers, AdminPermissionLevel.Manage, "Manage MCP servers", "Add, edit, or remove MCP server registrations."));
+
+        // Custom models (specs/072) — deliberately separate from ai-providers: deploying writes files to the production server.
+        _allList.Add(Permission("admin.custom-models.view", AdminArea.CustomModels, AdminPermissionLevel.View, "View custom models", "View custom model deployments and their progress."));
+        _allList.Add(Permission("admin.custom-models.manage", AdminArea.CustomModels, AdminPermissionLevel.Manage, "Manage custom models", "Deploy models from Hugging Face to the production server, cancel deployments, and change model availability."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);
     }

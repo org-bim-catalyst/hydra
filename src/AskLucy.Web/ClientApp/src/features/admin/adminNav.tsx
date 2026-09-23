@@ -70,7 +70,12 @@ export const ADMIN_NAV: AdminNavItem[] = [
     path: '/admin/ai-providers',
     label: 'AI providers',
     icon: <HubOutlinedIcon fontSize="small" />,
-    permission: ['admin.ai-providers.view', 'admin.default-models.view', 'admin.ai-capabilities.view'],
+    permission: [
+      'admin.ai-providers.view',
+      'admin.default-models.view',
+      'admin.ai-capabilities.view',
+      'admin.custom-models.view',
+    ],
   },
   { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
   { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },

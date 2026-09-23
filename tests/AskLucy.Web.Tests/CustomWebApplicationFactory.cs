@@ -38,6 +38,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["App:FrontendBaseUrl"] = "https://tests.asklucy.io",
                 ["CookiePolicy:CurrentVersion"] = "2026-07-30.1",
                 ["CookiePolicy:EffectiveAtUtc"] = "2026-07-30T00:00:00Z",
+                // The content root is src/AskLucy.Web, the same as a local dev server's; without
+                // this the startup sweep (specs/072) would delete that server's in-flight folders.
+                ["CustomModels:TempDirectory"] = Path.Combine(Path.GetTempPath(), "asklucy-web-tests", "custom-models"),
             });
         });
     }

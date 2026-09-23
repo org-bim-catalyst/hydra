@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
+using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Infrastructure.Ai.Supertonic;
 using FluentAssertions;
 using Microsoft.Extensions.Hosting;
@@ -35,7 +36,10 @@ public sealed class SupertonicTextToSpeechEngineTests : IDisposable
         var environment = Substitute.For<IHostEnvironment>();
         environment.ContentRootPath.Returns(Path.GetTempPath());
 
-        var model = new SupertonicModel(options, environment, NullLogger<SupertonicModel>.Instance);
+        var locator = Substitute.For<IHostedModelLocator>();
+        locator.ResolveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(HostedModelResolution.NoRecord.Instance);
+
+        var model = new SupertonicModel(options, environment, locator, NullLogger<SupertonicModel>.Instance);
         return (new SupertonicTextToSpeechEngine(model, options, NullLogger<SupertonicTextToSpeechEngine>.Instance), model);
     }
 

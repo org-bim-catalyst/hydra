@@ -17,6 +17,8 @@ const elevenLabs: AdminVoiceProvider = {
   requiresCredential: true,
   hasCredential: true,
   credentialHint: 'sk_1...9XYZ',
+  modelStatus: 'Ready',
+  modelStatusReason: null,
 }
 
 const supertonic: AdminVoiceProvider = {
@@ -29,6 +31,8 @@ const supertonic: AdminVoiceProvider = {
   requiresCredential: false,
   hasCredential: false,
   credentialHint: null,
+  modelStatus: 'Ready',
+  modelStatusReason: null,
 }
 
 const voicesByProvider: Record<string, VoiceOption[]> = {
@@ -160,6 +164,47 @@ describe('AdminVoicePage (specs/070)', () => {
 
     expect(await screen.findByText('The Supertonic voice model is not installed on this server.')).toBeInTheDocument()
     expect(play).not.toHaveBeenCalled()
+  })
+
+  describe('a provider whose custom model is unavailable (specs/072 FR-037)', () => {
+    const reason = 'The model deployed from Supertone/supertonic-3 is marked unavailable in Custom Models.'
+    const unavailable: AdminVoiceProvider = { ...supertonic, modelStatus: 'ModelUnavailable', modelStatusReason: reason }
+
+    beforeEach(() => {
+      server.use(http.get('*/api/v1/admin/voice/providers', () => HttpResponse.json([elevenLabs, unavailable])))
+    })
+
+    it('shows a "model unavailable" chip with the reason as its tooltip', async () => {
+      renderPage()
+      await waitFor(() => expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Rachel'))
+      expect(screen.queryByText('Model unavailable')).not.toBeInTheDocument()
+
+      await choose('Voice provider', /Supertonic/)
+
+      const chip = await screen.findByText('Model unavailable')
+      expect(chip.closest('[title]')).toHaveAttribute('title', reason)
+      expect(screen.getByText('Replies fail over to the next voice provider.')).toBeInTheDocument()
+    })
+
+    it("surfaces the server's reason when its preview fails", async () => {
+      server.use(
+        http.post('*/api/v1/admin/voice/providers/:id/preview', () =>
+          HttpResponse.json(
+            { title: 'Provider unavailable', status: 503, detail: 'The Supertonic model is marked unavailable in Custom Models.' },
+            { status: 503 },
+          ),
+        ),
+      )
+      renderPage()
+      await waitFor(() => expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Rachel'))
+      await choose('Voice provider', /Supertonic/)
+      await waitFor(() => expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Female 1'))
+
+      fireEvent.click(buttonWithText('Play'))
+
+      expect(await screen.findByText('The Supertonic model is marked unavailable in Custom Models.')).toBeInTheDocument()
+      expect(play).not.toHaveBeenCalled()
+    })
   })
 
   it('shows a retryable error when the voices cannot be listed', async () => {

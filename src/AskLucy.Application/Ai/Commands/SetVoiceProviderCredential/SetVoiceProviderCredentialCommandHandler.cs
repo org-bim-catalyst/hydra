@@ -33,6 +33,6 @@ public sealed class SetVoiceProviderCredentialCommandHandler(
         AiAdminActionLog.AdminVoiceProviderActionPerformed(
             logger, "SetVoiceProviderCredential", actorUserId, provider.Id, "Credential set");
 
-        return AdminVoiceProviderDto.FromEntity(provider, isPrimary: all[0].Id == provider.Id, engine.RequiresCredential);
+        return await VoiceEngineResolution.ToDtoAsync(provider, isPrimary: all[0].Id == provider.Id, engine, cancellationToken);
     }
 }

@@ -1,0 +1,121 @@
+{
+  "//": "Template for the untracked production overlay. Copy to appsettings.Production.json on the server and fill in. It is deployed by hand, never by CI, and never committed. Constitution §8: secrets never live in source control — every value here is a placeholder.",
+
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft.AspNetCore": "Warning",
+        "Microsoft.EntityFrameworkCore": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "File",
+        "Args": {
+          "path": "App_Data/logs/asklucy-.log",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 14,
+          "shared": true
+        }
+      }
+    ]
+  },
+
+  "AllowedHosts": "<production host name>",
+
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=<host>;Initial Catalog=<database>;User Id=<user>;Password=<SECRET>;Encrypt=True;TrustServerCertificate=True;"
+  },
+
+  "App": {
+    "FrontendBaseUrl": "https://<production host name>"
+  },
+
+  "Authentication": {
+    "Google": {
+      "ClientId": "<google-oauth-client-id>.apps.googleusercontent.com",
+      "ClientSecret": "<SECRET>"
+    },
+    "Facebook": {
+      "AppId": "<facebook-app-id>",
+      "AppSecret": "<SECRET>"
+    }
+  },
+
+  "Smtp": {
+    "Host": "<smtp host>",
+    "Port": 587,
+    "UseSsl": false,
+    "UseStartTls": true,
+    "Username": "<smtp user>",
+    "Password": "<SECRET>",
+    "FromName": "Ask Lucy",
+    "FromTransactional": "<no-reply address>",
+    "FromSupport": "<support address>",
+    "FromPrivacy": "<privacy address>"
+  },
+
+  "//Ftp": "specs/072 Custom Models deployment target. TEMPORARY until spec 071 Connectors. RootPath is the application's content root on the FTP server and must start with '/'. AllowPlainFtp downgrades to unencrypted FTP; leave it false unless the host refuses AUTH TLS.",
+  "Ftp": {
+    "Host": "<ftp host>",
+    "Port": 21,
+    "Username": "<ftp user>",
+    "Password": "<SECRET>",
+    "RootPath": "/hydra",
+    "AllowPlainFtp": false
+  },
+
+  "Jwt": {
+    "Issuer": "https://<production host name>",
+    "Audience": "https://<production host name>",
+    "SigningKey": "<SECRET — at least 32 random bytes>",
+    "AccessTokenLifetimeMinutes": 15,
+    "RefreshTokenLifetimeDays": 14
+  },
+
+  "OpenAI": {
+    "ApiKey": "<SECRET>",
+    "ChatModel": "gpt-3.5-turbo",
+    "ImageModel": "gpt-image-2",
+    "TranscriptionModel": "whisper-1",
+    "BaseUrl": "https://api.openai.com/v1/"
+  },
+
+  "OpenAiEmbedding": {
+    "ApiKey": "<SECRET>",
+    "Model": "text-embedding-3-small",
+    "BaseUrl": "https://api.openai.com/v1/"
+  },
+
+  "//Anthropic": "Identity-linked keys are rejected without a workspace id.",
+  "Anthropic": {
+    "WorkspaceId": "<anthropic-workspace-id>"
+  },
+
+  "ElevenLabs": {
+    "ApiKey": "<SECRET>",
+    "VoiceId": "<voice-id>"
+  },
+
+  "Pinecone": {
+    "ApiKey": "<SECRET>",
+    "IndexHost": "<index-host>"
+  },
+
+  "FileStorage": {
+    "RootPath": "App_Data/avatars"
+  },
+
+  "Cors": {
+    "AllowedOrigins": []
+  },
+
+  "Geocoding": {
+    "GoogleMapsApiKey": "<SECRET>"
+  },
+
+  "BoundaryScoring": {
+    "EnableAiVisionVerification": true
+  }
+}

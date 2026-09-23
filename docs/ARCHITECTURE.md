@@ -1643,7 +1643,63 @@ by renumbering priorities densely with the chosen provider first.
 **Licensing**: Supertonic's code is MIT; its weights are OpenRAIL-M, whose use restrictions must
 be passed through to end users. See `docs/THIRD_PARTY_NOTICES.md`.
 
-# 35. Architecture Principles
+**Model availability** (specs/072): an on-server engine implements `IHostedModelEngine` as well,
+naming the Hugging Face repository it runs (`Supertone/supertonic-3`). It asks `IHostedModelLocator`
+where its files are rather than assuming a fixed folder — see §35. `FindModelProblemAsync` is a
+read-only check (it never loads the model) that the admin Voice page uses to show a **Model
+unavailable** chip, and the **+** menu omits an engine whose model an administrator has marked
+Unavailable.
+
+# 35. Custom Models
+
+specs/072 lets an administrator deploy a Hugging Face model repository to the production host from
+**Admin → AI Providers → Custom models**, without routing any bytes through their browser.
+
+**Flow**: `SubmitCustomModelDeploymentCommand` validates the source (`HuggingFaceModelSource` — the
+`huggingface.co` host only, optional `/tree/<rev>` or `/resolve/<rev>`) and the destination
+(`DeploymentDestination` — relative, no `..`, under an allowed prefix, `Models/` or
+`App_Data/Models/` by default), persists a `CustomModel` and enqueues `CustomModelDeploymentJob` on
+Hangfire. The job lists the repository at a pinned commit (`IModelRepositorySource`), enforces the
+size cap before and during the download (`CustomModels:MaxDeploymentBytes`), streams each file to
+server temp storage with integrity checks, uploads it through `IDeploymentFileUploader`, then deletes
+the temp files whatever the outcome. Progress is pushed on `CustomModelDeploymentHub`
+(`/hubs/custom-model-deployments`, `admin.custom-models.view`) and persisted periodically, so a page
+reload resumes from the last known state. Every failure ends as a `Failed` state with a
+`CustomModelFailureKind` and a reason the admin can read; a deployment interrupted by a restart is
+swept to `Failed` (`InterruptedByRestart`) by `CustomModelDeploymentRecoveryHostedService`.
+
+**SSRF guard**: `HuggingFaceModelRepositorySource` refuses redirects off Hugging Face's own CDN
+hosts (`HuggingFaceRedirectPolicy`), and `SafeConnectCallback` refuses to connect to a private,
+loopback or link-local address whatever the host name resolved to.
+
+**Deployment target — deliberately temporary**: the job never reads FTP settings itself. Everything
+about the remote target comes through `IDeploymentTargetSettingsProvider`, whose one
+implementation, `ConfigurationDeploymentTargetSettingsProvider`, reads the `Ftp` configuration
+section (`Host`, `Port`, `Username`, `Password`, `RootPath`, `AllowPlainFtp`). A future Connectors
+feature (spec 071) replaces that one class; nothing else changes. Replacing it is the planned
+design, not a regression — see ADR 0016. FTPS is required unless `AllowPlainFtp` is set, in which
+case the section shows a **Plain FTP** warning chip. The password, host and root path never appear
+in a log line, an API response or an exception message.
+
+**Overwrites**: a deployment that replaces a file already on the target records it in
+`CustomModelOverwrittenFiles` (path, previous size, time), so the admin can see exactly what was
+replaced.
+
+**Availability and hosted engines**: a completed model is Available or Unavailable, with at most one
+Available model per repository (enforced by a filtered unique index behind the handler's check).
+`IHostedModelLocator` (`ScopedHostedModelLocator`, a singleton opening a fresh scope per call, no
+cache) tells an engine which folder to load its repository from:
+
+* **Available** — the engine loads from that model's destination.
+* **Unavailable** — the engine refuses with `AiProviderUnavailableException`, so the voice router
+  fails over and logs why.
+* **No record** — the engine keeps its pre-072 behaviour (its configured folder). Only Completed,
+  non-deleted records count, so a server that has never used Custom Models behaves exactly as before.
+
+`CustomModelSummaryDto.BacksEngine` names the engine a model's repository feeds, so the admin can
+see what making it Available will affect.
+
+# 36. Architecture Principles
 
 Before implementing any feature, ask:
 

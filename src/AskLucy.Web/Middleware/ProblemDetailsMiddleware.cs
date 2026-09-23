@@ -326,6 +326,22 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "AI capability not configured",
             "Image generation isn't set up yet. An administrator needs to assign an image model on the AI Capabilities page."),
 
+        // specs/072 FR-019: the deployment target isn't configured on this server. 400, not 503 —
+        // the contract's own status, so the dialog can tell it apart from a transient outage. The
+        // message never names which setting is missing or what any configured value is.
+        AskLucy.Application.CustomModels.Abstractions.CustomModelDeploymentNotConfiguredException notConfiguredEx => (
+            StatusCodes.Status400BadRequest,
+            "https://hydra.bimcatalyst.com/problems/deployment-not-configured",
+            "Deployment not configured",
+            notConfiguredEx.Message),
+
+        // specs/072 contracts/admin-custom-models.md: cancelling a deployment that already finished.
+        AskLucy.Domain.CustomModels.CustomModelNotInProgressException notInProgressEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/custom-model-not-in-progress",
+            "Deployment not in progress",
+            notInProgressEx.Message),
+
         // The provider answered, but not with a usable image (malformed data, unsupported
         // format, oversized) — upstream's fault, same 502 family as a provider failure.
         AskLucy.Application.Ai.Images.InvalidGeneratedImageException => (

@@ -1,7 +1,9 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
+using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
@@ -11,6 +13,9 @@ using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Buildings;
 using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Conversations;
+using AskLucy.Infrastructure.CustomModels;
+using AskLucy.Infrastructure.CustomModels.Deployment;
+using AskLucy.Infrastructure.CustomModels.HuggingFace;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Documents.Extraction;
 using AskLucy.Infrastructure.Documents.Ocr;
@@ -81,6 +86,14 @@ public static class DependencyInjection
         // specs/070: every property defaults, so no section at all still boots the host.
         services.AddOptions<SupertonicOptions>()
             .Bind(configuration.GetSection(SupertonicOptions.SectionName));
+
+        // specs/072: no ValidateOnStart on either — an unconfigured or invalid deployment target
+        // must disable only the Custom Models feature (FR-019), never fail the whole host.
+        services.AddOptions<FtpOptions>()
+            .Bind(configuration.GetSection(FtpOptions.SectionName));
+        services.AddOptions<CustomModelsOptions>()
+            .Bind(configuration.GetSection(CustomModelsOptions.SectionName))
+            .ValidateDataAnnotations();
 
         services.AddOptions<LocalFileStorageOptions>()
             .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
@@ -508,12 +521,43 @@ public static class DependencyInjection
 
         // specs/070: the engines Application's VoiceProviderRouter (the ITextToSpeechProvider)
         // orders and fails over between. Supertonic's model is a process-wide singleton — its ONNX
-        // sessions hold the weights, loaded once on first use.
+        // sessions hold the weights, loaded once on first use. Supertonic is also the one hosted
+        // engine a custom model can back (specs/072 research D9), so the one singleton is exposed
+        // under both interfaces. Neither forward can hide a cycle: the model reaches the database
+        // only through IHostedModelLocator's own scope, at request time, never while constructing.
         services.AddScoped<ITextToSpeechEngine, ElevenLabsTextToSpeechEngine>();
         services.AddSingleton<SupertonicModel>();
-        services.AddSingleton<ITextToSpeechEngine, SupertonicTextToSpeechEngine>();
+        services.AddSingleton<SupertonicTextToSpeechEngine>();
+        services.AddSingleton<ITextToSpeechEngine>(sp => sp.GetRequiredService<SupertonicTextToSpeechEngine>());
+        services.AddSingleton<IHostedModelEngine>(sp => sp.GetRequiredService<SupertonicTextToSpeechEngine>());
         services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();
         services.AddScoped<IVoiceProviderHealthRecorder, VoiceProviderHealthRecorder>();
+
+        // specs/072: the single, temporary swap point for the deployment target (plan.md).
+        services.AddSingleton<IDeploymentTargetSettingsProvider, ConfigurationDeploymentTargetSettingsProvider>();
+        services.AddSingleton<IFtpClientFacadeFactory, AsyncFtpClientFacadeFactory>();
+        services.AddSingleton<IDeploymentFileUploader, FluentFtpDeploymentFileUploader>();
+        services.AddSingleton<IModelRepositorySource, HuggingFaceModelRepositorySource>();
+        services.AddSingleton<ICustomModelTempStorage, CustomModelTempStorage>();
+        services.AddSingleton<ICustomModelDeploymentCancellationRegistry, CustomModelDeploymentCancellationRegistry>();
+        services.AddSingleton<ICustomModelDeploymentNotifier, CustomModelDeploymentNotifier>();
+        services.AddSingleton<IHostedModelLocator, ScopedHostedModelLocator>();
+        services.AddHostedService<CustomModelDeploymentRecoveryHostedService>();
+
+        // specs/072 research D4: redirects are followed by hand so every hop is checked against the
+        // host allowlist, and the connect callback refuses non-public addresses (DNS rebinding).
+        // The timeout only bounds the response headers; downloads stream under a stall watchdog.
+        services.AddHttpClient(HuggingFaceModelRepositorySource.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AskLucy-CustomModels/1.0");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            ConnectCallback = SafeConnectCallback.ConnectAsync,
+        });
+
 
         // specs/061-branded-email-templates — shared branded HTML/text shell for every account
         // email; Infrastructure-owned since rendering has no I/O but groups with the senders it

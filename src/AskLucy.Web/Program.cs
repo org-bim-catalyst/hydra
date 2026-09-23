@@ -9,6 +9,7 @@ using AskLucy.Application.Authorization;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Auth;
+using AskLucy.Infrastructure.CustomModels;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Mcp;
@@ -795,6 +796,7 @@ app.MapHub<AgentExecutionHub>("/hubs/agent-execution");
 app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
 app.MapHub<PanelHub>("/hubs/panels");
 app.MapHub<SiteAnalysisHub>("/hubs/site-analysis");
+app.MapHub<CustomModelDeploymentHub>("/hubs/custom-model-deployments");
 
 // SPA fallback: any GET that didn't match a static file (the app.Use above) or any endpoint
 // mapped above (controllers, hubs, health checks, OpenAPI) serves index.html so React Router

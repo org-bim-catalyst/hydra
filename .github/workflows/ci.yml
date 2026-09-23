@@ -176,6 +176,9 @@ jobs:
           curl.exe --fail --silent --show-error --user "${{ secrets.SITE4NOW_FTP_USERNAME }}:${{ secrets.SITE4NOW_FTP_PASSWORD }}" -T app_offline.htm "ftp://${{ secrets.SITE4NOW_FTP_SERVER }}/hydra/app_offline.htm"
           Start-Sleep -Seconds 10
 
+      # Custom-model folders deployed from Admin → Custom Models (Models/**, App_Data/Models/**)
+      # survive this step only because `dangerous-clean-slate` is off: the action deletes just the
+      # files its own sync state uploaded. Never turn it on (specs/072 research D10).
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:

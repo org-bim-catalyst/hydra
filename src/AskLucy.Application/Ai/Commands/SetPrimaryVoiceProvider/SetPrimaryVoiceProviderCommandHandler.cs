@@ -37,9 +37,6 @@ public sealed class SetPrimaryVoiceProviderCommandHandler(
         AiAdminActionLog.AdminVoiceProviderActionPerformed(
             logger, "SetPrimaryVoiceProvider", actorUserId, chosen.Id, $"Lucy's voice set to {chosen.ProviderKey}/{chosen.DefaultVoiceId}");
 
-        return [.. ordered.Select((p, index) => AdminVoiceProviderDto.FromEntity(
-            p,
-            isPrimary: index == 0,
-            requiresCredential: VoiceEngineResolution.FindEngine(engines, p.ProviderKey)?.RequiresCredential ?? false))];
+        return await VoiceEngineResolution.ToDtosAsync(engines, ordered, cancellationToken);
     }
 }

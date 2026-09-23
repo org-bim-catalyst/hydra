@@ -926,6 +926,18 @@ GET /admin/feature-flags
 
 # AdminHangfireController — Administrator/Super User only, api/v1/admin/hangfire
 POST /admin/hangfire/session                                       (specs/060-hangfire-dashboard-access; mints the /hangfire-scoped cookie, no request body, 204 No Content)
+
+# AdminCustomModelsController — api/v1/admin/custom-models (specs/072); GETs need admin.custom-models.view, the rest .manage
+GET    /admin/custom-models?page=&pageSize=                          (paged CustomModelSummaryDto, newest first)
+GET    /admin/custom-models/{id}?overwrittenPage=&overwrittenPageSize= (summary plus the paged overwritten-file report)
+GET    /admin/custom-models/deployment-status                        (isConfigured, transport, size cap, allowed destination prefixes; never host, root path or credentials)
+POST   /admin/custom-models/source-preview                           (parses a Hugging Face URL, no outbound call; returns repository, revision, derived name and whether it is free)
+POST   /admin/custom-models                                          (202 Accepted; saves the record and queues the job before any transfer starts)
+POST   /admin/custom-models/{id}/actions/cancel                      (202 Accepted; a queued deployment cancels at once, a running one reports Cancelled over the hub)
+PUT    /admin/custom-models/{id}/availability                        (Available/Unavailable; completed models only; 409 if another model of the same repository is Available)
+DELETE /admin/custom-models/{id}                                     (204; soft-deletes a failed or cancelled model; files already on the target are left in place)
+
+# SignalR hub /hubs/custom-model-deployments — admin.custom-models.view; pushes per-file and overall progress and state changes
 ```
 
 All administrative endpoints require elevated authorization.

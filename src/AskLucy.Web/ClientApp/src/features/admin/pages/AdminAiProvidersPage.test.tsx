@@ -23,8 +23,18 @@ const baseProvider: AdminAiProvider = {
   healthStaleAfterUtc: null,
 }
 
+function sessionWith(permissions: string[]) {
+  return http.get('*/api/v1/auth/session', () =>
+    HttpResponse.json({ authenticated: true, userId: 'admin-1', roles: [], permissions }),
+  )
+}
+
 const server = setupServer(
+  sessionWith(['admin.ai-providers.view', 'admin.custom-models.view']),
   http.get('*/api/v1/admin/ai/providers', () => HttpResponse.json([baseProvider])),
+  http.get('*/api/v1/admin/custom-models', () =>
+    HttpResponse.json({ items: [], page: 1, pageSize: 50, totalCount: 0 }),
+  ),
 )
 
 beforeAll(() => server.listen())
@@ -71,5 +81,39 @@ describe('AdminAiProvidersPage — credential hint (specs/066)', () => {
     const { findByText } = renderPage()
 
     expect(await findByText('zzzz...WXYZ')).toBeInTheDocument()
+  })
+})
+
+describe('AdminAiProvidersPage — Custom models section (specs/072)', () => {
+  it('shows the providers table and the Custom models section to an admin who can view both', async () => {
+    const { findByText } = renderPage()
+
+    expect(await findByText('OpenAI')).toBeInTheDocument()
+    expect(await findByText('Custom models')).toBeInTheDocument()
+    expect(await findByText('No custom models yet.')).toBeInTheDocument()
+  })
+
+  it('shows only the Custom models section, and never asks for providers, without admin.ai-providers.view', async () => {
+    let providersRequested = false
+    server.use(
+      sessionWith(['admin.custom-models.view']),
+      http.get('*/api/v1/admin/ai/providers', () => {
+        providersRequested = true
+        return HttpResponse.json([baseProvider])
+      }),
+    )
+    const { findByText, queryByText } = renderPage()
+
+    expect(await findByText('No custom models yet.')).toBeInTheDocument()
+    expect(queryByText('OpenAI')).not.toBeInTheDocument()
+    expect(providersRequested).toBe(false)
+  })
+
+  it('hides the Custom models section without admin.custom-models.view', async () => {
+    server.use(sessionWith(['admin.ai-providers.view']))
+    const { findByText, queryByText } = renderPage()
+
+    await findByText('OpenAI')
+    expect(queryByText('Custom models')).not.toBeInTheDocument()
   })
 })

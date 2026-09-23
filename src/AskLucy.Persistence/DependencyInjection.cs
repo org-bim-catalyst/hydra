@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Interceptors;
 using AskLucy.Persistence.Repositories;
@@ -85,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<IUserPanelPreferenceRepository, UserPanelPreferenceRepository>();
         services.AddScoped<IVoiceProviderFailoverEventRepository, VoiceProviderFailoverEventRepository>();
         services.AddScoped<IVoiceProviderRepository, VoiceProviderRepository>();
+        services.AddScoped<ICustomModelRepository, CustomModelRepository>();
         services.AddScoped<IKnowledgeBaseRepository, KnowledgeBaseRepository>();
         services.AddScoped<IKnowledgeBaseAuditLogRepository, KnowledgeBaseAuditLogRepository>();
         services.AddScoped<IKnowledgeBaseDocumentRepository, KnowledgeBaseDocumentRepository>();

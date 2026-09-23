@@ -6,6 +6,8 @@ namespace AskLucy.Application.Ai;
 /// specs/070 contracts/admin-voice.md — one configured voice provider. Never includes the
 /// credential value itself; <see cref="CredentialHint"/> is the same deliberate, non-reversible
 /// fingerprint exception as <see cref="AdminAiProviderDto.CredentialHint"/> (specs/066).
+/// <see cref="ModelStatus"/> and <see cref="ModelStatusReason"/> (specs/072 FR-037) report an
+/// on-server engine whose backing custom model can't load; an API-key engine is always Ready.
 /// </summary>
 public sealed record AdminVoiceProviderDto(
     Guid Id,
@@ -16,9 +18,12 @@ public sealed record AdminVoiceProviderDto(
     string? DefaultVoiceId,
     bool RequiresCredential,
     bool HasCredential,
-    string? CredentialHint)
+    string? CredentialHint,
+    VoiceProviderModelStatus ModelStatus,
+    string? ModelStatusReason)
 {
-    public static AdminVoiceProviderDto FromEntity(VoiceProvider provider, bool isPrimary, bool requiresCredential) => new(
+    /// <param name="modelProblem">Why the provider's hosted model can't load, or null when it can.</param>
+    public static AdminVoiceProviderDto FromEntity(VoiceProvider provider, bool isPrimary, bool requiresCredential, string? modelProblem) => new(
         provider.Id,
         provider.ProviderKey,
         provider.DisplayName,
@@ -27,7 +32,16 @@ public sealed record AdminVoiceProviderDto(
         provider.DefaultVoiceId,
         requiresCredential,
         provider.CredentialCiphertext is not null,
-        provider.CredentialHint);
+        provider.CredentialHint,
+        modelProblem is null ? VoiceProviderModelStatus.Ready : VoiceProviderModelStatus.ModelUnavailable,
+        modelProblem);
+}
+
+/// <summary>specs/072 FR-037 — whether a voice provider's engine can load its model right now.</summary>
+public enum VoiceProviderModelStatus
+{
+    Ready,
+    ModelUnavailable,
 }
 
 /// <summary>specs/070 — one text-to-speech engine the platform can speak through, and whether an administrator has added it yet.</summary>

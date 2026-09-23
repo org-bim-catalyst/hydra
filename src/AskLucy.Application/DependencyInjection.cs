@@ -10,6 +10,8 @@ using AskLucy.Application.Behaviors;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
+using AskLucy.Application.CustomModels;
+using AskLucy.Application.CustomModels.Jobs;
 using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Processing;
 using AskLucy.Application.Documents.Processing.Stages;
@@ -109,6 +111,12 @@ public static class DependencyInjection
         // address (specs/058-password-recovery, FR-003).
         services.AddScoped<IPasswordResetIssuanceJob, PasswordResetIssuanceJob>();
         services.AddScoped<IMemoryExportGenerationJob, MemoryExportGenerationJob>();
+
+        // Custom model deployment (specs/072). The job runs on a Hangfire worker, never the request
+        // path; the summary builder resolves submitter display names for REST and hub payloads.
+        services.AddScoped<ICustomModelDeploymentJob, CustomModelDeploymentJob>();
+        services.AddScoped<CustomModelSummaryBuilder>();
+        services.AddSingleton<CustomModelDeploymentRecovery>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's
         // composition root, not here — Application depends only on the IMemoryCache interface

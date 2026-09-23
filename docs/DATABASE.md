@@ -251,6 +251,40 @@ administrator adds another provider and makes it primary.
 
 ---
 
+## CustomModels
+
+Hugging Face repositories deployed to the production host from Admin → Custom models (specs/072).
+Soft-deleted (`DeletedAtUtc`, global query filter); `RowVersion` guards concurrent changes.
+
+Fields:
+
+* Name (max 100, case-insensitive collation), RepositoryId (case-insensitive), Revision, ResolvedCommitSha (fixed 40), SourceUrl
+* Destination (relative to the target's root path, case-insensitive; the root path itself is never stored)
+* DeploymentState / Availability / FailureKind (stored as **strings**), FailureReason
+* IsInProgress (true while Queued, Listing or Transferring)
+* TotalBytes, TransferredBytes, file counts, CurrentFilePath — the last persisted progress
+* SubmittedByUserId, CancelledByUserId, BackgroundJobId
+
+Indexes:
+
+* `Name` — unique, filtered `[DeletedAtUtc] IS NULL`, so a removed model frees its name
+* `RepositoryId` — unique, filtered `[Availability] = 'Available' AND [DeletedAtUtc] IS NULL`: at most one Available model per repository
+* `Destination` — unique, filtered `[IsInProgress] = 1`: two deployments can't write the same folder at once
+* `(RepositoryId, DeploymentState)` and `CreatedAtUtc` — lookups and list ordering
+
+No credential, host or root path is stored in this table.
+
+---
+
+## CustomModelOverwrittenFiles
+
+One row per file a deployment replaced on the target (specs/072 FR-041): CustomModelId (FK,
+cascade delete, indexed), RelativePath, PreviousSizeBytes, OverwrittenAtUtc. Identity key.
+
+Both tables are created by the `AddCustomModels` migration.
+
+---
+
 ## AiCapabilityAssignments
 
 Which provider — and optionally which exact model — serves each `AiCapability` (chat, embeddings,

@@ -169,6 +169,7 @@ export function AdminVoicePage() {
                     <MenuItem key={p.id} value={p.id}>
                       {p.displayName}
                       {p.isPrimary ? " — Lucy's voice" : ` — failover ${p.priority}`}
+                      {p.modelStatus === 'ModelUnavailable' ? ' (model unavailable)' : ''}
                     </MenuItem>
                   ))}
                 </Select>
@@ -187,6 +188,17 @@ export function AdminVoicePage() {
                 <Button size="small" onClick={() => setCredentialProvider(provider)}>
                   {provider.hasCredential ? 'Replace key' : 'Set key'}
                 </Button>
+              </Stack>
+            )}
+            {provider?.modelStatus === 'ModelUnavailable' && (
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1 }}>
+                {/* specs/072 FR-037 — the row is kept; replies fail over until the model is back. */}
+                <Tooltip title={provider.modelStatusReason ?? ''} describeChild>
+                  <Chip size="small" color="warning" variant="outlined" label="Model unavailable" />
+                </Tooltip>
+                <Typography variant="body2" color="text.secondary">
+                  Replies fail over to the next voice provider.
+                </Typography>
               </Stack>
             )}
           </Box>
@@ -211,7 +223,7 @@ export function AdminVoicePage() {
             </FormControl>
             {voicesQuery.isLoading && provider !== null && (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1 }}>
-                <CircularProgress size={14} />
+                <CircularProgress size={14} aria-hidden />
                 <Typography variant="body2" color="text.secondary">
                   Loading voices…
                 </Typography>

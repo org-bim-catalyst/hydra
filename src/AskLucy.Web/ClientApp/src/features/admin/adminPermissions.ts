@@ -31,6 +31,8 @@ export const ADMIN_PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: 'admin.workflow-policies.manage', area: 'WorkflowPolicies', areaLabel: 'Workflow policies', level: 'Manage', displayName: 'Manage workflow policies', description: 'Create or edit workflow execution policies.' },
   { key: 'admin.mcp-servers.view', area: 'McpServers', areaLabel: 'MCP servers', level: 'View', displayName: 'View MCP servers', description: 'View registered Model Context Protocol servers.' },
   { key: 'admin.mcp-servers.manage', area: 'McpServers', areaLabel: 'MCP servers', level: 'Manage', displayName: 'Manage MCP servers', description: 'Add, edit, or remove MCP server registrations.' },
+  { key: 'admin.custom-models.view', area: 'CustomModels', areaLabel: 'Custom models', level: 'View', displayName: 'View custom models', description: 'View custom model deployments and their progress.' },
+  { key: 'admin.custom-models.manage', area: 'CustomModels', areaLabel: 'Custom models', level: 'Manage', displayName: 'Manage custom models', description: 'Deploy models from Hugging Face to the production server, cancel deployments, and change model availability.' },
 ]
 
 export const ADMIN_PERMISSIONS = {
@@ -50,6 +52,8 @@ export const ADMIN_PERMISSIONS = {
   workflowPoliciesManage: 'admin.workflow-policies.manage',
   mcpServersView: 'admin.mcp-servers.view',
   mcpServersManage: 'admin.mcp-servers.manage',
+  customModelsView: 'admin.custom-models.view',
+  customModelsManage: 'admin.custom-models.manage',
 } as const
 
 export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS]

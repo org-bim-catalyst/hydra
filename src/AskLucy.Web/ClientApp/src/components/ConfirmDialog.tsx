@@ -5,6 +5,7 @@ interface ConfirmDialogProps {
   title: string
   description: string
   confirmLabel?: string
+  cancelLabel?: string
   destructive?: boolean
   onConfirm: () => void
   onCancel: () => void
@@ -17,7 +18,7 @@ interface ConfirmDialogProps {
  * user explicitly confirms; the corresponding Application command re-enforces the same rule
  * server-side (constitution §2.VIII — no silent failures, no client-only gate).
  */
-export function ConfirmDialog({ open, title, description, confirmLabel = 'Confirm', destructive = true, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', destructive = true, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={onCancel} aria-labelledby="confirm-dialog-title">
       <DialogTitle id="confirm-dialog-title">{title}</DialogTitle>
@@ -25,7 +26,7 @@ export function ConfirmDialog({ open, title, description, confirmLabel = 'Confir
         <DialogContentText>{description}</DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onCancel}>{cancelLabel}</Button>
         <Button onClick={onConfirm} color={destructive ? 'error' : 'primary'} variant="contained" autoFocus>
           {confirmLabel}
         </Button>

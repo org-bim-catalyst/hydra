@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
+using AskLucy.Application.CustomModels.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,11 +16,14 @@ namespace AskLucy.Infrastructure.Ai.Supertonic;
 /// generated. The voice styles are fixed presets (F1–F5, M1–M5); the ElevenLabs-shaped tuning
 /// fields in <see cref="VoiceSettingsDto"/> have no equivalent here and are ignored, apart from
 /// <see cref="VoiceSettingsDto.Speed"/>.
+///
+/// <para>Its model can be deployed as a custom model (specs/072), so it is also an
+/// <see cref="IHostedModelEngine"/>: each request resolves the model's folder once.</para>
 /// </summary>
 internal sealed partial class SupertonicTextToSpeechEngine(
     SupertonicModel model,
     IOptions<SupertonicOptions> options,
-    ILogger<SupertonicTextToSpeechEngine> logger) : ITextToSpeechEngine
+    ILogger<SupertonicTextToSpeechEngine> logger) : ITextToSpeechEngine, IHostedModelEngine
 {
     public const string Key = "Supertonic";
 
@@ -36,10 +40,17 @@ internal sealed partial class SupertonicTextToSpeechEngine(
 
     public bool RequiresCredential => false;
 
-    public Task<IReadOnlyList<VoiceOptionDto>> ListVoicesAsync(string? apiKey, CancellationToken cancellationToken = default)
+    public string EngineName => Key;
+
+    public string ModelRepositoryId => SupertonicModel.RepositoryId;
+
+    public Task<string?> FindModelProblemAsync(CancellationToken cancellationToken = default) =>
+        model.FindModelProblemAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<VoiceOptionDto>> ListVoicesAsync(string? apiKey, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<VoiceOptionDto> voices = [.. model.ListInstalledVoices().Select(Describe)];
-        return Task.FromResult(voices);
+        var install = await model.ResolveInstallAsync(cancellationToken);
+        return [.. install.Voices.Select(Describe)];
     }
 
     public VoiceSettingsDto ResolveDefaultSettings(string language, string? voiceId) =>
@@ -61,7 +72,8 @@ internal sealed partial class SupertonicTextToSpeechEngine(
             yield break;
         }
 
-        var voice = await model.LoadVoiceAsync(ResolveVoiceId(settings), cancellationToken);
+        var install = await model.ResolveInstallAsync(cancellationToken);
+        var voice = await model.LoadVoiceAsync(install, ResolveVoiceId(install.Voices, settings), cancellationToken);
         var speed = Math.Clamp((float)settings.Speed, MinimumSpeed, MaximumSpeed);
 
         using var encoder = new Mp3StreamEncoder(voice.SampleRate, _options.Mp3BitRate);
@@ -102,9 +114,8 @@ internal sealed partial class SupertonicTextToSpeechEngine(
     /// <summary>The requested voice if installed, else the administrator's choice for this engine,
     /// else the configured default, else whatever is installed first. A user's free-text voice
     /// override written for another engine lands here as an unknown id.</summary>
-    private string ResolveVoiceId(VoiceSettingsDto settings)
+    private string ResolveVoiceId(IReadOnlyList<string> installed, VoiceSettingsDto settings)
     {
-        var installed = model.ListInstalledVoices();
         if (installed.Count == 0)
         {
             throw new AiProviderUnavailableException("The Supertonic voice model has no voice styles installed.");

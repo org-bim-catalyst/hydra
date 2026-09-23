@@ -1,5 +1,8 @@
 import { apiFetch } from '../../../api/httpClient'
 
+/** specs/072 FR-037 — whether an on-server engine can load its model; API-key engines are always `Ready`. */
+export type VoiceProviderModelStatus = 'Ready' | 'ModelUnavailable'
+
 /** specs/070 — mirrors `AdminVoiceProviderDto`. Never includes the credential value itself. */
 export interface AdminVoiceProvider {
   id: string
@@ -13,6 +16,9 @@ export interface AdminVoiceProvider {
   hasCredential: boolean
   /** Vendor-style fingerprint of the configured key, or `null`. Never the full key. */
   credentialHint: string | null
+  modelStatus: VoiceProviderModelStatus
+  /** Why the model can't load, e.g. "The Supertonic model is marked unavailable in Custom Models."; `null` when `Ready`. */
+  modelStatusReason: string | null
 }
 
 /** specs/070 — one engine the platform can speak through; `isAdded` once an administrator has added it. */

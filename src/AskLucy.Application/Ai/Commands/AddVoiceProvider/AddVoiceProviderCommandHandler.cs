@@ -41,6 +41,6 @@ public sealed class AddVoiceProviderCommandHandler(
         AiAdminActionLog.AdminVoiceProviderActionPerformed(
             logger, "AddVoiceProvider", actorUserId, provider.Id, $"Added {engine.ProviderKey} at priority {nextPriority}");
 
-        return AdminVoiceProviderDto.FromEntity(provider, isPrimary: nextPriority == 0, engine.RequiresCredential);
+        return await VoiceEngineResolution.ToDtoAsync(provider, isPrimary: nextPriority == 0, engine, cancellationToken);
     }
 }

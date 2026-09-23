@@ -6,6 +6,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.CustomModels.Abstractions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,63 +20,115 @@ namespace AskLucy.Infrastructure.Ai.Supertonic;
 /// encoder, vector estimator (flow-matching denoiser) and vocoder — loaded lazily on first use and
 /// held for the life of the process, the same shape as <c>OnnxLocalEmbeddingProvider</c>.
 ///
-/// <para><b>Deployment prerequisite:</b> the pinned model files must be present under
-/// <see cref="SupertonicOptions.ModelDirectory"/> (<c>scripts/download-supertonic.ps1</c>). A
-/// missing file surfaces as <see cref="AiProviderUnavailableException"/> on the request that needed
-/// it, so the voice router fails over rather than the host refusing to start.</para>
+/// <para><b>Where the files come from</b> (specs/072 research D9): each voice request asks
+/// <see cref="IHostedModelLocator"/> once. With no completed custom model record for
+/// <see cref="RepositoryId"/> the pinned files under <see cref="SupertonicOptions.ModelDirectory"/>
+/// are used (<c>scripts/download-supertonic.ps1</c>); with an Available one, its deployed folder
+/// under the content root. When that folder changes the old sessions are disposed and the new ones
+/// loaded; when the record is Unavailable the sessions are disposed and the request fails. A missing
+/// file or an Unavailable model surfaces as <see cref="AiProviderUnavailableException"/> on the
+/// request that needed it, so the voice router fails over rather than the host refusing to start.</para>
 /// </summary>
 internal sealed partial class SupertonicModel : IDisposable
 {
+    /// <summary>The Hugging Face repository a custom model deploys this engine's files from.</summary>
+    public const string RepositoryId = "Supertone/supertonic-3";
+
+    private const string NotInstalledMessage = "The Supertonic voice model is not installed on this server.";
+    private const string DeployedFilesMissingMessage = "The Supertonic model files were not found on this server.";
+    private const string MarkedUnavailableMessage = "The Supertonic model is marked unavailable in Custom Models.";
+
     private static readonly string[] OnnxFiles =
         ["duration_predictor.onnx", "text_encoder.onnx", "vector_estimator.onnx", "vocoder.onnx", "tts.json", "unicode_indexer.json"];
 
     private readonly SupertonicOptions _options;
+    private readonly IHostedModelLocator _locator;
     private readonly ILogger<SupertonicModel> _logger;
-    private readonly string _modelDirectory;
+    private readonly string _contentRoot;
+    private readonly string _configuredDirectory;
+    private readonly int _synthesisSlots;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private readonly SemaphoreSlim _synthesisGate;
     private readonly ConcurrentDictionary<string, VoiceStyle> _voiceStyles = new(StringComparer.OrdinalIgnoreCase);
-    private LoadedModel? _model;
+    private volatile LoadedModel? _model;
 
-    public SupertonicModel(IOptions<SupertonicOptions> options, IHostEnvironment environment, ILogger<SupertonicModel> logger)
+    public SupertonicModel(IOptions<SupertonicOptions> options, IHostEnvironment environment, IHostedModelLocator locator, ILogger<SupertonicModel> logger)
     {
         _options = options.Value;
+        _locator = locator;
         _logger = logger;
-        _modelDirectory = Path.IsPathRooted(_options.ModelDirectory)
-            ? _options.ModelDirectory
-            : Path.Combine(environment.ContentRootPath, _options.ModelDirectory);
-        _synthesisGate = new SemaphoreSlim(Math.Max(1, _options.MaxConcurrentSyntheses));
+        _contentRoot = Path.GetFullPath(environment.ContentRootPath);
+        _configuredDirectory = Path.GetFullPath(Path.Combine(_contentRoot, _options.ModelDirectory));
+        _synthesisSlots = Math.Max(1, _options.MaxConcurrentSyntheses);
+        _synthesisGate = new SemaphoreSlim(_synthesisSlots);
     }
 
-    private string VoiceStyleDirectory => Path.Combine(_modelDirectory, "voice_styles");
+    /// <summary>The folder whose ONNX sessions are loaded, or null when none are.</summary>
+    internal string? LoadedDirectory => _model?.Directory;
 
-    /// <summary>The voice style ids installed on this server (file names under <c>voice_styles/</c>),
-    /// sorted. Reading the directory does not load the ONNX sessions.</summary>
-    public IReadOnlyList<string> ListInstalledVoices()
+    /// <summary>Resolves which folder this request uses (one locator call) and lists the voice style
+    /// ids installed there (file names under <c>voice_styles/</c>), sorted. Does not load the ONNX
+    /// sessions, but disposes them when the model has been made Unavailable.</summary>
+    public async Task<SupertonicInstall> ResolveInstallAsync(CancellationToken cancellationToken = default)
     {
-        if (!Directory.Exists(VoiceStyleDirectory))
+        var resolution = await _locator.ResolveAsync(RepositoryId, cancellationToken);
+        switch (resolution)
         {
-            LogModelMissing(_logger, VoiceStyleDirectory);
-            throw new AiProviderUnavailableException("The Supertonic voice model is not installed on this server.");
+            case HostedModelResolution.Unavailable:
+                await RetireAsync(cancellationToken);
+                LogMarkedUnavailable(_logger, RepositoryId);
+                throw new AiProviderUnavailableException(MarkedUnavailableMessage);
+
+            case HostedModelResolution.Available available:
+                var deployed = Path.GetFullPath(Path.Combine(_contentRoot, available.RelativeDirectory));
+                if (!IsUnder(deployed, _contentRoot))
+                {
+                    LogModelMissing(_logger, deployed);
+                    throw new AiProviderUnavailableException(DeployedFilesMissingMessage);
+                }
+
+                return new SupertonicInstall(deployed, true, ListVoices(deployed, DeployedFilesMissingMessage));
+
+            default:
+                return new SupertonicInstall(_configuredDirectory, false, ListVoices(_configuredDirectory, NotInstalledMessage));
+        }
+    }
+
+    /// <summary>specs/072 FR-037 — the message a voice request would fail with right now, or null.
+    /// With no custom model record the configured install is today's behaviour (FR-039) and is not
+    /// second-guessed here; preview still reports a missing one. Never loads, unloads or logs.</summary>
+    public async Task<string?> FindModelProblemAsync(CancellationToken cancellationToken = default)
+    {
+        var resolution = await _locator.ResolveAsync(RepositoryId, cancellationToken);
+        if (resolution is HostedModelResolution.Unavailable)
+        {
+            return MarkedUnavailableMessage;
         }
 
-        return [.. Directory.EnumerateFiles(VoiceStyleDirectory, "*.json")
-            .Select(Path.GetFileNameWithoutExtension)
-            .OfType<string>()
-            .Order(StringComparer.OrdinalIgnoreCase)];
+        if (resolution is not HostedModelResolution.Available available)
+        {
+            return null;
+        }
+
+        var deployed = Path.GetFullPath(Path.Combine(_contentRoot, available.RelativeDirectory));
+        var complete = IsUnder(deployed, _contentRoot)
+            && Directory.Exists(Path.Combine(deployed, "voice_styles"))
+            && OnnxFiles.All(f => File.Exists(Path.Combine(deployed, "onnx", f)));
+        return complete ? null : DeployedFilesMissingMessage;
     }
 
-    /// <summary>Loads the model (first call only) and the named voice style. The id must be one
-    /// <see cref="ListInstalledVoices"/> returned — it is matched against that list rather than
-    /// joined into a path, so a request can never reach a file outside <c>voice_styles/</c>.</summary>
-    public async Task<SupertonicVoice> LoadVoiceAsync(string voiceId, CancellationToken cancellationToken = default)
+    /// <summary>Loads the install's ONNX sessions (unless already loaded) and the named voice style.
+    /// The id must be one the install lists — it is matched against that list rather than joined
+    /// into a path, so a request can never reach a file outside <c>voice_styles/</c>.</summary>
+    public async Task<SupertonicVoice> LoadVoiceAsync(SupertonicInstall install, string voiceId, CancellationToken cancellationToken = default)
     {
-        var model = await GetModelAsync(cancellationToken);
-        var installed = ListInstalledVoices().FirstOrDefault(v => string.Equals(v, voiceId, StringComparison.OrdinalIgnoreCase))
+        var model = await GetModelAsync(install, cancellationToken);
+        var installed = install.Voices.FirstOrDefault(v => string.Equals(v, voiceId, StringComparison.OrdinalIgnoreCase))
             ?? throw new AiProviderRequestInvalidException($"The Supertonic voice '{voiceId}' is not installed.");
 
-        var style = _voiceStyles.GetOrAdd(installed, id => ReadVoiceStyle(Path.Combine(VoiceStyleDirectory, id + ".json")));
-        return new SupertonicVoice(installed, model.SampleRate, style);
+        var path = Path.Combine(install.Directory, "voice_styles", installed + ".json");
+        var style = _voiceStyles.GetOrAdd(path, ReadVoiceStyle);
+        return new SupertonicVoice(installed, model.SampleRate, style, model);
     }
 
     /// <summary>Synthesizes one chunk (already sized by <see cref="SupertonicText.Chunk"/>) to mono
@@ -83,11 +136,18 @@ internal sealed partial class SupertonicModel : IDisposable
     /// <see cref="SupertonicOptions.MaxConcurrentSyntheses"/>, then runs on the thread pool.</summary>
     public async Task<float[]> SynthesizeAsync(string chunk, string language, SupertonicVoice voice, float speed, CancellationToken cancellationToken = default)
     {
-        var model = await GetModelAsync(cancellationToken);
         await _synthesisGate.WaitAsync(cancellationToken);
         try
         {
-            return await Task.Run(() => Infer(model, chunk, language, voice.Style, speed, cancellationToken), cancellationToken);
+            // Sessions are only disposed while every gate slot is held, so once through the gate
+            // this check stays true until the inference below has finished.
+            if (voice.Model.IsDisposed)
+            {
+                LogModelSwitched(_logger);
+                throw new AiProviderUnavailableException("The Supertonic model was switched while speaking.");
+            }
+
+            return await Task.Run(() => Infer(voice.Model, chunk, language, voice.Style, speed, cancellationToken), cancellationToken);
         }
         catch (OnnxRuntimeException ex)
         {
@@ -171,32 +231,53 @@ internal sealed partial class SupertonicModel : IDisposable
         return wav.Length > wavLength ? wav[..(int)wavLength] : wav;
     }
 
-    private async Task<LoadedModel> GetModelAsync(CancellationToken cancellationToken)
+    private IReadOnlyList<string> ListVoices(string directory, string missingMessage)
     {
-        if (_model is not null)
+        var voiceStyles = Path.Combine(directory, "voice_styles");
+        if (!Directory.Exists(voiceStyles))
         {
-            return _model;
+            LogModelMissing(_logger, voiceStyles);
+            throw new AiProviderUnavailableException(missingMessage);
+        }
+
+        return [.. Directory.EnumerateFiles(voiceStyles, "*.json")
+            .Select(Path.GetFileNameWithoutExtension)
+            .OfType<string>()
+            .Order(StringComparer.OrdinalIgnoreCase)];
+    }
+
+    private async Task<LoadedModel> GetModelAsync(SupertonicInstall install, CancellationToken cancellationToken)
+    {
+        var current = _model;
+        if (current is not null && PathEquals(current.Directory, install.Directory))
+        {
+            return current;
         }
 
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_model is not null)
+            current = _model;
+            if (current is not null && PathEquals(current.Directory, install.Directory))
             {
-                return _model;
+                return current;
             }
 
-            var onnxDirectory = Path.Combine(_modelDirectory, "onnx");
+            // A different folder is now in use; free the old sessions (~450 MB) before anything else.
+            await RetireLockedAsync();
+
+            var onnxDirectory = Path.Combine(install.Directory, "onnx");
             var missing = OnnxFiles.Where(f => !File.Exists(Path.Combine(onnxDirectory, f))).ToList();
             if (missing.Count > 0)
             {
                 LogModelMissing(_logger, string.Join(", ", missing.Select(f => Path.Combine(onnxDirectory, f))));
-                throw new AiProviderUnavailableException("The Supertonic voice model is not installed on this server.");
+                throw new AiProviderUnavailableException(install.IsDeployed ? DeployedFilesMissingMessage : NotInstalledMessage);
             }
 
-            _model = await Task.Run(() => LoadModel(onnxDirectory), cancellationToken);
-            LogModelLoaded(_logger, _model.SampleRate);
-            return _model;
+            var loaded = await Task.Run(() => LoadModel(install.Directory), cancellationToken);
+            _model = loaded;
+            LogModelLoaded(_logger, loaded.SampleRate, install.IsDeployed);
+            return loaded;
         }
         finally
         {
@@ -204,8 +285,63 @@ internal sealed partial class SupertonicModel : IDisposable
         }
     }
 
-    private LoadedModel LoadModel(string onnxDirectory)
+    private async Task RetireAsync(CancellationToken cancellationToken)
     {
+        if (_model is null)
+        {
+            return;
+        }
+
+        await _initLock.WaitAsync(cancellationToken);
+        try
+        {
+            await RetireLockedAsync();
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    /// <summary>Disposes the loaded sessions once no inference is running on them. Caller holds
+    /// <see cref="_initLock"/>. Takes every synthesis slot, uncancellably so a cancelled request
+    /// can't leave slots half-taken; an inference in flight is bounded by its own text chunk.</summary>
+    private async Task RetireLockedAsync()
+    {
+        var retiring = _model;
+        if (retiring is null)
+        {
+            return;
+        }
+
+        _model = null;
+        for (var i = 0; i < _synthesisSlots; i++)
+        {
+            await _synthesisGate.WaitAsync(CancellationToken.None);
+        }
+
+        try
+        {
+            retiring.Dispose();
+        }
+        finally
+        {
+            _synthesisGate.Release(_synthesisSlots);
+        }
+
+        LogModelUnloaded(_logger);
+    }
+
+    private static bool IsUnder(string path, string root) =>
+        path.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+    private static bool PathEquals(string left, string right) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(left), Path.TrimEndingDirectorySeparator(right), StringComparison.OrdinalIgnoreCase);
+
+    private LoadedModel LoadModel(string directory)
+    {
+        var onnxDirectory = Path.Combine(directory, "onnx");
+
         // The memory arena grows to the largest request seen and never shrinks — on a shared
         // host that is a permanent few-hundred-MB high-water mark. Without it each run allocates
         // and frees its own buffers, which measured no slower for these model sizes.
@@ -226,6 +362,7 @@ internal sealed partial class SupertonicModel : IDisposable
         InferenceSession Load(string file) => new(Path.Combine(onnxDirectory, file), sessionOptions);
 
         return new LoadedModel(
+            directory,
             Load("duration_predictor.onnx"),
             Load("text_encoder.onnx"),
             Load("vector_estimator.onnx"),
@@ -291,15 +428,25 @@ internal sealed partial class SupertonicModel : IDisposable
     [LoggerMessage(Level = LogLevel.Error, Message = "Supertonic model files are missing: {Paths}")]
     private static partial void LogModelMissing(ILogger logger, string paths);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Supertonic model loaded ({SampleRate} Hz)")]
-    private static partial void LogModelLoaded(ILogger logger, int sampleRate);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Supertonic model loaded ({SampleRate} Hz, from a custom model deployment: {IsDeployed})")]
+    private static partial void LogModelLoaded(ILogger logger, int sampleRate, bool isDeployed);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Supertonic model sessions disposed")]
+    private static partial void LogModelUnloaded(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Supertonic cannot speak: the custom model deployed from {RepositoryId} is marked unavailable")]
+    private static partial void LogMarkedUnavailable(ILogger logger, string repositoryId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Supertonic model sessions were switched while a reply was speaking; failing the rest of that reply over")]
+    private static partial void LogModelSwitched(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Supertonic inference failed")]
     private static partial void LogInferenceFailed(ILogger logger, Exception exception);
 
     internal sealed record VoiceStyle(float[] Ttl, int[] TtlDimensions, float[] Dp, int[] DpDimensions);
 
-    private sealed record LoadedModel(
+    internal sealed record LoadedModel(
+        string Directory,
         InferenceSession DurationPredictor,
         InferenceSession TextEncoder,
         InferenceSession VectorEstimator,
@@ -310,8 +457,13 @@ internal sealed partial class SupertonicModel : IDisposable
         int ChunkCompressFactor,
         int LatentDim) : IDisposable
     {
+        private volatile bool _disposed;
+
+        public bool IsDisposed => _disposed;
+
         public void Dispose()
         {
+            _disposed = true;
             DurationPredictor.Dispose();
             TextEncoder.Dispose();
             VectorEstimator.Dispose();
@@ -320,5 +472,8 @@ internal sealed partial class SupertonicModel : IDisposable
     }
 }
 
-/// <summary>A loaded voice style, ready to pass to <see cref="SupertonicModel.SynthesizeAsync"/>.</summary>
-internal sealed record SupertonicVoice(string Id, int SampleRate, SupertonicModel.VoiceStyle Style);
+/// <summary>The folder one voice request uses and the voice styles installed in it.</summary>
+internal sealed record SupertonicInstall(string Directory, bool IsDeployed, IReadOnlyList<string> Voices);
+
+/// <summary>A loaded voice style and the sessions it was loaded with, ready to pass to <see cref="SupertonicModel.SynthesizeAsync"/>.</summary>
+internal sealed record SupertonicVoice(string Id, int SampleRate, SupertonicModel.VoiceStyle Style, SupertonicModel.LoadedModel Model);

@@ -12,9 +12,6 @@ public sealed class GetAdminVoiceProvidersQueryHandler(
     {
         var rows = await voiceProviders.ListByPriorityAsync(cancellationToken);
 
-        return [.. rows.Select((row, index) => AdminVoiceProviderDto.FromEntity(
-            row,
-            isPrimary: index == 0,
-            requiresCredential: VoiceEngineResolution.FindEngine(engines, row.ProviderKey)?.RequiresCredential ?? false))];
+        return await VoiceEngineResolution.ToDtosAsync(engines, rows, cancellationToken);
     }
 }
