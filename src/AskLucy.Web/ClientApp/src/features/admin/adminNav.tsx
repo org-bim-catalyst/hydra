@@ -10,6 +10,7 @@ import DnsOutlinedIcon from '@mui/icons-material/DnsOutlined'
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined'
 import WorkOutlineOutlinedIcon from '@mui/icons-material/WorkOutlineOutlined'
+import RecordVoiceOverOutlinedIcon from '@mui/icons-material/RecordVoiceOverOutlined'
 import type { ReactNode } from 'react'
 
 export interface AdminNavItem {
@@ -73,6 +74,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   },
   { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
   { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
+  { path: '/admin/voice', label: 'Voice', icon: <RecordVoiceOverOutlinedIcon fontSize="small" />, permission: 'admin.ai-providers.view' },
   { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
   { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
   { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },

@@ -81,3 +81,12 @@ public sealed record VoiceReplyRequest(
     string Language);
 
 public sealed record SynthesizeSpeechRequest(string Text, string Language);
+
+/// <summary>specs/070 contracts/admin-voice.md — adds one of the platform's voice engines. <c>ApiKey</c> is required only by engines that need one.</summary>
+public sealed record AddVoiceProviderRequest(string ProviderKey, string? ApiKey);
+
+/// <summary>specs/070 — makes a voice provider Lucy's primary voice, speaking with <c>VoiceId</c>.</summary>
+public sealed record SetPrimaryVoiceProviderRequest(Guid ProviderId, string VoiceId);
+
+/// <summary>specs/070 — speaks <c>Text</c> in <c>Language</c> with one of the provider's voices, for the administrator to audition.</summary>
+public sealed record PreviewVoiceRequest(string VoiceId, string Text, string Language);

@@ -1482,6 +1482,73 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("UserVoicePreferences", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Ai.VoiceProvider", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CredentialCiphertext")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CredentialHint")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("CredentialLastRotatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DefaultVoiceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("ProviderKey")
+                        .IsUnique();
+
+                    b.ToTable("VoiceProviders", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Ai.VoiceProviderFailoverEvent", b =>
                 {
                     b.Property<Guid>("Id")

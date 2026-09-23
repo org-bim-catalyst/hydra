@@ -69,6 +69,9 @@ const AdminDashboardPage = lazy(() =>
 const AdminAiProvidersPage = lazy(() =>
   import('../features/admin/pages/AdminAiProvidersPage').then((m) => ({ default: m.AdminAiProvidersPage })),
 )
+const AdminVoicePage = lazy(() =>
+  import('../features/admin/pages/AdminVoicePage').then((m) => ({ default: m.AdminVoicePage })),
+)
 const AdminSystemAgentsPage = lazy(() =>
   import('../features/admin/pages/AdminSystemAgentsPage').then((m) => ({ default: m.AdminSystemAgentsPage })),
 )
@@ -440,6 +443,19 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AdminAiProvidersPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/voice',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute>
+          <Lazy>
+            <AdminVoicePage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

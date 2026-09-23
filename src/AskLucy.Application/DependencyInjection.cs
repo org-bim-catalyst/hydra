@@ -51,6 +51,11 @@ public static class DependencyInjection
         services.AddScoped<DefaultProviderResolver>();
         services.AddScoped<AiCapabilityProviderResolver>();
 
+        // specs/070: every voice-output handler speaks through the router, which orders the
+        // Infrastructure-registered ITextToSpeechEngine set by the admin-configured VoiceProvider
+        // rows. Scoped, so an engine that fails is skipped for the rest of the request only.
+        services.AddScoped<ITextToSpeechProvider, VoiceProviderRouter>();
+
         // Image generation (specs/057 follow-up) — one service for every caller; the model comes
         // from the ImageGeneration capability assignment, and any provider response form (URL,
         // base64, data URL, binary) is normalised by the materializer.

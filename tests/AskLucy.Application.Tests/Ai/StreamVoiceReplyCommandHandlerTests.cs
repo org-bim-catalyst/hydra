@@ -33,7 +33,7 @@ public sealed class StreamVoiceReplyCommandHandlerTests
     {
         _currentUser.UserId.Returns("user-1");
         _voicePreferences.GetByUserIdAsync("user-1", Arg.Any<CancellationToken>()).Returns((Domain.Ai.UserVoicePreference?)null);
-        _textToSpeech.ResolveDefaultSettings(Arg.Any<string>()).Returns(DefaultSettings);
+        _textToSpeech.ResolveDefaultSettingsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(DefaultSettings);
 
         _handler = new StreamVoiceReplyCommandHandler(_mediator, _textToSpeech, _healthRecorder, _voicePreferences, _currentUser);
     }

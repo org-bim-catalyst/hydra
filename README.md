@@ -103,6 +103,16 @@ cd src/AskLucy.Web/ClientApp && npm run test         # frontend unit tests
   data is actually present (defaulting to `eng`) rather than failing the pipeline — but a
   missing `eng.traineddata` means OCR silently returns no text for every document.
 
+- **Supertonic 3 voice model** (specs/070, `SupertonicTextToSpeechEngine`): Lucy's on-server
+  voice needs the fp32 ONNX model and voice styles under `App_Data/Models/supertonic-3`
+  (`Supertonic:ModelDirectory`). Like `tessdata`, it is gitignored and never deployed by a build —
+  run `scripts/download-supertonic.ps1` (pinned revision, SHA-256 verified) and copy the resulting
+  `onnx/` and `voice_styles/` folders to the host. The loaded model adds roughly 450 MB of resident
+  memory (weights are 398 MB), so the host plan must allow it. A missing model is not fatal: the voice
+  router fails over to the next provider (ElevenLabs) and logs why. Before making Supertonic
+  Lucy's voice in production, the OpenRAIL-M use restrictions in
+  [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md) must be passed through to users.
+
 ## Documentation
 
 - [`.specify/memory/constitution.md`](.specify/memory/constitution.md) — the project's

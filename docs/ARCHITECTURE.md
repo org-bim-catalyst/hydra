@@ -1601,7 +1601,49 @@ acknowledgement and silence.
 identical to `AgentOwnershipGuard`'s convention (§30). `SiteAnalysisResultDetailDto` deliberately
 never exposes `FailureReason`, consistent with the no-per-specialist-disclosure rule above.
 
-# 34. Architecture Principles
+# 34. Voice Output Engines
+
+specs/070 replaced the single ElevenLabs text-to-speech dependency with an ordered set of
+engines. The rest of the voice pipeline (`TextToSpeechStreamer`, `StreamVoiceReplyCommandHandler`,
+the client's MediaSource player) is unchanged: it still speaks through one
+`ITextToSpeechProvider`, which is now `VoiceProviderRouter`.
+
+**Engines**: each `ITextToSpeechEngine` (Infrastructure) is one way to turn text into speech —
+`ElevenLabsTextToSpeechEngine` (hosted, needs an API key) and `SupertonicTextToSpeechEngine`
+(Supertonic 3 running in-process on ONNX Runtime, 44.1 kHz, 32 languages, ten preset voices).
+Every engine yields `audio/mpeg`, so the browser's single MediaSource pipeline plays any of them
+and a mid-reply failover stays seamless. Supertonic's raw PCM is encoded to 96 kbps mono MP3 by
+`Mp3StreamEncoder` (GroovyMp3, fully managed — no native codec to deploy).
+
+**Ordering and failover**: `VoiceProviderRouter` reads the administrator's `VoiceProvider` rows
+(priority 0 is Lucy's voice) and tries each engine in order. It fails over only before the first
+audio chunk: a failure after the listener has heard part of a sentence is rethrown, because
+finishing the sentence in a different voice is worse than the existing audio-failed path. An
+engine that fails is skipped for the rest of the request (the router is scoped), and an engine
+whose stored credential cannot be decrypted is treated as failed rather than crashing the reply.
+Only when every engine fails does the caller see an `AiProviderUnavailableException`, which
+`TextToSpeechStreamer` already turns into an `audio-failed` event and the browser-voice fallback.
+A user's voice override applies only to the engine it was resolved for; a failover engine speaks
+with its own administrator-chosen voice.
+
+**Supertonic model hosting**: `SupertonicModel` is a process-wide singleton that loads the four
+ONNX sessions lazily on first use (fp32; int8 was rejected as unintelligible) and caps concurrent
+syntheses with `Supertonic:MaxConcurrentSyntheses`, since each synthesis holds a few hundred MB of
+working memory. The model files are not in the repository — `scripts/download-supertonic.ps1`
+installs them at a pinned Hugging Face revision with SHA-256 verification. A missing file fails
+only the request that needed it, as `AiProviderUnavailableException`, so the router fails over
+instead of the host refusing to start.
+
+**Administration**: the admin **Voice** page (`/admin/voice`, `admin.ai-providers.view` to see,
+`.manage` to change) lists the configured providers, adds an installed engine with **+**, lists the
+chosen provider's voices, previews a sample sentence through that provider only (never failing
+over — the administrator is auditioning a specific voice), and makes a provider/voice Lucy's voice
+by renumbering priorities densely with the chosen provider first.
+
+**Licensing**: Supertonic's code is MIT; its weights are OpenRAIL-M, whose use restrictions must
+be passed through to end users. See `docs/THIRD_PARTY_NOTICES.md`.
+
+# 35. Architecture Principles
 
 Before implementing any feature, ask:
 

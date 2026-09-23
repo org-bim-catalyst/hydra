@@ -20,4 +20,8 @@ internal static partial class AiAdminActionLog
     /// <summary>specs/008-ai-model-catalog-management FR-007/FR-008 — a confirmed sync diff applied to a provider's catalog.</summary>
     [LoggerMessage(Level = LogLevel.Information, Message = "Admin AI-model sync applied by {ActorUserId} for provider {ProviderId}: {AddedCount} added, {MarkedUnavailableCount} marked unavailable")]
     public static partial void AdminAiModelSyncApplied(ILogger logger, string actorUserId, Guid providerId, int addedCount, int markedUnavailableCount);
+
+    /// <summary>specs/070 — an admin voice-provider action (add, credential, Lucy's voice, preview).</summary>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Admin voice-provider action {Action} performed by {ActorUserId} against voice provider {VoiceProviderId}: {Detail}")]
+    public static partial void AdminVoiceProviderActionPerformed(ILogger logger, string action, string actorUserId, Guid voiceProviderId, string detail);
 }

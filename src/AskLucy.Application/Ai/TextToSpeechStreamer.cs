@@ -86,7 +86,7 @@ internal static class TextToSpeechStreamer
         string language,
         CancellationToken cancellationToken)
     {
-        var defaults = textToSpeechProvider.ResolveDefaultSettings(language);
+        var defaults = await textToSpeechProvider.ResolveDefaultSettingsAsync(language, cancellationToken);
         var preference = await voicePreferences.GetByUserIdAsync(userId, cancellationToken);
 
         if (preference is null)

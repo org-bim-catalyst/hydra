@@ -5,6 +5,7 @@ using AskLucy.Application.Locations;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
+using AskLucy.Infrastructure.Ai.Supertonic;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Buildings;
@@ -76,6 +77,10 @@ public static class DependencyInjection
         services.AddOptions<ElevenLabsOptions>()
             .Bind(configuration.GetSection(ElevenLabsOptions.SectionName))
             .ValidateOnStart();
+
+        // specs/070: every property defaults, so no section at all still boots the host.
+        services.AddOptions<SupertonicOptions>()
+            .Bind(configuration.GetSection(SupertonicOptions.SectionName));
 
         services.AddOptions<LocalFileStorageOptions>()
             .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
@@ -240,7 +245,7 @@ public static class DependencyInjection
         });
 
         // spec 012-elevenlabs-voice-engine: BaseAddress must be set here, not per-call — both
-        // ElevenLabsTextToSpeechProvider and ElevenLabsSpeechToTextSessionProvider issue
+        // ElevenLabsTextToSpeechEngine and ElevenLabsSpeechToTextSessionProvider issue
         // relative-URI requests against this named client.
         services.AddHttpClient("ElevenLabs", (sp, client) =>
         {
@@ -501,7 +506,12 @@ public static class DependencyInjection
         services.AddScoped<SystemWorkflowProvisioner>();
         services.AddHostedService<SystemWorkflowProvisioningHostedService>();
 
-        services.AddScoped<ITextToSpeechProvider, ElevenLabsTextToSpeechProvider>();
+        // specs/070: the engines Application's VoiceProviderRouter (the ITextToSpeechProvider)
+        // orders and fails over between. Supertonic's model is a process-wide singleton — its ONNX
+        // sessions hold the weights, loaded once on first use.
+        services.AddScoped<ITextToSpeechEngine, ElevenLabsTextToSpeechEngine>();
+        services.AddSingleton<SupertonicModel>();
+        services.AddSingleton<ITextToSpeechEngine, SupertonicTextToSpeechEngine>();
         services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();
         services.AddScoped<IVoiceProviderHealthRecorder, VoiceProviderHealthRecorder>();
 

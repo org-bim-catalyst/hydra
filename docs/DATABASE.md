@@ -231,6 +231,26 @@ Models are data—not hardcoded.
 
 ---
 
+## VoiceProviders
+
+The text-to-speech engines Lucy's voice runs on, in failover order (specs/070). Separate from
+`AIProviders`: a voice engine has no model catalog or health history, and is ordered rather
+than enabled/disabled.
+
+Fields:
+
+* ProviderKey (unique; matches a registered `ITextToSpeechEngine`, e.g. `ElevenLabs`, `Supertonic`)
+* DisplayName
+* Priority (0 = Lucy's voice; the rest are tried in ascending order; non-unique index)
+* DefaultVoiceId (max 100)
+* CredentialCiphertext / CredentialHint / CredentialLastRotatedAtUtc (same Data Protection scheme as `AIProviders`; null for an on-server engine)
+
+The `AddVoiceProviders` migration seeds one row — ElevenLabs at priority 0 with no stored
+credential, so the configured `ElevenLabs:ApiKey` keeps working unchanged until an
+administrator adds another provider and makes it primary.
+
+---
+
 ## AiCapabilityAssignments
 
 Which provider — and optionally which exact model — serves each `AiCapability` (chat, embeddings,

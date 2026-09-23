@@ -64,6 +64,9 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<VoiceProviderFailoverEvent> VoiceProviderFailoverEvents => Set<VoiceProviderFailoverEvent>();
 
+    /// <summary>specs/070 — the admin-ordered text-to-speech engines; priority 0 is Lucy's voice.</summary>
+    public DbSet<VoiceProvider> VoiceProviders => Set<VoiceProvider>();
+
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
 
     public DbSet<KnowledgeBaseFolder> KnowledgeBaseFolders => Set<KnowledgeBaseFolder>();
