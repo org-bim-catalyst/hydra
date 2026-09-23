@@ -205,6 +205,39 @@ public sealed class TurnDecisionParserTests
     }
 
     [Fact]
+    public void Parse_ShouldRunAFlow_WhenTheModelNamesItAsASliceCapabilityKey()
+    {
+        // The production "Show me Al Safa Park 2" miss (2026-09-23): gpt-4o-mini put the flow's
+        // key in slices[].capabilityKey instead of flowKey, the slice was dropped as an unknown
+        // capability, and the turn answered "Sure, I'll show you" while showing nothing. The key is
+        // still grounded — only a flow available this turn is accepted.
+        var flows = new HashSet<string>(StringComparer.Ordinal) { "locate_a_place" };
+        var json = """{"intent":"act","slices":[{"capabilityKey":"locate_a_place","arguments":{"query":"Al Safa Park 2"},"pendingLabel":"Finding Al Safa Park 2"}]}""";
+
+        var result = Parser().Parse(json, Available, flows);
+
+        result.Succeeded.Should().BeTrue();
+        result.Decision.Intent.Should().Be(TurnIntent.Act);
+        result.Decision.FlowKey.Should().Be("locate_a_place");
+        result.Decision.FlowArgumentsJson.Should().Contain("Al Safa Park 2");
+        result.Decision.Slices.Should().BeEmpty();
+        result.DroppedSliceReasons.Should().ContainSingle().Which.Should().Contain("locate_a_place");
+    }
+
+    [Fact]
+    public void Parse_ShouldStillDropASliceKey_ThatIsNeitherACapabilityNorAnAvailableFlow()
+    {
+        var flows = new HashSet<string>(StringComparer.Ordinal) { "some_other_flow" };
+        var json = """{"intent":"act","slices":[{"capabilityKey":"locate_a_place","arguments":{}}]}""";
+
+        var result = Parser().Parse(json, Available, flows);
+
+        result.Decision.Intent.Should().Be(TurnIntent.Answer);
+        result.Decision.FlowKey.Should().BeNull();
+        result.DroppedSliceReasons.Should().ContainSingle().Which.Should().Contain("not an available capability");
+    }
+
+    [Fact]
     public void Parse_ShouldNeverThrow_ForAnyInput()
     {
         // Constitution §2.VIII at this boundary: a parser that throws takes the user's answer

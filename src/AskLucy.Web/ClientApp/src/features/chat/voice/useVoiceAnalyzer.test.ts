@@ -242,6 +242,60 @@ describe('useVoiceAnalyzer', () => {
     expect(ms.addSourceBuffer).toHaveBeenCalledTimes(1)
   })
 
+  // A real MediaSource is 'closed' until 'sourceopen' fires a task later; the fake starts 'open',
+  // which hid both of these. Supertonic sends a short reply as one or two chunks immediately
+  // followed by `done`, so everything lands in that closed window (production, 2026-09-23: the
+  // first reply spoke, the second never did).
+  it('keeps the graph for a second chunk that arrives before sourceopen, instead of rebuilding and losing the first', () => {
+    installVoiceAnalyzerEnvironment()
+    const { result } = renderHook(() => useVoiceAnalyzer())
+
+    act(() => {
+      result.current.playAudioChunk('YWJj')
+    })
+    const ms = FakeMediaSource.instances[0]
+    ms.readyState = 'closed'
+
+    act(() => {
+      result.current.playAudioChunk('ZGVm')
+    })
+
+    expect(FakeMediaSource.instances).toHaveLength(1)
+    ms.readyState = 'open'
+    act(() => {
+      ms.dispatchEvent(new Event('sourceopen'))
+    })
+    const sourceBuffer = FakeSourceBuffer.instances[0]
+    act(() => {
+      sourceBuffer.dispatchEvent(new Event('updateend'))
+    })
+    expect(sourceBuffer.appendBuffer).toHaveBeenCalledTimes(2)
+  })
+
+  it('seals the stream once queued chunks drain when endStream() ran before sourceopen, so the next reply gets a fresh MediaSource', () => {
+    installVoiceAnalyzerEnvironment()
+    const { result } = renderHook(() => useVoiceAnalyzer())
+
+    act(() => {
+      result.current.playAudioChunk('YWJj')
+    })
+    const ms = FakeMediaSource.instances[0]
+    ms.readyState = 'closed'
+    act(() => {
+      result.current.endStream()
+    })
+
+    ms.readyState = 'open'
+    act(() => {
+      ms.dispatchEvent(new Event('sourceopen'))
+    })
+    act(() => {
+      FakeSourceBuffer.instances[0].dispatchEvent(new Event('updateend'))
+    })
+
+    expect(ms.endOfStream).toHaveBeenCalledTimes(1)
+  })
+
   it('rebuilds the audio graph when the MediaSource has ended, so subsequent turns get a fresh MediaSource', () => {
     installVoiceAnalyzerEnvironment()
     const { result } = renderHook(() => useVoiceAnalyzer())

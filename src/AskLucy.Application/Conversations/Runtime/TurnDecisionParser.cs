@@ -149,6 +149,23 @@ public sealed class TurnDecisionParser(IOptions<ConversationRuntimeOptions> opti
                 // model never saw.
                 if (!availableCapabilityKeys.Contains(key))
                 {
+                    // Smaller models name a flow in the slice's capabilityKey rather than in
+                    // flowKey. The key is still grounded against this turn's flows, so honouring
+                    // it runs exactly what the model was shown; dropping it answered "I'll show
+                    // you" while showing nothing. A flow replaces slices (FR-050), as above.
+                    if (flowKeys.Contains(key))
+                    {
+                        dropped.Add($"'{key}' is a flow but was named as a slice; it ran as the flow and any other slices were ignored");
+                        var namedFlowArgumentsJson = sliceElement.TryGetProperty("arguments", out var namedFlowArgs) &&
+                                                     namedFlowArgs.ValueKind == JsonValueKind.Object
+                            ? namedFlowArgs.GetRawText()
+                            : "{}";
+
+                        return new TurnDecisionParseResult(
+                            new TurnDecision(TurnIntent.Act, [], key, namedFlowArgumentsJson, ReadThroughStepIndex(root)),
+                            TurnDecisionParseFailure.None, dropped);
+                    }
+
                     dropped.Add($"'{key}' is not an available capability this turn");
                     continue;
                 }

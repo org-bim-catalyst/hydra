@@ -77,6 +77,9 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
       // endStream() signals no more data — the element plays its buffer then stops.
       const ms = mediaSourceRef.current
       if (ms && ms.readyState === 'open') return
+      // A fresh MediaSource is also 'closed' until 'sourceopen' fires, and has no SourceBuffer
+      // yet. Chunks arriving in that window are queued for it; rebuilding would discard them.
+      if (ms && ms.readyState === 'closed' && !sourceBufferRef.current) return
       pendingChunksRef.current = []
       pendingEndOfStreamRef.current = false
       hasStartedPlaybackRef.current = false
@@ -166,6 +169,16 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
       if (queued && !appendChunk(queued)) {
         pendingChunksRef.current.unshift(queued)
       }
+      // endStream() ran before 'sourceopen' with nothing left to append: seal now, since no
+      // 'updateend' will come to do it.
+      if (!queued && pendingEndOfStreamRef.current) {
+        pendingEndOfStreamRef.current = false
+        try {
+          mediaSource.endOfStream()
+        } catch {
+          // Already ended/closed.
+        }
+      }
     })
 
     const source = audioContext.createMediaElementSource(audioElement)
@@ -208,7 +221,14 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
    * next `updateend` so the in-flight append completes before the stream is sealed. */
   const endStream = useCallback(() => {
     const mediaSource = mediaSourceRef.current
-    if (!mediaSource || mediaSource.readyState !== 'open') return
+    if (!mediaSource) return
+    if (mediaSource.readyState === 'closed' && !sourceBufferRef.current) {
+      // 'sourceopen' has not fired yet. Dropping this left the stream unsealed, and the next
+      // reply was appended onto it instead of getting a fresh graph. Seal once the queue drains.
+      pendingEndOfStreamRef.current = true
+      return
+    }
+    if (mediaSource.readyState !== 'open') return
     if (sourceBufferRef.current?.updating || pendingChunksRef.current.length > 0) {
       // Chunks still in flight — the updateend handler will call endOfStream once they drain.
       pendingEndOfStreamRef.current = true
