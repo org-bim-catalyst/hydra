@@ -26,9 +26,17 @@ export const copy = {
    * the window just after sunrise and just before sunset reads as a broken renderer: daylight on
    * screen, buildings present, no shadows. The threshold is interpolated from the constant the
    * light itself is gated on, so the sentence cannot drift from the behaviour it describes.
+   *
+   * Worded to hold at a *negative* altitude too. This notice fires whenever the sun's upper edge
+   * is above the horizon (FR-004), and at the reported sunrise the sun's centre — the quantity
+   * the panel prints — is one solar radius down by definition. The earlier wording, "less than
+   * 1° above the horizon", therefore appeared beside a reading of −0.2° and contradicted it on
+   * sight. "Below 1° elevation" is true at either sign, and "the sun is up" states the upper-edge
+   * definition that put the notice on screen rather than leaving the reader to infer it from a
+   * negative number.
    */
   lowSunNoShadowsNotice: (minimumElevationDegrees: number) =>
-    `The sun is less than ${minimumElevationDegrees}° above the horizon — shadows are not drawn at this elevation, where they would stretch for kilometres.`,
+    `The sun is up but below ${minimumElevationDegrees}° elevation — shadows are not drawn this low, where they would stretch for kilometres.`,
 
   // Buildings (FR-013, FR-014, FR-015)
   noBuildingsFound: 'No buildings found near this site — the sun path still applies.',

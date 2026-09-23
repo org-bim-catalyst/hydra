@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { panelContentSchema } from '../../../viewer/panels/content/blocks'
 import { copy } from '../copy'
 import { daySummary } from '../solar/daySummary'
+import { SOLAR_SEMIDIAMETER_DEGREES } from '../solar/refraction'
+import { MIN_SHADOW_ELEVATION_DEGREES } from '../scene/sunLight'
 import { SOLAR_POSITION_TOLERANCE_DEGREES, solarPosition } from '../solar/solarPosition'
 import { buildSolarFiguresContent } from './solarFiguresContent'
 
@@ -151,5 +153,44 @@ describe('buildSolarFiguresContent — no below-horizon notice at the reported s
     const summary = daySummary(new Date(Date.UTC(2026, 8, 21)), SITES[0].latitude, SITES[0].longitude)
     const anHourEarlier = new Date(summary.sunriseUtc!.getTime() - 60 * 60_000)
     expect(closingTextAt(anHourEarlier, SITES[0])).toContain(copy.belowHorizonNotice)
+  })
+
+  /**
+   * The notice that replaces the below-horizon one has to be readable beside the number printed
+   * next to it. At the reported sunrise the upper edge is up but the *centre* — the altitude the
+   * panel shows — is one solar radius down, so the notice is on screen next to a negative
+   * reading. Its earlier wording, "less than 1° above the horizon", contradicted that reading on
+   * sight. Nothing pinned the low-sun notice at all before this, in either sign.
+   */
+  for (const site of SITES) {
+    it(`states the low-sun reason, not a contradiction, at ${site.name}'s reported sunrise minute`, () => {
+      const summary = daySummary(new Date(Date.UTC(2026, 8, 21)), site.latitude, site.longitude)
+      if (summary.polarCondition !== 'none') return
+
+      const reportedMinute = new Date(Math.ceil(summary.sunriseUtc!.getTime() / 60_000) * 60_000)
+      const altitude = solarPosition(reportedMinute, site.latitude, site.longitude).altitudeDegrees
+      const closing = closingTextAt(reportedMinute, site)
+
+      // The premise: the panel really is printing a sub-zero altitude here.
+      expect(altitude).toBeLessThan(0)
+      expect(altitude).toBeGreaterThan(-SOLAR_SEMIDIAMETER_DEGREES)
+
+      expect(closing).toContain(copy.lowSunNoShadowsNotice(MIN_SHADOW_ELEVATION_DEGREES))
+      // Nothing in it may claim the sun is *above* the horizon while that number is negative.
+      expect(closing).not.toMatch(/above the horizon/)
+    })
+  }
+
+  it('states the same reason once the sun is genuinely above the horizon but under the threshold', () => {
+    const site = SITES[0]
+    const summary = daySummary(new Date(Date.UTC(2026, 8, 21)), site.latitude, site.longitude)
+    const twoMinutesLater = new Date(summary.sunriseUtc!.getTime() + 2 * 60_000)
+    const altitude = solarPosition(twoMinutesLater, site.latitude, site.longitude).altitudeDegrees
+
+    expect(altitude).toBeGreaterThan(0)
+    expect(altitude).toBeLessThan(MIN_SHADOW_ELEVATION_DEGREES)
+    expect(closingTextAt(twoMinutesLater, site)).toContain(
+      copy.lowSunNoShadowsNotice(MIN_SHADOW_ELEVATION_DEGREES),
+    )
   })
 })

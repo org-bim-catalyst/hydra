@@ -40,7 +40,10 @@ Do not drag the slider — dragging snaps to 15 minutes and cannot land on a nam
 > **Expected, all three:**
 > 1. **Altitude reads between −0.3° and 0.0°** (baseline read **−0.8°**).
 > 2. **No "The sun is below the horizon — no shadows are cast." line.** Its presence at the
->    feature's own reported sunrise is the exact defect being repaired.
+>    feature's own reported sunrise is the exact defect being repaired. The low-sun notice
+>    from Check D appears in its place, and must not claim the sun is *above* the horizon
+>    while the altitude beside it reads negative — at sunrise the centre is one solar radius
+>    down by definition, and the centre is what the panel prints.
 > 3. The closing paragraph states the altitude is the sun's **centre, corrected for atmospheric
 >    refraction**.
 >
@@ -81,8 +84,8 @@ Do not drag the slider — dragging snaps to 15 minutes and cannot land on a nam
 Screenshot the whole viewer.
 
 > **Expected:** daylight, buildings present, **no shadows drawn**, and this sentence on screen:
-> *"The sun is less than 1° above the horizon — shadows are not drawn at this elevation, where they
-> would stretch for kilometres."*
+> *"The sun is up but below 1° elevation — shadows are not drawn this low, where they would
+> stretch for kilometres."*
 >
 > Shadows vanishing with **no** stated reason is a defect.
 
