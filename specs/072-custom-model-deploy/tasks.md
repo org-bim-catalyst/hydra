@@ -547,7 +547,7 @@ description: "Task list for 072 Custom Model Deployment (Admin)"
 - [X] T090 Run `dotnet format --verify-no-changes` for the whole solution and fix any issues. Watch for `\r\r\n` and the migration BOM.
 - [X] T091 Run `dotnet build "Ask Lucy.sln" -warnaserror` and every test project with `PERSISTENCE_TESTS_CONNECTION_STRING` set. Report every failure with its output. The three known `McpObservabilityTests` failures are pre-existing.
 - [X] T092 In `ClientApp/`, run `npx tsc -b --noEmit`, `npx eslint .` and the **full** `npx vitest run`, and fix everything.
-- [ ] T093 Run [quickstart.md](quickstart.md) §2–§7 against production after deploying, following the numbered-steps screenshot loop.
+- [X] T093 Run [quickstart.md](quickstart.md) §2–§7 against production after deploying, following the numbered-steps screenshot loop.
 
 ---
 
