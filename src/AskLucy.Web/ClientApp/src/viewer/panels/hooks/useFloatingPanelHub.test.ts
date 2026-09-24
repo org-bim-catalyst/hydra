@@ -75,6 +75,42 @@ describe('useFloatingPanelHub', () => {
     expect(handlers['PanelRequested']).toBeUndefined()
   })
 
+  // Found while verifying specs/063 in the running app: "Reconnecting…" stayed pinned on the
+  // viewer for the whole session. The hook read the token once with `getState()` under an empty
+  // dependency list, so when the overlay mounted before the cookie session had restored it
+  // returned early and never dialled the hub at all. `useSiteAnalysisHub`, its sibling in the
+  // same overlay component, already subscribes reactively; this hook was missed.
+  it('connects once a session appears after mount, rather than staying dark forever', async () => {
+    useAuthStore.setState({ accessToken: null, userId: null })
+    delete handlers['PanelRequested']
+
+    const { result } = renderHook(() => useFloatingPanelHub())
+    expect(result.current.isLive).toBe(false)
+
+    await act(async () => {
+      useAuthStore.setState({ accessToken: 'arrived-late', userId: 'u1' })
+      await startResult
+    })
+
+    expect(handlers['PanelRequested']).toBeDefined()
+    expect(result.current.isLive).toBe(true)
+  })
+
+  it('does not tear down a healthy connection when the access token is refreshed', async () => {
+    const { result } = renderHook(() => useFloatingPanelHub())
+    await act(async () => {
+      await startResult
+    })
+    expect(result.current.isLive).toBe(true)
+
+    await act(async () => {
+      useAuthStore.setState({ accessToken: 'refreshed-token', userId: 'u1' })
+    })
+
+    // A token-valued dependency would have re-run the effect, whose cleanup sets isLive false.
+    expect(result.current.isLive).toBe(true)
+  })
+
   // specs/029-fix-chat-widget-bugs T004d/FR-010/analysis finding C1 — this hook previously
   // called `connection.start().catch(() => undefined)`, silently discarding a failed
   // connection with no trace. These two cases assert the fix: the failure is now exposed via

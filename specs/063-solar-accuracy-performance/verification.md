@@ -160,3 +160,51 @@ solar correctness is needed from the person capturing.
 
 **If something is wrong**, `git reset --hard pre-solar-upgrade` restores f42e6814. The spec and plan
 commits are separate from the implementation, so the documents survive a code-only revert.
+
+---
+
+## Outcome — verified 24 September 2026
+
+Captured at Badr, Egypt across 21–28 September 2026 and judged against [baseline.md](./baseline.md)
+and the model run directly.
+
+| Check | Result |
+|---|---|
+| A — no contradiction at the reported sunrise | **Pass.** 06:41 reads −0.2° with the low-sun notice, no "above the horizon" claim. |
+| B — midday unchanged | **Pass.** 157.4° / 58.5°, identical to baseline. |
+| C — long shadows at low sun | **Pass.** 17:51 shadows extend well past the baseline's clipped band. |
+| D — low-sun notice above the horizon | **Pass.** 06:43 reads 0.2°, notice shown, no shadows. |
+| E — below-horizon altitude | **Pass.** See the note under Step 9; the held refraction is correct. |
+| F — dome furniture survives a date change | **Pass**, with caveats below. |
+| G — scrubbing stays smooth | **Pass.** Reported smooth by the person capturing. |
+| H — corrections respond during playback | **Pass.** Height 9 m → 40 m redrew immediately. |
+
+Every panel figure across eight captures agreed with the model to within 0.1° in both azimuth and
+altitude. Rise/set times ran one minute earlier in the reviewer's model run than on screen,
+consistently and in one direction across all five dates — a difference in assumed site coordinates,
+not between the model and the code.
+
+**Check F caveats, stated rather than glossed.** The capture stepped 21 → 24 September rather than
+the four steps to the 25th, which still yields a valid before/after pair. The framing did not
+clearly include the mount post. At the captured resolution the claim supported is that the dial,
+shell and monthly lattice show no visible movement, flicker or brightness change while the dated
+arc, hour marks and current marker track the date — strict object identity across a date change is
+pinned by `sunPathCurve.test.ts`, not by these pixels.
+
+### Two defects found during this run, both fixed
+
+1. **The sunrise, sunset and day-length rows contradicted each other.** The panel printed
+   sunrise 06:42, sunset 18:50 and "12 h 9 min", so subtracting the two times shown gave a
+   different answer from the length shown beside them. The times were rounded (sunrise up, sunset
+   down) while the length came from the unrounded instants. Measured across a year at Badr, the two
+   disagreed on **310 of 365 days**. All three values now derive from the same pair of rounded
+   instants; the rounding *direction* is unchanged, because it is what keeps the reported sunrise
+   minute inside the true day and therefore past the FR-004 upper-edge test.
+
+2. **"Reconnecting…" stayed pinned on the viewer for the whole session.** `useFloatingPanelHub`
+   read the access token once via `getState()` under an empty dependency list, so when the viewer
+   overlay mounted before the cookie session had restored, it returned early and never dialled the
+   panels hub at all — AI-requested panels would not have arrived live. `useSiteAnalysisHub`, its
+   sibling in the same overlay component, already carried this fix; this hook was missed. It now
+   subscribes to the authenticated flag reactively, keyed on a boolean so a token refresh does not
+   tear down a healthy connection.

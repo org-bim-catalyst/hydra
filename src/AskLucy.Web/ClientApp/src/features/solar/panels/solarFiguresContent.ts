@@ -42,18 +42,36 @@ function formatUtcAsLocalTime(instantUtc: Date, timeZoneId: string): string {
  * `RISE_SET_TOLERANCE_SECONDS`, and it errs toward a statement that is true rather than one that
  * is not.
  */
-function formatUtcAsLocalMinuteAtOrAfter(instantUtc: Date, timeZoneId: string): string {
-  return formatUtcAsLocalTime(new Date(Math.ceil(instantUtc.getTime() / 60_000) * 60_000), timeZoneId)
+function formatDayLength(wholeMinutes: number): string {
+  return `${Math.floor(wholeMinutes / 60)} h ${wholeMinutes % 60} min`
 }
 
-function formatUtcAsLocalMinuteAtOrBefore(instantUtc: Date, timeZoneId: string): string {
-  return formatUtcAsLocalTime(new Date(Math.floor(instantUtc.getTime() / 60_000) * 60_000), timeZoneId)
-}
-
-function formatDayLength(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = Math.round(minutes % 60)
-  return `${hours} h ${remainingMinutes} min`
+/** The displayed sunrise / sunset / day-length triple, all three derived from the *same* pair of
+ * rounded instants. A user subtracting the two printed clock times must arrive at the printed day
+ * length; deriving the length from `daySummary.dayLengthMinutes` instead did not satisfy that,
+ * because that value comes from the unrounded instants and so ran up to two minutes longer than
+ * the interval printed directly above it.
+ *
+ * The rounding *direction* is load-bearing and must not become round-to-nearest: sunrise rounds
+ * up and sunset rounds down, so both printed minutes sit strictly inside the true day. That is
+ * what lets the reported sunrise minute pass the upper-edge horizon test (FR-004) rather than
+ * printing the below-horizon notice against the feature's own reported sunrise — the very defect
+ * specs/063 set out to remove.
+ *
+ * `daySummary.dayLengthMinutes` remains the true physical quantity; this is display only. */
+function displayedDayTimes(
+  sunriseUtc: Date,
+  sunsetUtc: Date,
+  timeZoneId: string,
+): { sunrise: string; sunset: string; dayLength: string } {
+  const sunriseMs = Math.ceil(sunriseUtc.getTime() / 60_000) * 60_000
+  const sunsetMs = Math.floor(sunsetUtc.getTime() / 60_000) * 60_000
+  return {
+    sunrise: formatUtcAsLocalTime(new Date(sunriseMs), timeZoneId),
+    sunset: formatUtcAsLocalTime(new Date(sunsetMs), timeZoneId),
+    // Both endpoints are whole minutes, so this difference is an exact integer count of minutes.
+    dayLength: formatDayLength((sunsetMs - sunriseMs) / 60_000),
+  }
 }
 
 export interface SolarFiguresInput {
@@ -97,11 +115,11 @@ export function buildSolarFiguresContent(input: SolarFiguresInput): PanelContent
   } else if (daySummary.polarCondition === 'midnight-sun') {
     keyValueItems.push({ label: copy.sunsetLabel, value: copy.sunNeverSets })
   } else {
-    const effectiveZone = timeZoneId ?? 'UTC'
+    const displayed = displayedDayTimes(daySummary.sunriseUtc!, daySummary.sunsetUtc!, timeZoneId ?? 'UTC')
     keyValueItems.push(
-      { label: copy.sunriseLabel, value: formatUtcAsLocalMinuteAtOrAfter(daySummary.sunriseUtc!, effectiveZone) },
-      { label: copy.sunsetLabel, value: formatUtcAsLocalMinuteAtOrBefore(daySummary.sunsetUtc!, effectiveZone) },
-      { label: copy.dayLengthLabel, value: formatDayLength(daySummary.dayLengthMinutes!) },
+      { label: copy.sunriseLabel, value: displayed.sunrise },
+      { label: copy.sunsetLabel, value: displayed.sunset },
+      { label: copy.dayLengthLabel, value: displayed.dayLength },
     )
   }
 

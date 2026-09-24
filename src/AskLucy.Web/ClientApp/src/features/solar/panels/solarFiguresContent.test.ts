@@ -194,3 +194,75 @@ describe('buildSolarFiguresContent — no below-horizon notice at the reported s
     )
   })
 })
+
+describe('buildSolarFiguresContent — the sunrise, sunset and day-length rows agree', () => {
+  // Found by verifying specs/063 against the running app at Badr, Egypt: the panel printed
+  // sunrise 06:42, sunset 18:50 and a day length of "12 h 9 min" — a user subtracting the two
+  // clock times printed directly above got 12 h 8 min instead. The times were rounded (sunrise
+  // up, sunset down) while the length came from the unrounded instants, so the length could run
+  // up to two minutes past the interval shown. Measured against the old code, the two disagreed
+  // on 310 of 365 days at Badr — the normal case, not a rare rounding edge. Same class of
+  // self-contradiction specs/063 was written to remove, so it is pinned here across a full year
+  // and a range of latitudes.
+  const SITES = [
+    { name: 'Badr', latitude: 30.1287, longitude: 31.722, timeZoneId: 'Africa/Cairo' },
+    { name: 'Dubai', latitude: 25.2, longitude: 55.3, timeZoneId: 'Asia/Dubai' },
+    { name: 'London', latitude: 51.5, longitude: -0.1, timeZoneId: 'Europe/London' },
+  ] as const
+
+  const rowsFor = (instantUtc: Date, site: (typeof SITES)[number]) => {
+    const content = buildSolarFiguresContent({
+      localDate: instantUtc.toISOString().slice(0, 10),
+      localMinuteOfDay: 12 * 60,
+      timeZoneId: site.timeZoneId,
+      timeBasisLabel: site.timeZoneId,
+      solarPosition: solarPosition(instantUtc, site.latitude, site.longitude),
+      daySummary: daySummary(instantUtc, site.latitude, site.longitude),
+      siteBuildingHeightAssumed: null,
+    })
+    const block = content.blocks.find((b) => (b as { kind: string }).kind === 'keyValue') as unknown as {
+      items: { label: string; value: string }[]
+    }
+    const valueOf = (label: string) => block.items.find((i) => i.label === label)?.value
+    return {
+      sunrise: valueOf(copy.sunriseLabel),
+      sunset: valueOf(copy.sunsetLabel),
+      dayLength: valueOf(copy.dayLengthLabel),
+    }
+  }
+
+  const clockToMinutes = (clock: string): number => {
+    const [hours, minutes] = clock.split(':').map(Number)
+    return hours * 60 + minutes
+  }
+
+  for (const site of SITES) {
+    it(`prints a day length equal to sunset minus sunrise, every day of the year, at ${site.name}`, () => {
+      let checkedDays = 0
+      for (let dayOfYear = 0; dayOfYear < 365; dayOfYear += 1) {
+        const noonUtc = new Date(Date.UTC(2026, 0, 1 + dayOfYear, 12))
+        const { sunrise, sunset, dayLength } = rowsFor(noonUtc, site)
+        // Polar and unconverged days print prose in place of a time; nothing to reconcile there.
+        if (!sunrise?.includes(':') || !sunset?.includes(':')) continue
+
+        const match = /^(\d+) h (\d+) min$/.exec(dayLength!)
+        expect(match, `unparsable day length "${dayLength}" on day ${dayOfYear}`).not.toBeNull()
+        const printedLength = Number(match![1]) * 60 + Number(match![2])
+
+        expect(printedLength, `${site.name} day ${dayOfYear}: ${sunrise}–${sunset} vs ${dayLength}`).toBe(
+          clockToMinutes(sunset) - clockToMinutes(sunrise),
+        )
+        checkedDays += 1
+      }
+      // Guards against the loop silently skipping everything and passing vacuously.
+      expect(checkedDays).toBeGreaterThan(300)
+    })
+  }
+
+  it('reproduces the Badr case from the specs/063 verification run', () => {
+    const { sunrise, sunset, dayLength } = rowsFor(new Date(Date.UTC(2026, 8, 22, 12)), SITES[0])
+    expect(clockToMinutes(sunset!) - clockToMinutes(sunrise!)).toBe(
+      Number(/^(\d+) h/.exec(dayLength!)![1]) * 60 + Number(/(\d+) min$/.exec(dayLength!)![1]),
+    )
+  })
+})

@@ -23,9 +23,17 @@ export function useFloatingPanelHub(): { isLive: boolean } {
   const connectionRef = useRef<HubConnection | null>(null)
   const [isLive, setIsLive] = useState(false)
 
+  // A boolean read reactively, not a one-shot `getState()`: the viewer overlay mounts before the
+  // cookie session has finished restoring, so a single read at mount saw `null`, returned early,
+  // and — with no dependency to re-run on — never attempted a connection for the rest of the
+  // session, leaving "Reconnecting…" pinned on screen against a hub that was never dialled. A
+  // boolean rather than the token itself so a 15-minute token refresh does not tear down and
+  // rebuild a healthy connection. `useSiteAnalysisHub` already carries this fix; this hook, its
+  // sibling in the same overlay component, was missed.
+  const isAuthenticated = useAuthStore((state) => state.accessToken !== null)
+
   useEffect(() => {
-    const accessToken = useAuthStore.getState().accessToken
-    if (!accessToken) {
+    if (!isAuthenticated) {
       return
     }
 
@@ -56,7 +64,7 @@ export function useFloatingPanelHub(): { isLive: boolean } {
       connectionRef.current = null
       setIsLive(false)
     }
-  }, [])
+  }, [isAuthenticated])
 
   return { isLive }
 }
