@@ -530,6 +530,7 @@ description: "Task list for 072 Custom Model Deployment (Admin)"
 - [X] T084 [US6] Add `ModelStatus` and `ModelStatusReason` to `src/AskLucy.Application/Ai/AdminVoiceProviderDto.cs`. Filter `IHostedModelEngine` engines in `src/AskLucy.Application/Ai/Queries/GetVoiceEngines/` and fill the status in `Queries/GetAdminVoiceProviders/` to pass T080.
 - [X] T085 [US6] Update `ClientApp/src/features/admin/api/adminVoiceApi.ts` types, and show the "model unavailable" chip on each provider row in `ClientApp/src/features/admin/pages/AdminVoicePage.tsx`, to pass T081.
 - [X] T086 [US6] Show a `backsEngine` chip ("Backs Supertonic") on custom model rows in `CustomModelsSection.tsx`. The summary DTO computes it from the registered `IHostedModelEngine`s.
+  - Chip removed 2026-09-24 at the owner's request: Supertonic is always the primary voice, so the badge said nothing. The DTO field stays in the API contract.
 
 **Checkpoint**: Deploy, make Available, add Supertonic from "+" and preview it. Make it Unavailable and confirm replies fail over. The existing manual install with no record keeps working.
 

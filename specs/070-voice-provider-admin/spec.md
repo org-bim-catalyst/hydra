@@ -78,7 +78,11 @@ Before Supertonic could be Lucy's voice in production, two things had to be in p
 Service had to pass on the model licence's use restrictions, and users had to be told the audio is
 AI-generated. Both were added on 2026-09-24:
 
-- A public `/terms` page reproduces Attachment A (a)–(m) as binding and links the licence.
+- A public `/terms` page reproduces Attachment A (a)–(m) as binding and links the licence. It
+  is linked from the landing footer, the app footer, the account menu and Settings → Voice.
+  Its home link returns to where the reader came from: the landing page when they followed the
+  landing footer's link (which sets `FROM_LANDING_STATE`, `routes/viewLandingState.ts`), the
+  Studio otherwise. `/privacy` behaves the same.
 - The disclosure appears in the Continuous voice panel and in Settings → Voice.
 
 The mapping from each licence clause to where it is met is in `docs/THIRD_PARTY_NOTICES.md`.
@@ -90,9 +94,20 @@ Lawyer review of `/terms` is still outstanding.
   Anthropic, Gemini and OpenRouter, with the key `elevenlabs` and a Speech kind. Migration
   `AddElevenLabsAiProvider` seeds it disabled. That vendor row is ElevenLabs' only API key and its
   on/off switch, for both TTS and live dictation. The per-voice-provider Enabled toggle was
-  removed. Admin → Voice shows ElevenLabs as On or Off, with a link to AI providers.
+  removed. Admin → Voice shows ElevenLabs as On or Off, with a link to AI providers. The AI
+  providers table shows no kind badge beside its name: like every vendor, what it does shows in
+  the Capabilities column (audio and streaming chips) once its models are synced.
 - **Live dictation falls back.** If the ElevenLabs realtime STT session is refused or unreachable,
   Continuous mode dictates through Whisper instead (`/ai/transcriptions`, committed after a
   1.2 s pause). If Whisper can't record in this browser or fails server-side, it uses the
   browser's `SpeechRecognition`. A caption names the engine in use, and every failure is shown to
   the user (`features/chat/voice/dictationFallback.ts`).
+- **Voice order.** Supertonic is Lucy's voice unless an administrator reorders Admin → Voice.
+  Other configured engines (ElevenLabs) are tried next; when every engine fails, the client
+  speaks with the browser's own voice.
+- **The browser voice stays in persona.** The last-resort browser voice is chosen by
+  `selectPersonaVoice` (specs/010): a curated name first, otherwise the language-matching voice
+  whose name is a known female voice in Google, Windows, Edge or Apple catalogs, preferring
+  Edge's "(Natural)" voices. Names are matched as whole words, and a known male voice is chosen
+  only when it is the language's sole voice. This closes the gap where an uncurated language
+  (Arabic) could fall back to a male voice.

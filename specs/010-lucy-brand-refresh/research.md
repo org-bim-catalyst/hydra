@@ -83,6 +83,12 @@ legible against `background.default` for that mode.
    (`voice.localService`) preferred as a tiebreaker (lower network-failure risk); otherwise the
    first language-matching voice, never an unrelated-language voice.
 
+   *Revised 2026-09-24:* the token lists now cover the female and male voice names Google,
+   Windows SAPI, Edge's online "(Natural)" voices and macOS/iOS ship for en/ar/es/fr/de, and are
+   matched against whole words of the name (so `aria` can't match inside `Bulgaria`). Scoring:
+   female +10, known male −10, "Natural" +2, local +1. A known male voice therefore wins only
+   when it is the language's sole voice; speaking in it is still preferred over not speaking.
+
 Browser engine is detected via `navigator.userAgentData?.brands` where available, falling back
 to a `navigator.userAgent` substring check (Chromium vs Firefox vs WebKit/Safari) — read once
 per session, not per utterance.

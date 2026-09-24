@@ -98,6 +98,9 @@ src/AskLucy.Web/ClientApp/src/features/admin/
 `features/admin` areas from specs 005/007/008 — no new project, page, route, dialog, or
 controller. `GetProviderModelSyncDiffQuery` (the diff computation) is untouched.
 
+**Follow-up (2026-09-24)**: the filter box and selected count sit between the dialog title
+and its scrolling content, so they stay visible while the added/removed lists scroll.
+
 ## Complexity Tracking
 
 No Constitution Check violations — this section is not needed.

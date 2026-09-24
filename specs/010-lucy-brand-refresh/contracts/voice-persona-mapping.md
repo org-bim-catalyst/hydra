@@ -43,7 +43,8 @@ export interface SelectedVoiceResult {
     it with `source: 'curated'`.
   - Else, if at least one voice in `voices` has `lang` matching the target language (prefix
     match, e.g. `'en'` matches `'en-US'`), return the highest-scoring one per the heuristic
-    (research.md §3) with `source: 'heuristic'`.
+    (research.md §3) with `source: 'heuristic'`. Known female names outrank names that
+    don't reveal a gender, which outrank known male names; names are compared as whole words.
   - Else return `{ voice: null, source: 'none' }` — MUST NOT return an unrelated-language
     voice as a last resort (constitution §2.VIII / spec FR-004: never an arbitrary fallback).
 - **MUST be a pure function** — no calls to `speechSynthesis` itself, no I/O — so it is

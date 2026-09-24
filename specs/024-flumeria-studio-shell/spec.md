@@ -176,3 +176,13 @@ A user on a phone or tablet gets a workspace that still fills the screen and sti
 - "Analysis tools," "layers," "navigation," and "selection" are established here purely as reachable, clearly-labeled placeholder entry points; the real data and logic behind each is delivered by later, separate features.
 - Visual styling direction (spacing, color, iconography) draws on the previously supplied reference design and floating-button interaction examples, refined to fit the existing design system rather than copied pixel-for-pixel.
 - The existing account menu (Profile, Settings, cross-app navigation, Log out) and theme toggle — today reachable only via `MinimalTopBar` on this page — are preserved by relocating them behind a new circular control, not dropped; this feature does not change what's reachable, only how it's reached.
+
+## Follow-up changes (2026-09-24)
+
+- The top-left "Flumeria Studio" card is split in two: a circular **Home** button that opens the
+  public landing page, and the title in its own rounded rectangle (weather-widget styling) that
+  is not a link. Home passes `VIEW_LANDING_STATE` (`routes/viewLandingState.ts`) so
+  `PublicOnlyRoute` shows a signed-in user the landing page instead of sending them back to
+  `/studio`.
+- Public pages opened from the landing page (Terms, Privacy) return to it from their home link;
+  opened from the Studio, they return to the Studio (specs/070).

@@ -46,7 +46,7 @@ interface CustomModelSummary {
   failureKind: string | null; failureReason: string | null
   submittedBy: { id: string; displayName: string }
   createdAtUtc: string; startedAtUtc: string | null; finishedAtUtc: string | null
-  backsEngine: string | null           // e.g. "Supertonic" when repositoryId matches a hosted engine
+  backsEngine: string | null           // e.g. "Supertonic" when repositoryId matches a hosted engine; not shown in the UI since 2026-09-24
 }
 
 interface CustomModelDetail extends CustomModelSummary {
