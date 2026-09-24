@@ -63,13 +63,14 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 - [ ] T017 Make `TurnRecorder.RecordAsync` reachable from the mid-stream failure path and extend it to record answered-in-words turns, in `src/AskLucy.Application/Conversations/Runtime/TurnRecorder.cs` and `ConversationTurnOrchestrator.cs:248` (FR-004e) — keep its existing swallow-and-log behaviour intact (FR-004f)
 - [ ] T018 [P] Unit-test that a mid-stream failure still produces a persisted outcome and an audit record, in `tests/AskLucy.Application.Tests/Conversations/Runtime/ConversationTurnOrchestratorTests.cs`
 - [ ] T019 [P] Unit-test that an audit-trail write failure does not fail or delay the turn (FR-004f), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnRecorderTests.cs` — note `Received().Log(...)` never matches `[LoggerMessage]` source-gen logging; assert on behaviour, not the logger
+- [ ] T020 [P] Assert the audit trail is never *read* as the outcome source (FR-004b's exclusivity): grep-level or architecture test that reply composition, the claim gate and retry resolution all read `Message.TurnOutcomeJson` and none reference `AgentExecution`, in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeAuthorityTests.cs`
 
 ### Transport
 
-- [ ] T020 Emit the `__TURN_OUTCOME__` sentinel event before `[DONE]` on every path in `src/AskLucy.Web/Controllers/v1/AiController.cs`, using the payload in contracts/turn-outcome.md §1 — **omit `argumentsJson`**
-- [ ] T021 Return `turnOutcome` on assistant messages from the transcript endpoint using the same payload shape, so the client parses one shape (SC-001c)
-- [ ] T022 [P] Add the `__TURN_OUTCOME__` sentinel and a `turnOutcome` field on `ChatMessage` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts`
-- [ ] T023 [P] Integration-test that every turn type emits exactly one `__TURN_OUTCOME__` and that `argumentsJson` never appears in the stream, in `tests/AskLucy.Web.Tests/`
+- [ ] T021 Emit the `__TURN_OUTCOME__` sentinel event before `[DONE]` on every path in `src/AskLucy.Web/Controllers/v1/AiController.cs`, using the payload in contracts/turn-outcome.md §1 — **omit `argumentsJson`**
+- [ ] T022 Return `turnOutcome` on assistant messages from the transcript endpoint using the same payload shape, so the client parses one shape (SC-001c)
+- [ ] T023 [P] Add the `__TURN_OUTCOME__` sentinel and a `turnOutcome` field on `ChatMessage` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts`
+- [ ] T024 [P] Integration-test that every turn type emits exactly one `__TURN_OUTCOME__` and that `argumentsJson` never appears in the stream, in `tests/AskLucy.Web.Tests/`
 
 **Checkpoint**: Every turn now leaves a retrievable, message-attached outcome. US1 and US2 can begin.
 
@@ -83,25 +84,26 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Tests first
 
-- [ ] T024 [P] [US1] Unit-test the claim gate's behaviour table from contracts/turn-outcome.md §3 in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeClaimGateTests.cs`: claim-free sentence released immediately; claim + matching success released **byte-identical**; claim + recorded failure withheld and replaced; claim + no matching attempt withheld; claim + unavailable outcome withheld (FR-002c)
-- [ ] T025 [P] [US1] Unit-test that a replacement is never empty, blank or a truncated sentence (FR-002b), in the same file
-- [ ] T026 [P] [US1] Unit-test that buffering never exceeds one sentence for claim-free text (SC-001b), in the same file
+- [ ] T025 [P] [US1] Unit-test the claim gate's behaviour table from contracts/turn-outcome.md §3 in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeClaimGateTests.cs`: claim-free sentence released immediately; claim + matching success released **byte-identical**; claim + recorded failure withheld and replaced; claim + no matching attempt withheld; claim + unavailable outcome withheld (FR-002c)
+- [ ] T026 [P] [US1] Unit-test that a replacement is never empty, blank or a truncated sentence (FR-002b), in the same file
+- [ ] T027 [P] [US1] Unit-test that buffering never exceeds one sentence for claim-free text (SC-001b), in the same file
 
 ### Implementation
 
-- [ ] T027 [US1] Implement sentence-boundary segmentation in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs`, matching the granularity `src/AskLucy.Application/Ai/TextToSpeechStreamer.cs` already uses
-- [ ] T028 [US1] Generate action-claim patterns from the capability catalog's closed vocabulary rather than hand-writing them, in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs` — hand-written patterns are the feature's main residual risk
-- [ ] T029 [US1] Implement match-against-outcome and withhold-and-replace, composing the replacement from the recorded `FailureReason` (FR-002a, FR-002b)
-- [ ] T030 [US1] Implement the FR-002c fallback: with no retrievable outcome, suppress action-claim sentences rather than release them unverified
-- [ ] T031 [US1] Wire the gate into the single content-delta write site at `src/AskLucy.Web/Controllers/v1/AiController.cs:184`, leaving the other sentinel writes untouched
-- [ ] T032 [US1] Ensure the persisted assistant content is the **gated** text, not the raw stream, so a reload cannot resurrect a withheld claim
-- [ ] T033 [US1] Add the recent-outcome summary to the fast path's system framing in `src/AskLucy.Application/Ai/ReplyScopePromptFraming.cs`, stating which recent actions did not succeed (Layer 1 — removes the model's motive to fabricate)
-- [ ] T034 [US1] Report partial success per attempt rather than as one verdict (FR-006) wherever the outcome is rendered into prose
+- [ ] T028 [US1] Implement sentence-boundary segmentation in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs`, matching the granularity `src/AskLucy.Application/Ai/TextToSpeechStreamer.cs` already uses
+- [ ] T029 [US1] Generate action-claim patterns from the closed vocabulary in `src/AskLucy.Application/Conversations/Capabilities/ConversationCapabilityCatalog.cs` (13 capability types) rather than hand-writing them, in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs` — hand-written patterns are the feature's main residual risk
+- [ ] T030 [US1] Implement match-against-outcome and withhold-and-replace, composing the replacement from the recorded `FailureReason` (FR-002a, FR-002b)
+- [ ] T031 [US1] Implement the FR-002c fallback: with no retrievable outcome, suppress action-claim sentences rather than release them unverified
+- [ ] T032 [US1] Wire the gate into the single content-delta write site at `src/AskLucy.Web/Controllers/v1/AiController.cs:184`, leaving the other sentinel writes untouched
+- [ ] T033 [US1] Ensure the persisted assistant content is the **gated** text, not the raw stream, so a reload cannot resurrect a withheld claim
+- [ ] T034 [US1] Add the recent-outcome summary to the fast path's system framing in `src/AskLucy.Application/Ai/ReplyScopePromptFraming.cs`, stating which recent actions did not succeed (Layer 1 — removes the model's motive to fabricate)
+- [ ] T035 [US1] Mark the failure-notice message as a failure in the history passed to the composer (FR-007) in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs` `RunFastPathAsync` — annotate or reframe any message whose `TurnOutcomeJson` is `FailedBeforeCompleting` so it cannot read as Lucy's substantive answer. Without this the notice prose still arrives looking like a normal reply, which is step 8 of the causal chain in research.md
+- [ ] T036 [US1] Report partial success per attempt rather than as one verdict (FR-006) wherever the outcome is rendered into prose
 
 ### Verification
 
-- [ ] T035 [P] [US1] Integration-test the full reproduction: fail the router's provider, restore it, send "try again", assert no success claim appears — `tests/AskLucy.Web.Tests/`
-- [ ] T036 [P] [US1] Integration-test that a genuinely successful confirmation passes through unchanged (false-positive guard, the spec's "verification disagrees with a correct reply" edge case)
+- [ ] T037 [P] [US1] Integration-test the full reproduction: fail the router's provider, restore it, send "try again", assert no success claim appears — `tests/AskLucy.Web.Tests/`
+- [ ] T038 [P] [US1] Integration-test that a genuinely successful confirmation passes through unchanged (false-positive guard, the spec's "verification disagrees with a correct reply" edge case)
 
 **Checkpoint**: The reported harm is stopped. US1 is independently shippable without US2 or US3.
 
@@ -115,33 +117,34 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Routing summary
 
-- [ ] T037 [P] [US2] Unit-test `RecentTurnOutcomeSummary`: capped at 3 turns, constant size as the conversation grows, projected from outcomes not prose, empty when there are no outcomes (FR-009a–c, SC-009) — `tests/AskLucy.Application.Tests/Conversations/Runtime/RecentTurnOutcomeSummaryTests.cs`
-- [ ] T038 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RecentTurnOutcomeSummary.cs` per data-model.md §3
-- [ ] T039 [US2] Accept the summary as a third input in `src/AskLucy.Application/Conversations/Runtime/TurnDecider.cs` and render it in `TurnDecisionPrompt.Build(...)` using the format in contracts/turn-outcome.md §4
-- [ ] T040 [US2] Assert the prompt is byte-identical to today's when the summary is empty (FR-009c), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDeciderTests.cs`
+- [ ] T039 [P] [US2] Unit-test `RecentTurnOutcomeSummary`: capped at 3 turns, constant size as the conversation grows, projected from outcomes not prose, empty when there are no outcomes (FR-009a–c, SC-009) — `tests/AskLucy.Application.Tests/Conversations/Runtime/RecentTurnOutcomeSummaryTests.cs`
+- [ ] T040 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RecentTurnOutcomeSummary.cs` per data-model.md §3
+- [ ] T041 [US2] Accept the summary as a third input in `src/AskLucy.Application/Conversations/Runtime/TurnDecider.cs` and render it in `TurnDecisionPrompt.Build(...)` using the format in contracts/turn-outcome.md §4
+- [ ] T042 [US2] Assert the prompt is byte-identical to today's when the summary is empty (FR-009c), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDeciderTests.cs`
+- [ ] T043 [US2] Fix the supported retry-phrasing set as a named test fixture and assert routing accuracy against it (SC-003, SC-010 both specify >=95% but neither is measurable today), in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryPhrasingRoutingTests.cs` — cover at minimum "try again", "retry that", "do it again", "can you try once more", plus a negative case that must ask rather than guess
 
 ### Retry resolution
 
-- [ ] T041 [P] [US2] Unit-test `RetryTargetResolver` resolution rules from data-model.md §4 in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryTargetResolverTests.cs`: no outcome → unknown (400); no failed attempt → unknown (400); already succeeded → refusal (FR-015); target no longer resolves → stale (409)
-- [ ] T042 [P] [US2] Security-test that a `failedMessageId` from another user's chat resolves as **not found**, never as a permission error confirming it exists
-- [ ] T043 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RetryTargetResolver.cs` mirroring `SelectedActionResolver`, reusing `ConversationActionUnknownException` / `ConversationActionStaleException` / `ConversationActionUnavailableException`
-- [ ] T044 [US2] Add `RetryRequest(Guid FailedMessageId)` and the optional `Retry` member to `ChatRequest` in `src/AskLucy.Web/Contracts/AiContracts.cs`
-- [ ] T045 [US2] Reject a request carrying both `SelectedAction` and `Retry` as a 400, in `src/AskLucy.Web/Controllers/v1/AiController.cs`
-- [ ] T046 [US2] Dispatch a resolved retry straight into the act path, bypassing `TurnDecider`, in `src/AskLucy.Web/Controllers/v1/AiController.cs` — read every parameter server-side from the persisted outcome, never from the request (FR-010)
+- [ ] T044 [P] [US2] Unit-test `RetryTargetResolver` resolution rules from data-model.md §4 in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryTargetResolverTests.cs`: no outcome → unknown (400); no failed attempt → unknown (400); already succeeded → refusal (FR-015); target no longer resolves → stale (409)
+- [ ] T045 [P] [US2] Security-test that a `failedMessageId` from another user's chat resolves as **not found**, never as a permission error confirming it exists
+- [ ] T046 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RetryTargetResolver.cs` mirroring `SelectedActionResolver`, reusing `ConversationActionUnknownException` / `ConversationActionStaleException` / `ConversationActionUnavailableException`
+- [ ] T047 [US2] Add `RetryRequest(Guid FailedMessageId)` and the optional `Retry` member to `ChatRequest` in `src/AskLucy.Web/Contracts/AiContracts.cs`
+- [ ] T048 [US2] Reject a request carrying both `SelectedAction` and `Retry` as a 400, in `src/AskLucy.Web/Controllers/v1/AiController.cs`
+- [ ] T049 [US2] Dispatch a resolved retry straight into the act path, bypassing `TurnDecider`, in `src/AskLucy.Web/Controllers/v1/AiController.cs` — read every parameter server-side from the persisted outcome, never from the request (FR-010)
 
 ### Transcript behaviour
 
-- [ ] T047 [US2] Append a new assistant turn with its own outcome and leave the failed turn intact (FR-013a); ensure **no** user message is inserted, diverging deliberately from selected-action dispatch (FR-013b)
-- [ ] T048 [US2] Make the retry's outcome statement distinguishable from the original attempt's (FR-011, SC-005) — not a verbatim repeat of the first failure notice
-- [ ] T049 [US2] Ask which action to retry when a typed retry is ambiguous, and name the action retried when defaulting to the most recent failure (FR-012)
-- [ ] T050 [P] [US2] Integration-test the transcript shape after a retry: two assistant turns, both with retrievable outcomes after a reload, no synthetic user message (SC-012) — `tests/AskLucy.Web.Tests/`
+- [ ] T050 [US2] Append a new assistant turn with its own outcome and leave the failed turn intact (FR-013a); ensure **no** user message is inserted, diverging deliberately from selected-action dispatch (FR-013b)
+- [ ] T051 [US2] Make the retry's outcome statement distinguishable from the original attempt's (FR-011, SC-005) — not a verbatim repeat of the first failure notice
+- [ ] T052 [US2] Ask which action to retry when a typed retry is ambiguous, and name the action retried when defaulting to the most recent failure (FR-012)
+- [ ] T053 [P] [US2] Integration-test the transcript shape after a retry: two assistant turns, both with retrievable outcomes after a reload, no synthetic user message (SC-012) — `tests/AskLucy.Web.Tests/`
 
 ### Client affordance
 
-- [ ] T051 [US2] Add a retry control to the existing specs/046 action row in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, shown only when `turnOutcome` has a failed attempt
-- [ ] T052 [US2] Send `retry: { failedMessageId }` from `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts` — message id only, never capability or arguments
-- [ ] T053 [US2] Give the activation handler an explicit awaited error path surfacing failures as visible UI feedback, never a console log (FR-014, and the project's error-handling rules)
-- [ ] T054 [P] [US2] Component-test the retry affordance's visibility rules, busy state and error surfacing in `MessageBubble.test.tsx`; register the endpoint in the MSW handlers so an unmocked request cannot reach the real network
+- [ ] T054 [US2] Add a retry control to the existing specs/046 action row in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, shown only when `turnOutcome` has a failed attempt
+- [ ] T055 [US2] Send `retry: { failedMessageId }` from `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts` — message id only, never capability or arguments
+- [ ] T056 [US2] Give the activation handler an explicit awaited error path surfacing failures as visible UI feedback, never a console log (FR-014, and the project's error-handling rules)
+- [ ] T057 [P] [US2] Component-test the retry affordance's visibility rules, busy state and error surfacing in `MessageBubble.test.tsx`; register the endpoint in the MSW handlers so an unmocked request cannot reach the real network
 
 **Checkpoint**: Recovery from a failed action works by control and by typed language.
 
@@ -157,28 +160,28 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Width
 
-- [ ] T055 [US3] Make the bubble's `maxWidth` conditional on offer presence in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx:97` — full usable panel width when the message carries an offer, unchanged 75% otherwise (FR-016, FR-017)
-- [ ] T056 [US3] Remove the card's own `maxWidth: '75%'` in `src/AskLucy.Web/ClientApp/src/features/chat/components/SuggestedActionCard.tsx:93` (FR-016a) — both caps must go, since 75% of 75% ≈ 56% is the reported symptom
-- [ ] T057 [P] [US3] Keep reply prose readable at full width in an offer-carrying bubble (FR-017a, the accepted trade-off)
+- [ ] T058 [US3] Make the bubble's `maxWidth` conditional on offer presence in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx:97` — full usable panel width when the message carries an offer, unchanged 75% otherwise (FR-016, FR-017)
+- [ ] T059 [US3] Remove the card's own `maxWidth: '75%'` in `src/AskLucy.Web/ClientApp/src/features/chat/components/SuggestedActionCard.tsx:93` (FR-016a) — both caps must go, since 75% of 75% ≈ 56% is the reported symptom
+- [ ] T060 [P] [US3] Keep reply prose readable at full width in an offer-carrying bubble (FR-017a, the accepted trade-off)
 
 ### Internal layout
 
-- [ ] T058 [US3] Put each option's control, label and description on a shared horizontal band in `SuggestedActionCard.tsx` (FR-018)
-- [ ] T059 [US3] Keep the confirm action fully visible with its label unwrapped at every supported width (FR-019)
-- [ ] T060 [US3] Degrade to a stacked layout at the narrowest supported panel width, with no clipping or horizontal scrolling (FR-021, SC-007); wrap an over-long single label **within** the card
-- [ ] T061 [US3] Apply the same width behaviour to answered and historical cards without making them interactive (FR-020)
+- [ ] T061 [US3] Put each option's control, label and description on a shared horizontal band in `SuggestedActionCard.tsx` (FR-018)
+- [ ] T062 [US3] Keep the confirm action fully visible with its label unwrapped at every supported width (FR-019)
+- [ ] T063 [US3] Degrade to a stacked layout at the narrowest supported panel width -- `min(92vw, 380px)` per `ExpandedChatPanel.tsx:77`, i.e. ~294px on a 320px viewport -- with no clipping or horizontal scrolling (FR-021, SC-007); wrap an over-long single label **within** the card
+- [ ] T064 [US3] Apply the same width behaviour to answered and historical cards without making them interactive (FR-020)
 
 ### Voice scope
 
-- [ ] T062 [US3] Replace the question-plus-every-label enumeration at `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx:435-465` with a short localized cue (FR-023, FR-024), appended to the reply being spoken rather than interrupting it
-- [ ] T063 [US3] Add the cue string to the localization resources for every supported language — the young-adult female voice persona is unaffected, this governs only what is spoken
+- [ ] T065 [US3] Replace the question-plus-every-label enumeration at `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx:435-465` with a short localized cue (FR-023, FR-024), appended to the reply being spoken rather than interrupting it
+- [ ] T066 [US3] Add the cue string to the localization resources for every supported language — the young-adult female voice persona is unaffected, this governs only what is spoken
 
 ### Verification
 
-- [ ] T064 [P] [US3] Component-test width behaviour in `SuggestedActionCard.test.tsx`: full width with an offer, ordinary width without, both in one transcript (SC-006a); assert via `getByText` inside the card, since `getByRole` crashes jsdom once a dialog portal is open
-- [ ] T065 [P] [US3] Component-test that voice receives the reply plus the cue and **not** the question, labels, descriptions or confirm action (SC-011), in `ChatPage.test.tsx`
-- [ ] T066 [P] [US3] Accessibility-test the card at both rendered widths with no regression against the baseline from T002 (FR-022, SC-008)
-- [ ] T067 [US3] Screenshot-verify the quickstart §US3 steps at the default docked width, counting words per line on option labels and the Choose button against the 4-word threshold (SC-006)
+- [ ] T067 [P] [US3] Component-test width behaviour in `SuggestedActionCard.test.tsx`: full width with an offer, ordinary width without, both in one transcript (SC-006a); assert via `getByText` inside the card, since `getByRole` crashes jsdom once a dialog portal is open
+- [ ] T068 [P] [US3] Component-test that voice receives the reply plus the cue and **not** the question, labels, descriptions or confirm action (SC-011), in `ChatPage.test.tsx`
+- [ ] T069 [P] [US3] Accessibility-test the card at both rendered widths with no regression against the baseline from T002 (FR-022, SC-008)
+- [ ] T070 [US3] Screenshot-verify the quickstart §US3 steps at the default docked width (400px, the `sm` value in `ExpandedChatPanel.tsx:77`), counting words per line on option labels and the Choose button against the 4-word threshold (SC-006)
 
 **Checkpoint**: All three stories complete.
 
@@ -186,13 +189,13 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T068 [P] Run the **full** frontend suite, not just touched files — `ChatPage.test.tsx` carries its own assertions about components it renders; re-run any failure in isolation before attributing it to this feature
-- [ ] T069 [P] Run `dotnet format` and verify CI line-ending rules before pushing
-- [ ] T070 [P] Confirm `npx tsc -b --noEmit` still passes
-- [ ] T071 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
-- [ ] T072 Add migration notes for `AddMessageTurnOutcome` (additive, nullable, no backfill)
-- [ ] T073 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build`
-- [ ] T074 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim
+- [ ] T071 [P] Run the **full** frontend suite, not just touched files — `ChatPage.test.tsx` carries its own assertions about components it renders; re-run any failure in isolation before attributing it to this feature
+- [ ] T072 [P] Run `dotnet format` and verify CI line-ending rules before pushing
+- [ ] T073 [P] Confirm `npx tsc -b --noEmit` still passes
+- [ ] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
+- [ ] T075 Add migration notes for `AddMessageTurnOutcome` (additive, nullable, no backfill)
+- [ ] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build`
+- [ ] T077 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim
 
 ---
 
@@ -220,7 +223,7 @@ Phase 6 (Polish) <────────────────────�
 - **US2** requires Phase 2 and benefits from US1 but does not strictly require it — the routing summary and retry resolver stand alone. Sequenced after US1 because US1 stops the reported harm.
 - **US3** requires nothing from the others.
 
-**Within Phase 2**: T004–T006 → T007; T008 → T009 → T010; T011 → T013–T015; T013/T014 → T020.
+**Within Phase 2**: T004–T006 → T007; T008 → T009 → T010; T011 → T013–T015; T013/T014 → T021.
 
 **Blocking detail**: T014 (outcome on the mid-stream failure path) is the single most important task in the feature — it is the exact gap that produced the production defect.
 
@@ -235,19 +238,19 @@ T004 (TurnVerdict.cs)  ║  T005 (ActionAttempt.cs)
 **Phase 3 tests** — all in one new test file but independent cases; write together:
 
 ```
-T024  ║  T025  ║  T026
+T025  ║  T026  ║  T027
 ```
 
 **Phase 4** — routing and retry are separate subsystems:
 
 ```
-T037 (summary tests)   ║  T041 (resolver tests)  ║  T042 (security test)
+T039 (summary tests)   ║  T044 (resolver tests)  ║  T045 (security test)
 ```
 
 **Phase 5** — all three verification tasks touch different test files:
 
 ```
-T064 (card width)  ║  T065 (voice scope)  ║  T066 (a11y)
+T067 (card width)  ║  T068 (voice scope)  ║  T069 (a11y)
 ```
 
 **Cross-story** — once Phase 1 is done, a second developer can take Phase 5 end-to-end in parallel with Phases 2–4.
