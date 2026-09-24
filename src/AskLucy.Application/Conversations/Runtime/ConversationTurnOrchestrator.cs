@@ -29,6 +29,10 @@ internal static partial class ConversationTurnOrchestratorLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Decided slice named capability {CapabilityKey} for chat {UserChatId}, but it was not found in the catalog at dispatch time")]
     public static partial void SliceCapabilityMissingAtDispatch(ILogger logger, string capabilityKey, Guid userChatId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "The recorded turn outcome on message {MessageId} could not be read; that turn is left out of the routing summary, which suppresses claims about it")]
+    public static partial void UnreadableRecordedOutcome(ILogger logger, Guid messageId, Exception exception);
 }
 
 /// <summary>
@@ -53,6 +57,7 @@ internal static partial class ConversationTurnOrchestratorLog
 /// </summary>
 public sealed class ConversationTurnOrchestrator(
     IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository,
+    IMessageRepository messageRepository,
     IRagService ragService,
     IMemoryService memoryService,
     IUserChatRepository userChatRepository,
@@ -73,9 +78,18 @@ public sealed class ConversationTurnOrchestrator(
         ConversationTurnRequest request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        // specs/068 FR-007/FR-009 - the persisted history, read for its recorded outcomes rather
+        // than its prose. The client sends the transcript it is showing, which is exactly where the
+        // reported defect lived: a failure notice arrives in it looking like any other reply.
+        var persisted = await messageRepository.ListByChatIdAsync(request.ChatId, cancellationToken);
+        var recordedOutcomes = RecordedOutcomesFrom(persisted);
+
         var messages = request.Messages
-            .Select(m => new ChatMessage(ParseRole(m.Role), m.Content))
+            .Select(m => new ChatMessage(ParseRole(m.Role), AnnotateIfTurnFailed(m, recordedOutcomes)))
             .ToList();
+
+        // FR-009 - bounded, outcome-derived, and never read back off the prose above.
+        var recentOutcomes = RecentTurnOutcomeSummary.From(recordedOutcomes.Select(o => o.Outcome));
 
         var knowledgeBaseIds = (await conversationKnowledgeBaseRepository.GetByConversationAsync(request.ChatId, cancellationToken))
             .Select(l => l.KnowledgeBaseId)
@@ -176,7 +190,7 @@ public sealed class ConversationTurnOrchestrator(
             // TurnIntent.Suggest takes this same words-only mechanics as Answer (TurnDecision.
             // IsFastPath is true for both) — the distinction that matters for the offer step below
             // is the intent itself, not which mechanics ran (research.md D18).
-            await foreach (var chunk in RunFastPathAsync(request, messages, chat, knowledgeBaseIds, cancellationToken))
+            await foreach (var chunk in RunFastPathAsync(request, messages, chat, knowledgeBaseIds, recentOutcomes, cancellationToken))
             {
                 if (chunk.MemoryOutcome is not null)
                 {
@@ -592,6 +606,7 @@ public sealed class ConversationTurnOrchestrator(
         List<ChatMessage> messages,
         Domain.Chats.UserChat? chat,
         List<Guid> knowledgeBaseIds,
+        RecentTurnOutcomeSummary recentOutcomes,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         RagRetrievalOutcome? retrievalOutcome = null;
@@ -635,7 +650,7 @@ public sealed class ConversationTurnOrchestrator(
 
         // Inserted last and therefore first in the list: every preceding block also uses
         // Insert(0, ...), so adding this earlier would have left it buried under them.
-        messages.Insert(0, new ChatMessage(ChatRole.System, ReplyScopePromptFraming.BuildSystemMessage()));
+        messages.Insert(0, new ChatMessage(ChatRole.System, ReplyScopePromptFraming.BuildSystemMessage(recentOutcomes)));
 
         await foreach (var chunk in request.Provider.StreamChatAsync(messages, request.ModelKey, request.GenerationParameters, cancellationToken))
         {
@@ -685,6 +700,52 @@ public sealed class ConversationTurnOrchestrator(
         await foreach (var chunk in subAgentDelegator.RunAsync(request, decision.Slices, turnContext, sliceRecord, cancellationToken))
         {
             yield return chunk;
+        }
+    }
+
+    /// <summary>
+    /// specs/068 FR-007 — a turn that died partway through must not read back as Lucy's answer.
+    /// <para>
+    /// This is step 8 of the causal chain in research.md: the failure notice was persisted as
+    /// ordinary assistant prose, the next turn saw a perfectly normal-looking reply, and "try again"
+    /// produced "I've already shown you that." Matched on content because the client sends the
+    /// transcript without ids; the notice text is the application's own, so a match is exact.
+    /// </para>
+    /// </summary>
+    private static string AnnotateIfTurnFailed(
+        Ai.ChatMessageDto message,
+        IReadOnlyList<(string Content, RecordedTurnOutcome? Outcome)> recordedOutcomes)
+    {
+        if (!string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+        {
+            return message.Content;
+        }
+
+        var recorded = recordedOutcomes.FirstOrDefault(r => string.Equals(r.Content, message.Content, StringComparison.Ordinal));
+        return recorded.Outcome?.Verdict == TurnVerdict.FailedBeforeCompleting
+            ? $"[This turn did not complete — nothing was carried out. Reason: {recorded.Outcome.FailureReason}] {message.Content}"
+            : message.Content;
+    }
+
+    private IReadOnlyList<(string Content, RecordedTurnOutcome? Outcome)> RecordedOutcomesFrom(
+        IReadOnlyList<Domain.Chats.Message> persisted) =>
+        [.. persisted
+            .Where(m => m.Role == Domain.Chats.MessageRole.Assistant && m.TurnOutcomeJson is not null)
+            .OrderBy(m => m.CreatedAtUtc)
+            .Select(m => (m.Content, Outcome: DeserializeOutcome(m.TurnOutcomeJson!, m.Id)))];
+
+    private RecordedTurnOutcome? DeserializeOutcome(string turnOutcomeJson, Guid messageId)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<RecordedTurnOutcome>(turnOutcomeJson, RecordedTurnOutcomeJson.Options);
+        }
+        catch (JsonException ex)
+        {
+            // Constitution §2.VIII — conservative, but not silent. An unreadable outcome drops this
+            // turn out of the summary, which suppresses claims about it rather than trusting them.
+            ConversationTurnOrchestratorLog.UnreadableRecordedOutcome(logger, messageId, ex);
+            return null;
         }
     }
 

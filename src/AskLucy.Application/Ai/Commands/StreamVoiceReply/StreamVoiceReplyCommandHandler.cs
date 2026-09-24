@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using MediatR;
@@ -26,7 +25,7 @@ namespace AskLucy.Application.Ai.Commands.StreamVoiceReply;
 /// but never stops the underlying text stream — FR-033's fallback is a client-side concern
 /// once it sees `audio-failed`; the text reply itself always completes normally.
 /// </summary>
-public sealed partial class StreamVoiceReplyCommandHandler(
+public sealed class StreamVoiceReplyCommandHandler(
     ISender mediator,
     ITextToSpeechProvider textToSpeechProvider,
     IVoiceProviderHealthRecorder healthRecorder,
@@ -55,7 +54,7 @@ public sealed partial class StreamVoiceReplyCommandHandler(
                 yield return VoiceReplyEvent.TranscriptDeltaEvent(chunk.ContentDelta);
                 sentenceBuffer.Append(chunk.ContentDelta);
 
-                while (!ttsFailed && TryExtractSentence(sentenceBuffer, out var sentence))
+                while (!ttsFailed && SentenceSegmenter.TryExtractSentence(sentenceBuffer, out var sentence))
                 {
                     await foreach (var audioEvent in SynthesizeSentenceAsync(sentence, settings, sequenceCounter, userId, cancellationToken))
                     {
@@ -110,59 +109,4 @@ public sealed partial class StreamVoiceReplyCommandHandler(
 
     private Task<VoiceSettingsDto> ResolveVoiceSettingsAsync(string userId, string language, CancellationToken cancellationToken) =>
         TextToSpeechStreamer.ResolveVoiceSettingsAsync(textToSpeechProvider, voicePreferences, userId, language, cancellationToken);
-
-    /// <summary>Matches a sentence-ending punctuation mark followed by whitespace or the end
-    /// of the buffer — the simplest boundary that keeps TTS chunks natural-sounding without a
-    /// full NLP sentence splitter (constitution §III YAGNI).</summary>
-    /// <summary>
-    /// How much text may accumulate with no boundary in it before it is spoken anyway. Beyond
-    /// this the wait is worse than an imperfect break: nothing is heard at all until the run
-    /// finally ends.
-    /// </summary>
-    private const int MaxUnbrokenSentenceLength = 160;
-
-    private static bool TryExtractSentence(StringBuilder buffer, out string sentence)
-    {
-        var text = buffer.ToString();
-        var match = SentenceBoundary().Match(text);
-        if (match.Success)
-        {
-            var endIndex = match.Index + match.Length;
-            sentence = text[..endIndex].Trim();
-            buffer.Remove(0, endIndex);
-            return sentence.Length > 0 || TryExtractSentence(buffer, out sentence);
-        }
-
-        // No boundary yet. A run this long is not one sentence — it is a list item, a heading or
-        // a clause the model has not finished punctuating, and waiting for it is what made Lucy
-        // start speaking long after the text appeared. Break at the last word boundary instead.
-        if (text.Length >= MaxUnbrokenSentenceLength)
-        {
-            var breakAt = text.LastIndexOf(' ', MaxUnbrokenSentenceLength - 1);
-            if (breakAt <= 0)
-            {
-                breakAt = MaxUnbrokenSentenceLength;
-            }
-
-            sentence = text[..breakAt].Trim();
-            buffer.Remove(0, breakAt);
-            return sentence.Length > 0;
-        }
-
-        sentence = string.Empty;
-        return false;
-    }
-
-    /// <summary>
-    /// Terminal punctuation, or a line break.
-    /// <para>
-    /// The line break matters as much as the punctuation. Replies are markdown — headings and
-    /// bullet lists whose items routinely carry no full stop at all — so on `[.!?]` alone the
-    /// buffer ran through many lines before a single sentence could be synthesised, and the
-    /// first audio arrived long after the text had finished rendering. A line is a natural unit
-    /// of speech anyway.
-    /// </para>
-    /// </summary>
-    [GeneratedRegex(@"[.!?]+(\s|$)|\r?\n+")]
-    private static partial Regex SentenceBoundary();
 }

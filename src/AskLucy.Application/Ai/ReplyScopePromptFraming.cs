@@ -20,7 +20,24 @@ namespace AskLucy.Application.Ai;
 /// </summary>
 public static class ReplyScopePromptFraming
 {
-    public static string BuildSystemMessage() =>
+    /// <summary>
+    /// specs/068 FR-009 — the standing contract, optionally followed by what the last few turns
+    /// really did.
+    /// <para>
+    /// The recent-outcome block is Layer 1 of the honesty fix: it removes the model's <i>motive</i>
+    /// to fabricate, where the claim gate only catches fabrication after the fact. Omitted entirely
+    /// when there is nothing to report, so a conversation with no recorded outcomes gets a prompt
+    /// byte-identical to the one it got before this feature (FR-009c).
+    /// </para>
+    /// </summary>
+    public static string BuildSystemMessage(Conversations.Runtime.RecentTurnOutcomeSummary? recentOutcomes = null)
+    {
+        var contract = BuildReplyContract();
+        var outcomes = recentOutcomes?.ToPromptText() ?? string.Empty;
+        return outcomes.Length == 0 ? contract : contract + "\n\n" + outcomes;
+    }
+
+    private static string BuildReplyContract() =>
         "Answer only what was asked, in as few words as it takes.\n\n" +
         "- When the user asks you to show, find, or navigate to a place, confirm that and stop. " +
         "Do not describe the place, list its facilities, opening hours, history or how to get " +

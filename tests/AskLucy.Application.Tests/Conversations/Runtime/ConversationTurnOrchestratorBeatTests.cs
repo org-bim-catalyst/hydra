@@ -85,7 +85,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         var turnRecorder = new TurnRecorder(_agentRepository, _agentExecutionRepository, _turnRecorderUnitOfWork, NullLogger<TurnRecorder>.Instance);
 
         return new ConversationTurnOrchestrator(
-            _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
+            _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }

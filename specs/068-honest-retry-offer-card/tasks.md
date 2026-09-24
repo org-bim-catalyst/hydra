@@ -84,26 +84,26 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Tests first
 
-- [ ] T025 [P] [US1] Unit-test the claim gate's behaviour table from contracts/turn-outcome.md §3 in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeClaimGateTests.cs`: claim-free sentence released immediately; claim + matching success released **byte-identical**; claim + recorded failure withheld and replaced; claim + no matching attempt withheld; claim + unavailable outcome withheld (FR-002c)
-- [ ] T026 [P] [US1] Unit-test that a replacement is never empty, blank or a truncated sentence (FR-002b), in the same file
-- [ ] T027 [P] [US1] Unit-test that buffering never exceeds one sentence for claim-free text (SC-001b), in the same file
+- [X] T025 [P] [US1] Unit-test the claim gate's behaviour table from contracts/turn-outcome.md §3 in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeClaimGateTests.cs`: claim-free sentence released immediately; claim + matching success released **byte-identical**; claim + recorded failure withheld and replaced; claim + no matching attempt withheld; claim + unavailable outcome withheld (FR-002c)
+- [X] T026 [P] [US1] Unit-test that a replacement is never empty, blank or a truncated sentence (FR-002b), in the same file
+- [X] T027 [P] [US1] Unit-test that buffering never exceeds one sentence for claim-free text (SC-001b), in the same file
 
 ### Implementation
 
-- [ ] T028 [US1] Implement sentence-boundary segmentation in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs`, matching the granularity `src/AskLucy.Application/Ai/TextToSpeechStreamer.cs` already uses
-- [ ] T029 [US1] Generate action-claim patterns from the closed vocabulary in `src/AskLucy.Application/Conversations/Capabilities/ConversationCapabilityCatalog.cs` (13 capability types) rather than hand-writing them, in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs` — hand-written patterns are the feature's main residual risk
-- [ ] T030 [US1] Implement match-against-outcome and withhold-and-replace, composing the replacement from the recorded `FailureReason` (FR-002a, FR-002b)
-- [ ] T031 [US1] Implement the FR-002c fallback: with no retrievable outcome, suppress action-claim sentences rather than release them unverified
-- [ ] T032 [US1] Wire the gate into the single content-delta write site at `src/AskLucy.Web/Controllers/v1/AiController.cs:184`, leaving the other sentinel writes untouched
-- [ ] T033 [US1] Ensure the persisted assistant content is the **gated** text, not the raw stream, so a reload cannot resurrect a withheld claim
-- [ ] T034 [US1] Add the recent-outcome summary to the fast path's system framing in `src/AskLucy.Application/Ai/ReplyScopePromptFraming.cs`, stating which recent actions did not succeed (Layer 1 — removes the model's motive to fabricate)
-- [ ] T035 [US1] Mark the failure-notice message as a failure in the history passed to the composer (FR-007) in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs` `RunFastPathAsync` — annotate or reframe any message whose `TurnOutcomeJson` is `FailedBeforeCompleting` so it cannot read as Lucy's substantive answer. Without this the notice prose still arrives looking like a normal reply, which is step 8 of the causal chain in research.md
-- [ ] T036 [US1] Report partial success per attempt rather than as one verdict (FR-006) wherever the outcome is rendered into prose
+- [X] T028 [US1] Implement sentence-boundary segmentation in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs`, matching the granularity `src/AskLucy.Application/Ai/TextToSpeechStreamer.cs` already uses
+- [X] T029 [US1] Generate action-claim patterns from the closed vocabulary in `src/AskLucy.Application/Conversations/Capabilities/ConversationCapabilityCatalog.cs` (13 capability types) rather than hand-writing them, in `src/AskLucy.Application/Conversations/Runtime/TurnOutcomeClaimGate.cs` — hand-written patterns are the feature's main residual risk
+- [X] T030 [US1] Implement match-against-outcome and withhold-and-replace, composing the replacement from the recorded `FailureReason` (FR-002a, FR-002b)
+- [X] T031 [US1] Implement the FR-002c fallback: with no retrievable outcome, suppress action-claim sentences rather than release them unverified
+- [X] T032 [US1] Wire the gate into the single content-delta write site at `src/AskLucy.Web/Controllers/v1/AiController.cs:184`, leaving the other sentinel writes untouched
+- [X] T033 [US1] Ensure the persisted assistant content is the **gated** text, not the raw stream, so a reload cannot resurrect a withheld claim
+- [X] T034 [US1] Add the recent-outcome summary to the fast path's system framing in `src/AskLucy.Application/Ai/ReplyScopePromptFraming.cs`, stating which recent actions did not succeed (Layer 1 — removes the model's motive to fabricate)
+- [X] T035 [US1] Mark the failure-notice message as a failure in the history passed to the composer (FR-007) in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs` `RunFastPathAsync` — annotate or reframe any message whose `TurnOutcomeJson` is `FailedBeforeCompleting` so it cannot read as Lucy's substantive answer. Without this the notice prose still arrives looking like a normal reply, which is step 8 of the causal chain in research.md
+- [X] T036 [US1] Report partial success per attempt rather than as one verdict (FR-006) wherever the outcome is rendered into prose
 
 ### Verification
 
-- [ ] T037 [P] [US1] Integration-test the full reproduction: fail the router's provider, restore it, send "try again", assert no success claim appears — `tests/AskLucy.Web.Tests/`
-- [ ] T038 [P] [US1] Integration-test that a genuinely successful confirmation passes through unchanged (false-positive guard, the spec's "verification disagrees with a correct reply" edge case)
+- [X] T037 [P] [US1] Integration-test the full reproduction: fail the router's provider, restore it, send "try again", assert no success claim appears — `tests/AskLucy.Web.Tests/`
+- [X] T038 [P] [US1] Integration-test that a genuinely successful confirmation passes through unchanged (false-positive guard, the spec's "verification disagrees with a correct reply" edge case)
 
 **Checkpoint**: The reported harm is stopped. US1 is independently shippable without US2 or US3.
 
@@ -117,7 +117,7 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Routing summary
 
-- [ ] T039 [P] [US2] Unit-test `RecentTurnOutcomeSummary`: capped at 3 turns, constant size as the conversation grows, projected from outcomes not prose, empty when there are no outcomes (FR-009a–c, SC-009) — `tests/AskLucy.Application.Tests/Conversations/Runtime/RecentTurnOutcomeSummaryTests.cs`
+- [X] T039 [P] [US2] Unit-test `RecentTurnOutcomeSummary`: capped at 3 turns, constant size as the conversation grows, projected from outcomes not prose, empty when there are no outcomes (FR-009a–c, SC-009) — `tests/AskLucy.Application.Tests/Conversations/Runtime/RecentTurnOutcomeSummaryTests.cs`
 - [ ] T040 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RecentTurnOutcomeSummary.cs` per data-model.md §3
 - [ ] T041 [US2] Accept the summary as a third input in `src/AskLucy.Application/Conversations/Runtime/TurnDecider.cs` and render it in `TurnDecisionPrompt.Build(...)` using the format in contracts/turn-outcome.md §4
 - [ ] T042 [US2] Assert the prompt is byte-identical to today's when the summary is empty (FR-009c), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDeciderTests.cs`

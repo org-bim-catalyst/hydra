@@ -297,7 +297,7 @@ public sealed class SelectedActionDispatchOrchestratorTests
             NullLogger<TurnRecorder>.Instance);
 
         return new ConversationTurnOrchestrator(
-            _knowledgeBases, _ragService, _memoryService, _userChatRepository, _currentUser,
+            _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }

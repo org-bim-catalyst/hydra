@@ -134,6 +134,7 @@ internal static class SendChatMessageHandlerFactory
 
         var orchestrator = new ConversationTurnOrchestrator(
             conversationKnowledgeBases,
+            Substitute.For<IMessageRepository>(),
             ragService,
             memoryService,
             userChatRepository,

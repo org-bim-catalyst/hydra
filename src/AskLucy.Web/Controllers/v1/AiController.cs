@@ -159,6 +159,12 @@ public sealed partial class AiController(
         // a record that does not exist, is worse than no event at all.
         var outcomePersistFailed = false;
 
+        // specs/068 FR-002 - the single place every content delta passes through on its way to the
+        // client. A sentence claiming an action was carried out waits here until turnOutcome above
+        // says it was; everything else streams exactly as before. Deterministic, so it keeps
+        // working while the provider is down - the condition that produced the reported defect.
+        var claimGate = new TurnOutcomeClaimGate();
+
         // specs/045-conversational-agent-runtime research.md D5 — a beat can now sit
         // "pending" for tens of seconds (site-boundary resolution). Without a keep-alive, an
         // idle SSE connection on the shared production host risks a proxy buffering or timing
@@ -181,6 +187,12 @@ public sealed partial class AiController(
                 // message purely to say what it is waiting for. Only the persist is conditional.
                 if (chunk.StartsNewMessage)
                 {
+                    // This message is about to be closed and persisted, so whatever the gate is
+                    // still holding belongs in it. With no outcome recorded yet that means an
+                    // unverifiable claim is corrected rather than released (FR-002c) - which is
+                    // right: a claim made before the turn has done anything is the defect's shape.
+                    await WriteGatedContentAsync(claimGate.Flush(), assistantContent, cancellationToken);
+
                     if (assistantContent.Length > 0)
                     {
                         firstAssistantMessageId ??= await PersistAssistantMessageAsync(
@@ -198,9 +210,10 @@ public sealed partial class AiController(
 
                 if (!string.IsNullOrEmpty(chunk.ContentDelta))
                 {
-                    assistantContent.Append(chunk.ContentDelta);
-                    await Response.WriteAsync($"data: {chunk.ContentDelta}\n\n", cancellationToken);
-                    await Response.Body.FlushAsync(cancellationToken);
+                    // FR-002/T033 - what is persisted is what was released, never the raw stream.
+                    // Persisting the raw text would let a reload resurrect a claim this turn
+                    // withheld, and a claim that survives one reload was never withheld at all.
+                    await WriteGatedContentAsync(claimGate.Accept(chunk.ContentDelta), assistantContent, cancellationToken);
                 }
 
                 if (chunk.Usage is not null)
@@ -262,8 +275,16 @@ public sealed partial class AiController(
                 if (chunk.TurnOutcome is not null)
                 {
                     turnOutcome = chunk.TurnOutcome;
+
+                    // The evidence the gate has been waiting for. Held sentences are verified and
+                    // released here, ahead of the trailing __TURN_OUTCOME__ event written below.
+                    await WriteGatedContentAsync(claimGate.OutcomeRecorded(turnOutcome), assistantContent, cancellationToken);
                 }
             }
+
+            // The stream ended. Anything still held has had its chance to be verified; a claim the
+            // turn never produced an outcome for is corrected here rather than released (FR-002c).
+            await WriteGatedContentAsync(claimGate.Flush(), assistantContent, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -295,12 +316,18 @@ public sealed partial class AiController(
             // wire, so the message persists complete while __TURN_OUTCOME__ still reaches the
             // client ahead of the notice it explains.
             const string failureNotice = " Something went wrong partway through and I couldn't finish. Please try again.";
-            assistantContent.Append(failureNotice);
 
             var failedOutcome = RecordedTurnOutcome.FailedBeforeCompleting(
                 DescribeTurnFailure(ex),
                 DateTimeOffset.UtcNow,
                 turnOutcome?.Attempts);
+
+            // FR-002 - whatever the claim gate was holding is now verifiable, and against the real
+            // reason this turn died rather than a generic one. This is the reported defect's exact
+            // shape: the reply had already started claiming success when the credential failed.
+            var gatedTail = claimGate.OutcomeRecorded(failedOutcome) + claimGate.Flush();
+            assistantContent.Append(gatedTail);
+            assistantContent.Append(failureNotice);
 
             var failureRecorded = true;
             try
@@ -332,6 +359,11 @@ public sealed partial class AiController(
             if (failureRecorded)
             {
                 await WriteTurnOutcomeEventAsync(failedOutcome, cancellationToken);
+            }
+
+            if (gatedTail.Length > 0)
+            {
+                await Response.WriteAsync($"data: {gatedTail}\n\n", cancellationToken);
             }
 
             await Response.WriteAsync($"data: {failureNotice}\n\n", cancellationToken);
@@ -556,6 +588,23 @@ public sealed partial class AiController(
     /// exception is already logged for diagnosis (constitution 2.VIII), which is what that
     /// principle asks for - the reason recorded here is the caller-facing half.
     /// </remarks>
+    /// <summary>
+    /// Writes text the claim gate has released, keeping the persisted copy and the wire copy the
+    /// same thing (specs/068 T033). Empty releases are the norm rather than the exception - a gate
+    /// mid-sentence returns one for every delta - and write nothing.
+    /// </summary>
+    private async Task WriteGatedContentAsync(string released, StringBuilder assistantContent, CancellationToken cancellationToken)
+    {
+        if (released.Length == 0)
+        {
+            return;
+        }
+
+        assistantContent.Append(released);
+        await Response.WriteAsync($"data: {released}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+    }
+
     private static string DescribeTurnFailure(Exception exception) => exception switch
     {
         TimeoutException => "It took too long to respond and timed out.",
