@@ -1,29 +1,18 @@
 import { RiHomeLine } from '@remixicon/react'
-import { Box, IconButton, Typography, alpha, darken, lighten } from '@mui/material'
-import type { Theme } from '@mui/material'
+import { Box, Fab, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
+import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
+import { VIEW_LANDING_STATE } from '../../../routes/viewLandingState'
 
-/**
- * The readdy.ai reference's top-left card: `rounded-full bg-background-100/60 backdrop-blur-md
- * border border-background-300/50`, positioned `absolute top-5 left-5`.
+/** The readdy.ai reference's top-left "Home › destination" pair. There is no "project" or
+ * "location" entity yet, so the title is the workspace's own name (FR-001's "Flumeria Studio").
  *
- * Those were previously frozen as the dark literals they resolved to, because the reference was
- * light-mode only at the time. Its ramps invert between modes, so the same three roles are
- * mapped onto the MUI palette here instead — otherwise this card stays dark while the theme
- * toggle changes everything around it.
- */
-const cardBg = (t: Theme) => alpha(t.palette.background.paper, 0.6)
-const cardBorder = (t: Theme) => `1px solid ${alpha(t.palette.divider, 0.5)}`
-const buttonBg = (t: Theme) => alpha(t.palette.background.paper, 0.8)
-const buttonHoverBg = (t: Theme) =>
-  t.palette.mode === 'dark' ? lighten(t.palette.background.paper, 0.08) : darken(t.palette.background.paper, 0.05)
-
-/** The readdy.ai reference's top-left "Home › destination" breadcrumb card — this
- * feature has no equivalent "project/location" entity yet, so it shows the workspace's
- * own name (matching FR-001's "Flumeria Studio" rename) instead of inventing one. Home
- * navigates to `/`, which — for an already-authenticated visitor — redirects straight
- * back into `/studio` (spec 023's `PublicOnlyRoute`), the same "always lands you back in
- * the workspace" behavior the reference's own Home affordance implies. */
+ * - **Home** is a circular button in the same chrome as the other floating controls
+ *   (`ThemeToggleButton`). It opens the landing page. Because `/` redirects a signed-in visitor
+ *   back to `/studio` (`PublicOnlyRoute`), it passes {@link VIEW_LANDING_STATE} to say the
+ *   visit is deliberate.
+ * - **The title** is plain text in a rounded rectangle styled like `LocationWeatherWidget`,
+ *   directly below. It is a label, not a link. */
 export function HomeProjectCard() {
   const navigate = useNavigate()
 
@@ -36,32 +25,46 @@ export function HomeProjectCard() {
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        pl: 0.75,
-        pr: 2,
-        py: 0.75,
-        borderRadius: `999px`,
-        bgcolor: cardBg,
-        border: cardBorder,
-        backdropFilter: 'blur(12px)',
         pointerEvents: 'auto',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
       }}
     >
-      <IconButton
-        aria-label="Home"
-        onClick={() => navigate('/')}
+      <Fab
         size="small"
+        aria-label="Home"
+        onClick={() => navigate('/', { state: VIEW_LANDING_STATE })}
         sx={{
-          color: 'text.primary',
-          bgcolor: buttonBg,
-          '&:hover': { bgcolor: buttonHoverBg },
+          width: 40,
+          height: 40,
+          minHeight: 40,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
+          bgcolor: CIRCULAR_ACTION_CHROME.collapsedBg,
+          color: CIRCULAR_ACTION_CHROME.icon,
+          border: CIRCULAR_ACTION_CHROME.border,
+          backdropFilter: 'blur(12px)',
+          '&:hover': { bgcolor: CIRCULAR_ACTION_CHROME.collapsedHoverBg, transform: 'scale(1.05)' },
+          transition: (t) => t.transitions.create(['transform', 'background-color']),
         }}
       >
         <RiHomeLine size={20} />
-      </IconButton>
-      <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
-        Flumeria Studio
-      </Typography>
+      </Fab>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          height: 40,
+          px: 2,
+          borderRadius: 2,
+          bgcolor: CIRCULAR_ACTION_CHROME.expandedBg,
+          border: CIRCULAR_ACTION_CHROME.border,
+          backdropFilter: 'blur(12px)',
+          color: CIRCULAR_ACTION_CHROME.icon,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
+        }}
+      >
+        <Typography variant="subtitle2" component="span" sx={{ fontWeight: 600 }}>
+          Flumeria Studio
+        </Typography>
+      </Box>
     </Box>
   )
 }

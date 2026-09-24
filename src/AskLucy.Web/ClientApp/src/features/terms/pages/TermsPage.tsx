@@ -62,7 +62,7 @@ export function TermsPage() {
     <AppShell title="Terms of Service">
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
         <Box sx={{ flex: 1 }}>
-          <Paper elevation={1} sx={{ maxWidth: 720, p: { xs: 3, sm: 4 } }}>
+          <Paper elevation={1} sx={{ p: { xs: 3, sm: 4 } }}>
             <Stack spacing={3}>
               <Typography variant="body2" color="text.secondary">
                 Effective {new Date(`${TERMS_EFFECTIVE_DATE}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC' })}

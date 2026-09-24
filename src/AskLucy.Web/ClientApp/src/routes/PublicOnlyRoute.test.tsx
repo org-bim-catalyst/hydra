@@ -5,6 +5,7 @@ import { setupServer } from 'msw/node'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { PublicOnlyRoute } from './PublicOnlyRoute'
+import { VIEW_LANDING_STATE } from './viewLandingState'
 
 const server = setupServer()
 
@@ -12,11 +13,11 @@ beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-function renderAt(path: string) {
+function renderAt(path: string, state?: unknown) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter initialEntries={[{ pathname: path, state }]}>
         <Routes>
           <Route
             path="/"
@@ -53,6 +54,19 @@ describe('PublicOnlyRoute (spec.md FR-015, contracts/routing-and-consent-contrac
 
     expect(await screen.findByText('Workspace')).toBeInTheDocument()
     expect(screen.queryByText('Landing content')).not.toBeInTheDocument()
+  })
+
+  it("shows the landing page to a signed-in visitor who asked for it from the Studio's Home button", async () => {
+    server.use(
+      http.get('*/api/v1/auth/session', () =>
+        HttpResponse.json({ authenticated: true, userId: 'user-1', roles: [] }),
+      ),
+    )
+
+    renderAt('/', VIEW_LANDING_STATE)
+
+    expect(await screen.findByText('Landing content')).toBeInTheDocument()
+    expect(screen.queryByText('Workspace')).not.toBeInTheDocument()
   })
 
   it('fails open toward the public page when the session check itself errors', async () => {
