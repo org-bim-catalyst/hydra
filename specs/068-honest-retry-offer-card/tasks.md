@@ -27,8 +27,8 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 **Purpose**: Make the suites runnable and capture a pre-change baseline, so a later failure is attributable.
 
-- [ ] T001 Set `PERSISTENCE_TESTS_CONNECTION_STRING` from `src/AskLucy.Web/appsettings.Development.json` (shared site4now test DB, not LocalDB — LocalDB cannot run the full-text migrations) and confirm `dotnet test tests/AskLucy.Web.Tests` reaches Hangfire startup
-- [ ] T002 [P] Record a baseline run of `cd src/AskLucy.Web/ClientApp && npm test` and note which `ChatPage.test.tsx` cases are already flaky under parallel load, so Phase 5 failures are attributable
+- [X] T001 Set `PERSISTENCE_TESTS_CONNECTION_STRING` from `src/AskLucy.Web/appsettings.Development.json` (shared site4now test DB, not LocalDB — LocalDB cannot run the full-text migrations) and confirm `dotnet test tests/AskLucy.Web.Tests` reaches Hangfire startup
+- [X] T002 [P] Record a baseline run of `cd src/AskLucy.Web/ClientApp && npm test` and note which `ChatPage.test.tsx` cases are already flaky under parallel load, so Phase 5 failures are attributable
 - [X] T003 [P] Confirm `cd src/AskLucy.Web/ClientApp && npx tsc -b --noEmit` passes (a bare `tsc --noEmit` silently checks nothing in this repo)
 
 ---
@@ -194,7 +194,7 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 - [X] T073 [P] Confirm `npx tsc -b --noEmit` still passes
 - [X] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
 - [X] T075 Add migration notes for `AddMessageRecordedTurnOutcome` (additive, nullable, no backfill)
-- [ ] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build`
+- [X] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build` — booted clean on `http://localhost:5199` (Application started, no `[FTL]`, no DI cycle, no required-options crash); `/health` 200, anonymous `POST /api/v1/ai/chat` 401, AI routes present in `/openapi/v1.json`. The UI walk-through itself is T070.
 - [ ] T077 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim
 
 ---
