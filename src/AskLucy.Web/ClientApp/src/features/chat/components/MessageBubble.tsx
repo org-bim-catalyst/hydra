@@ -90,6 +90,11 @@ export function MessageBubble({
   // half-failure is precisely the case the user has no other way to recover from. An undefined
   // outcome (a message predating specs/068) is never treated as a failure, so no control appears.
   const hasFailedAttempt = message.turnOutcome?.attempts.some((attempt) => !attempt.succeeded) ?? false
+  // specs/068 US3 FR-016/FR-017/FR-020 - an offer is a form, not a remark, and a form squeezed to
+  // 75% of a 400px panel is the reported symptom. The test is the presence of an offer on the
+  // message, not whether it is still answerable, so an answered or historical card keeps the same
+  // width it had when it was live (FR-020). Every other reply keeps the reply width it has today.
+  const carriesOffer = (message.suggestedActions?.length ?? 0) > 0
   const showRetryControl = !isUser && Boolean(message.id) && Boolean(onRetry) && hasFailedAttempt
 
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -141,7 +146,7 @@ export function MessageBubble({
       {/* specs/046-reply-action-bar FR-004/FR-005 — a column wrapper so the action row stacks
           below the bubble (not beside it in this flex row), while the outer Box above still
           controls left/right alignment of the whole bubble+row unit. */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', maxWidth: '75%' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', maxWidth: carriesOffer ? '100%' : '75%', width: carriesOffer ? '100%' : 'auto' }}>
         <Paper
           elevation={isUser ? 0 : 1}
           sx={{
@@ -177,7 +182,10 @@ export function MessageBubble({
             '& pre code': { bgcolor: 'transparent', p: 0 },
           }}
         >
-          <Typography component="div" variant="body1">
+          {/* FR-017a - the accepted trade-off: the reply text in an offer-carrying bubble goes
+            full width too. A measure cap keeps it readable there without narrowing the card
+            below it, which is the whole point of the wider bubble. */}
+          <Typography component="div" variant="body1" sx={carriesOffer ? { maxWidth: '68ch' } : undefined}>
             {message.imageDocumentId ? (
               <DocumentImage documentId={message.imageDocumentId} alt={message.content} />
             ) : (

@@ -72,7 +72,7 @@ export function SuggestedActionCard({ question, actions, isLive, onSelect, isSub
           {actions
             .filter((a) => !a.isDecline)
             .map((a, index) => (
-              <Typography key={index} component="li" variant="body2">
+              <Typography key={index} component="li" variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                 {a.label}
               </Typography>
             ))}
@@ -90,11 +90,14 @@ export function SuggestedActionCard({ question, actions, isLive, onSelect, isSub
     void onSelect(selected)
   }
 
+  // FR-016a - the card carries no width cap of its own: it fills the bubble, and MessageBubble
+  // decides how wide that bubble is. Two stacked 75% caps (bubble, then card) left the card at
+  // ~56% of the panel, which is the width the original report was about.
   return (
     <Paper
       variant="outlined"
       aria-busy={isSubmitting}
-      sx={{ mt: 1, p: 1.5, borderRadius: `${radius.md}px`, maxWidth: '75%' }}
+      sx={{ mt: 1, p: 1.5, borderRadius: `${radius.md}px` }}
     >
       <Chip label="Suggested" size="small" sx={{ mb: 1 }} />
       <Typography id={questionId} variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
@@ -110,19 +113,50 @@ export function SuggestedActionCard({ question, actions, isLive, onSelect, isSub
           {actions.map((action, index) => {
             const descriptionId = `${questionId}-desc-${index}`
             return (
-              <Box key={index}>
+              // FR-018/FR-021 - control, label and description share one horizontal band, and
+              // fall into a stacked layout on their own when the band runs out of room. The
+              // degradation is intrinsic (flex-wrap against the description's flex-basis) rather
+              // than keyed to a viewport breakpoint, because the chat panel's width has nothing
+              // to do with the viewport's: it is `min(92vw, 380px)` docked and far wider
+              // expanded, so a breakpoint would pick the wrong layout in both directions.
+              <Box
+                key={index}
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'baseline',
+                  columnGap: 1,
+                  rowGap: 0.25,
+                }}
+              >
                 <FormControlLabel
                   value={String(index)}
                   disabled={isSubmitting}
                   control={<Radio size="small" slotProps={{ input: { 'aria-describedby': descriptionId } }} />}
+                  sx={{ m: 0, minWidth: 0 }}
                   label={
-                    <Typography variant="body2" sx={{ fontStyle: action.isDecline ? 'italic' : 'normal' }}>
+                    <Typography
+                      variant="body2"
+                      // FR-021 - an over-long single label wraps inside the card; it never widens
+                      // it into a horizontal scroll.
+                      sx={{ fontStyle: action.isDecline ? 'italic' : 'normal', overflowWrap: 'anywhere' }}
+                    >
                       {action.label}
                     </Typography>
                   }
                 />
+                {/* Beside the control, not inside its label: everything inside
+                  FormControlLabel's `label` becomes part of the radio's accessible name, and a
+                  row announced as its label followed by its whole description is exactly the
+                  labelling FR-022 says must not change. `aria-describedby` on the input already
+                  reaches it (FR-025). */}
                 {action.description && (
-                  <Typography id={descriptionId} variant="caption" color="text.secondary" sx={{ display: 'block', pl: 4 }}>
+                  <Typography
+                    id={descriptionId}
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ flex: '1 1 14rem', minWidth: 0, overflowWrap: 'anywhere' }}
+                  >
                     {action.description}
                   </Typography>
                 )}
@@ -139,7 +173,15 @@ export function SuggestedActionCard({ question, actions, isLive, onSelect, isSub
       )}
 
       <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button size="small" variant="contained" disabled={!selected || isSubmitting} onClick={handleSubmit}>
+        {/* FR-019 - the confirm action stays whole at every panel width; its label never wraps
+          mid-word into a two-line button. */}
+        <Button
+          size="small"
+          variant="contained"
+          disabled={!selected || isSubmitting}
+          onClick={handleSubmit}
+          sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
           {isSubmitting ? 'Working…' : 'Choose'}
         </Button>
       </Box>

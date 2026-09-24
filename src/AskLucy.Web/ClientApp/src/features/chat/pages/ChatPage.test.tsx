@@ -12,6 +12,7 @@ import { useActiveConversationStore } from '../activeConversationStore'
 import { useChatPanelSizeStore } from '../chatPanelSizeStore'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { AI_VOICE_DISCLOSURE } from '../voice/aiVoiceDisclosure'
+import { OFFER_VOICE_CUES } from '../languageOptions'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { useComingSoonStore } from '../../../store/comingSoonStore'
@@ -1600,11 +1601,17 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
   })
 
   /**
-   * specs/045-conversational-agent-runtime T113 (FR-044) — the offer closing a turn is spoken
-   * too, but only its question and the offerable (non-decline) labels: never a row's
-   * description, capability key, or arguments, none of which a user should hear read aloud.
+   * specs/068 US3 T068 (FR-023/FR-024/SC-011) — voice speaks Lucy's reply and then a short cue
+   * that choices are waiting. It does not recite the card.
+   *
+   * This replaces the specs/045 T113 behaviour, which spoke the question followed by every
+   * offerable label. That was still a read-out of a form: by the time the last label is spoken
+   * the first is gone, and none of it can be acted on by ear anyway, since choosing means
+   * clicking a radio that is on screen the whole time. FR-025 keeps the card's full contents in
+   * the accessibility tree, which is where a screen-reader user reads them under their own
+   * control rather than at Lucy's pace.
    */
-  it('speaks the offer using only its question and offerable labels, never a description or arguments', async () => {
+  it('speaks the reply and a cue, never the offer question, labels, descriptions or arguments', async () => {
     const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
     speak.mockClear()
 
@@ -1653,15 +1660,25 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(await screen.findByText('Found Al Safa Park 2.')).toBeInTheDocument()
     await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
 
-    const [replySpeech, offerSpeech] = speak.mock.calls.map((call) => call[0])
+    const [replySpeech, cueSpeech] = speak.mock.calls.map((call) => call[0])
     expect(replySpeech).toContain('Found Al Safa Park 2.')
-    expect(offerSpeech).toContain('What would you like to do next?')
-    expect(offerSpeech).toContain('Focus and outline the site')
-    // The decline row is never read aloud — it is a rendered affordance, not a spoken option.
-    expect(offerSpeech).not.toContain('No thanks')
-    expect(offerSpeech).not.toContain('Find it, centre the map, and outline the site boundary.')
-    expect(offerSpeech).not.toContain('secretDetail')
-    expect(offerSpeech).not.toContain('never-spoken-argument-value')
+
+    // FR-024 — a listener still learns an offer is waiting.
+    expect(cueSpeech).toBe(OFFER_VOICE_CUES.en)
+
+    // FR-023 — and learns it in one short sentence, not by having the card read to them.
+    expect(cueSpeech).not.toContain('What would you like to do next?')
+    expect(cueSpeech).not.toContain('Focus and outline the site')
+    expect(cueSpeech).not.toContain('No thanks')
+    expect(cueSpeech).not.toContain('Find it, centre the map, and outline the site boundary.')
+    expect(cueSpeech).not.toContain('secretDetail')
+    expect(cueSpeech).not.toContain('never-spoken-argument-value')
+
+    // The card is still on screen, in full, for anyone reading rather than listening (FR-025).
+    expect(screen.getByText('Focus and outline the site')).toBeInTheDocument()
+    expect(
+      screen.getByText('Find it, centre the map, and outline the site boundary.'),
+    ).toBeInTheDocument()
   })
 
   /**
@@ -1716,9 +1733,13 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(await screen.findByText('Encontrado.')).toBeInTheDocument()
     await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
 
-    const [replyLanguage, offerLanguage] = speak.mock.calls.map((call) => call[1])
+    const [replyLanguage, cueLanguage] = speak.mock.calls.map((call) => call[1])
     expect(replyLanguage).toBe('es')
-    expect(offerLanguage).toBe('es')
+    expect(cueLanguage).toBe('es')
+
+    // specs/068 FR-024 — and the cue itself is in that language, not an English sentence handed
+    // to a Spanish voice. The persona is unchanged either way (CLAUDE.md, User Experience).
+    expect(speak.mock.calls[1][0]).toBe(OFFER_VOICE_CUES.es)
   })
 
   /**

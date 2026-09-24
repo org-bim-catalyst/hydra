@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useActiveConversationStore } from '../activeConversationStore'
 import { useChatPanelSizeStore } from '../chatPanelSizeStore'
+import { offerVoiceCue } from '../languageOptions'
 import { ChatAssistantWidget } from '../components/ChatAssistantWidget'
 import { CollapsedChatControl } from '../components/CollapsedChatControl'
 import { ExpandedChatPanel } from '../components/ExpandedChatPanel'
@@ -446,15 +447,23 @@ export function ConversationView({
       // specs/045-conversational-agent-runtime T113 (FR-044) — the offer rides on this same
       // last reply's own message object, never a bubble of its own, so it is spoken as a
       // continuation of that reply's own speech rather than a second, independently-triggered
-      // effect that could race it. Only the question and the offerable labels are ever spoken —
-      // never a description, capability key or argument, none of which a user should hear read
-      // aloud.
+      // effect that could race it.
+      //
+      // specs/068 US3 (FR-023/FR-024) — what follows the reply is a short cue, not the card.
+      // Reciting the question, then every label, then every description, then the confirm
+      // action turns a two-second reply into a long read-out of text the listener cannot act
+      // on by ear. The cue says an offer is waiting; the card itself stays on screen, and in
+      // the accessibility tree, for whoever needs its contents (FR-025).
       const isLastReply = index === replies.length - 1
       const speech = tts.speak(reply.content, language)
       if (isLastReply && reply.question && reply.suggestedActions) {
-        const labels = reply.suggestedActions.filter((a) => !a.isDecline).map((a) => a.label)
-        const spokenOffer = labels.length > 0 ? `${reply.question} ${labels.join(', ')}.` : reply.question
-        speech.then(() => tts.speak(spokenOffer, language))
+        const cue = offerVoiceCue(language)
+        speech
+          .then(() => tts.speak(cue, language))
+          // `speak` handles its own provider failures and falls back visibly, so there is
+          // nothing left here to show the user — but an uncaught rejection would still be a
+          // silent failure in the console's eyes (CLAUDE.md Error Handling).
+          .catch((err: unknown) => console.error('Voice output: the offer cue was not spoken.', err))
       }
 
       setPlayingMessageId(reply.id ?? null)

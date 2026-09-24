@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MessageBubble } from './MessageBubble'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { describe, expect, it, vi } from 'vitest'
 import type { SuggestedAction } from '../api/aiApi'
@@ -120,6 +121,50 @@ describe('SuggestedActionCard accessibility (specs/045-conversational-agent-runt
 
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(await axe(baseElement, axeOptions)).toHaveNoViolations()
+  })
+})
+
+/**
+ * specs/068 US3 T069 (FR-022/FR-025, SC-008) — the width change is presentational, and this is
+ * what holds it to that. Both renderings the feature produces are checked: the card inside the
+ * full-width bubble it now gets, and the card on its own.
+ */
+describe('SuggestedActionCard accessibility at its rendered widths (specs/068 US3)', () => {
+  const message = {
+    id: 'msg-offer',
+    role: 'assistant' as const,
+    content: 'Found Al Safa Park 2.',
+    question: 'What would you like to do next?',
+    suggestedActions: actions,
+  }
+
+  it('has no violations inside the full-width bubble it now renders in', async () => {
+    const { baseElement } = render(
+      <MessageBubble message={message} isLiveOffer onSelectAction={vi.fn()} />,
+    )
+
+    expect(await axe(baseElement, axeOptions)).toHaveNoViolations()
+  })
+
+  it('keeps every option description reachable, even though none of it is spoken', async () => {
+    // FR-025 — suppressing the spoken recital takes nothing away from assistive technology: each
+    // radio still names its own option and points at its own description.
+    render(<MessageBubble message={message} isLiveOffer onSelectAction={vi.fn()} />)
+
+    const radio = screen.getByRole('radio', { name: 'Search my knowledge bases' })
+    const describedBy = radio.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(document.getElementById(describedBy!)).toHaveTextContent(
+      'Look for this site in your attached documents.',
+    )
+  })
+
+  it('has no violations once the offer is answered and rendered inert', async () => {
+    const { baseElement } = render(
+      <MessageBubble message={message} isLiveOffer={false} onSelectAction={vi.fn()} />,
+    )
+
     expect(await axe(baseElement, axeOptions)).toHaveNoViolations()
   })
 })

@@ -160,27 +160,27 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Width
 
-- [ ] T058 [US3] Make the bubble's `maxWidth` conditional on offer presence in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx:97` — full usable panel width when the message carries an offer, unchanged 75% otherwise (FR-016, FR-017)
-- [ ] T059 [US3] Remove the card's own `maxWidth: '75%'` in `src/AskLucy.Web/ClientApp/src/features/chat/components/SuggestedActionCard.tsx:93` (FR-016a) — both caps must go, since 75% of 75% ≈ 56% is the reported symptom
-- [ ] T060 [P] [US3] Keep reply prose readable at full width in an offer-carrying bubble (FR-017a, the accepted trade-off)
+- [X] T058 [US3] Make the bubble's `maxWidth` conditional on offer presence in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx:97` — full usable panel width when the message carries an offer, unchanged 75% otherwise (FR-016, FR-017)
+- [X] T059 [US3] Remove the card's own `maxWidth: '75%'` in `src/AskLucy.Web/ClientApp/src/features/chat/components/SuggestedActionCard.tsx:93` (FR-016a) — both caps must go, since 75% of 75% ≈ 56% is the reported symptom
+- [X] T060 [P] [US3] Keep reply prose readable at full width in an offer-carrying bubble (FR-017a, the accepted trade-off)
 
 ### Internal layout
 
-- [ ] T061 [US3] Put each option's control, label and description on a shared horizontal band in `SuggestedActionCard.tsx` (FR-018)
-- [ ] T062 [US3] Keep the confirm action fully visible with its label unwrapped at every supported width (FR-019)
-- [ ] T063 [US3] Degrade to a stacked layout at the narrowest supported panel width -- `min(92vw, 380px)` per `ExpandedChatPanel.tsx:77`, i.e. ~294px on a 320px viewport -- with no clipping or horizontal scrolling (FR-021, SC-007); wrap an over-long single label **within** the card
-- [ ] T064 [US3] Apply the same width behaviour to answered and historical cards without making them interactive (FR-020)
+- [X] T061 [US3] Put each option's control, label and description on a shared horizontal band in `SuggestedActionCard.tsx` (FR-018)
+- [X] T062 [US3] Keep the confirm action fully visible with its label unwrapped at every supported width (FR-019)
+- [X] T063 [US3] Degrade to a stacked layout at the narrowest supported panel width -- `min(92vw, 380px)` per `ExpandedChatPanel.tsx:77`, i.e. ~294px on a 320px viewport -- with no clipping or horizontal scrolling (FR-021, SC-007); wrap an over-long single label **within** the card
+- [X] T064 [US3] Apply the same width behaviour to answered and historical cards without making them interactive (FR-020)
 
 ### Voice scope
 
-- [ ] T065 [US3] Replace the question-plus-every-label enumeration at `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx:435-465` with a short localized cue (FR-023, FR-024), appended to the reply being spoken rather than interrupting it
-- [ ] T066 [US3] Add the cue string to the localization resources for every supported language — the young-adult female voice persona is unaffected, this governs only what is spoken
+- [X] T065 [US3] Replace the question-plus-every-label enumeration at `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx:435-465` with a short localized cue (FR-023, FR-024), appended to the reply being spoken rather than interrupting it
+- [X] T066 [US3] Add the cue string to the localization resources for every supported language — the young-adult female voice persona is unaffected, this governs only what is spoken
 
 ### Verification
 
-- [ ] T067 [P] [US3] Component-test width behaviour in `SuggestedActionCard.test.tsx`: full width with an offer, ordinary width without, both in one transcript (SC-006a); assert via `getByText` inside the card, since `getByRole` crashes jsdom once a dialog portal is open
-- [ ] T068 [P] [US3] Component-test that voice receives the reply plus the cue and **not** the question, labels, descriptions or confirm action (SC-011), in `ChatPage.test.tsx`
-- [ ] T069 [P] [US3] Accessibility-test the card at both rendered widths with no regression against the baseline from T002 (FR-022, SC-008)
+- [X] T067 [P] [US3] Component-test width behaviour in `SuggestedActionCard.test.tsx`: full width with an offer, ordinary width without, both in one transcript (SC-006a); assert via `getByText` inside the card, since `getByRole` crashes jsdom once a dialog portal is open
+- [X] T068 [P] [US3] Component-test that voice receives the reply plus the cue and **not** the question, labels, descriptions or confirm action (SC-011), in `ChatPage.test.tsx`
+- [X] T069 [P] [US3] Accessibility-test the card at both rendered widths with no regression against the baseline from T002 (FR-022, SC-008)
 - [ ] T070 [US3] Screenshot-verify the quickstart §US3 steps at the default docked width (400px, the `sm` value in `ExpandedChatPanel.tsx:77`), counting words per line on option labels and the Choose button against the 4-word threshold (SC-006)
 
 **Checkpoint**: All three stories complete.
@@ -189,9 +189,9 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T071 [P] Run the **full** frontend suite, not just touched files — `ChatPage.test.tsx` carries its own assertions about components it renders; re-run any failure in isolation before attributing it to this feature
+- [X] T071 [P] Run the **full** frontend suite, not just touched files — `ChatPage.test.tsx` carries its own assertions about components it renders; re-run any failure in isolation before attributing it to this feature
 - [ ] T072 [P] Run `dotnet format` and verify CI line-ending rules before pushing
-- [ ] T073 [P] Confirm `npx tsc -b --noEmit` still passes
+- [X] T073 [P] Confirm `npx tsc -b --noEmit` still passes
 - [ ] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
 - [ ] T075 Add migration notes for `AddMessageRecordedTurnOutcome` (additive, nullable, no backfill)
 - [ ] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build`

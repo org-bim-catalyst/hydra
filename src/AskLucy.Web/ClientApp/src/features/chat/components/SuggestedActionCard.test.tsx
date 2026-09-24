@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { SuggestedAction } from '../api/aiApi'
+import { MessageBubble } from './MessageBubble'
 import { SuggestedActionCard } from './SuggestedActionCard'
 
 const actions: SuggestedAction[] = [
@@ -181,5 +182,116 @@ describe('SuggestedActionCard (specs/045-conversational-agent-runtime US2/US3, T
     )
 
     expect(screen.getByText('Declined.')).toBeInTheDocument()
+  })
+})
+
+/**
+ * specs/068 US3 T067 (FR-016/FR-016a/FR-017/FR-020, SC-006a) — how wide the card actually renders.
+ *
+ * The reported symptom was a card squeezed into roughly half the panel with two or three words per
+ * line. That was two caps multiplying: the bubble at 75% and the card at 75% of the bubble. Both
+ * are asserted here from the same transcript, because the requirement is relative — an
+ * offer-carrying message is wider than the ordinary reply next to it, not wide in the absolute.
+ */
+describe('SuggestedActionCard width (specs/068 US3)', () => {
+  const offerMessage = {
+    id: 'msg-offer',
+    role: 'assistant' as const,
+    content: 'Found Al Safa Park 2.',
+    question: 'What would you like to do next?',
+    suggestedActions: actions,
+  }
+
+  /** The column wrapper MessageBubble sizes: the bubble Paper's own parent. */
+  const wrapperOf = (text: string) => {
+    const paper = screen.getByText(text).closest('.MuiPaper-root')
+    expect(paper).not.toBeNull()
+    return paper!.parentElement as HTMLElement
+  }
+
+  const renderTranscript = (isLiveOffer = true) =>
+    render(
+      <>
+        <MessageBubble
+          message={{ id: 'msg-plain', role: 'assistant', content: 'An ordinary reply.' }}
+        />
+        <MessageBubble message={offerMessage} isLiveOffer={isLiveOffer} onSelectAction={vi.fn()} />
+      </>,
+    )
+
+  it('renders an offer-carrying message at the full panel width, and its neighbour at the reply width', () => {
+    renderTranscript()
+
+    // SC-006a — both in one transcript: the widening is scoped to the message that carries the
+    // offer and ends at the next message that does not (FR-017).
+    expect(wrapperOf('Found Al Safa Park 2.')).toHaveStyle({ maxWidth: '100%' })
+    expect(wrapperOf('An ordinary reply.')).toHaveStyle({ maxWidth: '75%' })
+  })
+
+  it('gives the card no width cap of its own', () => {
+    renderTranscript()
+
+    // FR-016a — 75% of the bubble's 75% is ~56%, which is the width that was reported. Asserting
+    // the absence is the point: the card fills whatever bubble it is given.
+    const card = screen.getByText('Suggested').closest('.MuiPaper-root') as HTMLElement
+    expect(card).not.toHaveStyle({ maxWidth: '75%' })
+  })
+
+  it('keeps an answered or historical offer at the same width, still not interactive', () => {
+    // FR-020 — a card does not shrink once it has been answered; the transcript would reflow on
+    // every choice. `getByText` rather than `getByRole` throughout, per the jsdom note above.
+    renderTranscript(false)
+
+    expect(wrapperOf('Found Al Safa Park 2.')).toHaveStyle({ maxWidth: '100%' })
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+  })
+
+  it('keeps the reply prose readable when the bubble goes full width', () => {
+    renderTranscript()
+
+    // FR-017a — the accepted trade-off is that the prose widens too; the requirement is that it
+    // stays readable there, which is a measure cap on the text and not on the card below it.
+    // 68ch, which jsdom resolves at its 8px-per-ch default. Asserting the resolved value keeps
+    // this honest about what is actually being checked: that a cap is applied, not merely declared.
+    const prose = screen.getByText('Found Al Safa Park 2.').closest('.MuiTypography-body1')
+    expect(prose).toHaveStyle({ maxWidth: '544px' })
+  })
+
+  it('puts each option control, label and description on one band', () => {
+    render(
+      <SuggestedActionCard
+        question="What would you like to do next?"
+        actions={actions}
+        isLive
+        isSubmitting={false}
+        error={null}
+        onSelect={vi.fn()}
+      />,
+    )
+
+    // FR-018 — the label and its description share a parent laid out as a wrapping row, which is
+    // also what degrades them to a stacked layout when the panel is too narrow (FR-021). Asserted
+    // structurally because jsdom computes no layout: there is no width here to measure.
+    const description = screen.getByText('Look for this site in your attached documents.')
+    const band = description.parentElement as HTMLElement
+    expect(band).toHaveStyle({ display: 'flex', flexWrap: 'wrap' })
+    expect(within(band).getByText('Search my knowledge bases')).toBeInTheDocument()
+    expect(within(band).getByRole('radio', { name: 'Search my knowledge bases' })).toBeInTheDocument()
+  })
+
+  it('keeps the confirm label unwrapped', () => {
+    render(
+      <SuggestedActionCard
+        question="What would you like to do next?"
+        actions={actions}
+        isLive
+        isSubmitting={false}
+        error={null}
+        onSelect={vi.fn()}
+      />,
+    )
+
+    // FR-019 — a two-line "Ch / oose" button is the failure this prevents at the narrowest width.
+    expect(screen.getByText('Choose').closest('button')).toHaveStyle({ whiteSpace: 'nowrap' })
   })
 })
