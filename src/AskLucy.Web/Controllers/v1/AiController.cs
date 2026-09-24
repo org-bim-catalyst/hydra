@@ -60,6 +60,9 @@ internal static partial class AiControllerLog
     [LoggerMessage(Level = LogLevel.Error, Message = "Chat turn for chat {ChatId} failed mid-stream after the response had already started; ending the SSE stream cleanly instead of letting the connection drop")]
     public static partial void TurnFailedMidStream(ILogger logger, Exception exception, Guid chatId);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "Chat turn for chat {ChatId} streamed its reply but failed while recording the turn or writing its trailing events; ending the SSE stream cleanly instead of letting the connection drop")]
+    public static partial void TurnTrailingEventsFailed(ILogger logger, Exception exception, Guid chatId);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "Could not persist the assistant message or its recorded turn outcome for chat {ChatId}; the turn was surfaced to the user as unsaved")]
     public static partial void TurnOutcomePersistFailed(ILogger logger, Exception exception, Guid chatId);
 }
@@ -157,16 +160,19 @@ public sealed partial class AiController(
                 cancellationToken);
         }
 
-        Response.ContentType = "text/event-stream";
-        Response.Headers.CacheControl = "no-cache";
-
         // Read before the loop rather than after it: an assistant message can now be persisted
-        // mid-stream, when a chunk asks to start a new one.
+        // mid-stream, when a chunk asks to start a new one. Read before the response is committed
+        // to text/event-stream, too: past that point ASP.NET Core can no longer turn a failure
+        // into Problem Details, so a provider or model lookup that threw here used to reset the
+        // connection instead - the unexplained "connection dropped" with nothing in the bubble.
         var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken);
         var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken);
         var generationParametersJson = request.GenerationParameters is null
             ? null
             : JsonSerializer.Serialize(request.GenerationParameters);
+
+        Response.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
 
         var assistantContent = new StringBuilder();
         // The turn's first assistant message - the reply. It is the one the memory trace and the
@@ -407,187 +413,212 @@ public sealed partial class AiController(
             return;
         }
 
-        // US1 (specs/016-rag-semantic-search) — a distinguishable trailing JSON event, never
-        // mistakeable for a raw content delta (aiApi.ts's streamChat detects the "__RAG__"
-        // prefix before falling back to treating a line as plain content). Surfaces the
-        // retrieval outcome/citations/error to the client within the same request, without
-        // changing the plain-text wire format every other line already uses.
-        if (retrievalOutcome is not null)
-        {
-            var ragPayload = new
-            {
-                retrievalOutcome = retrievalOutcome.Type.ToString(),
-                citations = retrievalOutcome.Citations.Select(c => new
-                {
-                    documentChunkId = c.DocumentChunkId,
-                    knowledgeBaseId = c.KnowledgeBaseId,
-                    documentId = c.DocumentId,
-                    documentVersionId = c.DocumentVersionId,
-                    documentTitle = c.DocumentTitle,
-                    knowledgeBaseName = c.KnowledgeBaseName,
-                    pageNumber = c.PageNumber,
-                    section = c.Section,
-                    excerpt = c.Excerpt,
-                }),
-                retrievalError = retrievalOutcome.UnavailableReason,
-            };
-            await Response.WriteAsync($"data: __RAG__{JsonSerializer.Serialize(ragPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
-
-        // Persisted - and, for memory, its trace recorded (FR-014) - before [DONE] is written, so
-        // the trailing __MEMORY__ event below can carry the now-real message id and the client can
-        // fetch its "why does Lucy know this" trace immediately, in the same session, rather than
-        // only after a reload re-fetches persisted history (quickstart.md Scenario 1).
+        // specs/068 - the same reasoning as the mid-stream catch above, applied to the half of the
+        // turn that runs after the model stream ends. Persisting the message, recording the active
+        // location or boundary, and writing the trailing events are all database and socket work
+        // happening long after the response was committed to text/event-stream, and every one of
+        // them was outside any try: a failure reset the connection, the client's reader threw a raw
+        // network error, and the user got "Incomplete - connection dropped" under an empty bubble
+        // with no explanation and nothing actionable (constitution SS2.VIII).
         //
-        // Skipped when nothing is buffered, which happens when the turn's last chunk opened a new
-        // message that then produced no text: an empty bubble helps nobody.
-        Guid? offeringMessageId = null;
-        if (assistantContent.Length > 0)
+        // A failure here is genuinely different from a mid-stream one: the reply itself already
+        // succeeded and is already on screen. What is lost is the recording of it, which is exactly
+        // the thing the user must be told about - it is the difference between "that did not work"
+        // and "that worked but will not be here tomorrow".
+        try
         {
-            // specs/045-conversational-agent-runtime FR-026 — the offer, if any, always belongs to
-            // this final message: it rides its own trailing chunk with no ContentDelta, so it is
-            // never captured mid-stream by the StartsNewMessage branch above.
-            // 2026-09-11 live-testing report: this used to serialize the raw SuggestedAction
-            // records (PascalCase C# property names — Label, Key, IsDecline...) instead of the
-            // camelCase shape the frontend's SuggestedAction type and SuggestedActionCard read
-            // (label, capabilityKey, isDecline...) — the exact shape the live __ACTIONS__ event
-            // below already builds correctly. Every persisted offer card therefore reopened with
-            // every field reading as undefined, rendering the whole card empty (never in the
-            // same-session live view, only after a reload re-fetched history). BuildActionWirePayload
-            // is now the single source both paths share, so they cannot drift apart again.
-            var suggestedActionsJson = suggestedActions is { Count: > 0 }
-                ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions.Select(BuildActionWirePayload) })
-                : null;
-
-            // specs/068 FR-004d - the response has already started, so an exception escaping this
-            // call cannot become Problem Details; it just resets the connection, which is the
-            // unexplained "connection dropped" this feature exists to stop producing. A turn whose
-            // outcome did not store must say so, and must not then emit an outcome event claiming
-            // it did (contracts/turn-outcome.md 1).
-            Guid? persistedId = null;
-            try
+            // US1 (specs/016-rag-semantic-search) — a distinguishable trailing JSON event, never
+            // mistakeable for a raw content delta (aiApi.ts's streamChat detects the "__RAG__"
+            // prefix before falling back to treating a line as plain content). Surfaces the
+            // retrieval outcome/citations/error to the client within the same request, without
+            // changing the plain-text wire format every other line already uses.
+            if (retrievalOutcome is not null)
             {
-                persistedId = await PersistAssistantMessageAsync(
-                    request, assistantContent.ToString(), provider, model, generationParametersJson,
-                    finalUsage, retrievalOutcome, suggestedActionsJson, turnOutcome, cancellationToken);
-            }
-            catch (Exception persistException) when (!cancellationToken.IsCancellationRequested)
-            {
-                AiControllerLog.TurnOutcomePersistFailed(logger, persistException, request.ChatId);
-                outcomePersistFailed = true;
-
-                const string persistNotice = " I couldn't save this to your chat history, so it won't be here if you reload.";
-                await Response.WriteAsync($"data: {persistNotice}\n\n", cancellationToken);
+                var ragPayload = new
+                {
+                    retrievalOutcome = retrievalOutcome.Type.ToString(),
+                    citations = retrievalOutcome.Citations.Select(c => new
+                    {
+                        documentChunkId = c.DocumentChunkId,
+                        knowledgeBaseId = c.KnowledgeBaseId,
+                        documentId = c.DocumentId,
+                        documentVersionId = c.DocumentVersionId,
+                        documentTitle = c.DocumentTitle,
+                        knowledgeBaseName = c.KnowledgeBaseName,
+                        pageNumber = c.PageNumber,
+                        section = c.Section,
+                        excerpt = c.Excerpt,
+                    }),
+                    retrievalError = retrievalOutcome.UnavailableReason,
+                };
+                await Response.WriteAsync($"data: __RAG__{JsonSerializer.Serialize(ragPayload)}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
 
-            firstAssistantMessageId ??= persistedId;
-            offeringMessageId = persistedId;
-        }
-
-        // The memory trace belongs to the turn's first message - the reply itself. A later message
-        // carries only a confirmation sentence the application wrote, which no memory informed.
-        if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found && firstAssistantMessageId is { } tracedMessageId)
-        {
-            await mediator.Send(new RecordMemoryReferencesCommand(tracedMessageId, memoryOutcome.UsedMemories), cancellationToken);
-        }
-
-        if (memoryOutcome is not null)
-        {
-            var memoryPayload = new { messageId = firstAssistantMessageId, memoryOutcome = memoryOutcome.Type.ToString() };
-            await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
-
-        // specs/042-site-boundary-resolution: resolved site boundary trailing event — same
-        // distinguishable-prefix pattern as __LOCATION__. Persisted before the client is told
-        // about it (RecordActiveSiteBoundaryCommand), mirroring RecordActiveLocationCommand's
-        // ordering exactly, so a client that reloads immediately after sees consistent state.
-        if (confirmedBoundary is not null)
-        {
-            await mediator.Send(new RecordActiveSiteBoundaryCommand(request.ChatId, confirmedBoundary), cancellationToken);
-
-            var boundaryPayload = new
+            // Persisted - and, for memory, its trace recorded (FR-014) - before [DONE] is written, so
+            // the trailing __MEMORY__ event below can carry the now-real message id and the client can
+            // fetch its "why does Lucy know this" trace immediately, in the same session, rather than
+            // only after a reload re-fetches persisted history (quickstart.md Scenario 1).
+            //
+            // Skipped when nothing is buffered, which happens when the turn's last chunk opened a new
+            // message that then produced no text: an empty bubble helps nobody.
+            Guid? offeringMessageId = null;
+            if (assistantContent.Length > 0)
             {
-                siteName = confirmedBoundary.SiteName,
-                centroid = new { latitude = confirmedBoundary.CentroidLatitude, longitude = confirmedBoundary.CentroidLongitude },
-                polygon = confirmedBoundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
-                areaSquareMeters = confirmedBoundary.AreaSquareMeters,
-                confidence = confirmedBoundary.Confidence,
-                confidenceLevel = confirmedBoundary.ConfidenceLevel.ToString().ToLowerInvariant(),
-                source = confirmedBoundary.Source.ToString(),
-                sourceDetail = confirmedBoundary.SourceDetail,
-                alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
-            };
-            await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
+                // specs/045-conversational-agent-runtime FR-026 — the offer, if any, always belongs to
+                // this final message: it rides its own trailing chunk with no ContentDelta, so it is
+                // never captured mid-stream by the StartsNewMessage branch above.
+                // 2026-09-11 live-testing report: this used to serialize the raw SuggestedAction
+                // records (PascalCase C# property names — Label, Key, IsDecline...) instead of the
+                // camelCase shape the frontend's SuggestedAction type and SuggestedActionCard read
+                // (label, capabilityKey, isDecline...) — the exact shape the live __ACTIONS__ event
+                // below already builds correctly. Every persisted offer card therefore reopened with
+                // every field reading as undefined, rendering the whole card empty (never in the
+                // same-session live view, only after a reload re-fetched history). BuildActionWirePayload
+                // is now the single source both paths share, so they cannot drift apart again.
+                var suggestedActionsJson = suggestedActions is { Count: > 0 }
+                    ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions.Select(BuildActionWirePayload) })
+                    : null;
 
-        // specs/038-viewer-poi-zoom US2: explicit zoom command trailing event — emitted when the
-        // final chunk carries a ViewerZoomCommand (keyword detected in the user's message).
-        if (viewerZoom is not null)
-        {
-            await Response.WriteAsync($"data: __ZOOM__{viewerZoom.Direction}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
+                // specs/068 FR-004d - the response has already started, so an exception escaping this
+                // call cannot become Problem Details; it just resets the connection, which is the
+                // unexplained "connection dropped" this feature exists to stop producing. A turn whose
+                // outcome did not store must say so, and must not then emit an outcome event claiming
+                // it did (contracts/turn-outcome.md 1).
+                Guid? persistedId = null;
+                try
+                {
+                    persistedId = await PersistAssistantMessageAsync(
+                        request, assistantContent.ToString(), provider, model, generationParametersJson,
+                        finalUsage, retrievalOutcome, suggestedActionsJson, turnOutcome, cancellationToken);
+                }
+                catch (Exception persistException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    AiControllerLog.TurnOutcomePersistFailed(logger, persistException, request.ChatId);
+                    outcomePersistFailed = true;
 
-        // specs/051-viewer-scene-content-api FR-004/research D8 — content Lucy asked the viewer
-        // to load, mirroring __ZOOM__'s own trailing-event shape exactly.
-        if (viewerContent is not null)
-        {
-            var viewerContentPayload = new
+                    const string persistNotice = " I couldn't save this to your chat history, so it won't be here if you reload.";
+                    await Response.WriteAsync($"data: {persistNotice}\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+
+                firstAssistantMessageId ??= persistedId;
+                offeringMessageId = persistedId;
+            }
+
+            // The memory trace belongs to the turn's first message - the reply itself. A later message
+            // carries only a confirmation sentence the application wrote, which no memory informed.
+            if (memoryOutcome?.Type == MemoryRetrievalOutcomeType.Found && firstAssistantMessageId is { } tracedMessageId)
             {
-                fileId = viewerContent.FileId,
-                latitude = viewerContent.Latitude,
-                longitude = viewerContent.Longitude,
-                heightMetres = viewerContent.HeightMetres,
-                orientationDegrees = viewerContent.OrientationDegrees,
-                scale = viewerContent.Scale,
-            };
-            await Response.WriteAsync($"data: __VIEWER_CONTENT__{JsonSerializer.Serialize(viewerContentPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
+                await mediator.Send(new RecordMemoryReferencesCommand(tracedMessageId, memoryOutcome.UsedMemories), cancellationToken);
+            }
 
-        // specs/052-solar-analysis research D3 — Lucy opening solar analysis for the active site,
-        // mirroring __VIEWER_CONTENT__'s own trailing-event shape exactly. No solar figures ride
-        // this event: the browser computes them once (FR-034).
-        if (solarAnalysis is not null)
-        {
-            var solarAnalysisPayload = new
+            if (memoryOutcome is not null)
             {
-                date = solarAnalysis.Date,
-                timeOfDay = solarAnalysis.TimeOfDay,
-            };
-            await Response.WriteAsync($"data: __SOLAR_ANALYSIS__{JsonSerializer.Serialize(solarAnalysisPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
+                var memoryPayload = new { messageId = firstAssistantMessageId, memoryOutcome = memoryOutcome.Type.ToString() };
+                await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
 
-        // specs/045-conversational-agent-runtime FR-021/contracts/turn-stream.md §4 — last before
-        // [DONE], and only once the offering message is a real persisted id (an offer with no
-        // message to attach to — e.g. the turn's only chunk somehow carried no text — is not
-        // emitted at all rather than sent with a fabricated id).
-        if (suggestedActions is { Count: > 0 } actions && offeringMessageId is { } offeredByMessageId)
-        {
-            var actionsPayload = new
+            // specs/042-site-boundary-resolution: resolved site boundary trailing event — same
+            // distinguishable-prefix pattern as __LOCATION__. Persisted before the client is told
+            // about it (RecordActiveSiteBoundaryCommand), mirroring RecordActiveLocationCommand's
+            // ordering exactly, so a client that reloads immediately after sees consistent state.
+            if (confirmedBoundary is not null)
             {
-                offeredByMessageId,
-                question = suggestedActionsQuestion,
-                actions = actions.Select(BuildActionWirePayload),
-            };
-            await Response.WriteAsync($"data: __ACTIONS__{JsonSerializer.Serialize(actionsPayload)}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-        }
+                await mediator.Send(new RecordActiveSiteBoundaryCommand(request.ChatId, confirmedBoundary), cancellationToken);
 
-        // specs/068 FR-004a, contracts/turn-outcome.md 1 - exactly one per assistant turn, after
-        // the outcome is persisted so a client that acts on it cannot be told something the reload
-        // would contradict. A turn that reached here without one answered in words and did nothing,
-        // which is itself a fact the client needs: absent means unknown, not "nothing happened".
-        if (!outcomePersistFailed)
+                var boundaryPayload = new
+                {
+                    siteName = confirmedBoundary.SiteName,
+                    centroid = new { latitude = confirmedBoundary.CentroidLatitude, longitude = confirmedBoundary.CentroidLongitude },
+                    polygon = confirmedBoundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
+                    areaSquareMeters = confirmedBoundary.AreaSquareMeters,
+                    confidence = confirmedBoundary.Confidence,
+                    confidenceLevel = confirmedBoundary.ConfidenceLevel.ToString().ToLowerInvariant(),
+                    source = confirmedBoundary.Source.ToString(),
+                    sourceDetail = confirmedBoundary.SourceDetail,
+                    alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
+                };
+                await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/038-viewer-poi-zoom US2: explicit zoom command trailing event — emitted when the
+            // final chunk carries a ViewerZoomCommand (keyword detected in the user's message).
+            if (viewerZoom is not null)
+            {
+                await Response.WriteAsync($"data: __ZOOM__{viewerZoom.Direction}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/051-viewer-scene-content-api FR-004/research D8 — content Lucy asked the viewer
+            // to load, mirroring __ZOOM__'s own trailing-event shape exactly.
+            if (viewerContent is not null)
+            {
+                var viewerContentPayload = new
+                {
+                    fileId = viewerContent.FileId,
+                    latitude = viewerContent.Latitude,
+                    longitude = viewerContent.Longitude,
+                    heightMetres = viewerContent.HeightMetres,
+                    orientationDegrees = viewerContent.OrientationDegrees,
+                    scale = viewerContent.Scale,
+                };
+                await Response.WriteAsync($"data: __VIEWER_CONTENT__{JsonSerializer.Serialize(viewerContentPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/052-solar-analysis research D3 — Lucy opening solar analysis for the active site,
+            // mirroring __VIEWER_CONTENT__'s own trailing-event shape exactly. No solar figures ride
+            // this event: the browser computes them once (FR-034).
+            if (solarAnalysis is not null)
+            {
+                var solarAnalysisPayload = new
+                {
+                    date = solarAnalysis.Date,
+                    timeOfDay = solarAnalysis.TimeOfDay,
+                };
+                await Response.WriteAsync($"data: __SOLAR_ANALYSIS__{JsonSerializer.Serialize(solarAnalysisPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/045-conversational-agent-runtime FR-021/contracts/turn-stream.md §4 — last before
+            // [DONE], and only once the offering message is a real persisted id (an offer with no
+            // message to attach to — e.g. the turn's only chunk somehow carried no text — is not
+            // emitted at all rather than sent with a fabricated id).
+            if (suggestedActions is { Count: > 0 } actions && offeringMessageId is { } offeredByMessageId)
+            {
+                var actionsPayload = new
+                {
+                    offeredByMessageId,
+                    question = suggestedActionsQuestion,
+                    actions = actions.Select(BuildActionWirePayload),
+                };
+                await Response.WriteAsync($"data: __ACTIONS__{JsonSerializer.Serialize(actionsPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/068 FR-004a, contracts/turn-outcome.md 1 - exactly one per assistant turn, after
+            // the outcome is persisted so a client that acts on it cannot be told something the reload
+            // would contradict. A turn that reached here without one answered in words and did nothing,
+            // which is itself a fact the client needs: absent means unknown, not "nothing happened".
+            if (!outcomePersistFailed)
+            {
+                await WriteTurnOutcomeEventAsync(
+                    turnOutcome ?? RecordedTurnOutcome.AnsweredInWords(DateTimeOffset.UtcNow),
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            await WriteTurnOutcomeEventAsync(
-                turnOutcome ?? RecordedTurnOutcome.AnsweredInWords(DateTimeOffset.UtcNow),
-                cancellationToken);
+            AiControllerLog.TurnTrailingEventsFailed(logger, ex, request.ChatId);
+
+            const string trailingNotice =
+                " I finished, but couldn't record everything from this turn - some of it may not be " +
+                "here if you reload.";
+            await Response.WriteAsync($"data: {trailingNotice}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
         }
 
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
