@@ -35,7 +35,14 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
 
             return session;
         }
-        catch (Exception ex) when (ex is AiProviderUnavailableException or AiProviderRateLimitedException or AiProviderAuthenticationException)
+        // specs/068 - every provider failure, not the three that were listed. The named set left
+        // out the two that occur most often in practice: NotConfigured (the provider is switched
+        // off or has no key) and CredentialUnreadable. Those escaped uncaught, so the user was
+        // silently pushed onto the fallback recogniser with nothing recorded, and the recovery
+        // check above - which only fires when the most recent event says the user was degraded -
+        // then never saw that they had been. The health trail showed an uninterrupted primary
+        // provider for a user who had not reached it in weeks (constitution §2.VIII).
+        catch (AiProviderException ex)
         {
             var reason = ex.Message.Length > 500 ? ex.Message[..500] : ex.Message;
             await healthRecorder.RecordFailoverAsync(userId, reason, cancellationToken);

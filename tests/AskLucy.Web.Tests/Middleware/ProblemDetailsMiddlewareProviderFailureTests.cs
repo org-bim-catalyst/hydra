@@ -21,7 +21,10 @@ public sealed class ProblemDetailsMiddlewareProviderFailureTests
     {
         { new AiProviderAuthenticationException("Rejected."), 502, "ai-provider-authentication-failed" },
         { new AiProviderCredentialUnreadableException("Unreadable."), 502, "ai-provider-credential-unreadable" },
-        { new AiProviderNotConfiguredException("Not configured."), 502, "ai-provider-not-configured" },
+        // 503, not 502: nothing was asked of the provider, so there is nothing to try again
+        // (specs/068). Asserted here rather than only in the dedicated test below so a future
+        // edit to the mapping cannot quietly put it back on the "please try again" branch.
+        { new AiProviderNotConfiguredException("Not configured."), 503, "ai-provider-not-configured" },
         { new AiProviderQuotaExhaustedException("Quota exhausted."), 429, "ai-provider-quota-exhausted" },
         { new AiProviderRateLimitedException("Rate limited."), 429, "ai-provider-rate-limited" },
         { new AiProviderUsageRestrictedException("Restricted."), 502, "ai-provider-usage-restricted" },
@@ -95,6 +98,28 @@ public sealed class ProblemDetailsMiddlewareProviderFailureTests
         body.Element.TryGetProperty("providerFailure", out _).Should().BeFalse();
         body.Element.GetProperty("detail").GetString().Should().NotContain("quota");
         body.Element.GetProperty("detail").GetString().Should().Be("The AI provider is temporarily unavailable. Please try again later.");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ShouldNotTellAUser_ToRetryAnUnconfiguredProvider()
+    {
+        // specs/068. Reported against dictation: with ElevenLabs switched off, every press of the
+        // microphone produced a 502 saying "Please try again", for a condition no amount of trying
+        // will change. The status and the wording are both part of the fix — a client that treats
+        // 502 as transient will keep retrying however the detail is phrased.
+        var body = await InvokeAsync(
+            new AiProviderNotConfiguredException("ElevenLabs is switched off under Admin → AI providers."),
+            asAdministrator: false);
+
+        body.Status.Should().Be(503);
+        body.Element.GetProperty("detail").GetString().Should().NotContain("try again");
+        body.Element.GetProperty("detail").GetString().Should().Be(
+            "This feature is not available right now. An administrator needs to enable it.");
+
+        // FR-015a still applies: which provider, and that it was switched off rather than never
+        // set up, stays administrator-only.
+        body.Element.GetProperty("detail").GetString().Should().NotContain("ElevenLabs");
+        body.Element.TryGetProperty("providerFailure", out _).Should().BeFalse();
     }
 
     [Fact]

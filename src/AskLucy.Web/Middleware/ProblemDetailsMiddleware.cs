@@ -425,11 +425,18 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             "AI provider credential unreadable",
             "The AI service could not process your request. Please try again."),
 
+        // specs/068 - deliberately NOT a 502 "please try again". Every other kind here describes
+        // something that happened to a request we actually made; this one means no request was
+        // made at all, because the provider is switched off or has no key. Telling a user to try
+        // again is telling them to repeat an action that cannot succeed until an administrator
+        // changes a setting, and a client that honours the advice retries forever. 503 says
+        // "unavailable", which is what it is, and the detail says so without naming the cause -
+        // which provider is disabled is administrator state, not end-user state (FR-015a).
         AiProviderFailureKind.NotConfigured => (
-            StatusCodes.Status502BadGateway,
+            StatusCodes.Status503ServiceUnavailable,
             "https://hydra.bimcatalyst.com/problems/ai-provider-not-configured",
             "AI provider not configured",
-            "The AI service could not process your request. Please try again."),
+            "This feature is not available right now. An administrator needs to enable it."),
 
         AiProviderFailureKind.QuotaExhausted => (
             StatusCodes.Status429TooManyRequests,
