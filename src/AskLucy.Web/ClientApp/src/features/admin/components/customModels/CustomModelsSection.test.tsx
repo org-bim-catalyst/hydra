@@ -123,23 +123,16 @@ describe('CustomModelsSection', () => {
     expect(within(second).getByText('Queued')).toBeInTheDocument()
   })
 
-  it('marks a model that backs an on-server engine (specs/072 US6)', async () => {
+  it('lists a model that backs an on-server engine like any other, without a badge', async () => {
     server.use(
       http.get('*/api/v1/admin/custom-models', () =>
-        HttpResponse.json(
-          page([
-            customModel({ backsEngine: 'Supertonic' }),
-            customModel({ id: 'model-2', name: 'kokoro', repositoryId: 'hexgrad/Kokoro-82M', destination: 'Models/kokoro' }),
-          ]),
-        ),
+        HttpResponse.json(page([customModel({ backsEngine: 'Supertonic' })])),
       ),
     )
     renderSection()
 
     const first = (await screen.findByText('supertonic-3')).closest('tr') as HTMLElement
-    expect(within(first).getByText('Backs Supertonic')).toBeInTheDocument()
-    const second = screen.getByText('kokoro').closest('tr') as HTMLElement
-    expect(within(second).queryByText(/^Backs /)).not.toBeInTheDocument()
+    expect(within(first).queryByText(/^Backs /)).not.toBeInTheDocument()
   })
 
   it('shows an inline error with retry when the list cannot be loaded', async () => {

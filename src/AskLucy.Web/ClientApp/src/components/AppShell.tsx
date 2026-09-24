@@ -5,6 +5,7 @@ import { BrandMark } from './BrandMark'
 import { UserMenu } from './UserMenu'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
+import { isFromLanding, VIEW_LANDING_STATE } from '../routes/viewLandingState'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { createGlassTokens } from '../theme/tokens/glass'
@@ -36,15 +37,19 @@ interface AppShellProps {
  *
  * Also used by `PrivacyPage`, which is reachable both signed-in and pre-login — the
  * account menu (Log out, Profile, Settings) would be actively misleading to show a
- * signed-out visitor, so it's swapped for a plain "Sign in" link based on auth state. */
+ * signed-out visitor, so it's swapped for a plain "Sign in" link based on auth state.
+ *
+ * The home link returns to wherever the visitor came from: the landing page when they arrived
+ * through one of its links (`FROM_LANDING_STATE`), the Studio otherwise. */
 export function AppShell({ children, title, subtitle, actions, fillViewport = false }: AppShellProps) {
   const theme = useTheme()
   const glass = createGlassTokens(theme.palette.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
   const isDark = useThemeStore((s) => s.mode) === 'dark'
   const isAuthenticated = useAuthStore((s) => Boolean(s.accessToken))
-  const { pathname } = useLocation()
+  const { pathname, state } = useLocation()
   const isHome = pathname === '/studio'
+  const fromLanding = isFromLanding(state)
 
   return (
     <Box sx={{ [fillViewport ? 'height' : 'minHeight']: '100dvh', display: 'flex', flexDirection: 'column' }}>
@@ -66,7 +71,8 @@ export function AppShell({ children, title, subtitle, actions, fillViewport = fa
       >
         <Stack
           component={RouterLink}
-          to="/studio"
+          to={fromLanding ? '/' : '/studio'}
+          state={fromLanding ? VIEW_LANDING_STATE : undefined}
           aria-current={isHome ? 'page' : undefined}
           aria-label="Ask Lucy home"
           direction="row"

@@ -120,7 +120,7 @@ describe('AdminAiProvidersPage — Custom models section (specs/072)', () => {
     expect(await findByRole('heading', { name: 'Custom models' })).toBeInTheDocument()
   })
 
-  it('marks a speech vendor with a Speech chip, and a language vendor with none', async () => {
+  it("lists a speech vendor like any other, without a kind badge beside its name", async () => {
     server.use(
       http.get('*/api/v1/admin/ai/providers', () =>
         HttpResponse.json([
@@ -129,10 +129,11 @@ describe('AdminAiProvidersPage — Custom models section (specs/072)', () => {
         ]),
       ),
     )
-    const { findByText, getAllByText } = renderPage()
+    const { findByText, queryByText } = renderPage()
 
     await findByText('ElevenLabs')
-    expect(getAllByText('Speech')).toHaveLength(1)
+    // Its models say what they do in the Capabilities column ("audio"), as every vendor's do.
+    expect(queryByText('Speech')).not.toBeInTheDocument()
   })
 
   it('hides the Custom models section without admin.custom-models.view', async () => {

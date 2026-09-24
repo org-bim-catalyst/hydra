@@ -5,7 +5,6 @@ import {
   Collapse,
   IconButton,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -122,19 +121,7 @@ export function AdminAiProvidersPage() {
                             )}
                           </IconButton>
                         </TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                            <span>{provider.displayName}</span>
-                            {provider.kind === 'Speech' && (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                label="Speech"
-                                title="Voice output and live dictation only — never offered for chat."
-                              />
-                            )}
-                          </Stack>
-                        </TableCell>
+                        <TableCell>{provider.displayName}</TableCell>
                         <TableCell>
                           <Chip
                             size="small"

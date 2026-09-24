@@ -6,40 +6,46 @@ export interface SelectedVoiceResult {
   source: 'curated' | 'heuristic' | 'none'
 }
 
-/** Name fragments that reliably identify a female-presenting voice across the major
- * browser/OS voice catalogs (research.md §3) — used only as the heuristic tier's scoring
- * signal, never as a substitute for curation. Lowercase; matched as a substring. */
-const FEMALE_NAME_TOKENS = [
+/** Given names (plus the generic "female") that identify a female voice in the catalogs the
+ * major vendors ship (research.md §3): Google's Chrome voices, Windows SAPI, Edge's online
+ * "(Natural)" voices and macOS/iOS. Lowercase; matched against whole words of the voice
+ * name, so "aria" can't match inside "Bulgaria". Used only by the heuristic tier. */
+const FEMALE_NAME_TOKENS = new Set([
   'female',
-  'zira',
-  'hazel',
-  'samantha',
-  'karen',
-  'moira',
-  'tessa',
-  'susan',
-  'monica',
-  'mónica',
-  'paulina',
-  'amelie',
-  'amélie',
-  'audrey',
-  'anna',
-  'helena',
-  'hortense',
-  'hedda',
-  'petra',
-  'victoria',
-  'fiona',
-  'kate',
-  'salli',
-  'joanna',
-]
+  // English
+  'zira', 'hazel', 'susan', 'heera', 'aria', 'jenny', 'michelle', 'emma', 'ava', 'sonia', 'libby',
+  'natasha', 'clara', 'neerja', 'samantha', 'karen', 'moira', 'tessa', 'fiona', 'victoria',
+  'allison', 'serena', 'veena', 'kate', 'salli', 'joanna',
+  // Arabic
+  'hoda', 'zariyah', 'salma', 'fatima', 'amany', 'laila', 'mouna', 'sana', 'noura', 'amina',
+  // Spanish
+  'helena', 'laura', 'sabina', 'elvira', 'dalia', 'paloma', 'monica', 'mónica', 'paulina',
+  // French
+  'hortense', 'julie', 'denise', 'eloise', 'sylvie', 'amelie', 'amélie', 'audrey', 'aurelie', 'aurélie',
+  // German
+  'hedda', 'katja', 'amala', 'ingrid', 'anna', 'petra',
+])
+
+/** Given names (plus "male") of the male voices in the same catalogs. A known-male voice
+ * ranks below one whose gender the name doesn't reveal, so it's only chosen when it is the
+ * sole voice for the language — speaking in it still beats not speaking at all. */
+const MALE_NAME_TOKENS = new Set([
+  'male',
+  'david', 'mark', 'george', 'ravi', 'guy', 'ryan', 'christopher', 'eric', 'roger', 'steffan',
+  'andrew', 'brian', 'william', 'daniel', 'alex', 'fred', 'tom', 'oliver', 'thomas', 'rishi',
+  'naayf', 'hamed', 'shakir', 'majed', 'maged', 'tarik', 'rami', 'hamdan',
+  'pablo', 'raul', 'raúl', 'alvaro', 'álvaro', 'jorge', 'juan', 'diego',
+  'paul', 'claude', 'henri', 'jerome', 'jérôme', 'thierry', 'nicolas',
+  'stefan', 'conrad', 'killian', 'markus', 'yannick',
+])
 
 function scoreVoice(voice: SpeechSynthesisVoice): number {
-  const name = voice.name.toLowerCase()
+  const words = voice.name.toLowerCase().split(/[^\p{L}]+/u)
   let score = 0
-  if (FEMALE_NAME_TOKENS.some((token) => name.includes(token))) score += 10
+  if (words.some((word) => FEMALE_NAME_TOKENS.has(word))) score += 10
+  else if (words.some((word) => MALE_NAME_TOKENS.has(word))) score -= 10
+  // Edge's neural voices sound markedly closer to a young adult than the older SAPI ones.
+  if (words.includes('natural')) score += 2
   if (voice.localService) score += 1
   return score
 }

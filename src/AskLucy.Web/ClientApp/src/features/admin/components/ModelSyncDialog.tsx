@@ -137,6 +137,7 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
   const removedFilterHasNoMatches = filterText.trim() !== '' && (diff?.removedFromVendor.length ?? 0) > 0 && filteredRemoved.length === 0
 
   const totalSelected = selectedAddedKeys.size + selectedRemovedIds.size
+  const isReviewing = !applyResult && diff !== null && !hasNothingToReview
 
   const toggleAdded = (modelKey: string) =>
     setSelectedAddedKeys((prev) => {
@@ -192,7 +193,24 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
         }}
       >
         <DialogTitle>Sync {providerDisplayName}'s catalog from the provider</DialogTitle>
-        <DialogContent>
+        {/* The filter and selected count sit outside DialogContent, so they stay in place while
+            a long model list scrolls beneath them. */}
+        {isReviewing && (
+          <Box sx={{ px: 3, pb: 1 }}>
+            <TextField
+              label="Filter by name or key"
+              size="small"
+              fullWidth
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              sx={{ mb: 1 }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {totalSelected} selected
+            </Typography>
+          </Box>
+        )}
+        <DialogContent dividers={isReviewing}>
           {applyResult && (
             <Box>
               {applyResult.appliedModelKeys.length > 0 && (
@@ -235,19 +253,8 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
           {!applyResult && diff !== null && hasNothingToReview && (
             <DialogContentText>Nothing to review — the catalog already matches the provider.</DialogContentText>
           )}
-          {!applyResult && diff !== null && !hasNothingToReview && (
+          {isReviewing && (
             <Box>
-              <TextField
-                label="Filter by name or key"
-                size="small"
-                fullWidth
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                sx={{ mb: 1 }}
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {totalSelected} selected
-              </Typography>
               {diff.added.length > 0 && (
                 <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

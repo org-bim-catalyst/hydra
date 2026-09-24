@@ -185,13 +185,7 @@ export function CustomModelsSection() {
             )}
             {models.map((model) => (
               <TableRow key={model.id}>
-                <TableCell>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <span>{model.name}</span>
-                    {/* specs/072 — the on-server engine this model's repository feeds. */}
-                    {model.backsEngine && <Chip size="small" variant="outlined" label={`Backs ${model.backsEngine}`} />}
-                  </Stack>
-                </TableCell>
+                <TableCell>{model.name}</TableCell>
                 <TableCell>
                   {model.repositoryId}@{model.revision}
                 </TableCell>

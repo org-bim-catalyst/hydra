@@ -1,6 +1,7 @@
 import { Box, Link, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router'
 import { BrandMark } from '../../../components/BrandMark'
+import { FROM_LANDING_STATE } from '../../../routes/viewLandingState'
 import { flumeriaColor } from '../theme/flumeriaPalette'
 
 /**
@@ -8,7 +9,8 @@ import { flumeriaColor } from '../theme/flumeriaPalette'
  * `AppFooter`, which keeps its existing white/bordered style for the auth pages and
  * `PrivacyPage` — this is a distinct visual treatment for the public landing page only).
  * Links to what actually exists in this app (`/privacy`, `/terms`); the reference's "About"/"Blog"
- * are omitted rather than becoming dead links.
+ * are omitted rather than becoming dead links. Both carry `FROM_LANDING_STATE`, so the page they
+ * open returns here rather than to the Studio.
  */
 export function LandingFooter() {
   return (
@@ -23,10 +25,14 @@ export function LandingFooter() {
           </Typography>
         </Stack>
         <Stack direction="row" spacing={3} sx={{ alignItems: 'center' }}>
-          <Link component={RouterLink} to="/privacy" variant="body2" sx={{ color: flumeriaColor.bodyOnDark }}>
+          <Link component={RouterLink} to="/privacy"
+            state={FROM_LANDING_STATE}
+            variant="body2" sx={{ color: flumeriaColor.bodyOnDark }}>
             Privacy
           </Link>
-          <Link component={RouterLink} to="/terms" variant="body2" sx={{ color: flumeriaColor.bodyOnDark }}>
+          <Link component={RouterLink} to="/terms"
+            state={FROM_LANDING_STATE}
+            variant="body2" sx={{ color: flumeriaColor.bodyOnDark }}>
             Terms
           </Link>
           <Typography variant="caption" sx={{ color: flumeriaColor.bodyOnDark }}>
