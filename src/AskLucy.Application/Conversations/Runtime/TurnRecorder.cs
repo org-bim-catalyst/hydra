@@ -41,8 +41,17 @@ public sealed record TurnRecordedStep(string CapabilityKey, bool Attempted, bool
 /// </para>
 ///
 /// <para>
-/// <b>Fast-path turns write nothing</b> (research.md D8) — the caller only invokes this once the
-/// decide step has actually named work to do.
+/// <b>Every turn writes a row</b> (specs/068 FR-004e) — including one that only answered in words
+/// and one that failed before completing, which the chat controller's mid-stream catch
+/// records directly. specs/045 research.md D8 originally exempted fast-path turns, when the trail's
+/// only job was explaining a capability's behaviour; FR-004e widened that job.
+/// </para>
+///
+/// <para>
+/// <b>Advisory, never the authority</b> (FR-004f). An <see cref="AgentExecution"/> carries no
+/// message id, so it cannot attribute an outcome to the reply a user is looking at. Nothing reads
+/// it back for reply composition, claim verification or retry — those all read
+/// <c>Message.TurnOutcomeJson</c>. Its write failing is logged and nothing more, exactly as below.
 /// </para>
 ///
 /// <para>

@@ -360,8 +360,13 @@ public sealed class SelectedActionDispatchOrchestratorTests
         var chunks = await CollectAsync(BuildOrchestrator(capability), Request(selection));
 
         capability.WasInvoked.Should().BeFalse();
-        chunks.Should().ContainSingle();
-        chunks[0].SuggestedActions.Should().BeNull("FR-025a.3 — a decline must not be immediately re-offered");
+
+        // specs/068 FR-004a — a decline still ends with a recorded outcome chunk; "nothing happened"
+        // is itself a fact the turn has to state, so it is one content chunk plus that metadata.
+        chunks.Should().ContainSingle(c => c.ContentDelta != null);
+        chunks.Should().ContainSingle(c => c.TurnOutcome != null)
+            .Which.TurnOutcome!.Verdict.Should().Be(TurnVerdict.AnsweredInWords);
+        chunks.Should().NotContain(c => c.SuggestedActions != null, "FR-025a.3 — a decline must not be immediately re-offered");
     }
 
     [Fact]

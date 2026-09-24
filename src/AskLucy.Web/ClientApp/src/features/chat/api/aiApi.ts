@@ -40,6 +40,33 @@ export interface SuggestedAction {
   isDecline: boolean
 }
 
+/**
+ * specs/068 FR-005 — what a turn actually did. `Acted` carries no aggregate pass/fail on purpose:
+ * a turn can succeed at one part and fail at another (FR-006), so read {@link TurnOutcome.attempts}.
+ */
+export type TurnVerdict = 'AnsweredInWords' | 'Acted' | 'FailedBeforeCompleting'
+
+/** specs/068 contracts/turn-outcome.md §1 — one attempted action, as the client is allowed to see it. The server-resolved arguments are deliberately absent. */
+export interface ActionAttempt {
+  kind: string
+  key: string | null
+  targetLabel: string | null
+  succeeded: boolean
+  failureReason: string | null
+}
+
+/**
+ * specs/068 FR-004a — the turn's recorded outcome, arriving as the trailing `__TURN_OUTCOME__`
+ * event and again on the persisted message when the conversation is reopened. Undefined means
+ * "outcome unknown" (a message written before this existed), which is never read as success.
+ */
+export interface TurnOutcome {
+  verdict: TurnVerdict
+  attempts: ActionAttempt[]
+  failureReason: string | null
+  recordedAtUtc: string
+}
+
 export interface ChatMessage {
   /** The persisted `Message.Id` (specs/002-chat-history-management) — undefined only for the brief window between a live send and the trailing `__MEMORY__`/history-refetch event resolving it. */
   id?: string
@@ -77,6 +104,8 @@ export interface ChatMessage {
    * `null` specifically for a decline, so the card can say so distinctly from "not yet answered."
    */
   selectedActionLabel?: string | null
+  /** specs/068 FR-004a — what this assistant turn actually did. Undefined for user messages, and for assistant messages persisted before outcomes were recorded; never read as a success. */
+  turnOutcome?: TurnOutcome
 }
 
 /** specs/005-multi-provider-ai-engine contracts/chat.md — mirrors `GenerationParametersDto`. Every field optional; an unset field falls back through the server-side inheritance chain. */
@@ -169,6 +198,8 @@ export type ChatStreamEvent =
       question: string
       actions: SuggestedAction[]
     }
+  /** specs/068 FR-004a — the turn's own verdict, trailing the stream. Emitted on every turn, including one that only answered in words and one that failed partway. */
+  | { type: 'turnOutcome'; outcome: TurnOutcome }
 
 const RAG_EVENT_PREFIX = '__RAG__'
 const MEMORY_EVENT_PREFIX = '__MEMORY__'
@@ -178,6 +209,7 @@ const VIEWER_CONTENT_EVENT_PREFIX = '__VIEWER_CONTENT__'
 const SOLAR_ANALYSIS_EVENT_PREFIX = '__SOLAR_ANALYSIS__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
+const TURN_OUTCOME_EVENT_PREFIX = '__TURN_OUTCOME__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
 
 /** specs/045-conversational-agent-runtime US3, contracts/suggested-actions-api.md §1 — echoes back which offered row was chosen; the server resolves it against the offer it came from and dispatches the grounded row, never these `key`/`text`/`arguments` values directly. */
@@ -358,6 +390,15 @@ export async function* streamChat(
           sourceDetail: payload.sourceDetail,
           alternativeCandidateNames: payload.alternativeCandidateNames,
         }
+        continue
+      }
+
+      // specs/068 FR-004a — the turn's recorded verdict. Parsed before any content handling so
+      // it is never rendered as prose: the whole point of this event is that the reply's words are
+      // not evidence of what happened.
+      if (data.startsWith(TURN_OUTCOME_EVENT_PREFIX)) {
+        const outcome = JSON.parse(data.slice(TURN_OUTCOME_EVENT_PREFIX.length)) as TurnOutcome
+        yield { type: 'turnOutcome', outcome }
         continue
       }
 

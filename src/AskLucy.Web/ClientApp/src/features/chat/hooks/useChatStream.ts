@@ -82,6 +82,7 @@ function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
       citations: m.citations,
       ...offerFields,
       selectedActionLabel: resolveSelectedActionLabel(offerFields.suggestedActions, persisted[index + 1]),
+      turnOutcome: m.turnOutcome ?? undefined,
     }
   })
 }
@@ -224,6 +225,7 @@ export function useChatStream(
       let memoryOutcome: ChatMessage['memoryOutcome']
       let suggestedActions: ChatMessage['suggestedActions']
       let offerQuestion: ChatMessage['question']
+      let turnOutcome: ChatMessage['turnOutcome']
       try {
         const activeChatId = await ensureChatId(content)
         for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
@@ -320,6 +322,10 @@ export function useChatStream(
               sourceDetail: event.sourceDetail,
               alternativeCandidateNames: event.alternativeCandidateNames,
             })
+          } else if (event.type === 'turnOutcome') {
+            // specs/068 FR-004a — belongs to the reply itself, like citations and the
+            // retrieval outcome: it describes the turn, not a later confirmation sentence.
+            turnOutcome = event.outcome
           } else if (event.type === 'actions') {
             // specs/045-conversational-agent-runtime FR-021 — belongs to whichever assistant
             // message is open when the turn ends; attached to the final rendered part below,
@@ -351,6 +357,7 @@ export function useChatStream(
               role: 'assistant',
               content: reply.content,
               citations,
+              turnOutcome,
               retrievalOutcome,
               retrievalError,
               memoryOutcome,
@@ -419,6 +426,7 @@ export function useChatStream(
       let memoryOutcome: ChatMessage['memoryOutcome']
       let suggestedActions: ChatMessage['suggestedActions']
       let offerQuestion: ChatMessage['question']
+      let turnOutcome: ChatMessage['turnOutcome']
       try {
         const activeChatId = await ensureChatId(action.label)
         const selectedAction = {
@@ -494,6 +502,10 @@ export function useChatStream(
               sourceDetail: event.sourceDetail,
               alternativeCandidateNames: event.alternativeCandidateNames,
             })
+          } else if (event.type === 'turnOutcome') {
+            // specs/068 FR-004a — belongs to the reply itself, like citations and the
+            // retrieval outcome: it describes the turn, not a later confirmation sentence.
+            turnOutcome = event.outcome
           } else if (event.type === 'actions') {
             suggestedActions = event.actions
             offerQuestion = event.question
@@ -516,6 +528,7 @@ export function useChatStream(
               role: 'assistant',
               content: reply.content,
               citations,
+              turnOutcome,
               retrievalOutcome,
               retrievalError,
               memoryOutcome,

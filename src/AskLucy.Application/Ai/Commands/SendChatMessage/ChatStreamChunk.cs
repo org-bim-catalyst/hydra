@@ -82,7 +82,20 @@ public sealed record ChatStreamChunk(
     IReadOnlyList<SuggestedAction>? SuggestedActions = null,
 
     /// <summary>What Lucy asked before the rows (contracts/turn-stream.md §2). Non-null exactly when <see cref="SuggestedActions"/> is.</summary>
-    string? SuggestedActionsQuestion = null);
+    string? SuggestedActionsQuestion = null,
+
+    /// <summary>
+    /// specs/068 FR-004a — what this turn actually did, riding the final chunk exactly as
+    /// <see cref="SuggestedActions"/> does. The authority for every success statement: the
+    /// controller persists it with the assistant message and emits it as <c>__TURN_OUTCOME__</c>.
+    /// <para>
+    /// Null on every chunk but the turn's last. Note that the <i>absence</i> of an outcome is
+    /// never read as success — a turn that dies before yielding this one gets a
+    /// <see cref="AskLucy.Application.Conversations.Runtime.TurnVerdict.FailedBeforeCompleting"/>
+    /// outcome written by the controller's mid-stream catch instead (FR-004c).
+    /// </para>
+    /// </summary>
+    AskLucy.Application.Conversations.Runtime.RecordedTurnOutcome? TurnOutcome = null);
 
 /// <summary>
 /// specs/042-site-boundary-resolution — the resolved site boundary carried on the final

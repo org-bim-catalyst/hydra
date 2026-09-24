@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Domain.Agents;
@@ -159,5 +160,55 @@ public sealed class TurnRecorderTests
         // was already decided and streamed by the time this runs, so a recording failure must
         // never propagate back into it. Logged instead (TurnRecorderLog.RecordingFailed).
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task RecordAsync_ShouldNotRetryOrBackOff_WhenPersistenceFails()
+    {
+        SeedProvisionedOrchestrator();
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns<Task<int>>(_ => throw new InvalidOperationException("db unavailable"));
+
+        var stopwatch = Stopwatch.StartNew();
+        await BuildRecorder().RecordAsync(_chatId, "user-1", "do something", "{}", [], "done", CancellationToken.None);
+        stopwatch.Stop();
+
+        // specs/068 FR-004f — the trail must not fail *or delay* the turn. A retry loop or a
+        // backoff sleep here would stall the caller after its reply had already been streamed,
+        // so the guarantee is a single attempt with no waiting. Asserted behaviourally, not on
+        // the logger: Received().Log(...) never matches the [LoggerMessage] source generator.
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task RecordAsync_ShouldNotThrow_WhenTheAgentLookupItselfFails()
+    {
+        _agentRepository.GetBySystemKeyAsync(TurnRecorder.OrchestratorSystemKey, Arg.Any<CancellationToken>())
+            .Returns<Task<Agent?>>(_ => throw new InvalidOperationException("db unavailable"));
+
+        var act = async () => await BuildRecorder().RecordAsync(_chatId, "user-1", "do something", "{}", [], "done", CancellationToken.None);
+
+        // The read side of the trail is as advisory as the write side — a lookup failure is
+        // isolated from the turn too, not only a SaveChanges failure.
+        await act.Should().NotThrowAsync();
+        _executionRepository.DidNotReceive().Add(Arg.Any<AgentExecution>());
+    }
+
+    [Fact]
+    public async Task RecordAsync_ShouldWriteARow_ForATurnThatOnlyAnsweredInWords()
+    {
+        SeedProvisionedOrchestrator();
+        var recordedBox = TrackAddedExecution();
+
+        await BuildRecorder().RecordAsync(
+            _chatId, "user-1", "what can you do?", "{\"intent\":\"answer\"}", [], "Here is what I can do.", CancellationToken.None);
+        var recorded = recordedBox.Value;
+
+        // specs/068 FR-004e widens the trail from capability-invoking turns to *every* turn,
+        // superseding specs/045 research.md D8. A no-step turn still gets a row.
+        recorded.Should().NotBeNull();
+        recorded!.Steps.Should().BeEmpty();
+        recorded.Status.Should().Be(AgentExecutionStatus.Completed);
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

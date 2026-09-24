@@ -17,6 +17,7 @@ using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Chats.Commands.RecordActiveLocation;
 using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
+using AskLucy.Application.Conversations;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
@@ -58,6 +59,9 @@ internal static partial class AiControllerLog
 {
     [LoggerMessage(Level = LogLevel.Error, Message = "Chat turn for chat {ChatId} failed mid-stream after the response had already started; ending the SSE stream cleanly instead of letting the connection drop")]
     public static partial void TurnFailedMidStream(ILogger logger, Exception exception, Guid chatId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Could not persist the assistant message or its recorded turn outcome for chat {ChatId}; the turn was surfaced to the user as unsaved")]
+    public static partial void TurnOutcomePersistFailed(ILogger logger, Exception exception, Guid chatId);
 }
 
 [ApiController]
@@ -67,6 +71,10 @@ internal static partial class AiControllerLog
 public sealed partial class AiController(
     ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository,
     ISelectedActionResolver selectedActionResolver, IOptions<ConversationRuntimeOptions> conversationRuntimeOptions,
+    // specs/068 FR-004e — the orchestrator records every turn it finishes, but a turn that dies
+    // mid-stream never reaches that call: the throw unwinds past it. This is the only place that
+    // path can be recorded from, which is why the recorder is reached directly here.
+    TurnRecorder turnRecorder, ICurrentUserAccessor currentUser,
     ILogger<AiController> logger) : ControllerBase
 {
     [HttpPost("chat")]
@@ -141,6 +149,16 @@ public sealed partial class AiController(
         IReadOnlyList<SuggestedAction>? suggestedActions = null;
         string? suggestedActionsQuestion = null;
 
+        // specs/068 FR-004a - what this turn really did, as the orchestrator recorded it. Stays
+        // null until the turn's last chunk, and the mid-stream catch below is what makes a null
+        // one impossible to confuse with a successful turn.
+        RecordedTurnOutcome? turnOutcome = null;
+
+        // specs/068 FR-004d - set when the assistant message (and with it the outcome) could not be
+        // stored. Suppresses the outcome event below: an event the client would act on, describing
+        // a record that does not exist, is worse than no event at all.
+        var outcomePersistFailed = false;
+
         // specs/045-conversational-agent-runtime research.md D5 — a beat can now sit
         // "pending" for tens of seconds (site-boundary resolution). Without a keep-alive, an
         // idle SSE connection on the shared production host risks a proxy buffering or timing
@@ -167,7 +185,7 @@ public sealed partial class AiController(
                     {
                         firstAssistantMessageId ??= await PersistAssistantMessageAsync(
                             request, assistantContent.ToString(), provider, model, generationParametersJson,
-                            finalUsage, retrievalOutcome, null, cancellationToken);
+                            finalUsage, retrievalOutcome, null, null, cancellationToken);
                         assistantContent.Clear();
                     }
 
@@ -240,6 +258,11 @@ public sealed partial class AiController(
                     suggestedActions = chunk.SuggestedActions;
                     suggestedActionsQuestion = chunk.SuggestedActionsQuestion;
                 }
+
+                if (chunk.TurnOutcome is not null)
+                {
+                    turnOutcome = chunk.TurnOutcome;
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -263,14 +286,56 @@ public sealed partial class AiController(
             // for that" sentence is the sibling of this one).
             AiControllerLog.TurnFailedMidStream(logger, ex, request.ChatId);
 
+            // specs/068 FR-004c - this is the exact path that recorded nothing. The turn died, the
+            // notice below was persisted as ordinary assistant prose, and a later turn read it as a
+            // normal reply and claimed the work had been done. Recording the failure first is what
+            // makes the notice structurally distinguishable from an answer.
+            //
+            // Note the ordering: the notice is appended to the content but not yet written to the
+            // wire, so the message persists complete while __TURN_OUTCOME__ still reaches the
+            // client ahead of the notice it explains.
             const string failureNotice = " Something went wrong partway through and I couldn't finish. Please try again.";
-            await Response.WriteAsync($"data: {failureNotice}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
             assistantContent.Append(failureNotice);
 
-            await PersistAssistantMessageAsync(
-                request, assistantContent.ToString(), provider, model, generationParametersJson,
-                finalUsage, retrievalOutcome, null, cancellationToken);
+            var failedOutcome = RecordedTurnOutcome.FailedBeforeCompleting(
+                DescribeTurnFailure(ex),
+                DateTimeOffset.UtcNow,
+                turnOutcome?.Attempts);
+
+            var failureRecorded = true;
+            try
+            {
+                await PersistAssistantMessageAsync(
+                    request, assistantContent.ToString(), provider, model, generationParametersJson,
+                    finalUsage, retrievalOutcome, null, failedOutcome, cancellationToken);
+            }
+            catch (Exception persistException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // FR-004d - the turn already failed; failing to record that must not end the
+                // request in silence too. The user still gets the notice below either way.
+                AiControllerLog.TurnOutcomePersistFailed(logger, persistException, request.ChatId);
+                failureRecorded = false;
+            }
+
+            // FR-004e — the advisory trail gets this turn too. RecordAsync swallows and logs its own
+            // failures by design (FR-004f), so this cannot make a failed turn fail twice.
+            await turnRecorder.RecordAsync(
+                request.ChatId,
+                currentUser.UserId,
+                request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty,
+                JsonSerializer.Serialize(new { failedBeforeCompleting = true }),
+                [.. failedOutcome.Attempts.Select(attempt => new TurnRecordedStep(
+                    attempt.Key ?? attempt.Kind, Attempted: true, attempt.Succeeded, null, attempt.FailureReason))],
+                failedOutcome.FailureReason ?? "The turn did not complete.",
+                cancellationToken);
+
+            if (failureRecorded)
+            {
+                await WriteTurnOutcomeEventAsync(failedOutcome, cancellationToken);
+            }
+
+            await Response.WriteAsync($"data: {failureNotice}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
 
             await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
             return;
@@ -329,9 +394,28 @@ public sealed partial class AiController(
                 ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions.Select(BuildActionWirePayload) })
                 : null;
 
-            var persistedId = await PersistAssistantMessageAsync(
-                request, assistantContent.ToString(), provider, model, generationParametersJson,
-                finalUsage, retrievalOutcome, suggestedActionsJson, cancellationToken);
+            // specs/068 FR-004d - the response has already started, so an exception escaping this
+            // call cannot become Problem Details; it just resets the connection, which is the
+            // unexplained "connection dropped" this feature exists to stop producing. A turn whose
+            // outcome did not store must say so, and must not then emit an outcome event claiming
+            // it did (contracts/turn-outcome.md 1).
+            Guid? persistedId = null;
+            try
+            {
+                persistedId = await PersistAssistantMessageAsync(
+                    request, assistantContent.ToString(), provider, model, generationParametersJson,
+                    finalUsage, retrievalOutcome, suggestedActionsJson, turnOutcome, cancellationToken);
+            }
+            catch (Exception persistException) when (!cancellationToken.IsCancellationRequested)
+            {
+                AiControllerLog.TurnOutcomePersistFailed(logger, persistException, request.ChatId);
+                outcomePersistFailed = true;
+
+                const string persistNotice = " I couldn't save this to your chat history, so it won't be here if you reload.";
+                await Response.WriteAsync($"data: {persistNotice}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
             firstAssistantMessageId ??= persistedId;
             offeringMessageId = persistedId;
         }
@@ -429,6 +513,17 @@ public sealed partial class AiController(
             await Response.Body.FlushAsync(cancellationToken);
         }
 
+        // specs/068 FR-004a, contracts/turn-outcome.md 1 - exactly one per assistant turn, after
+        // the outcome is persisted so a client that acts on it cannot be told something the reload
+        // would contradict. A turn that reached here without one answered in words and did nothing,
+        // which is itself a fact the client needs: absent means unknown, not "nothing happened".
+        if (!outcomePersistFailed)
+        {
+            await WriteTurnOutcomeEventAsync(
+                turnOutcome ?? RecordedTurnOutcome.AnsweredInWords(DateTimeOffset.UtcNow),
+                cancellationToken);
+        }
+
         await Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
     }
 
@@ -452,6 +547,39 @@ public sealed partial class AiController(
     };
 
     /// <summary>
+    /// specs/068 FR-014 - why the turn stopped, in words a user can act on.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately does not surface <see cref="Exception.Message"/>: it is written for an
+    /// operator, routinely names internal types and endpoints, and on the credential failure that
+    /// prompted this feature would have put provider internals in front of the user. The full
+    /// exception is already logged for diagnosis (constitution 2.VIII), which is what that
+    /// principle asks for - the reason recorded here is the caller-facing half.
+    /// </remarks>
+    private static string DescribeTurnFailure(Exception exception) => exception switch
+    {
+        TimeoutException => "It took too long to respond and timed out.",
+        HttpRequestException => "The service it needed could not be reached.",
+        _ => "It stopped partway through with an unexpected error.",
+    };
+
+    /// <summary>
+    /// specs/068 contracts/turn-outcome.md 1 - the trailing <c>__TURN_OUTCOME__</c> event.
+    /// </summary>
+    /// <remarks>
+    /// <c>argumentsJson</c> is stripped here and only here. It holds server-resolved internals kept
+    /// for replay; sending it would both leak them and invite a client to send them back, which is
+    /// precisely what makes retry safe to accept as a bare message id (research.md D4).
+    /// </remarks>
+    private async Task WriteTurnOutcomeEventAsync(RecordedTurnOutcome outcome, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Serialize(TurnOutcomeView.From(outcome), RecordedTurnOutcomeJson.Options);
+
+        await Response.WriteAsync($"data: __TURN_OUTCOME__{payload}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Persists one assistant message of the current turn, carrying the turn's provider/model
     /// attribution, token usage, estimated cost and RAG citations.
     /// </summary>
@@ -471,6 +599,7 @@ public sealed partial class AiController(
         ChatUsage? usage,
         RagRetrievalOutcome? retrievalOutcome,
         string? suggestedActionsJson,
+        RecordedTurnOutcome? turnOutcome,
         CancellationToken cancellationToken)
     {
         var estimatedCostUsd = CostEstimator.Estimate(model?.Pricing, usage?.InputTokenCount, usage?.OutputTokenCount);
@@ -492,7 +621,11 @@ public sealed partial class AiController(
                 InputTokenCount: usage?.InputTokenCount, OutputTokenCount: usage?.OutputTokenCount,
                 CachedTokenCount: usage?.CachedTokenCount, ReasoningTokenCount: usage?.ReasoningTokenCount,
                 LatencyMs: usage?.LatencyMs, EstimatedCostUsd: estimatedCostUsd, Citations: citations,
-                SuggestedActionsJson: suggestedActionsJson),
+                SuggestedActionsJson: suggestedActionsJson,
+                // specs/068 FR-004b/FR-004d - the same command, therefore the same transaction as
+                // the message. There is no window in which a message exists without its outcome,
+                // so there is no partial state to detect or repair.
+                TurnOutcomeJson: turnOutcome is null ? null : JsonSerializer.Serialize(turnOutcome, RecordedTurnOutcomeJson.Options)),
             cancellationToken);
 
         return message.Id;

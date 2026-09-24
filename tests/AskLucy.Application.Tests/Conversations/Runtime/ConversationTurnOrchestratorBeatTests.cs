@@ -266,15 +266,71 @@ public sealed class ConversationTurnOrchestratorBeatTests
     }
 
     [Fact]
-    public async Task RunAsync_ShouldRecordNothing_OnTheFastPath_EvenAgainstAProvisionedOrchestrator()
+    public async Task RunAsync_ShouldRecordTheTurn_OnTheFastPath()
     {
+        // Was RunAsync_ShouldRecordNothing_OnTheFastPath_EvenAgainstAProvisionedOrchestrator, which
+        // encoded specs/045 research.md D8. specs/068 FR-004e replaces that rule: the trail covers
+        // every turn now, because "Lucy answered in words and did nothing" is exactly the state
+        // that went unrecorded when she later claimed to have acted.
         SeedProvisionedOrchestrator();
         _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
-        await CollectAsync(BuildOrchestrator(), Request("just chatting"));
+        var chunks = await CollectAsync(BuildOrchestrator(), Request("just chatting"));
 
-        _agentExecutionRepository.DidNotReceive().Add(Arg.Any<AgentExecution>());
+        _agentExecutionRepository.Received().Add(Arg.Any<AgentExecution>());
+        chunks.Should().ContainSingle(c => c.TurnOutcome != null)
+            .Which.TurnOutcome!.Verdict.Should().Be(TurnVerdict.AnsweredInWords);
+    }
+
+    /// <summary>
+    /// specs/068 T018, FR-001/FR-005 — a capability that failed is recorded as having failed, with
+    /// its own reason. This is the fact every later turn reads instead of guessing from prose.
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_ShouldRecordAFailedAttempt_WhenTheCapabilityFails()
+    {
+        SeedProvisionedOrchestrator();
+        var capability = new StubCapability { FailWith = "The provider credential was rejected." };
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+            .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", """{"query":"Al Safa Park 2"}""", null, null)]));
+
+        var chunks = await CollectAsync(BuildOrchestrator(capability), Request("show me Al Safa Park 2"));
+
+        var outcome = chunks.Single(c => c.TurnOutcome != null).TurnOutcome!;
+        outcome.Verdict.Should().Be(TurnVerdict.Acted);
+        var attempt = outcome.Attempts.Should().ContainSingle().Subject;
+        attempt.Key.Should().Be("stub");
+        attempt.Succeeded.Should().BeFalse();
+        attempt.FailureReason.Should().NotBeNullOrWhiteSpace();
+        attempt.TargetLabel.Should().Be("Al Safa Park 2");
+
+        // The whole point: nothing in this outcome lets a later turn say the location was shown.
+        outcome.SupportsSuccessClaimFor("stub").Should().BeFalse();
+        outcome.SupportsAnySuccessClaim.Should().BeFalse();
+
+        // FR-004e — and the advisory trail still gets its row.
+        _agentExecutionRepository.Received().Add(Arg.Any<AgentExecution>());
+    }
+
+    /// <summary>
+    /// specs/068 T018 — the mirror case, so the gate cannot be satisfied by simply never claiming
+    /// anything: a capability that worked must be recorded as having worked, byte-for-byte enough
+    /// for an accurate confirmation to pass through untouched.
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_ShouldRecordASucceededAttempt_WhenTheCapabilitySucceeds()
+    {
+        SeedProvisionedOrchestrator();
+        var capability = new StubCapability { SucceedWith = """{"ok":true}""" };
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+            .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", """{"query":"Al Safa Park 2"}""", null, null)]));
+
+        var chunks = await CollectAsync(BuildOrchestrator(capability), Request("show me Al Safa Park 2"));
+
+        var outcome = chunks.Single(c => c.TurnOutcome != null).TurnOutcome!;
+        outcome.Verdict.Should().Be(TurnVerdict.Acted);
+        outcome.SupportsSuccessClaimFor("stub").Should().BeTrue();
     }
 
     private void SeedProvisionedOrchestrator()

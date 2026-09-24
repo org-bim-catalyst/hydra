@@ -101,5 +101,6 @@ public sealed class AppendMessageCommandHandler(
         message.SuggestedActionsJson,
         message.SelectedActionKind,
         message.SelectedActionKey,
-        message.SelectedActionArgumentsJson);
+        message.SelectedActionArgumentsJson,
+        Conversations.Runtime.TurnOutcomeView.FromJson(message.TurnOutcomeJson));
 }

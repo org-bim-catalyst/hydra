@@ -128,6 +128,8 @@ public sealed class ConversationTurnOrchestrator(
                     ToRecordedSteps(selectionFlowRecord), justHappened, cancellationToken);
             }
 
+            yield return new ChatStreamChunk(null, null, TurnOutcome: BuildOutcome(ToAttempts(selectionFlowRecord, selection.ArgumentsJson)));
+
             backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
             yield break;
         }
@@ -229,24 +231,34 @@ public sealed class ConversationTurnOrchestrator(
             yield return chunk;
         }
 
-        // FR-039/FR-038 — a degraded decision gets a record despite Intent staying Answer: the
-        // decide step itself is what broke, and that is exactly the kind of thing the audit trail
-        // exists for, even though no capability ran (research.md D8's "fast-path turns create no
-        // row" is about the ordinary, non-degraded case).
-        if (decision.Intent == TurnIntent.Act || decision.WasDegraded)
+        // specs/068 FR-004e — every turn is recorded now, not only capability-invoking and degraded
+        // ones. specs/045 research.md D8 ("fast-path turns create no row") was written when the
+        // trail's only job was explaining what a capability did; FR-004e widened that to "what
+        // every turn did", and a turn that answered in words is a fact the trail needs too.
+        //
+        // The trail stays advisory (FR-004f): it carries no message id, so it can never say what a
+        // particular reply did, and nothing reads it back. Message.TurnOutcomeJson is the authority.
+        var recordedSteps = decision.Intent == TurnIntent.Act
+            ? (decision.IsFlowRun ? ToRecordedSteps(flowRunRecord) : ToRecordedSteps(sliceRunRecord))
+            : [];
+        var decidePlanJson = JsonSerializer.Serialize(new
         {
-            var recordedSteps = decision.Intent == TurnIntent.Act
-                ? (decision.IsFlowRun ? ToRecordedSteps(flowRunRecord) : ToRecordedSteps(sliceRunRecord))
-                : [];
-            var decidePlanJson = JsonSerializer.Serialize(new
-            {
-                intent = decision.Intent.ToString(),
-                flowKey = decision.FlowKey,
-                slices = decision.Slices.Select(s => s.CapabilityKey),
-                degraded = decision.WasDegraded,
-            });
-            await turnRecorder.RecordAsync(request.ChatId, userId, latestUserMessage, decidePlanJson, recordedSteps, decideJustHappened, cancellationToken);
-        }
+            intent = decision.Intent.ToString(),
+            flowKey = decision.FlowKey,
+            slices = decision.Slices.Select(s => s.CapabilityKey),
+            degraded = decision.WasDegraded,
+        });
+        await turnRecorder.RecordAsync(request.ChatId, userId, latestUserMessage, decidePlanJson, recordedSteps, decideJustHappened, cancellationToken);
+
+        // specs/068 FR-004a — the turn's real outcome, last thing before the turn ends. Built from
+        // the same run records the audit trail uses, but this is the authority: the audit row has
+        // no message id and so cannot say what *this* reply did (FR-004b/FR-004f).
+        var attempts = decision.Intent == TurnIntent.Act
+            ? (decision.IsFlowRun
+                ? ToAttempts(flowRunRecord, decision.FlowArgumentsJson ?? "{}")
+                : ToAttempts(sliceRunRecord, decision))
+            : [];
+        yield return new ChatStreamChunk(null, null, TurnOutcome: BuildOutcome(attempts));
 
         // spec.md FR-006 (research.md Decision 6) — fire-and-forget background analysis of this
         // turn for new candidate memories, unchanged by which path the turn took.
@@ -260,6 +272,94 @@ public sealed class ConversationTurnOrchestrator(
     /// <summary>FR-038 — a delegated slice was always attempted (a dropped one never reaches <see cref="SubAgentDelegator"/>'s own record at all); its failure reason is its own result text.</summary>
     private static IReadOnlyList<TurnRecordedStep> ToRecordedSteps(IReadOnlyList<SubAgentDelegationResult> slices) =>
         [.. slices.Select(s => new TurnRecordedStep(s.CapabilityKey, Attempted: true, s.Succeeded, s.ResultJson, s.Succeeded ? null : s.ResultJson))];
+
+    /// <summary>
+    /// specs/068 FR-001 — an attempt per capability that actually ran, taking each one's own
+    /// reported result and nothing else. A skipped or unattempted step contributes no attempt: it
+    /// did not happen, so it can neither support a claim nor be offered as a retry.
+    /// </summary>
+    private static IReadOnlyList<ActionAttempt> ToAttempts(IReadOnlyList<FlowStepResult> steps, string argumentsJson) =>
+        [.. steps
+            .Where(step => step.Attempted && !step.Skipped)
+            .Select(step => ToAttempt(step.CapabilityKey, argumentsJson, step.Succeeded, step.Reason ?? step.ResultJson))];
+
+    /// <summary>
+    /// specs/068 FR-001 — the same, for decided slices. Each slice's arguments come from the
+    /// decision that produced it, so a retry replays what the server resolved rather than anything
+    /// the client could influence (FR-010).
+    /// </summary>
+    private static IReadOnlyList<ActionAttempt> ToAttempts(IReadOnlyList<SubAgentDelegationResult> slices, TurnDecision decision) =>
+        [.. slices.Select(slice => ToAttempt(
+            slice.CapabilityKey,
+            decision.Slices.FirstOrDefault(s => string.Equals(s.CapabilityKey, slice.CapabilityKey, StringComparison.Ordinal))?.ArgumentsJson ?? "{}",
+            slice.Succeeded,
+            slice.ResultJson))];
+
+    private static ActionAttempt ToAttempt(string capabilityKey, string argumentsJson, bool succeeded, string? failureText) =>
+        succeeded
+            ? ActionAttempt.Success(SuggestedActionKind.Capability.ToString(), capabilityKey, TargetLabelFrom(argumentsJson), argumentsJson)
+            : ActionAttempt.Failure(
+                SuggestedActionKind.Capability.ToString(),
+                capabilityKey,
+                TargetLabelFrom(argumentsJson),
+                argumentsJson,
+                // FR-014 needs a reason to surface, and a capability that failed without saying why
+                // still failed — an honest placeholder beats refusing to record the failure at all.
+                string.IsNullOrWhiteSpace(failureText) ? "It didn't report why it failed." : failureText);
+
+    /// <summary>
+    /// The human-readable thing an attempt was aimed at ("Al Safa Park 2"), for the routing summary
+    /// and the retry affordance. Best-effort by design: a null label costs a less specific sentence,
+    /// never a wrong one.
+    /// </summary>
+    private static string? TargetLabelFrom(string? argumentsJson)
+    {
+        if (string.IsNullOrWhiteSpace(argumentsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(argumentsJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var name in TargetLabelPropertyNames)
+            {
+                if (document.RootElement.TryGetProperty(name, out var value)
+                    && value.ValueKind == JsonValueKind.String
+                    && value.GetString() is { } label
+                    && !string.IsNullOrWhiteSpace(label))
+                {
+                    return label.Trim();
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Arguments that will not parse still describe a real attempt; the attempt is recorded
+            // without a label rather than lost.
+            return null;
+        }
+
+        return null;
+    }
+
+    /// <summary>Checked in order, so the most specific naming wins.</summary>
+    private static readonly string[] TargetLabelPropertyNames =
+        ["query", "placeName", "locationName", "name", "label", "title"];
+
+    /// <summary>
+    /// specs/068 FR-005/FR-006 — the verdict follows from whether anything was attempted, never
+    /// from whether it worked. Whether the attempts succeeded is read from the attempts themselves.
+    /// </summary>
+    private static RecordedTurnOutcome BuildOutcome(IReadOnlyList<ActionAttempt> attempts) =>
+        attempts.Count == 0
+            ? RecordedTurnOutcome.AnsweredInWords(DateTimeOffset.UtcNow)
+            : RecordedTurnOutcome.Acted(attempts, DateTimeOffset.UtcNow);
 
     /// <summary>
     /// specs/045 US3 (FR-027) — dispatches an already-resolved, already-grounded selection

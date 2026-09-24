@@ -64,11 +64,16 @@ public sealed record RecordedTurnOutcome(
     }
 
     /// <summary>
-    /// True when this outcome supports a statement that <paramref name="kind"/> was carried out.
-    /// The claim gate's question, asked of the recorded fact rather than of the prose.
+    /// True when this outcome supports a statement that <paramref name="capabilityKey"/> was
+    /// carried out. The claim gate's question, asked of the recorded fact rather than of the prose.
+    /// <para>
+    /// Matches on <see cref="ActionAttempt.Key"/>, because that is the capability vocabulary the
+    /// gate's patterns are generated from; <see cref="ActionAttempt.Kind"/> is the coarser
+    /// suggested-action vocabulary and is only consulted for an attempt that carries no key.
+    /// </para>
     /// </summary>
-    public bool SupportsSuccessClaimFor(string kind) =>
-        Attempts.Any(a => a.Succeeded && string.Equals(a.Kind, kind, StringComparison.OrdinalIgnoreCase));
+    public bool SupportsSuccessClaimFor(string capabilityKey) =>
+        Attempts.Any(a => a.Succeeded && string.Equals(a.Key ?? a.Kind, capabilityKey, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>True when any recorded attempt succeeded, whatever its kind.</summary>
     public bool SupportsAnySuccessClaim => Attempts.Any(a => a.Succeeded);

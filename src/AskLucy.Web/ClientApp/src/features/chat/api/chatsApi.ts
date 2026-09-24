@@ -1,5 +1,5 @@
 import { apiFetch } from '../../../api/httpClient'
-import type { GenerationParameters } from './aiApi'
+import type { GenerationParameters, TurnOutcome } from './aiApi'
 
 export interface UserChat {
   id: string
@@ -69,6 +69,8 @@ export interface PersistedMessage {
   /** specs/045-conversational-agent-runtime US3 — set only on a user message created by selecting an offered row (mirrors the resolved offer row exactly, including for a decline); null for a typed message. */
   selectedActionKind: string | null
   selectedActionKey: string | null
+  /** specs/068 FR-004a — the turn's recorded outcome, redacted for the client (the server-resolved arguments stay on the server). Null on user messages and on assistant messages written before outcomes were recorded. */
+  turnOutcome?: TurnOutcome | null
 }
 
 /** specs/025-chat-configuration-settings, contracts/chat-detail-api.md — a single chat's own detail, including its current provider/model selection (null if never set). */

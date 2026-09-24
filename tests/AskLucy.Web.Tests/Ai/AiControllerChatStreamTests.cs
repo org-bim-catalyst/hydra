@@ -6,6 +6,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Conversations.Runtime;
+using AskLucy.Domain.Agents;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Chats;
@@ -43,6 +44,8 @@ public sealed class AiControllerChatStreamTests : IDisposable
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
     private readonly ISelectedActionResolver _selectedActionResolver = Substitute.For<ISelectedActionResolver>();
+    private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly TurnRecorder _turnRecorder = BuildInertTurnRecorder();
     private readonly MemoryStream _responseBody = new();
     private readonly AiController _controller;
     private readonly Guid _chatId = Guid.NewGuid();
@@ -56,7 +59,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
 
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
-            NullLogger<AiController>.Instance)
+            _turnRecorder, _currentUser, NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -66,6 +69,15 @@ public sealed class AiControllerChatStreamTests : IDisposable
     }
 
     public void Dispose() => _responseBody.Dispose();
+
+    /// <summary>
+    /// A real <see cref="TurnRecorder"/> (it is sealed) over substituted repositories. Its
+    /// orchestrator lookup returns null, so every call is a logged no-op — which is the point:
+    /// these tests assert what reaches the wire, and the advisory audit trail must not affect it.
+    /// </summary>
+    private static TurnRecorder BuildInertTurnRecorder() => new(
+        Substitute.For<IAgentRepository>(), Substitute.For<IAgentExecutionRepository>(),
+        Substitute.For<IUnitOfWork>(), NullLogger<TurnRecorder>.Instance);
 
     private string ResponseText() => Encoding.UTF8.GetString(_responseBody.ToArray());
 
@@ -373,6 +385,8 @@ public sealed class AiControllerKeepAliveTests : IDisposable
     private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
     private readonly ISelectedActionResolver _selectedActionResolver = Substitute.For<ISelectedActionResolver>();
+    private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly TurnRecorder _turnRecorder = BuildInertTurnRecorder();
     private readonly MemoryStream _responseBody = new();
     private readonly AiController _controller;
     private readonly Guid _chatId = Guid.NewGuid();
@@ -390,7 +404,7 @@ public sealed class AiControllerKeepAliveTests : IDisposable
         // to aiApi.ts's parser) is correct.
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }),
-            NullLogger<AiController>.Instance)
+            _turnRecorder, _currentUser, NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -400,6 +414,15 @@ public sealed class AiControllerKeepAliveTests : IDisposable
     }
 
     public void Dispose() => _responseBody.Dispose();
+
+    /// <summary>
+    /// A real <see cref="TurnRecorder"/> (it is sealed) over substituted repositories. Its
+    /// orchestrator lookup returns null, so every call is a logged no-op — which is the point:
+    /// these tests assert what reaches the wire, and the advisory audit trail must not affect it.
+    /// </summary>
+    private static TurnRecorder BuildInertTurnRecorder() => new(
+        Substitute.For<IAgentRepository>(), Substitute.For<IAgentExecutionRepository>(),
+        Substitute.For<IUnitOfWork>(), NullLogger<TurnRecorder>.Instance);
 
     private string ResponseText() => Encoding.UTF8.GetString(_responseBody.ToArray());
 

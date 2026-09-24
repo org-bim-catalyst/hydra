@@ -56,21 +56,21 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Recording on both paths
 
-- [ ] T013 Build a `RecordedTurnOutcome` on the normal completion path in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs`, populating `Attempts` from each capability's own reported result (FR-001)
-- [ ] T014 Build a `FailedBeforeCompleting` outcome in the mid-stream catch at `src/AskLucy.Web/Controllers/v1/AiController.cs:265` and pass it to `PersistAssistantMessageAsync` **before** the failure notice is written (FR-004c) — this is the exact path that recorded nothing in production
-- [ ] T015 Thread the outcome through `PersistAssistantMessageAsync` in `src/AskLucy.Web/Controllers/v1/AiController.cs` into `AppendMessageCommand`
-- [ ] T016 Surface a failed outcome persist rather than continuing silently (FR-004d) in `src/AskLucy.Web/Controllers/v1/AiController.cs`
-- [ ] T017 Make `TurnRecorder.RecordAsync` reachable from the mid-stream failure path and extend it to record answered-in-words turns, in `src/AskLucy.Application/Conversations/Runtime/TurnRecorder.cs` and `ConversationTurnOrchestrator.cs:248` (FR-004e) — keep its existing swallow-and-log behaviour intact (FR-004f)
-- [ ] T018 [P] Unit-test that a mid-stream failure still produces a persisted outcome and an audit record, in `tests/AskLucy.Application.Tests/Conversations/Runtime/ConversationTurnOrchestratorTests.cs`
-- [ ] T019 [P] Unit-test that an audit-trail write failure does not fail or delay the turn (FR-004f), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnRecorderTests.cs` — note `Received().Log(...)` never matches `[LoggerMessage]` source-gen logging; assert on behaviour, not the logger
-- [ ] T020 [P] Assert the audit trail is never *read* as the outcome source (FR-004b's exclusivity): grep-level or architecture test that reply composition, the claim gate and retry resolution all read `Message.TurnOutcomeJson` and none reference `AgentExecution`, in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeAuthorityTests.cs`
+- [X] T013 Build a `RecordedTurnOutcome` on the normal completion path in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs`, populating `Attempts` from each capability's own reported result (FR-001)
+- [X] T014 Build a `FailedBeforeCompleting` outcome in the mid-stream catch at `src/AskLucy.Web/Controllers/v1/AiController.cs:265` and pass it to `PersistAssistantMessageAsync` **before** the failure notice is written (FR-004c) — this is the exact path that recorded nothing in production
+- [X] T015 Thread the outcome through `PersistAssistantMessageAsync` in `src/AskLucy.Web/Controllers/v1/AiController.cs` into `AppendMessageCommand`
+- [X] T016 Surface a failed outcome persist rather than continuing silently (FR-004d) in `src/AskLucy.Web/Controllers/v1/AiController.cs`
+- [X] T017 Make `TurnRecorder.RecordAsync` reachable from the mid-stream failure path and extend it to record answered-in-words turns, in `src/AskLucy.Application/Conversations/Runtime/TurnRecorder.cs` and `ConversationTurnOrchestrator.cs:248` (FR-004e) — keep its existing swallow-and-log behaviour intact (FR-004f)
+- [X] T018 [P] Unit-test that a mid-stream failure still produces a persisted outcome and an audit record, in `tests/AskLucy.Application.Tests/Conversations/Runtime/ConversationTurnOrchestratorTests.cs`
+- [X] T019 [P] Unit-test that an audit-trail write failure does not fail or delay the turn (FR-004f), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnRecorderTests.cs` — note `Received().Log(...)` never matches `[LoggerMessage]` source-gen logging; assert on behaviour, not the logger
+- [X] T020 [P] Assert the audit trail is never *read* as the outcome source (FR-004b's exclusivity): grep-level or architecture test that reply composition, the claim gate and retry resolution all read `Message.TurnOutcomeJson` and none reference `AgentExecution`, in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeAuthorityTests.cs`
 
 ### Transport
 
-- [ ] T021 Emit the `__TURN_OUTCOME__` sentinel event before `[DONE]` on every path in `src/AskLucy.Web/Controllers/v1/AiController.cs`, using the payload in contracts/turn-outcome.md §1 — **omit `argumentsJson`**
-- [ ] T022 Return `turnOutcome` on assistant messages from the transcript endpoint using the same payload shape, so the client parses one shape (SC-001c)
-- [ ] T023 [P] Add the `__TURN_OUTCOME__` sentinel and a `turnOutcome` field on `ChatMessage` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts`
-- [ ] T024 [P] Integration-test that every turn type emits exactly one `__TURN_OUTCOME__` and that `argumentsJson` never appears in the stream, in `tests/AskLucy.Web.Tests/`
+- [X] T021 Emit the `__TURN_OUTCOME__` sentinel event before `[DONE]` on every path in `src/AskLucy.Web/Controllers/v1/AiController.cs`, using the payload in contracts/turn-outcome.md §1 — **omit `argumentsJson`**
+- [X] T022 Return `turnOutcome` on assistant messages from the transcript endpoint using the same payload shape, so the client parses one shape (SC-001c)
+- [X] T023 [P] Add the `__TURN_OUTCOME__` sentinel and a `turnOutcome` field on `ChatMessage` in `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts`
+- [X] T024 [P] Integration-test that every turn type emits exactly one `__TURN_OUTCOME__` and that `argumentsJson` never appears in the stream, in `tests/AskLucy.Web.Tests/`
 
 **Checkpoint**: Every turn now leaves a retrievable, message-attached outcome. US1 and US2 can begin.
 

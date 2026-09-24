@@ -35,4 +35,10 @@ public sealed record MessageDto(
     // selecting an offered row; null for a typed message.
     string? SelectedActionKind = null,
     string? SelectedActionKey = null,
-    string? SelectedActionArgumentsJson = null);
+    string? SelectedActionArgumentsJson = null,
+    // specs/068 FR-004a — what this assistant turn actually did, redacted for the client.
+    // Null means the outcome is unknown (a message written before specs/068, or a user
+    // message), which the claim gate treats as "suppress action claims", never as success.
+    // Projected rather than passed through raw: the persisted document carries the
+    // server-resolved argumentsJson, which never leaves the server.
+    Conversations.Runtime.TurnOutcomeView? TurnOutcome = null);
