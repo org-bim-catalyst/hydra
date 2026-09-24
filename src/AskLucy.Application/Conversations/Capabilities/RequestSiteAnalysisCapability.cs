@@ -72,8 +72,16 @@ public sealed class RequestSiteAnalysisCapability(
     /// <summary>Always true — the "site could not be identified" outcome (FR-023) is narrated by Lucy from <see cref="ExecuteAsync"/>'s own output, not hidden by catalog filtering (mirrors <see cref="OpenSolarAnalysisCapability"/>).</summary>
     public bool IsAvailable(TurnContext context) => true;
 
-    /// <summary>Invoked directly when asked; not offered as a suggested next step.</summary>
-    public bool IsOfferable(TurnContext context, TurnOutcome justCompleted) => false;
+    /// <summary>
+    /// Offerable once a site is on screen (specs/068). An offer is in fact the <i>right</i> way to
+    /// reach something this expensive — its duration is <see cref="CapabilityDuration.Extended"/> —
+    /// because the user consents before it spends the time, which is the whole argument for
+    /// offering rather than acting. Narrower than <see cref="IsAvailable"/> for the same reason as
+    /// <see cref="OpenSolarAnalysisCapability"/> — availability stays unconditional so a missing
+    /// site is narrated rather than hidden, but there is nothing to offer analysis of.
+    /// </summary>
+    public bool IsOfferable(TurnContext context, TurnOutcome justCompleted) =>
+        context.HasActiveLocation && !justCompleted.WasInvokedThisTurn(CapabilityKey);
 
     public async Task<AgentToolResult> ExecuteAsync(AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)
     {

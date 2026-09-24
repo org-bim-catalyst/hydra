@@ -117,10 +117,22 @@ public sealed class OpenSolarAnalysisCapabilityTests
     }
 
     [Fact]
-    public void IsOfferable_ShouldAlwaysBeFalse()
+    public void IsOfferable_ShouldFollowTheSite_NotAvailability()
     {
+        // specs/068 — offerable is narrower than available here, and deliberately so in both
+        // directions. With no site there is nothing to put on a card; with a site, this is the
+        // best answer there is to "what else can you show me?", which is the question the user
+        // asks precisely because they do not already know the capability exists.
         var (capability, _) = BuildCapability();
-        capability.IsOfferable(TurnContext.Empty("user-1", Guid.NewGuid()), null!).Should().BeFalse();
+        var empty = TurnContext.Empty("user-1", Guid.NewGuid());
+        var located = empty with { ActiveLocation = new ActiveSiteLocation(25.156, 55.2218, "Al Safa Park 2", 0.9) };
+
+        capability.IsOfferable(empty, TurnOutcome.None).Should().BeFalse();
+        capability.IsOfferable(located, TurnOutcome.None).Should().BeTrue();
+
+        var justOpened = new TurnOutcome([OpenSolarAnalysisCapability.CapabilityKey], false, [], false);
+        capability.IsOfferable(located, justOpened).Should().BeFalse(
+            "an offer must never propose work the user just watched complete");
     }
 
     /// <summary>

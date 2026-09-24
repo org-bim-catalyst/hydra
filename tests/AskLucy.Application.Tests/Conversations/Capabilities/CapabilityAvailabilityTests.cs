@@ -123,16 +123,24 @@ public sealed class CapabilityAvailabilityTests
     }
 
     [Fact]
-    public void SearchKnowledgeBase_ShouldBeOfferable_OnceTheTurnHasASubject()
+    public void SearchKnowledgeBase_ShouldBeOfferable_WheneverThereIsSomethingToSearch()
     {
         var capability = new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>());
         var context = Base() with { AttachedKnowledgeBaseIds = [Guid.NewGuid()] };
 
-        capability.IsOfferable(context, TurnOutcome.None).Should().BeFalse(
-            "a turn that did nothing has produced nothing worth searching for");
+        // specs/068 — this previously also required that the turn had confirmed a location or run
+        // something, which sounds like "wait until there is a subject" but is not: the offer step
+        // only runs on a suggest or act intent in the first place, and a "suggest" turn is the
+        // user asking about something. The clause therefore excluded exactly the turn the offer
+        // step exists for, and an attached knowledge base could go a whole conversation unoffered.
+        capability.IsOfferable(context, TurnOutcome.None).Should().BeTrue(
+            "asking about something is itself the subject worth searching for");
 
         var afterLocating = new TurnOutcome([ResolveLocationCapability.CapabilityKey], true, [], false);
         capability.IsOfferable(context, afterLocating).Should().BeTrue();
+
+        capability.IsOfferable(Base(), TurnOutcome.None).Should().BeFalse(
+            "with no knowledge base attached there is still nothing to search");
     }
 
     [Fact]
@@ -144,6 +152,41 @@ public sealed class CapabilityAvailabilityTests
 
         capability.IsOfferable(context, justSearched).Should().BeFalse(
             "an offer must never propose work the user just watched complete");
+    }
+
+    // ---- specs/068: the reported bug, stated as a property of the set rather than of one member. ----
+
+    /// <summary>
+    /// "Give me options" / "what else can you show me?" produced no options at all. Two independent
+    /// causes: the router sent those messages to <c>answer</c>, which suppresses the offer step
+    /// outright (fixed in <c>TurnDecisionPromptV2</c>), and — even past that gate — every
+    /// capability either declined to be offered or required that something had already run this
+    /// turn, which on a words-only turn is nothing. This asserts the second half: on a turn that
+    /// invoked nothing, over a site the user is looking at, <i>something</i> is offerable.
+    ///
+    /// <para>
+    /// Deliberately a non-empty assertion over the set rather than a list of expected keys: which
+    /// capabilities are worth offering is a product decision that should be free to change, while
+    /// "the user asked for options and got none" must stay a test failure.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void SomethingShouldBeOfferable_OnATurnThatInvokedNothing_OverAnActiveSite()
+    {
+        var context = Base() with { ActiveLocation = AlSafaPark };
+
+        IReadOnlyList<IConversationCapability> capabilities =
+        [
+            // request_site_analysis is offerable here too, but takes six dependencies to build;
+            // its own predicate is asserted in RequestSiteAnalysisCapabilityTests instead.
+            new OpenSolarAnalysisCapability(Substitute.For<IUserChatRepository>()),
+            new ResolveLocationCapability(Substitute.For<ILocationResolutionService>()),
+            new AdjustViewerFocusCapability(),
+            new SearchMemoryCapability(Substitute.For<IMemoryService>()),
+        ];
+
+        capabilities.Where(c => c.IsOfferable(context, TurnOutcome.None))
+            .Should().NotBeEmpty("a user who asks what else is possible must be shown something");
     }
 
     // ---- search_memory: two preconditions, falsified independently. ----

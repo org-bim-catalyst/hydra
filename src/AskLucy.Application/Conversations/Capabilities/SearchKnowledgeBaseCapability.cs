@@ -78,13 +78,24 @@ public sealed class SearchKnowledgeBaseCapability(
     public bool IsAvailable(TurnContext context) => context.AttachedKnowledgeBaseIds.Count > 0;
 
     /// <summary>
-    /// Offerable once the turn has produced a subject worth searching for. Suppressed when the
-    /// search already ran, so an offer never proposes work the user just watched complete.
+    /// Offerable whenever there is something to search. Suppressed when the search already ran, so
+    /// an offer never proposes work the user just watched complete.
+    ///
+    /// <para>
+    /// specs/068 — this used to additionally require that the turn had confirmed a location or
+    /// invoked something, on the reasoning that a turn which did nothing had produced no subject
+    /// worth searching for. That reasoning does not survive the offer step's own entry condition:
+    /// the step only runs at all on a <c>suggest</c> or <c>act</c> intent, and a "suggest" turn has
+    /// a subject by construction — it is the user asking about something. The extra clause did not
+    /// filter subject-less turns, it filtered <i>every</i> turn that answered in words, which is
+    /// precisely the turn the offer step exists for (FR-025a, research.md D18). With every other
+    /// capability declining to be offered, an attached knowledge base could sit there unmentioned
+    /// through an entire conversation.
+    /// </para>
     /// </summary>
     public bool IsOfferable(TurnContext context, TurnOutcome justCompleted) =>
         IsAvailable(context) &&
-        !justCompleted.WasInvokedThisTurn(CapabilityKey) &&
-        (justCompleted.ConfirmedLocationThisTurn || justCompleted.InvokedCapabilityKeys.Count > 0);
+        !justCompleted.WasInvokedThisTurn(CapabilityKey);
 
     public async Task<AgentToolResult> ExecuteAsync(
         AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)

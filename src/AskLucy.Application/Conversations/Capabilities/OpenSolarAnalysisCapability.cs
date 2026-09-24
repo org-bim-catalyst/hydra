@@ -73,8 +73,21 @@ public sealed class OpenSolarAnalysisCapability(IUserChatRepository userChatRepo
     /// produced by <see cref="ExecuteAsync"/> narration rather than catalog filtering (FR-035).</summary>
     public bool IsAvailable(TurnContext context) => true;
 
-    /// <summary>Lucy invokes it directly when asked; it is not offered as a suggested action.</summary>
-    public bool IsOfferable(TurnContext context, TurnOutcome justCompleted) => false;
+    /// <summary>
+    /// Offerable once a site is actually on screen (specs/068). This was previously never offered,
+    /// on the reasoning that Lucy invokes it when asked — but that answers a different question:
+    /// whether to offer it is about the user who has <i>not</i> asked, because they do not know it
+    /// exists. "What else can you show me?" over a located site has no better answer than this one.
+    ///
+    /// <para>
+    /// Note this is narrower than <see cref="IsAvailable"/>, deliberately and in the direction the
+    /// contract requires (offerable ⊆ available): availability stays unconditional so the "no
+    /// active site" case is narrated by <see cref="ExecuteAsync"/> rather than hidden, but there is
+    /// nothing to put on an offer card when there is no site to analyse.
+    /// </para>
+    /// </summary>
+    public bool IsOfferable(TurnContext context, TurnOutcome justCompleted) =>
+        context.HasActiveLocation && !justCompleted.WasInvokedThisTurn(CapabilityKey);
 
     public async Task<AgentToolResult> ExecuteAsync(
         AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)

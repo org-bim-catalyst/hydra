@@ -94,4 +94,24 @@ public sealed class RequestSiteAnalysisCapabilityTests
         result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeFalse();
         await _dispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(default, default!, default!, default!, default, default, TestContext.Current.CancellationToken);
     }
+
+    [Fact]
+    public void IsOfferable_ShouldFollowTheSite_NotAvailability()
+    {
+        // specs/068. Previously never offered, on the reasoning that Lucy runs it when asked --
+        // which answers a different question. Offering it is for the user who has NOT asked,
+        // because they do not know it exists; and an offer is the right way to reach something
+        // this expensive, since the user consents before it spends the time.
+        var capability = BuildCapability();
+        var empty = TurnContext.Empty(UserId, UserChatId);
+        var located = empty with { ActiveLocation = new ActiveSiteLocation(25.156, 55.2218, "Al Safa Park 2", 0.9) };
+
+        capability.IsAvailable(empty).Should().BeTrue("a missing site is narrated, not hidden (FR-023)");
+        capability.IsOfferable(empty, TurnOutcome.None).Should().BeFalse("there is nothing to offer analysis of");
+        capability.IsOfferable(located, TurnOutcome.None).Should().BeTrue();
+
+        var justRan = new TurnOutcome([RequestSiteAnalysisCapability.CapabilityKey], false, [], false);
+        capability.IsOfferable(located, justRan).Should().BeFalse(
+            "an offer must never propose work the user just watched start");
+    }
 }
