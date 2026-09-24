@@ -1957,6 +1957,101 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(screen.getByText('OK, let me find it first.')).toBeInTheDocument()
   })
 
+  /**
+   * specs/068 — a dispatched selection no longer opens with an acknowledgement (the card the user
+   * clicked already said what would happen), so the turn's first event is the announcement itself.
+   * The messageBreak handler opens a new bubble only when the current one has content, and used to
+   * set the pending label inside that same branch — so an announcement arriving first, onto the
+   * still-empty bubble, had its label dropped and the user watched a blank bubble for the whole
+   * execution. Written from the click down, because that is the only way the two halves of the
+   * change (no acknowledgement server-side, label adopted client-side) are wrong together.
+   */
+  it('names the work while a selected action runs, with no acknowledgement ahead of it', async () => {
+    const offer = {
+      offeredByMessageId: 'msg-offer-solar',
+      question: 'What would you like to do next?',
+      actions: [
+        {
+          kind: 'capability',
+          capabilityKey: 'open_solar_analysis',
+          text: null,
+          label: 'Open the sun and shadow analysis',
+          description: 'Show how the sun tracks across the site.',
+          arguments: {},
+          isDecline: false,
+        },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'No thanks',
+          description: '',
+          arguments: {},
+          isDecline: true,
+        },
+      ],
+    }
+
+    let releaseCapability: () => void = () => {}
+    const capabilityDone = new Promise<void>((resolve) => {
+      releaseCapability = resolve
+    })
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post(
+        '*/api/v1/ai/chat',
+        () => {
+          const stream = sseStream(['Found Al Safa Park 2.', `__ACTIONS__${JSON.stringify(offer)}`])
+          return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+        },
+        { once: true },
+      ),
+      http.post('*/api/v1/ai/chat', () => {
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            // The dispatched turn's first event, with nothing said ahead of it.
+            controller.enqueue(
+              encoder.encode(
+                'data: __MESSAGE_BREAK__{"pendingLabel":"Sun and shadow analysis"}\n\n',
+              ),
+            )
+            await capabilityDone
+            controller.enqueue(encoder.encode('data: The sun sits high behind the site.\n\n'))
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            controller.close()
+          },
+        })
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    await screen.findByRole('radio', { name: 'Open the sun and shadow analysis' })
+    await user.click(screen.getByRole('radio', { name: 'Open the sun and shadow analysis' }))
+    await user.click(screen.getByRole('button', { name: 'Choose' }))
+
+    // Mid-execution: the work is named on screen. This is now the whole of the feedback between
+    // the click and the result, which is why its absence had to become a test failure.
+    expect(
+      await screen.findByRole('status', { name: 'Sun and shadow analysis' }),
+    ).toBeInTheDocument()
+
+    act(() => releaseCapability())
+
+    expect(await screen.findByText('The sun sits high behind the site.')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('status', { name: 'Sun and shadow analysis' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),

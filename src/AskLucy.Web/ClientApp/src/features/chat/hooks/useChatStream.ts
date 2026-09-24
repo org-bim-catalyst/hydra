@@ -242,9 +242,14 @@ export function useChatStream(
             // than waiting for its first character. That empty trailing bubble is what renders as
             // the thinking indicator, so the user sees the work start instead of a reply that
             // looks finished while the server spends tens of seconds on the boundary.
+            //
+            // The label is adopted either way, whether or not a bubble is opened — a break that
+            // names its work while the current bubble is still empty means that bubble is what is
+            // waiting, so kept inside the branch the label would just be discarded (specs/068,
+            // the same reasoning as in runDispatchedTurn below).
+            setPendingLabel(event.pendingLabel)
             if (assistantParts[assistantParts.length - 1].content !== '') {
               assistantParts = [...assistantParts, { id: newMessageId(), content: '' }]
-              setPendingLabel(event.pendingLabel)
               if (isActiveRef.current) {
                 setMessages([...history, ...renderParts(assistantParts)])
               }
@@ -456,9 +461,14 @@ export function useChatStream(
               setMessages([...history, ...renderParts(assistantParts)])
             }
           } else if (event.type === 'messageBreak') {
+            // specs/068 — the label is adopted whether or not a new bubble is opened. A dispatched
+            // selection no longer sends an acknowledgement, so its announcement is the turn's first
+            // event and lands on the still-empty bubble opened above: keeping setPendingLabel
+            // inside the branch below would have thrown that label away and left the user watching
+            // a blank bubble for the whole execution.
+            setPendingLabel(event.pendingLabel)
             if (assistantParts[assistantParts.length - 1].content !== '') {
               assistantParts = [...assistantParts, { id: newMessageId(), content: '' }]
-              setPendingLabel(event.pendingLabel)
               if (isActiveRef.current) {
                 setMessages([...history, ...renderParts(assistantParts)])
               }

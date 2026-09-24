@@ -441,6 +441,8 @@ When the user picks an option, the choice is not sent as the text "1". It carrie
 
 Two checks run before it executes. Is this the newest unanswered offer? And is the capability *still* available, checked against fresh state rather than the state at offer time? If the user changed the subject in between, the selection is refused with a readable explanation rather than acting on stale context.
 
+A dispatched selection also runs one beat short of a typed request: it announces, executes and narrates, but it does not acknowledge. The acknowledgement exists to say what is about to happen before it happens, and on a selection the user has already read that sentence on the card they clicked — emitting it again produced *"Opening the sun and shadow analysis."* directly beneath an option labelled *"Open the sun and shadow analysis"*, which reads as Lucy narrating the user's own click back at them. What stands in for it is the announcement's pending label, on screen from the instant dispatch resolves until the result arrives.
+
 Throughout all of this the composer stays live. The card never blocks typing — a chat interface that stops accepting sentences is broken, however good its buttons are.
 
 ---

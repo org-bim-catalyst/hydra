@@ -463,17 +463,6 @@ public sealed class ConversationTurnOrchestrator(
             : RecordedTurnOutcome.Acted(attempts, DateTimeOffset.UtcNow);
 
     /// <summary>
-    /// specs/045 US3 (FR-027) — dispatches an already-resolved, already-grounded selection
-    /// directly, with no decide step in between.
-    /// <para>
-    /// <c>Capability</c> gets the same acknowledge/announce/execute/narrate cadence as an ordinary
-    /// act-path slice (FR-051c) — a selected action is not a lesser turn. <c>FollowUp</c> runs no
-    /// capability and structurally cannot (FR-021c, SC-002a): it answers as an ordinary reply,
-    /// seeded with the follow-up's own composed text rather than the user's literal click.
-    /// <c>Decline</c> performs no work at all (FR-022).
-    /// </para>
-    /// </summary>
-    /// <summary>
     /// specs/068 US2 — runs a recorded failed action again (FR-010) and reports what happened this
     /// time (FR-011).
     ///
@@ -538,6 +527,18 @@ public sealed class ConversationTurnOrchestrator(
             result.Succeeded ? result.ResultJson : null, result.Succeeded ? null : result.ResultJson));
     }
 
+    /// <summary>
+    /// specs/045 US3 (FR-027) — dispatches an already-resolved, already-grounded selection
+    /// directly, with no decide step in between.
+    /// <para>
+    /// <c>Capability</c> announces, executes and narrates — but does not acknowledge. Everything
+    /// else about it matches an ordinary act-path slice (FR-051c): a selected action is not a
+    /// lesser turn, it is one whose opening line the user has already read on the card.
+    /// <c>FollowUp</c> runs no capability and structurally cannot (FR-021c, SC-002a): it answers as
+    /// an ordinary reply, seeded with the follow-up's own composed text rather than the user's
+    /// literal click. <c>Decline</c> performs no work at all (FR-022).
+    /// </para>
+    /// </summary>
     private async IAsyncEnumerable<ChatStreamChunk> RunSelectedActionAsync(
         ConversationTurnRequest request,
         TurnContext turnContext,
@@ -559,9 +560,17 @@ public sealed class ConversationTurnOrchestrator(
                     yield break;
                 }
 
-                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
-                yield return new ChatStreamChunk(capability.AcknowledgementTemplate, null);
-
+                // specs/068 — no acknowledgement beat here, unlike the act path. The card the user
+                // clicked already said what would happen, so opening with the template restated it
+                // straight back at them: "Opening the sun and shadow analysis." under an option
+                // labelled "Open the sun and shadow analysis". Selecting a suggestion in Claude or
+                // ChatGPT performs the action; it does not narrate the user's own click. The act
+                // path keeps its acknowledgement (FR-003) precisely because nothing on screen has
+                // said what Lucy is about to do yet — there the template is the first word on it.
+                //
+                // What replaces it is not silence: the announcement below is now the turn's first
+                // chunk, and its pending label is on screen the instant dispatch resolves, for the
+                // whole of the execution that follows.
                 yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: capability.Label);
                 var result = await capabilityExecutor.ExecuteAsync(capability, turnContext, selection.ArgumentsJson, cancellationToken);
                 var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);

@@ -337,6 +337,34 @@ public sealed class SelectedActionDispatchOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_ShouldNotEchoTheChoiceBack_WhenDispatchingASelection()
+    {
+        // specs/068 — the reported defect. The user clicks an option and Lucy opened by saying the
+        // option back to them ("OK, doing the thing." under a card offering to do the thing), which
+        // reads as the assistant narrating a click the user just made and can already see. Selecting
+        // a suggestion elsewhere (Claude, ChatGPT) performs the action and reports the result.
+        var capability = new StubCapability();
+        var selection = new SelectedActionInput(Guid.NewGuid(), SuggestedActionKind.Capability, "stub", null, "{}");
+        _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
+            .Returns(new ChatCompletionResult("Done.", new ChatUsage(null, null, null, null, null)));
+
+        var chunks = await CollectAsync(BuildOrchestrator(capability), Request(selection));
+
+        chunks.Select(c => c.ContentDelta).Should().NotContain(capability.AcknowledgementTemplate);
+
+        // Not silence in its place: the announcement is the turn's first chunk, so the pending
+        // label is on screen for the whole execution — which is the only feedback left once the
+        // acknowledgement is gone, and the reason this assertion sits beside the one above.
+        chunks[0].StartsNewMessage.Should().BeTrue();
+        chunks[0].PendingLabel.Should().Be(capability.Label);
+        chunks[0].ContentDelta.Should().BeNull();
+
+        // And the result is still reported (FR-007) — the fix removes the echo, not the report.
+        capability.WasInvoked.Should().BeTrue();
+        chunks.Select(c => c.ContentDelta).Should().Contain("Done.");
+    }
+
+    [Fact]
     public async Task RunAsync_ShouldRunNoCapability_ForAFollowUpSelection()
     {
         // SC-002a — selecting a followUp invokes zero capabilities, structurally, not just by convention.
