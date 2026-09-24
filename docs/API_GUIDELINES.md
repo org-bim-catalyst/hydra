@@ -588,6 +588,33 @@ GET /chats/{id}/messages            (cursor-paginated)
 POST /ai/chat                       (SSE streaming; persists via AppendMessageCommand)
 ```
 
+`POST /ai/chat` carries at most one dispatch instruction alongside the message list. Both are
+optional and **mutually exclusive** — a request carrying both is a 400, because there is no
+defensible order between them and picking one silently is the guessing these features exist to
+remove:
+
+| Member | Meaning |
+|---|---|
+| `selectedAction` | The user picked a row on the newest unanswered offer card (specs/045) |
+| `retry` | `{ "failedMessageId": "<guid>" }` — re-run the action that turn recorded as failed (specs/068) |
+
+`retry` carries **a message id and nothing else**. The capability, its arguments and its target are
+read server-side from that turn's recorded outcome, never from the request. Accepting them from the
+client would make this a general capability-invocation route that merely looks like a retry. It
+resolves to Problem Details before the stream opens: 400 when the id names no recorded failure, 409
+when the target no longer resolves, 404 (never 403) when the id belongs to another user's chat.
+
+Trailing SSE events are sentinel-prefixed `data:` lines, each a single JSON payload:
+`__RAG__`, `__MEMORY__`, `__LOCATION__`, `__ZOOM__`, `__ACTIONS__`, `__SITE_BOUNDARY__`,
+`__VIEWER_CONTENT__`, `__SOLAR_ANALYSIS__`, `__MESSAGE_BREAK__`, `__TURN_OUTCOME__`.
+
+`__TURN_OUTCOME__` (specs/068) reports what the turn actually did — a verdict plus one entry per
+attempted action, each with its own `succeeded` and `failureReason`. There is no aggregate pass/fail
+flag by design: a turn can succeed at one part and fail at another, and collapsing that into one
+boolean is how a half-failure becomes a claim of success. Server-resolved arguments are never
+included. The same payload is returned on the persisted message when the conversation is reopened;
+its **absence** means the outcome is unknown, which is never read as success.
+
 ---
 
 # 22. AI Provider Endpoints

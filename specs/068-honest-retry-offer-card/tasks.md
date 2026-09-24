@@ -190,10 +190,10 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [X] T071 [P] Run the **full** frontend suite, not just touched files — `ChatPage.test.tsx` carries its own assertions about components it renders; re-run any failure in isolation before attributing it to this feature
-- [ ] T072 [P] Run `dotnet format` and verify CI line-ending rules before pushing
+- [X] T072 [P] Run `dotnet format` and verify CI line-ending rules before pushing
 - [X] T073 [P] Confirm `npx tsc -b --noEmit` still passes
-- [ ] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
-- [ ] T075 Add migration notes for `AddMessageRecordedTurnOutcome` (additive, nullable, no backfill)
+- [X] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
+- [X] T075 Add migration notes for `AddMessageRecordedTurnOutcome` (additive, nullable, no backfill)
 - [ ] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build`
 - [ ] T077 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim
 

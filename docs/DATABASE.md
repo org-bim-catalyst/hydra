@@ -406,9 +406,20 @@ Stores:
 * `GenerationParametersJson` — opaque JSON (shape varies by provider/model), not fixed columns
 * `InputTokenCount`, `OutputTokenCount` — null until the AI provider abstraction surfaces
   real usage stats (not fabricated in the meantime)
+* `TurnOutcomeJson` — what the turn that produced this message actually *did* (specs/068):
+  a verdict plus one entry per attempted action, each with its own success flag and failure
+  reason. Nullable; JSON rather than columns because the attempt list is variable-length and
+  read as a whole. Server-resolved capability arguments are deliberately **not** stored here —
+  they are already in the agent execution records, and this payload is returned to the client.
 * Standard audit columns, `RowVersion`
 
 Messages are immutable/append-only once created — no update path exists.
+
+**Migration note — `20260924115936_AddMessageRecordedTurnOutcome`.** Additive and reversible:
+one nullable `NVARCHAR(MAX)` column on `Messages`, no index, no backfill. Existing messages keep
+`NULL`, which the application reads as *outcome unknown* — never as success — so no historical
+message gains an implied verdict it never had. Deploy order does not matter: an older binary
+ignores the column, and a newer one treats every pre-existing row as unknown.
 
 ---
 

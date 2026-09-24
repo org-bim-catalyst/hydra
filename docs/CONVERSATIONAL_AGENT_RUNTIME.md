@@ -472,6 +472,115 @@ The distinction between *the user cancelled* and *the work timed out* is drawn c
 
 ---
 
+## 8a. What the turn recorded, and why Lucy is no longer trusted to remember it
+
+Specified in `specs/068-honest-retry-offer-card`. This section describes shipped behaviour.
+
+The failure that prompted it looked like this. A user asked to be shown a site; the AI provider's
+key was rejected; the turn ended with *"Something went wrong partway through and I couldn't finish.
+Please try again."* The user typed **"try again"** — and Lucy replied *"I've shown you Al Safa Park
+2."* Nothing had been shown.
+
+Nothing in that sequence was a bug in the usual sense. Every component did its job. The model was
+handed a transcript in which the most recent turn appeared to be about showing a place, asked to
+continue the conversation helpfully, and it produced the most plausible continuation. It had no way
+to know whether the thing had happened, because **nothing in its input said so**. The transcript
+records what was *said*, not what was *done*.
+
+### The recorded outcome
+
+Every turn now writes down what it actually did, as structured data, next to the message it
+produced: a verdict, and one entry per attempted action with its own success or failure.
+
+| Field | Meaning |
+|---|---|
+| `Verdict` | `AnsweredInWords`, `Acted`, or `FailedBeforeCompleting` |
+| `Attempts[]` | One per attempted action: kind, key, target label, succeeded, failure reason |
+| `FailureReason` | Why the turn as a whole could not finish, when that applies |
+| `RecordedAtUtc` | When it was recorded |
+
+There is deliberately **no aggregate pass/fail flag**. A turn can find a site and fail to outline
+it; collapsing that into one boolean is how a half-failure becomes a claim of success. Callers read
+`Attempts`.
+
+It reaches the client twice: as a trailing `__TURN_OUTCOME__` SSE event on the live turn, and again
+on the persisted message when the conversation is reopened. The server-resolved arguments are
+**never** included in either — the client has no need for them and no business holding them.
+
+An **absent** outcome (a message written before this shipped) means *unknown*. It is never read as
+success.
+
+### Two layers, because one is not enough
+
+**Layer 1 — remove the motive.** The router and the composer are given a short, bounded summary of
+the last few recorded outcomes, projected from the structured data rather than from prose. A model
+that can see *"the previous turn attempted `resolve_location` and it failed"* has no reason to
+invent a success. The summary is capped at three turns and stays a constant size as the
+conversation grows; when there is nothing to report the prompt is byte-identical to what it was
+before, so no existing behaviour shifts underneath it.
+
+**Layer 2 — the claim gate.** Prompting reduces the odds; it does not make a guarantee. So any
+sentence in a reply that claims an action was completed is checked against that turn's recorded
+attempts before the user sees it, at sentence granularity — the rest of the reply is untouched. An
+unverified claim is replaced, not deleted: the user is told plainly that it did not happen.
+
+### Retrying, honestly
+
+*"Try again"* now means something specific, and there are two ways to say it.
+
+A **control on the failed turn** sends that message's id and nothing else. Everything about what to
+re-run — the capability, its arguments, its target — comes from the server's own record of that
+turn. This is the whole design: if the client sent the capability and arguments, `/ai/chat` would
+be a general capability-invocation route wearing a retry's clothes.
+
+**Typed language** — "try again", "retry that", "do it again" — is matched deterministically before
+the router sees it, and resolved the same way against the same record. The deterministic matcher is
+the floor, not the ceiling: the router still handles anything it does not recognise, and a phrase
+carrying new information ("try again with the other entrance") is deliberately *not* treated as a
+bare retry, because replaying the recorded arguments would silently discard what the user just
+added.
+
+Three rules keep the transcript honest afterwards:
+
+* The retry is **its own turn** with its own recorded outcome. The original failure stays visible
+  above it.
+* A retry **never inserts a message attributed to the user**. Pressing a button is not the user
+  saying something, and a bubble nobody typed would be there on every reload. This diverges from
+  selected-action dispatch on purpose — a chosen option *does* have the user's own words behind it,
+  namely the row's label.
+* An action that already succeeded is **not re-run**. The user is told it already worked, or asked
+  whether they want it again.
+
+Where the request arrives decides how a resolution failure is reported. An explicit retry is
+resolved in the controller *before the response content type is set*, so an unknown or stale target
+still comes back as Problem Details rather than a half-open stream. A typed retry is resolved inside
+the orchestrator, where there is no affordance to fail into — so it is answered in words: which
+action did you mean, or that one already worked.
+
+Contracts: [`turn-outcome.md`](../specs/068-honest-retry-offer-card/contracts/turn-outcome.md),
+[`retry-api.md`](../specs/068-honest-retry-offer-card/contracts/retry-api.md).
+
+### The offer card, and what voice says about it
+
+Two presentation decisions from the same spec, for the same reason — an offer is a form, not a
+remark.
+
+The card **takes the panel's full width** when a message carries one, and the ordinary reply width
+when it does not. It had been rendered at two stacked 75% caps, the bubble's and the card's own,
+leaving it at roughly 56% of a 400px panel with two or three words per line. Each option's control,
+label and description share one horizontal band, falling into a stacked layout when the band runs
+out of room — driven by flex-wrap rather than a viewport breakpoint, because the chat panel's width
+has nothing to do with the viewport's.
+
+Voice **no longer reads the card**. It used to speak the question and then every offerable label,
+which is a form read aloud: by the last label the first is gone, and none of it can be acted on by
+ear anyway, since choosing means clicking a radio that is on screen throughout. Voice now speaks
+Lucy's reply and then one short localized cue that choices are waiting. The card's full contents
+stay in the accessibility tree, where a screen-reader user reads them under their own control
+rather than at Lucy's pace.
+
+---
+
 ## 9. Where the time and money go
 
 Two model calls sit on the turn that were not there before: the decision, and the offer. Being honest about that is more useful than minimising it.
