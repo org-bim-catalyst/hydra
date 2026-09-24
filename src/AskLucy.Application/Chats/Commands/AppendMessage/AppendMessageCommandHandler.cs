@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Authorization;
 using AskLucy.Domain.Chats;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Chats.Commands.AppendMessage;
 
@@ -10,7 +11,8 @@ public sealed class AppendMessageCommandHandler(
     IMessageRepository messageRepository,
     IAIProvider aiProvider,
     IUnitOfWork unitOfWork,
-    ICurrentUserAccessor currentUser) : IRequestHandler<AppendMessageCommand, MessageDto>
+    ICurrentUserAccessor currentUser,
+    ILogger<AppendMessageCommandHandler> logger) : IRequestHandler<AppendMessageCommand, MessageDto>
 {
     public async Task<MessageDto> Handle(AppendMessageCommand request, CancellationToken cancellationToken)
     {
@@ -76,10 +78,15 @@ public sealed class AppendMessageCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return ToDto(message);
+        return ToDto(message, logger);
     }
 
-    internal static MessageDto ToDto(Message message) => new(
+    /// <summary>
+    /// <paramref name="logger"/> is optional only so a caller with nothing to log against can
+    /// still map; when supplied, an unreadable recorded outcome is reported rather than
+    /// quietly dropped (constitution §2.VIII).
+    /// </summary>
+    internal static MessageDto ToDto(Message message, ILogger? logger = null) => new(
         message.Id,
         message.Role.ToString(),
         message.Kind.ToString(),
@@ -102,5 +109,5 @@ public sealed class AppendMessageCommandHandler(
         message.SelectedActionKind,
         message.SelectedActionKey,
         message.SelectedActionArgumentsJson,
-        Conversations.Runtime.TurnOutcomeView.FromJson(message.TurnOutcomeJson));
+        Conversations.Runtime.TurnOutcomeView.FromJson(message.TurnOutcomeJson, message.Id, logger));
 }

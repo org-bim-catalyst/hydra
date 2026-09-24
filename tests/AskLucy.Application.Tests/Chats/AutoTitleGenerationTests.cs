@@ -3,6 +3,7 @@ using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Chats.Commands.RenameUserChat;
 using AskLucy.Domain.Chats;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -33,7 +34,7 @@ public sealed class AutoTitleGenerationTests
         await renameHandler.Handle(new RenameUserChatCommand(chat.Id, "My custom title"), CancellationToken.None);
         chat.Title.Should().Be("My custom title");
 
-        var appendHandler = new AppendMessageCommandHandler(_chatRepository, _messageRepository, _aiProvider, _unitOfWork, _currentUser);
+        var appendHandler = new AppendMessageCommandHandler(_chatRepository, _messageRepository, _aiProvider, _unitOfWork, _currentUser, NullLogger<AppendMessageCommandHandler>.Instance);
         await appendHandler.Handle(
             new AppendMessageCommand(chat.Id, MessageRole.User, MessageKind.Text, "This is the first message ever sent", null),
             CancellationToken.None);

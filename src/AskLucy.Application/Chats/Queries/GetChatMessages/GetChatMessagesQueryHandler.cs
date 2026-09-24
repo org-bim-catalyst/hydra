@@ -3,6 +3,7 @@ using AskLucy.Application.Chats.Authorization;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Chats.Queries.GetChatMessages;
 
@@ -10,7 +11,8 @@ namespace AskLucy.Application.Chats.Queries.GetChatMessages;
 public sealed class GetChatMessagesQueryHandler(
     IUserChatRepository chatRepository,
     IMessageRepository messageRepository,
-    ICurrentUserAccessor currentUser) : IRequestHandler<GetChatMessagesQuery, PagedResult<MessageDto>>
+    ICurrentUserAccessor currentUser,
+    ILogger<GetChatMessagesQueryHandler> logger) : IRequestHandler<GetChatMessagesQuery, PagedResult<MessageDto>>
 {
     public async Task<PagedResult<MessageDto>> Handle(GetChatMessagesQuery request, CancellationToken cancellationToken)
     {
@@ -20,6 +22,6 @@ public sealed class GetChatMessagesQueryHandler(
         var (messages, nextCursor) = await messageRepository.ListPagedByChatIdAsync(
             request.ChatId, request.Cursor, request.PageSize, cancellationToken);
 
-        return new PagedResult<MessageDto>([.. messages.Select(AppendMessageCommandHandler.ToDto)], nextCursor);
+        return new PagedResult<MessageDto>([.. messages.Select(m => AppendMessageCommandHandler.ToDto(m, logger))], nextCursor);
     }
 }

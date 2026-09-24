@@ -1,6 +1,14 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Conversations.Runtime;
+
+internal static partial class TurnOutcomeViewLog
+{
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "The recorded turn outcome on message {MessageId} could not be read; the turn is reported as outcome-unknown, which suppresses action claims")]
+    public static partial void UnreadableOutcomeDocument(ILogger logger, Guid messageId, Exception exception);
+}
 
 /// <summary>
 /// One attempt as the client is allowed to see it (specs/068 contracts/turn-outcome.md §1).
@@ -41,8 +49,13 @@ public sealed record TurnOutcomeView(
     /// down an entire transcript over one corrupt row, and inventing a verdict would assert
     /// something about a turn nobody knows the result of. The document itself stays in the
     /// database, unaltered, for diagnosis.
+    /// <para>
+    /// Conservative is not silent (constitution §2.VIII): the parse failure is logged with the
+    /// message it belongs to, since a document this code wrote and cannot read back is a real
+    /// defect an operator needs to see, not an expected degradation.
+    /// </para>
     /// </remarks>
-    public static TurnOutcomeView? FromJson(string? turnOutcomeJson)
+    public static TurnOutcomeView? FromJson(string? turnOutcomeJson, Guid messageId = default, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(turnOutcomeJson))
         {
@@ -54,8 +67,13 @@ public sealed record TurnOutcomeView(
             var outcome = JsonSerializer.Deserialize<RecordedTurnOutcome>(turnOutcomeJson, RecordedTurnOutcomeJson.Options);
             return outcome is null ? null : From(outcome);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            if (logger is not null)
+            {
+                TurnOutcomeViewLog.UnreadableOutcomeDocument(logger, messageId, ex);
+            }
+
             return null;
         }
     }

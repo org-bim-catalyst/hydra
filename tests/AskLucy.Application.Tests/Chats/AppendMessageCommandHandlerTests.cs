@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Domain.Chats;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -29,7 +30,7 @@ public sealed class AppendMessageCommandHandlerTests
     }
 
     private AppendMessageCommandHandler CreateHandler() =>
-        new(_chatRepository, _messageRepository, _aiProvider, _unitOfWork, _currentUser);
+        new(_chatRepository, _messageRepository, _aiProvider, _unitOfWork, _currentUser, NullLogger<AppendMessageCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_ShouldPersistTheMessage_WhenCallerOwnsTheChat()

@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Queries.GetChatMessages;
 using AskLucy.Domain.Chats;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -25,7 +26,7 @@ public sealed class GetChatMessagesQueryHandlerTests
         _messageRepository.ListPagedByChatIdAsync(chat.Id, null, 50, Arg.Any<CancellationToken>())
             .Returns(((IReadOnlyList<Message>)[first, second], (string?)null));
 
-        var handler = new GetChatMessagesQueryHandler(_chatRepository, _messageRepository, _currentUser);
+        var handler = new GetChatMessagesQueryHandler(_chatRepository, _messageRepository, _currentUser, NullLogger<GetChatMessagesQueryHandler>.Instance);
 
         var result = await handler.Handle(new GetChatMessagesQuery(chat.Id), CancellationToken.None);
 
@@ -46,7 +47,7 @@ public sealed class GetChatMessagesQueryHandlerTests
         _messageRepository.ListPagedByChatIdAsync(chat.Id, null, 1, Arg.Any<CancellationToken>())
             .Returns(((IReadOnlyList<Message>)[message], "next-cursor"));
 
-        var handler = new GetChatMessagesQueryHandler(_chatRepository, _messageRepository, _currentUser);
+        var handler = new GetChatMessagesQueryHandler(_chatRepository, _messageRepository, _currentUser, NullLogger<GetChatMessagesQueryHandler>.Instance);
 
         var result = await handler.Handle(new GetChatMessagesQuery(chat.Id, PageSize: 1), CancellationToken.None);
 
@@ -59,7 +60,7 @@ public sealed class GetChatMessagesQueryHandlerTests
         var chat = UserChat.Create("Someone else's chat", "owner-1", null, "owner-1");
         _chatRepository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
         _currentUser.UserId.Returns("attacker-2");
-        var handler = new GetChatMessagesQueryHandler(_chatRepository, _messageRepository, _currentUser);
+        var handler = new GetChatMessagesQueryHandler(_chatRepository, _messageRepository, _currentUser, NullLogger<GetChatMessagesQueryHandler>.Instance);
 
         var act = () => handler.Handle(new GetChatMessagesQuery(chat.Id), CancellationToken.None);
 
