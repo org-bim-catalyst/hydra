@@ -34,7 +34,16 @@ public static class TurnDecisionPrompt
     /// specs/045 Phase 6 — available flows, shown the same way (a flow's index entry is the same
     /// shape as a capability's, research.md D17): the model chooses a job, not a pipeline.
     /// </param>
-    public static string Build(IReadOnlyList<CapabilityIndexEntry> index, IReadOnlyList<CapabilityIndexEntry>? flowIndex = null)
+    /// <param name="recentOutcomes">
+    /// specs/068 FR-009 — what the last few turns actually did, so "try again" routes to another
+    /// attempt instead of being read as a fresh request. Omitted entirely when empty, which leaves
+    /// this prompt byte-identical to the one every previous routing measurement was taken against
+    /// (FR-009c).
+    /// </param>
+    public static string Build(
+        IReadOnlyList<CapabilityIndexEntry> index,
+        IReadOnlyList<CapabilityIndexEntry>? flowIndex = null,
+        Runtime.RecentTurnOutcomeSummary? recentOutcomes = null)
     {
         flowIndex ??= [];
         var builder = new StringBuilder();
@@ -118,6 +127,17 @@ public static class TurnDecisionPrompt
         builder.AppendLine("- pendingLabel is what the user reads while it runs — short, present tense, naming the work.");
         builder.AppendLine("- dependsOn is the 0-based index of an earlier slice whose result this one needs, or null.");
         builder.AppendLine("- Never invent a capability or a flow. If nothing listed fits, use intent \"answer\".");
+
+        var outcomes = recentOutcomes?.ToRouterText() ?? string.Empty;
+        if (outcomes.Length > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine(outcomes);
+            builder.AppendLine(
+                "A message like \"try again\" or \"do it again\" refers to the most recent failed " +
+                "turn above: decide \"act\" and name the same capability with the same arguments. " +
+                "Never treat a retry as a question about what already happened.");
+        }
 
         return builder.ToString();
     }

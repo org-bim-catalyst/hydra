@@ -191,6 +191,16 @@ const server = setupServer(
       headers: { 'Content-Type': 'text/event-stream' },
     }),
   ),
+  // specs/068 T057 - `onUnhandledRequest: 'bypass'` below means a POST with no handler leaves for
+  // the real network, fails, and raises a second role="alert" that races every assertion in this
+  // file (the CI-only flake /ai/voice/speak caused above). Every test that cares about a reply
+  // overrides this with `once: true`; this base handler only guarantees that the ones that do not -
+  // the retry control's own dispatch among them - stay inside the test.
+  http.post('*/api/v1/ai/chat', () =>
+    new HttpResponse('data: [DONE]\n\n', {
+      headers: { 'Content-Type': 'text/event-stream' },
+    }),
+  ),
   http.get('*/api/v1/chats/:id', ({ params }) =>
     HttpResponse.json({
       id: params.id,

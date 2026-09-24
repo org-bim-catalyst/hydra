@@ -6,6 +6,8 @@ import {
   streamChat,
   type ChatMessage,
   type GenerationParameters,
+  type RetryRequest,
+  type SelectedActionRequest,
   type SuggestedAction,
 } from '../api/aiApi'
 import { requestSolarAnalysisMoment } from '../../solar/components/SolarAnalysisOverlay'
@@ -389,17 +391,31 @@ export function useChatStream(
   )
 
   /**
-   * specs/045-conversational-agent-runtime US3 — dispatches a chosen offer row exactly like
-   * `send()` dispatches typed text, down to the same SSE event handling (a dispatched capability
-   * can still emit `__LOCATION__`/beats/an offer of its own). The two are intentionally not
-   * merged into one shared implementation: `send()` is exercised indirectly by every existing
-   * `ChatPage` test today, and threading a second code path through it risks the one that already
-   * works for the very common case. What differs here is only how the turn starts — the user
-   * bubble's content is the row's own label (research.md D6), never typed text — and how a
-   * failure reports back (into `actionError`, for the card itself, not the general Snackbar).
+   * specs/045-conversational-agent-runtime US3 / specs/068 US2 — runs a turn whose action was
+   * already resolved server-side, with no typed message behind it: a chosen offer row, or a retry
+   * of a recorded failure. It handles the SSE stream exactly as `send()` does, because a
+   * dispatched capability can still emit `__LOCATION__`/beats/an offer of its own.
+   *
+   * `send()` is deliberately not routed through here: it is exercised indirectly by every existing
+   * `ChatPage` test, and threading a second code path through it risks the one that already works
+   * for the very common case. What varies between the two callers below is only how the turn
+   * starts, and how a failure reports back — into `actionError`, for the card itself, rather than
+   * the general Snackbar.
    */
-  const selectAction = useCallback(
-    async (offeredByMessageId: string, action: SuggestedAction) => {
+  const runDispatchedTurn = useCallback(
+    async ({
+      seedTitle,
+      userMessage,
+      selectedAction,
+      retry,
+      failureMessage,
+    }: {
+      seedTitle: string
+      userMessage: ChatMessage | null
+      selectedAction?: SelectedActionRequest
+      retry?: RetryRequest
+      failureMessage: string
+    }) => {
       if (!providerId || !modelId) {
         setActionError('Choose an AI provider and model before sending a message.')
         return
@@ -408,8 +424,9 @@ export function useChatStream(
       setIsSelectingAction(true)
       setActionError(null)
 
-      const userMessage: ChatMessage = { role: 'user', content: action.label }
-      const history = [...messages, userMessage]
+      // specs/068 FR-013b — a retry passes `userMessage: null`: pressing "Try again" is not the
+      // user saying something, and a bubble nobody typed would be there on every reload.
+      const history = userMessage ? [...messages, userMessage] : [...messages]
       setMessages([...history, { role: 'assistant', content: '' }])
       setIsStreaming(true)
       setPendingLabel(null)
@@ -428,16 +445,9 @@ export function useChatStream(
       let offerQuestion: ChatMessage['question']
       let turnOutcome: ChatMessage['turnOutcome']
       try {
-        const activeChatId = await ensureChatId(action.label)
-        const selectedAction = {
-          offeredByMessageId,
-          kind: action.kind,
-          key: action.capabilityKey,
-          text: action.text,
-          arguments: action.arguments,
-        }
+        const activeChatId = await ensureChatId(seedTitle)
         for await (const event of streamChat(
-          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction,
+          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction, retry,
         )) {
           if (event.type === 'content') {
             const last = assistantParts[assistantParts.length - 1]
@@ -544,7 +554,7 @@ export function useChatStream(
             ...renderParts(assistantParts.slice(0, -1)),
             { ...renderParts([assistantParts[assistantParts.length - 1]])[0], isIncomplete: true },
           ])
-          setActionError(err instanceof Error ? err.message : 'Failed to run that action. Please try again.')
+          setActionError(err instanceof Error ? err.message : failureMessage)
         }
       } finally {
         setIsStreaming(false)
@@ -553,6 +563,46 @@ export function useChatStream(
       }
     },
     [messages, ensureChatId, providerId, modelId],
+  )
+
+  /**
+   * Dispatches a chosen offer row. The user bubble's content is the row's own label
+   * (research.md D6), never typed text.
+   */
+  const selectAction = useCallback(
+    (offeredByMessageId: string, action: SuggestedAction) =>
+      runDispatchedTurn({
+        seedTitle: action.label,
+        userMessage: { role: 'user', content: action.label },
+        selectedAction: {
+          offeredByMessageId,
+          kind: action.kind,
+          key: action.capabilityKey,
+          text: action.text,
+          arguments: action.arguments,
+        },
+        failureMessage: 'Failed to run that action. Please try again.',
+      }),
+    [runDispatchedTurn],
+  )
+
+  /**
+   * specs/068 US2 (FR-010, FR-013b) — asks the server to run a recorded failed action again.
+   *
+   * Sends the failed assistant message's id and nothing else: what runs, and with which arguments,
+   * is the server's own record of that turn. No user message is appended, so the transcript keeps
+   * showing the failed turn followed by the retry's own turn, with nothing in between that nobody
+   * typed.
+   */
+  const retryAction = useCallback(
+    (failedMessageId: string) =>
+      runDispatchedTurn({
+        seedTitle: 'Retry',
+        userMessage: null,
+        retry: { failedMessageId },
+        failureMessage: "Couldn't try that again. Please try once more in a moment.",
+      }),
+    [runDispatchedTurn],
   )
 
   const sendImage = useCallback(
@@ -603,6 +653,7 @@ export function useChatStream(
     modelId,
     setSelection,
     selectAction,
+    retryAction,
     actionError,
     isSelectingAction,
     appendAssistantNotice,

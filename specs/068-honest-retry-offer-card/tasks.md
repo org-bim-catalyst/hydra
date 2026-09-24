@@ -118,33 +118,33 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 ### Routing summary
 
 - [X] T039 [P] [US2] Unit-test `RecentTurnOutcomeSummary`: capped at 3 turns, constant size as the conversation grows, projected from outcomes not prose, empty when there are no outcomes (FR-009a–c, SC-009) — `tests/AskLucy.Application.Tests/Conversations/Runtime/RecentTurnOutcomeSummaryTests.cs`
-- [ ] T040 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RecentTurnOutcomeSummary.cs` per data-model.md §3
-- [ ] T041 [US2] Accept the summary as a third input in `src/AskLucy.Application/Conversations/Runtime/TurnDecider.cs` and render it in `TurnDecisionPrompt.Build(...)` using the format in contracts/turn-outcome.md §4
-- [ ] T042 [US2] Assert the prompt is byte-identical to today's when the summary is empty (FR-009c), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDeciderTests.cs`
-- [ ] T043 [US2] Fix the supported retry-phrasing set as a named test fixture and assert routing accuracy against it (SC-003, SC-010 both specify >=95% but neither is measurable today), in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryPhrasingRoutingTests.cs` — cover at minimum "try again", "retry that", "do it again", "can you try once more", plus a negative case that must ask rather than guess
+- [X] T040 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RecentTurnOutcomeSummary.cs` per data-model.md §3
+- [X] T041 [US2] Accept the summary as a third input in `src/AskLucy.Application/Conversations/Runtime/TurnDecider.cs` and render it in `TurnDecisionPrompt.Build(...)` using the format in contracts/turn-outcome.md §4
+- [X] T042 [US2] Assert the prompt is byte-identical to today's when the summary is empty (FR-009c), in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnDeciderTests.cs`
+- [X] T043 [US2] Fix the supported retry-phrasing set as a named test fixture and assert routing accuracy against it (SC-003, SC-010 both specify >=95% but neither is measurable today), in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryPhrasingRoutingTests.cs` — cover at minimum "try again", "retry that", "do it again", "can you try once more", plus a negative case that must ask rather than guess
 
 ### Retry resolution
 
-- [ ] T044 [P] [US2] Unit-test `RetryTargetResolver` resolution rules from data-model.md §4 in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryTargetResolverTests.cs`: no outcome → unknown (400); no failed attempt → unknown (400); already succeeded → refusal (FR-015); target no longer resolves → stale (409)
-- [ ] T045 [P] [US2] Security-test that a `failedMessageId` from another user's chat resolves as **not found**, never as a permission error confirming it exists
-- [ ] T046 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RetryTargetResolver.cs` mirroring `SelectedActionResolver`, reusing `ConversationActionUnknownException` / `ConversationActionStaleException` / `ConversationActionUnavailableException`
-- [ ] T047 [US2] Add `RetryRequest(Guid FailedMessageId)` and the optional `Retry` member to `ChatRequest` in `src/AskLucy.Web/Contracts/AiContracts.cs`
-- [ ] T048 [US2] Reject a request carrying both `SelectedAction` and `Retry` as a 400, in `src/AskLucy.Web/Controllers/v1/AiController.cs`
-- [ ] T049 [US2] Dispatch a resolved retry straight into the act path, bypassing `TurnDecider`, in `src/AskLucy.Web/Controllers/v1/AiController.cs` — read every parameter server-side from the persisted outcome, never from the request (FR-010)
+- [X] T044 [P] [US2] Unit-test `RetryTargetResolver` resolution rules from data-model.md §4 in `tests/AskLucy.Application.Tests/Conversations/Runtime/RetryTargetResolverTests.cs`: no outcome → unknown (400); no failed attempt → unknown (400); already succeeded → refusal (FR-015); target no longer resolves → stale (409)
+- [X] T045 [P] [US2] Security-test that a `failedMessageId` from another user's chat resolves as **not found**, never as a permission error confirming it exists
+- [X] T046 [US2] Implement `src/AskLucy.Application/Conversations/Runtime/RetryTargetResolver.cs` mirroring `SelectedActionResolver`, reusing `ConversationActionUnknownException` / `ConversationActionStaleException` / `ConversationActionUnavailableException`
+- [X] T047 [US2] Add `RetryRequest(Guid FailedMessageId)` and the optional `Retry` member to `ChatRequest` in `src/AskLucy.Web/Contracts/AiContracts.cs`
+- [X] T048 [US2] Reject a request carrying both `SelectedAction` and `Retry` as a 400, in `src/AskLucy.Web/Controllers/v1/AiController.cs`
+- [X] T049 [US2] Dispatch a resolved retry straight into the act path, bypassing `TurnDecider`, in `src/AskLucy.Web/Controllers/v1/AiController.cs` — read every parameter server-side from the persisted outcome, never from the request (FR-010)
 
 ### Transcript behaviour
 
-- [ ] T050 [US2] Append a new assistant turn with its own outcome and leave the failed turn intact (FR-013a); ensure **no** user message is inserted, diverging deliberately from selected-action dispatch (FR-013b)
-- [ ] T051 [US2] Make the retry's outcome statement distinguishable from the original attempt's (FR-011, SC-005) — not a verbatim repeat of the first failure notice
-- [ ] T052 [US2] Ask which action to retry when a typed retry is ambiguous, and name the action retried when defaulting to the most recent failure (FR-012)
-- [ ] T053 [P] [US2] Integration-test the transcript shape after a retry: two assistant turns, both with retrievable outcomes after a reload, no synthetic user message (SC-012) — `tests/AskLucy.Web.Tests/`
+- [X] T050 [US2] Append a new assistant turn with its own outcome and leave the failed turn intact (FR-013a); ensure **no** user message is inserted, diverging deliberately from selected-action dispatch (FR-013b)
+- [X] T051 [US2] Make the retry's outcome statement distinguishable from the original attempt's (FR-011, SC-005) — not a verbatim repeat of the first failure notice
+- [X] T052 [US2] Ask which action to retry when a typed retry is ambiguous, and name the action retried when defaulting to the most recent failure (FR-012)
+- [X] T053 [P] [US2] Integration-test the transcript shape after a retry: two assistant turns, both with retrievable outcomes after a reload, no synthetic user message (SC-012) — `tests/AskLucy.Web.Tests/`
 
 ### Client affordance
 
-- [ ] T054 [US2] Add a retry control to the existing specs/046 action row in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, shown only when `turnOutcome` has a failed attempt
-- [ ] T055 [US2] Send `retry: { failedMessageId }` from `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts` — message id only, never capability or arguments
-- [ ] T056 [US2] Give the activation handler an explicit awaited error path surfacing failures as visible UI feedback, never a console log (FR-014, and the project's error-handling rules)
-- [ ] T057 [P] [US2] Component-test the retry affordance's visibility rules, busy state and error surfacing in `MessageBubble.test.tsx`; register the endpoint in the MSW handlers so an unmocked request cannot reach the real network
+- [X] T054 [US2] Add a retry control to the existing specs/046 action row in `src/AskLucy.Web/ClientApp/src/features/chat/components/MessageBubble.tsx`, shown only when `turnOutcome` has a failed attempt
+- [X] T055 [US2] Send `retry: { failedMessageId }` from `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.ts` — message id only, never capability or arguments
+- [X] T056 [US2] Give the activation handler an explicit awaited error path surfacing failures as visible UI feedback, never a console log (FR-014, and the project's error-handling rules)
+- [X] T057 [P] [US2] Component-test the retry affordance's visibility rules, busy state and error surfacing in `MessageBubble.test.tsx`; register the endpoint in the MSW handlers so an unmocked request cannot reach the real network
 
 **Checkpoint**: Recovery from a failed action works by control and by typed language.
 

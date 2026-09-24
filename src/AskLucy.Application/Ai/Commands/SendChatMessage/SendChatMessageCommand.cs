@@ -20,6 +20,23 @@ public sealed record SelectedActionInput(
     string ArgumentsJson);
 
 /// <summary>
+/// specs/068 US2 (FR-010) — a failed action being retried, already resolved from its persisted
+/// outcome by <see cref="Conversations.Runtime.IRetryTargetResolver"/>. Every field here comes
+/// from what the server recorded when the action first ran; the client only ever named a message.
+/// </summary>
+/// <param name="SourceMessageId">The failed assistant turn this retry replays.</param>
+/// <param name="CapabilityKey">The capability to run again.</param>
+/// <param name="ArgumentsJson">The server-resolved arguments it ran with the first time.</param>
+/// <param name="TargetLabel">What it acted on, for a reply that names it (FR-012).</param>
+/// <param name="PreviousFailureReason">Why the first attempt failed, so the retry's own account can differ from it (FR-011).</param>
+public sealed record RetryInput(
+    Guid SourceMessageId,
+    string CapabilityKey,
+    string ArgumentsJson,
+    string? TargetLabel,
+    string? PreviousFailureReason);
+
+/// <summary>
 /// Streams a chat completion, resolved to a specific provider/model
 /// (specs/005-multi-provider-ai-engine contracts/chat.md). Yields <see cref="ChatStreamChunk"/>
 /// rather than a plain string so the final usage/cost — and, since US1
@@ -38,4 +55,10 @@ public sealed record SendChatMessageCommand(
     Guid ProviderId,
     Guid ModelId,
     GenerationParametersDto? GenerationParameters,
-    SelectedActionInput? SelectedAction = null) : IStreamRequest<ChatStreamChunk>;
+    SelectedActionInput? SelectedAction = null,
+
+    /// <summary>
+    /// specs/068 US2 — set only when this turn is retrying a previously failed action. Mutually
+    /// exclusive with <see cref="SelectedAction"/>, which the controller enforces as a 400.
+    /// </summary>
+    RetryInput? Retry = null) : IStreamRequest<ChatStreamChunk>;

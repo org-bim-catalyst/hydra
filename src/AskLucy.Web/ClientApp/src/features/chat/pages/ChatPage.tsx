@@ -313,6 +313,7 @@ export function ConversationView({
     modelId,
     setSelection,
     selectAction,
+    retryAction,
     actionError,
     isSelectingAction,
     appendAssistantNotice,
@@ -913,6 +914,7 @@ export function ConversationView({
                   handleStopReplay={handleStopReplay}
                   liveOfferMessageId={liveOfferMessageId}
                   selectAction={selectAction}
+                  retryAction={retryAction}
                   isSelectingAction={isSelectingAction}
                   actionError={actionError}
                 />

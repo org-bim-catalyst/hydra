@@ -61,7 +61,8 @@ public sealed class SendChatMessageCommandHandler(
             providerResolver.Resolve(provider.ProviderKey),
             model.ModelKey,
             request.GenerationParameters,
-            request.SelectedAction);
+            request.SelectedAction,
+            request.Retry);
 
         await foreach (var chunk in turnOrchestrator.RunAsync(turn, cancellationToken))
         {

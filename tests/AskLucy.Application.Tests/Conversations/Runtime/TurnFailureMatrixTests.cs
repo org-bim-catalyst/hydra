@@ -43,6 +43,7 @@ public sealed class TurnFailureMatrixTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly ITurnDecider _decider = Substitute.For<ITurnDecider>();
+    private readonly IRetryTargetResolver _retryTargetResolver = Substitute.For<IRetryTargetResolver>();
     private readonly ISuggestedActionOfferGenerator _offerGenerator = Substitute.For<ISuggestedActionOfferGenerator>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
     private readonly Guid _chatId = Guid.NewGuid();
@@ -79,7 +80,7 @@ public sealed class TurnFailureMatrixTests
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
@@ -100,7 +101,7 @@ public sealed class TurnFailureMatrixTests
     [Fact]
     public async Task DecisionCallDegrades_ShouldAnswerNormally_WithAVisibleExplanationAppended()
     {
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.Degraded);
         _provider.StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable([new StreamChunk("Here is a direct answer.")]));
@@ -116,7 +117,7 @@ public sealed class TurnFailureMatrixTests
     [Fact]
     public async Task OrdinaryAnswer_ShouldNeverGetTheDegradationExplanation()
     {
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
         _provider.StreamChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable([new StreamChunk("Sure, here you go.")]));
@@ -132,7 +133,7 @@ public sealed class TurnFailureMatrixTests
     public async Task CapabilityThrows_ShouldBeIsolated_AndNarrateAFailureRatherThanCrashTheTurn()
     {
         var capability = new StubCapability { ThrowOnExecute = new InvalidOperationException("boom") };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("It failed unexpectedly.", new ChatUsage(null, null, null, null, null)));
@@ -148,7 +149,7 @@ public sealed class TurnFailureMatrixTests
     public async Task CapabilityExceedsItsBudget_ShouldReportATimeout_NotACrash()
     {
         var capability = new StubCapability { HangUntilCancelled = true };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("That took longer than expected.", new ChatUsage(null, null, null, null, null)));
@@ -168,7 +169,7 @@ public sealed class TurnFailureMatrixTests
     {
         var first = new StubCapability { Key = "first", SucceedWith = """{"status":"done"}""" };
         var second = new StubCapability { Key = "second", SucceedWith = """{"status":"done"}""" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act,
                 [new TurnSlice("first", "{}", null, DependsOn: null), new TurnSlice("second", "{}", null, DependsOn: 0)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
@@ -193,7 +194,7 @@ public sealed class TurnFailureMatrixTests
     public async Task ClientDisconnects_ShouldPropagateCancellation_RatherThanBeingSwallowed()
     {
         var capability = new StubCapability { HangUntilCancelled = true };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
 
         using var cts = new CancellationTokenSource();
@@ -222,7 +223,7 @@ public sealed class TurnFailureMatrixTests
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 

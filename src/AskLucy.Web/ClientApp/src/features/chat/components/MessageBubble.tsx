@@ -3,9 +3,10 @@ import {
   RiCheckLine,
   RiFileCopyLine,
   RiPlayFill,
+  RiRefreshLine,
   RiStopFill,
 } from '@remixicon/react'
-import { Alert, Box, Chip, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import 'katex/dist/katex.min.css'
 import { useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -40,6 +41,7 @@ export function MessageBubble({
   onStopReplay,
   isLiveOffer,
   onSelectAction,
+  onRetry,
   isSubmittingAction,
   actionError,
 }: {
@@ -62,6 +64,12 @@ export function MessageBubble({
    */
   isLiveOffer?: boolean
   onSelectAction?: (offeredByMessageId: string, action: SuggestedAction) => Promise<void>
+  /**
+   * specs/068 US2 (FR-013) - asks the server to run this turn's failed action again, identified by
+   * this message's id alone. Omit it and the retry control simply never renders, which is what
+   * isolated tests and any read-only rendering of the transcript want.
+   */
+  onRetry?: (failedMessageId: string) => Promise<void>
   isSubmittingAction?: boolean
   actionError?: string | null
 }) {
@@ -76,8 +84,47 @@ export function MessageBubble({
   // offered) renders for any completed assistant reply, independent of whether replay itself
   // is wired up by the caller.
   const showActionRow = !isUser && Boolean(message.id)
+  // specs/068 FR-013 - the affordance exists exactly where the failure is: a turn that recorded at
+  // least one failed attempt. Reading `attempts` rather than the verdict is deliberate (FR-006) -
+  // a turn can answer in words and still have failed at the thing it was asked to do, and that
+  // half-failure is precisely the case the user has no other way to recover from. An undefined
+  // outcome (a message predating specs/068) is never treated as a failure, so no control appears.
+  const hasFailedAttempt = message.turnOutcome?.attempts.some((attempt) => !attempt.succeeded) ?? false
+  const showRetryControl = !isUser && Boolean(message.id) && Boolean(onRetry) && hasFailedAttempt
 
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  // Scoped to this bubble on purpose: `actionError` is a single shared value for the whole chat, so
+  // rendering it unconditionally would put the same red text under every failed turn on screen.
+  // Only the bubble whose control was actually pressed reports back (FR-014).
+  const [retryRequested, setRetryRequested] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
+
+  /**
+   * specs/068 FR-014 / CLAUDE.md Error Handling - awaited, with both failure routes covered: a
+   * rejection here, and the hook's own caught failure arriving through `actionError`. Either way
+   * the user gets a sentence under the control they pressed, never a console line.
+   */
+  const handleRetry = useCallback(async () => {
+    const failedMessageId = message.id
+    if (!failedMessageId || !onRetry) {
+      return
+    }
+
+    setRetryError(null)
+    setRetryRequested(true)
+    try {
+      await onRetry(failedMessageId)
+    } catch (err) {
+      setRetryError(
+        err instanceof Error
+          ? err.message
+          : "Couldn't try that again. Please try once more in a moment.",
+      )
+    }
+  }, [message.id, onRetry])
+
+  const visibleRetryError = retryError ?? (retryRequested ? (actionError ?? null) : null)
+
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(message.content)
@@ -226,7 +273,27 @@ export function MessageBubble({
           user-replaying; RiStopFill (always enabled per FR-024) when it is. Never both
           handlers on the same click. */}
         {showActionRow && (
-          <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, justifyContent: 'flex-start' }}>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ mt: 0.5, justifyContent: 'flex-start', alignItems: 'center' }}
+          >
+            {/* specs/068 FR-013 - labelled rather than icon-only, unlike its neighbours: this is a
+              recovery affordance that has to be found by someone who has just been told something
+              went wrong, not a familiar utility they already know the glyph for. */}
+            {showRetryControl && (
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<RiRefreshLine size={16} />}
+                onClick={() => {
+                  void handleRetry()
+                }}
+                disabled={Boolean(isSubmittingAction)}
+              >
+                Try again
+              </Button>
+            )}
             {showReplayControl && (
               <Tooltip title={showStopIcon ? 'Stop' : 'Replay'}>
                 <IconButton
@@ -270,6 +337,14 @@ export function MessageBubble({
               </IconButton>
             </Tooltip>
           </Stack>
+        )}
+
+        {/* FR-014 - a retry that fails says why, right here. Never a silent no-op, and never a
+          bare repeat of the original notice the user already read above. */}
+        {visibleRetryError && (
+          <Alert severity="error" variant="outlined" sx={{ mt: 0.5, py: 0 }}>
+            {visibleRetryError}
+          </Alert>
         )}
       </Box>
     </Box>

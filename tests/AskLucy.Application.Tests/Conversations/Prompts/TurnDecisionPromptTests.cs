@@ -1,5 +1,6 @@
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Prompts;
+using AskLucy.Application.Conversations.Runtime;
 using FluentAssertions;
 using Xunit;
 
@@ -127,5 +128,53 @@ public sealed class TurnDecisionPromptTests
         // A revision is a new class, never an edit: the wording is what routing benchmarks are
         // measured against, so changing it silently would invalidate every prior measurement.
         TurnDecisionPrompt.Version.Should().Be("v1");
+    }
+
+    // ---- specs/068 T042: the recent-outcome summary (FR-009/FR-009c) ----
+    //
+    // tasks.md names TurnDeciderTests.cs, which does not exist; the prompt is the artifact under
+    // test and this is its home, per constitution 9 (prompts testable without a model call).
+
+    [Fact]
+    public void Build_WithNoRecentOutcomes_ShouldBeByteIdenticalToBefore()
+    {
+        // FR-009c - a conversation with nothing recorded gets exactly the prompt it got before this
+        // feature existed. Without this, every other prompt-shape assertion becomes a guess about
+        // which variant it was looking at.
+        TurnDecisionPrompt.Build([Location, Knowledge], null, RecentTurnOutcomeSummary.Empty)
+            .Should().Be(TurnDecisionPrompt.Build([Location, Knowledge]));
+
+        TurnDecisionPrompt.Build([Location], [], null)
+            .Should().Be(TurnDecisionPrompt.Build([Location], []));
+    }
+
+    [Fact]
+    public void Build_WithARecentFailure_ShouldTellTheRouterWhatARetryRefersTo()
+    {
+        var summary = RecentTurnOutcomeSummary.From([RecordedTurnOutcome.Acted(
+            [ActionAttempt.Failure("Capability", "resolve_location", "Al Safa Park 2", "{}", "the provider was unavailable")],
+            DateTimeOffset.UtcNow)]);
+
+        var prompt = TurnDecisionPrompt.Build([Location], null, summary);
+
+        // The defect this feature exists to fix started here: with no record of what the previous
+        // turn did, "try again" reads as a question about history rather than an instruction.
+        prompt.Should().Contain("resolve_location")
+            .And.Contain("Al Safa Park 2")
+            .And.Contain("the provider was unavailable")
+            .And.Contain("try again");
+    }
+
+    [Fact]
+    public void Build_WithARecentFailure_ShouldNotLeakArgumentsToTheModel()
+    {
+        var summary = RecentTurnOutcomeSummary.From([RecordedTurnOutcome.Acted(
+            [ActionAttempt.Failure("Capability", "resolve_location", "Al Safa Park 2", """{"secretQuery":"x"}""", "unavailable")],
+            DateTimeOffset.UtcNow)]);
+
+        // Same rule as the index itself: the model names a capability, it never sees the argument
+        // payload the server will replay. A summary that leaked it would hand the model a template
+        // to shape its own arguments against.
+        TurnDecisionPrompt.Build([Location], null, summary).Should().NotContain("secretQuery");
     }
 }

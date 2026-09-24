@@ -311,6 +311,9 @@ public static class DependencyInjection
         // specs/045 US3 — resolves and grounds a selected offer row at dispatch time.
         services.AddScoped<ISelectedActionResolver, SelectedActionResolver>();
 
+        // specs/068 US2 — resolves which recorded failure a retry replays, server-side.
+        services.AddScoped<IRetryTargetResolver, RetryTargetResolver>();
+
         // MCP Integration (specs/021-mcp-integration) — Foundational.
         // IMcpToolRegistry/McpConnectionResiliencePolicy are singletons: the registry's cached
         // McpToolAdapter instances must never hold a Scoped dependency (constitution §3), and the

@@ -70,7 +70,8 @@ internal static partial class AiControllerLog
 [Route("api/v1/ai")]
 public sealed partial class AiController(
     ISender mediator, IAIProviderRepository providerRepository, IAIModelRepository modelRepository,
-    ISelectedActionResolver selectedActionResolver, IOptions<ConversationRuntimeOptions> conversationRuntimeOptions,
+    ISelectedActionResolver selectedActionResolver, IRetryTargetResolver retryTargetResolver,
+    IOptions<ConversationRuntimeOptions> conversationRuntimeOptions,
     // specs/068 FR-004e — the orchestrator records every turn it finishes, but a turn that dies
     // mid-stream never reaches that call: the throw unwinds past it. This is the only place that
     // path can be recorded from, which is why the recorder is reached directly here.
@@ -92,7 +93,37 @@ public sealed partial class AiController(
         string? persistedSelectedActionKey = null;
         string? persistedSelectedActionArgumentsJson = null;
 
-        if (request.SelectedAction is { } selection)
+        // specs/068 US2 — a retry is resolved here for the same reasons a selection is: server-side
+        // from the persisted outcome (FR-010), and before Response.ContentType is set so an
+        // unknown or already-succeeded target still comes back as Problem Details rather than as a
+        // started SSE stream the client has to interpret.
+        RetryInput? retry = null;
+
+        if (request.Retry is { } retryRequest)
+        {
+            if (request.SelectedAction is not null)
+            {
+                // Two different instructions for one turn, with no defensible order between them.
+                // Picking one silently is the guessing this feature exists to remove.
+                throw new AskLucy.Domain.Common.DomainRuleViolationException(
+                    "A chat turn can either select an offered action or retry a failed one, not both.");
+            }
+
+            var resolvedRetry = await retryTargetResolver.ResolveAsync(
+                request.ChatId, retryRequest.FailedMessageId, cancellationToken);
+
+            retry = new RetryInput(
+                resolvedRetry.SourceMessageId,
+                resolvedRetry.Attempt.Key ?? resolvedRetry.Attempt.Kind,
+                resolvedRetry.Attempt.ArgumentsJson,
+                resolvedRetry.Attempt.TargetLabel,
+                resolvedRetry.Attempt.FailureReason);
+
+            // FR-013b — pressing "Try again" is not the user saying something, so no user message
+            // is persisted. Inventing one would leave a transcript nobody typed.
+            userMessageContent = string.Empty;
+        }
+        else if (request.SelectedAction is { } selection)
         {
             var resolved = await selectedActionResolver.ResolveAsync(
                 request.ChatId, selection.OfferedByMessageId, selection.Kind, selection.Key, selection.Text,
@@ -115,13 +146,16 @@ public sealed partial class AiController(
             userMessageContent = request.Messages[^1].Content;
         }
 
-        await mediator.Send(
-            new AppendMessageCommand(
-                request.ChatId, MessageRole.User, MessageKind.Text, userMessageContent, null,
-                SelectedActionKind: persistedSelectedActionKind,
-                SelectedActionKey: persistedSelectedActionKey,
-                SelectedActionArgumentsJson: persistedSelectedActionArgumentsJson),
-            cancellationToken);
+        if (retry is null)
+        {
+            await mediator.Send(
+                new AppendMessageCommand(
+                    request.ChatId, MessageRole.User, MessageKind.Text, userMessageContent, null,
+                    SelectedActionKind: persistedSelectedActionKind,
+                    SelectedActionKey: persistedSelectedActionKey,
+                    SelectedActionArgumentsJson: persistedSelectedActionArgumentsJson),
+                cancellationToken);
+        }
 
         Response.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
@@ -176,7 +210,7 @@ public sealed partial class AiController(
         {
             await foreach (var chunk in WithKeepAliveAsync(
                 mediator.CreateStream(
-                    new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction),
+                    new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction, retry),
                     cancellationToken),
                 TimeSpan.FromSeconds(conversationRuntimeOptions.Value.KeepAliveIntervalSeconds),
                 cancellationToken))

@@ -60,6 +60,7 @@ public sealed class AiControllerClaimGateTests : IDisposable
             Substitute.For<IUnitOfWork>(), NullLogger<TurnRecorder>.Instance);
 
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
+            Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
             turnRecorder, _currentUser, NullLogger<AiController>.Instance)
         {

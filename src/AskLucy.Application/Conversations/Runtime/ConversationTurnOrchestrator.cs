@@ -66,6 +66,7 @@ public sealed class ConversationTurnOrchestrator(
     ConversationCapabilityCatalog capabilityCatalog,
     ConversationFlowCatalog flowCatalog,
     ITurnDecider turnDecider,
+    IRetryTargetResolver retryTargetResolver,
     CapabilityExecutor capabilityExecutor,
     FlowRunner flowRunner,
     SubAgentDelegator subAgentDelegator,
@@ -148,12 +149,98 @@ public sealed class ConversationTurnOrchestrator(
             yield break;
         }
 
+        // specs/068 US2 — a retry replays a recorded failure and nothing else, so the decide step
+        // is skipped for the same reason a dispatched selection skips it: what to run was already
+        // resolved, server-side, from what the server itself recorded (FR-010).
+        var retry = request.Retry;
+        if (retry is null && RetryPhrasing.IsRetryRequest(latestUserMessage))
+        {
+            RetryTarget? resolved = null;
+            string? refusal = null;
+
+            try
+            {
+                resolved = await retryTargetResolver.ResolveAsync(request.ChatId, null, cancellationToken);
+            }
+            catch (ConversationActionUnknownException ex)
+            {
+                refusal = ex.Message;
+            }
+            catch (ConversationActionStaleException ex)
+            {
+                refusal = ex.Message;
+            }
+
+            if (refusal is not null)
+            {
+                // FR-012/FR-015 — an ambiguous or unretryable typed request is answered with the
+                // resolver's own sentence: ask which one, or say it already succeeded. Guessing is
+                // the behaviour this feature exists to remove, and unlike the explicit control
+                // (which gets a 4xx) a typed message has no affordance to fail — it gets a reply.
+                yield return new ChatStreamChunk(refusal, null);
+                yield return new ChatStreamChunk(null, null, TurnOutcome: RecordedTurnOutcome.AnsweredInWords(DateTimeOffset.UtcNow));
+                backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
+                yield break;
+            }
+
+            retry = new RetryInput(
+                resolved!.SourceMessageId,
+                resolved.Attempt.Key ?? resolved.Attempt.Kind,
+                resolved.Attempt.ArgumentsJson,
+                resolved.Attempt.TargetLabel,
+                resolved.Attempt.FailureReason);
+        }
+
+        if (retry is not null)
+        {
+            var retryRecord = new List<FlowStepResult>();
+            var retryConfirmedLocation = false;
+
+            await foreach (var chunk in RunRetryAsync(request, turnContext, retry, retryRecord, cancellationToken))
+            {
+                if (chunk.ConfirmedLocation is not null)
+                {
+                    retryConfirmedLocation = true;
+                }
+
+                yield return chunk;
+            }
+
+            if (retryRecord.Count > 0)
+            {
+                var retryOutcome = new TurnOutcome(
+                    [.. retryRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)],
+                    retryConfirmedLocation,
+                    [],
+                    UserDeclinedLastOffer: false);
+                var retryJustHappened = $"The user asked to retry: {retry.CapabilityKey}. Lucy ran it again.";
+
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, retryOutcome, turnContext, memoryOutcome: null, chat, retryJustHappened, [], cancellationToken))
+                {
+                    yield return chunk;
+                }
+
+                var retryPlanJson = JsonSerializer.Serialize(new { kind = "Retry", key = retry.CapabilityKey });
+                await turnRecorder.RecordAsync(
+                    request.ChatId, userId, $"retry: {retry.TargetLabel ?? retry.CapabilityKey}", retryPlanJson,
+                    ToRecordedSteps(retryRecord), retryJustHappened, cancellationToken);
+            }
+
+            // FR-013a — the retry is its own turn with its own outcome. The turn it replays keeps
+            // the failure it recorded, which is what leaves the transcript still showing that the
+            // first attempt did not work.
+            yield return new ChatStreamChunk(null, null, TurnOutcome: BuildOutcome(ToAttempts(retryRecord, retry.ArgumentsJson)));
+
+            backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
+            yield break;
+        }
+
         // The Tier 1 index and the decision are built even on a turn that turns out to need no
         // action — the decider itself is what skips its own model call when the index is empty
         // or the message is blank (FR-006), so an ordinary reply is not charged for asking.
         var index = await capabilityCatalog.BuildIndexAsync(turnContext, latestUserMessage, cancellationToken);
         var flowIndex = flowCatalog.AvailableFor(turnContext).Select(ConversationFlowCatalog.ToEntry).ToList();
-        var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, flowIndex, cancellationToken);
+        var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, flowIndex, recentOutcomes, cancellationToken);
 
         MemoryRetrievalOutcome? memoryOutcome = null;
         var confirmedLocationThisTurn = false;
@@ -386,6 +473,71 @@ public sealed class ConversationTurnOrchestrator(
     /// <c>Decline</c> performs no work at all (FR-022).
     /// </para>
     /// </summary>
+    /// <summary>
+    /// specs/068 US2 — runs a recorded failed action again (FR-010) and reports what happened this
+    /// time (FR-011).
+    ///
+    /// <para>
+    /// The cadence is <see cref="RunSelectedActionAsync"/>'s Capability branch, with one deliberate
+    /// difference: the opening line says this is a second attempt and names what is being retried
+    /// (FR-014). A retry that reads exactly like the first attempt leaves the user unable to tell
+    /// which outcome they are looking at, which is the confusion SC-005 measures.
+    /// </para>
+    ///
+    /// <para>
+    /// Every parameter comes from <paramref name="retry"/>, which the resolver built from the
+    /// persisted outcome — never from the request body (FR-010).
+    /// </para>
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> RunRetryAsync(
+        ConversationTurnRequest request,
+        TurnContext turnContext,
+        RetryInput retry,
+        List<FlowStepResult> retryRecord,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var capability = capabilityCatalog.Find(retry.CapabilityKey);
+        if (capability is null)
+        {
+            // The resolver confirmed this capability moments ago; finding it gone now means the
+            // catalog changed in the window since. Same graceful degradation as a dispatched
+            // selection whose capability vanished.
+            ConversationTurnOrchestratorLog.SliceCapabilityMissingAtDispatch(logger, retry.CapabilityKey, request.ChatId);
+            yield return new ChatStreamChunk("That's no longer available, so I can't try it again.", null);
+            yield break;
+        }
+
+        var target = string.IsNullOrWhiteSpace(retry.TargetLabel) ? null : retry.TargetLabel;
+
+        yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+        yield return new ChatStreamChunk(
+            target is null ? "Trying that again now." : $"Trying that again now — {target}.",
+            null);
+
+        yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: capability.Label);
+        var result = await capabilityExecutor.ExecuteAsync(capability, turnContext, retry.ArgumentsJson, cancellationToken);
+        var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);
+
+        // FR-011/FR-014 — the second attempt's own account. A repeat failure says so explicitly
+        // rather than re-emitting the first notice verbatim, which read as a stuck retry.
+        yield return new ChatStreamChunk(
+            result.Succeeded ? narration : $"That didn't work this time either. {narration}",
+            null);
+
+        if (result.Succeeded)
+        {
+            var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
+            if (structured is not null)
+            {
+                yield return structured;
+            }
+        }
+
+        retryRecord.Add(new FlowStepResult(
+            capability.Name, Attempted: true, result.Succeeded, Skipped: false,
+            result.Succeeded ? result.ResultJson : null, result.Succeeded ? null : result.ResultJson));
+    }
+
     private async IAsyncEnumerable<ChatStreamChunk> RunSelectedActionAsync(
         ConversationTurnRequest request,
         TurnContext turnContext,

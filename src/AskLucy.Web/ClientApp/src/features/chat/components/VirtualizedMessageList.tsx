@@ -19,6 +19,9 @@ interface VirtualizedMessageListProps {
   handleStopReplay: () => void
   liveOfferMessageId: string | null
   selectAction: (offeredByMessageId: string, action: SuggestedAction) => Promise<void>
+  /** specs/068 US2 - passed straight through to every bubble; each one decides for itself whether
+   * its own recorded outcome earns a retry control. */
+  retryAction: (failedMessageId: string) => Promise<void>
   isSelectingAction: boolean
   actionError: string | null
 }
@@ -45,6 +48,7 @@ export function VirtualizedMessageList({
   handleStopReplay,
   liveOfferMessageId,
   selectAction,
+  retryAction,
   isSelectingAction,
   actionError,
 }: VirtualizedMessageListProps) {
@@ -101,6 +105,7 @@ export function VirtualizedMessageList({
                 onStopReplay={handleStopReplay}
                 isLiveOffer={Boolean(message.id) && message.id === liveOfferMessageId}
                 onSelectAction={selectAction}
+                onRetry={retryAction}
                 isSubmittingAction={isSelectingAction}
                 actionError={actionError}
               />

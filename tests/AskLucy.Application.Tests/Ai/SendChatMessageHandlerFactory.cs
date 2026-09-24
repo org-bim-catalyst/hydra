@@ -143,6 +143,7 @@ internal static class SendChatMessageHandlerFactory
             capabilityCatalog,
             flowCatalog,
             turnDecider,
+            Substitute.For<IRetryTargetResolver>(),
             capabilityExecutor,
             flowRunner,
             subAgentDelegator,

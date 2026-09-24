@@ -58,6 +58,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
                 null, null, null, null, null, null, null, null, null, [], []));
 
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
+            Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
             _turnRecorder, _currentUser, NullLogger<AiController>.Instance)
         {
@@ -403,6 +404,7 @@ public sealed class AiControllerKeepAliveTests : IDisposable
         // a mocked clock, which is what actually proves the wire format (a comment line, invisible
         // to aiApi.ts's parser) is correct.
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
+            Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }),
             _turnRecorder, _currentUser, NullLogger<AiController>.Instance)
         {

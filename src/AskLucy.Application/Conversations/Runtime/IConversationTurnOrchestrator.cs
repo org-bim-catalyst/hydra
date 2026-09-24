@@ -48,4 +48,11 @@ public sealed record ConversationTurnRequest(
     /// resolved and grounded by <see cref="SelectedActionResolver"/>. When non-null, the decide
     /// step is skipped entirely: the turn runs exactly this selection instead.
     /// </summary>
-    SelectedActionInput? SelectedAction = null);
+    SelectedActionInput? SelectedAction = null,
+
+    /// <summary>
+    /// specs/068 US2 (FR-010) — set only when this turn is replaying a recorded failed action.
+    /// Like <see cref="SelectedAction"/>, the decide step is skipped: what to run was resolved
+    /// from the persisted outcome before the turn began.
+    /// </summary>
+    RetryInput? Retry = null);

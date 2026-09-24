@@ -222,6 +222,18 @@ export interface SelectedActionRequest {
 }
 
 /**
+ * specs/068 US2, contracts/retry-api.md — asks for a previously failed action to be run again.
+ *
+ * A message id and nothing else, deliberately: the capability, its arguments and its target all
+ * come back from what the server recorded on that turn (FR-010). Sending them from here would make
+ * `/ai/chat` a general capability-invocation route that merely looks like a retry. Mutually
+ * exclusive with {@link SelectedActionRequest} — sending both is a 400.
+ */
+export interface RetryRequest {
+  failedMessageId: string
+}
+
+/**
  * Streams a chat completion via SSE (research.md Topic 2). Uses `fetch` + a
  * `ReadableStream` reader rather than the browser's native `EventSource`, since
  * `EventSource` cannot send a custom `Authorization` header.
@@ -234,6 +246,7 @@ export async function* streamChat(
   generationParameters: GenerationParameters | undefined,
   signal?: AbortSignal,
   selectedAction?: SelectedActionRequest,
+  retry?: RetryRequest,
 ): AsyncGenerator<ChatStreamEvent> {
   const sendRequest = () => {
     const accessToken = useAuthStore.getState().accessToken
@@ -244,7 +257,7 @@ export async function* streamChat(
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters, selectedAction }),
+      body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters, selectedAction, retry }),
     })
   }
 

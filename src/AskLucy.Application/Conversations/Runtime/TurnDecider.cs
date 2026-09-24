@@ -34,6 +34,7 @@ public interface ITurnDecider
         string userMessage,
         IReadOnlyList<CapabilityIndexEntry> index,
         IReadOnlyList<CapabilityIndexEntry> flowIndex,
+        RecentTurnOutcomeSummary recentOutcomes,
         CancellationToken cancellationToken);
 }
 
@@ -68,6 +69,7 @@ public sealed class TurnDecider(
         string userMessage,
         IReadOnlyList<CapabilityIndexEntry> index,
         IReadOnlyList<CapabilityIndexEntry> flowIndex,
+        RecentTurnOutcomeSummary recentOutcomes,
         CancellationToken cancellationToken)
     {
         // Nothing to route between, so nothing to ask. Skipping the call here is what keeps an
@@ -91,7 +93,7 @@ public sealed class TurnDecider(
 
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.System, TurnDecisionPrompt.Build(index, flowIndex)),
+                new(ChatRole.System, TurnDecisionPrompt.Build(index, flowIndex, recentOutcomes)),
                 new(ChatRole.User, userMessage),
             };
 

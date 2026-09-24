@@ -38,6 +38,7 @@ public sealed class FlowIntentGatingTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly ITurnDecider _decider = Substitute.For<ITurnDecider>();
+    private readonly IRetryTargetResolver _retryTargetResolver = Substitute.For<IRetryTargetResolver>();
     private readonly ISuggestedActionOfferGenerator _offerGenerator = Substitute.For<ISuggestedActionOfferGenerator>();
     private readonly ILocationResolutionService _locationService = Substitute.For<ILocationResolutionService>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
@@ -86,7 +87,7 @@ public sealed class FlowIntentGatingTests
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
@@ -118,7 +119,7 @@ public sealed class FlowIntentGatingTests
     public async Task NavigationalIntent_ShouldRunTheFlow_AndMoveTheViewer_WithNoOffer()
     {
         _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
-                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [], "locate_a_place", """{"query":"Al Safa Park 2"}""", ThroughStepIndex: null));
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("show me Al Safa Park 2"));
@@ -134,7 +135,7 @@ public sealed class FlowIntentGatingTests
     public async Task InformationalIntent_ShouldAnswerInWords_OfferTheVariants_AndNeverMoveTheViewer()
     {
         _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
-                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Suggest, [], "locate_a_place", """{"query":"Al Safa Park 2"}"""));
         _offerGenerator.GenerateAsync(Arg.Any<TurnContext>(), Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(),
                 Arg.Any<IReadOnlyList<FlowVariantOfferCandidate>?>(), Arg.Any<CancellationToken>())
@@ -163,7 +164,7 @@ public sealed class FlowIntentGatingTests
     public async Task PassingMention_ShouldRunNothing_AndOfferNothing()
     {
         _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
-                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("I read that Al Safa Park 2 was renovated"));

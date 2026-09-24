@@ -41,6 +41,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly ITurnDecider _decider = Substitute.For<ITurnDecider>();
+    private readonly IRetryTargetResolver _retryTargetResolver = Substitute.For<IRetryTargetResolver>();
     private readonly ISuggestedActionOfferGenerator _offerGenerator = Substitute.For<ISuggestedActionOfferGenerator>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
     private readonly IAgentRepository _agentRepository = Substitute.For<IAgentRepository>();
@@ -86,7 +87,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
@@ -100,7 +101,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         var executionOrder = new List<string>();
         capability.OnExecute = () => executionOrder.Add("executed");
 
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", "Doing the thing", null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(call =>
@@ -122,7 +123,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     public async Task RunAsync_ShouldWriteTheResult_FromTheRealOutcome_NotACannedTemplate()
     {
         var capability = new StubCapability { SucceedWith = """{"status":"done"}""" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("Real narration mentioning the outcome.", new ChatUsage(null, null, null, null, null)));
@@ -142,7 +143,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     public async Task RunAsync_ShouldNeverNarrateSuccess_ForACapabilityThatFailed()
     {
         var capability = new StubCapability { FailWith = "the lookup timed out" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
 
         string? narrationPromptSeen = null;
@@ -167,7 +168,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         // FR-008: the fallback exists for when narration cannot run at all — never as the normal
         // path, but the user must still read SOMETHING true about what happened.
         var capability = new StubCapability { FailWith = "not found" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns<ChatCompletionResult>(_ => throw new InvalidOperationException("provider down"));
@@ -180,7 +181,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     [Fact]
     public async Task RunAsync_ShouldEmitNoBeats_OnTheFastPath()
     {
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("what is a setback?"));
@@ -200,7 +201,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         // no acknowledgement); this fixture registers no capability at all, so the offer step
         // that follows (US2) finds nothing offerable and is suppressed too — the plain-reply shape
         // asserted here is permanent, not an interim narrowing.
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Suggest, []));
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("do you know that place?"));
@@ -212,7 +213,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     [Fact]
     public async Task RunAsync_ShouldEnqueueMemoryExtraction_RegardlessOfWhichPathRan()
     {
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
         await CollectAsync(BuildOrchestrator(), Request("hello"));
@@ -235,7 +236,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
                 new ConfirmedLocationData(25.156, 55.2218, "Al Safa Park 2", 0.9),
                 "confirmed"));
 
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act,
                 [new TurnSlice(ResolveLocationCapability.CapabilityKey, """{"query":"Al Safa Park 2"}""", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
@@ -254,7 +255,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         // end through the real orchestrator rather than TurnRecorder in isolation.
         SeedProvisionedOrchestrator();
         var capability = new StubCapability { SucceedWith = """{"status":"done"}""" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", "{}", null, null)]));
         _provider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
             .Returns(new ChatCompletionResult("It worked.", new ChatUsage(null, null, null, null, null)));
@@ -273,7 +274,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         // every turn now, because "Lucy answered in words and did nothing" is exactly the state
         // that went unrecorded when she later claimed to have acted.
         SeedProvisionedOrchestrator();
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(TurnDecision.AnswerOnly);
 
         var chunks = await CollectAsync(BuildOrchestrator(), Request("just chatting"));
@@ -292,7 +293,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     {
         SeedProvisionedOrchestrator();
         var capability = new StubCapability { FailWith = "The provider credential was rejected." };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", """{"query":"Al Safa Park 2"}""", null, null)]));
 
         var chunks = await CollectAsync(BuildOrchestrator(capability), Request("show me Al Safa Park 2"));
@@ -323,7 +324,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
     {
         SeedProvisionedOrchestrator();
         var capability = new StubCapability { SucceedWith = """{"ok":true}""" };
-        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>())
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
             .Returns(new TurnDecision(TurnIntent.Act, [new TurnSlice("stub", """{"query":"Al Safa Park 2"}""", null, null)]));
 
         var chunks = await CollectAsync(BuildOrchestrator(capability), Request("show me Al Safa Park 2"));

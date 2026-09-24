@@ -258,6 +258,7 @@ public sealed class SelectedActionDispatchOrchestratorTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
     private readonly ITurnDecider _decider = Substitute.For<ITurnDecider>();
+    private readonly IRetryTargetResolver _retryTargetResolver = Substitute.For<IRetryTargetResolver>();
     private readonly ISuggestedActionOfferGenerator _offerGenerator = Substitute.For<ISuggestedActionOfferGenerator>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
     private readonly Guid _chatId = Guid.NewGuid();
@@ -298,7 +299,7 @@ public sealed class SelectedActionDispatchOrchestratorTests
 
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
-            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
+            _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
             narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
@@ -332,7 +333,7 @@ public sealed class SelectedActionDispatchOrchestratorTests
         // FR-027 — "the orchestrator skips the decision step and runs the selection directly".
         await _decider.DidNotReceive().DecideAsync(
             Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
-            Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<CancellationToken>());
+            Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

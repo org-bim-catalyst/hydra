@@ -84,38 +84,57 @@ public sealed record RecentTurnOutcomeSummary(IReadOnlyList<RecentTurnLine> Turn
     }
 
     /// <summary>
-    /// The block handed to the model, or an empty string when there is nothing to report — callers
-    /// rely on that to keep an outcome-free conversation's prompt unchanged (FR-009c).
+    /// The record as the turn router reads it (contracts/turn-outcome.md §4) — an enumerated list
+    /// and nothing else. Empty when there is nothing to report, which is what keeps the routing
+    /// prompt byte-identical to today's on a conversation with no recorded outcomes (FR-009c).
     /// </summary>
-    public string ToPromptText()
+    public string ToRouterText()
     {
         if (IsEmpty)
         {
             return string.Empty;
         }
 
-        var text = new StringBuilder("What your recent turns actually did (this is the record, not a guess):\n");
-        foreach (var line in Turns)
+        var text = new StringBuilder("Recent turns:");
+        for (var i = 0; i < Turns.Count; i++)
         {
-            text.Append("- ");
-            text.Append(line.Kind ?? "(no action)");
-            if (!string.IsNullOrWhiteSpace(line.TargetLabel))
-            {
-                text.Append(" \"").Append(line.TargetLabel).Append('"');
-            }
-
-            text.Append(": ").Append(line.Verdict);
-            if (!string.IsNullOrWhiteSpace(line.FailureReason))
-            {
-                text.Append(" — ").Append(line.FailureReason);
-            }
-
-            text.Append('\n');
+            text.Append("\n  ").Append(i + 1).Append(". ").Append(Describe(Turns[i]));
         }
 
-        text.Append("\nDo not say an action was carried out unless it is listed above as succeeded. " +
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// The same record handed to the composer, followed by what it may not do with it. The record
+    /// itself is rendered once, by <see cref="ToRouterText"/>: a router and a composer disagreeing
+    /// about what a turn did would be worse than either being wrong alone.
+    /// </summary>
+    public string ToPromptText() =>
+        IsEmpty ? string.Empty : ToRouterText() + "\n\n" +
+            "Do not say an action was carried out unless it is listed above as succeeded. " +
             "If the user asks you to try again, say plainly that the earlier attempt failed rather than " +
-            "claiming it already worked.");
+            "claiming it already worked.";
+
+    private static string Describe(RecentTurnLine line)
+    {
+        var text = new StringBuilder(line.Kind ?? (line.Verdict == "answered-only"
+            ? "(answered in words only)"
+            : "(the turn did not finish)"));
+
+        if (!string.IsNullOrWhiteSpace(line.TargetLabel))
+        {
+            text.Append("  target=\"").Append(line.TargetLabel).Append('"');
+        }
+
+        if (line.Kind is not null)
+        {
+            text.Append("  ").Append(line.Verdict);
+        }
+
+        if (!string.IsNullOrWhiteSpace(line.FailureReason))
+        {
+            text.Append(": ").Append(line.FailureReason);
+        }
 
         return text.ToString();
     }

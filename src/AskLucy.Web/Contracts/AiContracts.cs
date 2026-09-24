@@ -21,13 +21,26 @@ public sealed record SelectedActionRequest(
     string? Text,
     JsonElement? Arguments);
 
+/// <summary>
+/// specs/068 US2, contracts/retry-api.md — asking for a previously failed action to be run again.
+///
+/// <para>
+/// <b>A message id and nothing else.</b> The capability, its arguments and its target all come from
+/// what the server itself recorded on that turn; accepting them from the client would make this a
+/// general-purpose capability-invocation endpoint wearing a retry's clothes (FR-010, constitution
+/// §5). Mutually exclusive with <see cref="ChatRequest.SelectedAction"/>.
+/// </para>
+/// </summary>
+public sealed record RetryRequest(Guid FailedMessageId);
+
 public sealed record ChatRequest(
     Guid ChatId,
     IReadOnlyList<ChatMessageDto> Messages,
     Guid ProviderId,
     Guid ModelId,
     GenerationParametersDto? GenerationParameters = null,
-    SelectedActionRequest? SelectedAction = null);
+    SelectedActionRequest? SelectedAction = null,
+    RetryRequest? Retry = null);
 
 public sealed record TranslateRequest(Guid ChatId, string Text, string TargetLanguage);
 
