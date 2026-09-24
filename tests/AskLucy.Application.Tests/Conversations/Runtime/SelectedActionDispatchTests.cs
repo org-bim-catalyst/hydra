@@ -50,11 +50,17 @@ public sealed class SelectedActionResolverTests
         _resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]));
     }
 
+    /// <summary>
+    /// Serialized exactly the way the SSE writer serializes it, because that is the only shape the
+    /// column ever holds in production. These tests previously used the domain serializer instead,
+    /// which is why a resolver that could not read a single real offer passed all of them: the
+    /// round-trip was closed over a shape nothing writes. See <see cref="SuggestedActionWire"/>.
+    /// </summary>
     private Message OfferingMessage(SuggestedActionOffer offer, DateTime createdAtUtc)
     {
         var message = Message.Create(
             _chatId, MessageRole.Assistant, MessageKind.Text, "What would you like to do next?", null, "assistant",
-            suggestedActionsJson: JsonSerializer.Serialize(offer, SuggestedActionJson.Options));
+            suggestedActionsJson: SuggestedActionWire.Serialize(offer));
         message.CreatedAtUtc = createdAtUtc;
         return message;
     }
@@ -193,6 +199,49 @@ public sealed class SelectedActionResolverTests
 
         resolved.Row.IsDecline.Should().BeTrue();
         await _knowledgeBases.DidNotReceive().GetByConversationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The reported defect, stated as the round trip it actually is: whatever token the controller
+    /// puts on the card is the token the resolver is handed back, so the two must be one value.
+    /// It shipped as two — the card said <c>capability</c>, the controller's persisted echo said
+    /// <c>Capability</c>, and the parser took only the former — and every selection 500'd.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldAcceptTheKindToken_TheOfferCardWasActuallyGiven()
+    {
+        var offering = OfferingMessage(StubOffer(), DateTime.UtcNow);
+        _messages.ListByChatIdAsync(_chatId, Arg.Any<CancellationToken>()).Returns(new List<Message> { offering });
+
+        var resolved = await _resolver.ResolveAsync(
+            _chatId, offering.Id, SuggestedActionWire.ToWire(SuggestedActionKind.Capability), "stub", null, "{}", CancellationToken.None);
+
+        resolved.Row.Kind.Should().Be(SuggestedActionKind.Capability);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldStillAcceptTheLegacyPascalCaseKind_FromACardRenderedBeforeTheFix()
+    {
+        // Cards already on screen in an open tab carry the old spelling. Rejecting it would turn
+        // the fix itself into a fresh failure for exactly the users who hit the first one.
+        var offering = OfferingMessage(StubOffer(), DateTime.UtcNow);
+        _messages.ListByChatIdAsync(_chatId, Arg.Any<CancellationToken>()).Returns(new List<Message> { offering });
+
+        var resolved = await _resolver.ResolveAsync(
+            _chatId, offering.Id, "Capability", "stub", null, "{}", CancellationToken.None);
+
+        resolved.Row.Kind.Should().Be(SuggestedActionKind.Capability);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldRefuseUnknown_ForAKindTokenThatNamesNothing()
+    {
+        var offering = OfferingMessage(StubOffer(), DateTime.UtcNow);
+        _messages.ListByChatIdAsync(_chatId, Arg.Any<CancellationToken>()).Returns(new List<Message> { offering });
+
+        var act = () => _resolver.ResolveAsync(_chatId, offering.Id, "teleport", "stub", null, "{}", CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConversationActionUnknownException>();
     }
 
     private sealed class StubCapability : IConversationCapability

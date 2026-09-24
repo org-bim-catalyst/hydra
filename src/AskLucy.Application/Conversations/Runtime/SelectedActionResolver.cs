@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
@@ -139,25 +138,14 @@ public sealed class SelectedActionResolver(
         _ => false,
     };
 
-    private static SuggestedActionKind ParseKind(string kind) => kind switch
-    {
-        "flowVariant" => SuggestedActionKind.FlowVariant,
-        "capability" => SuggestedActionKind.Capability,
-        "followUp" => SuggestedActionKind.FollowUp,
-        "decline" => SuggestedActionKind.Decline,
-        _ => throw new ConversationActionUnknownException($"'{kind}' is not a recognised selection kind."),
-    };
+    private static SuggestedActionKind ParseKind(string kind) =>
+        SuggestedActionWire.TryParseKind(kind, out var parsed)
+            ? parsed
+            : throw new ConversationActionUnknownException($"'{kind}' is not a recognised selection kind.");
 
-    private static SuggestedActionOffer DeserializeOffer(string suggestedActionsJson)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize<SuggestedActionOffer>(suggestedActionsJson, SuggestedActionJson.Options)
-                ?? throw new ConversationActionStaleException("That offer could not be read.");
-        }
-        catch (JsonException)
-        {
-            throw new ConversationActionStaleException("That offer could not be read.");
-        }
-    }
+    // The persisted offer is the wire shape the client was shown, not the domain record: reading
+    // it back through anything else is how the two silently stopped describing the same offer.
+    private static SuggestedActionOffer DeserializeOffer(string suggestedActionsJson) =>
+        SuggestedActionWire.TryDeserialize(suggestedActionsJson)
+            ?? throw new ConversationActionStaleException("That offer could not be read.");
 }

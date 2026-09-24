@@ -2052,6 +2052,77 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     ).not.toBeInTheDocument()
   })
 
+  /**
+   * The offer card retires to the choice the user made in the same session, without a reload.
+   *
+   * `resolveSelectedActionLabel` only ever runs over persisted history, and `hasSentRef` stops a
+   * refetch from replacing this view's messages, so the answered card used to fall back to
+   * re-listing every option for the rest of the session and only showed "You chose: ..." after a
+   * full reload — reported as "it is not the same behaviour like when user select answer in
+   * Claude or chatgpt". The reload path is asserted separately above; this is the live one.
+   */
+  it('retires an answered offer card to the chosen option, with no reload', async () => {
+    const offer = {
+      offeredByMessageId: 'msg-offer-analysis',
+      question: 'What would you like to do next?',
+      actions: [
+        {
+          kind: 'capability',
+          capabilityKey: 'request_site_analysis',
+          text: null,
+          label: 'Analyze this site',
+          description: 'Run the site analysis.',
+          arguments: {},
+          isDecline: false,
+        },
+        {
+          kind: 'decline',
+          capabilityKey: null,
+          text: null,
+          label: 'No thanks',
+          description: '',
+          arguments: {},
+          isDecline: true,
+        },
+      ],
+    }
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post(
+        '*/api/v1/ai/chat',
+        () => {
+          const stream = sseStream(['Found Al Safa Park 2.', `__ACTIONS__${JSON.stringify(offer)}`])
+          return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+        },
+        { once: true },
+      ),
+      http.post('*/api/v1/ai/chat', () => {
+        const stream = sseStream(['Here is what the analysis shows.'])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    await screen.findByRole('radio', { name: 'Analyze this site' })
+    await user.click(screen.getByRole('radio', { name: 'Analyze this site' }))
+    await user.click(screen.getByRole('button', { name: 'Choose' }))
+
+    expect(await screen.findByText('Here is what the analysis shows.')).toBeInTheDocument()
+
+    // The card names the choice, and no longer offers the menu it already answered.
+    expect(screen.getByText('You chose: Analyze this site')).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Analyze this site' })).not.toBeInTheDocument()
+    expect(screen.queryByText('No thanks')).not.toBeInTheDocument()
+    expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
+  })
+
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),

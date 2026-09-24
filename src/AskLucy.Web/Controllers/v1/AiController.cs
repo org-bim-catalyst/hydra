@@ -140,7 +140,10 @@ public sealed partial class AiController(
             // FlowVariant/Capability. resolved.Row already carries null for both on a FollowUp or
             // Decline row (SuggestedAction's own structural rules), so this mirrors it rather than
             // coercing a "{}" default onto a kind that has no arguments at all.
-            persistedSelectedActionKind = resolved.Row.Kind.ToString();
+            // The contract's token, not the enum name: this value goes back to the client on the
+            // persisted message, where it is matched against the offer's own rows to show which
+            // one was picked. Two spellings of one kind would never match.
+            persistedSelectedActionKind = SuggestedActionWire.ToWire(resolved.Row.Kind);
             persistedSelectedActionKey = resolved.Row.Key;
             persistedSelectedActionArgumentsJson = resolved.Row.ArgumentsJson;
         }
@@ -474,10 +477,11 @@ public sealed partial class AiController(
                 // (label, capabilityKey, isDecline...) — the exact shape the live __ACTIONS__ event
                 // below already builds correctly. Every persisted offer card therefore reopened with
                 // every field reading as undefined, rendering the whole card empty (never in the
-                // same-session live view, only after a reload re-fetched history). BuildActionWirePayload
-                // is now the single source both paths share, so they cannot drift apart again.
+                // same-session live view, only after a reload re-fetched history). SuggestedActionWire
+                // is now the single source the live event, this persisted copy and the resolver that
+                // reads it back all share, so they cannot drift apart again.
                 var suggestedActionsJson = suggestedActions is { Count: > 0 }
-                    ? JsonSerializer.Serialize(new { question = suggestedActionsQuestion, actions = suggestedActions.Select(BuildActionWirePayload) })
+                    ? SuggestedActionWire.Serialize(suggestedActionsQuestion, suggestedActions)
                     : null;
 
                 // specs/068 FR-004d - the response has already started, so an exception escaping this
@@ -632,16 +636,8 @@ public sealed partial class AiController(
     /// a persisted-only shape drifting from the live one is exactly the bug that made every
     /// reopened offer card render with every field blank (2026-09-11).
     /// </summary>
-    private static object BuildActionWirePayload(SuggestedAction a) => new
-    {
-        kind = a.Kind.ToString(),
-        capabilityKey = a.Key,
-        text = a.Text,
-        label = a.Label,
-        description = a.Description,
-        arguments = string.IsNullOrEmpty(a.ArgumentsJson) ? (object?)null : JsonSerializer.Deserialize<JsonElement>(a.ArgumentsJson),
-        isDecline = a.IsDecline,
-    };
+    private static SuggestedActionWirePayload BuildActionWirePayload(SuggestedAction a) =>
+        SuggestedActionWire.PayloadFor(a);
 
     /// <summary>
     /// specs/068 FR-014 - why the turn stopped, in words a user can act on.

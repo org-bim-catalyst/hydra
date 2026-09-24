@@ -412,12 +412,15 @@ export function useChatStream(
       seedTitle,
       userMessage,
       selectedAction,
+      answeredOffer,
       retry,
       failureMessage,
     }: {
       seedTitle: string
       userMessage: ChatMessage | null
       selectedAction?: SelectedActionRequest
+      /** The offer this turn answers, and with what — see the `answered` mapping below. */
+      answeredOffer?: { messageId: string; label: string | null }
       retry?: RetryRequest
       failureMessage: string
     }) => {
@@ -429,9 +432,19 @@ export function useChatStream(
       setIsSelectingAction(true)
       setActionError(null)
 
+      // Retiring the answered card is this view's own job, not something a later fetch supplies.
+      // `resolveSelectedActionLabel` only ever runs over *persisted* history, and `hasSentRef`
+      // blocks a refetch from replacing this view's messages, so without marking it here the
+      // card the user just answered falls back to re-listing every option — the "that isn't how
+      // Claude/ChatGPT behave" report — until a full page reload. The label is known locally:
+      // it is the row the user clicked, and the server resolves that same row.
+      const answered = answeredOffer
+        ? messages.map((m) => (m.id === answeredOffer.messageId ? { ...m, selectedActionLabel: answeredOffer.label } : m))
+        : messages
+
       // specs/068 FR-013b — a retry passes `userMessage: null`: pressing "Try again" is not the
       // user saying something, and a bubble nobody typed would be there on every reload.
-      const history = userMessage ? [...messages, userMessage] : [...messages]
+      const history = userMessage ? [...answered, userMessage] : [...answered]
       setMessages([...history, { role: 'assistant', content: '' }])
       setIsStreaming(true)
       setPendingLabel(null)
@@ -559,8 +572,14 @@ export function useChatStream(
         }
       } catch (err) {
         if (isActiveRef.current) {
+          // The dispatch failed, so nothing was answered: the mark applied above is taken back,
+          // because a card claiming "You chose: X" beside a turn that never ran says something a
+          // reload would contradict.
+          const failedHistory = answeredOffer
+            ? history.map((m) => (m.id === answeredOffer.messageId ? { ...m, selectedActionLabel: undefined } : m))
+            : history
           setMessages([
-            ...history,
+            ...failedHistory,
             ...renderParts(assistantParts.slice(0, -1)),
             { ...renderParts([assistantParts[assistantParts.length - 1]])[0], isIncomplete: true },
           ])
@@ -591,6 +610,7 @@ export function useChatStream(
           text: action.text,
           arguments: action.arguments,
         },
+        answeredOffer: { messageId: offeredByMessageId, label: action.isDecline ? null : action.label },
         failureMessage: 'Failed to run that action. Please try again.',
       }),
     [runDispatchedTurn],

@@ -9,7 +9,7 @@ namespace AskLucy.Application.Conversations;
 /// controller) and whoever reads it back (the transcript projection, the claim gate, retry
 /// resolution).
 /// <para>
-/// Same reasoning as <see cref="SuggestedActionJson"/>: ASP.NET's global
+/// Same reasoning as <see cref="SuggestedActionWire"/>: ASP.NET's global
 /// <c>JsonStringEnumConverter</c> registration reaches controller-formatted responses only, never
 /// an ad-hoc <c>JsonSerializer</c> call, so a bare <c>Serialize</c> here would persist
 /// <see cref="Runtime.TurnVerdict"/> as a raw integer. Web defaults additionally make the read

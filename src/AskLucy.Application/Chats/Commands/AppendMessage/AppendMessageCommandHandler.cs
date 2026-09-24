@@ -106,8 +106,16 @@ public sealed class AppendMessageCommandHandler(
         [.. message.Citations.Select(c => new CitationDto(
             c.Id, c.SourceLabel, c.SourceReference, c.DocumentChunkId, c.KnowledgeBaseId, c.DocumentId, c.DocumentVersionId, c.PageNumber, c.Section))],
         message.SuggestedActionsJson,
-        message.SelectedActionKind,
+        // Normalised on the way out rather than read raw: rows written before the wire token was
+        // single-sourced are stored as the enum name, and the client matches this against the
+        // offer's own kinds to show which row was picked.
+        ToWireSelectedActionKind(message.SelectedActionKind),
         message.SelectedActionKey,
         message.SelectedActionArgumentsJson,
         Conversations.Runtime.TurnOutcomeView.FromJson(message.TurnOutcomeJson, message.Id, logger));
+
+    private static string? ToWireSelectedActionKind(string? persisted) =>
+        Conversations.SuggestedActionWire.TryParseKind(persisted, out var kind)
+            ? Conversations.SuggestedActionWire.ToWire(kind)
+            : persisted;
 }
