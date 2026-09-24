@@ -51,7 +51,7 @@ public sealed class SetCustomModelAvailabilityCommandHandlerTests
             .WithMessage(CustomModelDtoMapping.NotCompletedReason);
         model.Availability.Should().Be(CustomModelAvailability.Unavailable);
         _logger.Collector.GetSnapshot().Should().NotContain(r => r.Id.Name == "AvailabilityChanged");
-        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, default);
+        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class SetCustomModelAvailabilityCommandHandlerTests
 
         result.Availability.Should().Be("Available");
         _logger.Collector.GetSnapshot().Should().NotContain(r => r.Id.Name == "AvailabilityChanged");
-        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, default);
+        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Theory]

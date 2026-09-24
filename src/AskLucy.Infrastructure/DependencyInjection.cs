@@ -447,6 +447,9 @@ public static class DependencyInjection
         services.AddKeyedScoped<IAIProvider, AnthropicProvider>("anthropic");
         services.AddKeyedScoped<IAIProvider, GoogleGeminiProvider>("google-gemini");
         services.AddKeyedScoped<IAIProvider, OpenRouterProvider>("openrouter");
+        // A speech vendor: listed under AI providers for its credential, switch, health and models;
+        // never offered for conversation (AIProviderKind.Speech).
+        services.AddKeyedScoped<IAIProvider, ElevenLabsProvider>(ElevenLabsProvider.ProviderKey);
         services.AddScoped<IAIProviderResolver, AiProviderResolver>();
         services.AddSingleton<IAiCredentialProtector, AiCredentialProtector>();
         // AI Memory System (specs/018-ai-memory-system, research.md Decision 12) — dedicated,

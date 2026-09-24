@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Divider,
   FormControlLabel,
+  Link,
   List,
   ListItem,
   ListItemText,
@@ -27,7 +28,7 @@ import {
 } from '@mui/material'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { useLocation, useNavigate } from 'react-router'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
 import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AppShell } from '../../../components/AppShell'
 import { codeFontFamily } from '../../../theme/tokens/typography'
@@ -47,6 +48,7 @@ import { isPasswordPolicyMet } from '../../auth/passwordPolicy'
 import { useDeleteAccount, useMyProfile, useUpdateProfile, useUploadAvatar } from '../../profile/hooks/useProfile'
 import { downloadMyPersonalData } from '../../profile/api/profileApi'
 import { CookiePreferencesPanel } from '../../consent/components/CookiePreferencesPanel'
+import { AI_VOICE_DISCLOSURE } from '../../chat/voice/aiVoiceDisclosure'
 import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
@@ -679,8 +681,15 @@ export function VoiceTab() {
       )}
 
       <Box>
-        <Typography variant="h6" sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>
           Voice conversation
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 480 }}>
+          {AI_VOICE_DISCLOSURE} If you share her spoken replies, say they are AI-generated (
+          <Link component={RouterLink} to="/terms">
+            Terms of Service
+          </Link>
+          ).
         </Typography>
         <Stack spacing={2} sx={{ maxWidth: 480 }}>
           <TextField

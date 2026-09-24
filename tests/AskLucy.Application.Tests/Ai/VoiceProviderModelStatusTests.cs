@@ -21,6 +21,7 @@ public sealed class VoiceProviderModelStatusTests
 
     private readonly IVoiceProviderRepository _repository = Substitute.For<IVoiceProviderRepository>();
     private readonly IHostedModelLocator _locator = Substitute.For<IHostedModelLocator>();
+    private readonly IAIProviderRepository _aiProviders = Substitute.For<IAIProviderRepository>();
     private readonly ITextToSpeechEngine _elevenLabs = Substitute.For<ITextToSpeechEngine>();
     private readonly ITextToSpeechEngine _supertonic = Substitute.For<ITextToSpeechEngine, IHostedModelEngine>();
     private readonly List<VoiceProvider> _rows = [];
@@ -40,6 +41,7 @@ public sealed class VoiceProviderModelStatusTests
 
         _locator.ResolveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(HostedModelResolution.NoRecord.Instance);
         _repository.ListByPriorityAsync(Arg.Any<CancellationToken>()).Returns(_ => _rows.OrderBy(r => r.Priority).ToList());
+        _aiProviders.ListAllAsync(Arg.Any<CancellationToken>()).Returns([]);
     }
 
     private IHostedModelEngine Hosted => (IHostedModelEngine)_supertonic;
@@ -49,10 +51,10 @@ public sealed class VoiceProviderModelStatusTests
     private void AddRow(string key, int priority) => _rows.Add(VoiceProvider.Create(key, key, priority, "system"));
 
     private Task<IReadOnlyList<VoiceEngineDto>> ListEnginesAsync() =>
-        new GetVoiceEnginesQueryHandler(_repository, Engines, _locator).Handle(new GetVoiceEnginesQuery(), CancellationToken.None);
+        new GetVoiceEnginesQueryHandler(_repository, Engines, _locator, _aiProviders).Handle(new GetVoiceEnginesQuery(), CancellationToken.None);
 
     private Task<IReadOnlyList<AdminVoiceProviderDto>> ListProvidersAsync() =>
-        new GetAdminVoiceProvidersQueryHandler(_repository, Engines).Handle(new GetAdminVoiceProvidersQuery(), CancellationToken.None);
+        new GetAdminVoiceProvidersQueryHandler(_repository, Engines, _aiProviders).Handle(new GetAdminVoiceProvidersQuery(), CancellationToken.None);
 
     [Fact]
     public async Task GetVoiceEngines_ShouldLeaveOutAnOnServerEngine_WhileItsCustomModelIsUnavailable()
@@ -128,7 +130,7 @@ public sealed class VoiceProviderModelStatusTests
         var currentUser = Substitute.For<ICurrentUserAccessor>();
         currentUser.UserId.Returns("admin-1");
         var handler = new SetPrimaryVoiceProviderCommandHandler(
-            _repository, Engines, Substitute.For<IUnitOfWork>(), currentUser, NullLogger<SetPrimaryVoiceProviderCommandHandler>.Instance);
+            _repository, Engines, _aiProviders, Substitute.For<IUnitOfWork>(), currentUser, NullLogger<SetPrimaryVoiceProviderCommandHandler>.Instance);
 
         var rows = await handler.Handle(new SetPrimaryVoiceProviderCommand(supertonicId, "F1"), CancellationToken.None);
 

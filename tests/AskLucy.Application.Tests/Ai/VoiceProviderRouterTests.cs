@@ -17,14 +17,17 @@ public sealed class VoiceProviderRouterTests
 {
     private readonly IVoiceProviderRepository _repository = Substitute.For<IVoiceProviderRepository>();
     private readonly IAiCredentialProtector _protector = Substitute.For<IAiCredentialProtector>();
+    private readonly IAIProviderRepository _aiProviders = Substitute.For<IAIProviderRepository>();
+    private readonly List<AIProvider> _vendors = [];
 
     public VoiceProviderRouterTests()
     {
-        _protector.Unprotect(Arg.Any<string>()).Returns(call => call.Arg<string>().Replace("protected:", string.Empty, StringComparison.Ordinal));
+        _protector.Unprotect(Arg.Any<string>()).Returns(call => call.Arg<string>()!.Replace("protected:", string.Empty, StringComparison.Ordinal));
+        _aiProviders.ListAllAsync(Arg.Any<CancellationToken>()).Returns(_ => _vendors.ToList());
     }
 
     private VoiceProviderRouter CreateRouter(params FakeEngine[] engines) =>
-        new(_repository, engines, _protector, NullLogger<VoiceProviderRouter>.Instance);
+        new(_repository, engines, _protector, _aiProviders, NullLogger<VoiceProviderRouter>.Instance);
 
     private void Configure(params VoiceProvider[] rows) =>
         _repository.ListByPriorityAsync(Arg.Any<CancellationToken>()).Returns(rows);
@@ -101,7 +104,7 @@ public sealed class VoiceProviderRouterTests
         var failover = FakeEngine.Speaking("ElevenLabs", [7]);
         Configure(Row("Supertonic", 0, "F1"), Row("ElevenLabs", 1, "rachel", "protected:key-1"));
         var logger = new FakeLogger<VoiceProviderRouter>();
-        var router = new VoiceProviderRouter(_repository, [primary, failover], _protector, logger);
+        var router = new VoiceProviderRouter(_repository, [primary, failover], _protector, _aiProviders, logger);
 
         var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
         var audio = await DrainAsync(router.StreamSpeechAsync("Hello", settings, CancellationToken.None));
@@ -214,6 +217,49 @@ public sealed class VoiceProviderRouterTests
 
         settings.ProviderKey.Should().Be("Supertonic");
         audio.Should().Equal(5);
+    }
+
+    [Fact]
+    public async Task StreamSpeechAsync_ShouldSkipAnEngine_WhoseVendorIsSwitchedOffUnderAiProviders()
+    {
+        var primary = FakeEngine.Speaking("ElevenLabs", [9]);
+        var failover = FakeEngine.Speaking("Supertonic", [4]);
+        Configure(Row("ElevenLabs", 0, "rachel"), Row("Supertonic", 1, "F1"));
+        _vendors.Add(Vendor(enabled: false, "protected:vendor-key"));
+        var router = CreateRouter(primary, failover);
+
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+        var audio = await DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
+
+        audio.Should().Equal(4);
+        settings.ProviderKey.Should().Be("Supertonic", "a switched-off vendor is out of the order, not a failure");
+        primary.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StreamSpeechAsync_ShouldSpeakWithTheVendorsKey_RatherThanTheRowsOwn()
+    {
+        var engine = FakeEngine.Speaking("ElevenLabs", [1]);
+        Configure(Row("ElevenLabs", 0, "rachel", "protected:stale-row-key"));
+        _vendors.Add(Vendor(enabled: true, "protected:vendor-key"));
+        var router = CreateRouter(engine);
+
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+        await DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
+
+        engine.Calls.Should().ContainSingle().Which.ApiKey.Should().Be("vendor-key");
+    }
+
+    private static AIProvider Vendor(bool enabled, string ciphertext)
+    {
+        var vendor = AIProvider.Create("elevenlabs", "ElevenLabs", "system", AIProviderKind.Speech);
+        vendor.SetCredential(ciphertext, null, "system");
+        if (enabled)
+        {
+            vendor.Enable("system");
+        }
+
+        return vendor;
     }
 
     private sealed class FakeEngine(string providerKey, Func<IAsyncEnumerable<byte[]>> speak) : ITextToSpeechEngine

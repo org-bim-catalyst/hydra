@@ -72,8 +72,27 @@ sample sentence or keeps the default one, and presses **Play** to hear that voic
 - **FR-008** A missing Supertonic model never stops the host. The request that needed it fails and
   the failure is logged.
 
-## Go-live blockers (OpenRAIL-M)
+## Licence obligations (OpenRAIL-M)
 
-Two things must be in place before Supertonic becomes Lucy's voice in production: the Terms of
-Service must pass on the model licence's use restrictions, and users must be told the audio is
-AI-generated. See `docs/THIRD_PARTY_NOTICES.md`.
+Before Supertonic could be Lucy's voice in production, two things had to be in place. The Terms of
+Service had to pass on the model licence's use restrictions, and users had to be told the audio is
+AI-generated. Both were added on 2026-09-24:
+
+- A public `/terms` page reproduces Attachment A (a)–(m) as binding and links the licence.
+- The disclosure appears in the Continuous voice panel and in Settings → Voice.
+
+The mapping from each licence clause to where it is met is in `docs/THIRD_PARTY_NOTICES.md`.
+Lawyer review of `/terms` is still outstanding.
+
+## Follow-up changes (2026-09-24)
+
+- **ElevenLabs is a Frontier vendor.** It is listed under Admin → AI providers with OpenAI,
+  Anthropic, Gemini and OpenRouter, with the key `elevenlabs` and a Speech kind. Migration
+  `AddElevenLabsAiProvider` seeds it disabled. That vendor row is ElevenLabs' only API key and its
+  on/off switch, for both TTS and live dictation. The per-voice-provider Enabled toggle was
+  removed. Admin → Voice shows ElevenLabs as On or Off, with a link to AI providers.
+- **Live dictation falls back.** If the ElevenLabs realtime STT session is refused or unreachable,
+  Continuous mode dictates through Whisper instead (`/ai/transcriptions`, committed after a
+  1.2 s pause). If Whisper can't record in this browser or fails server-side, it uses the
+  browser's `SpeechRecognition`. A caption names the engine in use, and every failure is shown to
+  the user (`features/chat/voice/dictationFallback.ts`).

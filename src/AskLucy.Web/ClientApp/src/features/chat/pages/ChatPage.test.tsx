@@ -11,6 +11,7 @@ import type { PagedResult, PersistedMessage } from '../api/chatsApi'
 import { useActiveConversationStore } from '../activeConversationStore'
 import { useChatPanelSizeStore } from '../chatPanelSizeStore'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
+import { AI_VOICE_DISCLOSURE } from '../voice/aiVoiceDisclosure'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { useComingSoonStore } from '../../../store/comingSoonStore'
@@ -182,6 +183,14 @@ const server = setupServer(
   // file. It only lost the race on a loaded CI runner. An empty list is the normal case for a
   // chat that has no site analyses; the suite that does exercise them overrides this handler.
   http.get('*/api/v1/site-analyses', () => HttpResponse.json([])),
+  // A streamed reply is spoken aloud. Unmocked, /ai/voice/speak escaped to the real network,
+  // failed, and flipped voice output onto the browser fallback mid-test. A stream that ends
+  // with no audio is the quietest outcome that is still a success.
+  http.post('*/api/v1/ai/voice/speak', () =>
+    new HttpResponse('data: {"type":"done"}\n\n', {
+      headers: { 'Content-Type': 'text/event-stream' },
+    }),
+  ),
   http.get('*/api/v1/chats/:id', ({ params }) =>
     HttpResponse.json({
       id: params.id,
@@ -433,6 +442,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Agents',
       'Workflows',
       'Privacy Policy',
+      'Terms of Service',
       'Log out',
     ]) {
       expect(labels).toContain(label)
@@ -1208,6 +1218,8 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     // FR-012 (Figure 4/5/6) — Lucy's circular avatar shows in the conversation view only
     // while Continuous mode is actively listening, alongside (not replacing) the composer.
     expect(await screen.findByAltText('Lucy')).toBeInTheDocument()
+    // Lucy's voice model licence (OpenRAIL-M) requires disclosing that her speech is AI-generated.
+    expect(screen.getByText(AI_VOICE_DISCLOSURE)).toBeInTheDocument()
 
     // FR-015/FR-016: typing reveals send; sending returns to Continuous idle-listening
     // (mute/exit), not the empty Push-to-Talk appearance.

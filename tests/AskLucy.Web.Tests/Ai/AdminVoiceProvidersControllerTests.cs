@@ -65,10 +65,10 @@ public sealed class AdminVoiceProvidersControllerTests(CustomWebApplicationFacto
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("admin-1", "Administrator"));
 
-        var response = await _client.GetAsync("/api/v1/admin/voice/engines");
+        var response = await _client.GetAsync("/api/v1/admin/voice/engines", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.Should().Contain("\"providerKey\":\"ElevenLabs\"").And.Contain("\"providerKey\":\"Supertonic\"");
     }
 
@@ -77,7 +77,7 @@ public sealed class AdminVoiceProvidersControllerTests(CustomWebApplicationFacto
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("admin-1", "Administrator"));
 
-        var response = await _client.PostAsync("/api/v1/admin/voice/providers", JsonContent.Create(new AddVoiceProviderRequest("NotAnEngine", null)));
+        var response = await _client.PostAsync("/api/v1/admin/voice/providers", JsonContent.Create(new AddVoiceProviderRequest("NotAnEngine", null)), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -89,7 +89,8 @@ public sealed class AdminVoiceProvidersControllerTests(CustomWebApplicationFacto
 
         var response = await _client.PostAsync(
             $"/api/v1/admin/voice/providers/{SomeProviderId}/preview",
-            JsonContent.Create(new PreviewVoiceRequest("F1", "... !!", "en")));
+            JsonContent.Create(new PreviewVoiceRequest("F1", "... !!", "en")),
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -102,7 +103,7 @@ public sealed class AdminVoiceProvidersControllerTests(CustomWebApplicationFacto
         {
             "GET" => _client.GetAsync(path),
             "POST" when path.EndsWith("/preview", StringComparison.Ordinal) => _client.PostAsync(path, JsonContent.Create(new PreviewVoiceRequest("F1", "Hello.", "en"))),
-            "POST" => _client.PostAsync(path, JsonContent.Create(new AddVoiceProviderRequest("NotAnEngine", null))),
+            "POST" => _client.PostAsync(path, JsonContent.Create(new AddVoiceProviderRequest("NotAnEngine", null)), TestContext.Current.CancellationToken),
             "PUT" when path.EndsWith("/primary", StringComparison.Ordinal) => _client.PutAsync(path, JsonContent.Create(new SetPrimaryVoiceProviderRequest(SomeProviderId, "F1"))),
             "PUT" => _client.PutAsync(path, JsonContent.Create(new SetAiProviderCredentialRequest("test-key"))),
             _ => throw new ArgumentOutOfRangeException(nameof(method)),

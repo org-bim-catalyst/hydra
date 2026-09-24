@@ -8,6 +8,7 @@ import {
   FormControl,
   IconButton,
   InputLabel,
+  Link,
   MenuItem,
   Paper,
   Select,
@@ -21,6 +22,7 @@ import AddIcon from '@mui/icons-material/Add'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link as RouterLink } from 'react-router'
 import { ApiError } from '../../../api/httpClient'
 import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
 import * as adminVoiceApi from '../api/adminVoiceApi'
@@ -180,7 +182,27 @@ export function AdminVoicePage() {
                 </IconButton>
               </Tooltip>
             </Stack>
-            {provider?.requiresCredential && (
+            {provider?.vendorEnabled != null && (
+              // Keyed and switched under AI providers, where the same key also serves its health
+              // check, model list and live dictation — so there is no key to set here.
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1 }}>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={provider.vendorEnabled ? 'success' : 'default'}
+                  label={provider.vendorEnabled ? 'On' : 'Off'}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {provider.vendorEnabled
+                    ? `API key: ${provider.credentialHint ?? 'not set'}.`
+                    : 'Switched off — replies fail over to the next voice provider.'}{' '}
+                  <Link component={RouterLink} to="/admin/ai-providers">
+                    Manage under AI providers
+                  </Link>
+                </Typography>
+              </Stack>
+            )}
+            {provider?.requiresCredential && provider.vendorEnabled == null && (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1 }}>
                 <Typography variant="body2" color="text.secondary">
                   API key: {provider.credentialHint ?? 'not set — using the server configuration, if any'}

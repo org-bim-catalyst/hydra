@@ -10,6 +10,18 @@ public enum ProviderHealthStatus
 }
 
 /// <summary>
+/// What a vendor's models do. Only <see cref="Language"/> providers answer in conversation, so
+/// only they are offered in the chat/capability pickers; a <see cref="Speech"/> provider
+/// (ElevenLabs) is listed alongside them for its credential, on/off switch, health and model
+/// catalogue, and is consumed by the voice pipeline instead.
+/// </summary>
+public enum AIProviderKind
+{
+    Language,
+    Speech,
+}
+
+/// <summary>
 /// One AI vendor the platform can call (OpenAI, Anthropic, Google Gemini, OpenRouter, or a
 /// future vendor) — data-model.md. Seeded at migration time; administrators enable it and
 /// configure its credential (FR-003/FR-004) before it becomes selectable to users (FR-007).
@@ -21,6 +33,11 @@ public sealed class AIProvider : BaseEntity
     public string DisplayName { get; private set; } = string.Empty;
 
     public bool IsEnabled { get; private set; }
+
+    public AIProviderKind Kind { get; private set; } = AIProviderKind.Language;
+
+    /// <summary>Whether users may converse with this provider — enabled, and a language provider.</summary>
+    public bool IsAvailableForConversation => IsEnabled && Kind == AIProviderKind.Language;
 
     /// <summary>Data-Protection-encrypted API key (research.md Decision 4). Never serialized into any DTO.</summary>
     public string? CredentialCiphertext { get; private set; }
@@ -58,7 +75,8 @@ public sealed class AIProvider : BaseEntity
         // Required by EF Core materialization.
     }
 
-    public static AIProvider Create(string providerKey, string displayName, string actor)
+    public static AIProvider Create(
+        string providerKey, string displayName, string actor, AIProviderKind kind = AIProviderKind.Language)
     {
         if (string.IsNullOrWhiteSpace(providerKey))
         {
@@ -76,6 +94,7 @@ public sealed class AIProvider : BaseEntity
             ProviderKey = providerKey.Trim(),
             DisplayName = displayName.Trim(),
             IsEnabled = false,
+            Kind = kind,
             CreatedAtUtc = DateTime.UtcNow,
             CreatedBy = actor,
         };

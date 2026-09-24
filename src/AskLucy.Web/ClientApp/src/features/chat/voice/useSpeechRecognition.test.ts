@@ -6,6 +6,12 @@ vi.mock('../api/voiceApi', () => ({
   createSttSession: vi.fn(),
 }))
 
+vi.mock('../api/aiApi', () => ({
+  transcribeAudio: vi.fn(),
+}))
+
+import { ApiError } from '../../../api/httpClient'
+import { transcribeAudio } from '../api/aiApi'
 import { createSttSession } from '../api/voiceApi'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
@@ -73,6 +79,9 @@ class FakeAudioWorkletNode {
   }
 }
 
+/** The microphone's level as the fake analyser reports it — the Whisper fallback's pause detection reads it. */
+let micLevel = 0
+
 class FakeAudioContext {
   sampleRate = 48000
   audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) }
@@ -81,6 +90,7 @@ class FakeAudioContext {
     fftSize: 256,
     frequencyBinCount: 128,
     getByteFrequencyData: vi.fn(),
+    getFloatTimeDomainData: vi.fn((samples: Float32Array) => samples.fill(micLevel)),
     connect: vi.fn(),
   }))
   close = vi.fn().mockResolvedValue(undefined)
@@ -100,6 +110,58 @@ function installAudioEnvironment(getUserMediaImpl: () => Promise<MediaStream>) {
 }
 
 const fakeStream = { getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream
+
+class FakeMediaRecorder {
+  static instances: FakeMediaRecorder[] = []
+  state: 'inactive' | 'recording' = 'inactive'
+  mimeType = 'audio/webm;codecs=opus'
+  ondataavailable: ((event: { data: Blob }) => void) | null = null
+  onstop: (() => void) | null = null
+
+  constructor() {
+    FakeMediaRecorder.instances.push(this)
+  }
+
+  start() {
+    this.state = 'recording'
+  }
+
+  stop() {
+    this.state = 'inactive'
+    this.ondataavailable?.({ data: new Blob(['audio']) })
+    this.onstop?.()
+  }
+}
+
+class FakeSpeechRecognition {
+  static instances: FakeSpeechRecognition[] = []
+  lang = ''
+  continuous = true
+  interimResults = false
+  onresult: ((event: unknown) => void) | null = null
+  onerror: ((event: { error: string }) => void) | null = null
+  onend: (() => void) | null = null
+  start = vi.fn()
+  stop = vi.fn(() => this.onend?.())
+  abort = vi.fn()
+
+  constructor() {
+    FakeSpeechRecognition.instances.push(this)
+  }
+
+  emit(text: string, isFinal: boolean) {
+    this.onresult?.({ results: [Object.assign([{ transcript: text }], { isFinal })] })
+  }
+}
+
+function installFallbackEngines({ whisper, browser }: { whisper: boolean; browser: boolean }) {
+  FakeMediaRecorder.instances = []
+  FakeSpeechRecognition.instances = []
+  if (whisper) vi.stubGlobal('MediaRecorder', FakeMediaRecorder)
+  if (browser) vi.stubGlobal('SpeechRecognition', FakeSpeechRecognition)
+}
+
+const refusedByServer = () => new ApiError(502, 'ElevenLabs is switched off under Admin → AI providers.')
 
 describe('useSpeechRecognition', () => {
   beforeEach(() => {
@@ -472,5 +534,207 @@ describe('useSpeechRecognition', () => {
     )
 
     expect(() => result.current.setInputMuted(true)).not.toThrow()
+  })
+
+  describe('when ElevenLabs is unavailable', () => {
+    beforeEach(() => {
+      micLevel = 0
+      vi.mocked(transcribeAudio).mockReset()
+    })
+
+    function renderRecognition(overrides: { onError?: (message: string) => void } = {}) {
+      const onPartialTranscript = vi.fn()
+      const onFinalTranscript = vi.fn()
+      const rendered = renderHook(() =>
+        useSpeechRecognition({
+          language: 'en',
+          mode: 'continuous',
+          onPartialTranscript,
+          onFinalTranscript,
+          ...overrides,
+        }),
+      )
+      return { ...rendered, onPartialTranscript, onFinalTranscript }
+    }
+
+    it('does not retry a session the server refused, and dictates through Whisper instead', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: true, browser: true })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+
+      const { result } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+
+      expect(createSttSession).toHaveBeenCalledTimes(1)
+      expect(FakeWebSocket.instances).toHaveLength(0)
+      expect(useVoiceProviderStatus.getState().provider).toBe('fallback')
+      expect(FakeMediaRecorder.instances).toHaveLength(1)
+      expect(FakeSpeechRecognition.instances).toHaveLength(0)
+      expect(result.current.isListening).toBe(true)
+      expect(result.current.engineNotice).toContain('Whisper')
+      expect(result.current.error).toBeNull()
+    })
+
+    it('goes straight to the fallback once failed over, without asking for a session again', async () => {
+      useVoiceProviderStatus.setState({ provider: 'fallback', degradedNoticeVisible: true })
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: true, browser: false })
+
+      const { result } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+
+      expect(createSttSession).not.toHaveBeenCalled()
+      expect(FakeMediaRecorder.instances).toHaveLength(1)
+      expect(result.current.isListening).toBe(true)
+    })
+
+    it('transcribes an utterance with Whisper once the speaker pauses', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: true, browser: false })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+      vi.mocked(transcribeAudio).mockResolvedValue('  hello there  ')
+      vi.useFakeTimers()
+
+      const { result, onPartialTranscript, onFinalTranscript } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+
+      micLevel = 0.2
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+      expect(onPartialTranscript).toHaveBeenCalledWith('')
+      expect(transcribeAudio).not.toHaveBeenCalled()
+
+      micLevel = 0
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1300)
+      })
+
+      expect(transcribeAudio).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(transcribeAudio).mock.calls[0][0].name).toBe('dictation.webm')
+      expect(onFinalTranscript).toHaveBeenCalledWith('hello there')
+      expect(result.current.isListening).toBe(false)
+    })
+
+    it('never uploads a recording in which nobody spoke', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: true, browser: false })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+      vi.useFakeTimers()
+
+      const { result } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000)
+      })
+
+      expect(transcribeAudio).not.toHaveBeenCalled()
+      // The idle recording was restarted rather than left to grow.
+      expect(FakeMediaRecorder.instances).toHaveLength(2)
+      expect(result.current.isListening).toBe(true)
+    })
+
+    it("surfaces a Whisper failure and switches later turns to the browser's recognizer", async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: true, browser: true })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+      vi.mocked(transcribeAudio).mockRejectedValue(new ApiError(502, 'Transcription is not configured.'))
+      vi.useFakeTimers()
+      const onError = vi.fn()
+
+      const { result, onFinalTranscript } = renderRecognition({ onError })
+      await act(async () => {
+        await result.current.start()
+      })
+      micLevel = 0.2
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200)
+      })
+      micLevel = 0
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1300)
+      })
+
+      const message = "Transcription is not configured. Dictation will use your browser's speech recognition from your next turn."
+      expect(result.current.error).toBe(message)
+      expect(onError).toHaveBeenCalledWith(message)
+      expect(onFinalTranscript).not.toHaveBeenCalled()
+      expect(result.current.isListening).toBe(false)
+
+      await act(async () => {
+        await result.current.start()
+      })
+      expect(FakeSpeechRecognition.instances).toHaveLength(1)
+      expect(result.current.engineNotice).toContain("browser's speech recognition")
+    })
+
+    it("dictates through the browser's recognizer when Whisper can't record here", async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: false, browser: true })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+
+      const { result, onPartialTranscript, onFinalTranscript } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+      const recognizer = FakeSpeechRecognition.instances[0]
+      expect(recognizer.lang).toBe('en')
+      expect(recognizer.interimResults).toBe(true)
+
+      act(() => recognizer.emit('hel', false))
+      expect(onPartialTranscript).toHaveBeenCalledWith('hel')
+
+      // Silence ends the browser's session without a result — it listens again rather than stopping.
+      act(() => {
+        recognizer.onerror?.({ error: 'no-speech' })
+        recognizer.onend?.()
+      })
+      expect(recognizer.start).toHaveBeenCalledTimes(2)
+      expect(result.current.error).toBeNull()
+
+      act(() => recognizer.emit('hello', true))
+      expect(onFinalTranscript).toHaveBeenCalledWith('hello')
+      expect(result.current.isListening).toBe(false)
+    })
+
+    it("surfaces the browser recognizer's own failure", async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: false, browser: true })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+      const onError = vi.fn()
+
+      const { result } = renderRecognition({ onError })
+      await act(async () => {
+        await result.current.start()
+      })
+      act(() => FakeSpeechRecognition.instances[0].onerror?.({ error: 'network' }))
+
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining("couldn't reach its service"))
+      expect(result.current.isListening).toBe(false)
+    })
+
+    it('says so when no engine at all can take over', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: false, browser: false })
+      vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
+      const onError = vi.fn()
+
+      const { result } = renderRecognition({ onError })
+      await act(async () => {
+        await result.current.start()
+      })
+
+      expect(result.current.error).toContain('Live dictation is unavailable')
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('Live dictation is unavailable'))
+      expect(result.current.isListening).toBe(false)
+    })
   })
 })

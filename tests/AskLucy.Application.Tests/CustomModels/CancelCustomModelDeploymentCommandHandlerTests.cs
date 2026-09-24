@@ -81,7 +81,7 @@ public sealed class CancelCustomModelDeploymentCommandHandlerTests
 
         await act.Should().ThrowAsync<CustomModelNotInProgressException>();
         _logger.Collector.GetSnapshot().Should().NotContain(r => r.Id.Name == "CancelRequested");
-        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, default);
+        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

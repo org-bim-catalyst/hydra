@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using Microsoft.Extensions.Options;
@@ -23,9 +24,16 @@ namespace AskLucy.Infrastructure.Ai;
 /// https://elevenlabs.io/docs/api-reference/tokens/create: `POST /v1/single-use-token/{token_type}`,
 /// `token_type = realtime_scribe` for this use case, no request body, response is `{ "token":
 /// "..." }` only (no expiry field — the `expires_at` fallback below already handled that).
+///
+/// The key and the on/off switch come from ElevenLabs' row under Admin → AI providers — the one
+/// credential its voice engine, health check and model catalogue share. Switched off there, this
+/// refuses without calling ElevenLabs, and the client falls back to another dictation source.
+/// <see cref="ElevenLabsOptions.ApiKey"/> is only the fallback for a database with no such row.
 /// </summary>
 public sealed class ElevenLabsSpeechToTextSessionProvider(
     IHttpClientFactory httpClientFactory,
+    IAIProviderRepository providerRepository,
+    IAiCredentialProtector credentialProtector,
     IOptions<ElevenLabsOptions> options) : ISpeechToTextSessionProvider
 {
     private const string TokenMintPath = "single-use-token/realtime_scribe";
@@ -34,7 +42,7 @@ public sealed class ElevenLabsSpeechToTextSessionProvider(
 
     public async Task<SpeechToTextSession> CreateSessionAsync(string language, CancellationToken cancellationToken = default)
     {
-        using var client = CreateClient();
+        using var client = CreateClient(await ResolveApiKeyAsync(cancellationToken));
 
         HttpResponseMessage response;
         try
@@ -67,11 +75,37 @@ public sealed class ElevenLabsSpeechToTextSessionProvider(
         }
     }
 
-    private HttpClient CreateClient()
+    private async Task<string> ResolveApiKeyAsync(CancellationToken cancellationToken)
+    {
+        var provider = await providerRepository.GetByKeyAsync(ElevenLabsProvider.ProviderKey, cancellationToken);
+        if (provider is null)
+        {
+            return !string.IsNullOrWhiteSpace(_options.ApiKey)
+                ? _options.ApiKey
+                : throw new AiProviderNotConfiguredException("ElevenLabs has no API key configured.");
+        }
+
+        if (!provider.IsEnabled || provider.CredentialCiphertext is null)
+        {
+            throw new AiProviderNotConfiguredException("ElevenLabs is switched off under Admin → AI providers.");
+        }
+
+        try
+        {
+            return credentialProtector.Unprotect(provider.CredentialCiphertext);
+        }
+        catch (CryptographicException ex)
+        {
+            throw new AiProviderCredentialUnreadableException(
+                "The stored ElevenLabs credential could not be decrypted. Replace the API key.", ex);
+        }
+    }
+
+    private HttpClient CreateClient(string apiKey)
     {
         var client = httpClientFactory.CreateClient("ElevenLabs");
         client.DefaultRequestHeaders.Remove("xi-api-key");
-        client.DefaultRequestHeaders.Add("xi-api-key", _options.ApiKey);
+        client.DefaultRequestHeaders.Add("xi-api-key", apiKey);
         return client;
     }
 

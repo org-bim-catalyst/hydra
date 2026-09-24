@@ -8,6 +8,9 @@ namespace AskLucy.Application.Ai;
 /// fingerprint exception as <see cref="AdminAiProviderDto.CredentialHint"/> (specs/066).
 /// <see cref="ModelStatus"/> and <see cref="ModelStatusReason"/> (specs/072 FR-037) report an
 /// on-server engine whose backing custom model can't load; an API-key engine is always Ready.
+/// <see cref="VendorEnabled"/> is non-null for an engine whose vendor is listed under Admin → AI
+/// providers (ElevenLabs): its key and on/off switch live there, so the credential fields
+/// describe that row instead of this one.
 /// </summary>
 public sealed record AdminVoiceProviderDto(
     Guid Id,
@@ -20,10 +23,11 @@ public sealed record AdminVoiceProviderDto(
     bool HasCredential,
     string? CredentialHint,
     VoiceProviderModelStatus ModelStatus,
-    string? ModelStatusReason)
+    string? ModelStatusReason,
+    bool? VendorEnabled)
 {
     /// <param name="modelProblem">Why the provider's hosted model can't load, or null when it can.</param>
-    public static AdminVoiceProviderDto FromEntity(VoiceProvider provider, bool isPrimary, bool requiresCredential, string? modelProblem) => new(
+    public static AdminVoiceProviderDto FromEntity(VoiceProvider provider, bool isPrimary, bool requiresCredential, string? modelProblem, AIProvider? vendor = null) => new(
         provider.Id,
         provider.ProviderKey,
         provider.DisplayName,
@@ -31,10 +35,11 @@ public sealed record AdminVoiceProviderDto(
         isPrimary,
         provider.DefaultVoiceId,
         requiresCredential,
-        provider.CredentialCiphertext is not null,
-        provider.CredentialHint,
+        (vendor?.CredentialCiphertext ?? provider.CredentialCiphertext) is not null,
+        vendor is null ? provider.CredentialHint : vendor.CredentialHint,
         modelProblem is null ? VoiceProviderModelStatus.Ready : VoiceProviderModelStatus.ModelUnavailable,
-        modelProblem);
+        modelProblem,
+        vendor?.IsEnabled);
 }
 
 /// <summary>specs/072 FR-037 — whether a voice provider's engine can load its model right now.</summary>
@@ -44,8 +49,12 @@ public enum VoiceProviderModelStatus
     ModelUnavailable,
 }
 
-/// <summary>specs/070 — one text-to-speech engine the platform can speak through, and whether an administrator has added it yet.</summary>
-public sealed record VoiceEngineDto(string ProviderKey, string DisplayName, bool RequiresCredential, bool IsAdded);
+/// <summary>
+/// specs/070 — one text-to-speech engine the platform can speak through, and whether an
+/// administrator has added it yet. <see cref="IsKeyedAsAiProvider"/>: its key is set under Admin →
+/// AI providers, not when adding it here.
+/// </summary>
+public sealed record VoiceEngineDto(string ProviderKey, string DisplayName, bool RequiresCredential, bool IsAdded, bool IsKeyedAsAiProvider);
 
 /// <summary>specs/070 — a synthesized voice sample. Base64 in JSON rather than a raw audio response, so it rides the client's ordinary JSON <c>apiFetch</c> error handling.</summary>
 public sealed record VoicePreviewDto(string AudioBase64, string ContentType);

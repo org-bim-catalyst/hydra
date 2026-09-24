@@ -17,6 +17,7 @@ const base: AdminAiProvider = {
   healthFailureKind: null,
   healthFailureReason: null,
   healthStaleAfterUtc: '2026-08-29T09:13:49Z',
+  kind: 'Language',
 }
 
 describe('ProviderHealthCell (specs/043 US2)', () => {

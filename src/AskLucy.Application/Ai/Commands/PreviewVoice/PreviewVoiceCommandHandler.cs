@@ -8,6 +8,7 @@ public sealed class PreviewVoiceCommandHandler(
     IVoiceProviderRepository voiceProviders,
     IEnumerable<ITextToSpeechEngine> engines,
     IAiCredentialProtector credentialProtector,
+    IAIProviderRepository aiProviders,
     ICurrentUserAccessor currentUser,
     ILogger<PreviewVoiceCommandHandler> logger) : IRequestHandler<PreviewVoiceCommand, VoicePreviewDto>
 {
@@ -21,7 +22,8 @@ public sealed class PreviewVoiceCommandHandler(
             ?? throw new KeyNotFoundException("Voice provider not found.");
 
         var engine = VoiceEngineResolution.GetEngine(engines, provider);
-        var apiKey = VoiceEngineResolution.DecryptCredential(credentialProtector, provider);
+        var vendor = await VoiceEngineResolution.FindVendorAsync(aiProviders, provider.ProviderKey, cancellationToken);
+        var apiKey = VoiceEngineResolution.ResolveApiKey(credentialProtector, provider, vendor);
         var settings = engine.ResolveDefaultSettings(request.Language, request.VoiceId) with
         {
             VoiceId = request.VoiceId,
@@ -40,8 +42,12 @@ public sealed class PreviewVoiceCommandHandler(
             throw new AiProviderUnavailableException($"{provider.DisplayName} returned no audio for this sentence.");
         }
 
-        AiAdminActionLog.AdminVoiceProviderActionPerformed(
-            logger, "PreviewVoice", actorUserId, provider.Id, $"Previewed voice {request.VoiceId} ({request.Language}, {audio.Length} bytes)");
+        // CA1873 — the detail string is only built when Information logging is enabled.
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var detail = $"Previewed voice {request.VoiceId} ({request.Language}, {audio.Length} bytes)";
+            AiAdminActionLog.AdminVoiceProviderActionPerformed(logger, "PreviewVoice", actorUserId, provider.Id, detail);
+        }
 
         return new VoicePreviewDto(Convert.ToBase64String(audio.GetBuffer(), 0, (int)audio.Length), AudioContentType);
     }

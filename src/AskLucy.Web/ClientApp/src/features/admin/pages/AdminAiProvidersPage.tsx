@@ -5,6 +5,7 @@ import {
   Collapse,
   IconButton,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -66,9 +67,18 @@ export function AdminAiProvidersPage() {
 
     >
       {canViewProviders && (
-        <Paper elevation={1} sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        // The two sections share the page height equally (flex: 1 each); each scrolls on its own.
+        <Paper
+          elevation={1}
+          component="section"
+          aria-labelledby="frontier-models-heading"
+          sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+        >
+          <Typography id="frontier-models-heading" variant="subtitle1" component="h2" sx={{ p: 2 }}>
+            Frontier models
+          </Typography>
           <TableContainer ref={tableRef} sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }}>
-            <Table sx={{ height: showsStatusRow ? '100%' : undefined }}>
+            <Table stickyHeader aria-labelledby="frontier-models-heading" sx={{ height: showsStatusRow ? '100%' : undefined }}>
               <TableHead>
                 <TableRow>
                   <TableCell>
@@ -112,7 +122,19 @@ export function AdminAiProvidersPage() {
                             )}
                           </IconButton>
                         </TableCell>
-                        <TableCell>{provider.displayName}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                            <span>{provider.displayName}</span>
+                            {provider.kind === 'Speech' && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label="Speech"
+                                title="Voice output and live dictation only — never offered for chat."
+                              />
+                            )}
+                          </Stack>
+                        </TableCell>
                         <TableCell>
                           <Chip
                             size="small"

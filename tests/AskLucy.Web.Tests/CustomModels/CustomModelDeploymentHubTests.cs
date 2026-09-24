@@ -49,7 +49,7 @@ public sealed class CustomModelDeploymentHubTests(CustomWebApplicationFactory fa
         var act = () => hub.OnConnectedAsync();
 
         await act.Should().ThrowAsync<HubException>().WithMessage("Forbidden");
-        await _groups.DidNotReceiveWithAnyArgs().AddToGroupAsync(default!, default!, default);
+        await _groups.DidNotReceiveWithAnyArgs().AddToGroupAsync(default!, default!, TestContext.Current.CancellationToken);
         _logger.Collector.GetSnapshot().Should().ContainSingle(r => r.Message.Contains("admin-2"));
     }
 
@@ -61,7 +61,7 @@ public sealed class CustomModelDeploymentHubTests(CustomWebApplicationFactory fa
         var act = () => hub.OnConnectedAsync();
 
         await act.Should().ThrowAsync<HubException>();
-        await _groups.DidNotReceiveWithAnyArgs().AddToGroupAsync(default!, default!, default);
+        await _groups.DidNotReceiveWithAnyArgs().AddToGroupAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

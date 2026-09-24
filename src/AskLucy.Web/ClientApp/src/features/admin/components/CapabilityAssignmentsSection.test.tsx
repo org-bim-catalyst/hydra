@@ -25,6 +25,7 @@ function makeProvider(overrides: Partial<AdminAiProvider>): AdminAiProvider {
     healthFailureKind: null,
     healthFailureReason: null,
     healthStaleAfterUtc: null,
+    kind: 'Language',
     ...overrides,
   }
 }

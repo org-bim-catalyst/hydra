@@ -34,6 +34,7 @@ public enum AiVendor
     OpenAI,
     Anthropic,
     OpenRouter,
+    ElevenLabs,
 }
 
 /// <summary>

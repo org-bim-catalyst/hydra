@@ -18,7 +18,14 @@ const agents: AdminSystemAgent[] = [
   },
 ]
 
-const server = setupServer(http.get('*/api/v1/admin/agents/system', () => HttpResponse.json(agents)))
+const server = setupServer(
+  // AdminShell's permission-gated nav reads the session; without this the request escapes to the
+  // real network (an MSW "unhandled request" warning in CI).
+  http.get('*/api/v1/auth/session', () =>
+    HttpResponse.json({ authenticated: true, userId: 'admin-1', roles: [], permissions: [] }),
+  ),
+  http.get('*/api/v1/admin/agents/system', () => HttpResponse.json(agents)),
+)
 
 beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using AskLucy.Infrastructure.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -16,7 +17,7 @@ namespace AskLucy.Infrastructure.Tests.Ai;
 public sealed class ElevenLabsSpeechToTextSessionProviderTests
 {
     private static ElevenLabsSpeechToTextSessionProvider CreateProvider(
-        Func<HttpRequestMessage, HttpResponseMessage> responder, out StubHttpMessageHandler handler)
+        Func<HttpRequestMessage, HttpResponseMessage> responder, out StubHttpMessageHandler handler, AIProvider? vendorRow = null)
     {
         handler = new StubHttpMessageHandler(responder);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.elevenlabs.io/v1/") };
@@ -24,7 +25,11 @@ public sealed class ElevenLabsSpeechToTextSessionProviderTests
         factory.CreateClient("ElevenLabs").Returns(httpClient);
 
         var options = Options.Create(new ElevenLabsOptions { ApiKey = "raw-api-key", ModelId = "eleven_v3" });
-        return new ElevenLabsSpeechToTextSessionProvider(factory, options);
+        var providers = Substitute.For<IAIProviderRepository>();
+        providers.GetByKeyAsync(ElevenLabsProvider.ProviderKey, Arg.Any<CancellationToken>()).Returns(vendorRow);
+        var protector = Substitute.For<IAiCredentialProtector>();
+        protector.Unprotect(Arg.Any<string>()).Returns(call => call.Arg<string>()!.Replace("protected:", string.Empty, StringComparison.Ordinal));
+        return new ElevenLabsSpeechToTextSessionProvider(factory, providers, protector, options);
     }
 
     [Fact]
@@ -96,5 +101,35 @@ public sealed class ElevenLabsSpeechToTextSessionProviderTests
         var act = () => provider.CreateSessionAsync("en", CancellationToken.None);
 
         await act.Should().ThrowAsync<AiProviderUnavailableException>();
+    }
+
+    [Fact]
+    public async Task CreateSessionAsync_ShouldUseTheKeyFromAdminAiProviders_OverTheConfigurationFile()
+    {
+        var vendor = AIProvider.Create(ElevenLabsProvider.ProviderKey, "ElevenLabs", "test", AIProviderKind.Speech);
+        vendor.SetCredential("protected:vendor-key", null, "test");
+        vendor.Enable("test");
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"token":"short-lived-token"}""", Encoding.UTF8, "application/json"),
+        }, out var handler, vendor);
+
+        await provider.CreateSessionAsync("en", CancellationToken.None);
+
+        handler.LastRequest!.Headers.GetValues("xi-api-key").Should().ContainSingle().Which.Should().Be("vendor-key");
+    }
+
+    [Fact]
+    public async Task CreateSessionAsync_ShouldRefuseWithoutCallingElevenLabs_WhileItIsSwitchedOff()
+    {
+        var vendor = AIProvider.Create(ElevenLabsProvider.ProviderKey, "ElevenLabs", "test", AIProviderKind.Speech);
+        vendor.SetCredential("protected:vendor-key", null, "test");
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK), out var handler, vendor);
+
+        var act = () => provider.CreateSessionAsync("en", CancellationToken.None);
+
+        // The dictation client reads NotConfigured as "use the fallback recogniser".
+        (await act.Should().ThrowAsync<AiProviderNotConfiguredException>()).WithMessage("*switched off*");
+        handler.LastRequest.Should().BeNull();
     }
 }

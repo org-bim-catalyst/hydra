@@ -32,6 +32,9 @@ export function AppFooter({ textColor }: AppFooterProps) {
         <Link component={RouterLink} to="/privacy" variant="caption" color="text.secondary">
           Privacy Policy
         </Link>
+        <Link component={RouterLink} to="/terms" variant="caption" color="text.secondary">
+          Terms of Service
+        </Link>
       </Stack>
     </Box>
   )

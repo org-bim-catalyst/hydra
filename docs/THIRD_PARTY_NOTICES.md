@@ -44,17 +44,23 @@ Supertone's OpenRAIL-M licence, published with the model at
 <https://huggingface.co/Supertone/supertonic-3>.
 
 OpenRAIL-M allows commercial use and redistribution. It also attaches **use-based restrictions**
-(for example, no impersonating a real person without consent, and no deceiving people about
-whether audio is synthetic) that anyone serving the model must pass on to its users.
+(paragraph 5 and Attachment A, items (a)–(m)) that anyone serving the model must pass on to its
+users. The licence defines "Distribution" to include making the model available as a hosted
+service, so serving Lucy's voice from our server counts. Upstream development having stopped
+does not change this: the licence travels with the weights we host.
 
-**Go-live blockers.** Both must be done before Supertonic becomes Lucy's voice in production:
+**What the licence requires of us, and where it is met:**
 
-1. **Terms of Service pass-through.** Ask Lucy's Terms of Service must include the licence's
-   use restrictions, or reference them in a way that binds end users.
-2. **AI-audio disclosure.** Users must be able to tell that Lucy's voice is synthesised.
+| Licence clause | Requirement | Where it's met |
+| --- | --- | --- |
+| §4.a, para 5 | Bind every user to the Attachment A restrictions as an enforceable provision | `/terms` (`features/terms/pages/TermsPage.tsx`) §4 reproduces (a)–(m) and applies them to all of Ask Lucy; public route, linked from the app footer, landing footer and account menu |
+| §4.a | Tell users the model is subject to the restrictions | `/terms` §4 and §7 |
+| §4.b | Give recipients a copy of the licence | `/terms` §7 links the model card, which carries the licence |
+| Attachment A (e) | Disclose that generated content is machine-generated | `AI_VOICE_DISCLOSURE` (`features/chat/voice/aiVoiceDisclosure.ts`), shown in the Continuous voice panel and under Settings → Voice; `/terms` §3 requires users to label shared audio as AI-generated |
+| §4.c, §4.d | Mark modified files; keep notices | We host the weights unmodified; this file keeps the notices |
 
-ElevenLabs, the seeded primary voice, does not depend on either item. Supertonic can therefore
-be installed and auditioned from **Admin → Voice** before they are done.
+**Before go-live:** a lawyer should review `/terms`. Its governing law, the legal entity name and
+a contact address still need to be filled in.
 
 ---
 

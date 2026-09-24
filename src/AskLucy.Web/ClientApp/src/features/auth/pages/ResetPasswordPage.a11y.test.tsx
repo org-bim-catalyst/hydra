@@ -14,6 +14,9 @@ expect.extend(toHaveNoViolations)
 // The page now checks the link before rendering the form, so without this the audit would only
 // ever see the loading spinner.
 const server = setupServer(
+  http.get('*/api/v1/cookie-policy', () =>
+    HttpResponse.json({ version: '2026-07-30.1', effectiveAtUtc: '2026-07-30T00:00:00Z' }),
+  ),
   http.post('*/api/v1/auth/password/reset/validate', () => new HttpResponse(null, { status: 204 })),
 )
 

@@ -16,10 +16,12 @@ const recognitionMock = {
 }
 
 let capturedOnFinalTranscript: ((text: string) => void) | undefined
+let capturedOnError: ((message: string) => void) | undefined
 
 vi.mock('./useSpeechRecognition', () => ({
-  useSpeechRecognition: vi.fn((options: { onFinalTranscript: (text: string) => void }) => {
+  useSpeechRecognition: vi.fn((options: { onFinalTranscript: (text: string) => void; onError?: (message: string) => void }) => {
     capturedOnFinalTranscript = options.onFinalTranscript
+    capturedOnError = options.onError
     return recognitionMock
   }),
 }))
@@ -119,6 +121,21 @@ describe('useConversationAudio', () => {
 
     expect(result.current.voiceState).not.toBe('Error')
     expect(recognitionMock.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('surfaces a dictation failure reported mid-listen as a visible error, not an endless Listening state', async () => {
+    recognitionMock.permissionState = 'granted'
+    const { result } = renderConversationAudio('continuous')
+
+    await act(async () => {
+      await result.current.startTurn()
+    })
+    expect(result.current.voiceState).toBe('Listening')
+
+    act(() => capturedOnError?.('Transcription is not configured.'))
+
+    expect(result.current.voiceState).toBe('Error')
+    expect(result.current.errorMessage).toBe('Transcription is not configured.')
   })
 
   it('starts listening normally when the primary provider is healthy', async () => {

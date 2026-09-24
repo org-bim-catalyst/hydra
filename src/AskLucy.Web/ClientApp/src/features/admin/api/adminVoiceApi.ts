@@ -19,6 +19,11 @@ export interface AdminVoiceProvider {
   modelStatus: VoiceProviderModelStatus
   /** Why the model can't load, e.g. "The Supertonic model is marked unavailable in Custom Models."; `null` when `Ready`. */
   modelStatusReason: string | null
+  /**
+   * For an engine keyed under Admin → AI providers (ElevenLabs): whether that provider is switched
+   * on there. `null` for an engine keyed here or needing no key. The key itself is set there too.
+   */
+  vendorEnabled: boolean | null
 }
 
 /** specs/070 — one engine the platform can speak through; `isAdded` once an administrator has added it. */
@@ -27,6 +32,8 @@ export interface VoiceEngine {
   displayName: string
   requiresCredential: boolean
   isAdded: boolean
+  /** Its API key is set under Admin → AI providers, so adding it here asks for no key. */
+  isKeyedAsAiProvider: boolean
 }
 
 /** specs/070 — mirrors `VoiceOptionDto`. */

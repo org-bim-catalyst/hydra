@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as voiceApi from '../../chat/api/voiceApi'
+import { AI_VOICE_DISCLOSURE } from '../../chat/voice/aiVoiceDisclosure'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
 import { VoiceTab } from './SettingsPage'
 
@@ -13,9 +15,11 @@ vi.mock('../../chat/api/voiceApi')
 function renderVoiceTab() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <QueryClientProvider client={queryClient}>
-      <VoiceTab />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <VoiceTab />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -45,6 +49,13 @@ describe('VoiceTab', () => {
       configurable: true,
       value: { enumerateDevices: vi.fn().mockResolvedValue([]) },
     })
+  })
+
+  it("discloses that Lucy's voice is AI-generated and links to the Terms of Service", () => {
+    renderVoiceTab()
+
+    expect(screen.getByText((_, element) => element?.tagName === 'P' && !!element.textContent?.startsWith(AI_VOICE_DISCLOSURE))).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
   })
 
   it('hydrates preferences from the server on mount', async () => {

@@ -53,7 +53,7 @@ public sealed class RemoveCustomModelCommandHandlerTests
         await act.Should().ThrowAsync<DomainRuleViolationException>();
         model.IsDeleted.Should().BeFalse();
         _logger.Collector.GetSnapshot().Should().NotContain(r => r.Id.Name == "Removed");
-        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, default);
+        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

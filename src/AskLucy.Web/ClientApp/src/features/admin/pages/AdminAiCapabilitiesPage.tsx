@@ -24,7 +24,7 @@ export function AdminAiCapabilitiesPage() {
       subtitle="Choose which provider and model serves each capability"
 
     >
-      <CapabilityAssignmentsSection providers={providers ?? []} />
+      <CapabilityAssignmentsSection providers={(providers ?? []).filter(adminAiProvidersApi.isLanguageProvider)} />
     </AdminShell>
   )
 }

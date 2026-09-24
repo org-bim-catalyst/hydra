@@ -25,6 +25,7 @@ internal sealed partial class VoiceProviderRouter(
     IVoiceProviderRepository voiceProviders,
     IEnumerable<ITextToSpeechEngine> engines,
     IAiCredentialProtector credentialProtector,
+    IAIProviderRepository aiProviders,
     ILogger<VoiceProviderRouter> logger) : ITextToSpeechProvider
 {
     private const string FallbackLanguage = "en";
@@ -101,7 +102,7 @@ internal sealed partial class VoiceProviderRouter(
 
     /// <summary>Starts the engine's stream and pulls its first chunk, so a failure to produce
     /// any audio at all surfaces here — where failing over is still invisible to the listener.</summary>
-    private async Task<StartAttempt> TryStartAsync(
+    private static async Task<StartAttempt> TryStartAsync(
         Candidate candidate, string textChunk, VoiceSettingsDto settings, CancellationToken cancellationToken)
     {
         if (candidate.CredentialFailure is not null)
@@ -144,6 +145,7 @@ internal sealed partial class VoiceProviderRouter(
 
         var engineByKey = engines.ToDictionary(e => e.ProviderKey, StringComparer.OrdinalIgnoreCase);
         var rows = await voiceProviders.ListByPriorityAsync(cancellationToken);
+        var speechVendors = await VoiceEngineResolution.ListSpeechVendorsAsync(aiProviders, cancellationToken);
         var candidates = new List<Candidate>(rows.Count);
 
         foreach (var row in rows)
@@ -154,13 +156,23 @@ internal sealed partial class VoiceProviderRouter(
                 continue;
             }
 
+            // An administrator switching the vendor off under AI providers takes it out of the
+            // order entirely — a deliberate choice, not a failure to fail over from.
+            var vendor = VoiceEngineResolution.FindVendor(speechVendors, row.ProviderKey);
+            if (vendor is { IsEnabled: false })
+            {
+                Log.VoiceProviderSwitchedOff(logger, row.ProviderKey);
+                continue;
+            }
+
             string? apiKey = null;
             AiProviderException? credentialFailure = null;
-            if (row.CredentialCiphertext is not null)
+            var ciphertext = vendor is null ? row.CredentialCiphertext : vendor.CredentialCiphertext;
+            if (ciphertext is not null)
             {
                 try
                 {
-                    apiKey = credentialProtector.Unprotect(row.CredentialCiphertext);
+                    apiKey = credentialProtector.Unprotect(ciphertext);
                 }
                 catch (CryptographicException ex)
                 {
@@ -202,5 +214,8 @@ internal sealed partial class VoiceProviderRouter(
 
         [LoggerMessage(Level = LogLevel.Warning, Message = "Voice provider {ProviderKey} is configured but no text-to-speech engine with that key is registered; skipping it")]
         public static partial void VoiceProviderEngineMissing(ILogger logger, string providerKey);
+
+        [LoggerMessage(Level = LogLevel.Debug, Message = "Voice provider {ProviderKey} is switched off under AI providers; skipping it")]
+        public static partial void VoiceProviderSwitchedOff(ILogger logger, string providerKey);
     }
 }

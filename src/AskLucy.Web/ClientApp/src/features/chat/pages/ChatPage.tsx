@@ -27,6 +27,7 @@ import { useChatDetail, useChatMessages } from '../hooks/useChats'
 import { useSiteAnalysisRehydration } from '../../siteAnalysis/hooks/useSiteAnalysisRehydration'
 import { useSiteAnalysisNoticeStore } from '../../siteAnalysis/store/siteAnalysisNoticeStore'
 import { useChatStream } from '../hooks/useChatStream'
+import { AI_VOICE_DISCLOSURE } from '../voice/aiVoiceDisclosure'
 import { useConversationAudio } from '../voice/useConversationAudio'
 import type { VoiceStateName } from '../voice/useVoiceState'
 import { useVoicePreferencesQuery } from '../voice/useVoicePreferencesQuery'
@@ -846,6 +847,14 @@ export function ConversationView({
               >
                 {voiceStateLabel(conversationAudio.voiceState)}
               </Box>
+              <Box component="span" sx={{ mt: 0.5, px: 2, typography: 'caption', color: 'text.secondary', textAlign: 'center' }}>
+                {AI_VOICE_DISCLOSURE}
+              </Box>
+              {conversationAudio.engineNotice && (
+                <Box component="span" sx={{ mt: 0.5, px: 2, typography: 'caption', color: 'text.secondary', textAlign: 'center' }}>
+                  {conversationAudio.engineNotice}
+                </Box>
+              )}
               {conversationAudio.errorMessage && (
                 <Box
                   component="span"

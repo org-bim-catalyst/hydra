@@ -90,7 +90,12 @@ export function CustomModelsSection() {
   const notConfigured = statusQuery.data?.isConfigured === false
 
   return (
-    <Paper variant="outlined" sx={{ mt: 3, flexShrink: 0 }} component="section" aria-labelledby="custom-models-heading">
+    <Paper
+      variant="outlined"
+      sx={{ mt: 3, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      component="section"
+      aria-labelledby="custom-models-heading"
+    >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Typography id="custom-models-heading" variant="subtitle1" component="h2">
@@ -159,8 +164,8 @@ export function CustomModelsSection() {
           {errorMessage(listQuery.error)}
         </Alert>
       )}
-      <TableContainer>
-        <Table size="small" aria-labelledby="custom-models-heading">
+      <TableContainer sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <Table size="small" stickyHeader aria-labelledby="custom-models-heading">
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>

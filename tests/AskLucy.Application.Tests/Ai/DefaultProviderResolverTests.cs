@@ -98,4 +98,29 @@ public sealed class DefaultProviderResolverTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldNeverFallBackToASpeechProvider_EvenWhenItIsEnabled()
+    {
+        // ElevenLabs is listed under AI providers for its key and switch; it cannot answer a chat.
+        var speech = AIProvider.Create("elevenlabs", "ElevenLabs", "test", AIProviderKind.Speech);
+        speech.SetCredential("ciphertext", null, "test");
+        speech.Enable("test");
+        var speechModel = MakeModel(speech.Id);
+        speech.SetDefaultModel(speechModel.Id, "test");
+
+        var language = AIProvider.Create("anthropic", "Anthropic", "test");
+        language.SetCredential("ciphertext", null, "test");
+        language.Enable("test");
+        var languageModel = MakeModel(language.Id);
+        language.SetDefaultModel(languageModel.Id, "test");
+
+        _providers.ListEnabledAsync(Arg.Any<CancellationToken>()).Returns([speech, language]);
+        _models.GetByIdAsync(speechModel.Id, Arg.Any<CancellationToken>()).Returns(speechModel);
+        _models.GetByIdAsync(languageModel.Id, Arg.Any<CancellationToken>()).Returns(languageModel);
+
+        var result = await _resolver.ResolveAsync(UserAiPreference.Create("user-1", "user-1"), CancellationToken.None);
+
+        result.ProviderId.Should().Be(language.Id);
+    }
 }

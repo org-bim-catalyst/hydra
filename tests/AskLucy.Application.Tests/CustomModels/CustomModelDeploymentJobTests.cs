@@ -319,7 +319,7 @@ public sealed class CustomModelDeploymentJobTests : IDisposable
         _uploader.Uploads.Should().BeEmpty();
         _notifiedStates.Should().BeEmpty();
         Pushes().Should().BeEmpty();
-        await _deploymentTarget.DidNotReceiveWithAnyArgs().GetAsync(default);
+        await _deploymentTarget.DidNotReceiveWithAnyArgs().GetAsync(TestContext.Current.CancellationToken);
     }
 
     private void RecordPush(CustomModelProgressDto progress)

@@ -21,6 +21,7 @@ const baseProvider: AdminAiProvider = {
   healthFailureKind: null,
   healthFailureReason: null,
   healthStaleAfterUtc: null,
+  kind: 'Language',
 }
 
 function sessionWith(permissions: string[]) {
@@ -32,6 +33,9 @@ function sessionWith(permissions: string[]) {
 const server = setupServer(
   sessionWith(['admin.ai-providers.view', 'admin.custom-models.view']),
   http.get('*/api/v1/admin/ai/providers', () => HttpResponse.json([baseProvider])),
+  http.get('*/api/v1/admin/custom-models/deployment-status', () =>
+    HttpResponse.json({ isConfigured: true, transport: 'FTPS', maxDeploymentBytes: 2 ** 30 }),
+  ),
   http.get('*/api/v1/admin/custom-models', () =>
     HttpResponse.json({ items: [], page: 1, pageSize: 50, totalCount: 0 }),
   ),
@@ -107,6 +111,28 @@ describe('AdminAiProvidersPage — Custom models section (specs/072)', () => {
     expect(await findByText('No custom models yet.')).toBeInTheDocument()
     expect(queryByText('OpenAI')).not.toBeInTheDocument()
     expect(providersRequested).toBe(false)
+  })
+
+  it('heads the providers table "Frontier models", beside the Custom models section', async () => {
+    const { findByRole } = renderPage()
+
+    expect(await findByRole('heading', { name: 'Frontier models' })).toBeInTheDocument()
+    expect(await findByRole('heading', { name: 'Custom models' })).toBeInTheDocument()
+  })
+
+  it('marks a speech vendor with a Speech chip, and a language vendor with none', async () => {
+    server.use(
+      http.get('*/api/v1/admin/ai/providers', () =>
+        HttpResponse.json([
+          baseProvider,
+          { ...baseProvider, id: 'provider-2', providerKey: 'elevenlabs', displayName: 'ElevenLabs', kind: 'Speech' },
+        ]),
+      ),
+    )
+    const { findByText, getAllByText } = renderPage()
+
+    await findByText('ElevenLabs')
+    expect(getAllByText('Speech')).toHaveLength(1)
   })
 
   it('hides the Custom models section without admin.custom-models.view', async () => {

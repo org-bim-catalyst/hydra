@@ -8,6 +8,7 @@ namespace AskLucy.Application.Ai.Commands.SetPrimaryVoiceProvider;
 public sealed class SetPrimaryVoiceProviderCommandHandler(
     IVoiceProviderRepository voiceProviders,
     IEnumerable<ITextToSpeechEngine> engines,
+    IAIProviderRepository aiProviders,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
     ILogger<SetPrimaryVoiceProviderCommandHandler> logger) : IRequestHandler<SetPrimaryVoiceProviderCommand, IReadOnlyList<AdminVoiceProviderDto>>
@@ -34,9 +35,14 @@ public sealed class SetPrimaryVoiceProviderCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        AiAdminActionLog.AdminVoiceProviderActionPerformed(
-            logger, "SetPrimaryVoiceProvider", actorUserId, chosen.Id, $"Lucy's voice set to {chosen.ProviderKey}/{chosen.DefaultVoiceId}");
+        // CA1873 — the detail string is only built when Information logging is enabled.
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var detail = $"Lucy's voice set to {chosen.ProviderKey}/{chosen.DefaultVoiceId}";
+            AiAdminActionLog.AdminVoiceProviderActionPerformed(logger, "SetPrimaryVoiceProvider", actorUserId, chosen.Id, detail);
+        }
 
-        return await VoiceEngineResolution.ToDtosAsync(engines, ordered, cancellationToken);
+        var speechVendors = await VoiceEngineResolution.ListSpeechVendorsAsync(aiProviders, cancellationToken);
+        return await VoiceEngineResolution.ToDtosAsync(engines, ordered, speechVendors, cancellationToken);
     }
 }

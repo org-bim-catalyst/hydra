@@ -37,7 +37,7 @@ public sealed class SendChatMessageCommandValidator : AbstractValidator<SendChat
             .CustomAsync(async (command, context, cancellationToken) =>
             {
                 var provider = await providers.GetByIdAsync(command.ProviderId, cancellationToken);
-                if (provider is null || !provider.IsEnabled)
+                if (provider is not { IsAvailableForConversation: true })
                 {
                     context.AddFailure("providerId", "The selected provider is not enabled.");
                     return;

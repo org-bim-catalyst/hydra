@@ -57,6 +57,9 @@ const AgentExecutionPage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import('../features/privacy/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })),
 )
+const TermsPage = lazy(() =>
+  import('../features/terms/pages/TermsPage').then((m) => ({ default: m.TermsPage })),
+)
 const SettingsPage = lazy(() =>
   import('../features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 )
@@ -207,6 +210,16 @@ const router = createBrowserRouter([
     element: (
       <Lazy>
         <PrivacyPage />
+      </Lazy>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    // Public like /privacy — the voice model's licence terms must reach every user, signed in or not.
+    path: '/terms',
+    element: (
+      <Lazy>
+        <TermsPage />
       </Lazy>
     ),
     errorElement: <ErrorPage />,

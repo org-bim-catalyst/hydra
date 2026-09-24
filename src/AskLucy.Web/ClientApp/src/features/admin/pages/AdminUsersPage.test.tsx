@@ -37,6 +37,11 @@ const users: UserAdmin[] = [
 let lastRequestUrl: URL | undefined
 
 const server = setupServer(
+  // AdminShell's permission-gated nav reads the session; without this the request escapes to the
+  // real network (an MSW "unhandled request" warning in CI).
+  http.get('*/api/v1/auth/session', () =>
+    HttpResponse.json({ authenticated: true, userId: 'admin-1', roles: [], permissions: [] }),
+  ),
   http.get('*/api/v1/users', ({ request }) => {
     lastRequestUrl = new URL(request.url)
     const result: PagedResult<UserAdmin> = { items: users, totalCount: users.length, page: 1, pageSize: 20 }

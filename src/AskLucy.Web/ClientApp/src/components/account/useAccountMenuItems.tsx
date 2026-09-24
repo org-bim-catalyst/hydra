@@ -2,6 +2,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import DescriptionIcon from '@mui/icons-material/Description'
 import FolderIcon from '@mui/icons-material/Folder'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import PolicyIcon from '@mui/icons-material/Policy'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
@@ -64,5 +65,6 @@ export function useAccountMenuItems(): AccountMenuItem[] {
         ]
       : []),
     { id: 'privacy', label: 'Privacy Policy', icon: <PolicyIcon fontSize="small" />, path: '/privacy' },
+    { id: 'terms', label: 'Terms of Service', icon: <GavelOutlinedIcon fontSize="small" />, path: '/terms' },
   ]
 }

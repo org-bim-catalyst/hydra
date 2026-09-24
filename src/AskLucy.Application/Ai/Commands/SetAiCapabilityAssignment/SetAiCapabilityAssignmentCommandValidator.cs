@@ -24,7 +24,7 @@ public sealed class SetAiCapabilityAssignmentCommandValidator : AbstractValidato
                 }
 
                 var provider = await providers.GetByIdAsync(providerId, cancellationToken);
-                if (provider is null || !provider.IsEnabled)
+                if (provider is not { IsAvailableForConversation: true })
                 {
                     context.AddFailure("providerId", "The selected provider is not enabled.");
                     return;

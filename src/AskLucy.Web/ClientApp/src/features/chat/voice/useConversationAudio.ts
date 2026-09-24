@@ -154,6 +154,7 @@ export function useConversationAudio({
     },
     onFinalTranscript: handleFinalTranscript,
     preferredMicrophoneDeviceId,
+    onError: handleUnrecoverableFailure,
   })
 
   useEffect(() => {
@@ -215,6 +216,8 @@ export function useConversationAudio({
     provider,
     degradedNoticeVisible,
     deviceNotice: recognition.deviceNotice,
+    /** Which backup engine is listening while ElevenLabs is unavailable; null on the primary. */
+    engineNotice: recognition.engineNotice,
     clearDeviceNotice: recognition.clearDeviceNotice,
     getReactiveIntensity: analyzer.getReactiveIntensity,
     getMicIntensity: recognition.getMicIntensity,

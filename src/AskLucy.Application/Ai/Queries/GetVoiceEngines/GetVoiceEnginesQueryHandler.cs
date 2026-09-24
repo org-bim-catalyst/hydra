@@ -7,7 +7,8 @@ namespace AskLucy.Application.Ai.Queries.GetVoiceEngines;
 public sealed class GetVoiceEnginesQueryHandler(
     IVoiceProviderRepository voiceProviders,
     IEnumerable<ITextToSpeechEngine> engines,
-    IHostedModelLocator hostedModels)
+    IHostedModelLocator hostedModels,
+    IAIProviderRepository aiProviders)
     : IRequestHandler<GetVoiceEnginesQuery, IReadOnlyList<VoiceEngineDto>>
 {
     public async Task<IReadOnlyList<VoiceEngineDto>> Handle(GetVoiceEnginesQuery request, CancellationToken cancellationToken)
@@ -15,6 +16,7 @@ public sealed class GetVoiceEnginesQueryHandler(
         var rows = await voiceProviders.ListByPriorityAsync(cancellationToken);
         var addedKeys = rows.Select(r => r.ProviderKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        var speechVendors = await VoiceEngineResolution.ListSpeechVendorsAsync(aiProviders, cancellationToken);
         var offered = new List<VoiceEngineDto>();
         foreach (var engine in engines.OrderBy(e => e.DisplayName, StringComparer.OrdinalIgnoreCase))
         {
@@ -26,7 +28,12 @@ public sealed class GetVoiceEnginesQueryHandler(
                 continue;
             }
 
-            offered.Add(new VoiceEngineDto(engine.ProviderKey, engine.DisplayName, engine.RequiresCredential, addedKeys.Contains(engine.ProviderKey)));
+            offered.Add(new VoiceEngineDto(
+                engine.ProviderKey,
+                engine.DisplayName,
+                engine.RequiresCredential,
+                addedKeys.Contains(engine.ProviderKey),
+                IsKeyedAsAiProvider: VoiceEngineResolution.FindVendor(speechVendors, engine.ProviderKey) is not null));
         }
 
         return offered;

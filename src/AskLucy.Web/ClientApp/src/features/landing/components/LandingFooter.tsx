@@ -7,7 +7,7 @@ import { flumeriaColor } from '../theme/flumeriaPalette'
  * Black footer, matching the reference design. Landing-page-specific (not the shared
  * `AppFooter`, which keeps its existing white/bordered style for the auth pages and
  * `PrivacyPage` — this is a distinct visual treatment for the public landing page only).
- * Links to what actually exists in this app (`/privacy`); the reference's "About"/"Blog"
+ * Links to what actually exists in this app (`/privacy`, `/terms`); the reference's "About"/"Blog"
  * are omitted rather than becoming dead links.
  */
 export function LandingFooter() {
@@ -25,6 +25,9 @@ export function LandingFooter() {
         <Stack direction="row" spacing={3} sx={{ alignItems: 'center' }}>
           <Link component={RouterLink} to="/privacy" variant="body2" sx={{ color: flumeriaColor.bodyOnDark }}>
             Privacy
+          </Link>
+          <Link component={RouterLink} to="/terms" variant="body2" sx={{ color: flumeriaColor.bodyOnDark }}>
+            Terms
           </Link>
           <Typography variant="caption" sx={{ color: flumeriaColor.bodyOnDark }}>
             &copy; {new Date().getFullYear()} Flumeria. All rights reserved.

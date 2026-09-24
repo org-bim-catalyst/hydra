@@ -44,7 +44,8 @@ export function AddVoiceProviderDialog({ open, onClose, onAdded }: AddVoiceProvi
   const selected = available.find((engine) => engine.providerKey === providerKey)
 
   const addMutation = useMutation({
-    mutationFn: () => adminVoiceApi.addVoiceProvider(providerKey, apiKey.trim() || null),
+    // A key typed for another engine before switching to one keyed under AI providers is dropped.
+    mutationFn: () => adminVoiceApi.addVoiceProvider(providerKey, selected?.isKeyedAsAiProvider ? null : apiKey.trim() || null),
     onSuccess: (provider) => {
       onAdded(provider)
       close()
@@ -99,7 +100,12 @@ export function AddVoiceProviderDialog({ open, onClose, onAdded }: AddVoiceProvi
             ))}
           </Select>
         </FormControl>
-        {selected?.requiresCredential && (
+        {selected?.isKeyedAsAiProvider && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            {selected.displayName} uses the API key set under Admin → AI providers, and is switched on or off there.
+          </Alert>
+        )}
+        {selected?.requiresCredential && !selected.isKeyedAsAiProvider && (
           <TextField
             label="API key"
             type="password"

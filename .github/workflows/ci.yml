@@ -75,7 +75,7 @@ jobs:
 
   frontend-build-lint-and-test:
     name: Frontend build, lint, and test (React 19 + Vite)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: src/AskLucy.Web/ClientApp
@@ -102,7 +102,7 @@ jobs:
 
   e2e:
     name: Playwright regression matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: false
     defaults:
       run:

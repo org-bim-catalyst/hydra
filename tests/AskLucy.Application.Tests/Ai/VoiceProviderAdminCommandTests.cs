@@ -23,13 +23,16 @@ public sealed class VoiceProviderAdminCommandTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly ITextToSpeechEngine _elevenLabs = Engine("ElevenLabs", "ElevenLabs", requiresCredential: true);
     private readonly ITextToSpeechEngine _supertonic = Engine("Supertonic", "Supertonic (on-server)", requiresCredential: false);
+    private readonly IAIProviderRepository _aiProviders = Substitute.For<IAIProviderRepository>();
     private readonly List<VoiceProvider> _rows = [];
+    private readonly List<AIProvider> _vendors = [];
 
     public VoiceProviderAdminCommandTests()
     {
         _currentUser.UserId.Returns("admin-1");
+        _aiProviders.ListAllAsync(Arg.Any<CancellationToken>()).Returns(_ => _vendors.ToList());
         _protector.Protect(Arg.Any<string>()).Returns(call => $"protected:{call.Arg<string>()}");
-        _protector.Unprotect(Arg.Any<string>()).Returns(call => call.Arg<string>().Replace("protected:", string.Empty, StringComparison.Ordinal));
+        _protector.Unprotect(Arg.Any<string>()).Returns(call => call.Arg<string>()!.Replace("protected:", string.Empty, StringComparison.Ordinal));
         _repository.ListByPriorityAsync(Arg.Any<CancellationToken>()).Returns(_ => _rows.OrderBy(r => r.Priority).ToList());
         _repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(call => _rows.FirstOrDefault(r => r.Id == call.Arg<Guid>()));
     }
@@ -68,17 +71,35 @@ public sealed class VoiceProviderAdminCommandTests
         }
     }
 
+    /// <summary>ElevenLabs listed under Admin → AI providers — the single key and switch for its voice engine.</summary>
+    private AIProvider AddVendor(bool enabled, string? ciphertext)
+    {
+        var vendor = AIProvider.Create("elevenlabs", "ElevenLabs", "system", AIProviderKind.Speech);
+        if (ciphertext is not null)
+        {
+            vendor.SetCredential(ciphertext, null, "system");
+        }
+
+        if (enabled)
+        {
+            vendor.Enable("system");
+        }
+
+        _vendors.Add(vendor);
+        return vendor;
+    }
+
     private AddVoiceProviderCommandHandler AddHandler() => new(
-        _repository, Engines, _protector, _unitOfWork, _currentUser, Substitute.For<ILogger<AddVoiceProviderCommandHandler>>());
+        _repository, Engines, _protector, _aiProviders, _unitOfWork, _currentUser, Substitute.For<ILogger<AddVoiceProviderCommandHandler>>());
 
     private SetPrimaryVoiceProviderCommandHandler PrimaryHandler() => new(
-        _repository, Engines, _unitOfWork, _currentUser, Substitute.For<ILogger<SetPrimaryVoiceProviderCommandHandler>>());
+        _repository, Engines, _aiProviders, _unitOfWork, _currentUser, Substitute.For<ILogger<SetPrimaryVoiceProviderCommandHandler>>());
 
     private SetVoiceProviderCredentialCommandHandler CredentialHandler() => new(
-        _repository, Engines, _protector, _unitOfWork, _currentUser, Substitute.For<ILogger<SetVoiceProviderCredentialCommandHandler>>());
+        _repository, Engines, _protector, _aiProviders, _unitOfWork, _currentUser, Substitute.For<ILogger<SetVoiceProviderCredentialCommandHandler>>());
 
     private PreviewVoiceCommandHandler PreviewHandler() => new(
-        _repository, Engines, _protector, _currentUser, Substitute.For<ILogger<PreviewVoiceCommandHandler>>());
+        _repository, Engines, _protector, _aiProviders, _currentUser, Substitute.For<ILogger<PreviewVoiceCommandHandler>>());
 
     [Fact]
     public async Task AddVoiceProvider_ShouldJoinTheEndOfTheFailoverOrder()
@@ -92,7 +113,7 @@ public sealed class VoiceProviderAdminCommandTests
         added.Priority.Should().Be(1);
         added.IsPrimary.Should().BeFalse();
         added.HasCredential.Should().BeFalse();
-        _repository.Received(1).Add(Arg.Is<VoiceProvider>(p => p.ProviderKey == "Supertonic"));
+        _repository.Received(1).Add(Arg.Is<VoiceProvider>(p => p!.ProviderKey == "Supertonic"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -104,7 +125,7 @@ public sealed class VoiceProviderAdminCommandTests
         added.IsPrimary.Should().BeTrue("the first provider added is Lucy's voice");
         added.HasCredential.Should().BeTrue();
         added.CredentialHint.Should().Be(CredentialHintFormatter.Format("sk_test_1234567890abcdWXYZ"));
-        _repository.Received(1).Add(Arg.Is<VoiceProvider>(p => p.CredentialCiphertext == "protected:sk_test_1234567890abcdWXYZ"));
+        _repository.Received(1).Add(Arg.Is<VoiceProvider>(p => p!.CredentialCiphertext == "protected:sk_test_1234567890abcdWXYZ"));
     }
 
     [Fact]
@@ -188,7 +209,7 @@ public sealed class VoiceProviderAdminCommandTests
         Convert.FromBase64String(preview.AudioBase64).Should().Equal(1, 2, 3);
         _elevenLabs.Received(1).StreamSpeechAsync(
             "Testing.",
-            Arg.Is<VoiceSettingsDto>(s => s.VoiceId == "adam" && s.Language == "ar" && s.ProviderKey == "ElevenLabs"),
+            Arg.Is<VoiceSettingsDto>(s => s!.VoiceId == "adam" && s.Language == "ar" && s.ProviderKey == "ElevenLabs"),
             "key-1",
             Arg.Any<CancellationToken>());
     }
@@ -214,6 +235,64 @@ public sealed class VoiceProviderAdminCommandTests
         var act = () => PreviewHandler().Handle(new PreviewVoiceCommand(elevenLabs.Id, "adam", "Hello.", "en"), CancellationToken.None);
 
         await act.Should().ThrowAsync<AiProviderCredentialUnreadableException>();
+    }
+
+    [Fact]
+    public async Task SetVoiceProviderCredential_ShouldReject_AnEngineKeyedUnderAiProviders()
+    {
+        var elevenLabs = AddRow("ElevenLabs", 0);
+        AddVendor(enabled: true, "protected:vendor-key");
+
+        var act = () => CredentialHandler().Handle(new SetVoiceProviderCredentialCommand(elevenLabs.Id, "sk_anything"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<DomainRuleViolationException>()).WithMessage("*Admin → AI providers*");
+        elevenLabs.CredentialCiphertext.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AddVoiceProvider_ShouldReject_AKey_ForAnEngineKeyedUnderAiProviders()
+    {
+        AddVendor(enabled: true, "protected:vendor-key");
+
+        var act = () => AddHandler().Handle(new AddVoiceProviderCommand("ElevenLabs", "sk_anything"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainRuleViolationException>();
+        _repository.DidNotReceive().Add(Arg.Any<VoiceProvider>());
+    }
+
+    [Fact]
+    public async Task AddVoiceProvider_ShouldReportTheVendorsKeyAndSwitch()
+    {
+        AddVendor(enabled: false, "protected:vendor-key");
+
+        var added = await AddHandler().Handle(new AddVoiceProviderCommand("ElevenLabs", null), CancellationToken.None);
+
+        added.HasCredential.Should().BeTrue("the key lives on the AI-provider row");
+        added.VendorEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PreviewVoice_ShouldSpeakWithTheVendorsKey_WhenTheEngineIsKeyedUnderAiProviders()
+    {
+        var elevenLabs = AddRow("ElevenLabs", 0, "protected:stale-row-key");
+        AddVendor(enabled: true, "protected:vendor-key");
+        _elevenLabs.StreamSpeechAsync(Arg.Any<string>(), Arg.Any<VoiceSettingsDto>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Chunks([1]));
+
+        await PreviewHandler().Handle(new PreviewVoiceCommand(elevenLabs.Id, "adam", "Hello.", "en"), CancellationToken.None);
+
+        _elevenLabs.Received(1).StreamSpeechAsync("Hello.", Arg.Any<VoiceSettingsDto>(), "vendor-key", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PreviewVoice_ShouldRefuse_WhileTheVendorIsSwitchedOff()
+    {
+        var elevenLabs = AddRow("ElevenLabs", 0);
+        AddVendor(enabled: false, "protected:vendor-key");
+
+        var act = () => PreviewHandler().Handle(new PreviewVoiceCommand(elevenLabs.Id, "adam", "Hello.", "en"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<AiProviderNotConfiguredException>()).WithMessage("*switched off*");
     }
 
     [Theory]

@@ -133,7 +133,7 @@ public sealed class SubmitCustomModelDeploymentCommandHandlerTests
         var act = () => CreateHandler().Handle(new SubmitCustomModelDeploymentCommand(Source, Destination, null), TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
-        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, default);
+        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, TestContext.Current.CancellationToken);
         _logger.Collector.GetSnapshot().Should().NotContain(r => r.Id.Name == "Submitted");
         _jobs.DidNotReceiveWithAnyArgs().Create(default!, default!);
     }

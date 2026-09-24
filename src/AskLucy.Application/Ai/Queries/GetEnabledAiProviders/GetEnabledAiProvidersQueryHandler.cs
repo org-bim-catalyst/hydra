@@ -9,6 +9,6 @@ public sealed class GetEnabledAiProvidersQueryHandler(IAIProviderRepository prov
     public async Task<IReadOnlyList<ProviderSummaryDto>> Handle(GetEnabledAiProvidersQuery request, CancellationToken cancellationToken)
     {
         var enabled = await providers.ListEnabledAsync(cancellationToken);
-        return [.. enabled.Select(ProviderSummaryDto.FromEntity)];
+        return [.. enabled.Where(p => p.IsAvailableForConversation).Select(ProviderSummaryDto.FromEntity)];
     }
 }

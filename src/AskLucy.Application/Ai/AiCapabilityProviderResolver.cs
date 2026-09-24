@@ -81,7 +81,7 @@ public sealed class AiCapabilityProviderResolver(
         }
 
         var provider = await providers.GetByIdAsync(assignment.ProviderId, cancellationToken);
-        if (provider is null || !provider.IsEnabled)
+        if (provider is not { IsAvailableForConversation: true })
         {
             return await UnusableAsync(capability, requiresImageOutput, "the provider is missing or disabled", cancellationToken);
         }

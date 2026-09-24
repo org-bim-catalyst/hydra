@@ -18,6 +18,9 @@ public sealed class AIProviderConfiguration : IEntityTypeConfiguration<AIProvide
         builder.Property(p => p.DisplayName).IsRequired().HasMaxLength(100);
         builder.Property(p => p.IsEnabled).IsRequired().HasDefaultValue(false);
 
+        // A string, never an ordinal, matching HealthStatus below.
+        builder.Property(p => p.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
+
         // Never selected/returned by any read projection except the one building the
         // outbound HTTP call — enforced at the Application layer, not by EF configuration
         // (data-model.md).

@@ -24,7 +24,17 @@ export interface AdminAiProvider {
    * on its own instead of showing a verdict frozen at render time.
    */
   healthStaleAfterUtc: string | null
+  /**
+   * `Speech` for a voice vendor (ElevenLabs) — listed here for its key, on/off switch, health and
+   * model catalogue, but it never answers in conversation, so chat-model pickers leave it out.
+   */
+  kind: AiProviderKind
 }
+
+export type AiProviderKind = 'Language' | 'Speech'
+
+/** Whether a provider can serve conversation — every provider except a speech vendor. */
+export const isLanguageProvider = (provider: Pick<AdminAiProvider, 'kind'>) => provider.kind !== 'Speech'
 
 /** specs/043 FR-024 — the result of an administrator-triggered probe. */
 export interface CheckProviderHealthResult {

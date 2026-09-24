@@ -21,7 +21,8 @@ public sealed record AdminAiProviderDto(
     DateTime? HealthStatusCheckedAtUtc,
     AiProviderFailureKind? HealthFailureKind,
     string? HealthFailureReason,
-    DateTime? HealthStaleAfterUtc)
+    DateTime? HealthStaleAfterUtc,
+    AIProviderKind Kind)
 {
     public static AdminAiProviderDto FromEntity(AIProvider provider, DateTime? staleAfterUtc) => new(
         provider.Id,
@@ -36,5 +37,6 @@ public sealed record AdminAiProviderDto(
         provider.HealthStatusCheckedAtUtc,
         provider.HealthFailureKind,
         provider.HealthFailureReason,
-        staleAfterUtc);
+        staleAfterUtc,
+        provider.Kind);
 }

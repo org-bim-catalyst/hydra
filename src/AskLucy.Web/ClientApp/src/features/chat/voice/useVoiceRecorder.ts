@@ -23,7 +23,7 @@ const RECORDING_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
  * parameter (e.g. `audio/webm;codecs=opus`), so the base type is matched, not the whole
  * string (speckit-analyze finding U1).
  */
-function extensionForRecordingMimeType(mimeType: string): string {
+export function extensionForRecordingMimeType(mimeType: string): string {
   const baseType = mimeType.split(';')[0]?.trim().toLowerCase()
   return RECORDING_EXTENSION_BY_MIME_TYPE[baseType ?? ''] ?? 'webm'
 }

@@ -23,6 +23,7 @@ const providers: AdminVoiceProvider[] = [
     credentialHint: null,
     modelStatus: 'Ready',
     modelStatusReason: null,
+    vendorEnabled: null,
   },
   {
     id: 'provider-supertonic',
@@ -36,6 +37,7 @@ const providers: AdminVoiceProvider[] = [
     credentialHint: null,
     modelStatus: 'Ready',
     modelStatusReason: null,
+    vendorEnabled: null,
   },
 ]
 
@@ -82,6 +84,7 @@ describe('AdminVoicePage accessibility', () => {
             isPrimary: true,
             modelStatus: 'ModelUnavailable',
             modelStatusReason: 'The Supertonic model is marked unavailable in Custom Models.',
+            vendorEnabled: null,
           },
         ]),
       ),

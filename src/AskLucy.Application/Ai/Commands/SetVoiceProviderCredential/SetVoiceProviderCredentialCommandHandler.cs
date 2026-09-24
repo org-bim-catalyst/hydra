@@ -9,6 +9,7 @@ public sealed class SetVoiceProviderCredentialCommandHandler(
     IVoiceProviderRepository voiceProviders,
     IEnumerable<ITextToSpeechEngine> engines,
     IAiCredentialProtector credentialProtector,
+    IAIProviderRepository aiProviders,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
     ILogger<SetVoiceProviderCredentialCommandHandler> logger) : IRequestHandler<SetVoiceProviderCredentialCommand, AdminVoiceProviderDto>
@@ -26,6 +27,12 @@ public sealed class SetVoiceProviderCredentialCommandHandler(
             throw new DomainRuleViolationException($"{provider.DisplayName} runs on this server and does not use an API key.");
         }
 
+        if (await VoiceEngineResolution.FindVendorAsync(aiProviders, engine.ProviderKey, cancellationToken) is { } vendor)
+        {
+            throw new DomainRuleViolationException(
+                $"Set the {vendor.DisplayName} API key under Admin → AI providers — it is shared with its health check, models and live dictation.");
+        }
+
         var apiKey = request.ApiKey.Trim();
         provider.SetCredential(credentialProtector.Protect(apiKey), CredentialHintFormatter.Format(apiKey), actorUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -33,6 +40,6 @@ public sealed class SetVoiceProviderCredentialCommandHandler(
         AiAdminActionLog.AdminVoiceProviderActionPerformed(
             logger, "SetVoiceProviderCredential", actorUserId, provider.Id, "Credential set");
 
-        return await VoiceEngineResolution.ToDtoAsync(provider, isPrimary: all[0].Id == provider.Id, engine, cancellationToken);
+        return await VoiceEngineResolution.ToDtoAsync(provider, isPrimary: all[0].Id == provider.Id, engine, vendor: null, cancellationToken);
     }
 }

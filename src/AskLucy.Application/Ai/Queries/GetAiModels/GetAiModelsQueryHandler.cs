@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using MediatR;
 
 namespace AskLucy.Application.Ai.Queries.GetAiModels;
@@ -11,7 +12,7 @@ public sealed class GetAiModelsQueryHandler(IAIModelRepository models, IAIProvid
         if (request.ProviderId is { } providerId)
         {
             var provider = await providers.GetByIdAsync(providerId, cancellationToken);
-            if (provider is null || !provider.IsEnabled)
+            if (provider is not { IsAvailableForConversation: true })
             {
                 throw new KeyNotFoundException("Provider not found.");
             }
@@ -20,7 +21,10 @@ public sealed class GetAiModelsQueryHandler(IAIModelRepository models, IAIProvid
             return [.. providerModels.Select(m => ModelSummaryDto.FromEntity(m, provider))];
         }
 
-        var allProviders = (await providers.ListAllAsync(cancellationToken)).ToDictionary(p => p.Id);
+        // A speech provider's models (ElevenLabs' voices) are not conversation models.
+        var allProviders = (await providers.ListAllAsync(cancellationToken))
+            .Where(p => p.Kind == AIProviderKind.Language)
+            .ToDictionary(p => p.Id);
         var availableModels = await models.ListAvailableAsync(cancellationToken);
 
         return [.. availableModels

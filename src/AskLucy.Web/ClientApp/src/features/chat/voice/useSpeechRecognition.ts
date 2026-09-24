@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ApiError } from '../../../api/httpClient'
 import { createSttSession } from '../api/voiceApi'
+import {
+  getBrowserSpeechRecognition,
+  isWhisperDictationSupported,
+  startBrowserDictation,
+  startWhisperDictation,
+  type DictationFailure,
+  type DictationSession,
+  type FallbackEngine,
+} from './dictationFallback'
 import { downsampleTo16kHz, float32ToInt16Pcm, toBase64 } from './pcm16'
 import { useVoiceProviderStatus } from './voiceProviderStatus'
 
@@ -21,6 +31,14 @@ interface UseSpeechRecognitionOptions {
    * platform default (and surfaces {@link deviceNotice}) rather than failing outright when
    * the device is no longer present (e.g. unplugged). */
   preferredMicrophoneDeviceId?: string | null
+  /** Every failure the hook surfaces through `error`, as it happens — so a caller that owns
+   * the visible voice state can show it rather than leaving the mic "listening". */
+  onError?: (message: string) => void
+}
+
+const FALLBACK_NOTICES: Record<FallbackEngine, string> = {
+  whisper: 'ElevenLabs live dictation is unavailable — using Whisper transcription instead.',
+  browser: "ElevenLabs live dictation is unavailable — using your browser's speech recognition instead.",
 }
 
 /**
@@ -46,6 +64,13 @@ interface UseSpeechRecognitionOptions {
  * - The connection URL takes `model_id` and `audio_format` query params alongside `token`.
  * - `partial_transcript`/`committed_transcript` (server→client) were already correct; only
  *   their envelope's discriminator field name (`message_type`) needed fixing.
+ *
+ * When the realtime session can't be opened — ElevenLabs switched off under Admin → AI
+ * providers, unconfigured, or unreachable — the turn continues on a fallback engine
+ * (`dictationFallback.ts`: Whisper, else the browser's own recognizer) instead of failing, and
+ * `engineNotice` says which one is listening. The provider status store remembers the
+ * failover, so later turns go straight to the fallback until `probeRecoveryIfDegraded` finds
+ * ElevenLabs healthy again.
  */
 export function useSpeechRecognition({
   language,
@@ -53,11 +78,13 @@ export function useSpeechRecognition({
   onPartialTranscript,
   onFinalTranscript,
   preferredMicrophoneDeviceId,
+  onError,
 }: UseSpeechRecognitionOptions) {
   const [isListening, setIsListening] = useState(false)
   const [permissionState, setPermissionState] = useState<MicrophonePermissionState>('unknown')
   const [error, setError] = useState<string | null>(null)
   const [deviceNotice, setDeviceNotice] = useState<string | null>(null)
+  const [engineNotice, setEngineNotice] = useState<string | null>(null)
 
   const socketRef = useRef<WebSocket | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -67,19 +94,29 @@ export function useSpeechRecognition({
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const micAnalyserRef = useRef<AnalyserNode | null>(null)
   const micFrequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
+  const fallbackSessionRef = useRef<DictationSession | null>(null)
+  /** Fallback engines found unusable this page session (e.g. transcription not configured). */
+  const unusableEnginesRef = useRef(new Set<FallbackEngine>())
   const modeRef = useRef(mode)
+  const onErrorRef = useRef(onError)
   useEffect(() => {
     modeRef.current = mode
-  }, [mode])
+    onErrorRef.current = onError
+  }, [mode, onError])
+
+  const fail = useCallback((message: string) => {
+    setError(message)
+    onErrorRef.current?.(message)
+  }, [])
 
   const { failOver } = useVoiceProviderStatus()
 
+  const canStreamRealtime = typeof AudioWorkletNode !== 'undefined' && typeof WebSocket !== 'undefined'
   const isSupported =
     typeof navigator !== 'undefined' &&
     !!navigator.mediaDevices?.getUserMedia &&
     typeof AudioContext !== 'undefined' &&
-    typeof AudioWorkletNode !== 'undefined' &&
-    typeof WebSocket !== 'undefined'
+    (canStreamRealtime || isWhisperDictationSupported() || !!getBrowserSpeechRecognition())
 
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
@@ -90,6 +127,8 @@ export function useSpeechRecognition({
 
   const cleanupAudioGraph = useCallback(() => {
     clearSilenceTimer()
+    fallbackSessionRef.current?.cancel()
+    fallbackSessionRef.current = null
     workletNodeRef.current?.port.close()
     workletNodeRef.current?.disconnect()
     workletNodeRef.current = null
@@ -109,10 +148,18 @@ export function useSpeechRecognition({
   }, [])
 
   /** One attempt to mint a token and open the ElevenLabs WebSocket — no retry inside this
-   * function; {@link connectWithRetry} owns the bounded retry budget (research.md Decision 8). */
-  const connectOnce = useCallback(async (): Promise<WebSocket | null> => {
+   * function; {@link connectWithRetry} owns the bounded retry budget (research.md Decision 8).
+   * `'refused'` when our own server answered that no session can be had (switched off, not
+   * configured): that's a decision, not a blip, so it isn't retried. */
+  const connectOnce = useCallback(async (): Promise<WebSocket | null | 'refused'> => {
+    let session: Awaited<ReturnType<typeof createSttSession>>
     try {
-      const session = await createSttSession(language)
+      session = await createSttSession(language)
+    } catch (err) {
+      return err instanceof ApiError ? 'refused' : null
+    }
+
+    try {
       const socket = new WebSocket(
         `wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${encodeURIComponent(session.token)}&model_id=scribe_v2_realtime&audio_format=pcm_16000`,
       )
@@ -139,14 +186,15 @@ export function useSpeechRecognition({
   const connectWithRetry = useCallback(async (): Promise<WebSocket | null> => {
     for (let attempt = 0; attempt <= MAX_RECONNECT_ATTEMPTS; attempt++) {
       const socket = await connectOnce()
+      if (socket === 'refused') break
       if (socket) return socket
       if (attempt < MAX_RECONNECT_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY_MS))
       }
     }
 
-    // FR-004/FR-033 boundary (research.md Decision 8): retries exhausted — this is no longer
-    // a transient blip, hand off to the fallback engine.
+    // FR-004/FR-033 boundary (research.md Decision 8): retries exhausted (or the server refused
+    // outright) — this is no longer a transient blip, hand off to the fallback engine.
     failOver()
     return null
   }, [connectOnce, failOver])
@@ -202,7 +250,7 @@ export function useSpeechRecognition({
             onFinalTranscript(data.text)
           }
         } catch {
-          setError('Received an unreadable message from the voice provider.')
+          fail('Received an unreadable message from the voice provider.')
         }
       })
 
@@ -212,7 +260,103 @@ export function useSpeechRecognition({
         }
       })
     },
-    [onPartialTranscript, onFinalTranscript, scheduleAutoCommit, cleanupAudioGraph, closeSocket],
+    [onPartialTranscript, onFinalTranscript, scheduleAutoCommit, cleanupAudioGraph, closeSocket, fail],
+  )
+
+  /** Microphone source plus the analyser behind `getMicIntensity` — every engine shares it. */
+  const buildMicGraph = useCallback((stream: MediaStream) => {
+    const audioContext = new AudioContext()
+    audioContextRef.current = audioContext
+    const source = audioContext.createMediaStreamSource(stream)
+    sourceRef.current = source
+
+    // Mic analyser — tapped before the worklet so the waveform reacts to the user's
+    // voice during listening, not just during AI playback.
+    const micAnalyser = audioContext.createAnalyser()
+    micAnalyser.fftSize = 256
+    source.connect(micAnalyser)
+    micAnalyserRef.current = micAnalyser
+    micFrequencyDataRef.current = new Uint8Array(new ArrayBuffer(micAnalyser.frequencyBinCount))
+    return { audioContext, source, micAnalyser }
+  }, [])
+
+  /** Runs one utterance on a fallback engine over `stream`, which the caller has already opened. */
+  const startFallback = useCallback(
+    (stream: MediaStream) => {
+      const pickEngine = (): FallbackEngine | null => {
+        const unusable = unusableEnginesRef.current
+        if (!unusable.has('whisper') && isWhisperDictationSupported()) return 'whisper'
+        if (!unusable.has('browser') && getBrowserSpeechRecognition()) return 'browser'
+        return null
+      }
+
+      const engine = pickEngine()
+      if (!engine) {
+        stream.getTracks().forEach((track) => track.stop())
+        setEngineNotice(null)
+        fail(
+          'Live dictation is unavailable: ElevenLabs could not be reached, and this browser can neither record audio for Whisper nor recognise speech itself.',
+        )
+        return
+      }
+
+      streamRef.current = stream
+      const { micAnalyser } = buildMicGraph(stream)
+
+      const endTurn = () => {
+        fallbackSessionRef.current = null
+        cleanupAudioGraph()
+        setIsListening(false)
+      }
+
+      const run = () => {
+        const Recognition = getBrowserSpeechRecognition()
+        const callbacks = {
+          onPartial: (text: string) => {
+            if (fallbackSessionRef.current === session) onPartialTranscript(text)
+          },
+          onFinal: (text: string) => {
+            if (fallbackSessionRef.current !== session) return
+            if (!text && modeRef.current === 'continuous') {
+              // Heard a noise, not words — keep listening rather than ending the turn on nothing.
+              run()
+              return
+            }
+            endTurn()
+            if (text) onFinalTranscript(text)
+          },
+          onError: (failure: DictationFailure) => {
+            if (fallbackSessionRef.current !== session) return
+            endTurn()
+            if (failure.engineUnusable) unusableEnginesRef.current.add(engine)
+            const next = failure.engineUnusable ? pickEngine() : null
+            fail(
+              next
+                ? `${failure.message} Dictation will use ${next === 'browser' ? "your browser's speech recognition" : 'Whisper'} from your next turn.`
+                : failure.message,
+            )
+          },
+        }
+        const session: DictationSession =
+          engine === 'browser' && Recognition
+            ? startBrowserDictation(Recognition, language, callbacks)
+            : startWhisperDictation(stream, micAnalyser, callbacks)
+        fallbackSessionRef.current = session
+      }
+
+      try {
+        run()
+      } catch (err) {
+        endTurn()
+        unusableEnginesRef.current.add(engine)
+        fail(err instanceof Error && err.message ? err.message : 'The backup dictation engine could not start.')
+        return
+      }
+
+      setEngineNotice(FALLBACK_NOTICES[engine])
+      setIsListening(true)
+    },
+    [buildMicGraph, cleanupAudioGraph, fail, language, onFinalTranscript, onPartialTranscript],
   )
 
   const getMicIntensity = useCallback((): number => {
@@ -227,7 +371,7 @@ export function useSpeechRecognition({
 
   const start = useCallback(async () => {
     if (!isSupported) {
-      setError('Voice input is not supported in this browser.')
+      fail('Voice input is not supported in this browser.')
       return
     }
 
@@ -271,35 +415,26 @@ export function useSpeechRecognition({
       setPermissionState('granted')
     } catch {
       setPermissionState('denied')
-      setError('Microphone access was denied. Check your browser’s site permissions and try again.')
+      fail('Microphone access was denied. Check your browser’s site permissions and try again.')
       return
     }
 
-    const socket = await connectWithRetry()
+    // Once failed over, stay on the fallback — the caller's probeRecoveryIfDegraded flips the
+    // store back to primary as soon as ElevenLabs answers again.
+    const socket =
+      canStreamRealtime && useVoiceProviderStatus.getState().provider === 'primary' ? await connectWithRetry() : null
     if (!socket) {
-      stream.getTracks().forEach((track) => track.stop())
-      setError('Voice recognition is temporarily using a reduced-quality fallback.')
+      startFallback(stream)
       return
     }
 
+    setEngineNotice(null)
     socketRef.current = socket
     attachSocketHandlers(socket)
     streamRef.current = stream
 
-    const audioContext = new AudioContext()
-    audioContextRef.current = audioContext
+    const { audioContext, source } = buildMicGraph(stream)
     await audioContext.audioWorklet.addModule('/audio/recorder-worklet.js')
-
-    const source = audioContext.createMediaStreamSource(stream)
-    sourceRef.current = source
-
-    // Mic analyser — tapped before the worklet so the waveform reacts to the user's
-    // voice during listening, not just during AI playback.
-    const micAnalyser = audioContext.createAnalyser()
-    micAnalyser.fftSize = 256
-    source.connect(micAnalyser)
-    micAnalyserRef.current = micAnalyser
-    micFrequencyDataRef.current = new Uint8Array(new ArrayBuffer(micAnalyser.frequencyBinCount))
 
     const workletNode = new AudioWorkletNode(audioContext, 'recorder-worklet')
     workletNodeRef.current = workletNode
@@ -324,7 +459,18 @@ export function useSpeechRecognition({
 
     source.connect(workletNode)
     setIsListening(true)
-  }, [isSupported, connectWithRetry, attachSocketHandlers, preferredMicrophoneDeviceId, cleanupAudioGraph, closeSocket])
+  }, [
+    isSupported,
+    canStreamRealtime,
+    connectWithRetry,
+    attachSocketHandlers,
+    preferredMicrophoneDeviceId,
+    cleanupAudioGraph,
+    closeSocket,
+    fail,
+    startFallback,
+    buildMicGraph,
+  ])
 
   /** Manual end of capture (FR-006) — discards without waiting for a commit round trip. */
   const cancel = useCallback(() => {
@@ -334,6 +480,11 @@ export function useSpeechRecognition({
   }, [cleanupAudioGraph, closeSocket])
 
   const stop = useCallback(() => {
+    // A fallback engine still has to transcribe what it heard; it ends the turn itself.
+    if (fallbackSessionRef.current) {
+      fallbackSessionRef.current.commit()
+      return
+    }
     commit()
     cleanupAudioGraph()
     closeSocket()
@@ -359,6 +510,7 @@ export function useSpeechRecognition({
     permissionState,
     error,
     deviceNotice,
+    engineNotice,
     start,
     stop,
     cancel,

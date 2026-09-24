@@ -24,6 +24,7 @@ const provider: AdminAiProvider = {
   healthFailureKind: null,
   healthFailureReason: null,
   healthStaleAfterUtc: null,
+  kind: 'Language',
 }
 
 const baseModel: AdminAiModel = {

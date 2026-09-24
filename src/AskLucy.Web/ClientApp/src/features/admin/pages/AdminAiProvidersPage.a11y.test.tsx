@@ -25,6 +25,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: null,
     healthFailureReason: null,
     healthStaleAfterUtc: null,
+    kind: 'Language',
   },
   {
     id: 'provider-2',
@@ -40,6 +41,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: null,
     healthFailureReason: null,
     healthStaleAfterUtc: null,
+    kind: 'Language',
   },
   {
     // specs/043 US2 — a provider that is configured and credentialled but temporarily limited,
@@ -58,6 +60,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: 'QuotaExhausted',
     healthFailureReason: 'Google Gemini is configured correctly, but its usage quota is exhausted.',
     healthStaleAfterUtc: '2026-07-31T00:06:00Z',
+    kind: 'Language',
   },
   {
     // A credential failure, so the error-state chip and its reason are covered too.
@@ -74,6 +77,7 @@ const providers: AdminAiProvider[] = [
     healthFailureKind: 'CredentialRejected',
     healthFailureReason: 'OpenRouter rejected the configured credential.',
     healthStaleAfterUtc: null,
+    kind: 'Language',
   },
 ]
 
@@ -122,6 +126,9 @@ const server = setupServer(
       roles: [],
       permissions: ['admin.ai-providers.view', 'admin.ai-providers.manage', 'admin.custom-models.view'],
     }),
+  ),
+  http.get('*/api/v1/admin/custom-models/deployment-status', () =>
+    HttpResponse.json({ isConfigured: true, transport: 'FTPS', maxDeploymentBytes: 2 ** 30 }),
   ),
   http.get('*/api/v1/admin/custom-models', () =>
     HttpResponse.json({ items: [], page: 1, pageSize: 50, totalCount: 0 }),

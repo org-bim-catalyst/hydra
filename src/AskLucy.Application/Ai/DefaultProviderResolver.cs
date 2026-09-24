@@ -24,13 +24,15 @@ public sealed class DefaultProviderResolver(IAIProviderRepository providers, IAI
             var preferredProvider = await providers.GetByIdAsync(preferredProviderId, cancellationToken);
             var preferredModel = await models.GetByIdAsync(preferredModelId, cancellationToken);
 
-            if (preferredProvider is { IsEnabled: true } && preferredModel is { IsSelectable: true } && preferredModel.ProviderId == preferredProviderId)
+            if (preferredProvider is { IsAvailableForConversation: true } && preferredModel is { IsSelectable: true } && preferredModel.ProviderId == preferredProviderId)
             {
                 return new ResolvedDefault(preferredProviderId, preferredModelId, preference.DefaultGenerationParametersJson, IsPlatformDefault: false);
             }
         }
 
-        var enabledProviders = await providers.ListEnabledAsync(cancellationToken);
+        var enabledProviders = (await providers.ListEnabledAsync(cancellationToken))
+            .Where(p => p.IsAvailableForConversation)
+            .ToList();
 
         foreach (var provider in enabledProviders.Where(p => p.DefaultModelId.HasValue))
         {

@@ -19,6 +19,7 @@ const elevenLabs: AdminVoiceProvider = {
   credentialHint: 'sk_1...9XYZ',
   modelStatus: 'Ready',
   modelStatusReason: null,
+  vendorEnabled: null,
 }
 
 const supertonic: AdminVoiceProvider = {
@@ -33,6 +34,7 @@ const supertonic: AdminVoiceProvider = {
   credentialHint: null,
   modelStatus: 'Ready',
   modelStatusReason: null,
+  vendorEnabled: null,
 }
 
 const voicesByProvider: Record<string, VoiceOption[]> = {
@@ -245,8 +247,8 @@ describe('AdminVoicePage (specs/070)', () => {
 
   it('adds a provider from the + button and selects it', async () => {
     const engines: VoiceEngine[] = [
-      { providerKey: 'ElevenLabs', displayName: 'ElevenLabs', requiresCredential: true, isAdded: true },
-      { providerKey: 'Supertonic', displayName: 'Supertonic (on-server)', requiresCredential: false, isAdded: false },
+      { providerKey: 'ElevenLabs', displayName: 'ElevenLabs', requiresCredential: true, isAdded: true, isKeyedAsAiProvider: false },
+      { providerKey: 'Supertonic', displayName: 'Supertonic (on-server)', requiresCredential: false, isAdded: false, isKeyedAsAiProvider: false },
     ]
     let body: unknown
     let added = false
@@ -281,5 +283,53 @@ describe('AdminVoicePage (specs/070)', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('Voice provider', { selector: '[role="combobox"]' })).toHaveTextContent('Supertonic (on-server) — failover 1'),
     )
+  })
+
+  describe('an engine keyed under AI providers', () => {
+    it('shows its on/off state and links to AI providers instead of offering a key', async () => {
+      server.use(
+        http.get('*/api/v1/admin/voice/providers', () =>
+          HttpResponse.json([{ ...elevenLabs, vendorEnabled: false }, supertonic]),
+        ),
+      )
+      renderPage()
+
+      expect(await screen.findByText('Manage under AI providers')).toHaveAttribute('href', '/admin/ai-providers')
+      expect(screen.getByText('Off')).toBeInTheDocument()
+      expect(screen.getByText(/Switched off — replies fail over/)).toBeInTheDocument()
+      expect(screen.queryByText('Replace key')).toBeNull()
+      expect(screen.queryByText('Set key')).toBeNull()
+    })
+
+    it('asks for no key when adding it, and sends none', async () => {
+      const engines: VoiceEngine[] = [
+        { providerKey: 'ElevenLabs', displayName: 'ElevenLabs', requiresCredential: true, isAdded: false, isKeyedAsAiProvider: true },
+      ]
+      let body: unknown
+      server.use(
+        http.get('*/api/v1/admin/voice/providers', () => HttpResponse.json([supertonic])),
+        http.get('*/api/v1/admin/voice/engines', () => HttpResponse.json(engines)),
+        http.post('*/api/v1/admin/voice/providers', async ({ request }) => {
+          body = await request.json()
+          return HttpResponse.json({ ...elevenLabs, priority: 1, isPrimary: false, vendorEnabled: true }, { status: 201 })
+        }),
+      )
+      renderPage()
+      await waitFor(() => expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Female 1'))
+
+      fireEvent.click(screen.getByLabelText('Add voice provider'))
+      await screen.findByText('Add voice provider', { selector: 'h2' })
+      const dialog = document.querySelector('[role="dialog"]') as HTMLElement
+      await waitFor(() => expect(within(dialog).getByText('Provider', { selector: 'label' })).toBeInTheDocument())
+      fireEvent.mouseDown(dialog.querySelector('[role="combobox"]') as HTMLElement)
+      await waitFor(() => expect(document.querySelector('ul[role="listbox"]')).not.toBeNull())
+      fireEvent.click(within(document.querySelector('ul[role="listbox"]') as HTMLElement).getByText('ElevenLabs'))
+
+      expect(within(dialog).getByText(/uses the API key set under Admin → AI providers/)).toBeInTheDocument()
+      expect(within(dialog).queryByText('API key', { selector: 'label' })).toBeNull()
+      fireEvent.click(within(dialog).getByText('Add'))
+
+      await waitFor(() => expect(body).toEqual({ providerKey: 'ElevenLabs', apiKey: null }))
+    })
   })
 })

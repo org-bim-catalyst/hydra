@@ -38,11 +38,11 @@ export function AdminDefaultModelsPage() {
   })
 
   /**
-   * Only providers that are enabled and hold a credential. A default model on a provider that
+   * Only language providers that are enabled and hold a credential. A default model on a provider that
    * cannot be used is a setting with nowhere to apply — and the Capabilities page will not offer
    * it either, so listing it here only invites configuring something inert.
    */
-  const assignableProviders = (providers ?? []).filter((p) => p.isEnabled && p.hasCredential)
+  const assignableProviders = (providers ?? []).filter((p) => p.isEnabled && p.hasCredential && adminAiProvidersApi.isLanguageProvider(p))
 
   /**
    * Every row's model list, fetched here rather than left to each row to discover on its own.
