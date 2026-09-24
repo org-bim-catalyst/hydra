@@ -44,9 +44,9 @@ Approach, as resolved in [research.md](./research.md):
 
 | Principle | Status | Notes |
 |---|---|---|
-| §2 I — Clean Architecture & Dependency Rule | **PASS** | Claim gate, `TurnOutcome` and the routing projection live in `AskLucy.Application`; `AskLucy.Web` only wires the gate into the SSE write. No EF Core reference added to Application — the outcome is a plain record serialized at the persistence boundary. |
+| §2 I — Clean Architecture & Dependency Rule | **PASS** | Claim gate, `RecordedTurnOutcome` and the routing projection live in `AskLucy.Application`; `AskLucy.Web` only wires the gate into the SSE write. No EF Core reference added to Application — the outcome is a plain record serialized at the persistence boundary. |
 | §2 II — SOLID | **PASS** | Gate, resolver and summary projection are each a single responsibility behind an interface. `RetryTargetResolver` parallels `SelectedActionResolver` rather than extending it, so neither grows a mode flag. |
-| §2 III — Simplicity First | **PASS** | One nullable column, no new table, no new aggregate. A user-facing setting for voice scope and a separate `TurnOutcome` table were both rejected as YAGNI. |
+| §2 III — Simplicity First | **PASS** | One nullable column, no new table, no new aggregate. A user-facing setting for voice scope and a separate `RecordedTurnOutcome` table were both rejected as YAGNI. |
 | §2 V — Dependency Inversion & Testability | **PASS** | The gate is deterministic and provider-free, so the highest-risk logic is unit-testable without a network or an LLM. |
 | §2 VIII — No Silent Failures (NON-NEGOTIABLE) | **PASS** | This feature *is* the principle applied. Outcome persistence failure is surfaced (FR-004d); retry failures reach the chat (FR-014); the audit trail's write failure is logged and surfaced to operators without failing the turn (FR-004f). Per the standing project reading, the principle governs capturing failures for diagnosability — replacing a false claim with an accurate one for the user is not a violation. |
 | §5 — Database Principles | **PASS** | Additive, nullable, no backfill, no data loss. Code-first migration. |
@@ -96,7 +96,7 @@ src/
 │       ├── TurnDecisionPrompt.cs                        # renders the summary
 │       ├── TurnRecorder.cs                              # extended to every turn, still advisory
 │       ├── SelectedActionResolver.cs                    # precedent — unchanged
-│       ├── TurnOutcome.cs                               # NEW — verdict + attempts
+│       ├── RecordedTurnOutcome.cs                               # NEW — verdict + attempts
 │       ├── TurnOutcomeClaimGate.cs                      # NEW — deterministic sentence gate
 │       ├── RecentTurnOutcomeSummary.cs                  # NEW — bounded projection
 │       └── RetryTargetResolver.cs                       # NEW — mirrors SelectedActionResolver
@@ -127,7 +127,7 @@ The three stories are independently deployable, and US1's foundation is a hard p
 
 | Order | Scope | Why here |
 |---|---|---|
-| 1 | `TurnOutcome` model, column, migration, recording on **both** the normal and mid-stream-failure paths | Everything else reads this. Without it US2 has nothing to replay and the gate has nothing to check. |
+| 1 | `RecordedTurnOutcome` model, column, migration, recording on **both** the normal and mid-stream-failure paths | Everything else reads this. Without it US2 has nothing to replay and the gate has nothing to check. |
 | 2 | Claim gate at the delta write site | Delivers US1's guarantee — the reported harm stops here, before any retry work. |
 | 3 | Bounded routing summary into `TurnDecider` | Makes typed retry routable (US2); also improves ordinary follow-ups. |
 | 4 | `RetryTargetResolver`, `RetryRequest`, dispatch, retry affordance | Completes US2. Depends on 1 and 3. |

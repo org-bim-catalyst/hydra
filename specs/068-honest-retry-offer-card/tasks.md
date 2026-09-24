@@ -43,20 +43,20 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 - [ ] T004 [P] Create `TurnVerdict` enum (`AnsweredInWords`, `Acted`, `FailedBeforeCompleting`) in `src/AskLucy.Application/Conversations/Runtime/TurnVerdict.cs`
 - [ ] T005 [P] Create `ActionAttempt` record (Kind, Key, TargetLabel, ArgumentsJson, Succeeded, FailureReason) in `src/AskLucy.Application/Conversations/Runtime/ActionAttempt.cs`
-- [ ] T006 Create `TurnOutcome` record (Verdict, Attempts, FailureReason, RecordedAtUtc) with the validation rules from data-model.md §2 in `src/AskLucy.Application/Conversations/Runtime/TurnOutcome.cs` — `AnsweredInWords` ⇒ empty Attempts; `Acted` ⇒ non-empty; `Succeeded == false` ⇒ FailureReason required
-- [ ] T007 [P] Unit-test `TurnOutcome` validation rules in `tests/AskLucy.Application.Tests/Conversations/Runtime/TurnOutcomeTests.cs`
+- [ ] T006 Create `RecordedTurnOutcome` record (Verdict, Attempts, FailureReason, RecordedAtUtc) with the validation rules from data-model.md §2 in `src/AskLucy.Application/Conversations/Runtime/RecordedTurnOutcome.cs` — `AnsweredInWords` ⇒ empty Attempts; `Acted` ⇒ non-empty; `Succeeded == false` ⇒ FailureReason required
+- [ ] T007 [P] Unit-test `RecordedTurnOutcome` validation rules in `tests/AskLucy.Application.Tests/Conversations/Runtime/RecordedTurnOutcomeTests.cs`
 
 ### Persistence
 
 - [ ] T008 Add nullable `TurnOutcomeJson` string property to `src/AskLucy.Domain/Chats/Message.cs`, mirroring `SuggestedActionsJson`
 - [ ] T009 Configure the column as `nvarchar(max)` nullable in the message entity configuration under `src/AskLucy.Persistence/`
-- [ ] T010 Generate the additive migration (`dotnet ef migrations add AddMessageTurnOutcome`) — nullable, no backfill; verify no BOM and no `\r\r\n` line endings before committing
+- [ ] T010 Generate the additive migration (`dotnet ef migrations add AddMessageRecordedTurnOutcome`) — nullable, no backfill; verify no BOM and no `\r\r\n` line endings before committing
 - [ ] T011 Extend `AppendMessageCommand` (and its handler) to accept and persist the serialized outcome in the same transaction as the message, so FR-004d has no partial state to detect
 - [ ] T012 [P] Persistence test for `TurnOutcomeJson` round-trip including a null outcome on a legacy message, in `tests/AskLucy.Persistence.Tests/` — guard with `PERSISTENCE_TESTS_DEDICATED_DATABASE=1`
 
 ### Recording on both paths
 
-- [ ] T013 Build a `TurnOutcome` on the normal completion path in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs`, populating `Attempts` from each capability's own reported result (FR-001)
+- [ ] T013 Build a `RecordedTurnOutcome` on the normal completion path in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs`, populating `Attempts` from each capability's own reported result (FR-001)
 - [ ] T014 Build a `FailedBeforeCompleting` outcome in the mid-stream catch at `src/AskLucy.Web/Controllers/v1/AiController.cs:265` and pass it to `PersistAssistantMessageAsync` **before** the failure notice is written (FR-004c) — this is the exact path that recorded nothing in production
 - [ ] T015 Thread the outcome through `PersistAssistantMessageAsync` in `src/AskLucy.Web/Controllers/v1/AiController.cs` into `AppendMessageCommand`
 - [ ] T016 Surface a failed outcome persist rather than continuing silently (FR-004d) in `src/AskLucy.Web/Controllers/v1/AiController.cs`
@@ -193,7 +193,7 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 - [ ] T072 [P] Run `dotnet format` and verify CI line-ending rules before pushing
 - [ ] T073 [P] Confirm `npx tsc -b --noEmit` still passes
 - [ ] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
-- [ ] T075 Add migration notes for `AddMessageTurnOutcome` (additive, nullable, no backfill)
+- [ ] T075 Add migration notes for `AddMessageRecordedTurnOutcome` (additive, nullable, no backfill)
 - [ ] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build`
 - [ ] T077 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim
 

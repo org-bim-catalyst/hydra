@@ -20,12 +20,14 @@ Nullable because every message persisted before this migration has no outcome, a
 
 **Migration**: additive, nullable, no backfill. Historical assistant messages keep `null` and are treated as "outcome unknown" — they are never read as successes.
 
-## 2. `TurnOutcome` (serialized document)
+## 2. `RecordedTurnOutcome` (serialized document)
 
 The value serialized into `TurnOutcomeJson`. Lives in `AskLucy.Application`; the Application layer never references EF Core, so this is a plain record serialized at the persistence boundary.
 
+**Why not just `TurnOutcome`**: that name is already taken. `AskLucy.Application.Conversations.Capabilities.TurnOutcome` (`TurnContext.cs:78`) is a specs/045 per-turn offer-suppression record — `WasInvokedThisTurn`, `WasOfferedAndIgnored` — consumed by `ConversationCapabilityCatalog.OfferableFor`. Different concept, adjacent namespace, and `ConversationTurnOrchestrator` imports both. Do not "simplify" this back to `TurnOutcome`.
+
 ```
-TurnOutcome
+RecordedTurnOutcome
 ├── Verdict            : TurnVerdict        — required
 ├── Attempts           : ActionAttempt[]    — may be empty
 ├── FailureReason      : string?            — set when the turn failed before completing
