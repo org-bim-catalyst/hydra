@@ -26,6 +26,11 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(m => m.SelectedActionKind).HasMaxLength(20);
         builder.Property(m => m.SelectedActionKey).HasMaxLength(120);
         builder.Property(m => m.SelectedActionArgumentsJson);
+
+        // specs/068 — the turn's recorded outcome. nvarchar(max) by convention, nullable:
+        // every message written before this column exists has no outcome, and a null one is
+        // read as "unknown", never as a success. Not indexed — it is read by message id.
+        builder.Property(m => m.TurnOutcomeJson);
         builder.Property(m => m.Provider).HasMaxLength(50);
         builder.Property(m => m.Model).HasMaxLength(100);
         builder.Property(m => m.GenerationParametersJson);

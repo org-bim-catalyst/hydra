@@ -41,7 +41,8 @@ public sealed class AppendMessageCommandHandler(
             suggestedActionsJson: request.SuggestedActionsJson,
             selectedActionKind: request.SelectedActionKind,
             selectedActionKey: request.SelectedActionKey,
-            selectedActionArgumentsJson: request.SelectedActionArgumentsJson);
+            selectedActionArgumentsJson: request.SelectedActionArgumentsJson,
+            turnOutcomeJson: request.TurnOutcomeJson);
 
         foreach (var attachment in request.Attachments ?? [])
         {

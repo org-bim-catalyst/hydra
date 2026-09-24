@@ -74,6 +74,24 @@ public sealed class Message : BaseEntity
     /// <summary>Arguments bound to the selection. Non-null exactly when <see cref="SelectedActionKey"/> is.</summary>
     public string? SelectedActionArgumentsJson { get; private set; }
 
+    /// <summary>
+    /// specs/068 FR-004a/FR-004b — what the turn that produced this <b>assistant</b> message
+    /// actually did, as a serialized
+    /// <c>AskLucy.Application.Conversations.Runtime.RecordedTurnOutcome</c> (verdict + per-action
+    /// attempts). The single authority for whether a success may be claimed.
+    /// <para>
+    /// Null on user messages, and on assistant messages written before this column existed. A null
+    /// outcome means "unknown", never "succeeded" — the claim gate suppresses action claims rather
+    /// than trusting them (FR-002c).
+    /// </para>
+    /// <para>
+    /// Set at creation like the offer/selection record above, because this aggregate is
+    /// append-only. An outcome is a creation-time fact: the turn is over by the time its message
+    /// is persisted, including the turn that failed partway.
+    /// </para>
+    /// </summary>
+    public string? TurnOutcomeJson { get; private set; }
+
     /// <summary>The AI provider that produced this message (assistant messages only); null for user messages.</summary>
     public string? Provider { get; private set; }
 
@@ -139,7 +157,8 @@ public sealed class Message : BaseEntity
         string? suggestedActionsJson = null,
         string? selectedActionKind = null,
         string? selectedActionKey = null,
-        string? selectedActionArgumentsJson = null)
+        string? selectedActionArgumentsJson = null,
+        string? turnOutcomeJson = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -171,6 +190,7 @@ public sealed class Message : BaseEntity
             SelectedActionKind = selectedActionKind,
             SelectedActionKey = selectedActionKey,
             SelectedActionArgumentsJson = selectedActionArgumentsJson,
+            TurnOutcomeJson = turnOutcomeJson,
             CreatedAtUtc = DateTime.UtcNow,
             CreatedBy = actor,
         };

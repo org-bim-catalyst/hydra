@@ -29,7 +29,7 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 - [ ] T001 Set `PERSISTENCE_TESTS_CONNECTION_STRING` from `src/AskLucy.Web/appsettings.Development.json` (shared site4now test DB, not LocalDB — LocalDB cannot run the full-text migrations) and confirm `dotnet test tests/AskLucy.Web.Tests` reaches Hangfire startup
 - [ ] T002 [P] Record a baseline run of `cd src/AskLucy.Web/ClientApp && npm test` and note which `ChatPage.test.tsx` cases are already flaky under parallel load, so Phase 5 failures are attributable
-- [ ] T003 [P] Confirm `cd src/AskLucy.Web/ClientApp && npx tsc -b --noEmit` passes (a bare `tsc --noEmit` silently checks nothing in this repo)
+- [X] T003 [P] Confirm `cd src/AskLucy.Web/ClientApp && npx tsc -b --noEmit` passes (a bare `tsc --noEmit` silently checks nothing in this repo)
 
 ---
 
@@ -41,18 +41,18 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 
 ### Domain and model
 
-- [ ] T004 [P] Create `TurnVerdict` enum (`AnsweredInWords`, `Acted`, `FailedBeforeCompleting`) in `src/AskLucy.Application/Conversations/Runtime/TurnVerdict.cs`
-- [ ] T005 [P] Create `ActionAttempt` record (Kind, Key, TargetLabel, ArgumentsJson, Succeeded, FailureReason) in `src/AskLucy.Application/Conversations/Runtime/ActionAttempt.cs`
-- [ ] T006 Create `RecordedTurnOutcome` record (Verdict, Attempts, FailureReason, RecordedAtUtc) with the validation rules from data-model.md §2 in `src/AskLucy.Application/Conversations/Runtime/RecordedTurnOutcome.cs` — `AnsweredInWords` ⇒ empty Attempts; `Acted` ⇒ non-empty; `Succeeded == false` ⇒ FailureReason required
-- [ ] T007 [P] Unit-test `RecordedTurnOutcome` validation rules in `tests/AskLucy.Application.Tests/Conversations/Runtime/RecordedTurnOutcomeTests.cs`
+- [X] T004 [P] Create `TurnVerdict` enum (`AnsweredInWords`, `Acted`, `FailedBeforeCompleting`) in `src/AskLucy.Application/Conversations/Runtime/TurnVerdict.cs`
+- [X] T005 [P] Create `ActionAttempt` record (Kind, Key, TargetLabel, ArgumentsJson, Succeeded, FailureReason) in `src/AskLucy.Application/Conversations/Runtime/ActionAttempt.cs`
+- [X] T006 Create `RecordedTurnOutcome` record (Verdict, Attempts, FailureReason, RecordedAtUtc) with the validation rules from data-model.md §2 in `src/AskLucy.Application/Conversations/Runtime/RecordedTurnOutcome.cs` — `AnsweredInWords` ⇒ empty Attempts; `Acted` ⇒ non-empty; `Succeeded == false` ⇒ FailureReason required
+- [X] T007 [P] Unit-test `RecordedTurnOutcome` validation rules in `tests/AskLucy.Application.Tests/Conversations/Runtime/RecordedTurnOutcomeTests.cs`
 
 ### Persistence
 
-- [ ] T008 Add nullable `TurnOutcomeJson` string property to `src/AskLucy.Domain/Chats/Message.cs`, mirroring `SuggestedActionsJson`
-- [ ] T009 Configure the column as `nvarchar(max)` nullable in the message entity configuration under `src/AskLucy.Persistence/`
-- [ ] T010 Generate the additive migration (`dotnet ef migrations add AddMessageRecordedTurnOutcome`) — nullable, no backfill; verify no BOM and no `\r\r\n` line endings before committing
-- [ ] T011 Extend `AppendMessageCommand` (and its handler) to accept and persist the serialized outcome in the same transaction as the message, so FR-004d has no partial state to detect
-- [ ] T012 [P] Persistence test for `TurnOutcomeJson` round-trip including a null outcome on a legacy message, in `tests/AskLucy.Persistence.Tests/` — guard with `PERSISTENCE_TESTS_DEDICATED_DATABASE=1`
+- [X] T008 Add nullable `TurnOutcomeJson` string property to `src/AskLucy.Domain/Chats/Message.cs`, mirroring `SuggestedActionsJson`
+- [X] T009 Configure the column as `nvarchar(max)` nullable in the message entity configuration under `src/AskLucy.Persistence/`
+- [X] T010 Generate the additive migration (`dotnet ef migrations add AddMessageRecordedTurnOutcome`) — nullable, no backfill; verify no BOM and no `\r\r\n` line endings before committing
+- [X] T011 Extend `AppendMessageCommand` (and its handler) to accept and persist the serialized outcome in the same transaction as the message, so FR-004d has no partial state to detect
+- [X] T012 [P] Persistence test for `TurnOutcomeJson` round-trip including a null outcome on a legacy message, in `tests/AskLucy.Persistence.Tests/` — guard with `PERSISTENCE_TESTS_DEDICATED_DATABASE=1`
 
 ### Recording on both paths
 

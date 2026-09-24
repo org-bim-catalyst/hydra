@@ -55,4 +55,9 @@ public sealed record AppendMessageCommand(
     // and grounded — never from the client's own request body directly.
     string? SelectedActionKind = null,
     string? SelectedActionKey = null,
-    string? SelectedActionArgumentsJson = null) : IRequest<MessageDto>;
+    string? SelectedActionArgumentsJson = null,
+    // specs/068 FR-004a/FR-004b — the serialized RecordedTurnOutcome for the turn this assistant
+    // message closes. Passed through to Message.Create so it lands in the same transaction as the
+    // message itself: FR-004d then has no partial state to detect, because there is no window in
+    // which a message exists without its outcome.
+    string? TurnOutcomeJson = null) : IRequest<MessageDto>;
