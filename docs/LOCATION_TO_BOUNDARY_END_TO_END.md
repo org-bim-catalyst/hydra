@@ -766,6 +766,33 @@ Things a reviewer should push on.
      (`MaskContourVectorizer.TryExtractRing(..., out touchesImageEdge)`). It logs
      `OutlineClippedByFrame` and falls back to the mapped outline. A clipped fill is never returned
      as a boundary, however the framing turns out.
+
+   **Sixth update (2026-09-25, same day): BurJuman is two OSM ways.** Once malls were queried,
+   BurJuman got half its outline. OSM maps it as way 225672808 ("BurJuman Mall") and way 102828180
+   ("Bur Juman Shopping Center"). Both are `shop=mall` and share a wall (the same node ids).
+   `OverpassBoundaryCandidateProvider.MergeAdjacentPartsOfOneSite` now merges two candidates into
+   one outline when all three of these hold:
+   - They match the same query filter (e.g. both `shop=mall`).
+   - Their names are the same after lower-casing and removing spaces, punctuation and generic words
+     (the, mall, shopping, center, centre). `name` and `name:en` are both compared. The name must be
+     at least four characters.
+   - They share at least one edge. Both rings are wound the same way, so a shared edge runs a→b in
+     one ring and b→a in the other. Those pairs are dropped, and the edges left over must chain into
+     exactly one closed ring. Touching only at a corner does not count.
+
+   If any check fails, the candidates stay separate. The name rule keeps real neighbours apart,
+   e.g. Al Safa Park 1 and Al Safa Park 2. The merge happens in the provider, not the scorer,
+   because only there do shared OSM nodes make "shares an edge" an exact test. Checked against the
+   live OSM data for the two BurJuman ways: 2 shared edges are dropped, and the other 36 close into
+   one ring.
+
+   The other two reports that day were not code bugs:
+   - **Al Safa Park "did not succeed".** Overpass itself was down. `overpass-api.de` and `z.`
+     returned 504 and 429 on every attempt, so the provider correctly raised
+     `BoundaryProviderUnavailableException`.
+   - **The Dubai Mall outline "slightly shifted".** Relation 18195959 lines up with the footprint on
+     a flat roadmap. On the 3D viewer, the mall's extruded massing hides part of the ground-level
+     outline, and the perspective makes the rest look offset.
 ---
 
 ## 10. Where to look in the code

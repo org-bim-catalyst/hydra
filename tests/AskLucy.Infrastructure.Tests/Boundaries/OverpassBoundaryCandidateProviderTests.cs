@@ -240,6 +240,101 @@ public sealed class OverpassBoundaryCandidateProviderTests
         results.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Two closed ways side by side: west spans lon 55.300-55.301, east 55.301-55.302. When
+    /// <paramref name="shareWall"/> they share the whole wall at lon 55.301 (both of its nodes);
+    /// otherwise they meet only at its top corner.
+    /// </summary>
+    private static string TwoAdjacentWaysJson(string westTags, string eastTags, bool shareWall = true)
+    {
+        var eastSouthWest = shareWall ? "{ \"lat\": 25.2530, \"lon\": 55.3010 }" : "{ \"lat\": 25.2530, \"lon\": 55.3015 }";
+        return $$"""
+            {
+              "elements": [
+                {
+                  "type": "way", "id": 1, "tags": {{westTags}},
+                  "geometry": [
+                    { "lat": 25.2540, "lon": 55.3000 }, { "lat": 25.2540, "lon": 55.3010 },
+                    { "lat": 25.2530, "lon": 55.3010 }, { "lat": 25.2530, "lon": 55.3000 },
+                    { "lat": 25.2540, "lon": 55.3000 }
+                  ]
+                },
+                {
+                  "type": "way", "id": 2, "tags": {{eastTags}},
+                  "geometry": [
+                    { "lat": 25.2540, "lon": 55.3010 }, { "lat": 25.2540, "lon": 55.3020 },
+                    { "lat": 25.2530, "lon": 55.3020 }, {{eastSouthWest}},
+                    { "lat": 25.2540, "lon": 55.3010 }
+                  ]
+                }
+              ]
+            }
+            """;
+    }
+
+    /// <summary>
+    /// BurJuman, 2026-09-25: OSM maps it as two <c>shop=mall</c> ways that share a wall, and only
+    /// one half was highlighted.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldMergeAdjacentPartsOfOneSite_IntoOneOutline()
+    {
+        var json = TwoAdjacentWaysJson(
+            """{ "shop": "mall", "name": "مركز برجمان للتسوق", "name:en": "BurJuman Mall" }""",
+            """{ "shop": "mall", "name": "مركز برجمان دبي", "name:en": "Bur Juman Shopping Center" }""");
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        results.Should().ContainSingle();
+        results[0].Id.Should().Be("osm_way_1+osm_way_2");
+        results[0].Polygon.ExteriorRing.Should().HaveCount(7, "six corners plus the closing point; the shared wall is gone");
+        results[0].Polygon.ExteriorRing[0].Should().Be(results[0].Polygon.ExteriorRing[^1]);
+        var halfArea = GeometryMath.AreaSquareMeters([
+            new(25.2540, 55.3000), new(25.2540, 55.3010), new(25.2530, 55.3010), new(25.2530, 55.3000), new(25.2540, 55.3000)]);
+        results[0].AreaSquareMeters.Should().BeApproximately(2 * halfArea, 2 * halfArea * 0.01);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldKeepAdjacentSitesApart_WhenTheirNamesDiffer()
+    {
+        var json = TwoAdjacentWaysJson(
+            """{ "leisure": "park", "name": "Al Safa Park 1" }""",
+            """{ "leisure": "park", "name": "Al Safa Park 2" }""");
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        results.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldKeepAdjacentSitesApart_WhenTheyAreDifferentKindsOfSite()
+    {
+        var json = TwoAdjacentWaysJson(
+            """{ "shop": "mall", "name": "BurJuman Mall" }""",
+            """{ "leisure": "park", "name": "BurJuman Park" }""");
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        results.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldNotMerge_PartsThatOnlyTouchAtACorner()
+    {
+        var json = TwoAdjacentWaysJson(
+            """{ "shop": "mall", "name": "BurJuman Mall" }""",
+            """{ "shop": "mall", "name": "Bur Juman Shopping Center" }""",
+            shareWall: false);
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        results.Should().HaveCount(2);
+    }
+
     [Fact]
     public async Task SearchAsync_ShouldSkipWays_WhenGeometryIsNotAClosedRing()
     {

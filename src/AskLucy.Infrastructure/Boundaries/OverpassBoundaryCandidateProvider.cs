@@ -153,11 +153,13 @@ internal sealed class OverpassBoundaryCandidateProvider(
             var result = await response.Content.ReadFromJsonAsync<OverpassResponse>(cancellationToken);
             var elements = result?.Elements ?? [];
 
-            return elements
+            var candidates = elements
                 .Select(e => (Element: e, Ring: OuterRingOf(e)))
                 .Where(x => x.Ring is not null)
                 .Select(x => MapElementToCandidate(x.Element, x.Ring!, center))
                 .ToList();
+
+            return MergeAdjacentPartsOfOneSite(candidates, center);
         }
         catch (BoundaryProviderUnavailableException)
         {
@@ -269,6 +271,187 @@ internal sealed class OverpassBoundaryCandidateProvider(
         }
 
         return largest;
+    }
+
+    /// <summary>
+    /// OSM sometimes maps one site as several adjacent areas. BurJuman is two <c>shop=mall</c> ways
+    /// ("BurJuman Mall" and "Bur Juman Shopping Center") that share a wall, so only one half was
+    /// highlighted (2026-09-25). Two candidates are merged into one outline when they are the same
+    /// kind of site, share at least one edge, and carry the same name once generic words are
+    /// stripped. The name rule keeps genuinely separate neighbours apart: Al Safa Park 1 and
+    /// Al Safa Park 2 are both parks, but "alsafapark1" is not "alsafapark2". Merging happens
+    /// here, not in the scorer, because only OSM's shared nodes make "shares an edge" exact.
+    /// </summary>
+    private static List<BoundaryCandidate> MergeAdjacentPartsOfOneSite(List<BoundaryCandidate> candidates, GeoPoint center)
+    {
+        var merged = true;
+        while (merged)
+        {
+            merged = false;
+            for (var i = 0; i < candidates.Count && !merged; i++)
+            {
+                for (var j = i + 1; j < candidates.Count && !merged; j++)
+                {
+                    var union = TryMergeParts(candidates[i], candidates[j], center);
+                    if (union is null)
+                    {
+                        continue;
+                    }
+
+                    candidates[i] = union;
+                    candidates.RemoveAt(j);
+                    merged = true;
+                }
+            }
+        }
+
+        return candidates;
+    }
+
+    private static BoundaryCandidate? TryMergeParts(BoundaryCandidate a, BoundaryCandidate b, GeoPoint center)
+    {
+        var kind = SiteKindOf(a.Tags);
+        if (kind is null || kind != SiteKindOf(b.Tags) || !NameCoresOf(a.Tags).Overlaps(NameCoresOf(b.Tags)))
+        {
+            return null;
+        }
+
+        var ring = UnionOfEdgeSharingRings(a.Polygon.ExteriorRing, b.Polygon.ExteriorRing);
+        if (ring is null)
+        {
+            return null;
+        }
+
+        return new BoundaryCandidate(
+            Id: $"{a.Id}+{b.Id}",
+            Polygon: new SiteBoundaryPolygon(ring),
+            Source: a.Source,
+            Name: a.Name.Length > 0 ? a.Name : b.Name,
+            Tags: a.Tags,
+            DistanceToCenterMeters: GeometryMath.DistanceMeters(GeometryMath.Centroid(ring), center),
+            AreaSquareMeters: GeometryMath.AreaSquareMeters(ring));
+    }
+
+    /// <summary>The first query filter the tags match, as <c>key=value</c> — e.g. <c>shop=mall</c>.</summary>
+    private static string? SiteKindOf(IReadOnlyDictionary<string, string> tags)
+    {
+        foreach (var (key, values) in CandidateTagFilters)
+        {
+            if (tags.TryGetValue(key, out var value) && (values is null || values.Contains(value)))
+            {
+                return $"{key}={value}";
+            }
+        }
+
+        return null;
+    }
+
+    private static readonly HashSet<string> GenericNameWords = ["the", "mall", "shopping", "center", "centre"];
+
+    /// <summary>
+    /// Each name the element carries, lower-cased with punctuation, spaces and generic words
+    /// removed: "Bur Juman Shopping Center" and "BurJuman Mall" both become "burjuman". Cores
+    /// shorter than four characters are dropped as too weak to prove two areas are one site.
+    /// </summary>
+    private static HashSet<string> NameCoresOf(IReadOnlyDictionary<string, string> tags)
+    {
+        var cores = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in (string[])["name", "name:en"])
+        {
+            if (!tags.TryGetValue(key, out var name))
+            {
+                continue;
+            }
+
+            var words = new List<string>();
+            var word = new System.Text.StringBuilder();
+            foreach (var ch in name.ToLowerInvariant().Append(' '))
+            {
+                if (char.IsLetterOrDigit(ch))
+                {
+                    word.Append(ch);
+                }
+                else if (word.Length > 0)
+                {
+                    words.Add(word.ToString());
+                    word.Clear();
+                }
+            }
+
+            var core = string.Concat(words.Where(w => !GenericNameWords.Contains(w)));
+            if (core.Length >= 4)
+            {
+                cores.Add(core);
+            }
+        }
+
+        return cores;
+    }
+
+    /// <summary>
+    /// The outline of two rings that share one or more edges. With both rings wound the same way,
+    /// a shared edge runs a→b in one and b→a in the other; dropping those pairs removes the
+    /// internal wall, and the remaining edges chain into the combined outline. Returns
+    /// <see langword="null"/> when nothing is shared (touching at a single corner is not
+    /// adjacency) or the leftover edges don't form exactly one closed ring.
+    /// </summary>
+    private static List<GeoPoint>? UnionOfEdgeSharingRings(IReadOnlyList<GeoPoint> first, IReadOnlyList<GeoPoint> second)
+    {
+        var edgesA = CounterClockwiseEdges(first);
+        var edgesB = CounterClockwiseEdges(second);
+        var reversedA = edgesA.Select(e => (e.To, e.From)).ToHashSet();
+        var reversedB = edgesB.Select(e => (e.To, e.From)).ToHashSet();
+
+        var remaining = edgesA.Where(e => !reversedB.Contains(e))
+            .Concat(edgesB.Where(e => !reversedA.Contains(e)))
+            .ToList();
+        if (remaining.Count == edgesA.Count + edgesB.Count || remaining.Count < 3)
+        {
+            return null;
+        }
+
+        var next = new Dictionary<GeoPoint, GeoPoint>();
+        foreach (var (from, to) in remaining)
+        {
+            if (!next.TryAdd(from, to))
+            {
+                return null;
+            }
+        }
+
+        var start = remaining[0].From;
+        var ring = new List<GeoPoint> { start };
+        var current = start;
+        while (ring.Count <= remaining.Count && next.TryGetValue(current, out var following))
+        {
+            ring.Add(following);
+            current = following;
+            if (current == start)
+            {
+                break;
+            }
+        }
+
+        return current == start && ring.Count == remaining.Count + 1 ? ring : null;
+    }
+
+    private static List<(GeoPoint From, GeoPoint To)> CounterClockwiseEdges(IReadOnlyList<GeoPoint> closedRing)
+    {
+        var points = closedRing.Take(closedRing.Count - 1).ToList();
+        var signedArea = 0.0;
+        for (var i = 0; i < points.Count; i++)
+        {
+            var p = points[i];
+            var q = points[(i + 1) % points.Count];
+            signedArea += (p.Longitude * q.Latitude) - (q.Longitude * p.Latitude);
+        }
+
+        if (signedArea < 0)
+        {
+            points.Reverse();
+        }
+
+        return points.Select((p, i) => (p, points[(i + 1) % points.Count])).ToList();
     }
 
     private static BoundaryCandidate MapElementToCandidate(OverpassElement element, List<GeoPoint> ring, GeoPoint center)
