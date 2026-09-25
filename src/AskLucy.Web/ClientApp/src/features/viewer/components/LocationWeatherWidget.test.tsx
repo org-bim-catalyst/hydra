@@ -98,7 +98,7 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
 
   // specs/073 research D5 — the widget is a 40 px card in the studio's HUD row, so it no longer
   // positions itself, and the row's start group (not the widget) carries RESERVED_ATTRIBUTE.
-  it('lays out as a row item: location name above the temperature, no self-positioning', async () => {
+  it('lays out as one line: icon, temperature, divider, then location name, with no self-positioning', async () => {
     server.use(http.get('*/api/v1/weather/current', () => HttpResponse.json(snapshot)))
     useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
     renderWidget()
@@ -106,7 +106,15 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
     const widget = await screen.findByRole('status')
     const name = screen.getByText('London, United Kingdom')
     const temperature = screen.getByText('15°C')
-    expect(name.compareDocumentPosition(temperature) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const icon = widget.querySelector('svg')
+    const divider = widget.querySelector('.MuiDivider-root')
+    expect(icon).not.toBeNull()
+    expect(divider).toHaveAttribute('aria-hidden', 'true')
+    expect(divider).toHaveClass('MuiDivider-vertical')
+    const order = [icon!, temperature, divider!, name]
+    for (let i = 1; i < order.length; i++) {
+      expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
 
     const style = window.getComputedStyle(widget)
     expect(style.position).not.toBe('absolute')
@@ -143,7 +151,7 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
 
     const widget = await screen.findByRole('status')
     expect(widget).toHaveTextContent('London, United Kingdom') // last-known reading retained
-    // specs/073 D5 — a compact inline marker on the temperature line, not a third block line, so
+    // specs/073 — a compact inline marker right after the temperature, not a line of its own, so
     // the card stays 40 px; the accessible name still spells it out in full.
     const marker = await screen.findByText(/last known/)
     expect(marker.tagName).toBe('SPAN')

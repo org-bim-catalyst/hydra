@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material'
+import { Box, Divider, Typography } from '@mui/material'
 import {
   RiCloudyLine,
   RiFoggyLine,
@@ -18,7 +18,7 @@ import { useCurrentWeather } from '../hooks/useCurrentWeather'
 import type { WeatherCondition } from '../api/weatherApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 
-/** Sized to sit beside two text lines inside the 40 px HUD card (specs/073 research D5). */
+/** Sized to the card's single line of text inside the 40 px HUD card (specs/073). */
 const ICON_SIZE = 20
 
 /** Everything the widget says, in one place. */
@@ -58,9 +58,9 @@ function conditionIcon(condition: WeatherCondition, isDaytime: boolean): ReactNo
  * has already loaded.
  *
  * specs/073: one item of the studio's top-left HUD row, on the shared 40 px `HudCard` surface —
- * the row positions it and reserves its space. Two lines fit that height (research D5): the
- * location name, then the temperature, with a stale reading marked inline on the temperature line
- * rather than on a third line of its own. */
+ * the row positions it and reserves its space. One line, read left to right: condition icon,
+ * temperature, a divider, then the location name (which truncates first when space runs out). A
+ * stale reading is marked inline after the temperature rather than on a line of its own. */
 export function LocationWeatherWidget() {
   // specs/036-startup-geolocation: reads coordinates from the shared store rather than props,
   // so both startup geolocation and agent-confirmed locations drive the same widget.
@@ -105,23 +105,26 @@ export function LocationWeatherWidget() {
     <HudCard
       role="status"
       aria-label={COPY.readingLabel(data.locationName, temperature, data.condition, isStale)}
-      maxWidth={240}
-      sx={{ gap: 1.25 }}
+      maxWidth={320}
+      sx={{ gap: 1 }}
     >
       <Box sx={{ display: 'flex', flexShrink: 0 }}>{conditionIcon(data.condition, data.isDaytime)}</Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" component="div" noWrap sx={{ lineHeight: 1.25, opacity: 0.8 }}>
-          {data.locationName}
-        </Typography>
-        <Typography variant="subtitle2" component="div" noWrap sx={{ lineHeight: 1.25, fontWeight: 600 }}>
-          {temperature}°C
-          {isStale && (
-            <Typography variant="caption" component="span" sx={{ ml: 0.75, opacity: 0.75, fontWeight: 400 }}>
-              {COPY.staleMarker}
-            </Typography>
-          )}
-        </Typography>
-      </Box>
+      <Typography variant="subtitle2" component="div" noWrap sx={{ flexShrink: 0, fontWeight: 600 }}>
+        {temperature}°C
+        {isStale && (
+          <Typography variant="caption" component="span" sx={{ ml: 0.75, opacity: 0.75, fontWeight: 400 }}>
+            {COPY.staleMarker}
+          </Typography>
+        )}
+      </Typography>
+      <Divider
+        orientation="vertical"
+        aria-hidden="true"
+        sx={{ height: 20, alignSelf: 'center', borderColor: 'currentColor', opacity: 0.35 }}
+      />
+      <Typography variant="body2" component="div" noWrap sx={{ minWidth: 0, opacity: 0.85 }}>
+        {data.locationName}
+      </Typography>
     </HudCard>
   )
 }

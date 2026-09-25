@@ -77,7 +77,7 @@ interface HudCardProps {
 | no location | `null` |
 | loading, no prior reading | `null` |
 | error, no prior reading | one line: "Weather unavailable" (reduced opacity), `role="status"` |
-| reading | condition icon · line 1: location name (`caption`, ellipsis) · line 2: `NN°C` (`subtitle2`, weight 600) |
+| reading | one line: condition icon · `NN°C` (`subtitle2`, weight 600) · vertical divider (`aria-hidden`) · location name (`body2`, ellipsis) — amended 2026-09-25 after the first live check, replacing the two-line name-over-temperature layout |
 | stale reading | same as reading, with an inline `· last known` marker on line 2. The accessible name still ends "(last known reading)". |
 
 ## `SiteBoundaryConfidenceBadge` (inside the 40 px card)
