@@ -159,6 +159,11 @@ public static class DependencyInjection
             .BindConfiguration(OverpassOptions.SectionName)
             .ValidateOnStart();
 
+        // ArcGIS API key for the ESRI imagery fallback. Optional, so nothing to validate: without
+        // it EsriSatelliteImageProvider uses World Imagery's keyless endpoint.
+        services.AddOptions<EsriOptions>()
+            .BindConfiguration(EsriOptions.SectionName);
+
         // specs/052-solar-analysis research D4 — building-footprint retrieval reuses the same
         // Overpass endpoints/mirrors above; this options type carries only the building-specific
         // settings (radius default, count cap, cache TTL) — no ApiKey to validate.
