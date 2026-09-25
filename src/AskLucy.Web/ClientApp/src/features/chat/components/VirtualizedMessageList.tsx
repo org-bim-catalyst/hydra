@@ -1,13 +1,13 @@
 import { Box } from '@mui/material'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { RefObject } from 'react'
 import type { ChatMessage, SuggestedAction } from '../api/aiApi'
 import type { VoiceControlsProps } from './CollapsedVoiceControls'
 import { MessageBubble } from './MessageBubble'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
 interface VirtualizedMessageListProps {
-  listParentRef: RefObject<HTMLDivElement | null>
+  /** The scroll container, owned by the parent. A DOM element rather than a ref: see below. */
+  scrollElement: HTMLDivElement | null
   messages: ChatMessage[]
   chatId: string | null
   isStreaming: boolean
@@ -31,12 +31,19 @@ interface VirtualizedMessageListProps {
  * page keeps its React Compiler memoization. TanStack Virtual's hook returns functions that
  * cannot be memoized safely, which makes the compiler skip memoizing whichever component calls
  * it (react-hooks/incompatible-library) — confining that to this small, presentation-only leaf
- * means the much larger page around it is unaffected. `listParentRef` (the scroll container) is
- * still owned by the parent, since it also wraps the empty/loading/error branches next to this
- * one — only the virtualized "loaded" branch's rendering moves here.
+ * means the much larger page around it is unaffected. The scroll container is still owned by the
+ * parent, since it also wraps the empty/loading/error branches next to this one — only the
+ * virtualized "loaded" branch's rendering moves here.
+ *
+ * The parent passes that container as an element held in state, not as a ref. React runs this
+ * component's layout effects before it attaches refs on the ancestor that owns the container, so
+ * on a fresh mount (e.g. reopening the chat panel after collapsing it) a ref still read `null`
+ * when the virtualizer looked for its scroll element. The virtualizer then rendered no rows at
+ * all, and the bubbles only reappeared on some unrelated re-render, such as toggling the panel's
+ * height. With the element in the parent's state, its attachment is itself a re-render.
  */
 export function VirtualizedMessageList({
-  listParentRef,
+  scrollElement,
   messages,
   chatId,
   isStreaming,
@@ -58,7 +65,7 @@ export function VirtualizedMessageList({
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: messages.length,
-    getScrollElement: () => listParentRef.current,
+    getScrollElement: () => scrollElement,
     estimateSize: () => 96,
     overscan: 8,
   })

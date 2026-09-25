@@ -813,6 +813,31 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
     expect(screen.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'true')
   })
 
+  // 2026-09-25, prod: after collapsing the chat and reopening it, the panel showed no bubbles
+  // until something unrelated re-rendered it (toggling the panel height, a later update).
+  // Reopening remounts the message list, and the virtualizer used to read its scroll container
+  // through a ref React had not attached yet, so it started with no rows.
+  it('shows the conversation straight away when a collapsed chat is reopened', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([makeMessage({ id: 'a1', content: 'Existing conversation content' })]),
+        ),
+      ),
+    )
+    useActiveConversationStore.setState({ activeChatId: CHAT_A })
+    renderChatPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
+    expect(await screen.findByText('Existing conversation content')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))
+
+    // Synchronous on purpose: the rows must be there on the reopening render itself, not after
+    // some later re-render happens to rescue them.
+    expect(screen.getByText('Existing conversation content')).toBeInTheDocument()
+  })
+
   it('toggling the resize control flips the persisted panel-height preference end-to-end (specs/030-composer-panel-refinements FR-008/FR-008a)', () => {
     renderChatPage()
     fireEvent.click(screen.getByRole('button', { name: 'Expand Ask Lucy assistant' }))

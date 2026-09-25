@@ -393,7 +393,8 @@ export function ConversationView({
   // carry ProjectId).
   const [projectId, setProjectId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const listParentRef = useRef<HTMLDivElement>(null)
+  // State, not a ref — VirtualizedMessageList needs a re-render once the container attaches.
+  const [messageListElement, setMessageListElement] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -896,7 +897,7 @@ export function ConversationView({
           )}
 
           <Box
-            ref={listParentRef}
+            ref={setMessageListElement}
             sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.default', display: isContinuousActive ? 'none' : undefined }}
           >
             <Box sx={{ maxWidth: 800, mx: 'auto' }}>
@@ -929,7 +930,7 @@ export function ConversationView({
                 </Box>
               ) : (
                 <VirtualizedMessageList
-                  listParentRef={listParentRef}
+                  scrollElement={messageListElement}
                   messages={messages}
                   chatId={chatId}
                   isStreaming={isStreaming}
