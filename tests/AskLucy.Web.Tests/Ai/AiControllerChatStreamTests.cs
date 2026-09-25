@@ -211,9 +211,10 @@ public sealed class AiControllerChatStreamTests : IDisposable
     }
 
     // The site card shows this the moment the place is confirmed, rather than waiting for the
-    // boundary (found live 2026-09-25) — lower-case, as __SITE_BOUNDARY__ carries its own.
+    // boundary (found live 2026-09-25) — lower-case, as __SITE_BOUNDARY__ carries its own — with
+    // the reason its shield's tooltip gives for it.
     [Fact]
-    public async Task Chat_ShouldCarryTheLocationsConfidenceLevel_ReadFromTheGeocodersPrecision()
+    public async Task Chat_ShouldCarryTheLocationsConfidenceLevelAndReason_ReadFromTheGeocodersPrecision()
     {
         async IAsyncEnumerable<ChatStreamChunk> Stream()
         {
@@ -228,7 +229,8 @@ public sealed class AiControllerChatStreamTests : IDisposable
             new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
             CancellationToken.None);
 
-        ResponseText().Should().Contain("\"confidenceLevel\":\"high\"");
+        ResponseText().Should().Contain("\"confidenceLevel\":\"high\"")
+            .And.Contain("\"confidenceReason\":\"The map service matched this exact spot.\"");
     }
 
     private static ConfirmedSiteBoundaryData SampleBoundary() => new(

@@ -91,6 +91,7 @@ export interface ChatActiveLocation {
   locationName: string
   confidence: number
   confidenceLevel: 'low' | 'medium' | 'high'
+  confidenceReason: string
 }
 
 export interface ChatActiveBoundary {

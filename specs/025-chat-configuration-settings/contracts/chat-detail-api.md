@@ -22,7 +22,7 @@ Response: `200 OK`
   "modelId": "b1f0c1a2-...-000000000002",
   "activeLocation": {
     "latitude": 25.1558, "longitude": 55.2218, "locationName": "Al Safa Park 2", "confidence": 0.9,
-    "confidenceLevel": "high"
+    "confidenceLevel": "high", "confidenceReason": "The map service matched this exact spot."
   },
   "activeBoundary": {
     "siteName": "Al Safa Park 2",
@@ -47,7 +47,8 @@ Response: `200 OK`
 - `activeLocation`/`activeBoundary` (added 2026-09-25) — the site the conversation last
   confirmed and outlined (`UserChat.ActiveLocation`/`ActiveBoundary`, specs/037/042), `null` when
   it has none. `activeBoundary` has the same shape as the live `__SITE_BOUNDARY__` event, with
-  `confidenceLevel` lower-case, minus `alternativeCandidateNames` (not persisted). The client
+  `confidenceLevel` lower-case, minus `alternativeCandidateNames` (not persisted). `activeLocation.confidenceLevel` and
+  `confidenceReason` are the same fields the live `__LOCATION__` event carries (specs/044 contract). The client
   (`useRestoreChatSite`) puts them back on the viewer when the chat is opened, unless the viewer
   already shows a site Lucy confirmed this session.
 - `404 Not Found` (Problem Details) if the chat does not exist or does not belong to the

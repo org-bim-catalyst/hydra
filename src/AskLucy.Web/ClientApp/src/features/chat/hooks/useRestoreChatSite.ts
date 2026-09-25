@@ -32,6 +32,7 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
         null,
         null,
         location.confidenceLevel,
+        location.confidenceReason,
       )
 
     const boundary = chatDetail.activeBoundary

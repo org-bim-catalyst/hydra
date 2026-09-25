@@ -65,7 +65,10 @@ lands. The level is read from the geocoder's precision code (`LocationConfidence
 ROOFTOP → high; RANGE_INTERPOLATED/GEOMETRIC_CENTER → medium; APPROXIMATE → low; none → medium),
 never from the numeric `confidence`, whose scale differs per geocoder. The same level is in
 `resolve_location`'s output, so Lucy's own words about it agree with the card. Additive: a client
-that ignores the field is unaffected.
+that ignores the field is unaffected. **Amended again 2026-09-25 — it also carries
+`confidenceReason`**, a one-sentence explanation of that level (`LocationConfidence.Explain`, kept
+beside `Classify` so the two cannot drift), shown in the site card's shield tooltip until the
+outline lands and the outline's own `sourceDetail` takes over. Additive in the same way.
 
 **C-6 is already satisfied by the current client** — `aiApi.ts` matches prefixes per line with no ordering state — which is why `__LOCATION__` moving ahead of `__RAG__`/`__MEMORY__` needs no client change. It is stated as a contract so a future client cannot quietly introduce the dependency.
 

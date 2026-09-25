@@ -795,6 +795,7 @@ public sealed partial class AiController(
             // Lower-case, as __SITE_BOUNDARY__ carries it: the site card shows this the moment the
             // place is confirmed, until the outline's own level replaces it.
             confidenceLevel = LocationConfidence.Classify(confirmedLocation.LocationType).ToString().ToLowerInvariant(),
+            confidenceReason = LocationConfidence.Explain(confirmedLocation.LocationType),
             source = confirmedLocation.Source,
             locationType = confirmedLocation.LocationType,
             viewport = confirmedLocation.Viewport is null ? null : new

@@ -297,6 +297,7 @@ export function useChatStream(
               event.locationType,
               event.viewport,
               event.confidenceLevel,
+              event.confidenceReason,
             )
 
             // specs/042-site-boundary-resolution edge case: a new, unrelated site must replace
@@ -536,6 +537,7 @@ export function useChatStream(
               event.locationType,
               event.viewport,
               event.confidenceLevel,
+              event.confidenceReason,
             )
             if (useActiveSiteBoundaryStore.getState().siteName !== event.locationName) {
               useActiveSiteBoundaryStore.getState().clearBoundary()

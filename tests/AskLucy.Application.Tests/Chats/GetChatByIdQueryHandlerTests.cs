@@ -71,7 +71,8 @@ public sealed class GetChatByIdQueryHandlerTests
 
         var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
-        result.ActiveLocation.Should().Be(new ChatActiveLocationDto(25.1558, 55.2218, "Al Safa Park 2", 0.9, "high"));
+        result.ActiveLocation.Should().Be(new ChatActiveLocationDto(
+            25.1558, 55.2218, "Al Safa Park 2", 0.9, "high", "The map service matched this exact spot."));
         result.ActiveBoundary.Should().NotBeNull();
         result.ActiveBoundary!.SiteName.Should().Be("Al Safa Park 2");
         result.ActiveBoundary.Centroid.Should().Be(new ChatGeoPointDto(25.1560, 55.2220));

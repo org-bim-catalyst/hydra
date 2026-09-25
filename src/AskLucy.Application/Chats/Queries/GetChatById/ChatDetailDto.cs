@@ -37,14 +37,15 @@ public sealed record ChatDetailDto(
 /// <see cref="ConfidenceLevel"/> is lower-case, as the live <c>__LOCATION__</c> event carries it.
 /// </summary>
 public sealed record ChatActiveLocationDto(
-    double Latitude, double Longitude, string LocationName, double Confidence, string ConfidenceLevel)
+    double Latitude, double Longitude, string LocationName, double Confidence, string ConfidenceLevel, string ConfidenceReason)
 {
     public static ChatActiveLocationDto FromEntity(ActiveSiteLocation location) => new(
         location.Latitude,
         location.Longitude,
         location.LocationName,
         location.Confidence,
-        LocationConfidence.Classify(location.LocationType).ToString().ToLowerInvariant());
+        LocationConfidence.Classify(location.LocationType).ToString().ToLowerInvariant(),
+        LocationConfidence.Explain(location.LocationType));
 }
 
 /// <summary>

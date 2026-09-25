@@ -2,7 +2,7 @@ import GppGoodOutlinedIcon from '@mui/icons-material/GppGoodOutlined'
 import GppMaybeOutlinedIcon from '@mui/icons-material/GppMaybeOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import type { SvgIconComponent } from '@mui/icons-material'
-import { Divider, Typography, useTheme } from '@mui/material'
+import { Box, Tooltip, Typography, useTheme } from '@mui/material'
 import { HudCard } from '../../../components/workspace-shell/HudCard'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundaryConfidenceLevel } from '../../../store/activeSiteBoundaryStore'
@@ -14,9 +14,10 @@ const CONFIDENCE_LABEL: Record<SiteBoundaryConfidenceLevel, string> = {
 }
 
 /** specs/073 data-model "confidence → visual" (FR-008–FR-011). Confidence is carried three ways
- * at once — the shield's shape, its colour, and the text label — so no single one (colour least
- * of all) is the only signal (WCAG 2.1 AA 1.4.1). The tone names a theme palette entry rather
- * than a hex value, so the colour follows the light/dark theme like the rest of the card. */
+ * at once — the shield's shape, its colour, and the level in words (the card's accessible name and
+ * the shield's tooltip) — so colour is never the only signal (WCAG 2.1 AA 1.4.1). The tone names a
+ * theme palette entry rather than a hex value, so the colour follows the light/dark theme like the
+ * rest of the card. */
 const CONFIDENCE_VISUAL: Record<SiteBoundaryConfidenceLevel, { Icon: SvgIconComponent; tone: 'success' | 'warning' | 'error' }> = {
   high: { Icon: GppGoodOutlinedIcon, tone: 'success' },
   medium: { Icon: ShieldOutlinedIcon, tone: 'warning' },
@@ -35,11 +36,13 @@ const CONFIDENCE_VISUAL: Record<SiteBoundaryConfidenceLevel, { Icon: SvgIconComp
  *
  * specs/073: the last item of the studio's top-left HUD row (contributed as a `hudItem` by
  * `boundaryConfidenceExtension`), on the same 40 px `HudCard` surface as the weather card and the
- * project title. It shows only the confidence label and the site name — the data source and the
- * alternative candidates are no longer displayed. One line, read left to right like the weather
- * card beside it: shield, confidence label, a divider, then the site name (which truncates first
- * when space runs out). The shield uses `palette.X.light` in dark mode
- * (research D7): `.main` is tuned for light backgrounds and falls under 3:1 against a dark card. */
+ * project title. The card itself is just the shield and the site name, in bold like the project
+ * title (the name truncates when space runs out); the level and the reason for it are in the
+ * shield's tooltip — the outline's source once a boundary is drawn, the geocoder's precision
+ * before that. The alternative candidates are not shown. The shield is the one part of the card
+ * that takes the pointer (the rest lets drags through to the map) and it is focusable, so the
+ * tooltip reaches keyboard users too. It uses `palette.X.light` in dark mode (research D7):
+ * `.main` is tuned for light backgrounds and falls under 3:1 against a dark card. */
 export function SiteBoundaryConfidenceBadge() {
   const theme = useTheme()
   const boundarySiteName = useActiveSiteBoundaryStore((s) => s.siteName)
@@ -47,10 +50,13 @@ export function SiteBoundaryConfidenceBadge() {
   const locationSource = useActiveLocationStore((s) => s.source)
   const locationName = useActiveLocationStore((s) => s.locationName)
   const locationLevel = useActiveLocationStore((s) => s.confidenceLevel)
+  const locationReason = useActiveLocationStore((s) => s.confidenceReason)
+  const boundarySourceDetail = useActiveSiteBoundaryStore((s) => s.sourceDetail)
 
   const hasBoundary = Boolean(boundarySiteName && boundaryLevel)
   const siteName = hasBoundary ? boundarySiteName : locationSource === 'agent' ? locationName : null
   const confidenceLevel = hasBoundary ? boundaryLevel : locationSource === 'agent' ? locationLevel : null
+  const reason = hasBoundary ? (boundarySourceDetail ? `Outline: ${boundarySourceDetail}` : null) : locationReason
 
   if (!siteName || !confidenceLevel) return null
 
@@ -65,16 +71,39 @@ export function SiteBoundaryConfidenceBadge() {
       maxWidth={360}
       sx={{ gap: 1 }}
     >
-      <Icon aria-hidden="true" sx={{ fontSize: 20, flexShrink: 0, color: iconColour }} />
-      <Typography variant="subtitle2" component="div" noWrap sx={{ flexShrink: 0, fontWeight: 600 }}>
-        {label}
-      </Typography>
-      <Divider
-        orientation="vertical"
-        aria-hidden="true"
-        sx={{ height: 20, alignSelf: 'center', borderColor: 'currentColor', opacity: 0.35 }}
-      />
-      <Typography variant="body2" component="div" noWrap sx={{ minWidth: 0, opacity: 0.85 }}>
+      <Tooltip
+        describeChild
+        title={
+          <>
+            <Typography variant="subtitle2" component="div" sx={{ fontWeight: 600 }}>
+              {label}
+            </Typography>
+            {reason && (
+              <Typography variant="body2" component="div">
+                {reason}
+              </Typography>
+            )}
+          </>
+        }
+      >
+        <Box
+          component="span"
+          role="img"
+          aria-label={label}
+          tabIndex={0}
+          sx={{
+            display: 'inline-flex',
+            flexShrink: 0,
+            borderRadius: '50%',
+            cursor: 'help',
+            pointerEvents: 'auto',
+            '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: 2 },
+          }}
+        >
+          <Icon aria-hidden="true" sx={{ fontSize: 20, color: iconColour }} />
+        </Box>
+      </Tooltip>
+      <Typography variant="subtitle2" component="div" noWrap sx={{ minWidth: 0, fontWeight: 600 }}>
         {siteName}
       </Typography>
     </HudCard>

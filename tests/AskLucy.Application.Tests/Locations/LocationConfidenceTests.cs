@@ -24,4 +24,20 @@ public sealed class LocationConfidenceTests
     [InlineData("SOMETHING_NEW")]
     public void Classify_ShouldBeMedium_WhenTheGeocoderStatesNoKnownPrecision(string? locationType) =>
         LocationConfidence.Classify(locationType).Should().Be(BoundaryConfidenceLevel.Medium);
+
+    // The reason is what the shield's tooltip says the level rests on, so each precision the
+    // level tells apart gets its own — an exact match must never read like an approximate one.
+    [Fact]
+    public void Explain_ShouldGiveEachPrecisionItsOwnReason()
+    {
+        string?[] locationTypes = ["ROOFTOP", "RANGE_INTERPOLATED", "GEOMETRIC_CENTER", "APPROXIMATE", null];
+
+        locationTypes.Select(LocationConfidence.Explain).Should().OnlyHaveUniqueItems();
+        LocationConfidence.Explain("ROOFTOP").Should().Contain("exact spot");
+        LocationConfidence.Explain("APPROXIMATE").Should().Contain("approximately");
+    }
+
+    [Fact]
+    public void Explain_ShouldTreatAnUnknownPrecisionLikeAnUnstatedOne() =>
+        LocationConfidence.Explain("SOMETHING_NEW").Should().Be(LocationConfidence.Explain(null));
 }

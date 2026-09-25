@@ -31,4 +31,18 @@ public static class LocationConfidence
         "APPROXIMATE" => BoundaryConfidenceLevel.Low,
         _ => BoundaryConfidenceLevel.Medium,
     };
+
+    /// <summary>
+    /// Why <see cref="Classify"/> gave the level it did, in words — what the site card's shield
+    /// tooltip shows until the outline's own source replaces it. Kept beside <see cref="Classify"/>
+    /// so the level and its explanation read the same code and cannot drift apart.
+    /// </summary>
+    public static string Explain(string? locationType) => locationType switch
+    {
+        "ROOFTOP" => "The map service matched this exact spot.",
+        "RANGE_INTERPOLATED" => "The map service estimated this spot between known addresses on the street.",
+        "GEOMETRIC_CENTER" => "The map service placed this at the centre of the area it matched, not at an exact spot.",
+        "APPROXIMATE" => "The map service could only place this approximately.",
+        _ => "This matched one clear place, but the map service did not say how precisely it is placed.",
+    };
 }

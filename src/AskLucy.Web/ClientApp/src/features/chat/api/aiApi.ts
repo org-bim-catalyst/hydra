@@ -148,6 +148,8 @@ export type ChatStreamEvent =
       confidence: number
       /** Null only from a server older than the level (a stream in flight across a deploy). */
       confidenceLevel: 'low' | 'medium' | 'high' | null
+      /** Why that level — the site card's shield tooltip. Null from an older server, as above. */
+      confidenceReason: string | null
       source: string
       locationType: string | null
       viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
@@ -363,6 +365,7 @@ export async function* streamChat(
           locationName: string
           confidence: number
           confidenceLevel?: 'low' | 'medium' | 'high'
+          confidenceReason?: string
           source: string
           locationType: string | null
           viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
@@ -374,6 +377,7 @@ export async function* streamChat(
           locationName: payload.locationName,
           confidence: payload.confidence,
           confidenceLevel: payload.confidenceLevel ?? null,
+          confidenceReason: payload.confidenceReason ?? null,
           source: payload.source,
           locationType: payload.locationType ?? null,
           viewport: payload.viewport ?? null,

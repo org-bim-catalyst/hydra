@@ -18,6 +18,9 @@ interface ActiveLocationState {
    * moment the place is confirmed, until the outline's own level replaces it. Null for
    * geolocation-sourced locations. */
   confidenceLevel: SiteBoundaryConfidenceLevel | null
+  /** The server's one-sentence reason for that level — the site card's shield tooltip. Null for
+   * geolocation-sourced locations. */
+  confidenceReason: string | null
   /** Google Maps location_type ("ROOFTOP", "GEOMETRIC_CENTER", etc.). Null for geolocation-sourced
    * locations or when the provider does not return it (specs/038-viewer-poi-zoom). */
   locationType: string | null
@@ -80,6 +83,7 @@ interface ActiveLocationActions {
     locationType?: string | null,
     viewport?: ViewportBounds | null,
     confidenceLevel?: SiteBoundaryConfidenceLevel | null,
+    confidenceReason?: string | null,
   ): void
   /** Updates locationName once the weather API response arrives. Only applies when coordinates
    * still match the current active location — guards against a stale weather response landing
@@ -99,6 +103,7 @@ export const useActiveLocationStore = create<ActiveLocationState & ActiveLocatio
     locationName: null,
     confidence: null,
     confidenceLevel: null,
+    confidenceReason: null,
     locationType: null,
     viewport: null,
 
@@ -123,13 +128,23 @@ export const useActiveLocationStore = create<ActiveLocationState & ActiveLocatio
         longitude,
         confidence: null,
         confidenceLevel: null,
+        confidenceReason: null,
         locationType: null,
         viewport: null,
       })
     },
 
-    setFromAgent(latitude, longitude, locationName, confidence, locationType = null, viewport = null, confidenceLevel = null) {
-      set({ source: 'agent', latitude, longitude, locationName, confidence, confidenceLevel, locationType, viewport })
+    setFromAgent(
+      latitude,
+      longitude,
+      locationName,
+      confidence,
+      locationType = null,
+      viewport = null,
+      confidenceLevel = null,
+      confidenceReason = null,
+    ) {
+      set({ source: 'agent', latitude, longitude, locationName, confidence, confidenceLevel, confidenceReason, locationType, viewport })
     },
 
     setLocationName(latitude, longitude, locationName) {
@@ -149,6 +164,7 @@ export const useActiveLocationStore = create<ActiveLocationState & ActiveLocatio
         locationName: null,
         confidence: null,
         confidenceLevel: null,
+        confidenceReason: null,
         locationType: null,
         viewport: null,
       })
