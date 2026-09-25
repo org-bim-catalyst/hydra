@@ -26,6 +26,7 @@ import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
 import { useAiPreferences } from '../../settings/hooks/useAiPreferences'
 import { useChatDetail, useChatMessages } from '../hooks/useChats'
+import { useRestoreChatSite } from '../hooks/useRestoreChatSite'
 import { useSiteAnalysisRehydration } from '../../siteAnalysis/hooks/useSiteAnalysisRehydration'
 import { useSiteAnalysisNoticeStore } from '../../siteAnalysis/store/siteAnalysisNoticeStore'
 import { useChatStream } from '../hooks/useChatStream'
@@ -384,6 +385,8 @@ export function ConversationView({
       setSelection(aiPreference.defaultProviderId, aiPreference.defaultModelId)
     }
   }, [chatId, chatDetail, aiPreference, providerId, modelId, setSelection])
+  // The site this conversation last confirmed, back on the viewer after a reload (see the hook).
+  useRestoreChatSite(chatDetail)
 
   // spec.md FR-002a, User Story 5 — this view remounts (via `key`) on an explicit chat switch, so
   // a plain useState reset is correct; not yet seeded from persisted history (UserChatDto doesn't

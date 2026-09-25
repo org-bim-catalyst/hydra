@@ -79,6 +79,28 @@ export interface ChatDetail {
   title: string
   providerId: string | null
   modelId: string | null
+  /** The site the conversation last confirmed; null when it has not confirmed one. */
+  activeLocation?: ChatActiveLocation | null
+  /** The outline drawn for that site, in the same shape as the live `siteBoundary` event; null when none. */
+  activeBoundary?: ChatActiveBoundary | null
+}
+
+export interface ChatActiveLocation {
+  latitude: number
+  longitude: number
+  locationName: string
+  confidence: number
+}
+
+export interface ChatActiveBoundary {
+  siteName: string
+  centroid: { latitude: number; longitude: number }
+  polygon: { latitude: number; longitude: number }[]
+  areaSquareMeters: number
+  confidence: number
+  confidenceLevel: 'low' | 'medium' | 'high'
+  source: string
+  sourceDetail: string
 }
 
 export interface SearchChatsParams {

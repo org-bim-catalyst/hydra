@@ -5,12 +5,14 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.AppendMessage;
+using AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
+using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Web.Contracts;
 using AskLucy.Web.Controllers.v1;
 using FluentAssertions;
@@ -205,6 +207,90 @@ public sealed class AiControllerChatStreamTests : IDisposable
 
         var text = ResponseText();
         text.Split("__LOCATION__").Should().HaveCount(2, "the location event must not be written twice by the mid-stream move");
+        text.Should().Contain("data: [DONE]");
+    }
+
+    private static ConfirmedSiteBoundaryData SampleBoundary() => new(
+        "Al Safa Park 2", 25.156, 55.2218,
+        [new GeoPoint(25.15, 55.22), new GeoPoint(25.16, 55.22), new GeoPoint(25.16, 55.23), new GeoPoint(25.15, 55.22)],
+        15146.14, 0.92, BoundaryConfidenceLevel.High, SiteBoundarySource.OsmBoundary,
+        "OpenStreetMap (leisure=park)", []);
+
+    /// <summary>
+    /// Found live 2026-09-25: the boundary used to be written only once the whole reply had
+    /// streamed, so a deploy's host restart mid-reply lost it — never drawn, never recorded —
+    /// while the reply already said the site was highlighted. Like <c>__LOCATION__</c>
+    /// (FR-001a), it must be recorded and on the wire the moment the handler yields it.
+    /// </summary>
+    [Fact]
+    public async Task Chat_ShouldRecordAndFlushTheBoundaryEvent_BeforeTheRestOfTheReplyIsProduced()
+    {
+        var boundaryWrittenBeforeReply = false;
+        var boundaryRecordedBeforeReply = false;
+
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk(null, null, ConfirmedBoundary: SampleBoundary());
+
+            // Resumed only after the controller handled the chunk above.
+            boundaryWrittenBeforeReply = ResponseText().Contains("__SITE_BOUNDARY__", StringComparison.Ordinal);
+            boundaryRecordedBeforeReply = _mediator.ReceivedCalls()
+                .Any(call => call.GetArguments().FirstOrDefault() is RecordActiveSiteBoundaryCommand);
+            yield return new ChatStreamChunk("I have outlined the site boundary.", null);
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        boundaryRecordedBeforeReply.Should().BeTrue("the chat must carry the boundary before the client is told about it");
+        boundaryWrittenBeforeReply.Should().BeTrue("__SITE_BOUNDARY__ must reach the client as soon as it is resolved, not after the reply drains");
+    }
+
+    [Fact]
+    public async Task Chat_ShouldStillHaveRecordedAndWrittenTheBoundary_WhenTheStreamFaultsAfterIt()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk(null, null, ConfirmedBoundary: SampleBoundary());
+            await Task.CompletedTask;
+            throw new HttpRequestException("the narration failed after the boundary resolved");
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        await _mediator.Received(1).Send(
+            Arg.Is<RecordActiveSiteBoundaryCommand>(c => c.UserChatId == _chatId && c.ConfirmedBoundary.SiteName == "Al Safa Park 2"),
+            Arg.Any<CancellationToken>());
+        ResponseText().Should().Contain("__SITE_BOUNDARY__");
+    }
+
+    [Fact]
+    public async Task Chat_ShouldWriteTheBoundaryEventExactlyOnce_WithTheLowerCaseConfidenceLevel()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk("Here you go.", null);
+            yield return new ChatStreamChunk(null, null, ConfirmedBoundary: SampleBoundary());
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        var text = ResponseText();
+        text.Split("__SITE_BOUNDARY__").Should().HaveCount(2, "the boundary event must not be written twice by the mid-stream move");
+        text.Should().Contain("\"confidenceLevel\":\"high\"");
         text.Should().Contain("data: [DONE]");
     }
 

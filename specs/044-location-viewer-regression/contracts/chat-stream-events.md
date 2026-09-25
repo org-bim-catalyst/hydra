@@ -50,6 +50,14 @@ data: [DONE]
 | **C-5** | The turn completes within `BoundaryTimeoutSeconds` (45 s) of the model's text ending, even if every boundary dependency hangs. |
 | **C-6** | Clients MUST NOT depend on the relative order of trailing events. Each is dispatched by its own prefix. |
 
+**Amended 2026-09-25 — `__SITE_BOUNDARY__` follows C-1's rule too.** It is now recorded
+(`RecordActiveSiteBoundaryCommand`) and flushed the moment the handler yields the boundary, not
+after the stream drains. Found live: a deploy restarted the host while Lucy's reply was still
+streaming, so the trailing boundary event was never written or recorded — no outline, no
+confidence card — although the reply already said the site was highlighted. Order in the stream
+is now location → boundary → the rest; C-6 still holds, so no client depends on it. Covered by
+`AiControllerChatStreamTests.Chat_ShouldRecordAndFlushTheBoundaryEvent_BeforeTheRestOfTheReplyIsProduced`.
+
 **C-6 is already satisfied by the current client** — `aiApi.ts` matches prefixes per line with no ordering state — which is why `__LOCATION__` moving ahead of `__RAG__`/`__MEMORY__` needs no client change. It is stated as a contract so a future client cannot quietly introduce the dependency.
 
 ---

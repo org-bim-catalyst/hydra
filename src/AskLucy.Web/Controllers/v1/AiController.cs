@@ -186,7 +186,6 @@ public sealed partial class AiController(
         MemoryRetrievalOutcome? memoryOutcome = null;
         ConfirmedLocationData? confirmedLocation = null;
         ViewerZoomCommand? viewerZoom = null;
-        ConfirmedSiteBoundaryData? confirmedBoundary = null;
         ViewerContentCommand? viewerContent = null;
         SolarAnalysisCommand? solarAnalysis = null;
         IReadOnlyList<SuggestedAction>? suggestedActions = null;
@@ -296,9 +295,14 @@ public sealed partial class AiController(
                     viewerContent = chunk.ViewerContent;
                 }
 
+                // Same rule as __LOCATION__ above, for the same reason: the boundary used to wait
+                // for the whole reply to finish streaming, so the outline and its confidence card
+                // appeared well after the sentence announcing them — and a turn cut short (a
+                // deploy's host restart, found live 2026-09-25) lost the boundary entirely, neither
+                // drawn nor recorded, while the reply already claimed it was highlighted.
                 if (chunk.ConfirmedBoundary is not null)
                 {
-                    confirmedBoundary = chunk.ConfirmedBoundary;
+                    await WriteConfirmedBoundaryEventAsync(request.ChatId, chunk.ConfirmedBoundary, cancellationToken);
                 }
 
                 if (chunk.SolarAnalysis is not null)
@@ -521,30 +525,6 @@ public sealed partial class AiController(
             {
                 var memoryPayload = new { messageId = firstAssistantMessageId, memoryOutcome = memoryOutcome.Type.ToString() };
                 await Response.WriteAsync($"data: __MEMORY__{JsonSerializer.Serialize(memoryPayload)}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
-            }
-
-            // specs/042-site-boundary-resolution: resolved site boundary trailing event — same
-            // distinguishable-prefix pattern as __LOCATION__. Persisted before the client is told
-            // about it (RecordActiveSiteBoundaryCommand), mirroring RecordActiveLocationCommand's
-            // ordering exactly, so a client that reloads immediately after sees consistent state.
-            if (confirmedBoundary is not null)
-            {
-                await mediator.Send(new RecordActiveSiteBoundaryCommand(request.ChatId, confirmedBoundary), cancellationToken);
-
-                var boundaryPayload = new
-                {
-                    siteName = confirmedBoundary.SiteName,
-                    centroid = new { latitude = confirmedBoundary.CentroidLatitude, longitude = confirmedBoundary.CentroidLongitude },
-                    polygon = confirmedBoundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
-                    areaSquareMeters = confirmedBoundary.AreaSquareMeters,
-                    confidence = confirmedBoundary.Confidence,
-                    confidenceLevel = confirmedBoundary.ConfidenceLevel.ToString().ToLowerInvariant(),
-                    source = confirmedBoundary.Source.ToString(),
-                    sourceDetail = confirmedBoundary.SourceDetail,
-                    alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
-                };
-                await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
 
@@ -824,6 +804,33 @@ public sealed partial class AiController(
         };
 
         await Response.WriteAsync($"data: __LOCATION__{JsonSerializer.Serialize(locationPayload)}\n\n", cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// specs/042-site-boundary-resolution — same distinguishable-prefix pattern as __LOCATION__, and
+    /// the same ordering: persisted (RecordActiveSiteBoundaryCommand) before the client is told, so
+    /// a client that reloads immediately after finds the chat already carrying it.
+    /// </summary>
+    private async Task WriteConfirmedBoundaryEventAsync(
+        Guid chatId, ConfirmedSiteBoundaryData confirmedBoundary, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new RecordActiveSiteBoundaryCommand(chatId, confirmedBoundary), cancellationToken);
+
+        var boundaryPayload = new
+        {
+            siteName = confirmedBoundary.SiteName,
+            centroid = new { latitude = confirmedBoundary.CentroidLatitude, longitude = confirmedBoundary.CentroidLongitude },
+            polygon = confirmedBoundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
+            areaSquareMeters = confirmedBoundary.AreaSquareMeters,
+            confidence = confirmedBoundary.Confidence,
+            confidenceLevel = confirmedBoundary.ConfidenceLevel.ToString().ToLowerInvariant(),
+            source = confirmedBoundary.Source.ToString(),
+            sourceDetail = confirmedBoundary.SourceDetail,
+            alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
+        };
+
+        await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
     }
 

@@ -19,7 +19,20 @@ Response: `200 OK`
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "title": "Steel connection tolerances",
   "providerId": "b1f0c1a2-...-000000000001",
-  "modelId": "b1f0c1a2-...-000000000002"
+  "modelId": "b1f0c1a2-...-000000000002",
+  "activeLocation": {
+    "latitude": 25.1558, "longitude": 55.2218, "locationName": "Al Safa Park 2", "confidence": 0.9
+  },
+  "activeBoundary": {
+    "siteName": "Al Safa Park 2",
+    "centroid": { "latitude": 25.156, "longitude": 55.222 },
+    "polygon": [{ "latitude": 25.15, "longitude": 55.22 }, "..."],
+    "areaSquareMeters": 15146.14,
+    "confidence": 0.92,
+    "confidenceLevel": "high",
+    "source": "OsmBoundary",
+    "sourceDetail": "OpenStreetMap (leisure=park)"
+  }
 }
 ```
 
@@ -30,6 +43,12 @@ Response: `200 OK`
   being null; a chat that exists but has no selection yet still returns `200` with null
   ids, and the current-conversation control renders its own "choose a model" empty state,
   consistent with how the in-chat switcher already behaved before relocation.
+- `activeLocation`/`activeBoundary` (added 2026-09-25) — the site the conversation last
+  confirmed and outlined (`UserChat.ActiveLocation`/`ActiveBoundary`, specs/037/042), `null` when
+  it has none. `activeBoundary` has the same shape as the live `__SITE_BOUNDARY__` event, with
+  `confidenceLevel` lower-case, minus `alternativeCandidateNames` (not persisted). The client
+  (`useRestoreChatSite`) puts them back on the viewer when the chat is opened, unless the viewer
+  already shows a site Lucy confirmed this session.
 - `404 Not Found` (Problem Details) if the chat does not exist or does not belong to the
   caller — identical semantics to every other single-chat route on this controller.
 
