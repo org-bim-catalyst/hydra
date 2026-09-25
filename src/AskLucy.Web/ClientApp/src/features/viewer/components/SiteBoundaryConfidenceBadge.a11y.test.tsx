@@ -1,8 +1,10 @@
+import { ThemeProvider } from '@mui/material'
 import { act, render } from '@testing-library/react'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SiteBoundaryConfidenceBadge } from './SiteBoundaryConfidenceBadge'
 import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
+import { createAppTheme } from '../../../theme'
 
 expect.extend(toHaveNoViolations)
 
@@ -31,19 +33,21 @@ describe('SiteBoundaryConfidenceBadge accessibility', () => {
     useActiveSiteBoundaryStore.getState().clearBoundary()
   })
 
-  it('has no automatically detectable a11y violations for a High confidence boundary', async () => {
-    act(() => useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary))
-    const { container } = render(<SiteBoundaryConfidenceBadge />)
+  // specs/073 T032 — every level in both themes, now that the icon colour varies with both.
+  describe.each(['light', 'dark'] as const)('%s theme', (mode) => {
+    it.each(['high', 'medium', 'low'] as const)(
+      'has no automatically detectable a11y violations for a %s confidence boundary',
+      async (level) => {
+        act(() => useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, confidenceLevel: level }))
+        const { container } = render(
+          <ThemeProvider theme={createAppTheme(mode)}>
+            <SiteBoundaryConfidenceBadge />
+          </ThemeProvider>,
+        )
 
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-
-  it('has no automatically detectable a11y violations for a Low confidence boundary', async () => {
-    act(() => useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, confidenceLevel: 'low' }))
-    const { container } = render(<SiteBoundaryConfidenceBadge />)
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
+        const results = await axe(container)
+        expect(results).toHaveNoViolations()
+      },
+    )
   })
 })

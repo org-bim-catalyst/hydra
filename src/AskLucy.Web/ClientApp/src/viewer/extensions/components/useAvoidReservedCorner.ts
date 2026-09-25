@@ -12,14 +12,14 @@ const CORNER_WIDTH = 320
  * near the left edge horizontally, so without also checking vertical proximity, the corner-width
  * check alone swept it into "chrome to avoid in the top-left corner" — pushing
  * `CameraAttitudeWidget` down to PanelDock's mid-screen position instead of just below the
- * weather widget/confidence badge, which is what it's actually meant to clear. */
+ * studio's top-left HUD row, which is what it's actually meant to clear. */
 const CORNER_HEIGHT = 320
 
 /** `ExtensionToolbar` and `CameraAttitudeWidget` both carry this, in addition to
  * `RESERVED_ATTRIBUTE` — it marks them as siblings in the same corner measurement, so a widget
  * never avoids another widget sharing its own corner (which would race against effect-ordering,
  * since both measure on the same mount) — each avoids only page-level chrome
- * (`WorkspaceOverlay`/`LocationWeatherWidget`/`SiteBoundaryConfidenceBadge`), which is what's
+ * (`WorkspaceOverlay`, including its top-left HUD row), which is what's
  * actually unbounded. Two widgets sharing one corner instead use a small fixed relative offset
  * (see the callers), not a second dynamic measurement against each other. */
 export const CORNER_CHROME_ATTRIBUTE = 'data-viewer-corner-chrome'
@@ -32,7 +32,10 @@ export const CORNER_CHROME_ATTRIBUTE = 'data-viewer-corner-chrome'
  * This measures whatever else in the given corner currently carries `data-panel-reserved`
  * (contracts/reserved-regions.md — the same convention floating panels use to avoid this chrome)
  * and sits just below the tallest of it, falling back to the natural corner margin when nothing
- * else occupies the corner.
+ * else occupies the corner. specs/073 research D9: in the top-left corner that is now a single
+ * element — the HUD row's start group (Home, title, weather, boundary confidence), which carries
+ * the attribute as a whole — so a left-corner widget sits just below one 40 px row rather than
+ * below a stack of separately positioned cards.
  *
  * Found live (2026-09-13): a mount-once effect measures too early. Both callers call this hook
  * unconditionally (correct — hooks can't be conditional) but return `null` from their own render

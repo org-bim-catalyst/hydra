@@ -74,3 +74,6 @@ export type Contribution =
   // specs/051-viewer-scene-content-api — additive only.
   | { kind: 'drawingSpace'; extensionId: string; release: () => void }
   | { kind: 'frameSubscription'; extensionId: string; unsubscribe: () => void }
+  // specs/073-studio-hud-top-row — a compact status item in the studio's top-left HUD row,
+  // rendered by `ExtensionHudItemHost` (not `ExtensionOverlayHost`). Additive only.
+  | { kind: 'hudItem'; extensionId: string; component: ComponentType }

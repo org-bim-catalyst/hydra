@@ -46,4 +46,44 @@ describe('FloatingToolbar', () => {
     const root = container.firstElementChild as HTMLElement
     expect(window.getComputedStyle(root).flexWrap).toBe(expectedWrap)
   })
+
+  // specs/073 research D2 — a parent (the HUD top bar) owns the positioning.
+  describe('placement', () => {
+    it('stays absolutely anchored with its own margin by default', () => {
+      const { container } = render(
+        <FloatingToolbar anchor="top-end">
+          <button type="button">One</button>
+        </FloatingToolbar>,
+      )
+      const style = window.getComputedStyle(container.firstElementChild as HTMLElement)
+      expect(style.position).toBe('absolute')
+      expect(style.right).toBe('0px')
+      expect(style.margin).not.toBe('')
+    })
+
+    it('"inline" drops absolute positioning, anchor offsets, outer margin and maxWidth', () => {
+      const { container } = render(
+        <FloatingToolbar anchor="top-end" placement="inline">
+          <button type="button">One</button>
+        </FloatingToolbar>,
+      )
+      const style = window.getComputedStyle(container.firstElementChild as HTMLElement)
+      expect(style.position).not.toBe('absolute')
+      expect(style.right).not.toBe('0px')
+      expect(style.top).not.toBe('0px')
+      expect(['', '0', '0px']).toContain(style.margin)
+      expect(style.maxWidth).not.toMatch(/calc/)
+    })
+
+    it('"inline" keeps wrapping and passes data attributes through', () => {
+      const { container } = render(
+        <FloatingToolbar anchor="top-end" placement="inline" dataAttributes={{ 'data-probe': 'yes' }}>
+          <button type="button">One</button>
+        </FloatingToolbar>,
+      )
+      const root = container.firstElementChild as HTMLElement
+      expect(window.getComputedStyle(root).flexWrap).toBe('wrap')
+      expect(root).toHaveAttribute('data-probe', 'yes')
+    })
+  })
 })

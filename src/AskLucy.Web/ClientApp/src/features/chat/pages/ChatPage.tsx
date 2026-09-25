@@ -20,6 +20,7 @@ import { ViewerSurface } from '../../viewer/components/ViewerSurface'
 import { RotationToggleButton } from '../../viewer/components/RotationToggleButton'
 import { MarkerStyleSelector } from '../../viewer/components/MarkerStyleSelector'
 import { LocationWeatherWidget } from '../../viewer/components/LocationWeatherWidget'
+import { ExtensionHudItemHost } from '../../../viewer/extensions/components/ExtensionHudItemHost'
 import { useGeolocation } from '../../viewer/hooks/useGeolocation'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { ProjectPicker } from '../../memory/components/ProjectPicker'
@@ -202,10 +203,9 @@ export function ChatPage() {
           `WorkspaceSurface` gradient placeholder (research.md Decision 1). `AiPresenceCard`
           (rendered below via `WorkspaceOverlay`'s children slot) is unaffected by this change
           (FR-004). */}
-      {/* specs/036-startup-geolocation: ViewerSurface and LocationWeatherWidget now read location
+      {/* specs/036-startup-geolocation: ViewerSurface and LocationWeatherWidget read location
           from activeLocationStore directly — no prop threading required. */}
       <ViewerSurface />
-      <LocationWeatherWidget />
       {/* SPEC-024 FR-005/FR-016: every workspace control is reached only through this
           coordinating overlay, never a permanent toolbar. specs/026-floating-chat-assistant
           FR-001: the chat entry point is no longer one of `controls` — it's the bespoke
@@ -214,6 +214,16 @@ export function ChatPage() {
           (research.md #1). */}
       <WorkspaceOverlay
         controls={workspaceControls}
+        // specs/073: the top-left HUD is one row — Home, the project title, the weather card,
+        // then any contributed HUD items (the site-boundary card) — laid out by the overlay's top
+        // bar, so no item positions itself or needs to know the height of the one before it.
+        topStart={
+          <>
+            <HomeProjectCard />
+            <LocationWeatherWidget />
+            <ExtensionHudItemHost />
+          </>
+        }
         topClusterLeading={
           <>
             {/* specs/038-viewer-poi-zoom T034: shown only while an agent POI is active, and
@@ -228,7 +238,6 @@ export function ChatPage() {
           </>
         }
       >
-        <HomeProjectCard />
         <AiPresenceCard getFrequencyBands={tts.getFrequencyBands} />
         <ChatAssistantWidget>
           <ConversationView

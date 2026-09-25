@@ -18,6 +18,7 @@ function makeContext(camera: { heading: number; tilt: number } | null) {
       handlers[type] = handler
     }),
     contributeOverlay: vi.fn(),
+    contributeHudItem: vi.fn(),
     contributeToolbarEntry: vi.fn(),
     registerLivePanelKind: vi.fn(),
     openPanel: vi.fn(),

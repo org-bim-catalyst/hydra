@@ -28,6 +28,20 @@ describe('createExtensionContext', () => {
     expect(contributions).toEqual([{ kind: 'overlay', extensionId: 'ext-a', component: Component }])
   })
 
+  // specs/073 contract X1, X3.
+  it('records contributeHudItem against the calling extension, and withdraws it with the rest', () => {
+    const Component = () => null
+    createExtensionContext('ext-hud').contributeHudItem(Component)
+
+    expect(useViewerExtensionStore.getState().contributions).toEqual([
+      { kind: 'hudItem', extensionId: 'ext-hud', component: Component },
+    ])
+
+    useViewerExtensionStore.getState().removeContributionsFor('ext-hud')
+
+    expect(useViewerExtensionStore.getState().contributions).toEqual([])
+  })
+
   it('records contributeToolbarEntry against the calling extension', () => {
     const entry = { id: 'entry-1', label: 'Test', icon: () => null, onClick: () => {} }
     createExtensionContext('ext-b').contributeToolbarEntry(entry)

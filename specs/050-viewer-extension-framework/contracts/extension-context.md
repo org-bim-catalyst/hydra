@@ -4,6 +4,8 @@
 
 What a starting extension receives, and the **only** route it has to the viewer (spec FR-011). Every contribution made through it is recorded against the calling extension, which is what makes "stopping an extension withdraws all of it" a property of the framework rather than a request to the author (spec FR-014, FR-015).
 
+> **Amended by specs/073** (studio HUD top row): the context gains `contributeHudItem(component)`, which places a component in the studio's top-left HUD row instead of over the viewer surface. It is recorded and withdrawn exactly like `contributeOverlay`. Each contributed overlay and HUD item now also renders inside its own error boundary, so a throwing contribution marks its extension `failed` rather than unmounting the viewer. See [specs/073 contracts/extension-context-hud-item.md](../../073-studio-hud-top-row/contracts/extension-context-hud-item.md).
+
 ## Shape
 
 ```ts
@@ -11,6 +13,7 @@ interface ExtensionContext {
   readonly engine: IViewerEngine
   on<E extends ViewerEventType>(type: E, handler: ViewerEventHandler<E>): void
   contributeOverlay(component: ComponentType): void
+  contributeHudItem(component: ComponentType): void // specs/073
   contributeToolbarEntry(entry: ToolbarEntry): void
   registerLivePanelKind(definition: PanelTypeDefinition): void
   openPanel(request: PanelRequest): void

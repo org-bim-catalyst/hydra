@@ -21,6 +21,11 @@ export interface FloatingToolbarProps {
    * viewer's "Solar Analysis" toolbar entry rendering behind the Account Menu button, since the
    * corner-avoidance code had nothing real to measure. */
   dataAttributes?: Record<string, string>
+  /** 'anchored' (default) — absolutely positioned at `anchor`, with its own outer margin. 'inline'
+   * — laid out in its parent's flow, for when a parent owns the positioning (specs/073 D2: the
+   * studio's HUD top bar puts the top-right cluster on the same row as its top-left items). Only
+   * the positioning changes; `anchor` still decides wrap direction and alignment. */
+  placement?: 'anchored' | 'inline'
 }
 
 const anchorSx: Record<FloatingToolbarAnchor, object> = {
@@ -36,7 +41,14 @@ const anchorSx: Record<FloatingToolbarAnchor, object> = {
  * `bottom-*` anchor wraps *upward* (`wrap-reverse`), a `top-*` anchor wraps downward,
  * so extra rows always grow away from the screen edge they're anchored to rather than
  * off-screen past it. `column` mode is a single vertical stack, no wrapping. */
-export function FloatingToolbar({ anchor, direction = 'row', sx, children, dataAttributes }: FloatingToolbarProps) {
+export function FloatingToolbar({
+  anchor,
+  direction = 'row',
+  sx,
+  children,
+  dataAttributes,
+  placement = 'anchored',
+}: FloatingToolbarProps) {
   return (
     <Stack
       direction={direction}
@@ -45,11 +57,13 @@ export function FloatingToolbar({ anchor, direction = 'row', sx, children, dataA
       {...dataAttributes}
       sx={[
         {
-          position: 'absolute',
           flexWrap: direction === 'row' ? (anchor.startsWith('bottom') ? 'wrap-reverse' : 'wrap') : 'nowrap',
-          m: { xs: 2, sm: 3 },
           alignItems: direction === 'row' ? 'flex-start' : anchor.endsWith('end') ? 'flex-end' : 'flex-start',
           justifyContent: anchor.endsWith('end') ? 'flex-end' : 'flex-start',
+        },
+        placement === 'anchored' && {
+          position: 'absolute',
+          m: { xs: 2, sm: 3 },
           maxWidth: { xs: 'calc(100% - 32px)', sm: 'calc(100% - 48px)' },
           ...anchorSx[anchor],
         },

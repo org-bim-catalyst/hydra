@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
+import { RESERVED_ATTRIBUTE } from '../../../viewer/panels/layout/reservedRegions'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -552,6 +554,9 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       // entry (FR-029) — rendered by `ExtensionToolbar` inside `ViewerSurface`, which sits earlier
       // in the DOM than WorkspaceOverlay's own controls, so it is the first stop in tab order.
       'Solar Analysis',
+      // specs/073: Home now leads the top-left HUD row, which WorkspaceOverlay renders in the
+      // same top bar as (and before) its top-right cluster.
+      'Home',
       'Switch to dark mode',
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
       'Account menu',
@@ -565,6 +570,59 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       await user.tab()
       expect(document.activeElement).toHaveAccessibleName(label)
     }
+  })
+
+  // specs/073 US1 (FR-001/FR-002) — the top-left HUD is one row, in a fixed order, inside the
+  // top bar's single reserved start group.
+  describe('top-left HUD row (specs/073)', () => {
+    afterEach(() => {
+      act(() => {
+        useActiveLocationStore.getState().clear()
+        useActiveSiteBoundaryStore.getState().clearBoundary()
+      })
+    })
+
+    it('orders Home → "Flumeria Studio" → weather → site boundary inside one reserved start group', async () => {
+      server.use(
+        http.get('*/api/v1/weather/current', () =>
+          HttpResponse.json({
+            locationName: 'London, United Kingdom',
+            temperatureCelsius: 15.4,
+            condition: 'Cloudy',
+            isDaytime: true,
+            observedAtUtc: new Date().toISOString(),
+          }),
+        ),
+      )
+      useActiveSiteBoundaryStore.getState().setBoundary({
+        siteName: 'Al Safa Park',
+        centroid: { latitude: 25.18, longitude: 55.24 },
+        polygon: null,
+        areaSquareMeters: null,
+        confidence: 0.9,
+        confidenceLevel: 'high',
+        source: 'OsmBoundary',
+        sourceDetail: 'OpenStreetMap',
+        alternativeCandidateNames: [],
+      })
+
+      renderChatPage()
+      // Set after mount: ChatPage clears the store on mount when geolocation is unavailable.
+      act(() => useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278))
+
+      const home = screen.getByRole('button', { name: 'Home' })
+      const title = screen.getByText('Flumeria Studio', { selector: 'span' })
+      const weather = await screen.findByRole('status', { name: /^Weather in London/ })
+      const boundary = await screen.findByRole('status', { name: /^Al Safa Park boundary/ })
+
+      const startGroup = home.closest(`[${RESERVED_ATTRIBUTE}]`)
+      expect(startGroup).not.toBeNull()
+      const items = [home, title, weather, boundary]
+      for (const item of items) expect(startGroup).toContainElement(item)
+      for (let i = 1; i < items.length; i++) {
+        expect(items[i - 1].compareDocumentPosition(items[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+    })
   })
 
   it('Enter expands a focused control, Tab reaches its revealed content, and Escape collapses it and returns focus (FR-007/FR-009, US4)', async () => {

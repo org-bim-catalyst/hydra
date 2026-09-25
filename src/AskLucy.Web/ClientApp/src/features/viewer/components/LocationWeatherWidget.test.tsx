@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
+import { RESERVED_ATTRIBUTE } from '../../../viewer/panels/layout/reservedRegions'
 import { LocationWeatherWidget } from './LocationWeatherWidget'
 
 const server = setupServer()
@@ -56,6 +57,8 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
 
     expect(await screen.findByRole('status', { name: 'Weather is unavailable' })).toBeInTheDocument()
     expect(screen.getByText('Weather unavailable')).toBeInTheDocument()
+    // One line in the same 40 px card as the reading (specs/073 contract "LocationWeatherWidget states").
+    expect(window.getComputedStyle(screen.getByRole('status')).height).toBe('40px')
   })
 
   it('still renders nothing while the first lookup is merely in flight', async () => {
@@ -90,7 +93,27 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
     const widget = await screen.findByRole('status')
     expect(widget).toHaveTextContent('London, United Kingdom')
     expect(widget).toHaveTextContent('15°C')
-    expect(widget).not.toHaveTextContent('Last known reading')
+    expect(widget).not.toHaveTextContent(/last known/i)
+  })
+
+  // specs/073 research D5 — the widget is a 40 px card in the studio's HUD row, so it no longer
+  // positions itself, and the row's start group (not the widget) carries RESERVED_ATTRIBUTE.
+  it('lays out as a row item: location name above the temperature, no self-positioning', async () => {
+    server.use(http.get('*/api/v1/weather/current', () => HttpResponse.json(snapshot)))
+    useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278)
+    renderWidget()
+
+    const widget = await screen.findByRole('status')
+    const name = screen.getByText('London, United Kingdom')
+    const temperature = screen.getByText('15°C')
+    expect(name.compareDocumentPosition(temperature) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const style = window.getComputedStyle(widget)
+    expect(style.position).not.toBe('absolute')
+    expect(['', 'auto']).toContain(style.top) // jsdom computes an unset offset as 'auto'
+    expect(['', 'auto']).toContain(style.left)
+    expect(style.height).toBe('40px')
+    expect(widget).not.toHaveAttribute(RESERVED_ATTRIBUTE)
   })
 
   it('renders nothing on a persistent failure with no prior successful reading (FR-011)', async () => {
@@ -120,7 +143,12 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
 
     const widget = await screen.findByRole('status')
     expect(widget).toHaveTextContent('London, United Kingdom') // last-known reading retained
-    expect(widget).toHaveTextContent('Last known reading')
+    // specs/073 D5 — a compact inline marker on the temperature line, not a third block line, so
+    // the card stays 40 px; the accessible name still spells it out in full.
+    const marker = await screen.findByText(/last known/)
+    expect(marker.tagName).toBe('SPAN')
+    expect(marker.parentElement).toBe(screen.getByText(/15°C/).closest('div'))
+    expect(widget).toHaveAccessibleName(/\(last known reading\)$/)
   })
 
   it('disappears and stops fetching once location becomes unavailable mid-session (FR-012)', async () => {
@@ -197,7 +225,7 @@ describe('LocationWeatherWidget (US4, FR-009/FR-010/FR-011)', () => {
     // waitFor needed because TanStack Query's error state is applied asynchronously after the
     // refetch completes — the stale indicator may not be in the DOM until the next render cycle.
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('Last known reading')
+      expect(screen.getByRole('status')).toHaveTextContent('last known')
     })
     expect(useActiveLocationStore.getState().locationName).toBe('London, United Kingdom')
   })

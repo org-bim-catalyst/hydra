@@ -28,6 +28,23 @@ describe('HomeProjectCard', () => {
     expect(screen.queryByRole('button', { name: 'Flumeria Studio' })).not.toBeInTheDocument()
   })
 
+  // specs/073 — the pair are the first two items of the studio's HUD row, which positions them.
+  it('renders the Home button and the title as sibling row items, without positioning itself', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <HomeProjectCard />
+      </MemoryRouter>,
+    )
+
+    const home = screen.getByRole('button', { name: 'Home' })
+    const titleCard = screen.getByText('Flumeria Studio').parentElement as HTMLElement
+    expect(Array.from(container.children)).toEqual([home, titleCard])
+    for (const item of [home, titleCard]) {
+      expect(window.getComputedStyle(item).position).not.toBe('absolute')
+    }
+    expect(window.getComputedStyle(titleCard).height).toBe('40px')
+  })
+
   it('opens the landing page from Home, asking PublicOnlyRoute not to bounce a signed-in user back', () => {
     renderCard()
 

@@ -17,6 +17,11 @@ export interface ExtensionContext {
   readonly engine: IViewerEngine
   on<E extends ViewerEventType>(type: E, handler: ViewerEventHandler<E>): void
   contributeOverlay(component: ComponentType): void
+  /** contracts/extension-context-hud-item.md (specs/073) — contributes a compact, glanceable
+   * status item to the workspace's top-left HUD row, after the host's own items (Home, project
+   * title, weather). The component should render a `HudCard` (40 px, shared surface) or `null`.
+   * Withdrawn automatically on stop/failure. */
+  contributeHudItem(component: ComponentType): void
   contributeToolbarEntry(entry: ToolbarEntry): void
   registerLivePanelKind(definition: PanelTypeDefinition): void
   openPanel(request: PanelRequest): void
@@ -58,6 +63,10 @@ export function createExtensionContext(extensionId: string): ExtensionContext {
 
     contributeOverlay(component) {
       addContribution({ kind: 'overlay', extensionId, component })
+    },
+
+    contributeHudItem(component) {
+      addContribution({ kind: 'hudItem', extensionId, component })
     },
 
     contributeToolbarEntry(entry) {

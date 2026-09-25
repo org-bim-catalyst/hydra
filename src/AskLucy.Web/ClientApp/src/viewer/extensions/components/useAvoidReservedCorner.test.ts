@@ -114,6 +114,21 @@ describe('useAvoidReservedCorner', () => {
     })
   })
 
+  // specs/073 research D9 — the studio's top-left HUD is now one 40 px row (Home, title, weather,
+  // site card) whose start group carries RESERVED_ATTRIBUTE, instead of three stacked cards. A
+  // left-corner widget (CameraAttitudeWidget) must sit just below that single row.
+  it('sits a left-corner widget just below the one-row HUD start group', async () => {
+    const row = document.createElement('div')
+    row.setAttribute(RESERVED_ATTRIBUTE, '')
+    document.body.appendChild(row)
+    stubRect(row, { left: 16, top: 16, width: 600, height: 40 })
+
+    const { result } = renderHook(() => useAvoidReservedCorner({ current: null }, 'left'))
+    await waitFor(() => {
+      expect(result.current).toBe(64) // 16 (top) + 40 (row height) + 8 (MARGIN)
+    })
+  })
+
   it('only considers elements near the requested side', async () => {
     const leftChrome = document.createElement('div')
     leftChrome.setAttribute(RESERVED_ATTRIBUTE, '')

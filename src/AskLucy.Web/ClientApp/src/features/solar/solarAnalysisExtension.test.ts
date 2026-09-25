@@ -35,6 +35,7 @@ function makeFakeContext(drawingSpace: DrawingSpaceHandle): ExtensionContext {
     engine: {} as ExtensionContext['engine'],
     on: vi.fn(),
     contributeOverlay: vi.fn(),
+    contributeHudItem: vi.fn(),
     contributeToolbarEntry: vi.fn(),
     registerLivePanelKind: vi.fn(),
     openPanel: vi.fn(),

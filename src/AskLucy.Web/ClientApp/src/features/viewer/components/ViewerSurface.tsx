@@ -183,8 +183,8 @@ export function ViewerSurface() {
         <PlaceholderRenderTarget />
       )}
       <ExtensionOverlayHost />
-      {/* research D6/T036 — top-right: clear of the weather widget and boundary confidence
-          badge (top-left) and the panel-hub indicator (bottom-left). Renders nothing when no
+      {/* research D6/T036 — top-right: clear of the studio's top-left HUD row (specs/073: Home,
+          title, weather, boundary confidence) and the panel-hub indicator (bottom-left). Renders nothing when no
           extension has contributed an entry (FR-023). */}
       <ExtensionToolbar />
       <ExtensionFailureNotice />

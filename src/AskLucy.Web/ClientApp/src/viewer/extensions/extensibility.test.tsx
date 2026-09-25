@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import * as THREE from 'three'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { worldToLocal } from '../api/coordinateFrame'
 import { sceneAnchor } from '../scene/SceneAnchor'
+import { ExtensionHudItemHost } from './components/ExtensionHudItemHost'
 import { ExtensionOverlayHost } from './components/ExtensionOverlayHost'
 import { ExtensionToolbar } from './components/ExtensionToolbar'
 import type { ExtensionContext } from './context'
@@ -30,6 +31,7 @@ function renderExtensionHosts() {
     <QueryClientProvider client={queryClient}>
       <ExtensionOverlayHost />
       <ExtensionToolbar />
+      <ExtensionHudItemHost />
     </QueryClientProvider>,
   )
 }
@@ -113,6 +115,55 @@ describe('extensibility (quickstart Scenario 3, SC-003)', () => {
       await act(() => viewerExtensionLoader.start(id))
       expect(useViewerExtensionStore.getState().extensions[id]?.lifecycle).toBe('started')
     }
+  })
+
+  // specs/073 contract X4 — each host renders only its own kind, so a HUD item never also appears
+  // as a viewer overlay, and vice versa.
+  it("hosts ignore a kind they don't recognise: hudItem and overlay each render in exactly one host", () => {
+    useViewerExtensionStore.getState().addContribution({
+      kind: 'hudItem',
+      extensionId: 'ext-hud',
+      component: () => <span data-testid="hud-item">hud</span>,
+    })
+    useViewerExtensionStore.getState().addContribution({
+      kind: 'overlay',
+      extensionId: 'ext-overlay',
+      component: () => <span data-testid="overlay-item">overlay</span>,
+    })
+
+    renderExtensionHosts()
+
+    expect(screen.getAllByTestId('hud-item')).toHaveLength(1)
+    expect(screen.getAllByTestId('overlay-item')).toHaveLength(1)
+  })
+
+  // specs/073 contract X7 — neither host had an error boundary before, so one throwing overlay
+  // took down the whole viewer (and, now that HUD items live in WorkspaceOverlay, one throwing
+  // HUD item would take down chat and every control).
+  it('a throwing overlay marks its extension failed without unmounting the viewer', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const id = uniqueId('viewer.scratch-throwing')
+    viewerExtensionRegistry.register({
+      id,
+      manifest: { displayName: 'Throwing', description: 'Throwaway.' },
+      start(context: ExtensionContext) {
+        context.contributeOverlay(() => {
+          throw new Error('overlay broke')
+        })
+        context.contributeToolbarEntry({ id: `${id}-entry`, label: 'Still here', icon: () => null, onClick: () => {} })
+      },
+      stop() {},
+    })
+    await act(() => viewerExtensionLoader.start(id))
+
+    renderExtensionHosts()
+
+    expect(screen.getByRole('button', { name: 'Still here' })).toBeInTheDocument()
+    expect(useViewerExtensionStore.getState().extensions[id]).toMatchObject({
+      lifecycle: 'failed',
+      failureReason: 'Render failed: overlay broke',
+    })
+    vi.restoreAllMocks()
   })
 
   it('T035 (US2): a scratch extension draws through its own Drawing Space, positioned via worldToLocal, at the expected local coordinates', async () => {

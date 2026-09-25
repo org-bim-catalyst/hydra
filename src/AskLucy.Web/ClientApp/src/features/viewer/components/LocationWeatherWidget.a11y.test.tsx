@@ -57,7 +57,7 @@ describe('LocationWeatherWidget accessibility (T022)', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('has no axe violations in the stale state ("Last known reading" badge)', async () => {
+  it('has no axe violations in the stale state (inline "last known" marker)', async () => {
     let callCount = 0
     server.use(
       http.get('*/api/v1/weather/current', () => {

@@ -1,4 +1,4 @@
-import { Box, Stack, Typography } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import {
   RiCloudyLine,
   RiFoggyLine,
@@ -13,57 +13,54 @@ import {
 } from '@remixicon/react'
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
+import { HudCard } from '../../../components/workspace-shell/HudCard'
 import { useCurrentWeather } from '../hooks/useCurrentWeather'
 import type { WeatherCondition } from '../api/weatherApi'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
-import { RESERVED_ATTRIBUTE } from '../../../viewer/panels/layout/reservedRegions'
+
+/** Sized to sit beside two text lines inside the 40 px HUD card (specs/073 research D5). */
+const ICON_SIZE = 20
+
+/** Everything the widget says, in one place. */
+const COPY = {
+  unavailable: 'Weather unavailable',
+  unavailableLabel: 'Weather is unavailable',
+  staleMarker: '· last known',
+  readingLabel: (locationName: string, temperature: number, condition: WeatherCondition, isStale: boolean) =>
+    `Weather in ${locationName}: ${temperature}°C, ${condition}${isStale ? ' (last known reading)' : ''}`,
+}
 
 function conditionIcon(condition: WeatherCondition, isDaytime: boolean): ReactNode {
   switch (condition) {
     case 'Clear':
-      return isDaytime ? <RiSunLine size={28} /> : <RiMoonClearLine size={28} />
+      return isDaytime ? <RiSunLine size={ICON_SIZE} /> : <RiMoonClearLine size={ICON_SIZE} />
     case 'PartlyCloudy':
-      return isDaytime ? <RiSunCloudyLine size={28} /> : <RiMoonCloudyLine size={28} />
+      return isDaytime ? <RiSunCloudyLine size={ICON_SIZE} /> : <RiMoonCloudyLine size={ICON_SIZE} />
     case 'Cloudy':
-      return <RiCloudyLine size={28} />
+      return <RiCloudyLine size={ICON_SIZE} />
     case 'Fog':
-      return <RiFoggyLine size={28} />
+      return <RiFoggyLine size={ICON_SIZE} />
     case 'Rain':
-      return <RiRainyLine size={28} />
+      return <RiRainyLine size={ICON_SIZE} />
     case 'Snow':
-      return <RiSnowyLine size={28} />
+      return <RiSnowyLine size={ICON_SIZE} />
     case 'Thunderstorm':
-      return <RiThunderstormsLine size={28} />
+      return <RiThunderstormsLine size={ICON_SIZE} />
     case 'Windy':
-      return <RiWindyLine size={28} />
+      return <RiWindyLine size={ICON_SIZE} />
   }
 }
 
 /** FR-009/FR-010/FR-011: a compact, glanceable readout of the resolved location's name,
- * temperature, and condition icon, styled to match `CircularAction`'s dark-glass chrome so it
- * reads as part of the same workspace-shell control family. Renders nothing while location
- * hasn't resolved (FR-008), and nothing on a first-attempt failure with no prior reading —
- * `useCurrentWeather`'s `isStale` flag covers "shows a clearly indicated stale reading instead
- * of going blank" for a *later* failure once one has already loaded. */
-/** The widget's chrome, shared by the reading and the unavailable state. */
-const shellSx = {
-  position: 'absolute',
-  // Below HomeProjectCard (features/chat/components/HomeProjectCard.tsx), which already
-  // occupies top: {16, 20} / left: {16, 20} — stacking here instead of overlapping it.
-  top: { xs: 76, sm: 84 },
-  left: { xs: 16, sm: 24 },
-  pointerEvents: 'none',
-  borderRadius: 2,
-  px: 2,
-  py: 1.25,
-  bgcolor: CIRCULAR_ACTION_CHROME.expandedBg,
-  border: CIRCULAR_ACTION_CHROME.border,
-  backdropFilter: 'blur(12px)',
-  color: CIRCULAR_ACTION_CHROME.icon,
-  boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
-} as const
-
+ * temperature, and condition icon. Renders nothing while location hasn't resolved (FR-008), and
+ * nothing while a first lookup is still in flight — `useCurrentWeather`'s `isStale` flag covers
+ * "shows a clearly indicated stale reading instead of going blank" for a *later* failure once one
+ * has already loaded.
+ *
+ * specs/073: one item of the studio's top-left HUD row, on the shared 40 px `HudCard` surface —
+ * the row positions it and reserves its space. Two lines fit that height (research D5): the
+ * location name, then the temperature, with a stale reading marked inline on the temperature line
+ * rather than on a third line of its own. */
 export function LocationWeatherWidget() {
   // specs/036-startup-geolocation: reads coordinates from the shared store rather than props,
   // so both startup geolocation and agent-confirmed locations drive the same widget.
@@ -94,42 +91,37 @@ export function LocationWeatherWidget() {
     if (!isError) return null
 
     return (
-      <Box
-        role="status"
-        aria-label="Weather is unavailable"
-        {...{ [RESERVED_ATTRIBUTE]: '' }}
-        sx={{ ...shellSx, opacity: 0.75 }}
-      >
-        <Typography variant="subtitle2" component="div" sx={{ lineHeight: 1.2 }}>
-          Weather unavailable
+      <HudCard role="status" aria-label={COPY.unavailableLabel} sx={{ opacity: 0.75 }}>
+        <Typography variant="subtitle2" component="div" noWrap sx={{ lineHeight: 1.25 }}>
+          {COPY.unavailable}
         </Typography>
-      </Box>
+      </HudCard>
     )
   }
 
+  const temperature = Math.round(data.temperatureCelsius)
+
   return (
-    <Box
+    <HudCard
       role="status"
-      aria-label={`Weather in ${data.locationName}: ${Math.round(data.temperatureCelsius)}°C, ${data.condition}${isStale ? ' (last known reading)' : ''}`}
-      {...{ [RESERVED_ATTRIBUTE]: '' }}
-      sx={shellSx}
+      aria-label={COPY.readingLabel(data.locationName, temperature, data.condition, isStale)}
+      maxWidth={240}
+      sx={{ gap: 1.25 }}
     >
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-        {conditionIcon(data.condition, data.isDaytime)}
-        <Box>
-          <Typography variant="subtitle2" component="div" sx={{ lineHeight: 1.2 }}>
-            {data.locationName}
-          </Typography>
-          <Typography variant="h6" component="div" sx={{ lineHeight: 1.2 }}>
-            {Math.round(data.temperatureCelsius)}°C
-          </Typography>
-        </Box>
-      </Stack>
-      {isStale && (
-        <Typography variant="caption" component="div" sx={{ opacity: 0.75, mt: 0.5 }}>
-          Last known reading
+      <Box sx={{ display: 'flex', flexShrink: 0 }}>{conditionIcon(data.condition, data.isDaytime)}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" component="div" noWrap sx={{ lineHeight: 1.25, opacity: 0.8 }}>
+          {data.locationName}
         </Typography>
-      )}
-    </Box>
+        <Typography variant="subtitle2" component="div" noWrap sx={{ lineHeight: 1.25, fontWeight: 600 }}>
+          {temperature}°C
+          {isStale && (
+            <Typography variant="caption" component="span" sx={{ ml: 0.75, opacity: 0.75, fontWeight: 400 }}>
+              {COPY.staleMarker}
+            </Typography>
+          )}
+        </Typography>
+      </Box>
+    </HudCard>
   )
 }
