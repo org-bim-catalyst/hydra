@@ -1,3 +1,5 @@
+using AskLucy.Application.Abstractions;
+
 namespace AskLucy.Web.Middleware;
 
 /// <summary>
@@ -14,7 +16,7 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
             ? existing.ToString()
             : Guid.CreateVersion7().ToString();
 
-        context.Items[HeaderName] = correlationId;
+        context.Items[CorrelationIdKeys.ItemsKey] = correlationId;
 
         using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
         {

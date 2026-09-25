@@ -13,10 +13,12 @@ public sealed class RoleAuditLogConfiguration : IEntityTypeConfiguration<RoleAud
         builder.Property(a => a.TargetRoleName).HasMaxLength(50);
         builder.Property(a => a.TargetUserId).HasMaxLength(450);
         builder.Property(a => a.DetailsJson).IsRequired();
+        builder.Property(a => a.CorrelationId).HasMaxLength(64);
 
         builder.HasIndex(a => a.OccurredAtUtc);
         builder.HasIndex(a => a.TargetRoleId);
         builder.HasIndex(a => a.TargetUserId);
         builder.HasIndex(a => a.ActorUserId);
+        builder.HasIndex(a => a.CorrelationId);
     }
 }

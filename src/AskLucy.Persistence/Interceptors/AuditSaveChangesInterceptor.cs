@@ -9,10 +9,16 @@ namespace AskLucy.Persistence.Interceptors;
 /// <summary>
 /// Populates <see cref="BaseEntity"/> audit columns on every save, per constitution &#167;5
 /// ("populated by a SaveChanges interceptor, never set manually by callers"), and converts
-/// hard deletes of <see cref="BaseEntity"/> rows into soft deletes.
+/// hard deletes of <see cref="BaseEntity"/> rows into soft deletes. Also stamps the request's or
+/// job's correlation id on every added <see cref="ICorrelated"/> row (specs/074 FR-006b), so no
+/// call site has to pass it.
 /// </summary>
-public sealed class AuditSaveChangesInterceptor(ICurrentUserAccessor currentUser) : SaveChangesInterceptor
+public sealed class AuditSaveChangesInterceptor(ICurrentUserAccessor currentUser, ICorrelationIdAccessor correlation)
+    : SaveChangesInterceptor
 {
+    /// <summary>The <c>CorrelationId</c> column length; an inbound header can be longer.</summary>
+    private const int MaxCorrelationIdLength = 64;
+
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
         Apply(eventData.Context);
@@ -57,6 +63,36 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUserAccessor currentUser
                     entry.Entity.DeletedBy = actor;
                     break;
             }
+        }
+
+        StampCorrelationIds(context);
+    }
+
+    private void StampCorrelationIds(DbContext context)
+    {
+        string? correlationId = null;
+        var resolved = false;
+
+        foreach (var entry in context.ChangeTracker.Entries())
+        {
+            if (entry.State != EntityState.Added || entry.Entity is not ICorrelated { CorrelationId: null })
+            {
+                continue;
+            }
+
+            if (!resolved)
+            {
+                correlationId = correlation.Current;
+                if (correlationId?.Length > MaxCorrelationIdLength)
+                {
+                    correlationId = correlationId[..MaxCorrelationIdLength];
+                }
+
+                resolved = true;
+            }
+
+            // The setter is private to keep callers out; EF writes through it.
+            entry.Property(nameof(ICorrelated.CorrelationId)).CurrentValue = correlationId;
         }
     }
 }

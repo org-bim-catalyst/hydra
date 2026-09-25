@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.CustomModels.Abstractions;
+using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Interceptors;
 using AskLucy.Persistence.Repositories;
@@ -85,6 +86,8 @@ public static class DependencyInjection
         services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();
         services.AddScoped<IUserPanelPreferenceRepository, UserPanelPreferenceRepository>();
         services.AddScoped<IVoiceProviderFailoverEventRepository, VoiceProviderFailoverEventRepository>();
+        services.AddScoped<IOperationalFailureStore, OperationalFailureStore>();
+        services.AddScoped<IUserContentAccessEventRepository, UserContentAccessEventRepository>();
         services.AddScoped<IVoiceProviderRepository, VoiceProviderRepository>();
         services.AddScoped<ICustomModelRepository, CustomModelRepository>();
         services.AddScoped<IKnowledgeBaseRepository, KnowledgeBaseRepository>();

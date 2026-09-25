@@ -57,6 +57,7 @@ builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
+builder.Services.AddSingleton<ICorrelationIdAccessor, CorrelationIdAccessor>();
 
 // --- JWT authentication (research.md Topic 1) ---
 // JwtOptions is resolved lazily via IOptions (bound in AddInfrastructure), not read

@@ -76,7 +76,10 @@ public sealed class AdminPermissionCatalogTests
     {
         // specs/074 research D14: the only key the built-in Administrator role does not hold implicitly.
         AdminPermissionCatalog.SuperUserControlledKeys.Should().BeEquivalentTo(["admin.operational-failures.content.view"]);
-        AdminPermissionCatalog.SuperUserControlledKeys.Should().OnlyContain(k => AdminPermissionCatalog.TryGet(k, out _));
+        foreach (var key in AdminPermissionCatalog.SuperUserControlledKeys)
+        {
+            AdminPermissionCatalog.TryGet(key, out _).Should().BeTrue($"{key} must be a catalogued permission");
+        }
     }
 
     [Fact]

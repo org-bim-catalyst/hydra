@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using AskLucy.Application.Abstractions;
 using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
+using AskLucy.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace AskLucy.Persistence.Tests;
 
@@ -207,11 +209,19 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
     public AskLucyDbContext CreateMaintenanceDbContext() => CreateDbContext(MaintenanceCommandTimeoutSeconds);
 
     /// <summary>
+    /// A context with the production <see cref="AuditSaveChangesInterceptor"/> attached, for tests
+    /// that assert what the interceptor stamps (audit columns, correlation ids). Every other test
+    /// keeps the bare context, as before.
+    /// </summary>
+    public AskLucyDbContext CreateAuditedDbContext(ICurrentUserAccessor currentUser, ICorrelationIdAccessor correlation) =>
+        CreateDbContext(commandTimeoutSeconds: null, new AuditSaveChangesInterceptor(currentUser, correlation));
+
+    /// <summary>
     /// <paramref name="commandTimeoutSeconds"/> is <see langword="null"/> for test contexts, which
     /// keeps SqlClient's 30 s default so a query that has gone wrong fails fast. Only the
     /// fixture's own bulk maintenance passes a value.
     /// </summary>
-    private static AskLucyDbContext CreateDbContext(int? commandTimeoutSeconds)
+    private static AskLucyDbContext CreateDbContext(int? commandTimeoutSeconds, params IInterceptor[] interceptors)
     {
         var options = new DbContextOptionsBuilder<AskLucyDbContext>()
             .UseSqlServer(ResolveConnectionString(), sql =>
@@ -221,6 +231,7 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
                     sql.CommandTimeout(seconds);
                 }
             })
+            .AddInterceptors(interceptors)
             .Options;
 
         return new AskLucyDbContext(options, new Base64MemoryContentProtector());

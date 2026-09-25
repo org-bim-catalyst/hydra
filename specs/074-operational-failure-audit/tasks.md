@@ -120,7 +120,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - `DegradedServed` / `RecoveredByRetry` give Warning.
   - Everything else gives Error.
 - [X] T007 [P] Domain test in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureKindsTests.cs`: for every `Enum.GetValues<AiProviderFailureKind>()`, `OperationalFailureKinds.FromProvider(k).ToString() == k.ToString()`.
-- [ ] T008 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/FailureReasonSanitizerTests.cs`. This is the corpus from research D8:
+- [X] T008 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/FailureReasonSanitizerTests.cs`. This is the corpus from research D8:
   - `Bearer eyJ…`, a bare JWT, `sk-…`, `sk-ant-…`, `AIza…` and `xi-…` keys.
   - `Authorization:` / `Cookie:` / `Set-Cookie:` values.
   - `Server=…;Password=…;User ID=…`, `?key=`, `&api_key=`, `token=`, `sig=`.
@@ -128,42 +128,45 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - Multi-line vendor JSON collapses to one line.
   - Output ≤ 500 characters with an ellipsis.
   - Plain system prose passes through unchanged.
-- [ ] T009 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/FailureClassifierTests.cs`:
+- [X] T009 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/FailureClassifierTests.cs`:
   - `AiProviderException` subtypes map to their kind.
   - `TimeoutException` and a `TaskCanceledException` whose token was **not** cancelled map to `TimedOut`.
   - A caller-cancelled `OperationCanceledException` returns `null`, meaning "do not record".
   - `HttpRequestException` / `SocketException` map to `DependencyUnreachable`.
   - Anything else maps to `UnexpectedError`, with the reason = the exception type name, never the message.
-- [ ] T010 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/OperationalFailureKeysTests.cs`:
+- [X] T010 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/OperationalFailureKeysTests.cs`:
   - The grouping key is stable under case and whitespace.
   - It differs when any of engine, provider, model, kind, operation or subject differs.
   - It is identical across different chats, users or runs.
   - The root cause for a provider kind ignores engine, operation and subject.
   - The root cause for a non-provider kind is engine|kind|operation.
-- [ ] T011 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/OperationalFailureIngestorTests.cs`, using a substituted `IOperationalFailureStore`:
+- [X] T011 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/OperationalFailureIngestorTests.cs`, using a substituted `IOperationalFailureStore`:
   - The reason is sanitised before the store sees it.
   - Severity comes from the policy.
   - A null `CorrelationId` gets a generated id, logged via `FakeLogger`.
   - A store exception is logged with correlation id, engine and kind, and is not rethrown.
   - The ingestor never calls `IOperationalFailureRecorder`.
-- [ ] T012 [P] Infrastructure tests in `tests/AskLucy.Infrastructure.Tests/OperationalFailures/ChannelOperationalFailureRecorderTests.cs`, covering G1–G6 from [contracts/operational-failure-recorder.md](contracts/operational-failure-recorder.md):
+- [X] T012 [P] Infrastructure tests in `tests/AskLucy.Infrastructure.Tests/OperationalFailures/ChannelOperationalFailureRecorderTests.cs`, covering G1–G6 from [contracts/operational-failure-recorder.md](contracts/operational-failure-recorder.md):
   - `Record` returns in < 1 ms while the writer is blocked forever.
   - A full channel logs `OperationalFailureDropped` and returns.
   - A null report and a throwing logger do not throw.
   - The correlation id and time are captured at call time (set the accessor, call `Record`, change the accessor, and assert the first value).
-- [ ] T013 [P] Infrastructure tests in `tests/AskLucy.Infrastructure.Tests/OperationalFailures/OperationalFailureWriterServiceTests.cs`:
+- [X] T013 [P] Infrastructure tests in `tests/AskLucy.Infrastructure.Tests/OperationalFailures/OperationalFailureWriterServiceTests.cs`:
   - Batches are ≤ `WriterBatchSize`.
   - Each batch gets a new DI scope; assert two batches get different scoped instances.
   - A throwing batch is logged per report and the loop continues.
   - `StopAsync` drains for ≤ 5 s and logs the abandoned count.
-- [ ] T014 [P] Infrastructure tests in `tests/AskLucy.Infrastructure.Tests/OperationalFailures/CorrelationIdAccessorTests.cs`: the order is AsyncLocal, then `HttpContext.Items`, then null.
-- [ ] T015 [P] Persistence tests in `tests/AskLucy.Persistence.Tests/OperationalFailures/OperationalFailureStoreTests.cs`, against real SQL Server:
+  - _Implemented:_ the drain runs in `StopAsync` after `base.StopAsync`, not at the end of `ExecuteAsync`. On .NET 10 a host that stops before the framework starts `ExecuteAsync` never runs it, and the queue would be lost without a log line. An extra test covers that case. No `BatchFailed` event: each report of a failed batch gets its own `OperationalFailureRecordingFailed`/`VoiceRecoveryRecordingFailed` line.
+- [X] T014 [P] Infrastructure tests in `tests/AskLucy.Infrastructure.Tests/OperationalFailures/CorrelationIdAccessorTests.cs`: the order is AsyncLocal, then `HttpContext.Items`, then null.
+  - _Implemented in `tests/AskLucy.Web.Tests/Middleware/CorrelationIdAccessorTests.cs`:_ the accessor lives in Web (see T032).
+- [X] T015 [P] Persistence tests in `tests/AskLucy.Persistence.Tests/OperationalFailures/OperationalFailureStoreTests.cs`, against real SQL Server:
   - The first append opens an incident. The second append with the same key joins it: `OccurrenceCount = 2`, `LastSeenUtc` = the max, `HighestSeverity` = the max.
   - 20 concurrent appends of one key from separate `DbContext`s produce exactly 1 incident with count 20.
   - After `Resolved`, an append opens a new incident with `RecurrenceOfIncidentId` set.
   - The cap: with `MaxStoredOccurrencesPerIncident = 3`, 5 appends give `StoredOccurrenceCount = 3` and `OccurrenceCount = 5`.
   - Participants: 5 appends from 2 users give `DistinctUserCount = 2`. Beyond the cap, a new user still increments the count.
   - Audit columns: the incident's `CreatedBy` is `"system"`, and a joined occurrence does **not** change `ModifiedAtUtc`, because counter updates are bookkeeping. `LastSeenUtc` is the activity timestamp.
+  - _Written and compiling, not yet executed:_ the Persistence fixture wipes every table, and the only DB available is the shared dev/test DB, so these run only where `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` is safe. The store is exercised end to end against real SQL Server by T036.
 - [X] T016 [P] Application tests in `tests/AskLucy.Application.Tests/Authorization/EffectivePermissionResolverTests.cs` (extend the existing file):
   - Super User gets every key, including `admin.operational-failures.content.view`.
   - Administrator gets every key **except** content.view when the Administrator role has no stored grant, and gets it when the grant is stored.
@@ -198,31 +201,32 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - Update the class doc comment to describe the one exception.
 
   This makes T016 pass. `UpdateRoleCommandHandler` refuses built-in roles, so add `SetControlledGrantsAsync(roleId, keys, actorUserId, ct)` to `IRoleRepository` and `src/AskLucy.Persistence/Repositories/RoleRepository.cs`. It replaces only the `SuperUserControlledKeys` grants on the role and writes a `RoleAuditLog` `RoleUpdated` row with before/after JSON. T084 uses it.
-- [ ] T022 [P] Create in `src/AskLucy.Application/OperationalFailures/Abstractions/`:
+- [X] T022 [P] Create in `src/AskLucy.Application/OperationalFailures/Abstractions/`:
   - `IOperationalFailureRecorder.cs`: `Record` and `RecordRecovery`.
   - `OperationalFailureReport.cs`: the fields from [data-model.md → Application-level types](data-model.md#application-level-types-not-persisted), with **no** severity, body, password, code or token fields, plus internal `CorrelationId`/`OccurredAtUtc` set by the recorder.
   - `VoiceRecoveryReport.cs`
   - `IOperationalFailureStore.cs`: `AppendAsync(IncidentAppendRequest) → IncidentAppendResult`, plus `IncrementRecoveryAsync`, the read, transition, retention and anonymise methods. Declare these now; they are implemented in later phases.
   - `IUserContentAccessEventRepository.cs`: `AddAsync` and `AnonymizeOwnerAsync` only.
   - `OperationalFailureMarkers.cs`: `MarkOperationalFailureRecorded(this Exception)` and `IsOperationalFailureRecorded(this Exception)` via `ex.Data`.
-- [ ] T023 [P] Create `src/AskLucy.Application/Abstractions/ICorrelationIdAccessor.cs` (`string? Current { get; }`).
-- [ ] T024 [P] Create `src/AskLucy.Application/OperationalFailures/FailureReasonSanitizer.cs`, pure and static, using `[GeneratedRegex(..., matchTimeoutMilliseconds: 100)]` patterns (research D8). A regex timeout returns `"[reason withheld]"` rather than throwing. Makes T008 pass.
-- [ ] T025 [P] Create `src/AskLucy.Application/OperationalFailures/FailureClassifier.cs`, `IFailureClassifier` plus its implementation: `OperationalFailureKind? Classify(Exception ex, CancellationToken callerToken)` and `string FallbackReason(Exception ex)`. Makes T009 pass.
-- [ ] T026 [P] Create `src/AskLucy.Application/OperationalFailures/OperationalFailureKeys.cs`: `Grouping(report)` and `RootCause(report)`, SHA-256 lowercase hex over the normalised `|`-joined parts. Makes T010 pass.
-- [ ] T027 Create `src/AskLucy.Application/OperationalFailures/OperationalFailureIngestor.cs`:
+  - _Implemented:_ only `AppendAsync` and `IncrementRecoveryAsync` are declared now. The read, transition, retention and anonymise methods are added with the phases that implement them, so no interface member is left unimplemented.
+- [X] T023 [P] Create `src/AskLucy.Application/Abstractions/ICorrelationIdAccessor.cs` (`string? Current { get; }`).
+- [X] T024 [P] Create `src/AskLucy.Application/OperationalFailures/FailureReasonSanitizer.cs`, pure and static, using `[GeneratedRegex(..., matchTimeoutMilliseconds: 100)]` patterns (research D8). A regex timeout returns `"[reason withheld]"` rather than throwing. Makes T008 pass.
+- [X] T025 [P] Create `src/AskLucy.Application/OperationalFailures/FailureClassifier.cs`, `IFailureClassifier` plus its implementation: `OperationalFailureKind? Classify(Exception ex, CancellationToken callerToken)` and `string FallbackReason(Exception ex)`. Makes T009 pass.
+- [X] T026 [P] Create `src/AskLucy.Application/OperationalFailures/OperationalFailureKeys.cs`: `Grouping(report)` and `RootCause(report)`, SHA-256 lowercase hex over the normalised `|`-joined parts. Makes T010 pass.
+- [X] T027 Create `src/AskLucy.Application/OperationalFailures/OperationalFailureIngestor.cs`:
   - `IngestAsync(IReadOnlyList<OperationalFailureReport>, CancellationToken)` does sanitise → classify severity → keys → `store.AppendAsync`, one report at a time.
   - It catches per report and logs via a new `[LoggerMessage]` class `OperationalFailureLog.cs` in the same folder, with events `OperationalFailureRecorded` (Debug), `OperationalFailureRecordingFailed` (Error) and `OperationalFailureDropped` (Warning).
   - It returns the `IncidentAppendResult`s for D18.
 
   Makes T011 pass.
-- [ ] T028 Create `src/AskLucy.Persistence/Configurations/OperationalFailures/`:
+- [X] T028 Create `src/AskLucy.Persistence/Configurations/OperationalFailures/`:
   - `OperationalFailureIncidentConfiguration.cs`
   - `OperationalFailureOccurrenceConfiguration.cs`
   - `IncidentParticipantConfiguration.cs`
   - `UserContentAccessEventConfiguration.cs`
 
   Include every column type, index and filtered index exactly as in [data-model.md](data-model.md): the `UX_Incidents_GroupingKey_Unresolved` filter `[TriageState] <> N'Resolved'` and the badge filter `[TriageState] = N'Open'`. Enums use `HasConversion<string>().HasMaxLength(40)`. Only `Incident→Occurrence` and `Incident→Participant` have foreign keys, both cascade. Add the four `DbSet`s to `src/AskLucy.Persistence/AskLucyDbContext.cs`.
-- [ ] T029 Create `src/AskLucy.Persistence/Repositories/OperationalFailureStore.cs` implementing `AppendAsync` per research D3:
+- [X] T029 Create `src/AskLucy.Persistence/Repositories/OperationalFailureStore.cs` implementing `AppendAsync` per research D3:
   - Find the open incident by `GroupingKey`, or insert one (setting `RecurrenceOfIncidentId` from the latest resolved incident with that key).
   - Catch a `DbUpdateException` whose inner `SqlException.Number` is 2601 or 2627, detach, re-read and join.
   - Counters use `ExecuteUpdateAsync`: `OccurrenceCount + 1`, `LastSeenUtc`/`HighestSeverity` via `CASE`, `LatestReason`, `LatestCorrelationId`, and `StoredOccurrenceCount + 1` only when under the cap. These counter updates are bookkeeping writes. Like the repo's 6 existing `ExecuteUpdateAsync` uses, they do not touch `ModifiedAtUtc`/`ModifiedBy`; the audit columns belong to the SaveChanges interceptor (constitution §5).
@@ -231,42 +235,45 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - Register it in the Persistence DI.
 
   Makes T015 pass.
-- [ ] T030 Give the role and MCP audit logs a correlation id (FR-006b):
+- [X] T030 Give the role and MCP audit logs a correlation id (FR-006b):
   - Add `ICorrelated { string? CorrelationId { get; } }` to `src/AskLucy.Domain/Common/`, and implement it on `src/AskLucy.Domain/Authorization/RoleAuditLog.cs` and `src/AskLucy.Domain/Mcp/McpAuditLog.cs` with a private setter.
   - Stamp it once, centrally: the existing SaveChanges audit interceptor in `src/AskLucy.Persistence/` sets `CorrelationId` from `ICorrelationIdAccessor.Current` on every **added** `ICorrelated` entity whose value is null. This covers the 4 `RoleRepository`, 2 `RoleAssignmentRepository`, `PermissionDeniedAuditResultHandler`, `PermissionCatalogReconciler` and 10 MCP handler call sites without editing them.
   - Map `CorrelationId nvarchar(64) NULL` with a nonclustered index in both existing configurations, so T031's migration includes it.
   - Test in `tests/AskLucy.Persistence.Tests/OperationalFailures/AuditLogCorrelationTests.cs`: with the accessor returning `"abc"`, a saved `RoleAuditLog` and `McpAuditLog` both read back `"abc"`; with null, they stay null.
-- [ ] T031 Create the migration `src/AskLucy.Persistence/Migrations/<ts>_AddOperationalFailureAudit.cs`, using the command in standing rule 10:
+  - _Test written and compiling, not yet executed:_ it needs the dedicated persistence DB (see T015). `PersistenceTestFixture.CreateAuditedDbContext` adds the interceptor, which the bare fixture context lacks.
+- [X] T031 Create the migration `src/AskLucy.Persistence/Migrations/<ts>_AddOperationalFailureAudit.cs`, using the command in standing rule 10:
   - Check there is no BOM (`xxd … | head -1`) and that `System` usings come first.
   - Run `dotnet ef migrations has-pending-model-changes`; it must report none.
   - Apply to the shared **test** DB (the `appsettings.Development.json` `DefaultConnection`).
   - Confirm `dotnet ef migrations list … | grep -c '(Pending)'` returns 0.
-- [ ] T032 [P] Create `src/AskLucy.Infrastructure/OperationalFailures/CorrelationIdAccessor.cs`:
+  - _Done:_ `20260925231854_AddOperationalFailureAudit`, applied to the shared test DB, 0 pending.
+- [X] T032 [P] Create `src/AskLucy.Infrastructure/OperationalFailures/CorrelationIdAccessor.cs`:
   - A static `AsyncLocal<string?> JobCorrelationId`, used by T097 (the Hangfire job filter).
   - Otherwise `IHttpContextAccessor.HttpContext?.Items[CorrelationIdKeys.ItemsKey]`, whose value stays `"X-Correlation-Id"`, the key the middleware writes today via `HeaderName`.
   - Put the `HttpContext.Items` key in `src/AskLucy.Application/Abstractions/CorrelationIdKeys.cs` (`public const string ItemsKey`), and change `src/AskLucy.Web/Middleware/CorrelationIdMiddleware.cs` to use it. Infrastructure can't reference Web.
 
   Makes T014 pass.
-- [ ] T033 Create `src/AskLucy.Infrastructure/OperationalFailures/ChannelOperationalFailureRecorder.cs`, a singleton per research D2:
+  - _Implemented differently:_ Infrastructure has no ASP.NET Core framework reference, so `CorrelationIdAccessor` is in `src/AskLucy.Web/Middleware/` next to `HttpContextCurrentUserAccessor` and is registered in `Program.cs`. The `AsyncLocal` is `src/AskLucy.Infrastructure/OperationalFailures/JobCorrelationContext.cs`, so the Hangfire filter (T097) can set it.
+- [X] T033 Create `src/AskLucy.Infrastructure/OperationalFailures/ChannelOperationalFailureRecorder.cs`, a singleton per research D2:
   - `Channel.CreateBounded` with `FullMode = Wait`, `SingleReader = true`; writes use `TryWrite`.
   - Stamp the correlation id and time on the caller's thread.
   - Wrap everything in `try/catch` that logs.
   - Expose `ChannelReader` to the writer through an internal `IOperationalFailureQueue`.
 
   Makes T012 pass.
-- [ ] T034 Create `src/AskLucy.Infrastructure/OperationalFailures/OperationalFailureWriterService.cs`, a `BackgroundService`:
+- [X] T034 Create `src/AskLucy.Infrastructure/OperationalFailures/OperationalFailureWriterService.cs`, a `BackgroundService`:
   - Use `ReadAllAsync` batching up to `WriterBatchSize`.
   - Per batch, call `IServiceScopeFactory.CreateAsyncScope()`, then `OperationalFailureIngestor.IngestAsync`.
   - Per batch, `catch (Exception)` → log and continue.
   - In `StopAsync`, drain with a 5 s timeout and log the abandoned count.
 
   Makes T013 pass.
-- [ ] T035 Register in `src/AskLucy.Infrastructure/DependencyInjection.cs` and `src/AskLucy.Application/DependencyInjection.cs`:
+- [X] T035 Register in `src/AskLucy.Infrastructure/DependencyInjection.cs` and `src/AskLucy.Application/DependencyInjection.cs`:
   - `Configure<OperationalFailuresOptions>(section)`, with **no** `ValidateOnStart`.
   - The singleton recorder, registered once as the concrete type and then `AddSingleton<IOperationalFailureRecorder>(sp => sp.GetRequiredService<ChannelOperationalFailureRecorder>())`. This is **not** a cycle: document why. Also `AddSingleton<IOperationalFailureQueue>(sp => sp.GetRequiredService<ChannelOperationalFailureRecorder>())`, so the writer reads the **same** channel the recorder writes. T036 covers both registrations.
   - The `AddHostedService<OperationalFailureWriterService>()`.
   - Scoped `OperationalFailureIngestor`, `IOperationalFailureStore`, `IUserContentAccessEventRepository`, singleton `IFailureClassifier`, singleton `ICorrelationIdAccessor`.
-- [ ] T036 [P] Web.Tests smoke test in `tests/AskLucy.Web.Tests/OperationalFailures/OperationalFailureHostTests.cs`:
+- [X] T036 [P] Web.Tests smoke test in `tests/AskLucy.Web.Tests/OperationalFailures/OperationalFailureHostTests.cs`:
   - The host boots.
   - `IOperationalFailureRecorder` and `IOperationalFailureQueue` both resolve, to the same `ChannelOperationalFailureRecorder` instance (`Assert.Same`).
   - A `Record` call appears as an incident within 5 s (poll the DB).
@@ -276,6 +283,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 **Checkpoint**: A report passed to `Record` lands as a grouped incident, the permission keys exist, and Administrators no longer hold content.view implicitly.
 
 ---
+  - _Note:_ the store commits a new incident before joining its first occurrence (research D3), so a reader can briefly see `OccurrenceCount = 0`. The test polls for a joined incident, and the US1 list query must hide zero-count rows.
 
 ## Phase 3: User Story 1 — Calm user message, precise admin record (Priority: P1) 🎯 MVP
 

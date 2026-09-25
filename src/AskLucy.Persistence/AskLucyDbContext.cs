@@ -10,6 +10,7 @@ using AskLucy.Domain.CustomModels;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Mcp;
+using AskLucy.Domain.OperationalFailures;
 using AskLucy.Domain.Panels;
 using AskLucy.Domain.Projects;
 using AskLucy.Domain.Prompts;
@@ -271,6 +272,14 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<CustomModel> CustomModels => Set<CustomModel>();
 
     public DbSet<CustomModelOverwrittenFile> CustomModelOverwrittenFiles => Set<CustomModelOverwrittenFile>();
+
+    public DbSet<OperationalFailureIncident> OperationalFailureIncidents => Set<OperationalFailureIncident>();
+
+    public DbSet<OperationalFailureOccurrence> OperationalFailureOccurrences => Set<OperationalFailureOccurrence>();
+
+    public DbSet<IncidentParticipant> OperationalFailureIncidentParticipants => Set<IncidentParticipant>();
+
+    public DbSet<UserContentAccessEvent> UserContentAccessEvents => Set<UserContentAccessEvent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

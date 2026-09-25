@@ -25,7 +25,7 @@ public enum McpAuditAction
 /// Deliberately not hard-FK'd to <see cref="McpServer"/> (mirrors <c>AgentAuditLog</c>'s existing
 /// pattern) — an audit entry for a later-removed server is retained. Append-only.
 /// </summary>
-public sealed class McpAuditLog : BaseEntity
+public sealed class McpAuditLog : BaseEntity, ICorrelated
 {
     public Guid? McpServerId { get; private set; }
 
@@ -38,6 +38,9 @@ public sealed class McpAuditLog : BaseEntity
     public string DetailsJson { get; private set; } = "{}";
 
     public DateTime OccurredAtUtc { get; private set; }
+
+    /// <summary>Set by the SaveChanges audit interceptor on insert (specs/074 FR-006b).</summary>
+    public string? CorrelationId { get; private set; }
 
     private McpAuditLog()
     {

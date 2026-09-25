@@ -21,6 +21,7 @@ using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Mcp.Validation;
 using AskLucy.Application.Memory;
+using AskLucy.Application.OperationalFailures;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
@@ -354,6 +355,10 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowNodeExecutor, ValidationNodeExecutor>();
         services.AddScoped<IWorkflowNodeExecutor, ConditionNodeExecutor>();
         services.AddScoped<IWorkflowNodeExecutor, MergeNodeExecutor>();
+
+        // specs/074: the writer resolves the ingestor once per batch, in the batch's own scope.
+        services.AddSingleton<IFailureClassifier, FailureClassifier>();
+        services.AddScoped<OperationalFailureIngestor>();
 
         return services;
     }

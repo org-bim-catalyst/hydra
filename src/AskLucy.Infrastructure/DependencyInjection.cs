@@ -3,6 +3,7 @@ using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
@@ -27,6 +28,7 @@ using AskLucy.Infrastructure.Identity;
 using AskLucy.Infrastructure.KnowledgeBases;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
+using AskLucy.Infrastructure.OperationalFailures;
 using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
@@ -86,6 +88,12 @@ public static class DependencyInjection
         // specs/070: every property defaults, so no section at all still boots the host.
         services.AddOptions<SupertonicOptions>()
             .Bind(configuration.GetSection(SupertonicOptions.SectionName));
+
+        // specs/074: deliberately no ValidateOnStart — every value has a default and out-of-range
+        // values are clamped by OperationalFailuresOptions.Normalize, so a bad setting can never
+        // take the whole host down with it.
+        services.AddOptions<OperationalFailuresOptions>()
+            .Bind(configuration.GetSection(OperationalFailuresOptions.SectionName));
 
         // specs/072: no ValidateOnStart on either — an unconfigured or invalid deployment target
         // must disable only the Custom Models feature (FR-019), never fail the whole host.
@@ -551,6 +559,15 @@ public static class DependencyInjection
         services.AddSingleton<ICustomModelDeploymentNotifier, CustomModelDeploymentNotifier>();
         services.AddSingleton<IHostedModelLocator, ScopedHostedModelLocator>();
         services.AddHostedService<CustomModelDeploymentRecoveryHostedService>();
+
+        // specs/074 research D2: one channel, written by every engine through the recorder and read
+        // by the writer. Both interfaces forward to the one concrete singleton, so they share the
+        // channel. Neither forward is a cycle: the recorder's own dependencies (options, the
+        // correlation-id accessor, TimeProvider, a logger) never resolve either interface back.
+        services.AddSingleton<ChannelOperationalFailureRecorder>();
+        services.AddSingleton<IOperationalFailureRecorder>(sp => sp.GetRequiredService<ChannelOperationalFailureRecorder>());
+        services.AddSingleton<IOperationalFailureQueue>(sp => sp.GetRequiredService<ChannelOperationalFailureRecorder>());
+        services.AddHostedService<OperationalFailureWriterService>();
 
         // specs/072 research D4: redirects are followed by hand so every hop is checked against the
         // host allowlist, and the connect callback refuses non-public addresses (DNS rebinding).

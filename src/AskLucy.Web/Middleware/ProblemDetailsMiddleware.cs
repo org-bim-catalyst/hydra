@@ -91,7 +91,7 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             Detail = detail,
         };
 
-        if (context.Items.TryGetValue(CorrelationIdMiddleware.HeaderName, out var correlationId))
+        if (context.Items.TryGetValue(CorrelationIdKeys.ItemsKey, out var correlationId))
         {
             problemDetails.Extensions["traceId"] = correlationId;
         }

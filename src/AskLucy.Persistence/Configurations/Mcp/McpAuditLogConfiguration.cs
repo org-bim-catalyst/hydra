@@ -19,6 +19,7 @@ public sealed class McpAuditLogConfiguration : IEntityTypeConfiguration<McpAudit
         builder.Property(a => a.FailureCategory).HasConversion<string>().HasMaxLength(30);
         builder.Property(a => a.DetailsJson).IsRequired();
         builder.Property(a => a.OccurredAtUtc).IsRequired();
+        builder.Property(a => a.CorrelationId).HasMaxLength(64);
 
         builder.Property(a => a.CreatedBy).IsRequired();
         builder.Property(a => a.RowVersion).IsRowVersion();
@@ -26,5 +27,6 @@ public sealed class McpAuditLogConfiguration : IEntityTypeConfiguration<McpAudit
         builder.HasIndex(a => a.McpServerId);
         builder.HasIndex(a => a.UserId);
         builder.HasIndex(a => a.Action);
+        builder.HasIndex(a => a.CorrelationId);
     }
 }

@@ -7,7 +7,7 @@ namespace AskLucy.Domain.Authorization;
 /// Mirrors the <c>McpAuditLog</c> pattern — no setters beyond construction, no update/delete paths.
 /// Not FK'd to a role/user — an entry for a later-deleted role or removed user is retained.
 /// </summary>
-public sealed class RoleAuditLog : BaseEntity
+public sealed class RoleAuditLog : BaseEntity, ICorrelated
 {
     public RoleAuditAction Action { get; private set; }
 
@@ -22,6 +22,9 @@ public sealed class RoleAuditLog : BaseEntity
     public string DetailsJson { get; private set; } = "{}";
 
     public DateTime OccurredAtUtc { get; private set; }
+
+    /// <summary>Set by the SaveChanges audit interceptor on insert (specs/074 FR-006b).</summary>
+    public string? CorrelationId { get; private set; }
 
     private RoleAuditLog()
     {
