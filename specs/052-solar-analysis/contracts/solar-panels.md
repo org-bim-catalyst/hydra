@@ -36,6 +36,7 @@ typeKey: 'solar.corrections'
 | Ground offset | FR-026 | Moves the analysis relative to ground. |
 | Site label | FR-028 | Names the site these corrections apply to. |
 | Reset | — | Restores source values for this site. |
+| Show building massing | FR-016 | A switch, off by default. On draws the boxes that cast the shadows so they can be compared against the basemap's own buildings; off leaves them casting but invisible (research D13). Flips the material in place — no rebuild. A view choice, not a correction: it applies to every site and Reset leaves it alone. Added 2026-09-25 — the scene toggle existed but was developer-only. |
 
 **Validation (FR-027)**: height `> 0` and `≤ 1000` m; offset within `±500` m. An invalid entry is
 rejected with a stated reason and the **previous value is kept** — never silently clamped, never

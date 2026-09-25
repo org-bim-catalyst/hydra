@@ -1,4 +1,5 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react'
+import * as THREE from 'three'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import type { ExtensionContext } from '../../../viewer/extensions/context'
@@ -54,7 +55,7 @@ describe('SolarAnalysisOverlay (US1 scenarios 1-6, FR-008, FR-042, research D10)
       locationType: null,
       viewport: null,
     })
-    useSolarAnalysisStore.setState({ site: null, moment: null, status: 'idle', failureReason: null, buildingsNotice: null })
+    useSolarAnalysisStore.setState({ site: null, moment: null, status: 'idle', failureReason: null, buildingsNotice: null, showBuildingMass: false })
     useViewerExtensionStore.setState({ extensions: {}, contributions: [] })
   })
 
@@ -198,6 +199,38 @@ describe('SolarAnalysisOverlay — buildings fetch (T042, T043, FR-013, FR-014, 
     await waitFor(() => expect(useSolarAnalysisStore.getState().status).toBe('ready'))
     expect(sceneRef.current!.buildingsGroup.children.length).toBeGreaterThan(0)
     drawingSpaceRegistry.release('overlay-test-7')
+  })
+
+  // The Building Corrections panel's massing switch: draws the shadow casters in place, no rebuild.
+  it('draws the building massing while the switch is on, and hides it again when off', async () => {
+    const building = {
+      id: 'osm_way_1',
+      ring: [{ latitude: 25.156, longitude: 55.221 }, { latitude: 25.156, longitude: 55.222 }, { latitude: 25.155, longitude: 55.222 }],
+      heightMetres: 30,
+      heightProvenance: 'known' as const,
+      name: 'Test',
+      isSiteBuilding: true,
+    }
+    sceneAnchor.set({ latitude: 25.2, longitude: 55.3 })
+    vi.mocked(siteBuildingsApi.getSiteBuildings).mockResolvedValue({ buildings: [building], limited: false, excludedCount: 0, radiusMetres: 200 })
+    useActiveLocationStore.setState({ latitude: 25.2, longitude: 55.3 })
+    const drawingSpace = drawingSpaceRegistry.acquire('overlay-test-mass')
+    const sceneRef = { current: new SolarScene(drawingSpace) }
+    setActivation(true)
+
+    const Overlay = makeSolarAnalysisOverlay(makeFakeContext(), sceneRef)
+    render(<Overlay />)
+    await waitFor(() => expect(sceneRef.current!.buildingsGroup.children.length).toBeGreaterThan(0))
+    const material = () => ((sceneRef.current!.buildingsGroup.children[0] as THREE.Mesh).material as THREE.Material)
+    expect(material().colorWrite).toBe(false)
+
+    act(() => useSolarAnalysisStore.getState().setShowBuildingMass(true))
+    expect(material().colorWrite).toBe(true)
+    expect(material().depthWrite).toBe(true)
+
+    act(() => useSolarAnalysisStore.getState().setShowBuildingMass(false))
+    expect(material().colorWrite).toBe(false)
+    drawingSpaceRegistry.release('overlay-test-mass')
   })
 
   it('discards a stale buildings response whose site key no longer matches the current site', async () => {

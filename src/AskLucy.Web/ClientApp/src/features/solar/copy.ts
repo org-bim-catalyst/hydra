@@ -105,6 +105,8 @@ export const copy = {
   siteBuildingHeightLabel: 'Site building height',
   groundOffsetLabel: 'Ground offset',
   resetLabel: 'Reset to source values',
+  showBuildingMassLabel: 'Show building massing',
+  showBuildingMassNote: 'Draws the boxes that cast the shadows, to compare against the map.',
 
   // Figures content (contracts/solar-panels.md)
   azimuthLabel: 'Azimuth',

@@ -16,7 +16,7 @@ const SITE_BUILDING = {
 
 beforeEach(async () => {
   useCorrectionsStore.setState({ bySiteKey: {} })
-  useSolarAnalysisStore.setState({ site: null, moment: null, status: 'idle', failureReason: null, buildingsNotice: null, siteBuildings: [] })
+  useSolarAnalysisStore.setState({ site: null, moment: null, status: 'idle', failureReason: null, buildingsNotice: null, siteBuildings: [], showBuildingMass: false })
   await useSolarAnalysisStore.getState().open(25.2, 55.3)
   useSolarAnalysisStore.getState().setSiteBuildings([SITE_BUILDING], 200)
 })
@@ -51,6 +51,23 @@ describe('BuildingCorrectionsPanel (US4 scenarios 1-5, contracts/solar-panels.md
     expect(screen.getByText(copy.invalidHeight)).toBeInTheDocument()
     const site = useSolarAnalysisStore.getState().site!
     expect(useCorrectionsStore.getState().getFor(site.siteKey).buildingHeights[SITE_BUILDING.id]).toBeUndefined()
+  })
+
+  it('shows and hides the building massing, off by default, and Reset leaves it alone', () => {
+    render(<BuildingCorrectionsPanel />)
+    const massing = screen.getByRole('switch', { name: copy.showBuildingMassLabel })
+    expect(massing).not.toBeChecked()
+
+    fireEvent.click(massing)
+    expect(useSolarAnalysisStore.getState().showBuildingMass).toBe(true)
+    expect(massing).toBeChecked()
+
+    // A view choice, not a correction — resetting the corrections must not flip it back.
+    fireEvent.click(screen.getByRole('button', { name: copy.resetLabel }))
+    expect(useSolarAnalysisStore.getState().showBuildingMass).toBe(true)
+
+    fireEvent.click(massing)
+    expect(useSolarAnalysisStore.getState().showBuildingMass).toBe(false)
   })
 
   it('applies a valid ground offset (FR-026)', () => {

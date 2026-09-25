@@ -1,4 +1,4 @@
-import { Alert, Box, Button, InputBase, Typography } from '@mui/material'
+import { Alert, Box, Button, FormControlLabel, InputBase, Switch, Typography } from '@mui/material'
 import { useState } from 'react'
 import {
   compactAlertSx,
@@ -30,6 +30,8 @@ const sectionTitleSx = { fontSize: 12, fontWeight: 600, lineHeight: 1.4 } as con
 export function BuildingCorrectionsPanel(): React.JSX.Element | null {
   const site = useSolarAnalysisStore((s) => s.site)
   const siteBuildings = useSolarAnalysisStore((s) => s.siteBuildings)
+  const showBuildingMass = useSolarAnalysisStore((s) => s.showBuildingMass)
+  const setShowBuildingMass = useSolarAnalysisStore((s) => s.setShowBuildingMass)
   const setBuildingHeight = useCorrectionsStore((s) => s.setBuildingHeight)
   const setGroundOffset = useCorrectionsStore((s) => s.setGroundOffset)
   const resetCorrections = useCorrectionsStore((s) => s.reset)
@@ -125,6 +127,22 @@ export function BuildingCorrectionsPanel(): React.JSX.Element | null {
             {offsetError}
           </Alert>
         )}
+      </Box>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              checked={showBuildingMass}
+              onChange={(e) => setShowBuildingMass(e.target.checked)}
+            />
+          }
+          label={copy.showBuildingMassLabel}
+          slotProps={{ typography: { sx: sectionTitleSx } }}
+          sx={{ ml: 0, gap: 0.75 }}
+        />
+        <Typography sx={compactLabelSx}>{copy.showBuildingMassNote}</Typography>
       </Box>
 
       <Button

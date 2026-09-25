@@ -79,6 +79,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
     const moment = useSolarAnalysisStore((s) => s.moment)
     const status = useSolarAnalysisStore((s) => s.status)
     const siteBuildings = useSolarAnalysisStore((s) => s.siteBuildings)
+    const showBuildingMass = useSolarAnalysisStore((s) => s.showBuildingMass)
     // FR-025, FR-026, research D11 — reactive: a correction edit (a different object reference
     // for this site key) re-triggers the geometry-rebuild effect below, without depending on
     // corrections for any OTHER site re-rendering this overlay.
@@ -202,6 +203,15 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         useSolarAnalysisStore.getState().markFailed(copy.viewerUnavailable)
       }
     }, [activation, siteBuildings, corrections, anchorVersion])
+
+    // FR-016 — the massing switch flips the one shared material in place; no rebuild. Keyed on
+    // `activation` too, because a re-activated extension builds a fresh scene that starts hidden.
+    useEffect(() => {
+      const solarScene = sceneRef.current
+      if (activation !== 'active' || !solarScene) return
+      solarScene.setShowBuildingMass(showBuildingMass)
+      solarScene.invalidate()
+    }, [activation, showBuildingMass])
 
     // Rebuilds the sun-path geometry, aims the shadow light, and refreshes the figures panel
     // whenever the instant or the site changes (FR-005…FR-008, FR-016, FR-017, FR-031).

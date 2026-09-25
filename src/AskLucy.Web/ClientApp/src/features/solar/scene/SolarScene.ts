@@ -218,7 +218,8 @@ export class SolarScene {
     return built
   }
 
-  /** T041 — the developer-only toggle that reveals massing without rebuilding geometry. */
+  /** T041 — reveals the massing without rebuilding geometry; driven by the Building Corrections
+   * panel's "Show building massing" switch. */
   setShowBuildingMass(showMass: boolean): void {
     this.showBuildingMass = showMass
     for (const child of this.buildingsGroup.children) {

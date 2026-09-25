@@ -82,6 +82,10 @@ interface SolarAnalysisState {
   setLocalMinuteOfDay: (localMinuteOfDay: number) => void
   setPlaying: (isPlaying: boolean) => void
   setPlaybackMinutesPerSecond: (minutesPerSecond: number) => void
+  /** Whether the shadow-casting building massing is drawn, not only cast (FR-016). A view choice,
+   * not a correction: it applies to every site and survives `close()`, like the camera does. */
+  showBuildingMass: boolean
+  setShowBuildingMass: (showBuildingMass: boolean) => void
   /** Advances the canonical instant by `deltaSeconds * playbackMinutesPerSecond` real seconds —
    * used only by the guarded `onFrame` callback (research D9) while playing. */
   advanceBy: (deltaSeconds: number) => void
@@ -96,6 +100,8 @@ export const useSolarAnalysisStore = create<SolarAnalysisState>()((set, get) => 
   siteBuildings: [],
   siteBuildingsRadiusMetres: 200,
   setSiteBuildings: (siteBuildings, radiusMetres) => set({ siteBuildings, siteBuildingsRadiusMetres: radiusMetres }),
+  showBuildingMass: false,
+  setShowBuildingMass: (showBuildingMass) => set({ showBuildingMass }),
 
   open: async (latitude, longitude) => {
     set({ status: 'loading', failureReason: null, buildingsNotice: null })
