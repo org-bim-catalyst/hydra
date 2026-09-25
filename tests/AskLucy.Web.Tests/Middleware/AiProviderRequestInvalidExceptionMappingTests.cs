@@ -23,7 +23,9 @@ public sealed class AiProviderRequestInvalidExceptionMappingTests
     {
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new AiProviderRequestInvalidException("OpenAI rejected the request with 400: {\"error\":\"raw upstream body\"}"),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 

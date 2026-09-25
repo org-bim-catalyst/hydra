@@ -293,17 +293,17 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Tests for User Story 1 (write first, confirm failing)
 
-- [ ] T037 [P] [US1] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/UserFacingFailureTextTests.cs`. For every `AiProviderFailureKind`, as a **non-admin**, force the kind through a substituted `IAIProvider`:
+- [X] T037 [P] [US1] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/UserFacingFailureTextTests.cs`. For every `AiProviderFailureKind`, as a **non-admin**, force the kind through a substituted `IAIProvider`:
   - (a) before the stream: the Problem Details `detail` is one of the two `UserFacingFailureText` sentences, and there is no `providerFailure` extension;
   - (b) mid-stream: the appended notice and the `__TURN_OUTCOME__` reason are generic;
   - (c) on the next turn: the `RecentTurnOutcomeSummary` passed to the provider contains only the generic sentence.
 
   Assert that none contains the SC-001 word list. Repeat (a) as an Administrator and assert today's classified detail plus `providerFailure` (FR-003).
-- [ ] T038 [P] [US1] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/ChatFailureRecordingTests.cs`:
+- [X] T038 [P] [US1] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/ChatFailureRecordingTests.cs`:
   - A `CredentialRejected` before the stream gives one occurrence (Engine Chat, kind CredentialRejected, Critical), with `CorrelationId` == the response `traceId` and the correct `UserId`/`ChatId`.
   - The same mid-stream gives the classified kind, **not** `UnexpectedError` (FR-004), and exactly one occurrence, because the marked exception is not re-recorded by the middleware.
   - A `ValidationException` and a caller cancel give 0 occurrences.
-- [ ] T039 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/CorrectiveActionCatalogTests.cs`:
+- [X] T039 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/CorrectiveActionCatalogTests.cs`:
   - Every `OperationalFailureEngine` × `OperationalFailureKind` combination returns non-empty `Text`.
   - The credential kinds for Chat, AiProvider and Embeddings give `/admin/ai-providers?select={providerId}`; for Voice, `/admin/voice?select=…`.
   - `RateLimited`/`Unavailable`/`TimedOut` give the "No action needed unless this persists" text with no route.
@@ -338,18 +338,20 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Implementation for User Story 1
 
-- [ ] T046 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/UserFacingFailureText.cs` with the `Retry` and `Later` constants and `For(OperationalFailureKind?)`. `Later` is for NotConfigured, CredentialRejected, CredentialUnreadable, QuotaExhausted and UsageRestricted; `Retry` is for everything else, including null (research D9).
-- [ ] T047 [US1] In `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`:
+- [X] T046 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/UserFacingFailureText.cs` with the `Retry` and `Later` constants and `For(OperationalFailureKind?)`. `Later` is for NotConfigured, CredentialRejected, CredentialUnreadable, QuotaExhausted and UsageRestricted; `Retry` is for everything else, including null (research D9).
+- [X] T047 [US1] In `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`:
   - `MapProviderFailure` (≈L414): the **non-administrator** `detail` becomes `UserFacingFailureText.For(kind)`. Leave the administrator branch, status, title and `providerFailure` extension unchanged.
   - Add the boundary recording: for an exception that is not `IsOperationalFailureRecorded()`, is not a validation/`KeyNotFoundException`/request-aborted cancel, and maps to a system-side failure, call `recorder.Record(...)` **after** the existing log line. Use `Engine` = `Chat` for `/api/v1/ai/*` routes and `AiProvider` otherwise, `Operation` from the endpoint display name, the classifier's kind, and `Exception = ex`.
   - Also replace any other non-admin detail string that names a cause.
-- [ ] T048 [US1] In `src/AskLucy.Web/Controllers/v1/AiController.cs`:
+- [X] T048 [US1] In `src/AskLucy.Web/Controllers/v1/AiController.cs`:
   - `DescribeTurnFailure` (≈L649) returns `UserFacingFailureText.For(classifier.Classify(ex, ct))`.
   - In the mid-stream `catch` (≈L342–400), after the existing log, call `recorder.Record(new() { Engine = Chat, Operation = "Chat reply", Kind = …, Outcome = Failed, ProviderId, ProviderName, Model, UserId, ChatId, MessageId, Exception = ex })`, then `ex.MarkOperationalFailureRecorded()` if it rethrows.
   - The `RecordedTurnOutcome.Reason` and streamed notice use the generic sentence.
 
   Makes T037 and T038 pass.
-- [ ] T049 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/CorrectiveActionCatalog.cs` following the [data-model.md](data-model.md#application-level-types-not-persisted) mapping table (`CorrectiveAction { Text, AdminRoute?, AdminAction? }`). Makes T039 pass.
+
+  _Done:_ `Operation` is `"{METHOD} /{route template}"` rather than the endpoint display name, so ids in the URL never split one failure into several incidents. The middleware records when the exception is a provider failure or maps to ≥ 500. `DescribeTurnFailure` was removed; the mid-stream catch uses `UserFacingFailureText.For(kind)` directly and records without marking, because nothing is rethrown. The `AiCapabilityNotConfiguredException` detail is now `Later` for non-admins; admins keep the old prose. T037 (c) asserts the persisted `TurnOutcomeJson` `failureReason`, which is the exact input `RecentTurnOutcomeSummary` reads on the next turn.
+- [X] T049 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/CorrectiveActionCatalog.cs` following the [data-model.md](data-model.md#application-level-types-not-persisted) mapping table (`CorrectiveAction { Text, AdminRoute?, AdminAction? }`). Makes T039 pass. _Done:_ `For` also takes an optional `accountEmail` (Access → `/admin/users?search=`). Workflow/Agent/DocumentProcessing return "Open the item…" with no route; the investigation links live on each occurrence.
 - [ ] T050 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/OperationalFailureDtos.cs` with `IncidentSummaryDto`, `IncidentDetailDto`, `OccurrenceDto`, `UserRefDto`, `BulkTransitionResultDto`, `ChatInvestigationDto`, `WorkflowRunInvestigationDto` and `DocumentInvestigationDto`, exactly per [contracts/admin-operational-failures.md → Shapes](contracts/admin-operational-failures.md#shapes).
 - [ ] T051 [US1] Add these read methods to `IOperationalFailureStore` and implement them in `OperationalFailureStore`:
   - `ListIncidentsAsync(IncidentFilter, page, pageSize)`, with every filter from the contract: user via `EXISTS` on participants, `state=Unresolved` by default, ordered by `LastSeenUtc DESC`, returning a total count.

@@ -97,7 +97,7 @@ public sealed class ProblemDetailsMiddlewareProviderFailureTests
 
         body.Element.TryGetProperty("providerFailure", out _).Should().BeFalse();
         body.Element.GetProperty("detail").GetString().Should().NotContain("quota");
-        body.Element.GetProperty("detail").GetString().Should().Be("The AI provider is temporarily unavailable. Please try again later.");
+        body.Element.GetProperty("detail").GetString().Should().Be(AskLucy.Application.OperationalFailures.UserFacingFailureText.Later);
     }
 
     [Fact]
@@ -111,10 +111,10 @@ public sealed class ProblemDetailsMiddlewareProviderFailureTests
             new AiProviderNotConfiguredException("ElevenLabs is switched off under Admin → AI providers."),
             asAdministrator: false);
 
+        // specs/074 research D9: the detail is the "later" sentence, never an immediate retry and
+        // never "an administrator" (SC-001); the 503 is what stops a client retrying.
         body.Status.Should().Be(503);
-        body.Element.GetProperty("detail").GetString().Should().NotContain("try again");
-        body.Element.GetProperty("detail").GetString().Should().Be(
-            "This feature is not available right now. An administrator needs to enable it.");
+        body.Element.GetProperty("detail").GetString().Should().Be(AskLucy.Application.OperationalFailures.UserFacingFailureText.Later);
 
         // FR-015a still applies: which provider, and that it was switched off rather than never
         // set up, stays administrator-only.
@@ -159,7 +159,9 @@ public sealed class ProblemDetailsMiddlewareProviderFailureTests
     private static async Task<HttpContext> RunAsync(Exception exception, bool asAdministrator)
     {
         var middleware = new ProblemDetailsMiddleware(
-            _ => throw exception, NullLogger<ProblemDetailsMiddleware>.Instance);
+            _ => throw exception, NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
 
         var context = new DefaultHttpContext { Response = { Body = new MemoryStream() } };
         if (asAdministrator)

@@ -20,7 +20,9 @@ public sealed class ProblemDetailsMiddlewareTests
     {
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new DbUpdateConcurrencyException("stale row version"),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -40,7 +42,9 @@ public sealed class ProblemDetailsMiddlewareTests
     {
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new HttpRequestException("Connection refused"),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -59,7 +63,9 @@ public sealed class ProblemDetailsMiddlewareTests
     {
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new ProcessingNotInFailedStateException(),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 

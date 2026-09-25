@@ -41,7 +41,9 @@ public sealed class ProblemDetailsMiddlewareStreamingFailureTests
     {
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new InvalidOperationException("mid-stream failure"),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = ContextWithStartedResponse();
 
         var act = () => middleware.InvokeAsync(context);
@@ -57,7 +59,9 @@ public sealed class ProblemDetailsMiddlewareStreamingFailureTests
     {
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new OperationCanceledException("client went away"),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = new DefaultHttpContext { RequestAborted = new CancellationToken(canceled: true) };
         context.Response.Body = new MemoryStream();
 
@@ -76,7 +80,9 @@ public sealed class ProblemDetailsMiddlewareStreamingFailureTests
         // timeout, say — and must not be quietly swallowed by the disconnect path above.
         var middleware = new ProblemDetailsMiddleware(
             _ => throw new OperationCanceledException("an internal timeout"),
-            NullLogger<ProblemDetailsMiddleware>.Instance);
+            NullLogger<ProblemDetailsMiddleware>.Instance,
+            NSubstitute.Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier());
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 

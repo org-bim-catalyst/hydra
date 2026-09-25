@@ -62,7 +62,10 @@ public sealed class AiControllerChatStreamTests : IDisposable
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
-            _turnRecorder, _currentUser, NullLogger<AiController>.Instance)
+            _turnRecorder, _currentUser,
+            Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier(),
+            NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -149,7 +152,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
 
         await act.Should().NotThrowAsync("an exception after the response starts must be caught, never left to reset the connection");
         ResponseText().Should().Contain("Here you go");
-        ResponseText().Should().Contain("Something went wrong partway through and I couldn't finish");
+        ResponseText().Should().Contain(AskLucy.Application.OperationalFailures.UserFacingFailureText.Retry);
         ResponseText().Should().Contain("data: [DONE]");
         await _mediator.Received(1).Send(
             Arg.Is<AppendMessageCommand>(c => c != null && c.Content.Contains("Here you go") && c.Content.Contains("Something went wrong")),
@@ -515,7 +518,10 @@ public sealed class AiControllerKeepAliveTests : IDisposable
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { KeepAliveIntervalSeconds = 1 }),
-            _turnRecorder, _currentUser, NullLogger<AiController>.Instance)
+            _turnRecorder, _currentUser,
+            Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier(),
+            NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {

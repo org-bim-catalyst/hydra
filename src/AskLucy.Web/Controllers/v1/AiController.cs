@@ -21,11 +21,14 @@ using AskLucy.Application.Conversations;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Memory.Commands.RecordMemoryReferences;
+using AskLucy.Application.OperationalFailures;
+using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Viewer;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
+using AskLucy.Domain.OperationalFailures;
 using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -79,6 +82,9 @@ public sealed partial class AiController(
     // mid-stream never reaches that call: the throw unwinds past it. This is the only place that
     // path can be recorded from, which is why the recorder is reached directly here.
     TurnRecorder turnRecorder, ICurrentUserAccessor currentUser,
+    // specs/074 FR-004 — the mid-stream catch is the only place a failed turn is visible with its
+    // real exception, so it records the admin trail entry itself (research D11).
+    IOperationalFailureRecorder failureRecorder, IFailureClassifier failureClassifier,
     ILogger<AiController> logger) : ControllerBase
 {
     [HttpPost("chat")]
@@ -354,6 +360,28 @@ public sealed partial class AiController(
             // for that" sentence is the sibling of this one).
             AiControllerLog.TurnFailedMidStream(logger, ex, request.ChatId);
 
+            // specs/074 FR-004 — the classified kind goes on the admin trail; the user only ever
+            // sees the calm sentence for it (FR-002). Nothing rethrows past here, so there is no
+            // boundary recorder left to double-count it.
+            var failureKind = failureClassifier.Classify(ex, cancellationToken) ?? OperationalFailureKind.UnexpectedError;
+            failureRecorder.Record(new OperationalFailureReport
+            {
+                Engine = OperationalFailureEngine.Chat,
+                Operation = "Chat reply",
+                Kind = failureKind,
+                Reason = ex is AiProviderException providerFailure ? providerFailure.Message : failureClassifier.FallbackReason(ex),
+                Exception = ex,
+                ProviderId = provider?.Id,
+                ProviderName = provider?.DisplayName,
+                Model = model?.ModelKey,
+                References = new OperationalFailureReferences
+                {
+                    UserId = currentUser.UserId,
+                    ChatId = request.ChatId,
+                    MessageId = firstAssistantMessageId,
+                },
+            });
+
             // specs/068 FR-004c - this is the exact path that recorded nothing. The turn died, the
             // notice below was persisted as ordinary assistant prose, and a later turn read it as a
             // normal reply and claimed the work had been done. Recording the failure first is what
@@ -362,10 +390,11 @@ public sealed partial class AiController(
             // Note the ordering: the notice is appended to the content but not yet written to the
             // wire, so the message persists complete while __TURN_OUTCOME__ still reaches the
             // client ahead of the notice it explains.
-            const string failureNotice = " Something went wrong partway through and I couldn't finish. Please try again.";
+            var failureText = UserFacingFailureText.For(failureKind);
+            var failureNotice = " " + failureText;
 
             var failedOutcome = RecordedTurnOutcome.FailedBeforeCompleting(
-                DescribeTurnFailure(ex),
+                failureText,
                 DateTimeOffset.UtcNow,
                 turnOutcome?.Attempts);
 
@@ -620,16 +649,6 @@ public sealed partial class AiController(
         SuggestedActionWire.PayloadFor(a);
 
     /// <summary>
-    /// specs/068 FR-014 - why the turn stopped, in words a user can act on.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately does not surface <see cref="Exception.Message"/>: it is written for an
-    /// operator, routinely names internal types and endpoints, and on the credential failure that
-    /// prompted this feature would have put provider internals in front of the user. The full
-    /// exception is already logged for diagnosis (constitution 2.VIII), which is what that
-    /// principle asks for - the reason recorded here is the caller-facing half.
-    /// </remarks>
-    /// <summary>
     /// Writes text the claim gate has released, keeping the persisted copy and the wire copy the
     /// same thing (specs/068 T033). Empty releases are the norm rather than the exception - a gate
     /// mid-sentence returns one for every delta - and write nothing.
@@ -645,13 +664,6 @@ public sealed partial class AiController(
         await Response.WriteAsync($"data: {released}\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
     }
-
-    private static string DescribeTurnFailure(Exception exception) => exception switch
-    {
-        TimeoutException => "It took too long to respond and timed out.",
-        HttpRequestException => "The service it needed could not be reached.",
-        _ => "It stopped partway through with an unexpected error.",
-    };
 
     /// <summary>
     /// specs/068 contracts/turn-outcome.md 1 - the trailing <c>__TURN_OUTCOME__</c> event.

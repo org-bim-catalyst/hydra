@@ -1,6 +1,10 @@
+using System.Security.Claims;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.OperationalFailures;
+using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Common;
+using AskLucy.Domain.OperationalFailures;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +16,11 @@ namespace AskLucy.Web.Middleware;
 /// Details response (constitution &#167;6/&#167;8/&#167;22 and contracts/api-v1.md &#167; Error format).
 /// Never exposes a stack trace or raw exception message to the client.
 /// </summary>
-public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<ProblemDetailsMiddleware> logger)
+public sealed class ProblemDetailsMiddleware(
+    RequestDelegate next,
+    ILogger<ProblemDetailsMiddleware> logger,
+    IOperationalFailureRecorder recorder,
+    IFailureClassifier classifier)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -53,10 +61,15 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
         // machine-readable code for the admin UI to branch on. Everyone else keeps the
         // pre-existing cause-free message and gets no extension at all.
         var isProviderFailure = exception is AiProviderException;
-        var discloseClassification = isProviderFailure && IsAdministrator(context);
+        var isAdministrator = IsAdministrator(context);
+        var discloseClassification = isProviderFailure && isAdministrator;
         if (discloseClassification)
         {
             detail = exception.Message;
+        }
+        else if (isAdministrator && AdministratorDetail(exception) is { } administratorDetail)
+        {
+            detail = administratorDetail;
         }
 
         if (statusCode >= 500)
@@ -71,6 +84,14 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
         {
             ProblemDetailsMiddlewareLog.ProviderFailureSurfaced(
                 logger, loggedFailure.Kind, statusCode, context.Request.Path);
+        }
+
+        // specs/074 FR-001 — the boundary puts every system-side failure on the admin trail, after
+        // the log line above so the two share a correlation id. A site that already recorded the
+        // exception marked it (research D11), so a failure is never counted twice.
+        if ((isProviderFailure || statusCode >= 500) && !exception.IsOperationalFailureRecorded())
+        {
+            RecordFailure(context, exception);
         }
 
         // FR-028 (specs/002-chat-history-management): access-denial responses are logged as
@@ -324,7 +345,9 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
             StatusCodes.Status503ServiceUnavailable,
             "https://hydra.bimcatalyst.com/problems/ai-capability-not-configured",
             "AI capability not configured",
-            "Image generation isn't set up yet. An administrator needs to assign an image model on the AI Capabilities page."),
+            // specs/074 FR-002 — the setup gap is administrator state; an administrator gets the
+            // specific sentence from AdministratorDetail.
+            UserFacingFailureText.Later),
 
         // specs/072 FR-019: the deployment target isn't configured on this server. 400, not 503 —
         // the contract's own status, so the dialog can tell it apart from a transient outage. The
@@ -408,22 +431,71 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
     };
 
     /// <summary>
-    /// contracts/provider-failure-classification.md §3 - the status and problem type for each
-    /// classification, with the cause-free detail a non-administrator sees.
+    /// The specific detail an administrator gets instead of the cause-free one, for failures other
+    /// than provider failures (whose administrator detail is the classifier's own prose).
     /// </summary>
-    private static (int StatusCode, string Type, string Title, string Detail) MapProviderFailure(AiProviderException exception) => exception.Kind switch
+    private static string? AdministratorDetail(Exception exception) => exception switch
+    {
+        AskLucy.Application.Ai.AiCapabilityNotConfiguredException =>
+            "Image generation isn't set up yet. An administrator needs to assign an image model on the AI Capabilities page.",
+        _ => null,
+    };
+
+    /// <summary>
+    /// Never throws: <see cref="IOperationalFailureRecorder.Record"/> cannot, and nothing else here
+    /// does I/O. The endpoint's route template, not its path, names the operation, so ids in the
+    /// URL never split one failure into many incidents.
+    /// </summary>
+    private void RecordFailure(HttpContext context, Exception exception)
+    {
+        var kind = classifier.Classify(exception, context.RequestAborted);
+        if (kind is null)
+        {
+            return;
+        }
+
+        var isChat = context.Request.Path.StartsWithSegments("/api/v1/ai", StringComparison.OrdinalIgnoreCase);
+        var route = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText;
+        recorder.Record(new OperationalFailureReport
+        {
+            Engine = isChat ? OperationalFailureEngine.Chat : OperationalFailureEngine.AiProvider,
+            Operation = route is null ? context.Request.Method : $"{context.Request.Method} /{route.TrimStart('/')}",
+            Kind = kind.Value,
+            Reason = exception is AiProviderException provider ? provider.Message : classifier.FallbackReason(exception),
+            Exception = exception,
+            References = new OperationalFailureReferences
+            {
+                UserId = context.User?.FindFirstValue(ClaimTypes.NameIdentifier),
+                ChatId = RouteGuid(context, "chatId"),
+            },
+        });
+    }
+
+    private static Guid? RouteGuid(HttpContext context, string key) =>
+        context.GetRouteValue(key) is { } value && Guid.TryParse(value.ToString(), out var id) ? id : null;
+
+    /// <summary>
+    /// contracts/provider-failure-classification.md §3 - the status and problem type for each
+    /// classification. A non-administrator's detail is one of the two calm sentences (specs/074
+    /// research D9); an administrator's is the classifier's own prose, applied in HandleAsync.
+    /// </summary>
+    private static (int StatusCode, string Type, string Title, string Detail) MapProviderFailure(AiProviderException exception)
+    {
+        var (statusCode, type, title) = MapProviderFailureStatus(exception);
+        return (statusCode, type, title, UserFacingFailureText.For(OperationalFailureKinds.FromProvider(exception.Kind)));
+    }
+
+    private static (int StatusCode, string Type, string Title) MapProviderFailureStatus(AiProviderException exception) => exception.Kind switch
     {
         AiProviderFailureKind.CredentialRejected => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-authentication-failed",
-            "AI provider authentication failed",
-            "The AI provider rejected the configured credential. An administrator needs to check the provider's API key."),
+            "AI provider authentication failed"),
 
         AiProviderFailureKind.CredentialUnreadable => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-credential-unreadable",
-            "AI provider credential unreadable",
-            "The AI service could not process your request. Please try again."),
+            "AI provider credential unreadable"),
 
         // specs/068 - deliberately NOT a 502 "please try again". Every other kind here describes
         // something that happened to a request we actually made; this one means no request was
@@ -435,47 +507,37 @@ public sealed class ProblemDetailsMiddleware(RequestDelegate next, ILogger<Probl
         AiProviderFailureKind.NotConfigured => (
             StatusCodes.Status503ServiceUnavailable,
             "https://hydra.bimcatalyst.com/problems/ai-provider-not-configured",
-            "AI provider not configured",
-            "This feature is not available right now. An administrator needs to enable it."),
+            "AI provider not configured"),
 
         AiProviderFailureKind.QuotaExhausted => (
             StatusCodes.Status429TooManyRequests,
             "https://hydra.bimcatalyst.com/problems/ai-provider-quota-exhausted",
-            "AI provider quota exhausted",
-            // Deliberately says no more than "temporarily unavailable" to a non-administrator:
-            // an exhausted commercial allowance is tenant operational state, and disclosing it
-            // to every end user is the leak FR-015a exists to prevent.
-            "The AI provider is temporarily unavailable. Please try again later."),
+            "AI provider quota exhausted"),
 
         AiProviderFailureKind.RateLimited => (
             StatusCodes.Status429TooManyRequests,
             "https://hydra.bimcatalyst.com/problems/ai-provider-rate-limited",
-            "AI provider rate limited",
-            "The AI provider is rate-limiting requests right now. Please try again shortly."),
+            "AI provider rate limited"),
 
         AiProviderFailureKind.UsageRestricted => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-usage-restricted",
-            "AI provider usage restricted",
-            "The AI service could not process your request. Please try again."),
+            "AI provider usage restricted"),
 
         AiProviderFailureKind.RequestInvalid => (
             StatusCodes.Status400BadRequest,
             "https://hydra.bimcatalyst.com/problems/ai-provider-request-invalid",
-            "AI provider rejected the request",
-            "The AI provider could not process this request. Please try again."),
+            "AI provider rejected the request"),
 
         AiProviderFailureKind.ResponseNotUnderstood => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-response-invalid",
-            "AI provider response not understood",
-            "The AI service could not process your request. Please try again."),
+            "AI provider response not understood"),
 
         _ => (
             StatusCodes.Status502BadGateway,
             "https://hydra.bimcatalyst.com/problems/ai-provider-unavailable",
-            "AI provider unavailable",
-            "The AI service could not process your request. Please try again."),
+            "AI provider unavailable"),
     };
 
     /// <summary>

@@ -5,6 +5,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.AppendMessage;
 using AskLucy.Application.Conversations.Runtime;
+using AskLucy.Application.OperationalFailures;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Web.Contracts;
@@ -74,7 +75,10 @@ public sealed class AiControllerTurnOutcomeStreamTests : IDisposable
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
-            turnRecorder, _currentUser, NullLogger<AiController>.Instance)
+            turnRecorder, _currentUser,
+            Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier(),
+            NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -154,7 +158,7 @@ public sealed class AiControllerTurnOutcomeStreamTests : IDisposable
         CountOutcomeEvents(text).Should().Be(1);
         text.Should().Contain("\"verdict\":\"FailedBeforeCompleting\"");
         text.IndexOf("__TURN_OUTCOME__", StringComparison.Ordinal)
-            .Should().BeLessThan(text.IndexOf("Something went wrong partway through", StringComparison.Ordinal),
+            .Should().BeLessThan(text.LastIndexOf(UserFacingFailureText.Retry, StringComparison.Ordinal),
                 "the client must know the turn failed before it renders the sentence saying so");
     }
 
@@ -164,7 +168,7 @@ public sealed class AiControllerTurnOutcomeStreamTests : IDisposable
         await RunTurnAsync(ThrowingStream(new HttpRequestException("the provider credential is invalid")));
         var text = ResponseText();
 
-        text.Should().Contain("The service it needed could not be reached.");
+        text.Should().Contain(UserFacingFailureText.Retry);
         text.Should().NotContain("credential is invalid", "an exception message is written for an operator, not a user");
     }
 
@@ -215,7 +219,7 @@ public sealed class AiControllerTurnOutcomeStreamTests : IDisposable
         // present the notice as ordinary assistant prose the way the reported defect did.
         var persisted = _appended.Should().ContainSingle(c => c.TurnOutcomeJson != null).Subject;
         persisted.TurnOutcomeJson.Should().Contain("FailedBeforeCompleting");
-        persisted.Content.Should().Contain("Something went wrong partway through");
+        persisted.Content.Should().Contain(UserFacingFailureText.Retry);
     }
 
     /// <summary>

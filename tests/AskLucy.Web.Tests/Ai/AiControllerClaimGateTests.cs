@@ -62,7 +62,10 @@ public sealed class AiControllerClaimGateTests : IDisposable
         _controller = new AiController(_mediator, _providers, _models, _selectedActionResolver,
             Substitute.For<IRetryTargetResolver>(),
             Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions()),
-            turnRecorder, _currentUser, NullLogger<AiController>.Instance)
+            turnRecorder, _currentUser,
+            Substitute.For<AskLucy.Application.OperationalFailures.Abstractions.IOperationalFailureRecorder>(),
+            new AskLucy.Application.OperationalFailures.FailureClassifier(),
+            NullLogger<AiController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
