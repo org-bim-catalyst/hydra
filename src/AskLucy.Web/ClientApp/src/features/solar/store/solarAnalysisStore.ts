@@ -27,11 +27,27 @@ export function siteKeyFor(latitude: number, longitude: number): string {
   return `${latitude.toFixed(6)},${longitude.toFixed(6)}`
 }
 
-const DEFAULT_PLAYBACK_MINUTES_PER_SECOND = 120
+/** contracts/solar-panels.md "Speed" — the default the 052 contract names. */
+export const DEFAULT_PLAYBACK_MINUTES_PER_SECOND = 120
 
-function buildMomentFromInstant(instantUtc: Date, timeZoneId: string | null): AnalysisMoment {
+/** The speeds the Time of Day panel offers, in local minutes per real second. The slowest plays a
+ * whole day in just under five minutes, slow enough to watch a sunrise edge move; the fastest is
+ * the contract default, a whole day in twelve seconds. */
+export const PLAYBACK_SPEED_OPTIONS_MINUTES_PER_SECOND = [5, 15, 30, 60, 120] as const
+
+function buildMomentFromInstant(
+  instantUtc: Date,
+  timeZoneId: string | null,
+  playbackMinutesPerSecond: number = DEFAULT_PLAYBACK_MINUTES_PER_SECOND,
+): AnalysisMoment {
   const { localDate, localMinuteOfDay } = toLocalParts(instantUtc, timeZoneId ?? FALLBACK_TIME_ZONE)
-  return { instantUtc, localDate, localMinuteOfDay, isPlaying: false, playbackMinutesPerSecond: DEFAULT_PLAYBACK_MINUTES_PER_SECOND }
+  return { instantUtc, localDate, localMinuteOfDay, isPlaying: false, playbackMinutesPerSecond }
+}
+
+/** The local date after `localDate` (`YYYY-MM-DD`), by calendar arithmetic — no time zone involved. */
+function nextLocalDate(localDate: string): string {
+  const [year, month, day] = localDate.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10)
 }
 
 interface SolarAnalysisState {
@@ -94,8 +110,10 @@ export const useSolarAnalysisStore = create<SolarAnalysisState>()((set, get) => 
     const basis = await resolveTimeZone(latitude, longitude)
     const site: Site = { latitude, longitude, ...basis, siteKey: siteKeyFor(latitude, longitude) }
     const previous = get().moment
+    // The chosen playback speed is a preference, not a time value — following a site to a new
+    // place keeps it rather than snapping back to the default.
     const moment = previous
-      ? buildMomentFromInstant(previous.instantUtc, basis.timeZoneId)
+      ? buildMomentFromInstant(previous.instantUtc, basis.timeZoneId, previous.playbackMinutesPerSecond)
       : buildMomentFromInstant(new Date(), basis.timeZoneId)
     set({ site, moment })
   },
@@ -143,10 +161,21 @@ export const useSolarAnalysisStore = create<SolarAnalysisState>()((set, get) => 
   advanceBy: (deltaSeconds) => {
     const { site, moment } = get()
     if (!moment) return
-    const nextInstant = new Date(
+    const timeZoneId = site?.timeZoneId ?? FALLBACK_TIME_ZONE
+    let nextInstant = new Date(
       moment.instantUtc.getTime() + deltaSeconds * moment.playbackMinutesPerSecond * 60_000,
     )
-    const { localDate, localMinuteOfDay } = toLocalParts(nextInstant, site?.timeZoneId ?? FALLBACK_TIME_ZONE)
+    // Each frame moves by a whole frame's worth of minutes (about two at the default speed), so a
+    // frame that crosses midnight used to land a minute or more into the new day and every day
+    // after the first began at 00:01 or later, never at 00:00. Landing that one frame exactly on
+    // local midnight shows each new day from its start; it costs at most one frame of time. The
+    // bounds check skips the clamp when local midnight does not exist on that date (a DST change
+    // at 00:00, as in Egypt's) and `fromLocalParts` resolves it outside this frame's interval.
+    const midnight = fromLocalParts(nextLocalDate(moment.localDate), 0, timeZoneId)
+    if (midnight > moment.instantUtc && midnight < nextInstant) {
+      nextInstant = midnight
+    }
+    const { localDate, localMinuteOfDay } = toLocalParts(nextInstant, timeZoneId)
     set({ moment: { ...moment, instantUtc: nextInstant, localDate, localMinuteOfDay } })
   },
 }))

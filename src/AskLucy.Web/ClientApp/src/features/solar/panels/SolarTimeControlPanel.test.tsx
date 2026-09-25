@@ -10,6 +10,36 @@ describe('SolarTimeControlPanel (contracts/solar-panels.md "Time Control")', () 
     useSolarAnalysisStore.getState().setInstantUtc(new Date(Date.UTC(2026, 5, 21, 10, 0))) // 14:00 local
   })
 
+  // contracts/solar-panels.md lists Speed as a time control, but 052 shipped without one, so
+  // playback always ran at the fixed default of 2 local hours per real second.
+  it('offers a playback speed control that writes the speed, not a time value', () => {
+    render(<SolarTimeControlPanel />)
+    const speed = screen.getByRole('combobox', { name: /playback speed/i })
+    const before = useSolarAnalysisStore.getState().moment!.instantUtc.getTime()
+
+    fireEvent.change(speed, { target: { value: '15' } })
+
+    const { moment } = useSolarAnalysisStore.getState()
+    expect(moment!.playbackMinutesPerSecond).toBe(15)
+    expect(moment!.instantUtc.getTime()).toBe(before) // FR-022 — the speed never moves the instant
+  })
+
+  it('labels every speed in minutes or hours per second, and stays usable while playing', () => {
+    useSolarAnalysisStore.getState().setPlaying(true)
+    render(<SolarTimeControlPanel />)
+    const speed = screen.getByRole('combobox', { name: /playback speed/i })
+
+    expect(speed).not.toBeDisabled()
+    expect(Array.from((speed as HTMLSelectElement).options).map((o) => o.textContent)).toEqual([
+      '5 min/s',
+      '15 min/s',
+      '30 min/s',
+      '1 h/s',
+      '2 h/s',
+    ])
+    expect((speed as HTMLSelectElement).value).toBe('120')
+  })
+
   it('renders nothing before a moment exists', () => {
     useSolarAnalysisStore.setState({ moment: null })
     const { container } = render(<SolarTimeControlPanel />)

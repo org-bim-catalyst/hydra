@@ -1,4 +1,4 @@
-import { alpha, Alert, Box, IconButton, InputBase, Slider, type SliderProps } from '@mui/material'
+import { alpha, Alert, Box, IconButton, InputBase, NativeSelect, Slider, type SliderProps } from '@mui/material'
 import { RiArrowDownSFill, RiArrowUpSFill, RiPauseFill, RiPlayFill } from '@remixicon/react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
@@ -10,7 +10,7 @@ import {
 } from '../../../viewer/panels/chrome/compactStyles'
 import { copy } from '../copy'
 import { FALLBACK_TIME_ZONE, fromLocalParts, toLocalParts } from '../solar/timeZone'
-import { useSolarAnalysisStore } from '../store/solarAnalysisStore'
+import { PLAYBACK_SPEED_OPTIONS_MINUTES_PER_SECOND, useSolarAnalysisStore } from '../store/solarAnalysisStore'
 import { buildTimeSliderMarks, formatLocalTime, formatTimeDraftInput, MINUTES_PER_DAY, parseLocalTimeEntry, snapToQuarterHour } from './timeEntry'
 
 /** Row 2's fixed content height (matches the play/stop button) — the slider is vertically centered
@@ -42,11 +42,13 @@ const SLIDER_STEP_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDo
  */
 export function SolarTimeControlPanel(): React.JSX.Element | null {
   const dateInputId = useId()
+  const speedSelectId = useId()
   const site = useSolarAnalysisStore((s) => s.site)
   const moment = useSolarAnalysisStore((s) => s.moment)
   const setLocalDate = useSolarAnalysisStore((s) => s.setLocalDate)
   const setLocalMinuteOfDay = useSolarAnalysisStore((s) => s.setLocalMinuteOfDay)
   const setPlaying = useSolarAnalysisStore((s) => s.setPlaying)
+  const setPlaybackMinutesPerSecond = useSolarAnalysisStore((s) => s.setPlaybackMinutesPerSecond)
 
   // data-model.md "The draft entry" — text typed but not yet committed. `null` means Idle: the
   // field shows the current time, following the store on every route by which it can change
@@ -166,6 +168,25 @@ export function SolarTimeControlPanel(): React.JSX.Element | null {
           onChange={(e) => setLocalDate(e.target.value)}
           sx={compactInputSx}
         />
+        {/* contracts/solar-panels.md "Speed" — specified in 052 but never given a control, so
+            playback always ran at the default. Adjustable while playing: it changes how fast the
+            instant advances, never the instant itself (FR-022). */}
+        <Box component="label" htmlFor={speedSelectId} sx={{ ...compactLabelSx, ml: 'auto', flexShrink: 0 }}>
+          {copy.speedLabel}
+        </Box>
+        <NativeSelect
+          id={speedSelectId}
+          value={moment.playbackMinutesPerSecond}
+          onChange={(e) => setPlaybackMinutesPerSecond(Number(e.target.value))}
+          input={<InputBase sx={compactInputSx} />}
+          inputProps={{ 'aria-label': copy.playbackSpeedAriaLabel }}
+        >
+          {PLAYBACK_SPEED_OPTIONS_MINUTES_PER_SECOND.map((minutesPerSecond) => (
+            <option key={minutesPerSecond} value={minutesPerSecond}>
+              {copy.playbackSpeedOption(minutesPerSecond)}
+            </option>
+          ))}
+        </NativeSelect>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <IconButton
@@ -206,6 +227,14 @@ export function SolarTimeControlPanel(): React.JSX.Element | null {
             sx={{
               flex: 1,
               color: COMPACT_ACCENT,
+              // MUI tweens the thumb and track over 150 ms on every value change. While playing, the
+              // value changes every frame, so the tween only makes the thumb trail the real time, and
+              // at midnight it slid the thumb backward across the whole rail while playback kept
+              // running, so the new day appeared to start well after 00:00. The thumb follows the
+              // value directly while playing; a click or a keyboard step still animates.
+              ...(moment.isPlaying && {
+                '& .MuiSlider-thumb, & .MuiSlider-track': { transition: 'none' },
+              }),
               // MUI's `marked` variant (Slider.js) adds a 20px marginBottom whenever `marks` is
               // non-empty, to reserve room for markLabel text below the rail. That shifted the rail
               // upward within our fixed-height row (2026-09 screenshot review, item 2/4) — the row

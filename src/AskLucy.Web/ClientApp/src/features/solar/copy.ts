@@ -88,6 +88,10 @@ export const copy = {
   dateLabel: 'Date',
   timeLabel: 'Time',
   speedLabel: 'Speed',
+  playbackSpeedAriaLabel: 'Playback speed',
+  /** A speed in local minutes per real second, e.g. `15 min/s` or `2 h/s`. */
+  playbackSpeedOption: (minutesPerSecond: number) =>
+    minutesPerSecond % 60 === 0 ? `${minutesPerSecond / 60} h/s` : `${minutesPerSecond} min/s`,
 
   // Time entry (specs/064 FR-003, FR-004, FR-007)
   timeEntryMalformed: 'Enter a time as HH:MM, such as 06:41. The previous value was kept.',

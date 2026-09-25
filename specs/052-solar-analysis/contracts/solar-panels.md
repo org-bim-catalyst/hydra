@@ -14,7 +14,7 @@ typeKey: 'solar.time-control'
 | Date picker | FR-020 | Site-local date. Changing it recomputes path, figures, shadows. |
 | Time slider | FR-020, FR-022 | 0…1439 local minutes. Dragging updates sun, shadows and figures **together**. |
 | Play / stop | FR-021 | Stopping leaves the display at the moment it stopped — never resets. |
-| Speed | — | Default 120 local-minutes per real second. |
+| Speed | FR-021 | Default 120 local-minutes per real second. Chosen from 5, 15, 30, 60 or 120 min/s (shown as `5 min/s` … `2 h/s`); changeable while playing; kept when the site changes. Writes only the speed, never the instant (FR-022). Added 2026-09-25 — the row existed but no control was ever built. |
 
 **Consistency guarantee (FR-022)**: every control writes only `instantUtc`; sun position, shadows
 and figures are all derived from it. They cannot disagree, because there is one value, not three.

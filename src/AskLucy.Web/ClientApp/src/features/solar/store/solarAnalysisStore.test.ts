@@ -93,6 +93,52 @@ describe('solarAnalysisStore — playback (US3)', () => {
     expect(moment!.instantUtc.getTime()).toBe(Date.UTC(2026, 0, 1, 2, 0))
   })
 
+  // Reported from the running app: in playback each new day appeared to start after 00:00. Part of
+  // the cause was here: a frame moves about two minutes at the default speed, so the frame crossing
+  // midnight landed at 00:01 or later and 00:00 itself was never shown.
+  it('the frame that crosses midnight lands exactly on 00:00 of the next day', async () => {
+    await useSolarAnalysisStore.getState().open(25.2, 55.3) // Asia/Dubai, UTC+4, no DST
+    useSolarAnalysisStore.getState().setInstantUtc(new Date(Date.UTC(2026, 8, 21, 19, 59))) // 23:59 local
+    useSolarAnalysisStore.getState().setPlaybackMinutesPerSecond(120)
+    useSolarAnalysisStore.getState().advanceBy(1 / 60) // one 60 fps frame = 2 local minutes, which would be 00:01
+
+    const { moment } = useSolarAnalysisStore.getState()
+    expect(moment!.localDate).toBe('2026-09-22')
+    expect(moment!.localMinuteOfDay).toBe(0)
+    expect(moment!.instantUtc.getTime()).toBe(Date.UTC(2026, 8, 21, 20, 0))
+  })
+
+  it('carries on normally from 00:00 on the frame after the midnight landing', async () => {
+    await useSolarAnalysisStore.getState().open(25.2, 55.3)
+    useSolarAnalysisStore.getState().setInstantUtc(new Date(Date.UTC(2026, 8, 21, 19, 59)))
+    useSolarAnalysisStore.getState().setPlaybackMinutesPerSecond(120)
+    useSolarAnalysisStore.getState().advanceBy(1 / 60)
+    useSolarAnalysisStore.getState().advanceBy(1 / 60)
+
+    const { moment } = useSolarAnalysisStore.getState()
+    expect(moment!.localDate).toBe('2026-09-22')
+    expect(moment!.localMinuteOfDay).toBe(2)
+  })
+
+  it('a frame landing exactly on midnight is left alone', async () => {
+    await useSolarAnalysisStore.getState().open(25.2, 55.3)
+    useSolarAnalysisStore.getState().setInstantUtc(new Date(Date.UTC(2026, 8, 21, 19, 58))) // 23:58 local
+    useSolarAnalysisStore.getState().setPlaybackMinutesPerSecond(120)
+    useSolarAnalysisStore.getState().advanceBy(1 / 60)
+
+    const { moment } = useSolarAnalysisStore.getState()
+    expect(moment!.localDate).toBe('2026-09-22')
+    expect(moment!.localMinuteOfDay).toBe(0)
+  })
+
+  it('following a site to a new place keeps the chosen playback speed', async () => {
+    await useSolarAnalysisStore.getState().open(25.2, 55.3)
+    useSolarAnalysisStore.getState().setPlaybackMinutesPerSecond(15)
+    await useSolarAnalysisStore.getState().followSite(51.5, -0.1)
+
+    expect(useSolarAnalysisStore.getState().moment!.playbackMinutesPerSecond).toBe(15)
+  })
+
   it('stopping playback leaves the moment where it stopped (FR-021)', async () => {
     await useSolarAnalysisStore.getState().open(25.2, 55.3)
     useSolarAnalysisStore.getState().setPlaying(true)
