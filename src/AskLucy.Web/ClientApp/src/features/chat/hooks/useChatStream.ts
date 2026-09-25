@@ -49,13 +49,18 @@ function toOfferFields(suggestedActionsJson: string | null): Pick<ChatMessage, '
  * an echo of whatever the client sent), so matching them back against this offer's own rows is an
  * exact lookup, never a guess. Returns `null` for a resolved decline (distinct from `undefined`,
  * "never answered") and `undefined` when the next message carries no selection at all.
+ *
+ * A selection whose row can no longer be matched (an offer edited since) falls back to the
+ * selection message's own content, which the server writes as the resolved row's label
+ * (research.md D6): that message is hidden (see `toChatMessages`), so this card is now the only
+ * place the choice is shown, and it must never fall back to re-listing the menu.
  */
 function resolveSelectedActionLabel(
   actions: SuggestedAction[] | undefined, next: PersistedMessage | undefined,
 ): string | null | undefined {
   if (!actions || !next?.selectedActionKind) return undefined
   const picked = actions.find((a) => a.kind === next.selectedActionKind && (a.capabilityKey ?? null) === next.selectedActionKey)
-  if (!picked) return undefined
+  if (!picked) return next.content
   return picked.isDecline ? null : picked.label
 }
 
@@ -71,8 +76,19 @@ function toImageFields(m: PersistedMessage): Pick<ChatMessage, 'content' | 'imag
   return GUID_PATTERN.test(m.content) ? { content: alt, imageDocumentId: m.content } : { content: `![${alt}](${m.content})` }
 }
 
+/**
+ * A persisted user message that records an offer selection is the server's record of the choice,
+ * not something the user said: the answered card already shows "You chose: ...", and a bubble in
+ * the user's name repeating it puts words in their mouth. Hidden only after every label has been
+ * resolved, because `resolveSelectedActionLabel` reads it by position.
+ */
+function isSelectionRecord(m: PersistedMessage): boolean {
+  return m.role === 'User' && Boolean(m.selectedActionKind)
+}
+
 function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
-  return persisted.map((m, index) => {
+  return persisted.flatMap((m, index) => {
+    if (isSelectionRecord(m)) return []
     const offerFields = toOfferFields(m.suggestedActionsJson)
     return {
       id: m.id,
@@ -85,7 +101,7 @@ function toChatMessages(persisted: PersistedMessage[]): ChatMessage[] {
       ...offerFields,
       selectedActionLabel: resolveSelectedActionLabel(offerFields.suggestedActions, persisted[index + 1]),
       turnOutcome: m.turnOutcome ?? undefined,
-    }
+    } satisfies ChatMessage
   })
 }
 
@@ -457,8 +473,8 @@ export function useChatStream(
         ? messages.map((m) => (m.id === answeredOffer.messageId ? { ...m, selectedActionLabel: answeredOffer.label } : m))
         : messages
 
-      // specs/068 FR-013b — a retry passes `userMessage: null`: pressing "Try again" is not the
-      // user saying something, and a bubble nobody typed would be there on every reload.
+      // specs/068 FR-013b — a retry and a selection pass `userMessage: null`: pressing "Try again"
+      // or picking an offered option is not the user saying something.
       const history = userMessage ? [...answered, userMessage] : [...answered]
       setMessages([...history, { role: 'assistant', content: '' }])
       setIsStreaming(true)
@@ -625,14 +641,16 @@ export function useChatStream(
   )
 
   /**
-   * Dispatches a chosen offer row. The user bubble's content is the row's own label
-   * (research.md D6), never typed text.
+   * Dispatches a chosen offer row. No user bubble is appended: the answered card's own
+   * "You chose: ..." is the whole record of the choice, the way Claude and ChatGPT show it. The
+   * server still persists the selection as a user message (research.md D6), which
+   * `toChatMessages` hides on reload for the same reason.
    */
   const selectAction = useCallback(
     (offeredByMessageId: string, action: SuggestedAction) =>
       runDispatchedTurn({
         seedTitle: action.label,
-        userMessage: { role: 'user', content: action.label },
+        userMessage: null,
         selectedAction: {
           offeredByMessageId,
           kind: action.kind,

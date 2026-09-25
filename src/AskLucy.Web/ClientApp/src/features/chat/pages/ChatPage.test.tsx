@@ -1868,9 +1868,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     renderConversation(CHAT_A)
 
     // Beats: every message replays, and in the right order — checked positionally in the
-    // rendered text. "Focus and outline the site" now appears exactly once (the selection's own
-    // bubble): the now-inert offer below it shows the resolved "You chose: ..." line instead of
-    // re-listing every option, so the label is never duplicated the way it used to be.
+    // rendered text. The choice is shown once, on the answered card ("You chose: ..."): the
+    // persisted selection message is the server's record of it, not something the user said,
+    // so it gets no bubble in their name.
     await screen.findByText("I've outlined the site boundary.")
     const rendered = document.body.textContent ?? ''
     const indexOf = (text: string) => rendered.indexOf(text)
@@ -1882,6 +1882,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(indexOf("I've outlined the site boundary.")).toBeGreaterThan(
       indexOf('You chose: Focus and outline the site'),
     )
+    expect(screen.queryByText('Focus and outline the site')).not.toBeInTheDocument()
     // The question and full option list are gone now that the outcome is known — replaced by
     // the single resolved line above (Claude-style: your pick, not the menu).
     expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
@@ -2116,8 +2117,11 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 
     expect(await screen.findByText('Here is what the analysis shows.')).toBeInTheDocument()
 
-    // The card names the choice, and no longer offers the menu it already answered.
+    // The card names the choice, and no longer offers the menu it already answered. Nor is the
+    // choice repeated as a bubble in the user's name — live-testing report, 2026-09-25: "you put
+    // words in my mouth".
     expect(screen.getByText('You chose: Analyze this site')).toBeInTheDocument()
+    expect(screen.queryByText('Analyze this site')).not.toBeInTheDocument()
     expect(screen.queryByRole('radio', { name: 'Analyze this site' })).not.toBeInTheDocument()
     expect(screen.queryByText('No thanks')).not.toBeInTheDocument()
     expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
@@ -2538,6 +2542,94 @@ describe('ConversationView — live site-analysis notices (specs/057)', () => {
     expect(screen.getAllByText("I couldn't complete the site analysis.")).toHaveLength(1)
     expect(screen.queryByText('Not for this view.')).not.toBeInTheDocument()
     expect(useSiteAnalysisNoticeStore.getState().notices.map((n) => n.id)).toEqual(['completed:other'])
+  })
+
+  const openOffer = {
+    question: 'What would you like to explore next?',
+    actions: [
+      {
+        kind: 'capability',
+        capabilityKey: 'open_solar_analysis',
+        text: null,
+        label: 'Open the sun and shadow analysis',
+        description: 'Show how the sun tracks across the site.',
+        arguments: {},
+        isDecline: false,
+      },
+      { kind: 'decline', capabilityKey: null, text: null, label: 'No thanks', description: '', arguments: {}, isDecline: true },
+    ],
+  }
+
+  // Live-testing report, 2026-09-25: the site analysis reported back ("Receiving the schematic
+  // site map…") while Lucy's follow-up offer was still waiting on the user, and the notice
+  // retired it to a bullet list. A background result is news, not an answer: the question stays
+  // open, the way a pending prompt survives a background task reporting back.
+  it('keeps the open offer answerable when a background notice arrives after it', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({
+              id: 'msg-offer',
+              role: 'Assistant',
+              content: 'Started the site analysis.',
+              suggestedActionsJson: JSON.stringify(openOffer),
+            }),
+          ]),
+        ),
+      ),
+    )
+    renderConversation(CHAT_A)
+    expect(await screen.findByRole('radio', { name: 'Open the sun and shadow analysis' })).toBeInTheDocument()
+
+    act(() => {
+      useSiteAnalysisNoticeStore.getState().push({ id: 'result:1', userChatId: CHAT_A, text: 'Receiving the schematic site map…' })
+    })
+
+    expect(await screen.findByText('Receiving the schematic site map…')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Open the sun and shadow analysis' })).toBeInTheDocument()
+    expect(screen.getByText('What would you like to explore next?')).toBeInTheDocument()
+  })
+
+  it('keeps an offer answerable on reload when only notices follow it, and retires it once the user speaks', async () => {
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({
+              id: 'msg-offer',
+              role: 'Assistant',
+              content: 'Started the site analysis.',
+              suggestedActionsJson: JSON.stringify(openOffer),
+            }),
+            makeMessage({ id: 'msg-notice', role: 'Assistant', content: 'Receiving the schematic site map…' }),
+          ]),
+        ),
+      ),
+      http.get(`*/api/v1/chats/${CHAT_B}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({
+              id: 'msg-offer-b',
+              role: 'Assistant',
+              content: 'Started the site analysis.',
+              suggestedActionsJson: JSON.stringify(openOffer),
+            }),
+            makeMessage({ id: 'msg-notice-b', role: 'Assistant', content: 'Receiving the schematic site map…' }),
+            makeMessage({ id: 'msg-typed', role: 'User', content: 'What about parking?' }),
+          ]),
+        ),
+      ),
+    )
+
+    const { unmount } = renderConversation(CHAT_A)
+    expect(await screen.findByText('Receiving the schematic site map…')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Open the sun and shadow analysis' })).toBeInTheDocument()
+    unmount()
+
+    renderConversation(CHAT_B)
+    expect(await screen.findByText('What about parking?')).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Open the sun and shadow analysis' })).not.toBeInTheDocument()
   })
 })
 

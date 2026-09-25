@@ -337,15 +337,21 @@ export function ConversationView({
 
   // specs/045-conversational-agent-runtime data-model.md §2 — "the live offer is the newest
   // assistant message in the chat with non-null SuggestedActionsJson that no later message has
-  // already answered." That means the *last* message in the whole conversation, not merely the
-  // last one that happens to carry actions — a backward scan that skips past a later, non-offer
-  // message (a typed reply, or the reply that answered a selection) would wrongly resurrect a
-  // retired offer as live again once a new turn's own reply has no actions of its own yet, e.g.
-  // partway through streaming it. Once dispatch (or an ordinary typed message) adds anything
-  // after it, this ages into inert history rendering automatically.
+  // already answered." Only two things answer it: the user speaking (a user message after it) or
+  // the user choosing (its own `selectedActionLabel`). A newer offer replaces it. Anything else
+  // after it — a site-analysis notice pushed in the background — is news arriving mid-
+  // conversation, not an answer, so the question stays open the way a pending prompt does when a
+  // background task reports back; this is also the only rule `SelectedActionResolver` enforces
+  // server-side (newest offer wins), so a card kept live here is one the server will accept.
   const liveOfferMessageId = useMemo(() => {
-    const last = messages[messages.length - 1]
-    return last?.role === 'assistant' && last.suggestedActions && last.suggestedActions.length > 0 ? (last.id ?? null) : null
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index]
+      if (message.role === 'user') return null
+      if (message.suggestedActions && message.suggestedActions.length > 0) {
+        return message.selectedActionLabel === undefined ? (message.id ?? null) : null
+      }
+    }
+    return null
   }, [messages])
 
   // specs/025-chat-configuration-settings, T021 — replaces the auto-select-on-mount behavior
