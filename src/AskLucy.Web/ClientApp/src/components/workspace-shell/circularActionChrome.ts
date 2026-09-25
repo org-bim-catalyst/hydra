@@ -1,5 +1,5 @@
 import { alpha, darken, lighten } from '@mui/material'
-import type { Theme } from '@mui/material'
+import type { SxProps, Theme } from '@mui/material'
 
 /**
  * Shared chrome for the floating workspace controls.
@@ -35,3 +35,22 @@ export const CIRCULAR_ACTION_CHROME = {
   /** `border-background-200`. */
   border: (t: Theme) => `1px solid ${alpha(t.palette.divider, 0.6)}`,
 } as const
+
+/**
+ * The one-tap 40 px circular button every floating workspace control shares — Home, the theme
+ * toggle, and the viewer's own toolbar entries (Arrange panels, Solar Analysis). 40 px matches
+ * `CircularAction`'s trigger Fab (FAB_PX); MUI's `medium` Fab is 48 px. One definition so the
+ * whole family changes together, in both themes.
+ */
+export const CIRCULAR_BUTTON_SX = {
+  width: 40,
+  height: 40,
+  minHeight: 40,
+  boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
+  bgcolor: CIRCULAR_ACTION_CHROME.collapsedBg,
+  color: CIRCULAR_ACTION_CHROME.icon,
+  border: CIRCULAR_ACTION_CHROME.border,
+  backdropFilter: 'blur(12px)',
+  '&:hover': { bgcolor: CIRCULAR_ACTION_CHROME.collapsedHoverBg, transform: 'scale(1.05)' },
+  transition: (t: Theme) => t.transitions.create(['transform', 'background-color']),
+} satisfies SxProps<Theme>

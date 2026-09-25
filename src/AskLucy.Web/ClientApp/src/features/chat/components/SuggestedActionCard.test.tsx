@@ -168,8 +168,8 @@ describe('SuggestedActionCard (specs/045-conversational-agent-runtime US2/US3, T
     expect(screen.queryByText('Search my knowledge bases')).not.toBeInTheDocument()
   })
 
-  it('renders a distinct decline message when selectedLabel is null', () => {
-    render(
+  it('leaves nothing behind once the offer was declined', () => {
+    const { container } = render(
       <SuggestedActionCard
         question="What would you like to do next?"
         actions={actions}
@@ -181,7 +181,9 @@ describe('SuggestedActionCard (specs/045-conversational-agent-runtime US2/US3, T
       />,
     )
 
-    expect(screen.getByText('Declined.')).toBeInTheDocument()
+    // Lucy's reply already acknowledges the decline; the card restating it was noise.
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
   })
 })
 

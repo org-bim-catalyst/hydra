@@ -141,6 +141,36 @@ describe('FloatingPanelHost arrangement wiring (specs/054 FR-002, FR-005, SC-005
   })
 })
 
+describe('FloatingPanelHost arrange handler (specs/054 FR-005e — the viewer toolbar Arrange panels entry)', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  it('registers an arrange handler while mounted and clears it on unmount', () => {
+    const { unmount } = render(<FloatingPanelHost />)
+    expect(useFloatingPanelStore.getState().arrangeHandler).toBeTypeOf('function')
+
+    unmount()
+    expect(useFloatingPanelStore.getState().arrangeHandler).toBeNull()
+  })
+
+  it('the registered handler runs a user-requested arrangement pass', async () => {
+    const { container } = render(<FloatingPanelHost />)
+    stubHostSize(container, 1000, 800)
+    openTestPanel('host-arrange-1')
+    await waitFor(() => {
+      expect(useFloatingPanelStore.getState().panels[0]?.position).toEqual(CENTERED_SINGLE_PANEL_POSITION)
+    })
+
+    const applyArrangementSpy = vi.spyOn(useFloatingPanelStore.getState(), 'applyArrangement')
+    act(() => {
+      useFloatingPanelStore.getState().arrangeHandler?.()
+    })
+
+    expect(applyArrangementSpy).toHaveBeenCalled()
+  })
+})
+
 describe('FloatingPanelHost drag-time landing placeholder (specs/054 FR-005f/g, T011)', () => {
   beforeEach(() => {
     useFloatingPanelStore.setState(initialState, true)

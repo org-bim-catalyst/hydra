@@ -99,6 +99,14 @@ interface FloatingPanelState {
    * itself compute new positions — the caller (`FloatingPanelHost`) runs a fresh arrangement pass
    * immediately after, since only it has the DOM access `computeArrangement`'s inputs need. */
   arrangeAll: () => void
+  /**
+   * The host's full "arrange" action (`arrangeAll` plus a fresh pass), registered by
+   * `FloatingPanelHost` while it is mounted — null otherwise. The button that triggers it lives
+   * in the viewer toolbar, which has no DOM access to the host, so it reaches the action through
+   * here instead of a prop.
+   */
+  arrangeHandler: (() => void) | null
+  setArrangeHandler: (handler: (() => void) | null) => void
   setContextStatus: (id: string, status: PanelContextStatus) => void
   /** specs/050 FR-036 — a live panel kind withdrawn (its extension stopped) while a panel of that
    * kind is open must not keep rendering against a capability that no longer exists. Reuses the
@@ -316,6 +324,9 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
     }),
 
   arrangeAll: () => set((s) => ({ panels: s.panels.map((panel) => ({ ...panel, manuallyPlaced: false })) })),
+
+  arrangeHandler: null,
+  setArrangeHandler: (handler) => set({ arrangeHandler: handler }),
 
   // FR-018/Edge Cases ("viewport resize") — react-rnd's `bounds="parent"` keeps a panel within
   // bounds while the user is actively dragging/resizing it, but doesn't retroactively move a

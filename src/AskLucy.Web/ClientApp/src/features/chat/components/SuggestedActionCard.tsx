@@ -51,11 +51,18 @@ export function SuggestedActionCard({ question, actions, isLive, onSelect, isSub
     // than re-listing every option as if the question were still open. Falls back to the full
     // list only when the outcome genuinely isn't known (selectedLabel undefined): an offer that
     // simply aged out unanswered, or older history predating this.
+    //
+    // A decline leaves nothing behind. Lucy's own reply ("Got it — let me know...") already
+    // acknowledges it, and a "Declined." line beside that only restates it.
+    if (selectedLabel === null) {
+      return null
+    }
+
     if (selectedLabel !== undefined) {
       return (
         <Box sx={{ mt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            {selectedLabel === null ? 'Declined.' : `You chose: ${selectedLabel}`}
+            {`You chose: ${selectedLabel}`}
           </Typography>
         </Box>
       )

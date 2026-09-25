@@ -1,5 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useSyncExternalStore } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useViewerExtensionStore } from '../store/viewerExtensionStore'
 import { ExtensionToolbar } from './ExtensionToolbar'
@@ -70,5 +71,29 @@ describe('ExtensionToolbar (FR-021, FR-022, FR-023, research D6)', () => {
     render(<ExtensionToolbar />)
     const buttons = screen.getAllByRole('button')
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['First', 'Second'])
+  })
+
+  it('hides an entry whose useIsShown hook says no, and shows it once that changes', () => {
+    let shown = false
+    const listeners = new Set<() => void>()
+    const useIsShown = () =>
+      useSyncExternalStore(
+        (l) => (listeners.add(l), () => listeners.delete(l)),
+        () => shown,
+      )
+    useViewerExtensionStore.getState().addContribution({
+      kind: 'toolbarEntry',
+      extensionId: 'ext-c',
+      entry: { id: 'c-1', label: 'Conditional', icon: TestIcon, onClick: () => {}, useIsShown },
+    })
+
+    render(<ExtensionToolbar />)
+    expect(screen.queryByRole('button', { name: 'Conditional' })).not.toBeInTheDocument()
+
+    act(() => {
+      shown = true
+      listeners.forEach((l) => l())
+    })
+    expect(screen.getByRole('button', { name: 'Conditional' })).toBeInTheDocument()
   })
 })

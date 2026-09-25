@@ -145,13 +145,21 @@ export function FloatingPanelHost() {
     return () => window.removeEventListener('resize', handleResize)
   }, [clampToViewport, runArrangement])
 
-  // specs/054 FR-005e — the dock's "arrange" action: clear every panel's manuallyPlaced flag
+  // specs/054 FR-005e — the "arrange" action: clear every panel's manuallyPlaced flag
   // (arrangeAll), then immediately run a fresh pass over the now-fully-unpinned panel set.
   // zustand's `set()` is synchronous, so runArrangement reads the just-cleared flags correctly.
   const handleArrange = useCallback(() => {
     arrangeAll()
     runArrangement()
   }, [arrangeAll, runArrangement])
+
+  // Published for the viewer toolbar's "Arrange panels" entry (panelsExtension), withdrawn on
+  // unmount so a stale host can never be driven.
+  const setArrangeHandler = useFloatingPanelStore((s) => s.setArrangeHandler)
+  useEffect(() => {
+    setArrangeHandler(handleArrange)
+    return () => setArrangeHandler(null)
+  }, [setArrangeHandler, handleArrange])
 
   return (
     <Box ref={hostRef} sx={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none' }}>
@@ -165,7 +173,7 @@ export function FloatingPanelHost() {
         />
       ))}
       {activeSlot && <LandingPlaceholder slot={activeSlot} />}
-      <PanelDock onArrange={handleArrange} />
+      <PanelDock />
     </Box>
   )
 }

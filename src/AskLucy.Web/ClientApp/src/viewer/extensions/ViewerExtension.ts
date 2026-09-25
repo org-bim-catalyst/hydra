@@ -60,6 +60,12 @@ export interface ToolbarEntry {
   label: string
   icon: ComponentType
   onClick: () => void
+  /**
+   * Optional. A React hook, called while the toolbar renders, saying whether the entry is worth
+   * showing right now — "Arrange panels" is only while a panel is open. Omitted means always
+   * shown. Must be a real hook identity that never changes for the entry's lifetime.
+   */
+  useIsShown?: () => boolean
 }
 
 /** data-model.md "Contribution" — something an extension added through its context, recorded

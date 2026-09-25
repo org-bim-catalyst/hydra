@@ -1,7 +1,7 @@
 import { RiHomeLine } from '@remixicon/react'
 import { Fab, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
-import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
+import { CIRCULAR_BUTTON_SX } from '../../../components/workspace-shell/circularActionChrome'
 import { HudCard } from '../../../components/workspace-shell/HudCard'
 import { VIEW_LANDING_STATE } from '../../../routes/viewLandingState'
 
@@ -26,19 +26,7 @@ export function HomeProjectCard() {
         size="small"
         aria-label="Home"
         onClick={() => navigate('/', { state: VIEW_LANDING_STATE })}
-        sx={{
-          width: 40,
-          height: 40,
-          minHeight: 40,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
-          bgcolor: CIRCULAR_ACTION_CHROME.collapsedBg,
-          color: CIRCULAR_ACTION_CHROME.icon,
-          border: CIRCULAR_ACTION_CHROME.border,
-          backdropFilter: 'blur(12px)',
-          '&:hover': { bgcolor: CIRCULAR_ACTION_CHROME.collapsedHoverBg, transform: 'scale(1.05)' },
-          transition: (t) => t.transitions.create(['transform', 'background-color']),
-          pointerEvents: 'auto',
-        }}
+        sx={{ ...CIRCULAR_BUTTON_SX, pointerEvents: 'auto' }}
       >
         <RiHomeLine size={20} />
       </Fab>

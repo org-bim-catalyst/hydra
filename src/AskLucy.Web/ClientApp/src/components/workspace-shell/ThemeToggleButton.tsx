@@ -1,7 +1,7 @@
 import { RiMoonLine, RiSunLine } from '@remixicon/react'
 import { Fab } from '@mui/material'
 import { useThemeStore } from '../../store/themeStore'
-import { CIRCULAR_ACTION_CHROME } from './circularActionChrome'
+import { CIRCULAR_BUTTON_SX } from './circularActionChrome'
 
 /** A direct-action circular button (readdy.ai reference: the sun/moon icon beside the
  * account avatar) — toggles immediately on click, no expand/collapse state, so it isn't
@@ -21,20 +21,7 @@ export function ThemeToggleButton() {
       // this was — tells you nothing about what pressing it will do.
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       onClick={toggle}
-      sx={{
-        // 40 px, matching CircularAction's trigger Fab (FAB_PX). MUI's `medium` Fab is 48 px,
-        // which left the account button visibly smaller than the two buttons beside it.
-        width: 40,
-        height: 40,
-        minHeight: 40,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
-        bgcolor: CIRCULAR_ACTION_CHROME.collapsedBg,
-        color: CIRCULAR_ACTION_CHROME.icon,
-        border: CIRCULAR_ACTION_CHROME.border,
-        backdropFilter: 'blur(12px)',
-        '&:hover': { bgcolor: CIRCULAR_ACTION_CHROME.collapsedHoverBg, transform: 'scale(1.05)' },
-        transition: (t) => t.transitions.create(['transform', 'background-color']),
-      }}
+      sx={CIRCULAR_BUTTON_SX}
     >
       {isDark ? <RiSunLine size={20} /> : <RiMoonLine size={20} />}
     </Fab>
