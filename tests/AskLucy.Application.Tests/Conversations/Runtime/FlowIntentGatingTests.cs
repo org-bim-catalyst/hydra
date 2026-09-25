@@ -156,7 +156,7 @@ public sealed class FlowIntentGatingTests
 
         chunks.Should().ContainSingle(c => c.SuggestedActions != null, "the site is on screen now, so there is something to offer");
         await _offerGenerator.Received(1).GenerateAsync(
-            Arg.Is<TurnContext>(c => c.ActiveLocation != null && c.ActiveLocation.LocationName == "Al Safa Park 2"),
+            Arg.Is<TurnContext>(c => c != null && c.ActiveLocation != null && c.ActiveLocation.LocationName == "Al Safa Park 2"),
             Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(),
             Arg.Any<IReadOnlyList<FlowVariantOfferCandidate>?>(), Arg.Any<CancellationToken>());
     }

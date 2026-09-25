@@ -288,7 +288,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
             CancellationToken.None);
 
         await _mediator.Received(1).Send(
-            Arg.Is<RecordActiveSiteBoundaryCommand>(c => c.UserChatId == _chatId && c.ConfirmedBoundary.SiteName == "Al Safa Park 2"),
+            Arg.Is<RecordActiveSiteBoundaryCommand>(c => c != null && c.UserChatId == _chatId && c.ConfirmedBoundary.SiteName == "Al Safa Park 2"),
             Arg.Any<CancellationToken>());
         ResponseText().Should().Contain("__SITE_BOUNDARY__");
     }
