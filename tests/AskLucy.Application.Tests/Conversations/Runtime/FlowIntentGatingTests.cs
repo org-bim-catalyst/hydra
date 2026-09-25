@@ -190,6 +190,27 @@ public sealed class FlowIntentGatingTests
             Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Live-testing report, 2026-09-25: "Al Safa Park 2" and "Dubai Mall" were found but not
+    /// outlined until the user asked again. The deciding model had picked a lone
+    /// <c>resolve_location</c> slice instead of the flow that also outlines the site.
+    /// </summary>
+    [Fact]
+    public async Task NavigationalIntent_DecidedAsALoneResolveLocationSlice_ShouldStillRunTheWholeFlow()
+    {
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
+                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
+            .Returns(new TurnDecision(TurnIntent.Act,
+                [new TurnSlice(ResolveLocationCapability.CapabilityKey, """{"query":"Dubai Mall"}""", "Finding it", null)]));
+
+        var chunks = await CollectAsync(BuildOrchestrator(), Request("show me Dubai Mall"));
+
+        chunks.Should().Contain(c => c.ConfirmedLocation != null);
+        chunks.Should().Contain(c => c.PendingLabel == "Now highlighting the boundary.",
+            "the boundary step ran after the place was found");
+        await _locationService.Received(1).ResolveQueryAsync(Arg.Any<Guid>(), "Dubai Mall", Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task PassingMention_ShouldRunNothing_AndOfferNothing()
     {

@@ -1,4 +1,5 @@
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.Conversations.Runtime;
 
 namespace AskLucy.Application.Conversations.Flows;
 
@@ -35,6 +36,43 @@ public sealed class ConversationFlowCatalog(IEnumerable<IConversationFlow> flows
 
     public IConversationFlow? Find(string flowKey) =>
         flows.FirstOrDefault(f => string.Equals(f.Key, flowKey, StringComparison.Ordinal));
+
+    /// <summary>
+    /// A decision that acts with one slice, where that slice is exactly the first step of an
+    /// available flow, becomes a run of that whole flow. Any other decision is returned unchanged.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Live-tested 2026-09-25: the deciding model sometimes answered "show me Dubai Mall" with a
+    /// lone <c>resolve_location</c> slice rather than <c>locate_a_place</c>, because both entries'
+    /// "when to use" text names the same requests. The place was found but never outlined, and the
+    /// same wording outlined the site on the next try. Which one the model picked is a coin toss,
+    /// so it is settled here rather than in the prompt.
+    /// </para>
+    /// <para>
+    /// A user who explicitly limits the job ("just find it") is still served: the prompt asks for
+    /// the flow with <c>throughStepIndex</c> 0 in that case, and a flow decision is never touched
+    /// here. Only a single slice is promoted, because a slice with siblings is feeding another
+    /// capability (weather at X, solar analysis of X), not asking for the place to be shown. The
+    /// slice's arguments become the flow's input, so this relies on a flow's first step binding
+    /// straight from that input, as <see cref="LocateAPlaceFlow"/>'s does.
+    /// </para>
+    /// </remarks>
+    public TurnDecision PromoteLoneFirstStep(TurnDecision decision, TurnContext context)
+    {
+        if (decision.Intent != TurnIntent.Act || decision.FlowKey is not null || decision.Slices.Count != 1)
+        {
+            return decision;
+        }
+
+        var slice = decision.Slices[0];
+        var flow = AvailableFor(context).FirstOrDefault(f =>
+            f.Steps.Count > 1 && string.Equals(f.Steps[0].CapabilityKey, slice.CapabilityKey, StringComparison.Ordinal));
+
+        return flow is null
+            ? decision
+            : new TurnDecision(TurnIntent.Act, [], flow.Key, slice.ArgumentsJson, ThroughStepIndex: null);
+    }
 
     /// <summary>The Tier 1 index entry for one flow — identical shape to a capability's, so the deciding model treats a job and a single capability the same way (research.md D17).</summary>
     public static CapabilityIndexEntry ToEntry(IConversationFlow flow) =>

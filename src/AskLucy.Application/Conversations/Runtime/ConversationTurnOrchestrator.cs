@@ -250,7 +250,9 @@ public sealed class ConversationTurnOrchestrator(
         // or the message is blank (FR-006), so an ordinary reply is not charged for asking.
         var index = await capabilityCatalog.BuildIndexAsync(turnContext, latestUserMessage, cancellationToken);
         var flowIndex = flowCatalog.AvailableFor(turnContext).Select(ConversationFlowCatalog.ToEntry).ToList();
-        var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, flowIndex, recentOutcomes, cancellationToken);
+        var decision = flowCatalog.PromoteLoneFirstStep(
+            await turnDecider.DecideAsync(turnContext, latestUserMessage, index, flowIndex, recentOutcomes, cancellationToken),
+            turnContext);
 
         MemoryRetrievalOutcome? memoryOutcome = null;
         ConfirmedLocationData? confirmedLocationThisTurn = null;
