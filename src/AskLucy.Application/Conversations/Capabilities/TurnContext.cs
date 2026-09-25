@@ -101,4 +101,19 @@ public sealed record TurnOutcome(
 
     public bool WasOfferedAndIgnored(string capabilityKey) =>
         PreviouslyOfferedKeys.Contains(capabilityKey, StringComparer.Ordinal);
+
+    /// <summary>
+    /// Capabilities that already succeeded for the active site in an <b>earlier</b> turn of this
+    /// conversation — see <see cref="Runtime.ActiveSiteHistory"/>. Without this, choosing one offered
+    /// capability re-offered the other one that had just run, and the two chased each other forever
+    /// (Site Analysis → offers Sunlight → Sunlight → offers Site Analysis).
+    /// </summary>
+    public IReadOnlyList<string> CompletedForActiveSiteKeys { get; init; } = [];
+
+    /// <summary>
+    /// A location confirmed this turn is a new site, or the same one addressed afresh; either way
+    /// what ran for the previous one is no longer the user's "already done".
+    /// </summary>
+    public bool WasCompletedForActiveSite(string capabilityKey) =>
+        !ConfirmedLocationThisTurn && CompletedForActiveSiteKeys.Contains(capabilityKey, StringComparer.Ordinal);
 }

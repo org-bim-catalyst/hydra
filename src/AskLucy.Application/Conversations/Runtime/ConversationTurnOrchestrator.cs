@@ -92,6 +92,10 @@ public sealed class ConversationTurnOrchestrator(
         // FR-009 - bounded, outcome-derived, and never read back off the prose above.
         var recentOutcomes = RecentTurnOutcomeSummary.From(recordedOutcomes.Select(o => o.Outcome));
 
+        // Read once, from the same recorded outcomes: what has already run for this site, so the
+        // offer step stops suggesting it again.
+        var completedForActiveSite = ActiveSiteHistory.CompletedCapabilityKeys(recordedOutcomes.Select(o => o.Outcome));
+
         var knowledgeBaseIds = (await conversationKnowledgeBaseRepository.GetByConversationAsync(request.ChatId, cancellationToken))
             .Select(l => l.KnowledgeBaseId)
             .ToList();
@@ -129,7 +133,10 @@ public sealed class ConversationTurnOrchestrator(
                 var invokedKeys = selection.Kind == SuggestedActionKind.Capability
                     ? (IReadOnlyList<string>)[selection.Key!]
                     : [.. selectionFlowRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)];
-                var outcome = new TurnOutcome(invokedKeys, selectionConfirmedLocation is not null, [], UserDeclinedLastOffer: false);
+                var outcome = new TurnOutcome(invokedKeys, selectionConfirmedLocation is not null, [], UserDeclinedLastOffer: false)
+                {
+                    CompletedForActiveSiteKeys = completedForActiveSite,
+                };
                 var justHappened = $"The user chose to: {selection.Key}. Lucy ran it.";
 
                 await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext.AfterConfirming(selectionConfirmedLocation), memoryOutcome: null, chat, justHappened, [], cancellationToken))
@@ -212,7 +219,10 @@ public sealed class ConversationTurnOrchestrator(
                     [.. retryRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)],
                     retryConfirmedLocation is not null,
                     [],
-                    UserDeclinedLastOffer: false);
+                    UserDeclinedLastOffer: false)
+                {
+                    CompletedForActiveSiteKeys = completedForActiveSite,
+                };
                 var retryJustHappened = $"The user asked to retry: {retry.CapabilityKey}. Lucy ran it again.";
 
                 await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, retryOutcome, turnContext.AfterConfirming(retryConfirmedLocation), memoryOutcome: null, chat, retryJustHappened, [], cancellationToken))
@@ -323,7 +333,10 @@ public sealed class ConversationTurnOrchestrator(
             // is where Phase 5 gives this a real answer, for the one case that is unambiguous —
             // the exact turn a decline is chosen.
             [],
-            UserDeclinedLastOffer: false);
+            UserDeclinedLastOffer: false)
+        {
+            CompletedForActiveSiteKeys = completedForActiveSite,
+        };
 
         var decideJustHappened = DescribeWhatJustHappened(decision, latestUserMessage);
         var flowVariantCandidates = FlowVariantCandidatesFor(decision, turnContext);

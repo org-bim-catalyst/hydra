@@ -95,6 +95,29 @@ public sealed class OfferSuppressionTests
     }
 
     [Fact]
+    public void Evaluate_ShouldSuppress_WhenEverythingOfferableAlreadyRanForThisSite()
+    {
+        // The T070 offer loop — the capability ran a turn earlier, not this one, so the
+        // just-invoked rule alone kept offering it back.
+        var outcome = new TurnOutcome([], false, [], UserDeclinedLastOffer: false) { CompletedForActiveSiteKeys = ["stub"] };
+
+        var reason = OfferSuppressionRules.Evaluate(TurnIntent.Act, Context(), outcome, _catalog, suggestedActionsEnabled: true);
+
+        reason.Should().Be(OfferSuppressionReason.NothingOfferable);
+    }
+
+    [Fact]
+    public void Evaluate_ShouldNotSuppress_WhenTheTurnConfirmedANewSite()
+    {
+        // What ran for the previous site is fair to offer again for the one just confirmed.
+        var outcome = new TurnOutcome([], ConfirmedLocationThisTurn: true, [], UserDeclinedLastOffer: false) { CompletedForActiveSiteKeys = ["stub"] };
+
+        var reason = OfferSuppressionRules.Evaluate(TurnIntent.Act, Context(), outcome, _catalog, suggestedActionsEnabled: true);
+
+        reason.Should().Be(OfferSuppressionReason.None);
+    }
+
+    [Fact]
     public void Evaluate_ShouldNotSuppress_WhenACapabilityIsGenuinelyOfferable()
     {
         var reason = OfferSuppressionRules.Evaluate(TurnIntent.Act, Context(), TurnOutcome.None, _catalog, suggestedActionsEnabled: true);

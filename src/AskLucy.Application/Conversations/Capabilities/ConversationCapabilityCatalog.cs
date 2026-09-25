@@ -44,6 +44,7 @@ public sealed class ConversationCapabilityCatalog(
         [.. AvailableFor(context)
             .Where(c => !justCompleted.WasInvokedThisTurn(c.Name))
             .Where(c => !justCompleted.WasOfferedAndIgnored(c.Name))
+            .Where(c => !justCompleted.WasCompletedForActiveSite(c.Name))
             .Where(c => c.IsOfferable(context, justCompleted))];
 
     /// <summary>
