@@ -43,4 +43,9 @@
   - Step 2: the card shows a green check-shield and **Al Safa Park 2** in bold, with no other text. Hovering the shield shows "High confidence" and the outline's source. The weather card reads 36°C, so it recovered.
   - Step 6: with Solar Analysis on, the camera-attitude widget sits directly under the row.
   - Step 3 (a second screenshot, light theme): the Home button and all three cards switched to the same light surface together and stayed on one row. The green shield is still clearly visible.
-  - Steps 4–5, step 7 and §3 remain unrun.
+  - Step 4 (the user's resize screenshots, production): as the window narrows, the row wraps onto two and then three lines. Nothing overlaps the top-right buttons. The weather card's place name is cut short with an ellipsis. One thing outside this spec: at narrow widths the compass widget overlaps the header of the Building Corrections panel.
+- **Steps 5 and 7 (2026-09-25, local Vite dev server in real Edge, both themes)**: the local sign-in failed because the dev seed-admin password no longer matches the test database. So instead of opening /studio, a temporary harness (not committed) mounted the real top-left row: `WorkspaceOverlay` with Home, the project title, the weather card and `ExtensionHudItemHost`, with the real `viewer.boundary-confidence` extension started through the loader.
+  - Step 5: the shield is amber for a Medium site (dark rgb(198,147,75), light rgb(184,121,31)) and red for a Low one (dark rgb(193,98,87), light rgb(178,59,46)). Hovering it shows the level, e.g. "Low confidence — approximate", then the reason. The tooltip sits centred under the shield.
+  - Step 7: stopping the extension removes the card and leaves the row's other items where they were: Home at x=24, the title at x=72 and the weather card at x=212, all at y=24, the same boxes as before the stop.
+  - The weather card read "Weather unavailable" throughout. That is expected in the harness: its request to the API was made without a session and was blocked by CORS.
+  - Only §3 (the screen-reader check) remains unrun.
