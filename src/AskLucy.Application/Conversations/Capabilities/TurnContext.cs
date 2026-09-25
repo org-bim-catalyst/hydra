@@ -1,4 +1,5 @@
 using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Domain.Chats;
 
 namespace AskLucy.Application.Conversations.Capabilities;
@@ -60,6 +61,18 @@ public sealed record TurnContext(
         ActiveLocation is not null &&
         ActiveBoundary is not null &&
         string.Equals(ActiveBoundary.SiteName, ActiveLocation.LocationName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// This context as it stands once a place confirmed during the turn is on screen. The snapshot
+    /// is taken before the turn runs, which is right for deciding what to do but wrong for the
+    /// offer made afterwards: that is about what the user can do next, from where the turn left
+    /// them. Only the location is carried forward - it is the one piece of turn-changed state any
+    /// offer rule reads - and a null location returns this context unchanged.
+    /// </summary>
+    public TurnContext AfterConfirming(ConfirmedLocationData? location) =>
+        location is null
+            ? this
+            : this with { ActiveLocation = new ActiveSiteLocation(location.Latitude, location.Longitude, location.LocationName, location.Confidence) };
 
     /// <summary>An empty context, for the fast path and for tests that care about a single field.</summary>
     public static TurnContext Empty(string? userId = null, Guid userChatId = default) =>

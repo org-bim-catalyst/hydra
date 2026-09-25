@@ -63,10 +63,10 @@ public sealed class FlowIntentGatingTests
             .Returns(new ChatCompletionResult("Location found. Now focusing the viewer on it.", new ChatUsage(null, null, null, null, null)));
     }
 
-    private ConversationTurnOrchestrator BuildOrchestrator()
+    private ConversationTurnOrchestrator BuildOrchestrator(params IAgentTool[] additionalCapabilities)
     {
         var toolCatalog = new AgentToolCatalog(
-            [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(Substitute.For<AskLucy.Application.SiteBoundaries.IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>())],
+            [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(Substitute.For<AskLucy.Application.SiteBoundaries.IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>()), .. additionalCapabilities],
             new EmptyMcpToolRegistry());
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions());
         var indexRetriever = new CapabilityIndexRetriever(
@@ -128,6 +128,36 @@ public sealed class FlowIntentGatingTests
         chunks.Should().NotContain(c => c.SuggestedActions != null, "a navigational request already got what it asked for — nothing to offer (FR-051a)");
         await _offerGenerator.DidNotReceive().GenerateAsync(
             Arg.Any<TurnContext>(), Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Any<IReadOnlyList<FlowVariantOfferCandidate>?>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Live-testing report, 2026-09-25: "Show me Al Safa Park 2" in a new chat ended with no offer
+    /// card, while the same request in a chat that already had a site did offer one. The offer
+    /// was judged against the context snapshot taken before the turn ran, which in a new chat has
+    /// no site, and every analysis capability is offerable only with one. The flow's own variants
+    /// stay unoffered (FR-060, the test above); what the new site makes possible does not.
+    /// </summary>
+    [Fact]
+    public async Task NavigationalIntent_InAChatWithNoSiteYet_ShouldOfferWhatTheSiteItFoundMakesPossible()
+    {
+        _decider.DecideAsync(Arg.Any<TurnContext>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(),
+                Arg.Any<IReadOnlyList<CapabilityIndexEntry>>(), Arg.Any<RecentTurnOutcomeSummary>(), Arg.Any<CancellationToken>())
+            .Returns(new TurnDecision(TurnIntent.Act, [], "locate_a_place", """{"query":"Al Safa Park 2"}""", ThroughStepIndex: null));
+        _offerGenerator.GenerateAsync(Arg.Any<TurnContext>(), Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<FlowVariantOfferCandidate>?>(), Arg.Any<CancellationToken>())
+            .Returns(new SuggestedActionOffer("What would you like to explore about Al Safa Park 2?", [
+                new SuggestedAction(SuggestedActionKind.Capability, OpenSolarAnalysisCapability.CapabilityKey, null, "Solar analysis", "…", "{}"),
+                SuggestedAction.Decline(),
+            ]));
+
+        var chunks = await CollectAsync(
+            BuildOrchestrator(new OpenSolarAnalysisCapability(Substitute.For<IUserChatRepository>())), Request("show me Al Safa Park 2"));
+
+        chunks.Should().ContainSingle(c => c.SuggestedActions != null, "the site is on screen now, so there is something to offer");
+        await _offerGenerator.Received(1).GenerateAsync(
+            Arg.Is<TurnContext>(c => c.ActiveLocation != null && c.ActiveLocation.LocationName == "Al Safa Park 2"),
+            Arg.Any<TurnOutcome>(), Arg.Any<string>(), Arg.Any<string?>(),
             Arg.Any<IReadOnlyList<FlowVariantOfferCandidate>?>(), Arg.Any<CancellationToken>());
     }
 

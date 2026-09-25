@@ -108,14 +108,14 @@ public sealed class ConversationTurnOrchestrator(
         // row's label). The decide step is skipped entirely: there is nothing left to decide.
         if (request.SelectedAction is { } selection)
         {
-            var selectionConfirmedLocation = false;
+            ConfirmedLocationData? selectionConfirmedLocation = null;
             var selectionFlowRecord = new List<FlowStepResult>();
 
             await foreach (var chunk in RunSelectedActionAsync(request, turnContext, selection, selectionFlowRecord, cancellationToken))
             {
                 if (chunk.ConfirmedLocation is not null)
                 {
-                    selectionConfirmedLocation = true;
+                    selectionConfirmedLocation = chunk.ConfirmedLocation;
                 }
 
                 yield return chunk;
@@ -129,10 +129,10 @@ public sealed class ConversationTurnOrchestrator(
                 var invokedKeys = selection.Kind == SuggestedActionKind.Capability
                     ? (IReadOnlyList<string>)[selection.Key!]
                     : [.. selectionFlowRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)];
-                var outcome = new TurnOutcome(invokedKeys, selectionConfirmedLocation, [], UserDeclinedLastOffer: false);
+                var outcome = new TurnOutcome(invokedKeys, selectionConfirmedLocation is not null, [], UserDeclinedLastOffer: false);
                 var justHappened = $"The user chose to: {selection.Key}. Lucy ran it.";
 
-                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext, memoryOutcome: null, chat, justHappened, [], cancellationToken))
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext.AfterConfirming(selectionConfirmedLocation), memoryOutcome: null, chat, justHappened, [], cancellationToken))
                 {
                     yield return chunk;
                 }
@@ -194,13 +194,13 @@ public sealed class ConversationTurnOrchestrator(
         if (retry is not null)
         {
             var retryRecord = new List<FlowStepResult>();
-            var retryConfirmedLocation = false;
+            ConfirmedLocationData? retryConfirmedLocation = null;
 
             await foreach (var chunk in RunRetryAsync(request, turnContext, retry, retryRecord, cancellationToken))
             {
                 if (chunk.ConfirmedLocation is not null)
                 {
-                    retryConfirmedLocation = true;
+                    retryConfirmedLocation = chunk.ConfirmedLocation;
                 }
 
                 yield return chunk;
@@ -210,12 +210,12 @@ public sealed class ConversationTurnOrchestrator(
             {
                 var retryOutcome = new TurnOutcome(
                     [.. retryRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)],
-                    retryConfirmedLocation,
+                    retryConfirmedLocation is not null,
                     [],
                     UserDeclinedLastOffer: false);
                 var retryJustHappened = $"The user asked to retry: {retry.CapabilityKey}. Lucy ran it again.";
 
-                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, retryOutcome, turnContext, memoryOutcome: null, chat, retryJustHappened, [], cancellationToken))
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, retryOutcome, turnContext.AfterConfirming(retryConfirmedLocation), memoryOutcome: null, chat, retryJustHappened, [], cancellationToken))
                 {
                     yield return chunk;
                 }
@@ -243,7 +243,7 @@ public sealed class ConversationTurnOrchestrator(
         var decision = await turnDecider.DecideAsync(turnContext, latestUserMessage, index, flowIndex, recentOutcomes, cancellationToken);
 
         MemoryRetrievalOutcome? memoryOutcome = null;
-        var confirmedLocationThisTurn = false;
+        ConfirmedLocationData? confirmedLocationThisTurn = null;
         var flowRunRecord = new List<FlowStepResult>();
         var sliceRunRecord = new List<SubAgentDelegationResult>();
 
@@ -265,7 +265,7 @@ public sealed class ConversationTurnOrchestrator(
                 {
                     if (chunk.ConfirmedLocation is not null)
                     {
-                        confirmedLocationThisTurn = true;
+                        confirmedLocationThisTurn = chunk.ConfirmedLocation;
                     }
 
                     yield return chunk;
@@ -302,7 +302,7 @@ public sealed class ConversationTurnOrchestrator(
             {
                 if (chunk.ConfirmedLocation is not null)
                 {
-                    confirmedLocationThisTurn = true;
+                    confirmedLocationThisTurn = chunk.ConfirmedLocation;
                 }
 
                 yield return chunk;
@@ -315,7 +315,7 @@ public sealed class ConversationTurnOrchestrator(
                     ? [.. flowRunRecord.Where(r => r.Attempted).Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)]
                     : [.. sliceRunRecord.Select(r => r.CapabilityKey).Distinct(StringComparer.Ordinal)])
                 : [],
-            confirmedLocationThisTurn,
+            confirmedLocationThisTurn is not null,
             // FR-025a.4 — "previously offered and ignored" needs the last offer read back from
             // history, which needs a real offer to have existed first. Left at its safe default:
             // an ordinary (non-selection) turn has no cheap way to know whether the user is
@@ -327,7 +327,15 @@ public sealed class ConversationTurnOrchestrator(
 
         var decideJustHappened = DescribeWhatJustHappened(decision, latestUserMessage);
         var flowVariantCandidates = FlowVariantCandidatesFor(decision, turnContext);
-        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, turnContext, memoryOutcome, chat, decideJustHappened, flowVariantCandidates, cancellationToken))
+
+        // The offer is about what the user can do *now*, so it is judged against the state this
+        // turn left behind, not the snapshot taken before it ran. Judged against the snapshot, a
+        // chat's first "show me <place>" turn - the one that puts the site on screen - offered
+        // nothing: site analysis and solar analysis are only offerable with a site, and the
+        // snapshot had none. The same request in a chat that already had a site did offer, which
+        // is how it looked intermittent. See TurnContext.AfterConfirming.
+        var offerContext = turnContext.AfterConfirming(confirmedLocationThisTurn);
+        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, offerContext, memoryOutcome, chat, decideJustHappened, flowVariantCandidates, cancellationToken))
         {
             yield return chunk;
         }
