@@ -40,6 +40,54 @@ public sealed class BoundaryCandidateScorerTests
         ranked[1].ScoreBreakdown["name_match"].Should().Be(0.0);
     }
 
+    /// <summary>
+    /// 2026-09-25, prod: "BurJuman Mall" picked "Burjuman Park" (leisure=park) next door, because
+    /// the mall's OSM name "Bur Juman Shopping Center" scored no name match at all.
+    /// </summary>
+    [Fact]
+    public void ScoreAll_ShouldMatchTheSameSite_SpelledWithDifferentSpacingAndKindWords()
+    {
+        var scorer = CreateScorer();
+        var mall = Candidate(name: "Bur Juman Shopping Center", tags: new Dictionary<string, string> { ["shop"] = "mall" });
+        var park = Candidate(name: "Burjuman Park", tags: new Dictionary<string, string> { ["leisure"] = "park" });
+
+        var ranked = scorer.ScoreAll([park, mall], "BurJuman Mall");
+
+        ranked[0].Candidate.Should().Be(mall);
+        ranked[0].ScoreBreakdown["name_match"].Should().Be(1.0);
+        ranked[1].ScoreBreakdown["name_match"].Should().Be(0.5, "it shares the name, but the user asked for a mall");
+    }
+
+    [Theory]
+    [InlineData("Burjuman Centre", "shop", "mall", 1.0)]    // centre/mall/shopping center are one kind
+    [InlineData("Burjuman Park", "shop", "mall", 0.5)]      // right name, wrong kind
+    [InlineData("Burjuman", "shop", "mall", 1.0)]           // no kind in the query: the name alone decides
+    [InlineData("Juman Mall", "shop", "mall", 0.5)]         // a different name, even though a substring
+    public void Score_ShouldRequireTheQuerysKindToAgree_ForASpellingVariantMatch(string query, string tagKey, string tagValue, double expected)
+    {
+        var scorer = CreateScorer();
+        var mall = Candidate(name: "Bur Juman Shopping Center", tags: new Dictionary<string, string> { [tagKey] = tagValue });
+
+        var scored = scorer.ScoreAll([mall], query)[0];
+
+        scored.ScoreBreakdown["name_match"].Should().Be(expected);
+    }
+
+    [Fact]
+    public void Score_ShouldMatchOnAnAlternativeName()
+    {
+        var scorer = CreateScorer();
+        var mall = Candidate(name: "مركز برجمان دبي", tags: new Dictionary<string, string>
+        {
+            ["shop"] = "mall",
+            ["alt_name"] = "Something Else;BurJuman Mall",
+        });
+
+        var scored = scorer.ScoreAll([mall], "BurJuman Mall")[0];
+
+        scored.ScoreBreakdown["name_match"].Should().Be(1.0);
+    }
+
     [Fact]
     public void ScoreAll_ShouldPreferGovernmentCadastralOverOsmBoundary()
     {

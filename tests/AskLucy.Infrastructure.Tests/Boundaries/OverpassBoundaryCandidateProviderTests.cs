@@ -295,6 +295,28 @@ public sealed class OverpassBoundaryCandidateProviderTests
         results[0].AreaSquareMeters.Should().BeApproximately(2 * halfArea, 2 * halfArea * 0.01);
     }
 
+    /// <summary>
+    /// The merged site used to keep only the first part's tags. On BurJuman that was the part
+    /// named "Bur Juman Shopping Center", so the other part's "BurJuman Mall" was lost and the
+    /// mall scored no name match against the user's "BurJuman Mall".
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldKeepEveryPartsName_WhenMergingPartsOfOneSite()
+    {
+        var json = TwoAdjacentWaysJson(
+            """{ "shop": "mall", "name": "Bur Juman Shopping Center", "name:en": "Bur Juman Shopping Center" }""",
+            """{ "shop": "mall", "name": "BurJuman", "name:en": "BurJuman Mall", "building": "retail" }""");
+        var provider = CreateProvider(_ => JsonResponse(json), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        results.Should().ContainSingle();
+        results[0].Name.Should().Be("Bur Juman Shopping Center");
+        results[0].Tags["name:en"].Should().Be("Bur Juman Shopping Center");
+        results[0].Tags["alt_name"].Split(';').Should().BeEquivalentTo("BurJuman", "BurJuman Mall");
+        results[0].Tags["building"].Should().Be("retail", "tags only the second part carries are kept too");
+    }
+
     [Fact]
     public async Task SearchAsync_ShouldKeepAdjacentSitesApart_WhenTheirNamesDiffer()
     {

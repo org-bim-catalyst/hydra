@@ -327,9 +327,50 @@ internal sealed class OverpassBoundaryCandidateProvider(
             Polygon: new SiteBoundaryPolygon(ring),
             Source: a.Source,
             Name: a.Name.Length > 0 ? a.Name : b.Name,
-            Tags: a.Tags,
+            Tags: MergedTagsOf(a.Tags, b.Tags),
             DistanceToCenterMeters: GeometryMath.DistanceMeters(GeometryMath.Centroid(ring), center),
             AreaSquareMeters: GeometryMath.AreaSquareMeters(ring));
+    }
+
+    /// <summary>
+    /// The first part's tags, plus any the second part adds. Names the second part carries that the
+    /// first doesn't go into "alt_name" (semicolon-separated, as in OSM), so the site still answers
+    /// to them: BurJuman's east part is the one tagged name:en "BurJuman Mall".
+    /// </summary>
+    private static Dictionary<string, string> MergedTagsOf(IReadOnlyDictionary<string, string> first, IReadOnlyDictionary<string, string> second)
+    {
+        var tags = new Dictionary<string, string>(first, StringComparer.Ordinal);
+        foreach (var (key, value) in second)
+        {
+            tags.TryAdd(key, value);
+        }
+
+        var names = new List<string>();
+        foreach (var tagSet in (IReadOnlyDictionary<string, string>[])[first, second])
+        {
+            foreach (var key in (string[])["name", "name:en", "alt_name"])
+            {
+                if (tagSet.TryGetValue(key, out var value))
+                {
+                    names.AddRange(value.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
+                }
+            }
+        }
+
+        var primaryNames = new[] { tags.GetValueOrDefault("name"), tags.GetValueOrDefault("name:en") };
+        var alternativeNames = names.Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(n => !primaryNames.Contains(n, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        if (alternativeNames.Count > 0)
+        {
+            tags["alt_name"] = string.Join(";", alternativeNames);
+        }
+        else
+        {
+            tags.Remove("alt_name");
+        }
+
+        return tags;
     }
 
     /// <summary>The first query filter the tags match, as <c>key=value</c> — e.g. <c>shop=mall</c>.</summary>

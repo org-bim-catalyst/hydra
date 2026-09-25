@@ -24,6 +24,30 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
 
     private static readonly string[] LandUseRelevantTagKeys = ["leisure", "landuse", "amenity", "tourism", "shop"];
 
+    /// <summary>
+    /// Words that say what kind of site a name is rather than which one, each mapped to that kind.
+    /// Tag values go through the same map, so <c>shop=mall</c> counts as "retail" and
+    /// <c>leisure=park</c> as "park".
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> SiteKindWords = new Dictionary<string, string>
+    {
+        ["mall"] = "retail",
+        ["shopping"] = "retail",
+        ["center"] = "retail",
+        ["centre"] = "retail",
+        ["plaza"] = "retail",
+        ["souk"] = "retail",
+        ["market"] = "retail",
+        ["marketplace"] = "retail",
+        ["park"] = "park",
+        ["garden"] = "park",
+        ["gardens"] = "park",
+        ["school"] = "school",
+        ["hospital"] = "hospital",
+        ["university"] = "university",
+        ["college"] = "college",
+    };
+
     public IReadOnlyList<ScoredBoundaryCandidate> ScoreAll(IReadOnlyList<BoundaryCandidate> candidates, string siteNameQuery)
     {
         return candidates
@@ -61,6 +85,8 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
     /// script than the primary name tag (observed live: this was the second contributing cause
     /// of a production mis-pick, alongside an over-broad tag filter — see
     /// OverpassBoundaryCandidateProvider's CandidateTagFilters doc comment for the full story).
+    /// "alt_name" is checked as well: OSM keeps a site's other names there, and a site merged from
+    /// several separately-named parts carries the other parts' names in it.
     /// </summary>
     private static double ScoreNameMatch(BoundaryCandidate candidate, string siteNameQuery)
     {
@@ -70,13 +96,22 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
             return 0.0;
         }
 
+        var alternativeNames = (candidate.Tags.GetValueOrDefault("alt_name") ?? string.Empty)
+            .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         var candidateNames = new[] { candidate.Name, candidate.Tags.GetValueOrDefault("name:en") }
+            .Concat(alternativeNames)
             .Where(n => !string.IsNullOrWhiteSpace(n));
 
-        return candidateNames.Select(n => ScoreOneName(n!, query)).DefaultIfEmpty(0.0).Max();
+        var tagKinds = LandUseRelevantTagKeys
+            .Select(key => candidate.Tags.GetValueOrDefault(key))
+            .Where(value => value is not null && SiteKindWords.ContainsKey(value))
+            .Select(value => SiteKindWords[value!])
+            .ToHashSet(StringComparer.Ordinal);
+
+        return candidateNames.Select(n => ScoreOneName(n!, query, tagKinds)).DefaultIfEmpty(0.0).Max();
     }
 
-    private static double ScoreOneName(string candidateName, string query)
+    private static double ScoreOneName(string candidateName, string query, IReadOnlySet<string> tagKinds)
     {
         var name = candidateName.Trim().ToLowerInvariant();
 
@@ -85,13 +120,66 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
             return 1.0;
         }
 
+        if (IsSameSiteSpelledDifferently(WordsOf(name), WordsOf(query), tagKinds))
+        {
+            return 1.0;
+        }
+
+        // "burjuman" is in "Bur Juman Shopping Center" too, once the spaces are gone.
+        var compactName = string.Concat(WordsOf(name));
         var queryWords = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (queryWords.Any(word => word.Length > 3 && name.Contains(word)))
+        if (queryWords.Any(word => word.Length > 3 && (name.Contains(word) || compactName.Contains(word))))
         {
             return 0.5;
         }
 
         return 0.0;
+    }
+
+    /// <summary>
+    /// The same site named with different spacing and a different word for its kind:
+    /// "BurJuman Mall" against OSM's "Bur Juman Shopping Center" (shop=mall). The distinctive
+    /// part of both names, with spaces, punctuation and kind words removed, must be identical, and
+    /// any kind the query names must agree with the candidate's. Found live on 2026-09-25: before
+    /// this the mall scored no name match at all, and "Burjuman Park" next door, which merely
+    /// contains the word "burjuman", won.
+    /// </summary>
+    private static bool IsSameSiteSpelledDifferently(List<string> nameWords, List<string> queryWords, IReadOnlySet<string> tagKinds)
+    {
+        var queryCore = CoreOf(queryWords);
+        if (queryCore.Length < 4 || queryCore != CoreOf(nameWords))
+        {
+            return false;
+        }
+
+        var queryKinds = KindsOf(queryWords);
+        return queryKinds.Count == 0 || queryKinds.Overlaps(KindsOf(nameWords).Concat(tagKinds));
+    }
+
+    private static string CoreOf(IEnumerable<string> words) =>
+        string.Concat(words.Where(w => w != "the" && !SiteKindWords.ContainsKey(w)));
+
+    private static HashSet<string> KindsOf(IEnumerable<string> words) =>
+        words.Where(SiteKindWords.ContainsKey).Select(w => SiteKindWords[w]).ToHashSet(StringComparer.Ordinal);
+
+    private static List<string> WordsOf(string text)
+    {
+        var words = new List<string>();
+        var word = new System.Text.StringBuilder();
+        foreach (var ch in text.Append(' '))
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                word.Append(ch);
+            }
+            else if (word.Length > 0)
+            {
+                words.Add(word.ToString());
+                word.Clear();
+            }
+        }
+
+        return words;
     }
 
     /// <summary>

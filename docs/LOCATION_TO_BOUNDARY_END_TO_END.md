@@ -793,6 +793,31 @@ Things a reviewer should push on.
    - **The Dubai Mall outline "slightly shifted".** Relation 18195959 lines up with the footprint on
      a flat roadmap. On the 3D viewer, the mall's extruded massing hides part of the ground-level
      outline, and the perspective makes the rest look offset.
+
+   **Seventh update (2026-09-25, same day): BurJuman picked the park next door.** After the merge,
+   BurJuman highlighted a small square north-west of the pin, labelled "OpenStreetMap
+   (leisure=park)". That is way 525529784, "Burjuman Park". A live run of the real provider and
+   scorer at the geocoded point ranked the park 0.742 and the merged mall 0.642. The only
+   difference was `name_match`: 0.5 for the park, 0 for the mall. Two causes:
+   - `BoundaryCandidateScorer` compared names as raw substrings. "burjuman mall" is not inside
+     "bur juman shopping center", and the word "burjuman" is not either, because of the space.
+     The park's name contains "burjuman", so it got the partial match.
+   - The merged candidate kept only the first part's tags. That was way 102828180, "Bur Juman
+     Shopping Center", so way 225672808's name:en "BurJuman Mall" was lost.
+
+   Fixes:
+   - The scorer now also gives a full name match when the two names are identical after
+     lower-casing and removing spaces, punctuation, "the" and kind words (mall, shopping, centre,
+     park, garden, school, …), **and** any kind the query names agrees with the candidate's kind.
+     The kind comes from the candidate's name words or its tags (`shop=mall` is retail,
+     `leisure=park` is park). So "BurJuman Mall" fully matches the shopping center, while
+     "Burjuman Park" stays a partial match because the user asked for a mall. The partial,
+     word-level match also ignores spacing now.
+   - The scorer also checks `alt_name` (semicolon-separated, as in OSM). A merged site now keeps
+     the union of its parts' tags, and names the other parts carry go into `alt_name`.
+
+   Checked live: the merged mall now ranks first at 0.842 (name_match 1.0), and the park second at
+   0.742. Al Safa Park 2 (0.914) and The Dubai Mall (0.872) rank first as before.
 ---
 
 ## 10. Where to look in the code
