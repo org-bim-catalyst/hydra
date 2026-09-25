@@ -66,7 +66,7 @@ describe('SiteBoundaryConfidenceBadge', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  // specs/073 contract B2/B4 (FR-006, FR-007, FR-012) — exactly two lines, no provenance.
+  // specs/073 contract B2/B4 (FR-006, FR-007, FR-012) — the label and the name, no provenance.
   it('shows exactly the site name and the confidence label, never the source or alternatives', () => {
     act(() =>
       useActiveSiteBoundaryStore.getState().setBoundary({
@@ -78,7 +78,17 @@ describe('SiteBoundaryConfidenceBadge', () => {
 
     const badge = screen.getByRole('status')
     expect(badge).toHaveAccessibleName('Al Safa Park 2 boundary: High confidence')
-    expect(badge).toHaveTextContent(/^Al Safa Park 2High confidence$/)
+    expect(badge).toHaveTextContent(/^High confidenceAl Safa Park 2$/)
+
+    // One line, left to right: shield, confidence label, divider, site name.
+    const icon = badge.querySelector('svg')
+    const divider = badge.querySelector('.MuiDivider-root')
+    expect(divider).toHaveAttribute('aria-hidden', 'true')
+    expect(divider).toHaveClass('MuiDivider-vertical')
+    const order = [icon!, screen.getByText('High confidence'), divider!, screen.getByText('Al Safa Park 2')]
+    for (let i = 1; i < order.length; i++) {
+      expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
     expect(badge).not.toHaveTextContent(/Source:/)
     expect(badge).not.toHaveTextContent(/Also considered:/)
     expect(badge).not.toHaveTextContent(/OpenStreetMap/)
@@ -93,7 +103,7 @@ describe('SiteBoundaryConfidenceBadge', () => {
     const name = screen.getByText(longName)
     expect(window.getComputedStyle(name).whiteSpace).toBe('nowrap')
     expect(window.getComputedStyle(name).textOverflow).toBe('ellipsis')
-    expect(window.getComputedStyle(screen.getByRole('status')).maxWidth).toBe('260px')
+    expect(window.getComputedStyle(screen.getByRole('status')).maxWidth).toBe('360px')
   })
 
   it.each(['light', 'dark'] as const)('uses the shared 40 px HUD surface with no violet accent (%s)', (mode) => {

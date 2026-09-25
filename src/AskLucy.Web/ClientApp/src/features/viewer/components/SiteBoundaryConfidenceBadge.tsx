@@ -2,7 +2,7 @@ import GppGoodOutlinedIcon from '@mui/icons-material/GppGoodOutlined'
 import GppMaybeOutlinedIcon from '@mui/icons-material/GppMaybeOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import type { SvgIconComponent } from '@mui/icons-material'
-import { Box, Typography, useTheme } from '@mui/material'
+import { Divider, Typography, useTheme } from '@mui/material'
 import { HudCard } from '../../../components/workspace-shell/HudCard'
 import { useActiveSiteBoundaryStore, type SiteBoundaryConfidenceLevel } from '../../../store/activeSiteBoundaryStore'
 
@@ -28,8 +28,10 @@ const CONFIDENCE_VISUAL: Record<SiteBoundaryConfidenceLevel, { Icon: SvgIconComp
  *
  * specs/073: the last item of the studio's top-left HUD row (contributed as a `hudItem` by
  * `boundaryConfidenceExtension`), on the same 40 px `HudCard` surface as the weather card and the
- * project title. It shows only the site name and the confidence label — the data source and the
- * alternative candidates are no longer displayed. The shield uses `palette.X.light` in dark mode
+ * project title. It shows only the confidence label and the site name — the data source and the
+ * alternative candidates are no longer displayed. One line, read left to right like the weather
+ * card beside it: shield, confidence label, a divider, then the site name (which truncates first
+ * when space runs out). The shield uses `palette.X.light` in dark mode
  * (research D7): `.main` is tuned for light backgrounds and falls under 3:1 against a dark card. */
 export function SiteBoundaryConfidenceBadge() {
   const theme = useTheme()
@@ -43,16 +45,19 @@ export function SiteBoundaryConfidenceBadge() {
   const iconColour = theme.palette[tone][theme.palette.mode === 'dark' ? 'light' : 'main']
 
   return (
-    <HudCard role="status" aria-label={`${siteName} boundary: ${label}`} maxWidth={260} sx={{ gap: 1.25 }}>
+    <HudCard role="status" aria-label={`${siteName} boundary: ${label}`} maxWidth={360} sx={{ gap: 1 }}>
       <Icon aria-hidden="true" sx={{ fontSize: 20, flexShrink: 0, color: iconColour }} />
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle2" component="div" noWrap sx={{ lineHeight: 1.25 }}>
-          {siteName}
-        </Typography>
-        <Typography variant="caption" component="div" noWrap sx={{ lineHeight: 1.25, opacity: 0.8 }}>
-          {label}
-        </Typography>
-      </Box>
+      <Typography variant="subtitle2" component="div" noWrap sx={{ flexShrink: 0, fontWeight: 600 }}>
+        {label}
+      </Typography>
+      <Divider
+        orientation="vertical"
+        aria-hidden="true"
+        sx={{ height: 20, alignSelf: 'center', borderColor: 'currentColor', opacity: 0.35 }}
+      />
+      <Typography variant="body2" component="div" noWrap sx={{ minWidth: 0, opacity: 0.85 }}>
+        {siteName}
+      </Typography>
     </HudCard>
   )
 }

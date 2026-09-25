@@ -85,7 +85,7 @@ interface HudCardProps {
 | # | Guarantee |
 |---|---|
 | B1 | Renders `null` unless both `siteName` and `confidenceLevel` are set. |
-| B2 | Shows exactly: a confidence icon, line 1 `siteName` (`subtitle2`, `noWrap`, ellipsis), and line 2 the confidence label (`caption`). Nothing else (FR-006, FR-007). |
+| B2 | Shows exactly, on one line: a confidence icon · the confidence label (`subtitle2`, weight 600) · vertical divider (`aria-hidden`) · `siteName` (`body2`, `noWrap`, ellipsis). Nothing else (FR-006, FR-007). Amended 2026-09-25 after the live check, replacing the two-line name-over-label layout to match the weather card. |
 | B3 | Icon and colour follow data-model.md "confidence → visual". Icons are `aria-hidden`. |
 | B4 | `role="status"`, `aria-label="{siteName} boundary: {confidence label}"` (FR-012). |
-| B5 | `maxWidth: 260`. |
+| B5 | `maxWidth: 360` (was 260 while the card was two lines; one line needs the label and the name side by side). |
