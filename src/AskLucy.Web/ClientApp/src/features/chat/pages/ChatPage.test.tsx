@@ -2123,6 +2123,68 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(screen.queryByText('What would you like to do next?')).not.toBeInTheDocument()
   })
 
+  // Live-testing report, 2026-09-25: "Show me Al Safa Park 2" answers in two bubbles — the
+  // geocoder confirmation, then the boundary confirmation — and the offer rides the second one.
+  // Only the first bubble's id was ever replaced by the server's, so the card posted a
+  // client-generated id back and every selection was rejected with "That offer is no longer
+  // available in this conversation", which reached the user as "Incomplete — connection dropped".
+  it('answers an offer made on a later bubble against the id the server named', async () => {
+    const offer = {
+      offeredByMessageId: 'msg-boundary-confirmation',
+      question: 'What would you like to explore about Al Safa Park 2?',
+      actions: [
+        {
+          kind: 'capability',
+          capabilityKey: 'request_site_analysis',
+          text: null,
+          label: 'Full site analysis',
+          description: "Comprehensive analysis of the park's characteristics and context.",
+          arguments: {},
+          isDecline: false,
+        },
+      ],
+    }
+
+    let selection: { offeredByMessageId?: string } | undefined
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+      http.post(
+        '*/api/v1/ai/chat',
+        () => {
+          const stream = sseStream([
+            'The geocoder confirmed the location as Al Safa Park 2.',
+            '__MESSAGE_BREAK__',
+            'The site boundary has been successfully highlighted.',
+            `__ACTIONS__${JSON.stringify(offer)}`,
+          ])
+          return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+        },
+        { once: true },
+      ),
+      http.post('*/api/v1/ai/chat', async ({ request }) => {
+        const body = (await request.json()) as { selectedAction?: { offeredByMessageId?: string } }
+        selection = body.selectedAction
+        const stream = sseStream(['Here is what the analysis shows.'])
+        return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+      }),
+    )
+
+    const user = userEvent.setup()
+    renderConversation(CHAT_A)
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+    await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+    await user.click(screen.getByRole('button', { name: 'Send message' }))
+
+    await screen.findByRole('radio', { name: 'Full site analysis' })
+    await user.click(screen.getByRole('radio', { name: 'Full site analysis' }))
+    await user.click(screen.getByRole('button', { name: 'Choose' }))
+
+    expect(await screen.findByText('Here is what the analysis shows.')).toBeInTheDocument()
+    expect(selection?.offeredByMessageId).toBe('msg-boundary-confirmation')
+    expect(screen.getByText('You chose: Full site analysis')).toBeInTheDocument()
+  })
+
   it('surfaces a Retry-able Snackbar error on a failed send and resends the same content', async () => {
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),

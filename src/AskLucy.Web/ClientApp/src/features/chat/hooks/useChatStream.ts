@@ -227,6 +227,8 @@ export function useChatStream(
       let memoryOutcome: ChatMessage['memoryOutcome']
       let suggestedActions: ChatMessage['suggestedActions']
       let offerQuestion: ChatMessage['question']
+      /** The persisted row the offer was stored on — the only id a selection can be posted against. */
+      let offeringMessageId: string | undefined
       let turnOutcome: ChatMessage['turnOutcome']
       try {
         const activeChatId = await ensureChatId(content)
@@ -339,6 +341,7 @@ export function useChatStream(
             // once the loop has finished and that part is known.
             suggestedActions = event.actions
             offerQuestion = event.question
+            offeringMessageId = event.offeredByMessageId
           }
         }
         if (isActiveRef.current) {
@@ -347,6 +350,9 @@ export function useChatStream(
           // sentence the application wrote, which none of that metadata describes.
           const [reply, ...rest] = assistantParts.filter((part, index) => part.content !== '' || index === 0)
           const restRendered = renderParts(rest)
+          // A single-bubble turn makes the reply itself the offering message, and __ACTIONS__
+          // carries that persisted id even on turns __MEMORY__ never reported one for.
+          const replyId = (restRendered.length === 0 ? offeringMessageId : undefined) ?? messageId ?? reply.id
           // specs/045-conversational-agent-runtime FR-021/FR-026 — the offer belongs to whichever
           // bubble was open when the turn ended: the reply itself when the turn produced only one
           // message, or the last of the later ones otherwise.
@@ -355,12 +361,21 @@ export function useChatStream(
             if (target) {
               target.suggestedActions = suggestedActions
               target.question = offerQuestion
+              // The card posts its own bubble's id back as `offeredByMessageId`, and the server
+              // looks that id up among *persisted* messages. Only the reply's id is ever replaced
+              // by a real one (via __MEMORY__), so a second bubble — which is exactly where a
+              // boundary-confirmation turn puts its offer — kept its client-generated id and every
+              // selection on it came back "That offer is no longer available in this conversation".
+              // __ACTIONS__ names the row the offer was persisted on; that is the id to render with.
+              if (offeringMessageId) {
+                target.id = offeringMessageId
+              }
             }
           }
           setMessages([
             ...history,
             {
-              id: messageId ?? reply.id,
+              id: replyId,
               role: 'assistant',
               content: reply.content,
               citations,
@@ -461,6 +476,8 @@ export function useChatStream(
       let memoryOutcome: ChatMessage['memoryOutcome']
       let suggestedActions: ChatMessage['suggestedActions']
       let offerQuestion: ChatMessage['question']
+      /** The persisted row the offer was stored on — the only id a selection can be posted against. */
+      let offeringMessageId: string | undefined
       let turnOutcome: ChatMessage['turnOutcome']
       try {
         const activeChatId = await ensureChatId(seedTitle)
@@ -542,22 +559,35 @@ export function useChatStream(
           } else if (event.type === 'actions') {
             suggestedActions = event.actions
             offerQuestion = event.question
+            offeringMessageId = event.offeredByMessageId
           }
         }
         if (isActiveRef.current) {
           const [reply, ...rest] = assistantParts.filter((part, index) => part.content !== '' || index === 0)
           const restRendered = renderParts(rest)
+          // A single-bubble turn makes the reply itself the offering message, and __ACTIONS__
+          // carries that persisted id even on turns __MEMORY__ never reported one for.
+          const replyId = (restRendered.length === 0 ? offeringMessageId : undefined) ?? messageId ?? reply.id
           if (suggestedActions) {
             const target = restRendered.length > 0 ? restRendered[restRendered.length - 1] : undefined
             if (target) {
               target.suggestedActions = suggestedActions
               target.question = offerQuestion
+              // The card posts its own bubble's id back as `offeredByMessageId`, and the server
+              // looks that id up among *persisted* messages. Only the reply's id is ever replaced
+              // by a real one (via __MEMORY__), so a second bubble — which is exactly where a
+              // boundary-confirmation turn puts its offer — kept its client-generated id and every
+              // selection on it came back "That offer is no longer available in this conversation".
+              // __ACTIONS__ names the row the offer was persisted on; that is the id to render with.
+              if (offeringMessageId) {
+                target.id = offeringMessageId
+              }
             }
           }
           setMessages([
             ...history,
             {
-              id: messageId ?? reply.id,
+              id: replyId,
               role: 'assistant',
               content: reply.content,
               citations,
