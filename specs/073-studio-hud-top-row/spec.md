@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-25
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Studio viewer top-left HUD layout refinement: (1) move the weather/temperature label so it sits inline to the right of the "Flumeria Studio" (project name) chip on the same top row, then the site-location card next to the temperature label on that same row; (2) in the site-location card remove the "Source: ..." provenance text entirely and keep only the first two lines — site name and confidence level; (3) color the shield icon in the site-location card by confidence level (e.g. High = green, Medium = amber, Low = red) so users can identify confidence at a glance by color, with the confidence text still present so color is not the only signal (accessibility)."
 
@@ -86,24 +86,24 @@ The shield icon on the site-location card is coloured by confidence level: green
 - **FR-001**: The studio MUST show the Home button, the project name chip, the weather label, and the site-location card as one horizontal row anchored to the top-left of the workspace, in that order from left to right.
 - **FR-002**: All row items MUST share one vertical centreline and one height. The three cards (project name, weather, site) are rounded rectangles of that height, with content vertically centred. The Home button stays circular, with a diameter equal to that height. Items are separated by one consistent gap that matches the spacing already used between the Home button and the project name chip today.
 - **FR-002a**: The three cards MUST share one frosted-glass surface style: the same background, border, blur, corner radius, and shadow as the existing workspace chrome. The Home button keeps its existing matching circular chrome. That style MUST follow the app's light/dark theme, so all row items change together when the theme is switched. The site card MUST NOT have a left stripe or an accent-coloured border of its own.
-- **FR-003**: Each row item MUST keep its current show/hide rules (weather only when a location has resolved, site card only when a boundary is active). An absent item MUST leave no gap.
+- **FR-003**: Each row item MUST keep its current show/hide rules (weather only when a location has resolved, site card only when a boundary is active). *Amended 2026-09-25 after the live check:* the site card appears as soon as Lucy confirms the place, using the location's own confidence level, and switches to the boundary's level once the outline lands, rather than waiting for a boundary that can be slow or cut short. An absent item MUST leave no gap.
 - **FR-004**: When one item appears, disappears, or changes height, the items to its left MUST NOT move.
 - **FR-005**: When the row is wider than the space available left of the top-right control cluster, the row MUST wrap onto more lines instead of overlapping other controls or overflowing the viewport.
-- **FR-006**: The site-location card MUST show exactly two lines: the site name and the confidence level label.
+- **FR-006**: The site-location card MUST show exactly two lines: the site name and the confidence level label. *Amended twice on 2026-09-25 after the live check, at the user's request:* first to one line (shield · level · divider · name), then to just the shield and the site name in bold. The confidence level and the reason for it (the outline's source, or before that how precisely the map service placed the site) appear in a tooltip when the user hovers over or focuses the shield.
 - **FR-007**: The site-location card MUST NOT show the boundary's source/provenance text or the list of alternative candidate sites.
 - **FR-008**: A site name longer than the card's width MUST be truncated with an ellipsis on a single line.
 - **FR-009**: The site card's icon MUST be coloured by confidence level: green for High, amber for Medium, red for Low.
-- **FR-010**: The site card's icon MUST be a shield at every confidence level, with a distinct mark per level: shield + check (High), plain shield (Medium), shield + warning mark (Low). Confidence MUST NOT be conveyed by colour alone. The distinct mark and the textual confidence label both MUST stay.
+- **FR-010**: The site card's icon MUST be a shield at every confidence level, with a distinct mark per level: shield + check (High), plain shield (Medium), shield + warning mark (Low). Confidence MUST NOT be conveyed by colour alone. The distinct mark and the confidence level in words (now the shield's accessible name and tooltip, FR-006) both MUST stay.
 - **FR-011**: Each confidence colour MUST reach at least 3:1 contrast against the shared frosted-glass surface in both light and dark theme (WCAG 2.1 AA non-text contrast).
 - **FR-012**: The site card's accessible name MUST still include the site name and confidence level. It no longer needs to include the source.
-- **FR-013**: Interactivity MUST be unchanged: the Home button stays clickable and keeps its hover feedback and landing-page navigation; clicks and drags on the weather label and site card go through to the map, so the map remains usable underneath.
+- **FR-013**: Interactivity MUST be unchanged: the Home button stays clickable and keeps its hover feedback and landing-page navigation; clicks and drags on the weather label and site card go through to the map, so the map remains usable underneath. *Amended 2026-09-25:* the one exception is the site card's shield, which takes the pointer and keyboard focus so its tooltip can open (FR-006).
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: On a 1280 px-wide or wider viewport, the Home button, project name, weather, and site card all sit on one row, sharing one vertical centreline. The row's total height is no taller than its tallest item, freeing at least 90 px of vertical map area on the left edge compared with the current stacked layout.
-- **SC-002**: The site-location card's height drops to two text lines for 100% of resolved boundaries, whatever their source or alternative candidates.
+- **SC-002**: The site-location card's height drops to two text lines for 100% of resolved boundaries, whatever their source or alternative candidates. *Amended 2026-09-25:* the card is now a single 40 px line (FR-006).
 - **SC-003**: In a quick glance test (under 2 seconds of exposure), users correctly name the confidence level from the icon colour for at least 90% of cards shown.
 - **SC-004**: An automated test measures each of the three confidence colours at ≥ 3:1 contrast against the card surface, in both light and dark theme. Automated accessibility checks report no new violations on the changed components.
 - **SC-005**: No overlap between row items and between the row and the top-right controls at viewport widths from 360 px to 2560 px.
@@ -111,6 +111,6 @@ The shield icon on the site-location card is coloured by confidence level: green
 ## Assumptions
 
 - "Flumeria Studio" in the request means the existing project name chip in the studio's top-left corner, next to the Home button. The content and behaviour of both don't change; only their size, where needed to match the shared row height, and their neighbours do.
-- Provenance and alternative-candidate information are removed only from the card. They stay in the underlying data and in Lucy's chat reply, so nothing is lost for users who want the detail.
+- Provenance and alternative-candidate information are removed only from the card. *Amended 2026-09-25:* the outline's source now returns as the reason in the shield's tooltip; alternative candidates stay off the card. They stay in the underlying data and in Lucy's chat reply, so nothing is lost for users who want the detail.
 - Green/amber/red come from the app's existing success/warning/error semantic palette rather than new custom colours, so they match the rest of the product in both themes.
 - The row applies only to the studio workspace. Other pages are unaffected.
