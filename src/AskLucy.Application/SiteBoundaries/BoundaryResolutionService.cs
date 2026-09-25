@@ -209,8 +209,13 @@ public sealed class BoundaryResolutionService(
             return null;
         }
 
-        var imageryRadius = ImageryRadiusFor(winner.Candidate, opts);
-        var ring = await renderedFillExtractor.TryExtractAsync(center, imageryRadius, "poi.park", cancellationToken);
+        // Framed on the candidate, not the pin, and allowed past the search radius: this path traces
+        // the whole site, so the whole site has to be in the picture. Framing it the vision path's
+        // way cut the 971 m x 685 m Al Safa Park off at the frame's edge on 2026-09-25 (a 500 m
+        // radius round a pin off the park's centre), and the clipped fill was returned as the
+        // boundary. The extractor now also rejects any trace that reaches the edge.
+        var (fillCenter, fillRadius) = RenderedFillFrameFor(winner.Candidate, center);
+        var ring = await renderedFillExtractor.TryExtractAsync(fillCenter, fillRadius, "poi.park", cancellationToken);
         if (ring is null)
         {
             return null;
@@ -400,6 +405,33 @@ public sealed class BoundaryResolutionService(
         return (int)Math.Clamp(halfExtent * ImageryFramingMargin, MinimumImageryRadiusMeters, opts.SearchRadiusMeters);
     }
 
+    /// <summary>
+    /// Upper bound on the rendered-fill frame's radius. Well past any park a user names as "a site",
+    /// yet still at Static Maps zoom 14 or closer, where Google renders <c>poi.park</c> fills.
+    /// </summary>
+    private const int MaximumRenderedFillRadiusMeters = 2000;
+
+    /// <summary>
+    /// The rendered-fill path's frame: centred on <paramref name="candidate"/>'s own bounding box
+    /// with <see cref="ImageryFramingMargin"/> around it, so the entire mapped site is in view.
+    /// Unlike <see cref="ImageryRadiusFor"/> it is not capped at the search radius — that radius
+    /// bounds where a site may be, not how big it may be.
+    /// </summary>
+    private static (GeoPoint Center, int RadiusMeters) RenderedFillFrameFor(BoundaryCandidate candidate, GeoPoint fallbackCenter)
+    {
+        var ring = candidate.Polygon.ExteriorRing;
+        if (ring.Count < 3)
+        {
+            return (fallbackCenter, (int)MinimumImageryRadiusMeters);
+        }
+
+        var (minLat, minLon, maxLat, maxLon) = GeometryMath.BoundingBox(ring);
+        var halfExtent = GeometryMath.DistanceMeters(new GeoPoint(minLat, minLon), new GeoPoint(maxLat, maxLon)) / 2;
+        var bboxCenter = new GeoPoint((minLat + maxLat) / 2, (minLon + maxLon) / 2);
+
+        return (bboxCenter, (int)Math.Clamp(halfExtent * ImageryFramingMargin, MinimumImageryRadiusMeters, MaximumRenderedFillRadiusMeters));
+    }
+
     /// <summary>Ground-level viewpoints requested per boundary. Each costs two Google calls (metadata, then the image); kept small enough to bound both latency and Gemini's payload size.</summary>
     private const int MaxStreetViewViewpoints = 4;
 
@@ -568,7 +600,7 @@ public sealed class BoundaryResolutionService(
         _ => BoundaryConfidenceLevel.Low,
     };
 
-    private static readonly string[] DescriptiveTagKeys = ["leisure", "landuse", "amenity", "tourism", "natural", "building", "boundary"];
+    private static readonly string[] DescriptiveTagKeys = ["leisure", "landuse", "amenity", "tourism", "shop", "natural", "building", "boundary"];
 
     private static string DescribeSource(BoundaryCandidate candidate)
     {

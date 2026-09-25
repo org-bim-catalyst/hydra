@@ -18,6 +18,8 @@ All unknowns from the Technical Context were resolvable from the existing codeba
 
 **Alternatives considered**: Google Maps "place details" geometry — inconsistent/sparse polygon coverage outside curated place types, and would introduce a second paid-API dependency for a feature spec explicitly says must stay available to every tier (FR-014) with no new cost surface. Deferred, not rejected outright — a `GovernmentCadastralBoundaryProvider` remains a documented future `SiteBoundarySource` value.
 
+**Revised 2026-09-25 — malls and multipolygon relations.** v1 queried only closed `way` elements, and had no filter for shopping malls. The Dubai Mall (relation 18195959, `shop=mall`) and BurJuman (way 225672808, `shop=mall`) were never candidates, so a nearby landuse way was highlighted instead. The query now includes `shop=mall`. For the curated-value filters (leisure, amenity, shop) it also queries `relation["type"="multipolygon"]`, whose outer ring is assembled from its member ways. Any-value filters (landuse, tourism, natural) get no relation query, because an unrestricted relation match pulls in district-scale areas nobody names as a site. See `docs/LOCATION_TO_BOUNDARY_END_TO_END.md` §9, "Fifth update", which also covers the rendered-fill framing fix for large parks.
+
 ## 3. Scoring approach
 
 **Decision**: Deterministic, config-bound weighted scorer — direct port of the notebook's `SITE_BOUNDARY_CONFIG`/`score_candidate` (source reliability, name match, geometry plausibility, center proximity, land-use tag agreement; weights sum to 1.0, validated).

@@ -24,11 +24,11 @@ internal static partial class OverpassBoundaryCandidateProviderLog
 /// <c>NominatimGeocodingProvider</c>'s structure exactly (named <c>HttpClient</c>, typed
 /// unavailable-exception, no caching by design).
 ///
-/// Only <c>way</c> elements (simple closed polygons) are handled — <c>relation</c>
-/// (multipolygon) elements are skipped for v1. This covers the large majority of real
-/// leisure/landuse/building boundaries; a future revision can add relation support as an
-/// additive change to <see cref="MapElementToCandidate"/> without touching the query or the
-/// rest of the pipeline.
+/// Closed <c>way</c> elements and, for the curated-value tag filters, <c>multipolygon</c>
+/// relations — the relation's outer ring is assembled from its member ways. Relations were
+/// skipped in v1, which silently lost every site mapped that way: The Dubai Mall is relation
+/// 18195959, so it never became a candidate and a nearby sliver was highlighted instead
+/// (2026-09-25).
 /// </summary>
 internal sealed class OverpassBoundaryCandidateProvider(
     IHttpClientFactory httpClientFactory,
@@ -55,6 +55,10 @@ internal sealed class OverpassBoundaryCandidateProvider(
     /// class of wrong candidate at the source, rather than trying to out-score it after the fact.
     /// "building"/"boundary" stay excluded — see research.md #2 (query cost) and #7 (oversized
     /// administrative areas already penalized by geometry-quality) for why.
+    ///
+    /// <c>shop=mall</c> added 2026-09-25: malls are among the most-named sites in the city and
+    /// match none of the other filters, so The Dubai Mall and BurJuman were never candidates and
+    /// whatever landuse way lay nearest the pin was highlighted instead.
     /// </summary>
     private static readonly (string Key, string[]? Values)[] CandidateTagFilters =
     [
@@ -63,6 +67,7 @@ internal sealed class OverpassBoundaryCandidateProvider(
         ("amenity", ["school", "hospital", "university", "college"]),
         ("tourism", null),
         ("natural", null),
+        ("shop", ["mall"]),
     ];
 
     private readonly OverpassOptions _options = options.Value;
@@ -149,8 +154,9 @@ internal sealed class OverpassBoundaryCandidateProvider(
             var elements = result?.Elements ?? [];
 
             return elements
-                .Where(e => e.Type == "way" && e.Geometry is { Count: >= 4 } && IsClosedRing(e.Geometry))
-                .Select(e => MapElementToCandidate(e, center))
+                .Select(e => (Element: e, Ring: OuterRingOf(e)))
+                .Where(x => x.Ring is not null)
+                .Select(x => MapElementToCandidate(x.Element, x.Ring!, center))
                 .ToList();
         }
         catch (BoundaryProviderUnavailableException)
@@ -165,28 +171,108 @@ internal sealed class OverpassBoundaryCandidateProvider(
         }
     }
 
+    /// <summary>
+    /// Relations are queried only for the curated-value filters. An any-value relation query on
+    /// <c>landuse</c>/<c>natural</c>/<c>tourism</c> pulls in district-scale landuse and whole
+    /// water bodies — expensive to download and never the site a user named.
+    /// </summary>
     private static string BuildQuery(GeoPoint center, int radiusMeters)
     {
+        var around = $"(around:{radiusMeters},{center.Latitude},{center.Longitude})";
         var statements = CandidateTagFilters.SelectMany(filter =>
             filter.Values is null
-                ? [$"  way(around:{radiusMeters},{center.Latitude},{center.Longitude})[\"{filter.Key}\"];"]
-                : filter.Values.Select(value =>
-                    $"  way(around:{radiusMeters},{center.Latitude},{center.Longitude})[\"{filter.Key}\"=\"{value}\"];"));
+                ? [$"  way{around}[\"{filter.Key}\"];"]
+                : filter.Values.SelectMany(value => new[]
+                {
+                    $"  way{around}[\"{filter.Key}\"=\"{value}\"];",
+                    $"  relation{around}[\"type\"=\"multipolygon\"][\"{filter.Key}\"=\"{value}\"];",
+                }));
 
         var filters = string.Join(Environment.NewLine, statements);
         return $"[out:json][timeout:25];({Environment.NewLine}{filters}{Environment.NewLine});out geom;";
     }
 
-    private static bool IsClosedRing(IReadOnlyList<OverpassGeometryPoint> geometry)
+    private static bool IsClosedRing(IReadOnlyList<OverpassGeometryPoint> geometry) =>
+        SamePoint(geometry[0], geometry[^1]);
+
+    // Member ways of a relation share their end nodes, so matching coordinates are exact copies.
+    private static bool SamePoint(OverpassGeometryPoint a, OverpassGeometryPoint b) =>
+        Math.Abs(a.Lat - b.Lat) < 1e-9 && Math.Abs(a.Lon - b.Lon) < 1e-9;
+
+    /// <summary>
+    /// The element's boundary as a closed ring, or <see langword="null"/> if it has none: a closed
+    /// way's own geometry, or the largest outer ring a multipolygon relation's members close into.
+    /// </summary>
+    private static List<GeoPoint>? OuterRingOf(OverpassElement element)
     {
-        var first = geometry[0];
-        var last = geometry[^1];
-        return Math.Abs(first.Lat - last.Lat) < 1e-9 && Math.Abs(first.Lon - last.Lon) < 1e-9;
+        var geometry = element.Type switch
+        {
+            "way" when element.Geometry is { Count: >= 4 } way && IsClosedRing(way) => way,
+            "relation" => AssembleLargestOuterRing(element.Members ?? []),
+            _ => null,
+        };
+
+        return geometry?.Select(p => new GeoPoint(p.Lat, p.Lon)).ToList();
     }
 
-    private static BoundaryCandidate MapElementToCandidate(OverpassElement element, GeoPoint center)
+    /// <summary>
+    /// Joins a relation's outer member ways end to end into closed rings and returns the largest.
+    /// OSM splits long outlines across several ways, in no particular order or direction, so each
+    /// step takes whichever unused way starts or ends where the ring currently ends, reversing it
+    /// if needed. A chain that cannot close is dropped rather than force-closed — a straight line
+    /// across a gap would be an invented edge. Holes (inner members) are ignored: the candidate is
+    /// the site's outline.
+    /// </summary>
+    private static List<OverpassGeometryPoint>? AssembleLargestOuterRing(IReadOnlyList<OverpassMember> members)
     {
-        var ring = element.Geometry!.Select(p => new GeoPoint(p.Lat, p.Lon)).ToList();
+        var segments = members
+            .Where(m => m.Type == "way" && m.Role is "outer" or "" && m.Geometry is { Count: >= 2 })
+            .Select(m => m.Geometry!.ToList())
+            .ToList();
+
+        List<OverpassGeometryPoint>? largest = null;
+        var largestArea = 0.0;
+        while (segments.Count > 0)
+        {
+            var ring = segments[0];
+            segments.RemoveAt(0);
+
+            while (!IsClosedRing(ring))
+            {
+                var nextIndex = segments.FindIndex(s => SamePoint(s[0], ring[^1]) || SamePoint(s[^1], ring[^1]));
+                if (nextIndex < 0)
+                {
+                    break;
+                }
+
+                var next = segments[nextIndex];
+                segments.RemoveAt(nextIndex);
+                if (!SamePoint(next[0], ring[^1]))
+                {
+                    next.Reverse();
+                }
+
+                ring.AddRange(next.Skip(1));
+            }
+
+            if (ring.Count < 4 || !IsClosedRing(ring))
+            {
+                continue;
+            }
+
+            var area = GeometryMath.AreaSquareMeters(ring.Select(p => new GeoPoint(p.Lat, p.Lon)).ToList());
+            if (area > largestArea)
+            {
+                largest = ring;
+                largestArea = area;
+            }
+        }
+
+        return largest;
+    }
+
+    private static BoundaryCandidate MapElementToCandidate(OverpassElement element, List<GeoPoint> ring, GeoPoint center)
+    {
         var polygon = new SiteBoundaryPolygon(ring);
         var tags = element.Tags ?? new Dictionary<string, string>();
         var centroid = GeometryMath.Centroid(ring);
@@ -207,6 +293,12 @@ internal sealed class OverpassBoundaryCandidateProvider(
         [property: JsonPropertyName("type")] string Type,
         [property: JsonPropertyName("id")] long Id,
         [property: JsonPropertyName("tags")] IReadOnlyDictionary<string, string>? Tags,
+        [property: JsonPropertyName("geometry")] IReadOnlyList<OverpassGeometryPoint>? Geometry,
+        [property: JsonPropertyName("members")] IReadOnlyList<OverpassMember>? Members = null);
+
+    private sealed record OverpassMember(
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("role")] string? Role,
         [property: JsonPropertyName("geometry")] IReadOnlyList<OverpassGeometryPoint>? Geometry);
 
     private sealed record OverpassGeometryPoint(

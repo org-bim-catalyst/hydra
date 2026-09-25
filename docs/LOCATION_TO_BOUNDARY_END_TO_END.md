@@ -737,6 +737,35 @@ Things a reviewer should push on.
    other site. If the fit zoom is already at Static Maps' ceiling, or if any of the four tile fetches
    fails, this falls back to the original single-tile fetch rather than losing the rendered-fill path
    entirely over one flaky sub-request or an already-maxed-out zoom level.
+
+   **Fifth update (2026-09-25): three other sites, three separate causes.** Al Safa Park 2 was the
+   only site that had been tested properly. Three more failed on prod:
+   - **The Dubai Mall** got a 1,480 m² sliver. The mall is OSM relation 18195959 (`shop=mall`,
+     ~248,000 m²). The Overpass query had no filter for `shop=mall`, and the provider dropped every
+     `relation`, so the mall was never a candidate and the nearest landuse way won.
+   - **BurJuman** got the wrong plot. It is a plain way (225672808), but it is also `shop=mall`, so
+     it was never queried either.
+   - **Al Safa Park** got part of its outline. It *was* the top candidate and took the rendered-fill
+     path, but the fill was framed the vision path's way: centred on the geocoded pin, with the
+     radius capped at the 500 m search radius. The park is ~970 m × 685 m (half-diagonal ~594 m, so
+     ~802 m with margin), so it ran off the image. `LargestComponent` traced the clipped fill, part
+     of whose outline was the image border, and the 0.3x area-ratio gate let it through.
+
+   Fixes:
+   - `OverpassBoundaryCandidateProvider` now queries `shop=mall`. For the curated-value filters
+     (leisure, amenity, shop) it also queries `multipolygon` relations, and assembles each
+     relation's outer ring from its member ways: it joins ways end to end, reversing any stored
+     backwards, and keeps the largest closed ring. Holes are ignored. A chain that doesn't close is
+     dropped rather than closed with an invented straight edge. Any-value filters (landuse,
+     tourism, natural) do not get relation queries, because those pull in whole districts and water
+     bodies. The scorer counts `shop` as a land-use-relevant tag.
+   - The rendered-fill frame (`RenderedFillFrameFor`) is centred on the candidate's own bounding box,
+     with the same 1.35x margin. Its cap is 2,000 m rather than the search radius: the search radius
+     limits *where* a site may be, not how big it may be.
+   - `GoogleRenderedFillBoundaryExtractor` rejects any trace whose component reaches the frame's edge
+     (`MaskContourVectorizer.TryExtractRing(..., out touchesImageEdge)`). It logs
+     `OutlineClippedByFrame` and falls back to the mapped outline. A clipped fill is never returned
+     as a boundary, however the framing turns out.
 ---
 
 ## 10. Where to look in the code

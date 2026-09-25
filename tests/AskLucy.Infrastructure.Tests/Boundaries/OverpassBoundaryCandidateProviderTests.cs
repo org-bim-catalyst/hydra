@@ -126,6 +126,120 @@ public sealed class OverpassBoundaryCandidateProviderTests
         capturedBody.Should().Contain("around%3A500");
     }
 
+    /// <summary>
+    /// The Dubai Mall (relation 18195959, <c>shop=mall</c>) and BurJuman (way 225672808,
+    /// <c>shop=mall</c>) were never candidates on 2026-09-25: no filter matched malls, and
+    /// relations were not queried at all.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldQueryMalls_AndMultipolygonRelations_ForCuratedFiltersOnly()
+    {
+        string? capturedQuery = null;
+        var provider = CreateProvider(request =>
+        {
+            capturedQuery = WebUtility.UrlDecode(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            return JsonResponse("""{"elements":[]}""");
+        }, out _);
+
+        await provider.SearchAsync(AlSafaCenter, 500, CancellationToken.None);
+
+        capturedQuery.Should().Contain("""way(around:500,25.156,55.2218)["shop"="mall"];""");
+        capturedQuery.Should().Contain("""relation(around:500,25.156,55.2218)["type"="multipolygon"]["shop"="mall"];""");
+        capturedQuery.Should().Contain("""relation(around:500,25.156,55.2218)["type"="multipolygon"]["leisure"="park"];""");
+        capturedQuery.Should().NotContain("""relation(around:500,25.156,55.2218)["type"="multipolygon"]["landuse"]""",
+            "an any-value landuse relation query drags in district-scale areas nobody names as a site");
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldAssembleARelationsOuterRing_FromOutOfOrderReversedMemberWays()
+    {
+        // Two outer halves of a square, the second stored in the opposite direction, plus an
+        // inner hole that must not become part of the outline.
+        var relationJson = """
+            {
+              "elements": [
+                {
+                  "type": "relation",
+                  "id": 18195959,
+                  "tags": { "type": "multipolygon", "shop": "mall", "name": "The Dubai Mall" },
+                  "members": [
+                    {
+                      "type": "way", "ref": 1, "role": "outer",
+                      "geometry": [
+                        { "lat": 25.2000, "lon": 55.2700 },
+                        { "lat": 25.2000, "lon": 55.2800 },
+                        { "lat": 25.1940, "lon": 55.2800 }
+                      ]
+                    },
+                    {
+                      "type": "way", "ref": 3, "role": "inner",
+                      "geometry": [
+                        { "lat": 25.1980, "lon": 55.2740 },
+                        { "lat": 25.1980, "lon": 55.2760 },
+                        { "lat": 25.1960, "lon": 55.2760 },
+                        { "lat": 25.1980, "lon": 55.2740 }
+                      ]
+                    },
+                    {
+                      "type": "way", "ref": 2, "role": "outer",
+                      "geometry": [
+                        { "lat": 25.2000, "lon": 55.2700 },
+                        { "lat": 25.1940, "lon": 55.2700 },
+                        { "lat": 25.1940, "lon": 55.2800 }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+        var provider = CreateProvider(_ => JsonResponse(relationJson), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, CancellationToken.None);
+
+        results.Should().ContainSingle();
+        results[0].Id.Should().Be("osm_relation_18195959");
+        results[0].Name.Should().Be("The Dubai Mall");
+        results[0].Tags.Should().ContainKey("shop").WhoseValue.Should().Be("mall");
+        results[0].Polygon.ExteriorRing.Should().Equal(
+            new GeoPoint(25.2000, 55.2700), new GeoPoint(25.2000, 55.2800), new GeoPoint(25.1940, 55.2800),
+            new GeoPoint(25.1940, 55.2700), new GeoPoint(25.2000, 55.2700));
+        results[0].AreaSquareMeters.Should().BeApproximately(667 * 1007, 667 * 1007 * 0.02);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldSkipARelation_WhoseOuterWaysDoNotClose()
+    {
+        // A member missing from the response (e.g. an incomplete download) leaves a gap; closing
+        // it with a straight line would invent an edge.
+        var brokenRelationJson = """
+            {
+              "elements": [
+                {
+                  "type": "relation",
+                  "id": 42,
+                  "tags": { "type": "multipolygon", "shop": "mall" },
+                  "members": [
+                    {
+                      "type": "way", "ref": 1, "role": "outer",
+                      "geometry": [
+                        { "lat": 25.2000, "lon": 55.2700 },
+                        { "lat": 25.2000, "lon": 55.2800 },
+                        { "lat": 25.1940, "lon": 55.2800 }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+        var provider = CreateProvider(_ => JsonResponse(brokenRelationJson), out _);
+
+        var results = await provider.SearchAsync(AlSafaCenter, 500, CancellationToken.None);
+
+        results.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task SearchAsync_ShouldSkipWays_WhenGeometryIsNotAClosedRing()
     {

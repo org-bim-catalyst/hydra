@@ -10,6 +10,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.Boundaries;
@@ -107,6 +109,52 @@ public sealed class GoogleRenderedFillBoundaryExtractorTests
             .Distinct()
             .ToList();
         zooms.Should().ContainSingle("all four tiles must be fetched at the same zoom level to stitch cleanly");
+    }
+
+    /// <summary>
+    /// A 1280 px tile (Static Maps' 640 px at scale 2), white, with one green rectangle. The stub
+    /// answers all four tiles of the 2x2 fetch with this same image.
+    /// </summary>
+    private static byte[] TileWithGreenRectangle(int left, int top, int width, int height)
+    {
+        using var tile = new Image<Rgba32>(1280, 1280, new Rgba32(255, 255, 255));
+        for (var y = top; y < top + height; y++)
+        {
+            for (var x = left; x < left + width; x++)
+            {
+                tile[x, y] = new Rgba32(0, 255, 0);
+            }
+        }
+
+        using var stream = new MemoryStream();
+        tile.SaveAsPng(stream);
+        return stream.ToArray();
+    }
+
+    [Fact]
+    public async Task TryExtractAsync_ShouldTraceAFillThatSitsWhollyInsideTheFrame()
+    {
+        var extractor = CreateExtractor(out _, responseBytes: TileWithGreenRectangle(left: 300, top: 300, width: 680, height: 680));
+
+        var ring = await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
+
+        ring.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Al Safa Park, 2026-09-25: the park ran past the frame, and the fill's traced outline — part
+    /// park edge, part image border — was returned as the park's boundary.
+    /// </summary>
+    [Fact]
+    public async Task TryExtractAsync_ShouldReturnNull_WhenTheFillRunsIntoTheFramesEdge()
+    {
+        // A full-height stripe: stacked across the top and bottom tiles it runs from the frame's
+        // top edge to its bottom edge, so every component — whichever is largest — is clipped.
+        var extractor = CreateExtractor(out _, responseBytes: TileWithGreenRectangle(left: 600, top: 0, width: 80, height: 1280));
+
+        var ring = await extractor.TryExtractAsync(AlSafaCenter, 150, "poi.park", TestContext.Current.CancellationToken);
+
+        ring.Should().BeNull("an outline cut off by the frame is not the site's outline");
     }
 
     [Fact]

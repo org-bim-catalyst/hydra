@@ -39,9 +39,18 @@ internal static class MaskContourVectorizer
     /// <summary>Douglas-Peucker tolerance, in source pixels.</summary>
     private const double SimplifyEpsilonPixels = 3.0;
 
-    public static IReadOnlyList<GeoPoint>? TryExtractRing(bool[,] mask, int width, int height, SatelliteImage bounds)
+    public static IReadOnlyList<GeoPoint>? TryExtractRing(bool[,] mask, int width, int height, SatelliteImage bounds) =>
+        TryExtractRing(mask, width, height, bounds, out _);
+
+    /// <summary>
+    /// As above, also reporting whether the traced component reaches the image's border. A shape
+    /// that does was cut off by the frame: the stretch of outline running along the border is the
+    /// frame's edge, not the site's, so a caller tracing a whole site should not trust it.
+    /// </summary>
+    public static IReadOnlyList<GeoPoint>? TryExtractRing(
+        bool[,] mask, int width, int height, SatelliteImage bounds, out bool touchesImageEdge)
     {
-        var pixelRing = TryExtractPixelRing(mask, width, height);
+        var pixelRing = TryExtractPixelRing(mask, width, height, out touchesImageEdge);
         return pixelRing is null ? null : ToGeoRing(pixelRing, width, height, bounds);
     }
 
@@ -51,9 +60,13 @@ internal static class MaskContourVectorizer
     /// exact same coordinates used for the lat/lng conversion, rather than re-deriving pixel
     /// coordinates from the converted geo ring and risking a rounding mismatch between the two.
     /// </summary>
-    internal static List<(int X, int Y)>? TryExtractPixelRing(bool[,] mask, int width, int height)
+    internal static List<(int X, int Y)>? TryExtractPixelRing(bool[,] mask, int width, int height) =>
+        TryExtractPixelRing(mask, width, height, out _);
+
+    private static List<(int X, int Y)>? TryExtractPixelRing(bool[,] mask, int width, int height, out bool touchesImageEdge)
     {
         var component = LargestComponent(mask, width, height);
+        touchesImageEdge = component is not null && TouchesImageEdge(component, width, height);
         if (component is null)
         {
             return null;
@@ -68,6 +81,9 @@ internal static class MaskContourVectorizer
         var simplified = DouglasPeucker(ring, SimplifyEpsilonPixels);
         return simplified.Count < 3 ? null : simplified;
     }
+
+    private static bool TouchesImageEdge(HashSet<(int X, int Y)> component, int width, int height) =>
+        component.Any(p => p.X == 0 || p.Y == 0 || p.X == width - 1 || p.Y == height - 1);
 
     /// <summary>
     /// 8-connected flood fill over <paramref name="mask"/>, returning only the pixels of whichever
@@ -214,7 +230,7 @@ internal static class MaskContourVectorizer
             }
 
             var geo = ToGeoRing(simplified, width, height, bounds);
-            var touchesTileEdge = component.Any(p => p.X == 0 || p.Y == 0 || p.X == width - 1 || p.Y == height - 1);
+            var touchesTileEdge = TouchesImageEdge(component, width, height);
             rings.Add(new ExtractedRing(geo, touchesTileEdge));
         }
 

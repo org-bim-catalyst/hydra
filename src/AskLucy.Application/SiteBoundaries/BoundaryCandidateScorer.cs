@@ -22,7 +22,7 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
         [SiteBoundarySource.ManualFallback] = 0.30,
     };
 
-    private static readonly string[] LandUseRelevantTagKeys = ["leisure", "landuse", "amenity", "tourism"];
+    private static readonly string[] LandUseRelevantTagKeys = ["leisure", "landuse", "amenity", "tourism", "shop"];
 
     public IReadOnlyList<ScoredBoundaryCandidate> ScoreAll(IReadOnlyList<BoundaryCandidate> candidates, string siteNameQuery)
     {

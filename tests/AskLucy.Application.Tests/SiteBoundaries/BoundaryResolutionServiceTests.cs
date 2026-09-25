@@ -795,6 +795,31 @@ public sealed class BoundaryResolutionServiceTests
     }
 
     [Fact]
+    public async Task ResolveAsync_ShouldFrameTheRenderedFillOnTheWholeCandidate_EvenWhenItOutgrowsTheSearchRadius()
+    {
+        // Al Safa Park's shape on 2026-09-25: ~970 m x ~690 m, the pin well off its centre. Framed
+        // on the pin at the search radius (500 m), the park ran off the image and its clipped fill
+        // came back as the boundary.
+        var largePark = new SiteBoundaryPolygon([
+            new GeoPoint(25.1592, 55.2190), new GeoPoint(25.1592, 55.2286),
+            new GeoPoint(25.1530, 55.2286), new GeoPoint(25.1530, 55.2190), new GeoPoint(25.1592, 55.2190),
+        ]);
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate>
+            {
+                new("osm_1", largePark, SiteBoundarySource.OsmBoundary, "Al Safa Park 2",
+                    new Dictionary<string, string> { ["leisure"] = "park" }, 0, 0),
+            });
+
+        await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        await _renderedFillExtractor.Received(1).TryExtractAsync(
+            Arg.Is<GeoPoint>(c => c != null && Math.Abs(c.Latitude - 25.1561) < 1e-9 && Math.Abs(c.Longitude - 55.2238) < 1e-9),
+            Arg.Is<int>(r => r > _options.SearchRadiusMeters && r >= 790 && r <= 815),
+            "poi.park", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ResolveAsync_ShouldNeverCallTheRenderedFillExtractor_ForANonParkCandidate()
     {
         _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())

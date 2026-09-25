@@ -20,6 +20,10 @@ internal static partial class GoogleRenderedFillBoundaryExtractorLog
     [LoggerMessage(Level = LogLevel.Debug, Message = "Rendered-fill boundary for ({Latitude}, {Longitude}): no plausible {ForcedColorHex} outline found in the fetched frame")]
     public static partial void NoOutlineFound(ILogger logger, double latitude, double longitude, string forcedColorHex);
 
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Rendered-fill boundary for ({Latitude}, {Longitude}): the traced outline ran into the frame's edge, so it was cut off and rejected")]
+    public static partial void OutlineClippedByFrame(ILogger logger, double latitude, double longitude);
+
     [LoggerMessage(Level = LogLevel.Debug, Message = "Rendered-fill boundary for ({Latitude}, {Longitude}): tiled fetch at zoom {Zoom} failed, falling back to a single tile")]
     public static partial void TiledFetchFailed(ILogger logger, double latitude, double longitude, int zoom);
 }
@@ -121,10 +125,18 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
                 return null;
             }
 
-            var ring = ExtractForcedColorRing(result.Bytes, result.Bounds);
+            var ring = ExtractForcedColorRing(result.Bytes, result.Bounds, out var touchesImageEdge);
             if (ring is null)
             {
                 GoogleRenderedFillBoundaryExtractorLog.NoOutlineFound(logger, center.Latitude, center.Longitude, ForcedColorHex);
+            }
+            else if (touchesImageEdge)
+            {
+                // The site runs past the frame, so part of this outline is the image border rather
+                // than the site's edge — the partial Al Safa Park outline of 2026-09-25. A clipped
+                // trace is never returned; the caller keeps the mapped outline instead.
+                GoogleRenderedFillBoundaryExtractorLog.OutlineClippedByFrame(logger, center.Latitude, center.Longitude);
+                return null;
             }
 
             return ring;
@@ -251,7 +263,7 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
     /// close to a saturated green — no ambiguity to resolve the way an AI-drawn red line's exact
     /// shade was never fully known in advance.
     /// </summary>
-    private static IReadOnlyList<GeoPoint>? ExtractForcedColorRing(byte[] imageBytes, SatelliteImage bounds)
+    private static IReadOnlyList<GeoPoint>? ExtractForcedColorRing(byte[] imageBytes, SatelliteImage bounds, out bool touchesImageEdge)
     {
         using var image = Image.Load<Rgba32>(imageBytes);
         var width = image.Width;
@@ -271,6 +283,6 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
             }
         });
 
-        return MaskContourVectorizer.TryExtractRing(mask, width, height, bounds);
+        return MaskContourVectorizer.TryExtractRing(mask, width, height, bounds, out touchesImageEdge);
     }
 }
