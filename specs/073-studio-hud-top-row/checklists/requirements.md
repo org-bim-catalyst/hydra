@@ -42,4 +42,5 @@
 - **Follow-up screenshot (2026-09-25, production, dark theme, ~2560 px wide)**: this one confirms step 2 and step 6.
   - Step 2: the card shows a green check-shield and **Al Safa Park 2** in bold, with no other text. Hovering the shield shows "High confidence" and the outline's source. The weather card reads 36°C, so it recovered.
   - Step 6: with Solar Analysis on, the camera-attitude widget sits directly under the row.
-  - Steps 3–5, step 7 and §3 remain unrun.
+  - Step 3 (a second screenshot, light theme): the Home button and all three cards switched to the same light surface together and stayed on one row. The green shield is still clearly visible.
+  - Steps 4–5, step 7 and §3 remain unrun.
