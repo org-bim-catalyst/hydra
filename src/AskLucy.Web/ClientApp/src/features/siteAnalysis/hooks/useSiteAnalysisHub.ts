@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import type { SiteAnalysisCompletedPayload, SiteAnalysisResultReceivedPayload } from '../api/siteAnalysisApi'
 import { useSiteAnalysisNoticeStore } from '../store/siteAnalysisNoticeStore'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 /**
  * Live push of site-analysis chat notices (contracts/site-analysis-hub-events.md), mirroring
@@ -65,18 +66,11 @@ export function useSiteAnalysisHub(): { isLive: boolean } {
       }
     })
 
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }

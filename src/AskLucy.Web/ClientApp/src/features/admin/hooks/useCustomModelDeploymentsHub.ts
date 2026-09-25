@@ -2,6 +2,7 @@ import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { API_BASE_URL } from '../../../api/httpClient'
+import { keepHubConnected } from '../../../api/hubConnection'
 import { useAuthStore } from '../../../store/authStore'
 import {
   CUSTOM_MODELS_QUERY_KEYS,
@@ -105,23 +106,12 @@ export function useCustomModelDeploymentsHub(): {
       void queryClient.invalidateQueries({ queryKey: [...CUSTOM_MODELS_QUERY_KEYS.all, 'detail', event.id] })
     })
 
-    connection.onreconnected(() => {
-      setLive(true)
+    const disconnect = keepHubConnected(connection, setLive, () => {
       void queryClient.invalidateQueries({ queryKey: CUSTOM_MODELS_QUERY_KEYS.all })
     })
-    connection.onreconnecting(() => setLive(false))
-    connection.onclose(() => setLive(false))
-
-    connection.start().then(
-      () => setLive(true),
-      (error: unknown) => {
-        console.warn('Custom model deployments: live updates could not connect.', error)
-        setLive(false)
-      },
-    )
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       setIsLive(false)
       setConnectionLost(false)
     }

@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import { DOCUMENTS_QUERY_KEY } from './useDocuments'
 import type { DocumentNotificationEventType } from '../api/documentsApi'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 export interface IncomingNotification {
   id: string
@@ -54,19 +55,12 @@ export function useNotificationHub(): { latest: IncomingNotification | null; dis
       queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, 'notifications'] })
     })
 
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
     // The 5s-polled inbox query is the fallback if the connection never establishes.
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }

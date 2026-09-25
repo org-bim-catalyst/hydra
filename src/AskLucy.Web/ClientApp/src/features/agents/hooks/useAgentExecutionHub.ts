@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE_URL } from '../../../api/httpClient'
 import { AGENT_EXECUTIONS_QUERY_KEY } from './useAgentExecution'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 const EVENT_NAMES = [
   'executionStarted',
@@ -57,19 +58,12 @@ export function useAgentExecutionHub(executionId: string | null): { isLive: bool
     for (const eventName of EVENT_NAMES) {
       connection.on(eventName, invalidate)
     }
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
 
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }

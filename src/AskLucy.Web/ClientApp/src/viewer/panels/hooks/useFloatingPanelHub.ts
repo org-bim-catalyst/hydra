@@ -4,6 +4,7 @@ import { API_BASE_URL } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import { useFloatingPanelStore } from '../store/floatingPanelStore'
 import type { PanelRequest } from '../types/panel'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 /**
  * Live push of AI-requested panels (contracts/panel-hub-events.md), mirroring
@@ -49,18 +50,11 @@ export function useFloatingPanelHub(): { isLive: boolean } {
       useFloatingPanelStore.getState().openPanel(payload)
     })
 
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }

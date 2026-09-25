@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import { MEMORIES_QUERY_KEY } from './useMemories'
 import type { MemoryNotification } from '../api/memoryApi'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 /**
  * SignalR listener for `memoryNotificationCreated` on `/hubs/memory` (spec.md FR-006a,
@@ -46,19 +47,12 @@ export function useMemoryNotificationsHub(): { latest: MemoryNotification | null
       queryClient.invalidateQueries({ queryKey: [...MEMORIES_QUERY_KEY, 'pending'] })
     })
 
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
     // The polled notifications query is the fallback if the connection never establishes.
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }

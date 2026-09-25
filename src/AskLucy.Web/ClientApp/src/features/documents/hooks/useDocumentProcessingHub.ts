@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE_URL } from '../../../api/httpClient'
 import { DOCUMENTS_QUERY_KEY } from './useDocuments'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 /**
  * Real-time push for one document's processing status (contracts/document-processing-api.md).
@@ -41,19 +42,12 @@ export function useDocumentProcessingHub(documentId: string | null): { isLive: b
     connection.on('documentStageChanged', (payload: { documentId: string }) => invalidate(payload.documentId))
     connection.on('documentProcessingCompleted', (payload: { documentId: string }) => invalidate(payload.documentId))
     connection.on('documentProcessingFailed', (payload: { documentId: string }) => invalidate(payload.documentId))
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
 
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }

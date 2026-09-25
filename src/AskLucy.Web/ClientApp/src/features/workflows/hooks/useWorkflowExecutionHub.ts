@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE_URL } from '../../../api/httpClient'
 import { WORKFLOW_EXECUTIONS_QUERY_KEY } from './useWorkflowExecution'
+import { keepHubConnected } from '../../../api/hubConnection'
 
 const EVENT_NAMES = [
   'workflowStarted',
@@ -59,19 +60,12 @@ export function useWorkflowExecutionHub(executionId: string | null): { isLive: b
     for (const eventName of EVENT_NAMES) {
       connection.on(eventName, invalidate)
     }
-    connection.onreconnected(() => setIsLive(true))
-    connection.onreconnecting(() => setIsLive(false))
-    connection.onclose(() => setIsLive(false))
-
-    connection.start().then(
-      () => setIsLive(true),
-      () => setIsLive(false),
-    )
+    const disconnect = keepHubConnected(connection, setIsLive)
 
     connectionRef.current = connection
 
     return () => {
-      connection.stop().catch(() => undefined)
+      disconnect()
       connectionRef.current = null
       setIsLive(false)
     }
