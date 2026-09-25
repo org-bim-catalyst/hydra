@@ -145,10 +145,12 @@ export function BuildingCorrectionsPanel(): React.JSX.Element | null {
         <Typography sx={compactLabelSx}>{copy.showBuildingMassNote}</Typography>
       </Box>
 
+      {/* Outlined like Apply/Set: as dim text it read as a note, not a control, in either theme. */}
       <Button
         size="small"
+        variant="outlined"
         onClick={() => resetCorrections(site.siteKey)}
-        sx={{ ...compactButtonSx, alignSelf: 'flex-start', color: 'text.secondary' }}
+        sx={{ ...compactButtonSx, alignSelf: 'flex-start' }}
       >
         {copy.resetLabel}
       </Button>
