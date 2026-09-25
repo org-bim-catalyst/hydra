@@ -1,4 +1,4 @@
-import type { HubConnection } from '@microsoft/signalr'
+import { HttpClient, HttpError, HubConnectionBuilder, LogLevel, type HubConnection, type HttpResponse } from '@microsoft/signalr'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { keepHubConnected } from './hubConnection'
 
@@ -49,6 +49,30 @@ describe('keepHubConnected', () => {
     await vi.advanceTimersByTimeAsync(2_000)
     expect(start).toHaveBeenCalledTimes(2)
     expect(setIsLive).toHaveBeenLastCalledWith(true)
+  })
+
+  // Production log, 2026-09-25: a 401 negotiate retried every 30 s with no /auth/refresh between
+  // attempts. The fake above rejects with `statusCode` on the error, which the real client never
+  // does — it wraps the refused negotiate in an error that keeps only the message. Drive a real
+  // HubConnection whose negotiate is refused so this can't drift from the library again.
+  it('re-issues the hub cookie when a real negotiate is refused', async () => {
+    class RefusingHttpClient extends HttpClient {
+      send(): Promise<HttpResponse> {
+        return Promise.reject(new HttpError('Unauthorized', 401))
+      }
+    }
+    const connection = new HubConnectionBuilder()
+      .withUrl('https://example.test/hubs/panels', { httpClient: new RefusingHttpClient() })
+      .configureLogging(LogLevel.None)
+      .build()
+    const setIsLive = vi.fn()
+
+    const dispose = keepHubConnected(connection, setIsLive)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(setIsLive).toHaveBeenLastCalledWith(false)
+    expect(attemptSilentRefresh).toHaveBeenCalledTimes(1)
+    dispose()
   })
 
   it('keeps retrying an unreachable hub without touching the session', async () => {

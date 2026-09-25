@@ -7,9 +7,17 @@ const RESTART_DELAYS_MS = [2_000, 5_000, 10_000, 30_000]
 /**
  * A hub handshake refused for authentication. Duck-typed rather than `instanceof HttpError` so a
  * test that mocks `@microsoft/signalr` without that class still exercises this path.
+ *
+ * <p>`start()` never rejects with the `HttpError` itself: a refused negotiate is re-thrown as a
+ * `FailedToNegotiateWithServerError` that keeps only the message (`HttpConnection.js`
+ * `_getNegotiationResponse`), so the status code survives only as the text `Status code '401'`
+ * that `HttpError` appends. Checking `statusCode` alone never matched a real refusal — the
+ * 2026-09-25 production log shows the panels and site-analysis hubs retrying a 401 negotiate
+ * every 30 s for minutes with no `/auth/refresh` between them.</p>
  */
 function isUnauthorized(error: unknown): boolean {
-  return (error as { statusCode?: unknown } | null)?.statusCode === 401
+  if ((error as { statusCode?: unknown } | null)?.statusCode === 401) return true
+  return error instanceof Error && error.message.includes("Status code '401'")
 }
 
 /**
