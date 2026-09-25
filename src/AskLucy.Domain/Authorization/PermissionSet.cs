@@ -66,6 +66,14 @@ public sealed class PermissionSet : IEquatable<PermissionSet>
         return new PermissionSet(combined);
     }
 
+    /// <summary>This set without the given keys (the result may be empty).</summary>
+    public PermissionSet Except(IEnumerable<string> keys)
+    {
+        var remaining = new HashSet<string>(_keys, StringComparer.InvariantCulture);
+        remaining.ExceptWith(keys);
+        return new PermissionSet(remaining);
+    }
+
     public bool Equals(PermissionSet? other)
     {
         if (other is null) return false;

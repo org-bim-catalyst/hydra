@@ -10,10 +10,9 @@ namespace AskLucy.Persistence.Repositories;
 
 /// <summary>
 /// Roles live in <c>AspNetRoles</c>; a role's permission grants live in <c>AspNetRoleClaims</c>
-/// with <see cref="PermissionClaims.Type"/> (research.md Decision 1/1b). Built-in roles never
-/// carry claim rows — their effective permissions are always the full catalogue, computed by
-/// <see cref="AskLucy.Application.Authorization.EffectivePermissionResolver"/>, not stored here
-/// (Decision 2).
+/// with <see cref="PermissionClaims.Type"/> (research.md Decision 1/1b). Built-in roles carry no
+/// claim rows except the Super-User-controlled grants on Administrator (specs/074 research D14);
+/// their effective permissions come from <see cref="BuiltInRolePermissions"/> (Decision 2).
 /// </summary>
 public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepository auditLog) : IRoleRepository
 {
@@ -236,10 +235,59 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
         var items = new List<RoleRecord>(roles.Count);
         foreach (var role in roles)
         {
-            items.Add(await ToRecordAsync(role, cancellationToken));
+            // A built-in Administrator without a Super-User-controlled grant doesn't hold that key.
+            var record = await ToRecordAsync(role, cancellationToken);
+            if (record.Permissions.Contains(permissionKey))
+            {
+                items.Add(record);
+            }
         }
 
         return items;
+    }
+
+    public async Task<RoleRecord?> SetControlledGrantsAsync(
+        string roleId, IReadOnlyCollection<string> controlledKeys, string actorUserId, CancellationToken cancellationToken = default)
+    {
+        var unknown = controlledKeys.Where(k => !AdminPermissionCatalog.SuperUserControlledKeys.Contains(k)).ToList();
+        if (unknown.Count > 0)
+        {
+            throw new ArgumentException($"Not a Super-User-controlled permission: {string.Join(", ", unknown)}", nameof(controlledKeys));
+        }
+
+        var role = await dbContext.Roles.FirstOrDefaultAsync(r => r.Id == roleId, cancellationToken);
+        if (role is null)
+        {
+            return null;
+        }
+
+        var existing = await dbContext.RoleClaims
+            .Where(c => c.RoleId == roleId && c.ClaimType == PermissionClaims.Type)
+            .ToListAsync(cancellationToken);
+        var beforeKeys = existing.Select(c => c.ClaimValue!).ToList();
+
+        var toRemove = existing
+            .Where(c => AdminPermissionCatalog.SuperUserControlledKeys.Contains(c.ClaimValue!) && !controlledKeys.Contains(c.ClaimValue!))
+            .ToList();
+        var toAdd = controlledKeys.Distinct().Where(k => !beforeKeys.Contains(k)).ToList();
+
+        if (toRemove.Count > 0 || toAdd.Count > 0)
+        {
+            dbContext.RoleClaims.RemoveRange(toRemove);
+            foreach (var key in toAdd)
+            {
+                dbContext.RoleClaims.Add(new IdentityRoleClaim<string> { RoleId = roleId, ClaimType = PermissionClaims.Type, ClaimValue = key });
+            }
+
+            var afterKeys = beforeKeys.Except(toRemove.Select(c => c.ClaimValue!)).Concat(toAdd).ToList();
+            auditLog.Add(RoleAuditLog.Record(
+                RoleAuditAction.RoleUpdated, actorUserId, roleId, role.Name!,
+                detailsJson: $"{{\"before\":{RoleJson(role.Name, role.Description, beforeKeys)},\"after\":{RoleJson(role.Name, role.Description, afterKeys)}}}"));
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return await ToRecordAsync(role, cancellationToken);
     }
 
     private static string Json(string? value) => value is null ? "null" : $"\"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
@@ -284,15 +332,16 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
     {
         var userCount = await dbContext.UserRoles.CountAsync(ur => ur.RoleId == role.Id, cancellationToken);
 
-        if (role.IsBuiltIn)
-        {
-            return new RoleRecord(role.Id, role.Name!, role.Description, true, PermissionSet.Full, userCount, role.ModifiedAtUtc, role.ConcurrencyStamp!);
-        }
-
         var storedKeys = await dbContext.RoleClaims
             .Where(c => c.RoleId == role.Id && c.ClaimType == PermissionClaims.Type)
             .Select(c => c.ClaimValue!)
             .ToListAsync(cancellationToken);
+
+        if (role.IsBuiltIn)
+        {
+            var builtInPermissions = BuiltInRolePermissions.For(role.Name!, storedKeys);
+            return new RoleRecord(role.Id, role.Name!, role.Description, true, builtInPermissions, userCount, role.ModifiedAtUtc, role.ConcurrencyStamp!);
+        }
 
         // Defensive against a not-yet-reconciled retired key (PermissionCatalogReconciler is the
         // primary cleanup — research.md Decision 10); never surface or persist an unknown key.

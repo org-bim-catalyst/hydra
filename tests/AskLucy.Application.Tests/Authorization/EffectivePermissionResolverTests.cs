@@ -18,17 +18,71 @@ public sealed class EffectivePermissionResolverTests
         _sut = new EffectivePermissionResolver(_identityService, _roleRepository);
     }
 
-    [Theory]
-    [InlineData("Administrator")]
-    [InlineData("Super User")]
-    public async Task ResolveAsync_BuiltInRole_ReturnsFullCatalogue(string roleName)
+    private const string ContentView = AdminPermissionCatalog.OperationalFailuresContentView;
+
+    [Fact]
+    public async Task ResolveAsync_SuperUser_ReturnsFullCatalogueWithoutARoundTrip()
     {
-        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([roleName]);
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns(["Super User"]);
 
         var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.Should().Be(PermissionSet.Full);
+        result.Contains(ContentView).Should().BeTrue();
         await _roleRepository.DidNotReceive().GetByNormalizedNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Administrator_WithoutStoredGrant_GetsEverythingExceptContentView()
+    {
+        // specs/074 research D14: the first exception to "built-in ⇒ full catalogue".
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns(["Administrator"]);
+        _roleRepository.GetByNormalizedNameAsync("ADMINISTRATOR", Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("admin", "Administrator", null, true, PermissionSet.Full.Except(AdminPermissionCatalog.SuperUserControlledKeys), 1, null, "s"));
+
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
+
+        result.Contains(ContentView).Should().BeFalse();
+        result.Keys.Should().HaveCount(PermissionSet.Full.Keys.Count - 1);
+        result.Contains("admin.operational-failures.view").Should().BeTrue();
+        result.Contains("admin.operational-failures.manage").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Administrator_WithStoredGrant_GetsContentView()
+    {
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns(["Administrator"]);
+        _roleRepository.GetByNormalizedNameAsync("ADMINISTRATOR", Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("admin", "Administrator", null, true, PermissionSet.Create(ContentView), 1, null, "s"));
+
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
+
+        result.Should().Be(PermissionSet.Full);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Administrator_RoleRowMissing_StillGetsEverythingExceptContentView()
+    {
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns(["Administrator"]);
+        _roleRepository.GetByNormalizedNameAsync("ADMINISTRATOR", Arg.Any<CancellationToken>()).Returns((RoleRecord?)null);
+
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
+
+        result.Should().Be(PermissionSet.Full.Except(AdminPermissionCatalog.SuperUserControlledKeys));
+    }
+
+    [Fact]
+    public async Task ResolveAsync_CustomRoleWithStoredContentView_HasIt()
+    {
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns(["Investigator"]);
+        _roleRepository.GetByNormalizedNameAsync("INVESTIGATOR", Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("role-3", "Investigator", null, false,
+                PermissionSet.Create("admin.operational-failures.view", ContentView), 1, null, "s"));
+
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
+
+        result.Contains(ContentView).Should().BeTrue();
+        result.Contains("admin.operational-failures.view").Should().BeTrue();
     }
 
     [Fact]

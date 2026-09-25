@@ -64,12 +64,22 @@ public sealed class PermissionSetTests
     }
 
     [Fact]
-    public void Full_ShouldContainAll18CatalogueKeys()
+    public void Full_ShouldContainAll21CatalogueKeys()
     {
-        PermissionSet.Full.Keys.Should().HaveCount(18);
+        PermissionSet.Full.Keys.Should().HaveCount(21);
 
         foreach (var catalogKey in AdminPermissionCatalog.All.Select(p => p.Key))
             PermissionSet.Full.Contains(catalogKey).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Except_ShouldRemoveOnlyTheGivenKeys()
+    {
+        var result = PermissionSet.Full.Except(AdminPermissionCatalog.SuperUserControlledKeys);
+
+        result.Keys.Should().HaveCount(PermissionSet.Full.Keys.Count - AdminPermissionCatalog.SuperUserControlledKeys.Count);
+        result.Contains(AdminPermissionCatalog.OperationalFailuresContentView).Should().BeFalse();
+        result.Contains(AdminPermissionCatalog.OperationalFailuresView).Should().BeTrue();
     }
 
     [Fact]

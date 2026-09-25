@@ -2,7 +2,7 @@ using AskLucy.Domain.Authorization;
 
 namespace AskLucy.Application.Abstractions;
 
-/// <summary>A role plus its stored permission grants — never the full computed set for a built-in role (data-model.md).</summary>
+/// <summary>A role plus its permissions — for a built-in role, the effective set from <c>BuiltInRolePermissions</c> (data-model.md).</summary>
 public sealed record RoleRecord(
     string Id,
     string Name,
@@ -53,4 +53,13 @@ public interface IRoleRepository
     /// not found/built-in.
     /// </summary>
     Task<IReadOnlyList<string>?> DeleteByIdAsync(string roleId, string actorUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces only the <see cref="AdminPermissionCatalog.SuperUserControlledKeys"/> grants on a role
+    /// (built-in included — the one write a built-in role accepts, specs/074 research D14) and
+    /// writes a <c>RoleUpdated</c> audit row. Callers must have checked the actor is a Super User.
+    /// Returns <see langword="null"/> if the role doesn't exist; throws on a non-controlled key.
+    /// </summary>
+    Task<RoleRecord?> SetControlledGrantsAsync(
+        string roleId, IReadOnlyCollection<string> controlledKeys, string actorUserId, CancellationToken cancellationToken = default);
 }

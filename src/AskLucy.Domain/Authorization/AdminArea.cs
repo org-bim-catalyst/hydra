@@ -11,5 +11,6 @@ public enum AdminArea
     SystemAgents,
     WorkflowPolicies,
     McpServers,
-    CustomModels
+    CustomModels,
+    OperationalFailures
 }

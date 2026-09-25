@@ -7,16 +7,16 @@ namespace AskLucy.Domain.Tests.Authorization;
 public sealed class AdminPermissionCatalogTests
 {
     [Fact]
-    public void All_ShouldContainExactly18Permissions()
+    public void All_ShouldContainExactly21Permissions()
     {
-        AdminPermissionCatalog.All.Should().HaveCount(18);
+        AdminPermissionCatalog.All.Should().HaveCount(21);
     }
 
     [Fact]
     public void All_ShouldHaveUniqueKeys()
     {
         var keys = AdminPermissionCatalog.All.Select(p => p.Key).ToList();
-        keys.Distinct().Should().HaveCount(18, "all permission keys must be unique");
+        keys.Distinct().Should().HaveCount(21, "all permission keys must be unique");
     }
 
     [Theory]
@@ -38,6 +38,9 @@ public sealed class AdminPermissionCatalogTests
     [InlineData("admin.mcp-servers.manage")]
     [InlineData("admin.custom-models.view")]
     [InlineData("admin.custom-models.manage")]
+    [InlineData("admin.operational-failures.view")]
+    [InlineData("admin.operational-failures.manage")]
+    [InlineData("admin.operational-failures.content.view")]
     public void TryGet_ShouldReturnTrueForAllCatalogueKeys(string key)
     {
         var result = AdminPermissionCatalog.TryGet(key, out var permission);
@@ -66,6 +69,21 @@ public sealed class AdminPermissionCatalogTests
 
         var customModels = AdminPermissionCatalog.ByArea(AdminArea.CustomModels).ToList();
         customModels.Should().OnlyContain(p => p.Implies == null || p.Implies.Key.StartsWith("admin.custom-models."));
+    }
+
+    [Fact]
+    public void SuperUserControlledKeys_ShouldBeExactlyTheContentViewKey()
+    {
+        // specs/074 research D14: the only key the built-in Administrator role does not hold implicitly.
+        AdminPermissionCatalog.SuperUserControlledKeys.Should().BeEquivalentTo(["admin.operational-failures.content.view"]);
+        AdminPermissionCatalog.SuperUserControlledKeys.Should().OnlyContain(k => AdminPermissionCatalog.TryGet(k, out _));
+    }
+
+    [Fact]
+    public void OperationalFailuresManage_ShouldImplyViewButNotContentView()
+    {
+        AdminPermissionCatalog.TryGet("admin.operational-failures.manage", out var manage).Should().BeTrue();
+        manage!.Implies!.Key.Should().Be("admin.operational-failures.view");
     }
 
     [Fact]
@@ -113,6 +131,7 @@ public sealed class AdminPermissionCatalogTests
     [InlineData(AdminArea.WorkflowPolicies, 2)]
     [InlineData(AdminArea.McpServers, 2)]
     [InlineData(AdminArea.CustomModels, 2)]
+    [InlineData(AdminArea.OperationalFailures, 3)]
     public void ByArea_ShouldReturnCorrectCount(AdminArea area, int expected)
     {
         AdminPermissionCatalog.ByArea(area).Should().HaveCount(expected);
@@ -142,6 +161,7 @@ public sealed class AdminPermissionCatalogTests
         AdminArea.WorkflowPolicies => "workflow-policies",
         AdminArea.McpServers => "mcp-servers",
         AdminArea.CustomModels => "custom-models",
+        AdminArea.OperationalFailures => "operational-failures",
         _ => throw new System.ArgumentOutOfRangeException(nameof(area))
     };
 }

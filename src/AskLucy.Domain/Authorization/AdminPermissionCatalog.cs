@@ -9,7 +9,17 @@ public static class AdminPermissionCatalog
 {
     public static IReadOnlyCollection<AdminPermission> All { get; }
 
-    private static readonly List<AdminPermission> _allList = new(18);
+    public const string OperationalFailuresView = "admin.operational-failures.view";
+
+    public const string OperationalFailuresContentView = "admin.operational-failures.content.view";
+
+    /// <summary>
+    /// Keys only a Super User may grant or revoke, and the only keys the built-in Administrator role
+    /// does not hold implicitly (specs/074 research D14).
+    /// </summary>
+    public static IReadOnlySet<string> SuperUserControlledKeys { get; }
+
+    private static readonly List<AdminPermission> _allList = new(21);
 
     static AdminPermissionCatalog()
     {
@@ -51,7 +61,14 @@ public static class AdminPermissionCatalog
         _allList.Add(Permission("admin.custom-models.view", AdminArea.CustomModels, AdminPermissionLevel.View, "View custom models", "View custom model deployments and their progress."));
         _allList.Add(Permission("admin.custom-models.manage", AdminArea.CustomModels, AdminPermissionLevel.Manage, "Manage custom models", "Deploy models from Hugging Face to the production server, cancel deployments, and change model availability."));
 
+        // Operational failures (specs/074). content.view is Super-User-controlled (FR-016e–k): it
+        // is the one key the built-in Administrator role does not hold implicitly.
+        _allList.Add(Permission(OperationalFailuresView, AdminArea.OperationalFailures, AdminPermissionLevel.View, "View operational failures", "View the operational failure trail, with metadata-only links to affected chats, workflow runs and documents."));
+        _allList.Add(Permission("admin.operational-failures.manage", AdminArea.OperationalFailures, AdminPermissionLevel.Manage, "Manage operational failures", "Acknowledge, resolve, and reopen operational failure incidents."));
+        _allList.Add(Permission(OperationalFailuresContentView, AdminArea.OperationalFailures, AdminPermissionLevel.View, "View user content in failure investigations", "Read the full content of another user's chat, workflow run or document from a failure incident. Every access is audited. Only a Super User can grant or revoke it; it grants nothing without View operational failures."));
+
         All = new ReadOnlyCollection<AdminPermission>(_allList);
+        SuperUserControlledKeys = new HashSet<string>(StringComparer.Ordinal) { OperationalFailuresContentView };
     }
 
     public static bool TryGet(string key, out AdminPermission? permission)

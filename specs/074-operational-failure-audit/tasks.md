@@ -77,13 +77,13 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 **Purpose**: Options, configuration, and folder scaffolding. There are no new packages.
 
-- [ ] T001 [P] Create `src/AskLucy.Application/Options/OperationalFailuresOptions.cs`:
+- [X] T001 [P] Create `src/AskLucy.Application/Options/OperationalFailuresOptions.cs`:
   - `SectionName = "OperationalFailures"`.
   - `ResolvedRetentionDays = 90`, `UnacknowledgedRetentionDays = 180`, `OccurrenceRetentionDays = 90`.
   - `MaxStoredOccurrencesPerIncident = 1000`, `QueueCapacity = 10000`, `WriterBatchSize = 100`.
   - A static `Normalize()` that clamps each value to ≥ 1 and returns the clamped copy (research D16).
-- [ ] T002 [P] Add an `"OperationalFailures"` section with the T001 defaults to `src/AskLucy.Web/appsettings.json`.
-- [ ] T003 [P] Create empty feature folders, each with a placeholder-free first file from later tasks:
+- [X] T002 [P] Add an `"OperationalFailures"` section with the T001 defaults to `src/AskLucy.Web/appsettings.json`.
+- [X] T003 [P] Create empty feature folders, each with a placeholder-free first file from later tasks:
   - `src/AskLucy.Domain/OperationalFailures/`
   - `src/AskLucy.Application/OperationalFailures/{Abstractions,Commands,Queries,Investigations,Jobs}/`
   - `src/AskLucy.Infrastructure/OperationalFailures/`
@@ -91,7 +91,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - `tests/*/OperationalFailures/`
 
   Just confirm the target paths. There is nothing to commit on its own.
-- [ ] T004 [P] Write `docs/adr/0017-operational-failure-trail.md` (constitution §13/§17), following the existing ADRs' format: context, decision, consequences, alternatives considered, trade-off accepted. It records three decisions:
+- [X] T004 [P] Write `docs/adr/0017-operational-failure-trail.md` (constitution §13/§17), following the existing ADRs' format: context, decision, consequences, alternatives considered, trade-off accepted. It records three decisions:
   1. One cross-cutting store behind `IOperationalFailureRecorder`, instead of unioning the 8 module audit logs, a Serilog sink, or a synchronous write (research D1–D3).
   2. A bounded channel plus a background writer, accepting that a full channel drops a report (logged) rather than slowing the caller (D2), and why the content-access event is the one write that stays synchronous (D15).
   3. The built-in Administrator role excludes `SuperUserControlledKeys` from `PermissionSet.Full`: the first exception to "built-in ⇒ full catalogue" (D14).
@@ -108,18 +108,18 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Tests for Foundational (write first, confirm failing)
 
-- [ ] T005 [P] Domain tests in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureIncidentTests.cs`:
+- [X] T005 [P] Domain tests in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureIncidentTests.cs`:
   - Open→Acknowledged→Resolved, Open→Resolved and Resolved→Reopen (which clears the ack and resolve fields).
   - `Acknowledge` on Acknowledged or Resolved returns `AlreadyInState`.
   - `Resolve` note length ≤ 500.
   - A new occurrence never changes `TriageState`.
-- [ ] T006 [P] Domain tests in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureSeverityPolicyTests.cs`: a theory over every FR-009 row.
+- [X] T006 [P] Domain tests in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureSeverityPolicyTests.cs`: a theory over every FR-009 row.
   - The Critical kinds give Critical even with `DegradedServed`.
   - The `Access` engine always gives Warning.
   - `RateLimited` gives Warning.
   - `DegradedServed` / `RecoveredByRetry` give Warning.
   - Everything else gives Error.
-- [ ] T007 [P] Domain test in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureKindsTests.cs`: for every `Enum.GetValues<AiProviderFailureKind>()`, `OperationalFailureKinds.FromProvider(k).ToString() == k.ToString()`.
+- [X] T007 [P] Domain test in `tests/AskLucy.Domain.Tests/OperationalFailures/OperationalFailureKindsTests.cs`: for every `Enum.GetValues<AiProviderFailureKind>()`, `OperationalFailureKinds.FromProvider(k).ToString() == k.ToString()`.
 - [ ] T008 [P] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/FailureReasonSanitizerTests.cs`. This is the corpus from research D8:
   - `Bearer eyJ…`, a bare JWT, `sk-…`, `sk-ant-…`, `AIza…` and `xi-…` keys.
   - `Authorization:` / `Cookie:` / `Set-Cookie:` values.
@@ -164,7 +164,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - The cap: with `MaxStoredOccurrencesPerIncident = 3`, 5 appends give `StoredOccurrenceCount = 3` and `OccurrenceCount = 5`.
   - Participants: 5 appends from 2 users give `DistinctUserCount = 2`. Beyond the cap, a new user still increments the count.
   - Audit columns: the incident's `CreatedBy` is `"system"`, and a joined occurrence does **not** change `ModifiedAtUtc`, because counter updates are bookkeeping. `LastSeenUtc` is the activity timestamp.
-- [ ] T016 [P] Application tests in `tests/AskLucy.Application.Tests/Authorization/EffectivePermissionResolverTests.cs` (extend the existing file):
+- [X] T016 [P] Application tests in `tests/AskLucy.Application.Tests/Authorization/EffectivePermissionResolverTests.cs` (extend the existing file):
   - Super User gets every key, including `admin.operational-failures.content.view`.
   - Administrator gets every key **except** content.view when the Administrator role has no stored grant, and gets it when the grant is stored.
   - A custom role with a stored content.view has it.
@@ -172,7 +172,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Implementation for Foundational
 
-- [ ] T017 [P] Create the Domain enums in `src/AskLucy.Domain/OperationalFailures/`, following [data-model.md → Enums](data-model.md#enums-domain-asklucydomainoperationalfailures):
+- [X] T017 [P] Create the Domain enums in `src/AskLucy.Domain/OperationalFailures/`, following [data-model.md → Enums](data-model.md#enums-domain-asklucydomainoperationalfailures):
   - `OperationalFailureEngine.cs`
   - `OperationalFailureKind.cs`, plus a static class `OperationalFailureKinds` with a total-switch `FromProvider` and `IsProviderKind`
   - `OperationalFailureSeverity.cs` (`Warning = 1`, `Error = 2`, `Critical = 3`)
@@ -180,19 +180,19 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - `IncidentTriageState.cs`
   - `IncidentParticipantType.cs`
   - `InvestigatedItemType.cs`
-- [ ] T018 [P] Create `src/AskLucy.Domain/OperationalFailures/OperationalFailureSeverityPolicy.cs`, a static `Classify(engine, kind, outcome)` per research D5 (makes T006 pass).
-- [ ] T019 Create these entities in `src/AskLucy.Domain/OperationalFailures/`, each deriving from `BaseEntity` so the existing SaveChanges interceptor stamps the audit columns (constitution §5; [data-model.md → Audit columns](data-model.md#audit-columns)):
+- [X] T018 [P] Create `src/AskLucy.Domain/OperationalFailures/OperationalFailureSeverityPolicy.cs`, a static `Classify(engine, kind, outcome)` per research D5 (makes T006 pass).
+- [X] T019 Create these entities in `src/AskLucy.Domain/OperationalFailures/`, each (except `IncidentParticipant`, a plain child row — see data-model) deriving from `BaseEntity` so the existing SaveChanges interceptor stamps the audit columns (constitution §5; [data-model.md → Audit columns](data-model.md#audit-columns)):
   - `OperationalFailureIncident.cs`: every column in [data-model.md](data-model.md#operationalfailureincidents-aggregate-root-the-only-mutable-part); `Open(...)` factory; `Acknowledge(userId, now)`, `Resolve(userId, now, note)` and `Reopen()` returning `IncidentTransitionResult { Applied, AlreadyInState }`; and `RowVersion`.
   - `OperationalFailureOccurrence.cs`: append-only, with a static `Create(...)`.
   - `IncidentParticipant.cs`
   - `UserContentAccessEvent.cs`: static `Record(...)`, no setters.
 
   This makes T005 pass.
-- [ ] T020 [P] In `src/AskLucy.Domain/Authorization/AdminArea.cs`, add `OperationalFailures`. In `src/AskLucy.Domain/Authorization/AdminPermissionCatalog.cs`:
+- [X] T020 [P] In `src/AskLucy.Domain/Authorization/AdminArea.cs`, add `OperationalFailures`. In `src/AskLucy.Domain/Authorization/AdminPermissionCatalog.cs`:
   - Add `admin.operational-failures.view` (Read), `admin.operational-failures.manage` (Write) and `admin.operational-failures.content.view` (Read), with names and descriptions taken from spec FR-025 and FR-016e.
   - Add `public static IReadOnlySet<string> SuperUserControlledKeys = { "admin.operational-failures.content.view" }`.
   - Follow the existing manage-implies-view convention for the first two keys.
-- [ ] T021 Update `src/AskLucy.Application/Authorization/EffectivePermissionResolver.cs` per research D14:
+- [X] T021 Update `src/AskLucy.Application/Authorization/EffectivePermissionResolver.cs` per research D14:
   - Super User returns `PermissionSet.Full`.
   - Administrator returns `Full` minus `SuperUserControlledKeys`, plus the controlled keys stored on the built-in Administrator role's grants. Load them through `IRoleRepository.GetByNormalizedNameAsync("ADMINISTRATOR")`; this is the only extra round-trip, and only for Administrators.
   - Update the class doc comment to describe the one exception.

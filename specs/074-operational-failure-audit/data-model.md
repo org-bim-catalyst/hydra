@@ -216,8 +216,13 @@ every other stored key on a built-in role (research D14).
 
 ## Audit columns
 
-- All four entities derive from `BaseEntity`, so the existing SaveChanges interceptor stamps
-  `CreatedAtUtc`/`CreatedBy` and `ModifiedAtUtc`/`ModifiedBy` (constitution §5).
+- Incidents, occurrences and content-access events derive from `BaseEntity`, so the existing
+  SaveChanges interceptor stamps `CreatedAtUtc`/`CreatedBy` and `ModifiedAtUtc`/`ModifiedBy`
+  (constitution §5).
+- `OperationalFailureIncidentParticipants` (`IncidentParticipant`) is deliberately a plain child row, not a `BaseEntity`: it is keyed by
+  `(IncidentId, ParticipantType, ParticipantKey)`, inserted set-based (`INSERT … WHERE NOT
+  EXISTS`) and never tracked, updated through the change tracker or soft-deleted, so a surrogate
+  id, row version and audit columns would never be written. `FirstSeenUtc` is its timestamp.
 - Rows the background writer inserts have no request user: `CreatedBy = "system"`.
 - Set-based writes (occurrence upsert counters, recovery increment, retention, anonymisation) are
   bookkeeping. They bypass the interceptor and deliberately leave `ModifiedAtUtc`/`ModifiedBy`

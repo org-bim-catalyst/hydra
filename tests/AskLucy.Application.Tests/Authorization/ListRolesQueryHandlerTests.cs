@@ -28,7 +28,7 @@ public sealed class ListRolesQueryHandlerTests
         result.TotalCount.Should().Be(2);
         result.Items.Should().HaveCount(2);
         result.Items[0].IsBuiltIn.Should().BeTrue();
-        result.Items[0].PermissionKeys.Should().HaveCount(18);
+        result.Items[0].PermissionKeys.Should().HaveCount(PermissionSet.Full.Keys.Count);
     }
 
     [Fact]
