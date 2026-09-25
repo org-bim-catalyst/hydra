@@ -4,7 +4,11 @@ import {
   subscribeCameraAttitude,
   useCameraAttitudeStore,
 } from '../../../features/solar/components/CameraAttitudeWidget'
-import { EXTENSION_ID, makeSolarAnalysisOverlay } from '../../../features/solar/components/SolarAnalysisOverlay'
+import {
+  EXTENSION_ID,
+  FIGURES_PANEL_REQUEST_ID,
+  makeSolarAnalysisOverlay,
+} from '../../../features/solar/components/SolarAnalysisOverlay'
 import { copy } from '../../../features/solar/copy'
 import { BuildingCorrectionsPanel } from '../../../features/solar/panels/BuildingCorrectionsPanel'
 import {
@@ -16,6 +20,7 @@ import {
 import { SolarTimeControlPanel } from '../../../features/solar/panels/SolarTimeControlPanel'
 import { SolarScene } from '../../../features/solar/scene/SolarScene'
 import { useSolarAnalysisStore } from '../../../features/solar/store/solarAnalysisStore'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { DEFAULT_CONTENT_CHROME } from '../../panels/chrome/chrome'
 import type { ExtensionContext } from '../context'
 import { viewerExtensionLoader } from '../loader'
@@ -43,6 +48,7 @@ const sceneRef: { current: SolarScene | null } = { current: null }
 let savedContext: ExtensionContext | null = null
 const TIME_CONTROL_PANEL_REQUEST_ID = 'solar-time-control'
 const CORRECTIONS_PANEL_REQUEST_ID = 'solar-corrections'
+let unsubscribeSiteChange: (() => void) | null = null
 
 function toggleActivation(): void {
   const activation = useViewerExtensionStore.getState().extensions[EXTENSION_ID]?.activation
@@ -82,6 +88,22 @@ export const solarAnalysisExtension: ViewerExtension = {
       label: copy.toolbarLabel,
       icon: RiSunLine,
       onClick: toggleActivation,
+    })
+
+    // FR-042 — leaving a site closes the analysis rather than carrying it to the next one. It
+    // was opened for a site; showing it over another the user never asked about reads as if they
+    // had (feedback 2026-09-25). Subscribed synchronously, not in an overlay effect: when Lucy
+    // confirms a new site AND opens the analysis in one turn, both stream events can land before
+    // React commits, and an effect would then close the analysis Lucy had just opened for the new
+    // site. Here the close runs inside the location update itself, before that `activate()`.
+    // Only a site being LEFT counts — the analysis opened with no site yet still follows the
+    // first one that arrives (the overlay's own follow-site effect).
+    unsubscribeSiteChange?.()
+    unsubscribeSiteChange = useActiveLocationStore.subscribe((state, previous) => {
+      if (previous.latitude === null || previous.longitude === null) return
+      if (state.latitude === previous.latitude && state.longitude === previous.longitude) return
+      if (useViewerExtensionStore.getState().extensions[EXTENSION_ID]?.activation !== 'active') return
+      viewerExtensionLoader.deactivate(EXTENSION_ID)
     })
 
     // FR-008, FR-031, FR-042 — site following and figures-panel refresh (T021).
@@ -157,6 +179,11 @@ export const solarAnalysisExtension: ViewerExtension = {
     useSolarAnalysisStore.getState().setPlaying(false)
     useSolarAnalysisStore.getState().close()
     if (sceneRef.current) sceneRef.current.drawingSpace.group.visible = false
+    // Nothing is left for these to show once the analysis is closed — the figures would still
+    // describe the site just left, and the two controls render empty.
+    savedContext?.withdrawPanel(TIME_CONTROL_PANEL_REQUEST_ID)
+    savedContext?.withdrawPanel(CORRECTIONS_PANEL_REQUEST_ID)
+    savedContext?.withdrawPanel(FIGURES_PANEL_REQUEST_ID)
   },
 
   stop() {
@@ -165,6 +192,8 @@ export const solarAnalysisExtension: ViewerExtension = {
     // toolbar entry, the overlay and every event subscription are withdrawn by the loader, not by
     // this file. The last camera reading is cleared too, so a later start (e.g. the next user to
     // sign in) never shows the previous session's orientation before its own first event.
+    unsubscribeSiteChange?.()
+    unsubscribeSiteChange = null
     useSolarAnalysisStore.getState().setPlaying(false)
     useSolarAnalysisStore.getState().close()
     useCameraAttitudeStore.getState().setCamera(null)

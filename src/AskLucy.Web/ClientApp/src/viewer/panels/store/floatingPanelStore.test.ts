@@ -727,3 +727,38 @@ describe('floatingPanelStore reopen tray (specs/054)', () => {
     expect(useFloatingPanelStore.getState().panels[0].minimized).toBe(true)
   })
 })
+
+describe('floatingPanelStore.withdrawPanel', () => {
+  beforeEach(() => {
+    useFloatingPanelStore.setState(initialState, true)
+  })
+
+  function openWithdrawable(requestId: string) {
+    useFloatingPanelStore.getState().openPanel({
+      kind: 'content',
+      requestId,
+      title: requestId,
+      content: { version: 1, blocks: [{ kind: 'text', text: requestId }] },
+    })
+  }
+
+  it('removes the panel without offering it in the reopen tray', () => {
+    openWithdrawable('withdraw-me')
+    openWithdrawable('keep-me')
+
+    useFloatingPanelStore.getState().withdrawPanel('withdraw-me')
+
+    expect(useFloatingPanelStore.getState().panels.map((p) => p.id)).toEqual(['keep-me'])
+    expect(useFloatingPanelStore.getState().closedPanels).toHaveLength(0)
+  })
+
+  it('also drops a tray entry left by an earlier user close of the same panel', () => {
+    openWithdrawable('closed-earlier')
+    useFloatingPanelStore.getState().closePanel('closed-earlier')
+    expect(useFloatingPanelStore.getState().closedPanels).toHaveLength(1)
+
+    useFloatingPanelStore.getState().withdrawPanel('closed-earlier')
+
+    expect(useFloatingPanelStore.getState().closedPanels).toHaveLength(0)
+  })
+})

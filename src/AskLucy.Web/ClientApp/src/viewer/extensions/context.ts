@@ -25,6 +25,9 @@ export interface ExtensionContext {
   contributeToolbarEntry(entry: ToolbarEntry): void
   registerLivePanelKind(definition: PanelTypeDefinition): void
   openPanel(request: PanelRequest): void
+  /** Withdraws a panel this extension opened, once what it shows no longer exists (e.g. the
+   * extension deactivated). Never enters the reopen tray; a no-op if the panel is not open. */
+  withdrawPanel(requestId: string): void
   /** contracts/extension-context-extensions.md (specs/051) — acquires this extension's own
    * isolated Drawing Space. Idempotent per extension (mirrors specs/050's start-when-started
    * posture). Automatically released on stop — never call `release()` yourself; there isn't one
@@ -82,6 +85,10 @@ export function createExtensionContext(extensionId: string): ExtensionContext {
       // Deliberately untracked (contract: "a panel the user can close is theirs, not the
       // extension's") — not recorded as a contribution and not withdrawn on stop.
       useFloatingPanelStore.getState().openPanel(request)
+    },
+
+    withdrawPanel(requestId) {
+      useFloatingPanelStore.getState().withdrawPanel(requestId)
     },
 
     acquireDrawingSpace() {

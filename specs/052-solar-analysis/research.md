@@ -319,6 +319,20 @@ Closing is reserved for the case where following is meaningless. Acceptance scen
 user moves to a different site → the sun path and figures update") requires following anyway, so
 the two requirements agree.
 
+**Revised 2026-09-25 — close, not follow.** Live testing showed following was not "strictly
+better": with the analysis open on Al Safa Park 2, confirming Dubai Mall carried the sun path and
+figures onto a site the user had never asked to analyse, which read as if they had. FR-042's other
+branch is now the behaviour: leaving a site deactivates the analysis and withdraws its three panels
+(`ExtensionContext.withdrawPanel`, which bypasses the reopen tray, since a reopened panel would be
+empty or describe the site just left). US1-6 is amended to match. Two details matter:
+
+- The close is a synchronous `useActiveLocationStore.subscribe` taken in `start()`, not an overlay
+  effect. When Lucy confirms a new site and opens the analysis for it in the same turn, both stream
+  events can land before React commits; an effect would then close the analysis Lucy had just
+  opened. Subscribed, the close runs inside the location update, before that `activate()`.
+- Only a site being *left* closes it. An analysis opened before any site existed still follows the
+  first site that arrives, and the stale-data guard below is unchanged.
+
 **Stale-data guard (edge case: "changes date or time while building data is still loading")**: each
 building fetch carries the site key it was issued for; a response whose key no longer matches the
 current site is discarded. The display therefore never mixes the old site's buildings with the new

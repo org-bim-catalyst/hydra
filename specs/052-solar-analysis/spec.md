@@ -59,7 +59,7 @@ A user looking at a site picks a date and sees the sun's path across the sky abo
 3. **Given** solar analysis is open, **When** the user changes the date, **Then** the path updates for the new date.
 4. **Given** a date is chosen, **When** the user looks at the path, **Then** the summer and winter extremes are distinguishable from the chosen day's path, and hours are marked along it.
 5. **Given** a site where the sun does not rise or does not set on the chosen date, **When** the figures are shown, **Then** this is stated plainly rather than shown as missing or nonsensical values.
-6. **Given** the user moves to a different site, **When** the viewer settles, **Then** the sun path and figures update for the new location.
+6. **Given** the user moves to a different site, **When** the viewer settles, **Then** the analysis closes along with its panels; it reopens for the new site only when the user or Lucy opens it there. *(Revised 2026-09-25 — originally "the sun path and figures update for the new location"; see research D10.)*
 
 ---
 

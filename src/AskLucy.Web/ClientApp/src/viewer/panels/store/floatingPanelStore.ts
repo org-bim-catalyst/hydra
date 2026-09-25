@@ -79,6 +79,10 @@ interface FloatingPanelState {
   /** specs/054 FR-006 — moves the panel into `closedPanels` (as a reconstructed request) rather
    * than discarding it outright, so `reopenPanel` can bring it back later. */
   closePanel: (id: string) => void
+  /** Removes a panel because what it showed has gone away, not because the user dismissed it —
+   * so, unlike `closePanel`, it never enters the reopen tray (and any stale tray entry for the
+   * same id goes too): reopening it would only bring back an empty or out-of-date panel. */
+  withdrawPanel: (id: string) => void
   /** specs/054 FR-009 — removes the entry from `closedPanels` and reopens it via the normal
    * `openPanel` path, so validation, chrome resolution, and context-status derivation (FR-013) are
    * identical to a first-time open. A no-op if the id names no current entry. */
@@ -256,6 +260,12 @@ export const useFloatingPanelStore = create<FloatingPanelState>()((set, get) => 
       )
       return { panels, closedPanels }
     }),
+
+  withdrawPanel: (id) =>
+    set((s) => ({
+      panels: s.panels.filter((p) => p.id !== id),
+      closedPanels: s.closedPanels.filter((e) => e.request.requestId !== id),
+    })),
 
   reopenPanel: (id) => {
     const entry = get().closedPanels.find((e) => e.request.requestId === id)

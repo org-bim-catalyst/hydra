@@ -29,6 +29,7 @@ function makeFakeContext(): ExtensionContext {
     contributeToolbarEntry: vi.fn(),
     registerLivePanelKind: vi.fn(),
     openPanel: vi.fn(),
+    withdrawPanel: vi.fn(),
     acquireDrawingSpace: vi.fn(),
   }
 }

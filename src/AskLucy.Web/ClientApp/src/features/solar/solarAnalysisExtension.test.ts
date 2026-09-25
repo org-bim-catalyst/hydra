@@ -5,6 +5,8 @@ import { solarAnalysisExtension } from '../../viewer/extensions/builtin/solarAna
 import { viewerExtensionLoader } from '../../viewer/extensions/loader'
 import { useViewerExtensionStore } from '../../viewer/extensions/store/viewerExtensionStore'
 import { panelTypeRegistry } from '../../viewer/panels/registry'
+import { useFloatingPanelStore } from '../../viewer/panels/store/floatingPanelStore'
+import { useActiveLocationStore } from '../../store/activeLocationStore'
 import type { DrawingSpaceHandle } from '../../viewer/scene/DrawingSpaceRegistry'
 import { drawingSpaceRegistry } from '../../viewer/scene/DrawingSpaceRegistry'
 import { useSolarAnalysisStore } from './store/solarAnalysisStore'
@@ -39,6 +41,7 @@ function makeFakeContext(drawingSpace: DrawingSpaceHandle): ExtensionContext {
     contributeToolbarEntry: vi.fn(),
     registerLivePanelKind: vi.fn(),
     openPanel: vi.fn(),
+    withdrawPanel: vi.fn(),
     acquireDrawingSpace: () => drawingSpace,
   }
 }
@@ -121,6 +124,72 @@ describe('solarAnalysisExtension — fifty activate/deactivate/stop cycles accum
     ).toHaveLength(0)
     expect(panelTypeRegistry.resolve('solar.time-control')).toBeUndefined()
     expect(panelTypeRegistry.resolve('solar.corrections')).toBeUndefined()
+  })
+})
+
+/**
+ * FR-042, feedback 2026-09-25 — the analysis belongs to the site it was opened for. Uses the real
+ * loader and stores, since what matters is the ordering between a location update and Lucy's own
+ * `activate()` for the new site, which only the real synchronous subscription exhibits.
+ */
+describe('solarAnalysisExtension — leaving the site closes the analysis (FR-042)', () => {
+  const id = solarAnalysisExtension.id
+  const activation = () => useViewerExtensionStore.getState().extensions[id]?.activation
+  const openPanelIds = () => useFloatingPanelStore.getState().panels.map((p) => p.id)
+
+  beforeEach(async () => {
+    drawingSpaceRegistry.bind(new THREE.Scene())
+    useActiveLocationStore.getState().clear()
+    useFloatingPanelStore.setState({ panels: [], closedPanels: [] })
+    await viewerExtensionLoader.start(id)
+    return async () => {
+      await viewerExtensionLoader.stop(id)
+      useActiveLocationStore.getState().clear()
+    }
+  })
+
+  it('closes the analysis and withdraws its panels when the user moves to another site', () => {
+    useActiveLocationStore.getState().setFromAgent(25.1556, 55.2216, 'Al Safa Park 2', 0.9)
+    viewerExtensionLoader.activate(id)
+    expect(openPanelIds()).toEqual(expect.arrayContaining(['solar-time-control', 'solar-corrections']))
+
+    useActiveLocationStore.getState().setFromAgent(25.1972, 55.2796, 'Dubai Mall', 0.9)
+
+    expect(activation()).toBe('inactive')
+    expect(openPanelIds()).not.toContain('solar-time-control')
+    expect(openPanelIds()).not.toContain('solar-corrections')
+    // Withdrawn, not closed by the user — nothing to bring back from the reopen tray.
+    expect(useFloatingPanelStore.getState().closedPanels).toHaveLength(0)
+  })
+
+  it('stays open when Lucy confirms a new site and opens the analysis for it in the same turn', () => {
+    useActiveLocationStore.getState().setFromAgent(25.1556, 55.2216, 'Al Safa Park 2', 0.9)
+    viewerExtensionLoader.activate(id)
+
+    // The stream's order: the location event, then the solarAnalysis event's activate().
+    useActiveLocationStore.getState().setFromAgent(25.1972, 55.2796, 'Dubai Mall', 0.9)
+    viewerExtensionLoader.activate(id)
+
+    expect(activation()).toBe('active')
+  })
+
+  it('keeps an analysis opened before any site existed, so it can follow the first one', () => {
+    viewerExtensionLoader.activate(id)
+
+    useActiveLocationStore.getState().setFromAgent(25.1556, 55.2216, 'Al Safa Park 2', 0.9)
+
+    expect(activation()).toBe('active')
+  })
+
+  it('stops listening once the extension stops', async () => {
+    useActiveLocationStore.getState().setFromAgent(25.1556, 55.2216, 'Al Safa Park 2', 0.9)
+    await viewerExtensionLoader.stop(id)
+    const deactivate = vi.spyOn(solarAnalysisExtension, 'deactivate')
+
+    useActiveLocationStore.getState().setFromAgent(25.1972, 55.2796, 'Dubai Mall', 0.9)
+
+    expect(deactivate).not.toHaveBeenCalled()
+    deactivate.mockRestore()
   })
 })
 
