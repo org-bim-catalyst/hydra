@@ -93,6 +93,7 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
             owned.Property(a => a.Longitude).HasColumnName("ActiveLocationLongitude");
             owned.Property(a => a.LocationName).HasColumnName("ActiveLocationName").HasMaxLength(500);
             owned.Property(a => a.Confidence).HasColumnName("ActiveLocationConfidence");
+            owned.Property(a => a.LocationType).HasColumnName("ActiveLocationType").HasMaxLength(30);
         });
 
         // specs/042-site-boundary-resolution — nullable columns on the existing UserChats table,

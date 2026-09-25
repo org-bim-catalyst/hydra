@@ -27,7 +27,7 @@ function chatWithSite(overrides: Partial<ChatDetail> = {}): ChatDetail {
     title: 'Park survey',
     providerId: null,
     modelId: null,
-    activeLocation: { latitude: 25.1558, longitude: 55.2218, locationName: 'Al Safa Park 2', confidence: 0.9 },
+    activeLocation: { latitude: 25.1558, longitude: 55.2218, locationName: 'Al Safa Park 2', confidence: 0.9, confidenceLevel: 'high' },
     activeBoundary: boundary,
     ...overrides,
   }
@@ -52,6 +52,7 @@ describe('useRestoreChatSite', () => {
       latitude: 25.1558,
       longitude: 55.2218,
       locationName: 'Al Safa Park 2',
+      confidenceLevel: 'high',
     })
     expect(useActiveSiteBoundaryStore.getState()).toMatchObject({
       siteName: 'Al Safa Park 2',

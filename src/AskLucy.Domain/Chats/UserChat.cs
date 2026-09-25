@@ -238,9 +238,10 @@ public sealed class UserChat : BaseEntity
     /// specs/037-location-query-resolution FR-004/FR-014 — persists the agent-confirmed
     /// location so back-references in a later turn can re-emit it without a new geocoding call.
     /// </summary>
-    public void SetActiveLocation(double latitude, double longitude, string locationName, double confidence, string actor)
+    public void SetActiveLocation(
+        double latitude, double longitude, string locationName, double confidence, string actor, string? locationType = null)
     {
-        ActiveLocation = new ActiveSiteLocation(latitude, longitude, locationName, confidence);
+        ActiveLocation = new ActiveSiteLocation(latitude, longitude, locationName, confidence, locationType);
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }

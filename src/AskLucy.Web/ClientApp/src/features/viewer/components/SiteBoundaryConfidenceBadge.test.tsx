@@ -2,6 +2,7 @@ import { getContrastRatio, ThemeProvider } from '@mui/material'
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SiteBoundaryConfidenceBadge } from './SiteBoundaryConfidenceBadge'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
 import { createAppTheme } from '../../../theme'
 
@@ -53,6 +54,45 @@ const sampleBoundary = {
 describe('SiteBoundaryConfidenceBadge', () => {
   afterEach(() => {
     useActiveSiteBoundaryStore.getState().clearBoundary()
+    useActiveLocationStore.getState().clear()
+  })
+
+  // Found live 2026-09-25: Lucy said "confirmed ... with a high confidence level. Now highlighting
+  // the boundary." and the card stayed away until the outline — which a deploy restart then cut
+  // short, so it never came at all.
+  it('appears as soon as Lucy confirms the place, before any boundary resolves', () => {
+    act(() =>
+      useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Alsafa Park 2', 0.9, 'ROOFTOP', null, 'high'),
+    )
+    renderBadge()
+
+    const badge = screen.getByRole('status')
+    expect(badge).toHaveAccessibleName('Alsafa Park 2 location: High confidence')
+    expect(badge).toHaveTextContent(/^High confidenceAlsafa Park 2$/)
+  })
+
+  it("switches to the boundary's own level once the outline lands", () => {
+    act(() =>
+      useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Al Safa Park 2', 0.9, 'ROOFTOP', null, 'high'),
+    )
+    renderBadge()
+
+    act(() => useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, confidenceLevel: 'medium' }))
+
+    expect(screen.getByRole('status')).toHaveAccessibleName('Al Safa Park 2 boundary: Medium confidence')
+  })
+
+  it('renders nothing for a device-location fix, which Lucy never confirmed', () => {
+    act(() => useActiveLocationStore.getState().setFromGeolocation(51.5074, -0.1278))
+    act(() => useActiveLocationStore.getState().setLocationName(51.5074, -0.1278, 'London'))
+    const { container } = renderBadge()
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders nothing for a confirmed place whose level is unknown', () => {
+    act(() => useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Al Safa Park 2', 0.9))
+    const { container } = renderBadge()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders nothing when no boundary is active', () => {

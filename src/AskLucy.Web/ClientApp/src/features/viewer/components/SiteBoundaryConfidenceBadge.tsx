@@ -4,6 +4,7 @@ import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import type { SvgIconComponent } from '@mui/icons-material'
 import { Divider, Typography, useTheme } from '@mui/material'
 import { HudCard } from '../../../components/workspace-shell/HudCard'
+import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundaryConfidenceLevel } from '../../../store/activeSiteBoundaryStore'
 
 const CONFIDENCE_LABEL: Record<SiteBoundaryConfidenceLevel, string> = {
@@ -23,8 +24,14 @@ const CONFIDENCE_VISUAL: Record<SiteBoundaryConfidenceLevel, { Icon: SvgIconComp
 }
 
 /** specs/042-site-boundary-resolution FR-004/FR-005/FR-006 — a compact, glanceable readout of the
- * currently displayed site boundary and its confidence level. Renders nothing while no boundary is
- * active.
+ * site Lucy confirmed and its confidence level.
+ *
+ * It appears the moment the place is confirmed, from the location's own level, rather than waiting
+ * for the outline: resolving a boundary takes seconds (Overpass, sometimes retried), and can fail
+ * or be cut short outright, while Lucy has already said the place is confirmed and how surely
+ * (found live 2026-09-25). Once the boundary lands its level replaces the location's — it is the
+ * more specific judgement, of the area actually drawn. Renders nothing while neither is active,
+ * including for a device-location fix, which Lucy never confirmed.
  *
  * specs/073: the last item of the studio's top-left HUD row (contributed as a `hudItem` by
  * `boundaryConfidenceExtension`), on the same 40 px `HudCard` surface as the weather card and the
@@ -35,8 +42,15 @@ const CONFIDENCE_VISUAL: Record<SiteBoundaryConfidenceLevel, { Icon: SvgIconComp
  * (research D7): `.main` is tuned for light backgrounds and falls under 3:1 against a dark card. */
 export function SiteBoundaryConfidenceBadge() {
   const theme = useTheme()
-  const siteName = useActiveSiteBoundaryStore((s) => s.siteName)
-  const confidenceLevel = useActiveSiteBoundaryStore((s) => s.confidenceLevel)
+  const boundarySiteName = useActiveSiteBoundaryStore((s) => s.siteName)
+  const boundaryLevel = useActiveSiteBoundaryStore((s) => s.confidenceLevel)
+  const locationSource = useActiveLocationStore((s) => s.source)
+  const locationName = useActiveLocationStore((s) => s.locationName)
+  const locationLevel = useActiveLocationStore((s) => s.confidenceLevel)
+
+  const hasBoundary = Boolean(boundarySiteName && boundaryLevel)
+  const siteName = hasBoundary ? boundarySiteName : locationSource === 'agent' ? locationName : null
+  const confidenceLevel = hasBoundary ? boundaryLevel : locationSource === 'agent' ? locationLevel : null
 
   if (!siteName || !confidenceLevel) return null
 
@@ -45,7 +59,12 @@ export function SiteBoundaryConfidenceBadge() {
   const iconColour = theme.palette[tone][theme.palette.mode === 'dark' ? 'light' : 'main']
 
   return (
-    <HudCard role="status" aria-label={`${siteName} boundary: ${label}`} maxWidth={360} sx={{ gap: 1 }}>
+    <HudCard
+      role="status"
+      aria-label={`${siteName} ${hasBoundary ? 'boundary' : 'location'}: ${label}`}
+      maxWidth={360}
+      sx={{ gap: 1 }}
+    >
       <Icon aria-hidden="true" sx={{ fontSize: 20, flexShrink: 0, color: iconColour }} />
       <Typography variant="subtitle2" component="div" noWrap sx={{ flexShrink: 0, fontWeight: 600 }}>
         {label}

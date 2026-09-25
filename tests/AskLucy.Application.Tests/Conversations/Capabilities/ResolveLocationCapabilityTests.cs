@@ -43,6 +43,7 @@ public sealed class ResolveLocationCapabilityTests
         result.Succeeded.Should().BeTrue();
         var root = result.Output!.RootElement;
         root.GetProperty("locationType").GetString().Should().Be("GEOMETRIC_CENTER");
+        root.GetProperty("confidenceLevel").GetString().Should().Be("Medium");
         var viewportEl = root.GetProperty("viewport");
         viewportEl.GetProperty("northeastLat").GetDouble().Should().Be(25.16);
         viewportEl.GetProperty("southwestLng").GetDouble().Should().Be(55.21);

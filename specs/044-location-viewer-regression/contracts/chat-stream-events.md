@@ -58,6 +58,15 @@ confidence card — although the reply already said the site was highlighted. Or
 is now location → boundary → the rest; C-6 still holds, so no client depends on it. Covered by
 `AiControllerChatStreamTests.Chat_ShouldRecordAndFlushTheBoundaryEvent_BeforeTheRestOfTheReplyIsProduced`.
 
+**Amended 2026-09-25 — `__LOCATION__` carries `confidenceLevel`** (`"low"`/`"medium"`/`"high"`,
+lower-case as on `__SITE_BOUNDARY__`), so the studio's site card appears the moment the place is
+confirmed instead of waiting for the outline, and the boundary's own level replaces it once that
+lands. The level is read from the geocoder's precision code (`LocationConfidence.Classify`:
+ROOFTOP → high; RANGE_INTERPOLATED/GEOMETRIC_CENTER → medium; APPROXIMATE → low; none → medium),
+never from the numeric `confidence`, whose scale differs per geocoder. The same level is in
+`resolve_location`'s output, so Lucy's own words about it agree with the card. Additive: a client
+that ignores the field is unaffected.
+
 **C-6 is already satisfied by the current client** — `aiApi.ts` matches prefixes per line with no ordering state — which is why `__LOCATION__` moving ahead of `__RAG__`/`__MEMORY__` needs no client change. It is stated as a contract so a future client cannot quietly introduce the dependency.
 
 ---

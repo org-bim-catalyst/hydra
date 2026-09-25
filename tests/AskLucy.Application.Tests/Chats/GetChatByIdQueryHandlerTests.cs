@@ -59,7 +59,7 @@ public sealed class GetChatByIdQueryHandlerTests
     public async Task Handle_ShouldReturnTheActiveSite_WhenTheChatHasConfirmedOne()
     {
         var chat = UserChat.Create("Park survey", "owner-1", null, "owner-1");
-        chat.SetActiveLocation(25.1558, 55.2218, "Al Safa Park 2", 0.9, "owner-1");
+        chat.SetActiveLocation(25.1558, 55.2218, "Al Safa Park 2", 0.9, "owner-1", "ROOFTOP");
         chat.SetActiveBoundary(
             "Al Safa Park 2", 25.1560, 55.2220,
             [new GeoPoint(25.15, 55.22), new GeoPoint(25.16, 55.22), new GeoPoint(25.16, 55.23), new GeoPoint(25.15, 55.22)],
@@ -71,7 +71,7 @@ public sealed class GetChatByIdQueryHandlerTests
 
         var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
-        result.ActiveLocation.Should().Be(new ChatActiveLocationDto(25.1558, 55.2218, "Al Safa Park 2", 0.9));
+        result.ActiveLocation.Should().Be(new ChatActiveLocationDto(25.1558, 55.2218, "Al Safa Park 2", 0.9, "high"));
         result.ActiveBoundary.Should().NotBeNull();
         result.ActiveBoundary!.SiteName.Should().Be("Al Safa Park 2");
         result.ActiveBoundary.Centroid.Should().Be(new ChatGeoPointDto(25.1560, 55.2220));

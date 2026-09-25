@@ -792,6 +792,9 @@ public sealed partial class AiController(
             longitude = confirmedLocation.Longitude,
             locationName = confirmedLocation.LocationName,
             confidence = confirmedLocation.Confidence,
+            // Lower-case, as __SITE_BOUNDARY__ carries it: the site card shows this the moment the
+            // place is confirmed, until the outline's own level replaces it.
+            confidenceLevel = LocationConfidence.Classify(confirmedLocation.LocationType).ToString().ToLowerInvariant(),
             source = confirmedLocation.Source,
             locationType = confirmedLocation.LocationType,
             viewport = confirmedLocation.Viewport is null ? null : new

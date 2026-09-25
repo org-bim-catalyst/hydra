@@ -76,7 +76,7 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
     // fills the viewport" zoom specs/038 built, since the geocoder's own viewport/locationType
     // (still correctly resolved by LocationResolutionService) never survived past this JSON.
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"outcome":{"type":"string"},"locationName":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"},"confidence":{"type":"number"},"locationType":{"type":"string"},"viewport":{"type":"object"}}}""";
+        """{"type":"object","properties":{"outcome":{"type":"string"},"locationName":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"},"confidence":{"type":"number"},"confidenceLevel":{"type":"string"},"locationType":{"type":"string"},"viewport":{"type":"object"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Noticeable;
 
@@ -119,6 +119,8 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
                 latitude = location.Latitude,
                 longitude = location.Longitude,
                 confidence = location.Confidence,
+                // What Lucy says about it and what the site card shows come from this one rule.
+                confidenceLevel = LocationConfidence.Classify(location.LocationType).ToString(),
                 locationType = location.LocationType,
                 viewport = location.Viewport is null ? null : new
                 {

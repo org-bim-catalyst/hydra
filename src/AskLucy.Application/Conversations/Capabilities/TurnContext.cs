@@ -72,7 +72,7 @@ public sealed record TurnContext(
     public TurnContext AfterConfirming(ConfirmedLocationData? location) =>
         location is null
             ? this
-            : this with { ActiveLocation = new ActiveSiteLocation(location.Latitude, location.Longitude, location.LocationName, location.Confidence) };
+            : this with { ActiveLocation = new ActiveSiteLocation(location.Latitude, location.Longitude, location.LocationName, location.Confidence, location.LocationType) };
 
     /// <summary>An empty context, for the fast path and for tests that care about a single field.</summary>
     public static TurnContext Empty(string? userId = null, Guid userChatId = default) =>

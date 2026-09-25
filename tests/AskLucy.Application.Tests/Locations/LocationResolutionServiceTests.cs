@@ -273,13 +273,14 @@ public sealed class LocationResolutionServiceTests
     public async Task ResolveAsync_ShouldReEmitActiveLocation_WhenBackReferenceWithExistingLocation()
     {
         StubClassification("back_reference");
-        var existing = new ActiveSiteLocation(25.2048, 55.2708, "Dubai, UAE", 0.85);
+        var existing = new ActiveSiteLocation(25.2048, 55.2708, "Dubai, UAE", 0.85, "ROOFTOP");
 
         var outcome = await _service.ResolveAsync("user-1", ChatId, "Zoom in on it", existing, TestContext.Current.CancellationToken);
 
         outcome.Type.Should().Be(LocationResolutionOutcomeType.Confirmed);
         outcome.ConfirmedLocation!.Latitude.Should().Be(25.2048);
         outcome.ConfirmedLocation.LocationName.Should().Be("Dubai, UAE");
+        outcome.ConfirmedLocation.LocationType.Should().Be("ROOFTOP");
         await _geocodingProvider.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 

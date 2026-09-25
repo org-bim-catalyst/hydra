@@ -97,6 +97,22 @@ public sealed class RecordActiveLocationCommandHandlerTests
         chat.ActiveBoundary.Should().BeNull();
     }
 
+    // The level the site card and Lucy report is read from it, so a reopened chat or a
+    // back-reference must see the same precision code the live confirmation did.
+    [Fact]
+    public async Task Handle_ShouldKeepTheGeocodersPrecisionCode()
+    {
+        var chat = UserChat.Create("Chat", "user-1", null, "user-1");
+        _chats.GetByIdAsync(_chatId, Arg.Any<CancellationToken>()).Returns(chat);
+
+        await _handler.Handle(
+            new RecordActiveLocationCommand(
+                _chatId, new ConfirmedLocationData(25.1558, 55.2218, "Al Safa Park 2", 0.9, LocationType: "ROOFTOP")),
+            TestContext.Current.CancellationToken);
+
+        chat.ActiveLocation!.LocationType.Should().Be("ROOFTOP");
+    }
+
     [Fact]
     public async Task Handle_ShouldDoNothing_WhenTheChatWasDeleted()
     {

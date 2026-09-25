@@ -24,7 +24,15 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
 
     useActiveLocationStore
       .getState()
-      .setFromAgent(location.latitude, location.longitude, location.locationName, location.confidence)
+      .setFromAgent(
+        location.latitude,
+        location.longitude,
+        location.locationName,
+        location.confidence,
+        null,
+        null,
+        location.confidenceLevel,
+      )
 
     const boundary = chatDetail.activeBoundary
     if (boundary) {

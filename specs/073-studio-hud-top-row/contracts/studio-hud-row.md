@@ -84,8 +84,8 @@ interface HudCardProps {
 
 | # | Guarantee |
 |---|---|
-| B1 | Renders `null` unless both `siteName` and `confidenceLevel` are set. |
+| B1 | Shows the boundary's `siteName` and `confidenceLevel` when both are set; otherwise the agent-confirmed location's name and `confidenceLevel` (from `__LOCATION__`), so the card appears the moment Lucy confirms the place rather than only once the outline resolves; otherwise `null` — including for a device-location fix. Amended 2026-09-25 after the live check, where the card waited for a boundary a deploy restart then cut short. |
 | B2 | Shows exactly, on one line: a confidence icon · the confidence label (`subtitle2`, weight 600) · vertical divider (`aria-hidden`) · `siteName` (`body2`, `noWrap`, ellipsis). Nothing else (FR-006, FR-007). Amended 2026-09-25 after the live check, replacing the two-line name-over-label layout to match the weather card. |
 | B3 | Icon and colour follow data-model.md "confidence → visual". Icons are `aria-hidden`. |
-| B4 | `role="status"`, `aria-label="{siteName} boundary: {confidence label}"` (FR-012). |
+| B4 | `role="status"`, `aria-label="{siteName} boundary: {confidence label}"` (FR-012) — `location` in place of `boundary` while it reads the confirmed location. |
 | B5 | `maxWidth: 360` (was 260 while the card was two lines; one line needs the label and the name side by side). |

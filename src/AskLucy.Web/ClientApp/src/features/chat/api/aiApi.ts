@@ -146,6 +146,8 @@ export type ChatStreamEvent =
       longitude: number
       locationName: string
       confidence: number
+      /** Null only from a server older than the level (a stream in flight across a deploy). */
+      confidenceLevel: 'low' | 'medium' | 'high' | null
       source: string
       locationType: string | null
       viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
@@ -360,6 +362,7 @@ export async function* streamChat(
           longitude: number
           locationName: string
           confidence: number
+          confidenceLevel?: 'low' | 'medium' | 'high'
           source: string
           locationType: string | null
           viewport: { northeastLat: number; northeastLng: number; southwestLat: number; southwestLng: number } | null
@@ -370,6 +373,7 @@ export async function* streamChat(
           longitude: payload.longitude,
           locationName: payload.locationName,
           confidence: payload.confidence,
+          confidenceLevel: payload.confidenceLevel ?? null,
           source: payload.source,
           locationType: payload.locationType ?? null,
           viewport: payload.viewport ?? null,

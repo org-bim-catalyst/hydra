@@ -210,6 +210,27 @@ public sealed class AiControllerChatStreamTests : IDisposable
         text.Should().Contain("data: [DONE]");
     }
 
+    // The site card shows this the moment the place is confirmed, rather than waiting for the
+    // boundary (found live 2026-09-25) — lower-case, as __SITE_BOUNDARY__ carries its own.
+    [Fact]
+    public async Task Chat_ShouldCarryTheLocationsConfidenceLevel_ReadFromTheGeocodersPrecision()
+    {
+        async IAsyncEnumerable<ChatStreamChunk> Stream()
+        {
+            yield return new ChatStreamChunk(null, null,
+                ConfirmedLocation: new ConfirmedLocationData(25.156, 55.2218, "Al Safa Park 2", 0.9, LocationType: "ROOFTOP"));
+            await Task.CompletedTask;
+        }
+
+        _mediator.CreateStream(Arg.Any<SendChatMessageCommand>(), Arg.Any<CancellationToken>()).Returns(Stream());
+
+        await _controller.Chat(
+            new ChatRequest(_chatId, [new ChatMessageDto("user", "Show me Al Safa Park 2")], Guid.NewGuid(), Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        ResponseText().Should().Contain("\"confidenceLevel\":\"high\"");
+    }
+
     private static ConfirmedSiteBoundaryData SampleBoundary() => new(
         "Al Safa Park 2", 25.156, 55.2218,
         [new GeoPoint(25.15, 55.22), new GeoPoint(25.16, 55.22), new GeoPoint(25.16, 55.23), new GeoPoint(25.15, 55.22)],

@@ -24,7 +24,8 @@ public sealed class RecordActiveLocationCommandHandler(
             request.ConfirmedLocation.Longitude,
             request.ConfirmedLocation.LocationName,
             request.ConfirmedLocation.Confidence,
-            actor);
+            actor,
+            request.ConfirmedLocation.LocationType);
 
         // specs/044-location-viewer-regression FR-009a/FR-009b: a stored boundary must never
         // outlive the site it names. Cleared here — atomically with the location write, in the

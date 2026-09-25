@@ -1,3 +1,4 @@
+using AskLucy.Application.Locations;
 using AskLucy.Domain.Chats;
 
 namespace AskLucy.Application.Chats.Queries.GetChatById;
@@ -32,10 +33,18 @@ public sealed record ChatDetailDto(
         chat.ActiveBoundary is { } boundary ? ChatActiveBoundaryDto.FromEntity(boundary) : null);
 }
 
-public sealed record ChatActiveLocationDto(double Latitude, double Longitude, string LocationName, double Confidence)
+/// <summary>
+/// <see cref="ConfidenceLevel"/> is lower-case, as the live <c>__LOCATION__</c> event carries it.
+/// </summary>
+public sealed record ChatActiveLocationDto(
+    double Latitude, double Longitude, string LocationName, double Confidence, string ConfidenceLevel)
 {
-    public static ChatActiveLocationDto FromEntity(ActiveSiteLocation location) =>
-        new(location.Latitude, location.Longitude, location.LocationName, location.Confidence);
+    public static ChatActiveLocationDto FromEntity(ActiveSiteLocation location) => new(
+        location.Latitude,
+        location.Longitude,
+        location.LocationName,
+        location.Confidence,
+        LocationConfidence.Classify(location.LocationType).ToString().ToLowerInvariant());
 }
 
 /// <summary>

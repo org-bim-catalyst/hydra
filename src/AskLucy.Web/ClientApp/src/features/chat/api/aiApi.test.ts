@@ -28,6 +28,7 @@ describe('streamChat', () => {
       longitude: 55.2708,
       locationName: 'Al Safa 2 Park',
       confidence: 0.97,
+      confidenceLevel: 'high',
       source: 'agent',
       locationType: null,
       viewport: null,

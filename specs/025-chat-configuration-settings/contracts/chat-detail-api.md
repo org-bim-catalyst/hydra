@@ -21,7 +21,8 @@ Response: `200 OK`
   "providerId": "b1f0c1a2-...-000000000001",
   "modelId": "b1f0c1a2-...-000000000002",
   "activeLocation": {
-    "latitude": 25.1558, "longitude": 55.2218, "locationName": "Al Safa Park 2", "confidence": 0.9
+    "latitude": 25.1558, "longitude": 55.2218, "locationName": "Al Safa Park 2", "confidence": 0.9,
+    "confidenceLevel": "high"
   },
   "activeBoundary": {
     "siteName": "Al Safa Park 2",

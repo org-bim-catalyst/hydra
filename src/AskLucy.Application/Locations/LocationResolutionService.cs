@@ -167,7 +167,8 @@ public sealed class LocationResolutionService(
 
         var data = new ConfirmedLocationData(
             activeLocation.Latitude, activeLocation.Longitude,
-            activeLocation.LocationName, activeLocation.Confidence);
+            activeLocation.LocationName, activeLocation.Confidence,
+            LocationType: activeLocation.LocationType);
         LocationResolutionServiceLog.Confirmed(logger, userChatId,
             activeLocation.LocationName, activeLocation.Latitude, activeLocation.Longitude, activeLocation.Confidence);
         return new LocationResolutionOutcome(LocationResolutionOutcomeType.Confirmed, data,
