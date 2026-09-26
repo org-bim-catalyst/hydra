@@ -60,7 +60,7 @@ export interface IncidentSubject {
 
 export interface IncidentSummary {
   id: string
-  /** Base64; sent back with a transition as its concurrency token. */
+  /** Base64. Transitions do not send it back: a conflict is judged on triage state (research D19). */
   rowVersion: string
   severity: FailureSeverity
   engine: FailureEngine
@@ -150,17 +150,30 @@ export interface ChatInvestigation {
     | null
 }
 
+/** Array filters are sent as a repeated parameter, which the API ORs. */
 export interface IncidentFilters {
   from?: string
   to?: string
   state?: IncidentStateFilter
-  severity?: FailureSeverity
-  engine?: FailureEngine
+  severity?: FailureSeverity[]
+  engine?: FailureEngine[]
   provider?: string
-  kind?: FailureKind
+  kind?: FailureKind[]
   userId?: string
   page?: number
   pageSize?: number
+}
+
+/** A root-cause action: each incident succeeds, is skipped (already there, or gone) or fails on its own. */
+export interface BulkTransitionResult {
+  attempted: number
+  succeeded: number
+  skipped: number
+  failed: { incidentId: string; reason: string }[]
+}
+
+export interface OperationalFailureSummary {
+  unacknowledgedCriticalRootCauses: number
 }
 
 export const OPERATIONAL_FAILURE_QUERY_KEYS = {
@@ -171,6 +184,9 @@ export const OPERATIONAL_FAILURE_QUERY_KEYS = {
     ['admin', 'operational-failures', 'incident', id, 'occurrences', { page, pageSize }] as const,
   chatInvestigation: (incidentId: string, chatId: string) =>
     ['admin', 'operational-failures', 'incident', incidentId, 'chat', chatId] as const,
+  related: (id: string, page: number, pageSize: number) =>
+    ['admin', 'operational-failures', 'incident', id, 'related', { page, pageSize }] as const,
+  summary: ['admin', 'operational-failures', 'summary'] as const,
 }
 
 const BASE = '/admin/operational-failures'
@@ -178,7 +194,11 @@ const BASE = '/admin/operational-failures'
 export const getIncidents = (filters: IncidentFilters) => {
   const query = new URLSearchParams()
   for (const [name, value] of Object.entries(filters)) {
-    if (value !== undefined && value !== '') query.set(name, String(value))
+    if (Array.isArray(value)) {
+      for (const item of value) query.append(name, String(item))
+    } else if (value !== undefined && value !== '') {
+      query.set(name, String(value))
+    }
   }
   return apiFetch<PagedResult<IncidentSummary>>(`${BASE}/incidents?${query.toString()}`)
 }
@@ -190,3 +210,28 @@ export const getOccurrences = (id: string, page: number, pageSize: number) =>
 
 export const getChatInvestigation = (incidentId: string, chatId: string) =>
   apiFetch<ChatInvestigation>(`${BASE}/incidents/${incidentId}/chats/${chatId}`)
+
+export const getRelatedIncidents = (id: string, page: number, pageSize: number) =>
+  apiFetch<PagedResult<IncidentSummary>>(`${BASE}/incidents/${id}/related?page=${page}&pageSize=${pageSize}`)
+
+export const getSummary = () => apiFetch<OperationalFailureSummary>(`${BASE}/summary`)
+
+export const acknowledgeIncident = (id: string) =>
+  apiFetch<IncidentDetail>(`${BASE}/incidents/${id}/actions/acknowledge`, { method: 'POST' })
+
+export const resolveIncident = (id: string, note: string | null) =>
+  apiFetch<IncidentDetail>(`${BASE}/incidents/${id}/actions/resolve`, { method: 'POST', body: JSON.stringify({ note }) })
+
+export const reopenIncident = (id: string) =>
+  apiFetch<IncidentDetail>(`${BASE}/incidents/${id}/actions/reopen`, { method: 'POST' })
+
+export const acknowledgeRootCause = (rootCauseKey: string) =>
+  apiFetch<BulkTransitionResult>(`${BASE}/root-causes/${encodeURIComponent(rootCauseKey)}/actions/acknowledge`, {
+    method: 'POST',
+  })
+
+export const resolveRootCause = (rootCauseKey: string, note: string | null) =>
+  apiFetch<BulkTransitionResult>(`${BASE}/root-causes/${encodeURIComponent(rootCauseKey)}/actions/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })

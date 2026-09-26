@@ -41,6 +41,8 @@ export interface AdminNavItem {
    * navigating within the SPA. Mutually exclusive with `path`.
    */
   onSelect?: () => void
+  /** specs/074 FR-026 — a live count `AdminShell` resolves and renders on this entry's icon. */
+  badgeKey?: 'operationalFailures'
 }
 
 /**
@@ -89,6 +91,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     label: 'Operational failures',
     icon: <ReportProblemOutlinedIcon fontSize="small" />,
     permission: 'admin.operational-failures.view',
+    badgeKey: 'operationalFailures',
   },
   {
     id: 'hangfire-dashboard',

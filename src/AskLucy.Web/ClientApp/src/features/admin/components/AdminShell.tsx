@@ -2,6 +2,7 @@ import MenuOpenIcon from '@mui/icons-material/MenuOpen'
 import MenuIcon from '@mui/icons-material/Menu'
 import {
   Alert,
+  Badge,
   Box,
   Divider,
   IconButton,
@@ -18,6 +19,7 @@ import {
 } from '@mui/material'
 import type { ReactNode } from 'react'
 import type { Theme } from '@mui/material'
+import { visuallyHidden } from '@mui/utils'
 import { Fragment, useState } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
@@ -27,10 +29,41 @@ import { overlaySurface } from '../../../theme/tokens/overlaySurface'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
 import { usePermissions } from '../../auth/hooks/usePermissions'
 import { useOpenHangfireDashboard } from '../hooks/useOpenHangfireDashboard'
+import { useOperationalFailureBadge } from '../hooks/useOperationalFailureBadge'
 
 const EXPANDED_WIDTH = 232
 const COLLAPSED_WIDTH = 60
 const STORAGE_KEY = 'ask-lucy.admin-sidebar-collapsed'
+
+/**
+ * specs/074 FR-026 — the count on a nav entry's icon, hidden at 0. A failed count is an error
+ * dot, never a silent zero. The badge itself is aria-hidden; the visually hidden text says it.
+ */
+function NavCountBadge({ count, isError, children }: { count: number; isError: boolean; children: ReactNode }) {
+  if (isError) {
+    return (
+      <Tooltip title="Could not load the unacknowledged critical count" describeChild>
+        <Badge variant="dot" color="warning" slotProps={{ badge: { 'aria-hidden': true } }}>
+          {children}
+          <Box component="span" sx={visuallyHidden}>
+            (could not load the unacknowledged critical count)
+          </Box>
+        </Badge>
+      </Tooltip>
+    )
+  }
+
+  return (
+    <Badge badgeContent={count} max={99} color="error" invisible={count === 0} slotProps={{ badge: { 'aria-hidden': true } }}>
+      {children}
+      {count > 0 && (
+        <Box component="span" sx={visuallyHidden}>
+          ({count} unacknowledged critical)
+        </Box>
+      )}
+    </Badge>
+  )
+}
 
 interface AdminShellProps {
   title: string
@@ -57,6 +90,15 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
   const isBuiltInAdmin = useIsAdmin()
   const permissions = usePermissions()
   const hangfireDashboard = useOpenHangfireDashboard()
+  const operationalFailureBadge = useOperationalFailureBadge()
+  const navIcon = (item: (typeof ADMIN_NAV)[number]) =>
+    item.badgeKey === 'operationalFailures' ? (
+      <NavCountBadge count={operationalFailureBadge.count} isError={operationalFailureBadge.isError}>
+        {item.icon}
+      </NavCountBadge>
+    ) : (
+      item.icon
+    )
   const visibleNav = ADMIN_NAV.filter((item) => {
     if (isBuiltInAdmin) return true
     if (item.builtInOnly) return false
@@ -162,7 +204,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
                       {item.onSelect ? (
                         <ListItemButton onClick={item.onSelect} disabled={hangfireDashboard.isPending} sx={itemSx}>
                           <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
-                            {item.icon}
+                            {navIcon(item)}
                           </ListItemIcon>
                           {!collapsed && (
                             <ListItemText
@@ -180,7 +222,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
                           sx={itemSx}
                         >
                           <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
-                            {item.icon}
+                            {navIcon(item)}
                           </ListItemIcon>
                           {!collapsed && (
                             <ListItemText

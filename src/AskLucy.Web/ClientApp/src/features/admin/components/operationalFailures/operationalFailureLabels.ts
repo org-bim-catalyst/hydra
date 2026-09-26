@@ -1,4 +1,4 @@
-import type { FailureEngine, FailureSeverity } from '../../api/adminOperationalFailuresApi'
+import type { FailureEngine, FailureKind, FailureSeverity } from '../../api/adminOperationalFailuresApi'
 
 const ENGINE_LABELS: Record<FailureEngine, string> = {
   Chat: 'Chat',
@@ -13,6 +13,31 @@ const ENGINE_LABELS: Record<FailureEngine, string> = {
   BackgroundJob: 'Background job',
   Access: 'Access',
 }
+
+export const FAILURE_SEVERITIES: FailureSeverity[] = ['Critical', 'Error', 'Warning']
+
+export const FAILURE_ENGINES = Object.keys(ENGINE_LABELS) as FailureEngine[]
+
+export const FAILURE_KINDS: FailureKind[] = [
+  'CredentialRejected',
+  'CredentialUnreadable',
+  'NotConfigured',
+  'QuotaExhausted',
+  'RateLimited',
+  'UsageRestricted',
+  'Unavailable',
+  'RequestInvalid',
+  'ResponseNotUnderstood',
+  'UnexpectedError',
+  'TimedOut',
+  'DependencyUnreachable',
+  'ValidationFailed',
+  'JobFailedAfterRetries',
+  'SignInRefused',
+  'TwoFactorRefused',
+  'AccountLocked',
+  'AccessDenied',
+]
 
 export const engineLabel = (engine: FailureEngine) => ENGINE_LABELS[engine] ?? engine
 

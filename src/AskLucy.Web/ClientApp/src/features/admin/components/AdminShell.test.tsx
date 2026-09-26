@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AdminShell } from './AdminShell'
 import { ADMIN_NAV } from '../adminNav'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
+import { getSummary } from '../api/adminOperationalFailuresApi'
 
 // specs/055-role-management: AdminShell now filters ADMIN_NAV by the caller's built-in-admin
 // status/permissions. These tests predate that and assert every section is always reachable —
@@ -15,6 +16,12 @@ vi.mock('../../../hooks/useIsAdmin', () => ({ useIsAdmin: vi.fn(() => true) }))
 
 vi.mock('../api/adminHangfireApi', () => ({
   postHangfireSession: vi.fn().mockResolvedValue(undefined),
+}))
+
+// specs/074 FR-026 — the Operational failures entry carries the unacknowledged-critical badge.
+vi.mock('../api/adminOperationalFailuresApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/adminOperationalFailuresApi')>()),
+  getSummary: vi.fn(),
 }))
 
 function renderShell(pathname = '/admin/dashboard') {
@@ -32,6 +39,7 @@ function renderShell(pathname = '/admin/dashboard') {
 
 beforeEach(() => {
   vi.mocked(useIsAdmin).mockReturnValue(true)
+  vi.mocked(getSummary).mockReset().mockResolvedValue({ unacknowledgedCriticalRootCauses: 0 })
   try {
     localStorage.clear()
   } catch {
@@ -158,5 +166,67 @@ describe('AdminShell', () => {
 
     expect(window.open).toHaveBeenCalledWith('', '_blank')
     await waitFor(() => expect(fakeTab.location.href).toBe('/hangfire'))
+  })
+})
+
+describe('AdminShell operational failures badge (specs/074 FR-026)', () => {
+  const operationalFailuresLink = () =>
+    within(screen.getByRole('navigation', { name: 'Admin sections' })).getByText('Operational failures').closest('a')!
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows the number of unacknowledged critical root causes', async () => {
+    vi.mocked(getSummary).mockResolvedValue({ unacknowledgedCriticalRootCauses: 3 })
+    renderShell()
+
+    expect(await within(operationalFailuresLink()).findByText('3')).toBeInTheDocument()
+    expect(within(operationalFailuresLink()).getByText('(3 unacknowledged critical)')).toBeInTheDocument()
+  })
+
+  it('shows no badge at zero', async () => {
+    renderShell()
+
+    await waitFor(() => expect(getSummary).toHaveBeenCalled())
+    // MUI keeps the badge element and hides it, so assert the hiding rather than the absence.
+    await waitFor(() => expect(operationalFailuresLink().querySelector('.MuiBadge-badge')).toHaveClass('MuiBadge-invisible'))
+    expect(within(operationalFailuresLink()).queryByText(/unacknowledged critical/)).not.toBeInTheDocument()
+  })
+
+  it('shows a warning dot with a tooltip when the count cannot be loaded', async () => {
+    vi.mocked(getSummary).mockRejectedValue(new Error('offline'))
+    renderShell()
+
+    expect(
+      await within(operationalFailuresLink()).findByText('(could not load the unacknowledged critical count)'),
+    ).toBeInTheDocument()
+    expect(operationalFailuresLink().querySelector('.MuiBadge-dot')).not.toBeNull()
+
+    fireEvent.mouseOver(operationalFailuresLink().querySelector('.MuiBadge-root')!)
+    expect(await screen.findByText('Could not load the unacknowledged critical count')).toBeInTheDocument()
+  })
+
+  it('refreshes the count every 60 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.mocked(getSummary).mockResolvedValueOnce({ unacknowledgedCriticalRootCauses: 1 }).mockResolvedValue({
+      unacknowledgedCriticalRootCauses: 2,
+    })
+    renderShell()
+    expect(await within(operationalFailuresLink()).findByText('1')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000)
+    })
+
+    expect(await within(operationalFailuresLink()).findByText('2')).toBeInTheDocument()
+    expect(getSummary).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not ask for the count without the view permission', () => {
+    vi.mocked(useIsAdmin).mockReturnValue(false)
+    renderShell()
+
+    expect(getSummary).not.toHaveBeenCalled()
   })
 })

@@ -22,6 +22,8 @@ import * as operationalFailuresApi from '../../api/adminOperationalFailuresApi'
 import type { IncidentDetail } from '../../api/adminOperationalFailuresApi'
 import { CorrectiveActionLink } from './CorrectiveActionLink'
 import { OccurrenceTable } from './OccurrenceTable'
+import { RelatedIncidents } from './RelatedIncidents'
+import { TransitionButtons } from './TransitionButtons'
 import { engineLabel, formatWhen, kindLabel, severityColor } from './operationalFailureLabels'
 import { UserRefLink } from './UserRefLink'
 
@@ -80,6 +82,7 @@ function IncidentBody({ incident, onOpenIncident }: { incident: IncidentDetail; 
           {engineLabel(incident.engine)} · {kindLabel(incident.kind)}
         </Typography>
       </Stack>
+      <TransitionButtons incident={incident} onOpenIncident={onOpenIncident} />
 
       <Field label="Reason">{incident.latestReason}</Field>
       <Field label="Correlation id">
@@ -135,6 +138,7 @@ function IncidentBody({ incident, onOpenIncident }: { incident: IncidentDetail; 
       <Field label="Suggested action">
         <CorrectiveActionLink action={incident.correctiveAction} />
       </Field>
+      <RelatedIncidents key={incident.id} incident={incident} onOpenIncident={onOpenIncident} />
       {incident.sampleUsers.length > 0 && (
         <Field label="Recent users">
           <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
@@ -155,8 +159,8 @@ function IncidentBody({ incident, onOpenIncident }: { incident: IncidentDetail; 
 }
 
 /**
- * specs/074 FR-012/FR-015/FR-017 — one incident's detail, its fix, and the occurrences behind it.
- * A recurrence links back to the resolved incident it follows, opened in the same drawer.
+ * specs/074 FR-012/FR-015/FR-017/FR-024/FR-026b — one incident's detail, its fix, its triage, the
+ * incidents sharing its cause, and the occurrences behind it. A recurrence links back to the resolved incident it follows, opened in the same drawer.
  */
 export function IncidentDrawer({
   incidentId,

@@ -32,6 +32,8 @@ export class ApiError extends Error {
   errors?: Record<string, string[]>
   /** specs/043 — set only when the server classified the failure *and* the caller is an administrator. */
   providerFailure?: ProviderFailure
+  /** specs/074 — on an `incident-conflict` (409) reopen, the newer incident already open for the same cause. */
+  newerIncidentId?: string
 
   constructor(
     status: number,
@@ -39,12 +41,14 @@ export class ApiError extends Error {
     detail?: string,
     errors?: Record<string, string[]>,
     providerFailure?: ProviderFailure,
+    newerIncidentId?: string,
   ) {
     super(message)
     this.status = status
     this.detail = detail
     this.errors = errors
     this.providerFailure = providerFailure
+    this.newerIncidentId = newerIncidentId
   }
 }
 
@@ -66,6 +70,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
       problem?.detail,
       problem?.errors,
       problem?.providerFailure,
+      problem?.newerIncidentId,
     )
   }
 

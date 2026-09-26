@@ -471,7 +471,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - A 409 body has `type: …/incident-conflict`.
   - N = 1,000 root-cause Resolve completes and the badge becomes 0 (SC-011).
   - *Done 2026-09-26*: the database is shared, so "the badge becomes 0" is asserted as "this root cause has no Open incident left"; a global count of 0 would depend on every other test. The N = 1,000 resolve runs well inside a minute.
-- [ ] T070 [P] [US3] Frontend tests in `ClientApp/src/features/admin/components/AdminShell.test.tsx` (extend) and `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.test.tsx` (extend):
+- [X] T070 [P] [US3] Frontend tests in `ClientApp/src/features/admin/components/AdminShell.test.tsx` (extend) and `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.test.tsx` (extend):
   - The badge shows the count, is hidden at 0, and shows an error dot with a tooltip on a fetch error.
   - It refetches after a transition mutation (use fake timers for the 60 s interval).
   - The filter bar writes URL params and they round-trip on reload.
@@ -499,9 +499,9 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   The bulk commands iterate per incident, each with its own reload and save, collecting a `BulkTransitionResultDto`. Add `IncidentConflictException` handling to `ProblemDetailsMiddleware` (409, `type` suffix `incident-conflict`, and a `newerIncidentId` extension). Makes T067 pass.
 - [X] T073 [US3] Create `src/AskLucy.Application/OperationalFailures/Queries/ListRelatedIncidents/` and `Queries/GetSummary/`. Add `relatedOpenCount` to the list and detail projections. Makes T068 pass.
 - [X] T074 [US3] Add the transition, related and summary endpoints to `src/AskLucy.Web/Controllers/v1/AdminOperationalFailuresController.cs`, per the [contract](contracts/admin-operational-failures.md#incidents): manage for `actions/*`, view for `related` and `summary`. Makes T069 pass.
-- [ ] T075 [P] [US3] Create `ClientApp/src/features/admin/hooks/useOperationalFailureBadge.ts`: `useQuery` with `refetchInterval: 60_000`, enabled only when the caller holds view, and exposing `{ count, isError }`. In `ClientApp/src/features/admin/adminNav.tsx`, add `badgeKey?: 'operationalFailures'` to `AdminNavItem` and set it on the entry. In `ClientApp/src/features/admin/components/AdminShell.tsx`, render an MUI `Badge` (hidden at 0) and the error dot with a tooltip.
-- [ ] T076 [P] [US3] Create `ClientApp/src/features/admin/components/operationalFailures/IncidentFilters.tsx`: time presets (1 h, 24 h, 7 d, 30 d, custom from/to), multi-select severity, engine and kind, a provider select, a user autocomplete over the existing admin users search API, and a state select. It reads from and writes to `useSearchParams`.
-- [ ] T077 [US3] Create `ClientApp/src/features/admin/components/operationalFailures/TransitionButtons.tsx` and `RelatedIncidents.tsx`:
+- [X] T075 [P] [US3] Create `ClientApp/src/features/admin/hooks/useOperationalFailureBadge.ts`: `useQuery` with `refetchInterval: 60_000`, enabled only when the caller holds view, and exposing `{ count, isError }`. In `ClientApp/src/features/admin/adminNav.tsx`, add `badgeKey?: 'operationalFailures'` to `AdminNavItem` and set it on the entry. In `ClientApp/src/features/admin/components/AdminShell.tsx`, render an MUI `Badge` (hidden at 0) and the error dot with a tooltip.
+- [X] T076 [P] [US3] Create `ClientApp/src/features/admin/components/operationalFailures/IncidentFilters.tsx`: time presets (1 h, 24 h, 7 d, 30 d, custom from/to), multi-select severity, engine and kind, a provider select, a user autocomplete over the existing admin users search API, and a state select. It reads from and writes to `useSearchParams`.
+- [X] T077 [US3] Create `ClientApp/src/features/admin/components/operationalFailures/TransitionButtons.tsx` and `RelatedIncidents.tsx`:
   - The mutations send no `rowVersion` (research D19).
   - `onSuccess` invalidates the list, detail and badge queries.
   - On 409, show a toast plus a refetch.
@@ -510,6 +510,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - Reopen shows on a resolved incident. A 409 carrying `newerIncidentId` shows "A newer incident is already open for this cause" with a link to it.
 
   Wire them into `IncidentDrawer.tsx` and `AdminOperationalFailuresPage.tsx`. Makes T070 pass.
+  - *Done 2026-09-26*: the shared toast is `TransitionFeedbackSnackbar.tsx`, the 409 wording is `transitionFeedback.ts`, and the note dialog is `ResolveNoteDialog.tsx`. The filters live in `hooks/useIncidentFilterParams.ts`; a preset's window is anchored when the page opens or a preset is chosen, never per render. The badge interval is asserted in `AdminShell.test.tsx` with fake timers; the post-mutation refetch is asserted in the page test.
 
 **Checkpoint**: Quickstart S6 passes, and SC-005 holds (badge → incident → fix in ≤ 3 clicks).
 
