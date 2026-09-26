@@ -104,3 +104,14 @@ Findings from the current codebase that constrain the design, then one decision 
 
 - **Decision**: `SessionResponse` gains `permissions: string[]` (additive). New `usePermissions()` / `useCan(key)` hooks read the session query. `AdminRoute` takes an optional `permission` prop (area View) or `builtInOnly`; `ADMIN_NAV` items declare `permission`/`builtInOnly` and `AdminShell` filters them. Account-menu "Admin panel" shows when the user has any admin permission and links to the first permitted area. Pages hide mutating affordances when `useCan(<area>.manage)` is false. `useIsAdmin` stays for the org document dashboard (F6).
 - **Rationale**: Server remains the security boundary (constitution §8); the UI only avoids offering actions that would 403.
+
+## Decision 12 — Every account holds a role — the built-in User role (2026-09-26)
+
+**Decision**: Replace the implicit "no role" state with a seeded, built-in **User** role (`NormalizedName = USER`). Registration and first external sign-in add it (the new account is deleted if that fails); `DeleteRole`/`BulkDeleteRoles` move holders to it; `AssignRole` with a null role id means User. The permission resolver treats a user with no role row as User, so any legacy gap fails safe. The User role is editable only by addition (`PUT /admin/roles/default`) and never honours View user content, even if one was stored. A Super User may duplicate any role (`POST /admin/roles/{id}/duplicate`).
+
+**Rationale**: "No role" was a state every screen had to special-case, and deleting a role silently stripped its holders. A real floor role gives the "minimum needed to use the site" a home that admins can grow, without ever becoming a way to grant everyone privileged or content access.
+
+**Migration** (`20260926175221_AddDefaultUserRoleAndRepairIdentityJoinTables`): seeds the User role; adds it to every active user without a role (production: ~146 accounts); removes orphaned Identity join rows (production: 1 orphan external login); adds the missing primary keys and foreign keys on the Identity join tables. `BaselinePermissionKeys` is empty today, so the User role grants nothing until an admin adds to it.
+
+**Alternatives considered**: keep "no role" and just relabel it in the UI (rejected — the resolver, delete and bulk paths would still treat it as absence); make User a normal custom role (rejected — it could be deleted or renamed out from under every account).
+

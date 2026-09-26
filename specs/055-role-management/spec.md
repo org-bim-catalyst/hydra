@@ -30,6 +30,12 @@ Roles are deliberately distinct from **personas** (e.g., BIM Manager, BIM Coordi
 - Q: Where are permissions managed? → A: A separate **Permissions** screen presents the permission catalogue; the **Roles** screen is where permissions are attached to or detached from a role.
 - Q: Can admins create new permissions on the Permissions screen? → A: No. A permission only has meaning if the platform enforces it, so the catalogue is defined by the platform and grows as features ship. The Permissions screen browses the catalogue and shows role coverage; it does not create, rename, or delete permissions. *(Design decision — an admin-created permission would be checked by nothing and silently grant nothing.)*
 
+### Session 2026-09-26
+
+- Q: What happens to a user whose role is deleted, or who has never been given one? → A: They hold the built-in **User** role. "No role" is retired: every account is assigned User on registration or first external sign-in, deleting a role moves its holders to User, and a roleless legacy account is treated as User.
+- Q: Can the User role be changed? → A: It can't be renamed or deleted. Its permissions can only be added to — the basic permissions stay — and it can never carry View user content, since every account holds it.
+- Q: Can a role be copied? → A: Yes. A Super User can duplicate any role, built-in included, save it under a new name, and edit the copy as a custom role.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Define and maintain roles (Priority: P1)
@@ -46,24 +52,24 @@ An Administrator or Super User opens the **Roles** screen and sees every role �
 2. **Given** an existing role named "Moderator", **When** an admin tries to create or rename another role to "moderator" (any casing, surrounding spaces ignored), **Then** the system rejects it with an inline message that the name is taken.
 3. **Given** the built-in Super User and Administrator roles, **When** an admin views them, **Then** they are marked built-in, show their fixed permissions read-only, and offer no rename, permission-edit, or delete action; direct attempts are rejected server-side.
 4. **Given** a custom role held by no users, **When** an admin deletes it and confirms, **Then** it disappears from the Roles screen and every role picker.
-5. **Given** a custom role held by one or more users, **When** an admin deletes it, **Then** the confirmation states how many users will be left with no role, and on confirming those users revert to having no role and the role is deleted.
+5. **Given** a custom role held by one or more users, **When** an admin deletes it, **Then** the confirmation states how many users will be moved to the built-in **User** role, and on confirming those users hold the User role and the deleted role is gone.
 6. **Given** a role's permissions are edited, **When** a user holding that role makes their next request, **Then** their admin-panel access reflects the new permissions.
 
 ---
 
 ### User Story 2 - Assign a role to a user (Priority: P1)
 
-An Administrator or Super User opens the **Role assignments** screen, finds a user by name or email, sees the role that user currently holds (or "No role"), and changes it — assigning a role, switching to a different role, or removing the role. They can also pick a role and see every user who holds it.
+An Administrator or Super User opens the **Role assignments** screen, finds a user by name or email, sees the role the user currently holds (every account holds one — at least the built-in **User** role), and changes it by assigning a different role. Returning a user to the User role is how a privileged role is taken away. They can also pick a role and see every user who holds it.
 
 **Why this priority**: Defining roles only delivers value once they can be given to people; together with Story 1 this is the MVP.
 
-**Independent Test**: With a custom role "Viewer" defined, open Role assignments, search for a user with no role, assign "Viewer", sign in as that user and confirm they can open the permitted admin areas in read-only form and nothing else; then remove the role and confirm the admin panel is no longer reachable for them.
+**Independent Test**: With a custom role "Viewer" defined, open Role assignments, search for a user on the User role, assign "Viewer", sign in as that user and confirm they can open the permitted admin areas in read-only form and nothing else; then assign the User role back and confirm the admin panel is no longer reachable for them.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user with no role and a custom role "Viewer", **When** an Administrator assigns "Viewer", **Then** the assignment shows immediately and takes effect on the user's next request.
+1. **Given** a user on the User role and a custom role "Viewer", **When** an Administrator assigns "Viewer", **Then** the assignment shows immediately and takes effect on the user's next request.
 2. **Given** a user holding "Viewer", **When** an Administrator assigns "Moderator", **Then** "Moderator" replaces "Viewer" — the user never holds two roles.
-3. **Given** a user holding "Moderator", **When** an Administrator removes the role, **Then** the user holds no role and loses all admin-panel access.
+3. **Given** a user holding "Moderator", **When** an Administrator assigns the User role, **Then** the user holds the User role and loses all admin-panel access the User role does not grant.
 4. **Given** a plain Administrator (not Super User), **When** they try to assign or remove the Administrator or Super User role, or change the role of a user who currently holds either, **Then** the screen does not offer the action and a direct request is rejected server-side.
 5. **Given** the only remaining active Super User, **When** anyone tries to change or remove that user's role, **Then** the system rejects it, explaining the last Super User cannot be removed.
 6. **Given** an admin selects the role "Viewer", **When** the list loads, **Then** it shows every user holding that role, paginated and searchable.
@@ -139,7 +145,7 @@ An admin selects a role and assigns it to several users in one action (e.g., mak
 - **FR-004**: The Roles screen MUST be where permissions are attached to and detached from a role, by selecting from the permission catalogue grouped by area. The initial catalogue MUST contain a *View* and a *Manage* permission for each admin-panel area — Users, AI providers, Default models, AI capabilities, Agent policies, Workflow policies, MCP servers — and a *View* permission only for the read-only areas Dashboard and System agents, where *View* allows read-only access and *Manage* allows changes. Selecting a *Manage* permission MUST also include the matching *View* permission. A custom role MUST include at least one permission.
 - **FR-005**: A user MUST be able to see in the admin panel navigation, open, and act within only the areas their role grants, at the granted level; every request outside that grant MUST be rejected server-side.
 - **FR-006**: Administrators and Super Users MUST be able to edit a custom role's name, description, and permissions, subject to FR-003/FR-004 validation; changes apply to all holders on their next request.
-- **FR-007**: Administrators and Super Users MUST be able to delete a custom role; if held by any user, the confirmation MUST state how many users will be left with no role, and deletion MUST leave those users with no role.
+- **FR-007**: Administrators and Super Users MUST be able to delete a custom role; when it is held by any user, the confirmation MUST state how many users will be moved to the User role, and deletion MUST move those users to the User role — never leave them with no role.
 - **FR-008**: The built-in **Super User** and **Administrator** roles MUST include every catalogue permission, including permissions added to the catalogue in future. Both MUST be listed on the Roles screen, marked built-in, and MUST NOT be renamed, have their permissions changed, or be deleted; attempts MUST be rejected server-side.
 - **FR-009**: Built-in roles MUST keep every privilege they have today that lies outside the catalogue (e.g., background-job and diagnostics access, rate-limit treatment); this feature MUST NOT reduce what existing Administrators and Super Users can do.
 - **FR-010**: The Roles screen MUST show, per role: name, description, built-in/custom indicator, a permission summary, number of users holding it, and last-modified date.
@@ -147,8 +153,11 @@ An admin selects a role and assigns it to several users in one action (e.g., mak
 
 **Role assignment**
 
-- **FR-012**: A user MUST hold at most one role. Assigning a role to a user who already holds one MUST replace it; a user may also hold no role (today's "Regular" state).
-- **FR-013**: The Role assignments screen MUST let an admin search users by name or email and see each user's current role (or "No role").
+- **FR-012**: A user MUST hold exactly one role. Assigning a role to a user who already holds one MUST replace it. There is no "no role" state: the built-in **User** role (formerly the implicit "Regular" state) is every account's floor.
+- **FR-012a**: Every new account — self-registration and first external (OAuth) sign-in alike — MUST be given the User role when it is created; if that fails, the account MUST NOT be left behind without it.
+- **FR-012b**: The User role is built-in and MUST NOT be renamed or deleted. Its description and permissions MAY be edited, but only by adding: its basic permissions (the minimum needed to use the site) MUST NOT be removable, and it MUST NOT be given a permission only a Super User controls (View user content). It grants no administrative privilege by default.
+- **FR-012c**: A Super User MUST be able to duplicate any role — built-in included — into a new custom role with a new name and the source role's permissions. The copy holds no users. A plain Administrator's attempt MUST be rejected server-side.
+- **FR-013**: The Role assignments screen MUST let an admin search users by name or email and see each user's current role; an account with no stored role row (legacy data) MUST be shown and treated as holding the User role.
 - **FR-014**: The Role assignments screen MUST let an admin select a role and view the paginated, searchable list of users holding it.
 - **FR-015**: Administrators and Super Users MUST be able to assign, change, or remove a user's role for any active user, subject to FR-016 and FR-017.
 - **FR-016**: Only a Super User MAY assign or remove the Administrator or Super User role, or change the role of a user who currently holds either; a plain Administrator's attempt MUST be rejected server-side (preserves specs/001-admin-dashboard FR-014).
@@ -196,7 +205,7 @@ An admin selects a role and assigns it to several users in one action (e.g., mak
 - Moderator, Viewer, and similar roles are examples of what admins will create through the Roles screen; they are not pre-seeded.
 - Custom roles grant admin-panel access only; they do not change what a user can do in the regular (non-admin) workspace, and they cannot grant access to the Permissions, Roles, or Role assignments screens (FR-002).
 - The platform is single-organisation today; roles are global to the deployment, not per-tenant.
-- Existing users keep their current role; users with no privileged role continue to hold no role.
+- Existing users keep their current role; users with no privileged role are given the User role by the 2026-09-26 migration (research.md Decision 12).
 - Deleting a role removes its definition and assignments; the audit trail (FR-023) preserves the history.
 - Pagination follows the existing offset-based convention for small admin lists.
 - A screen for browsing the role audit trail is out of scope; events go to the existing security audit trail.

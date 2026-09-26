@@ -93,9 +93,31 @@ Built-in roles are always listed first and return the full catalogue in `permiss
 
 ### `DELETE /admin/roles/{roleId}?concurrencyStamp=…`
 
-`200 { "unassignedUserCount": 4 }` · `403` built-in · `409` stale stamp.
+`200 { "reassignedUserCount": 4 }` — the holders now hold the User role · `403` built-in · `409` stale stamp. *(Renamed from `unassignedUserCount` on 2026-09-26; the bulk-delete result's `unassignedUserCounts` is likewise `reassignedUserCounts`.)*
 
 ---
+
+### `PUT /admin/roles/default` → `200 RoleSummaryDto`
+
+Edits the built-in **User** role (FR-012b). Admin-gated like the other role writes.
+
+```json
+{ "description": "Every account", "permissionKeys": ["admin.dashboard.view"], "concurrencyStamp": "…" }
+```
+
+`permissionKeys` is the full set the role should carry and may be empty. The role's basic permissions (`lockedPermissionKeys` on its summary) are always kept even if omitted. `400` if it names `admin.operational-failures.content.view` — refused for every caller, a Super User included · `404` if the User role is missing · `409` stale stamp. The name is not editable.
+
+### `POST /admin/roles/{roleId}/duplicate` → `201 RoleSummaryDto`
+
+Super User only (FR-012c); an Administrator gets `403`.
+
+```json
+{ "name": "Deputy Admin", "description": null }
+```
+
+Creates a custom role with the source role's effective permissions (a built-in role's full set) and no holders. Name rules as `POST /admin/roles` (2–50 chars; `409` name taken). `400` if the source has no permissions to copy · `404` unknown source.
+
+`RoleSummaryDto` also carries `isDefault` (true only for the User role) and `lockedPermissionKeys` (the User role's basic permissions; empty otherwise).
 
 ## 3. Role assignments
 
