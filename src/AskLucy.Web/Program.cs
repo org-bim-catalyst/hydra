@@ -247,7 +247,7 @@ builder.Services.AddRateLimiter(options =>
     {
         var user = context.User;
         var isPrivileged = user.IsInRole("Administrator") || user.IsInRole("Super User");
-        var partitionKey = user.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -279,7 +279,7 @@ builder.Services.AddRateLimiter(options =>
     // gap for this feature's new endpoints, matching the ai-endpoints pattern above.
     options.AddPolicy("admin-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -296,7 +296,7 @@ builder.Services.AddRateLimiter(options =>
     // closes it with the same generous, non-AI-cost-tiered shape as admin-endpoints.
     options.AddPolicy("chat-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -313,7 +313,7 @@ builder.Services.AddRateLimiter(options =>
     // Decision 6).
     options.AddPolicy("ai-catalog-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -328,7 +328,7 @@ builder.Services.AddRateLimiter(options =>
     // limit as chat-endpoints/ai-catalog-endpoints rather than the AI-invoking policy.
     options.AddPolicy("knowledge-base-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -343,7 +343,7 @@ builder.Services.AddRateLimiter(options =>
     // unauthenticated callers, same as every other policy here.
     options.AddPolicy("consent-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -359,7 +359,7 @@ builder.Services.AddRateLimiter(options =>
     // knowledge-base-endpoints/chat-endpoints (constitution §6).
     options.AddPolicy("document-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -374,7 +374,7 @@ builder.Services.AddRateLimiter(options =>
     // cheap metadata read/write.
     options.AddPolicy("document-upload-chunk-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -389,7 +389,7 @@ builder.Services.AddRateLimiter(options =>
     // the same generous, non-cost-tiered shape as knowledge-base-endpoints/document-endpoints.
     options.AddPolicy("retrieval-search-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -403,7 +403,7 @@ builder.Services.AddRateLimiter(options =>
     // document-upload-chunk-endpoints, given the cost of a full/incremental reindex.
     options.AddPolicy("retrieval-indexing-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -419,7 +419,7 @@ builder.Services.AddRateLimiter(options =>
     // same generous, non-cost-tiered shape as knowledge-base-endpoints/retrieval-search-endpoints.
     options.AddPolicy("memory-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -437,7 +437,7 @@ builder.Services.AddRateLimiter(options =>
     // cost-tiered "ai-endpoints" policy above instead, not this one.
     options.AddPolicy("prompt-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -454,7 +454,7 @@ builder.Services.AddRateLimiter(options =>
     // HTTP rate limiting, is what bounds actual AI cost exposure for this feature.
     options.AddPolicy("agent-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -470,7 +470,7 @@ builder.Services.AddRateLimiter(options =>
     // bounds actual execution/AI cost exposure.
     options.AddPolicy("workflow-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -484,7 +484,7 @@ builder.Services.AddRateLimiter(options =>
     // workflow-endpoints.
     options.AddPolicy("site-analysis-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -501,7 +501,7 @@ builder.Services.AddRateLimiter(options =>
     // of the admin surface.
     options.AddPolicy("mcp-admin-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -517,7 +517,7 @@ builder.Services.AddRateLimiter(options =>
     // generous, non-cost-tiered shape as agent-endpoints.
     options.AddPolicy("mcp-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -535,7 +535,7 @@ builder.Services.AddRateLimiter(options =>
     // minute by one visitor (one event per CTA click / funnel completion).
     options.AddPolicy("analytics-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -550,7 +550,7 @@ builder.Services.AddRateLimiter(options =>
     // reloads/multiple tabs, tight enough to not become a free proxy for the upstream provider.
     options.AddPolicy("weather-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -565,7 +565,7 @@ builder.Services.AddRateLimiter(options =>
     // (constitution §6, caught during /speckit-analyze as a gap this plan initially missed).
     options.AddPolicy("panels-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
@@ -581,7 +581,7 @@ builder.Services.AddRateLimiter(options =>
     // every public endpoint carry a rate-limit policy — WeatherController is the precedent).
     options.AddPolicy("buildings-endpoints", context =>
     {
-        var partitionKey = context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
