@@ -37,6 +37,12 @@ After specs/075, shadows at BurJuman still made no sense:
    dome is 480 m. The dome is display-only.
    Shadows come from the directional light, which is sized by the content bounds, so the dome's
    size never enters the calculation.
+6. **The building query reaches the whole site.** A dome enclosing 480 m of site is no use if
+   buildings are fetched only within 200 m: masses were missing across half of BurJuman. The client
+   now asks for `max(200, furthest boundary corner + 100 m)`, rounded up to 50 m and capped at
+   500 m (`siteBuildingsRadiusFor`). The fetch runs again when the boundary arrives.
+   `Buildings:Overpass:MaxBuildingCount` rises from 300 to 1000 so the wider radius is not cut
+   short.
 5. **Attribution goes on the Terms page only (section 8), not on screen.** It credits Google,
    OpenStreetMap contributors (ODbL), the Overture Maps Foundation, and "Esri, Vantor". See
    docs/THIRD_PARTY_NOTICES.md.
@@ -55,6 +61,7 @@ After specs/075, shadows at BurJuman still made no sense:
 |-----|---------|---------|
 | `Buildings:Conflation:StragglerBudget` | `00:00:08` | How long lower-priority sources may run after the primary answers |
 | `Buildings:Esri:HeightMapCellMetres` | `2` | Height raster cell size |
+| `Buildings:Overpass:MaxBuildingCount` | `1000` (was `300`) | Cap on buildings per request |
 
 No `appsettings.json` change is required; all defaults live in code.
 
@@ -64,6 +71,8 @@ No `appsettings.json` change is required; all defaults live in code.
   parts; 73 are Known.
   - Mall footprints are 26 m and 22.5 m. The tower parts are 84.5 m and 98.1 m.
   - Warm latency is 2.5 s (9.3 s cold).
+  - At the 500 m radius the boundary now asks for: 388 buildings, 333 Known, 9 s cold, 237 KB.
+    Dubai Mall at 500 m: 164 buildings, 9 s cold.
 - **Al Safa (villas):** 223 buildings, 98 Known. Villa heights match typical one- to two-storey
   villas.
 
@@ -80,6 +89,7 @@ anonymously and remembers the rejection. The configured `Esri:ApiKey` should be 
 - `CompositeBuildingFootprintProviderTests`: parallel sources, gap-fill without double-drawing,
   height transfer, site resolution, straggler budget, and empty versus all-failed.
 - `EsriBuildingHeightSourceTests`: per-feature ground, placeholders dropped, rejected key.
-- Frontend: `footprintGeometry.test.ts` checks the site reach. `sunPathCurve.test.ts` checks that
+- Frontend: `footprintGeometry.test.ts` checks the site reach. `siteBuildingsRadius.test.ts` checks
+  the query radius: default without a boundary, corner plus margin, and the cap. `sunPathCurve.test.ts` checks that
   the dome radius fits the site building and redraws at once, and that the shadow rig is
   unchanged.

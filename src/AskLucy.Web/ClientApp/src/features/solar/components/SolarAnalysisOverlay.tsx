@@ -5,6 +5,7 @@ import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
 import type { ExtensionContext } from '../../../viewer/extensions/context'
 import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
 import { getSiteBuildings } from '../api/siteBuildingsApi'
+import { siteBuildingsRadiusFor } from '../buildings/siteBuildingsRadius'
 import { copy } from '../copy'
 import { daySummary } from '../solar/daySummary'
 import { solarPosition } from '../solar/solarPosition'
@@ -84,6 +85,9 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
     // specs/076 — the site's resolved outline, so the dome encloses the whole site and not just the
     // one footprint flagged as the site building.
     const siteBoundary = useActiveSiteBoundaryStore((s) => s.polygon)
+    // specs/076 — the query radius has to reach the far side of a large site, or the dome encloses
+    // ground with no masses on it. A number, so an unchanged boundary never refetches.
+    const buildingsRadius = site ? siteBuildingsRadiusFor(site, siteBoundary) : undefined
     // FR-025, FR-026, research D11 — reactive: a correction edit (a different object reference
     // for this site key) re-triggers the geometry-rebuild effect below, without depending on
     // corrections for any OTHER site re-rendering this overlay.
@@ -135,7 +139,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
       const requestedSiteKey = site.siteKey
       let cancelled = false
 
-      getSiteBuildings(site.latitude, site.longitude)
+      getSiteBuildings(site.latitude, site.longitude, buildingsRadius)
         .then((response) => {
           if (cancelled || useSolarAnalysisStore.getState().site?.siteKey !== requestedSiteKey) return // stale
 
@@ -157,14 +161,14 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
           // FR-014, FR-045, constitution §2.VIII — never swallowed: the sun path keeps working,
           // and the user is told buildings could not be retrieved, never left with nothing to read.
           if (cancelled || useSolarAnalysisStore.getState().site?.siteKey !== requestedSiteKey) return // stale
-          useSolarAnalysisStore.getState().setSiteBuildings([], 200)
+          useSolarAnalysisStore.getState().setSiteBuildings([], buildingsRadius ?? 200)
           useSolarAnalysisStore.getState().markPartial(copy.buildingDataUnavailable)
         })
 
       return () => {
         cancelled = true
       }
-    }, [activation, site])
+    }, [activation, site, buildingsRadius])
 
     // Footprints are converted into metres from the scene's reference point when built. That
     // point follows the active location, so a move must rebuild them — otherwise the buildings of

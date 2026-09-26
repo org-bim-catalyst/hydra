@@ -108,7 +108,9 @@ same time** and conflates their answers (`BuildingFootprintConflation`). Superse
   Assumed. A Known height is never replaced.
 - The site building is the largest flagged candidate from any source; if that is a counterpart,
   the role moves to the kept footprint it overlaps most. The result stops at
-  `Buildings:MaxBuildingCount` and says so (`Limited`).
+  `Buildings:Overpass:MaxBuildingCount` (default 1000) and says so (`Limited`). The client widens
+  the radius to cover a large site's boundary, up to 500 m (about 400 buildings in a dense
+  district), so the old cap of 300 was too low.
 - Failures are logged per source. Only if **every** source fails is the last error rethrown (the
   endpoint's 503). *Behaviour change:* if one source answered empty and the rest failed, the
   result is empty (`Source = None`), not a 503 — "no buildings here" was an answer.

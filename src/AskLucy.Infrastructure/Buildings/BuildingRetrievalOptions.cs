@@ -13,8 +13,10 @@ public sealed class BuildingRetrievalOptions
     public int DefaultRadiusMetres { get; set; } = 200;
 
     /// <summary>FR-015 — the hard cap on returned buildings; exceeding it sets
-    /// <see cref="BuildingFootprintResult.Limited"/> and the count actually available.</summary>
-    public int MaxBuildingCount { get; set; } = 300;
+    /// <see cref="BuildingFootprintResult.Limited"/> and the count actually available. specs/076:
+    /// the client now widens the radius to cover a large site (up to 500 m), where dense districts
+    /// return roughly 400 buildings, so 300 would truncate them.</summary>
+    public int MaxBuildingCount { get; set; } = 1000;
 
     /// <summary>research D4 — required, not an optimisation: the spec's own Clarification
     /// justifies routing building data through the platform partly on caching. Building footprints
