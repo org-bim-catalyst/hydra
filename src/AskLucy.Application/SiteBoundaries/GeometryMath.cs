@@ -72,6 +72,22 @@ public static class GeometryMath
         return (degrees + 360.0) % 360.0;
     }
 
+    /// <summary>Whether <paramref name="point"/> lies inside <paramref name="ring"/> (even-odd rule; the ring may be open or closed).</summary>
+    public static bool Contains(IReadOnlyList<GeoPoint> ring, GeoPoint point)
+    {
+        var inside = false;
+        for (int i = 0, j = ring.Count - 1; i < ring.Count; j = i++)
+        {
+            var pi = ring[i];
+            var pj = ring[j];
+            var intersects = ((pi.Latitude > point.Latitude) != (pj.Latitude > point.Latitude)) &&
+                              (point.Longitude < ((pj.Longitude - pi.Longitude) * (point.Latitude - pi.Latitude) / (pj.Latitude - pi.Latitude)) + pi.Longitude);
+            if (intersects) inside = !inside;
+        }
+
+        return inside;
+    }
+
     /// <summary>(minLat, minLon, maxLat, maxLon) bounding box of a ring.</summary>
     public static (double MinLat, double MinLon, double MaxLat, double MaxLon) BoundingBox(IReadOnlyList<GeoPoint> ring) =>
         (ring.Min(p => p.Latitude), ring.Min(p => p.Longitude), ring.Max(p => p.Latitude), ring.Max(p => p.Longitude));

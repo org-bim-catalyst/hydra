@@ -39,7 +39,7 @@ public sealed class CompositeBuildingFootprintProviderTests
     {
         var primary = Substitute.For<IBuildingFootprintProvider>();
         var fallback = Substitute.For<IBuildingFootprintProvider>();
-        var composite = new CompositeBuildingFootprintProvider(primary, fallback, NullLogger<CompositeBuildingFootprintProvider>.Instance);
+        var composite = new CompositeBuildingFootprintProvider([primary, fallback], NullLogger<CompositeBuildingFootprintProvider>.Instance);
         return (primary, fallback, composite);
     }
 
@@ -124,6 +124,73 @@ public sealed class CompositeBuildingFootprintProviderTests
         var result = await composite.SearchAsync(Center, 200, CancellationToken.None);
 
         result.Buildings.Should().ContainSingle().Which.Id.Should().Be("sample", "the primary's result wins outright — the fallback's building must not appear alongside it");
+    }
+
+    private static (IBuildingFootprintProvider Rendered, IBuildingFootprintProvider Overture, IBuildingFootprintProvider Osm, CompositeBuildingFootprintProvider Composite) CreateChain()
+    {
+        var rendered = Substitute.For<IBuildingFootprintProvider>();
+        var overture = Substitute.For<IBuildingFootprintProvider>();
+        var osm = Substitute.For<IBuildingFootprintProvider>();
+        var composite = new CompositeBuildingFootprintProvider(rendered, overture, osm, NullLogger<CompositeBuildingFootprintProvider>.Instance);
+        return (rendered, overture, osm, composite);
+    }
+
+    private static void Unavailable(IBuildingFootprintProvider provider) =>
+        provider.SearchAsync(Center, 200, Arg.Any<CancellationToken>())
+            .Returns<Task<BuildingFootprintResult>>(_ => throw new BuildingProviderUnavailableException("down"));
+
+    [Fact]
+    public async Task Chain_ShouldUseOverture_WhenRenderedFindsNothing_AndNeverAskOsm()
+    {
+        // specs/075 — Overture already holds OSM's buildings, so OSM is only asked when Overture can't answer.
+        var (rendered, overture, osm, composite) = CreateChain();
+        rendered.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(Empty(BuildingFootprintSource.Rendered));
+        overture.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(NonEmpty(BuildingFootprintSource.Overture));
+
+        var result = await composite.SearchAsync(Center, 200, CancellationToken.None);
+
+        result.Source.Should().Be(BuildingFootprintSource.Overture);
+        await osm.DidNotReceive().SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Chain_ShouldReachOsm_WhenRenderedAndOvertureAreBothUnavailable()
+    {
+        var (rendered, overture, osm, composite) = CreateChain();
+        Unavailable(rendered);
+        Unavailable(overture);
+        osm.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(NonEmpty(BuildingFootprintSource.Osm));
+
+        var result = await composite.SearchAsync(Center, 200, CancellationToken.None);
+
+        result.Source.Should().Be(BuildingFootprintSource.Osm);
+    }
+
+    [Fact]
+    public async Task Chain_ShouldReturnSourceNone_WhenAMiddleSourceFails_AndTheOthersAreEmpty()
+    {
+        var (rendered, overture, osm, composite) = CreateChain();
+        rendered.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(Empty(BuildingFootprintSource.Rendered));
+        Unavailable(overture);
+        osm.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(Empty(BuildingFootprintSource.Osm));
+
+        var result = await composite.SearchAsync(Center, 200, CancellationToken.None);
+
+        result.Buildings.Should().BeEmpty();
+        result.Source.Should().Be(BuildingFootprintSource.None);
+    }
+
+    [Fact]
+    public async Task Chain_ShouldRethrow_OnlyWhenTheLastSourceFails()
+    {
+        var (rendered, overture, osm, composite) = CreateChain();
+        rendered.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(Empty(BuildingFootprintSource.Rendered));
+        overture.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(Empty(BuildingFootprintSource.Overture));
+        Unavailable(osm);
+
+        var act = async () => await composite.SearchAsync(Center, 200, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BuildingProviderUnavailableException>();
     }
 
     /// <summary>

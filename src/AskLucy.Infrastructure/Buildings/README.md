@@ -1,7 +1,9 @@
 # Buildings
 
-Building footprints for solar analysis (specs/052), retrieved with a fallback pair: the map
-provider's own rendered imagery first, OpenStreetMap second (specs/053).
+Building footprints for solar analysis (specs/052), retrieved from an ordered fallback chain: the
+map provider's own rendered imagery first (specs/053), Overture Maps second, OpenStreetMap last
+(specs/075). Measured heights from Esri's 3D buildings layer are then applied to footprints whose
+height was only assumed (specs/075).
 
 ## Why two sources
 
@@ -66,6 +68,10 @@ radius, so no stitching is needed, unlike the boundary path's own four-tile stit
 
 ## Heights are unchanged, and deliberately not cross-matched
 
+> **Superseded in part by specs/075** — see "Measured heights (Esri)" below. The rejection of an
+> *outline-to-outline* join still stands; what specs/075 adds is a *point-in-outline* match, which
+> is a different operation.
+
 A rendered image carries no height data. Every rendered footprint gets the stated default height
 (9.0 m, matching `OverpassBuildingFootprintProvider`'s own default exactly) marked `assumed` — never
 `known`. Matching a rendered footprint to an OSM height tag was considered and rejected: it is a
@@ -86,13 +92,66 @@ providers sharing one `IMemoryCache` instance can never collide.
 
 ## Arbitration
 
-`CompositeBuildingFootprintProvider` is the registered `IBuildingFootprintProvider`. Rendered wins
-outright when it returns anything; Overpass is tried only when rendered is empty or throws; results
-are **never merged** (two independently-derived geometries drawn together would read as duplicated,
-slightly-offset buildings — the same "ghost duplicate" failure specs/052 already solved once).
-Depends on `IBuildingFootprintProvider` via keyed DI (`"rendered"`/`"osm"`), not on either concrete
-provider type — both are `sealed`, and a concrete-type constructor could never actually be
+`CompositeBuildingFootprintProvider` walks an ordered chain — rendered → Overture → OSM. The first
+source that returns anything wins outright; an empty or unavailable source moves on to the next;
+only the **last** source's failure is rethrown (the endpoint's 503). Results are **never merged**
+(two independently-derived geometries drawn together would read as duplicated, slightly-offset
+buildings — the same "ghost duplicate" failure specs/052 already solved once). Depends on
+`IBuildingFootprintProvider` via keyed DI (`"rendered"`/`"overture"`/`"osm"`), not on any concrete
+provider type — they are `sealed`, and a concrete-type constructor could never actually be
 unit-tested, since NSubstitute cannot proxy a sealed class.
+
+The unkeyed `IBuildingFootprintProvider` is `HeightEnrichingBuildingFootprintProvider`, a decorator
+over the chain (keyed `"footprints"`).
+
+## Overture Maps (specs/075)
+
+`Overture/OvertureBuildingFootprintProvider` reads Overture's buildings theme from the PMTiles
+archive the Overture Maps Foundation publishes on S3
+(`overturemaps-extras-us-west-2`, `tiles/{release}/buildings.pmtiles`) with HTTP range requests —
+no API key, no SDK. Releases are discovered from the bucket listing, newest first, trying up to
+three (a just-listed release can still be uploading). Directories are cached for 24 h; tiles are
+read at zoom 14, the archive's maximum.
+
+- Only exterior rings are used (positive signed area); holes are dropped, as everywhere else here.
+- A building crossing a tile edge is clipped to each tile's exact bounds (the tiles carry a buffer)
+  and kept as pieces `overture_{id}_{n}`; shadows are unaffected, and every piece of the site's own
+  building is flagged as the site building.
+- Height order: `height` → Known; tallest `building_part` height → Known; `num_floors × 3` →
+  Assumed; otherwise 9 m → Assumed. Underground buildings are skipped.
+- **Overture has no heights in residential Dubai.** Its heights are OSM-derived and exist only
+  where OSM mappers added them (Downtown — Burj Khalifa comes through at 828 m). Across Al Safa
+  and BurJuman almost every footprint is assumed until Esri enriches it.
+- Licence: ODbL (OSM-derived) / CDLA-Permissive (Microsoft footprints) — attribution
+  "© OpenStreetMap contributors, Overture Maps Foundation".
+
+## Measured heights (Esri, specs/075)
+
+`HeightEnrichingBuildingFootprintProvider` runs the footprint chain and
+`Esri/EsriBuildingHeightSource` concurrently, searching heights 100 m beyond the radius (the
+footprints of buildings that straddle the edge are kept whole). For each **assumed** footprint it
+takes the tallest measured height whose point lies inside the outline and marks it Known; a
+Known height is never overwritten. A height-source failure is logged and the footprints come back
+unchanged — heights are an enhancement, never a reason to fail the search.
+
+This is a point-in-outline match, not the outline-to-outline join rejected above: the Esri layer
+gives one point per building (the centre of its mesh), so a mismatch needs that centre to fall
+inside the wrong footprint, which only happens for buildings the footprint source merged.
+
+`EsriBuildingHeightSource` reads Esri's global 3D Buildings I3S scene layer directly:
+
+- Walks node pages breadth-first, pruning any node whose oriented bounding box (Earth-centred,
+  quaternion-rotated) is more than 100 m beyond the search radius. Layer description cached 1 h,
+  node pages 24 h (keyed by layer version).
+- Leaf geometry is Draco-compressed; it is decoded with `Openize.Drako` and each feature's centre
+  taken from its vertex bounding box. Draco positions are offsets from the node centre, scaled by
+  the `i3s-scale_x/y` attribute metadata, which is read from the Draco header by hand because the
+  library does not expose it.
+- Attributes `height` (Float32) and `source` (String). **Vantor** heights are measured and always
+  trusted. Every other source uses exactly 3.0 m as a "no height" placeholder, which is dropped.
+- The optional `Esri:ApiKey` is sent as `X-Esri-Authorization: Bearer …` only when configured.
+- Licence: Esri terms, accepted for non-commercial use — attribution "Esri, Vantor". Revisit before
+  the platform goes commercial.
 
 ## Evaluated and rejected as alternative sources (spec.md Downstream)
 
@@ -103,3 +162,7 @@ each is derived from an aerial/satellite processing programme that has not reach
 Peninsula, and any future source of that kind should be assumed to have the same hole until
 checked. Rendered imagery works precisely because it reads the basemap the provider already draws
 everywhere, not a derived dataset with a coverage frontier.
+
+**Update (specs/075):** that finding held for the sources checked then, but Esri's 3D Buildings
+layer does carry measured (Vantor) heights for Dubai, and Overture's footprints cover it — both are
+now in the chain above.

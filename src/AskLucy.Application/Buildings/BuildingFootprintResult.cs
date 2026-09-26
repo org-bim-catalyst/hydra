@@ -33,4 +33,9 @@ public enum BuildingFootprintSource
 
     [JsonStringEnumMemberName("osm")]
     Osm,
+
+    /// <summary>Overture Maps' buildings theme: OpenStreetMap plus Microsoft's machine-learned
+    /// footprints, which fill in where OSM has no buildings mapped.</summary>
+    [JsonStringEnumMemberName("overture")]
+    Overture,
 }

@@ -12,6 +12,8 @@ using AskLucy.Infrastructure.Ai.Supertonic;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Buildings;
+using AskLucy.Infrastructure.Buildings.Esri;
+using AskLucy.Infrastructure.Buildings.Overture;
 using AskLucy.Infrastructure.Consent;
 using AskLucy.Infrastructure.Conversations;
 using AskLucy.Infrastructure.CustomModels;
@@ -178,6 +180,13 @@ public static class DependencyInjection
         services.AddOptions<BuildingRetrievalOptions>()
             .BindConfiguration(BuildingRetrievalOptions.SectionName)
             .ValidateOnStart();
+
+        // specs/075 — Overture footprints and Esri measured heights. Every setting has a working
+        // default and neither needs a key, so both sections may be absent.
+        services.AddOptions<OvertureBuildingsOptions>()
+            .BindConfiguration(OvertureBuildingsOptions.SectionName);
+        services.AddOptions<EsriBuildingsOptions>()
+            .BindConfiguration(EsriBuildingsOptions.SectionName);
 
         // specs/053-rendered-building-footprints — building footprints traced from the map
         // provider's own rendered imagery. No ApiKey here either: it reuses
@@ -369,6 +378,21 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // specs/075 — the scene layer gzips its JSON and binary resources.
+        services.AddHttpClient(EsriBuildingHeightSource.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.All,
+        });
+
+        // specs/075 — byte-range reads of Overture's public PMTiles archive on S3.
+        services.AddHttpClient(OvertureBuildingFootprintProvider.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();
@@ -391,7 +415,13 @@ public static class DependencyInjection
         // wiring this feature makes.
         services.AddKeyedScoped<IBuildingFootprintProvider, RenderedBuildingFootprintProvider>(CompositeBuildingFootprintProvider.RenderedKey);
         services.AddKeyedScoped<IBuildingFootprintProvider, OverpassBuildingFootprintProvider>(CompositeBuildingFootprintProvider.OsmKey);
-        services.AddScoped<IBuildingFootprintProvider, CompositeBuildingFootprintProvider>();
+        // specs/075 — Overture joins the chain between rendered and OSM, and the chain is wrapped
+        // by the height decorator, which swaps assumed heights for Esri's measured ones.
+        services.AddKeyedScoped<IBuildingFootprintProvider, OvertureBuildingFootprintProvider>(CompositeBuildingFootprintProvider.OvertureKey);
+        services.AddKeyedScoped<IBuildingFootprintProvider, CompositeBuildingFootprintProvider>(HeightEnrichingBuildingFootprintProvider.FootprintsKey);
+        services.AddScoped<IBuildingFootprintProvider, HeightEnrichingBuildingFootprintProvider>();
+        services.AddSingleton<II3sGeometryDecoder, DracoI3sGeometryDecoder>();
+        services.AddScoped<IBuildingHeightSource, EsriBuildingHeightSource>();
         // Same key-presence rule as the geocoder above, and for the same reason: prefer Google
         // where we can reach it, degrade to a keyless provider where we cannot.
         if (!string.IsNullOrWhiteSpace(configuration["Geocoding:GoogleMapsApiKey"]))

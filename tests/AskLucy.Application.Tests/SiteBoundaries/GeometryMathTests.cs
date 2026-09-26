@@ -42,4 +42,18 @@ public sealed class GeometryMathTests
 
         bearing.Should().BeInRange(180.0, 270.0);
     }
+
+    [Theory]
+    [InlineData(25.1561, 55.2219, true)]   // centre of the square
+    [InlineData(25.1565, 55.2219, false)]  // north of it
+    [InlineData(25.1561, 55.2225, false)]  // east of it
+    public void Contains_ShouldTellInsideFromOutside_ForAnOpenOrClosedRing(double lat, double lon, bool expected)
+    {
+        GeoPoint[] open = [new(25.1560, 55.2218), new(25.1560, 55.2220), new(25.1562, 55.2220), new(25.1562, 55.2218)];
+        GeoPoint[] closed = [.. open, open[0]];
+        var point = new GeoPoint(lat, lon);
+
+        GeometryMath.Contains(open, point).Should().Be(expected);
+        GeometryMath.Contains(closed, point).Should().Be(expected);
+    }
 }

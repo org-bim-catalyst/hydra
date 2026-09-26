@@ -13,11 +13,15 @@ export interface SiteBuildingDto {
   isSiteBuilding: boolean
 }
 
+/** Mirrors `BuildingFootprintSource`'s explicit lower-case wire values (specs/053 FR-015, specs/075). */
+export type BuildingFootprintSource = 'none' | 'rendered' | 'osm' | 'overture'
+
 export interface SiteBuildingsResponse {
   buildings: SiteBuildingDto[]
   limited: boolean
   excludedCount: number
   radiusMetres: number
+  source?: BuildingFootprintSource
 }
 
 /** GET /api/v1/site-buildings (contracts/building-footprints-endpoint.md). A `503` (building data

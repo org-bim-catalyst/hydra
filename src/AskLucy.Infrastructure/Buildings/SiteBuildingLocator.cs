@@ -21,7 +21,7 @@ internal static class SiteBuildingLocator
     {
         for (var i = 0; i < rings.Count; i++)
         {
-            if (PointInPolygon(sitePoint, rings[i])) return i;
+            if (GeometryMath.Contains(rings[i], sitePoint)) return i;
         }
 
         var nearestIndex = -1;
@@ -37,20 +37,6 @@ internal static class SiteBuildingLocator
         }
 
         return nearestDistance <= EdgeToleranceMetres ? nearestIndex : -1;
-    }
-
-    private static bool PointInPolygon(GeoPoint point, IReadOnlyList<GeoPoint> ring)
-    {
-        var inside = false;
-        for (int i = 0, j = ring.Count - 1; i < ring.Count; j = i++)
-        {
-            var pi = ring[i];
-            var pj = ring[j];
-            var intersects = ((pi.Latitude > point.Latitude) != (pj.Latitude > point.Latitude)) &&
-                              (point.Longitude < ((pj.Longitude - pi.Longitude) * (point.Latitude - pi.Latitude) / (pj.Latitude - pi.Latitude)) + pi.Longitude);
-            if (intersects) inside = !inside;
-        }
-        return inside;
     }
 
     private static double DistanceToRingEdge(GeoPoint point, IReadOnlyList<GeoPoint> ring)
