@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import type { DrawingSpaceHandle } from '../../../viewer/scene/DrawingSpaceRegistry'
 import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
+import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { SolarScene } from './SolarScene'
 import {
   buildDatedPath,
@@ -9,7 +10,10 @@ import {
   buildFixedFurniture,
   buildTubeFromPoints,
   sampleDayArcPoints,
+  MAX_SUN_PATH_DOME_RADIUS_METRES,
+  SUN_PATH_DOME_RADIUS_METRES,
   sphericalToVec,
+  sunPathDomeRadiusFor,
 } from './sunPathCurve'
 
 describe('sphericalToVec (ENU: X=East, Y=North, Z=Up)', () => {
@@ -293,6 +297,71 @@ describe('setGroundOffset moves only the extension group (T045, README constrain
     expect(setSpy).not.toHaveBeenCalled()
 
     setSpy.mockRestore()
+    scene.disposeAll()
+  })
+})
+
+describe('The dome encloses the building under study (specs/076)', () => {
+  /** A square site building centred on the scene's reference point, `halfWidthMetres` each way. */
+  function siteBuilding(halfWidthMetres: number, heightMetres: number): SiteBuildingDto {
+    const dLat = halfWidthMetres / 111_320
+    const dLon = halfWidthMetres / (111_320 * Math.cos((DUBAI.latitude * Math.PI) / 180))
+    const { latitude, longitude } = DUBAI
+    return {
+      id: 'site',
+      ring: [
+        { latitude: latitude - dLat, longitude: longitude - dLon },
+        { latitude: latitude - dLat, longitude: longitude + dLon },
+        { latitude: latitude + dLat, longitude: longitude + dLon },
+        { latitude: latitude + dLat, longitude: longitude - dLon },
+      ],
+      heightMetres,
+      heightProvenance: 'known',
+      name: 'site',
+      isSiteBuilding: true,
+    }
+  }
+
+  function shellRadius(scene: SolarScene): number {
+    const shell = scene.sunPathFixedGroup.children.find((child) => child.renderOrder === 1) as THREE.Mesh<THREE.SphereGeometry>
+    return shell.geometry.parameters.radius
+  }
+
+  it('keeps the reference radius for a building that already fits, and never exceeds the cap', () => {
+    expect(sunPathDomeRadiusFor(0)).toBe(SUN_PATH_DOME_RADIUS_METRES)
+    expect(sunPathDomeRadiusFor(80)).toBe(SUN_PATH_DOME_RADIUS_METRES)
+    expect(sunPathDomeRadiusFor(10_000)).toBe(MAX_SUN_PATH_DOME_RADIUS_METRES)
+  })
+
+  it('grows past the furthest roof corner of a building too big for the reference dome', () => {
+    const radius = sunPathDomeRadiusFor(200)
+
+    expect(radius).toBeGreaterThan(200)
+    expect(radius % 10).toBe(0)
+  })
+
+  it('redraws an already-drawn dome at once when a bigger site building arrives, leaving the shadow rig alone', () => {
+    sceneAnchor.set(DUBAI)
+    const scene = new SolarScene(fakeDrawingSpace())
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    expect(shellRadius(scene)).toBe(SUN_PATH_DOME_RADIUS_METRES)
+
+    // BurJuman-sized: 200 m across, so its corners are ~141 m out — through the reference shell.
+    const built = scene.rebuildBuildings([siteBuilding(100, 26)])
+
+    expect(scene.sunPathDomeRadiusMetres).toBeGreaterThan(built.siteReachMetres)
+    expect(shellRadius(scene)).toBe(scene.sunPathDomeRadiusMetres)
+    const marker = scene.sunPathDatedGroup.children.at(-1)!
+    expect(marker.position.length()).toBeCloseTo(scene.sunPathDomeRadiusMetres, 6)
+
+    // The same buildings with no dome drawn at all get the very same shadow rig.
+    const withoutDome = new SolarScene(fakeDrawingSpace())
+    withoutDome.rebuildBuildings([siteBuilding(100, 26)])
+    scene.aimSun(180, 45)
+    withoutDome.aimSun(180, 45)
+    expect(scene.radiusMetres).toBe(withoutDome.radiusMetres)
+
+    withoutDome.disposeAll()
     scene.disposeAll()
   })
 })

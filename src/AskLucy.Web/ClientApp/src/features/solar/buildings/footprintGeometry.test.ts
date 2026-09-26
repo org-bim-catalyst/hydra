@@ -151,6 +151,30 @@ describe('buildFootprintMeshes merges every footprint into one mesh (T028, FR-01
   })
 })
 
+describe('buildFootprintMeshes measures the building under study for the dome (specs/076)', () => {
+  it("reaches the site building's and its split-off parts' furthest roof corners, not the neighbours'", () => {
+    const result = buildFootprintMeshes(
+      [
+        makeBuilding({ id: 'mall', isSiteBuilding: true, heightMetres: 25 }),
+        makeBuilding({ id: 'mall_part0', heightMetres: 105 }),
+        makeBuilding({ id: 'neighbour', ring: OTHER_RING, heightMetres: 300 }),
+      ],
+      false,
+    )
+
+    const furthestCorner = Math.max(...RING.map((point) => Math.hypot(worldToLocal(point, 0).x, worldToLocal(point, 0).y)))
+    expect(result.siteReachMetres).toBeCloseTo(Math.hypot(furthestCorner, 105), 6)
+    result.mesh!.geometry.dispose()
+  })
+
+  it('reaches nothing when no building is the site building', () => {
+    const result = buildFootprintMeshes([makeBuilding()], false)
+
+    expect(result.siteReachMetres).toBe(0)
+    result.mesh!.geometry.dispose()
+  })
+})
+
 describe('buildFootprintMeshes with nothing usable (T029, FR-017)', () => {
   it('produces no mesh at all rather than a mesh wrapping empty geometry', () => {
     const result = buildFootprintMeshes([], false)

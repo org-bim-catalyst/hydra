@@ -73,3 +73,22 @@ under the **GNU Lesser General Public License v3.0**.
 We use the package unmodified, as a separately replaceable assembly (`GroovyMp3.dll`), which is
 what the LGPL requires of a combined work. If that assembly is ever modified, merged into ours,
 or statically linked, the LGPL's source-availability obligations apply to the modified library.
+
+---
+
+## Map and building data — site and solar analysis (specs/053, 075, 076)
+
+Credited in section 8 of `/terms`. Deliberately not credited on screen, a decision taken
+2026-09-26 while Ask Lucy is non-commercial. Revisit it before going commercial.
+
+| Data | Used for | Licence / terms | Credit |
+|---|---|---|---|
+| Google Maps Static API | Basemap imagery; building outlines traced from the styled map | Google Maps Platform Terms | © Google |
+| OpenStreetMap, via Overpass | Building outlines, storey counts, height tags | ODbL 1.0 | © OpenStreetMap contributors |
+| Overture Maps buildings theme (public PMTiles) | Building outlines (OSM plus Microsoft and other machine-detected footprints) | ODbL 1.0 | Overture Maps Foundation; © OpenStreetMap contributors |
+| Esri 3D buildings I3S scene layer | Measured roof heights | Esri terms of use; the account holder has reviewed them for non-commercial use | Source: Esri, Vantor |
+
+ODbL is share-alike for *databases*. We only serve rendered results (shadows and outlines drawn
+for one site), which the ODbL calls a Produced Work. That needs the credit above, not a
+database release. If we ever export a merged building database, the share-alike terms apply to
+it.

@@ -56,8 +56,6 @@ internal sealed class OvertureBuildingFootprintProvider(
 
     private const string BuildingLayer = "building";
     private const string BuildingPartLayer = "building_part";
-    private const double MetresPerFloor = 3.0;
-    private const double DefaultHeightMetres = 9.0;
     private const int MaxDirectoryDepth = 4;
 
     private readonly OvertureBuildingsOptions _options = options.Value;
@@ -191,8 +189,8 @@ internal sealed class OvertureBuildingFootprintProvider(
     {
         if (piece.Height is > 0 and var height) return (height, BuildingHeightProvenance.Known);
         if (partHeights.TryGetValue(piece.BuildingId, out var partHeight)) return (partHeight, BuildingHeightProvenance.Known);
-        if (piece.Floors is > 0 and var floors) return (floors * MetresPerFloor, BuildingHeightProvenance.Assumed);
-        return (DefaultHeightMetres, BuildingHeightProvenance.Assumed);
+        if (piece.Floors is > 0 and var floors) return (floors * AssumedBuildingHeight.MetresPerStorey, BuildingHeightProvenance.Assumed);
+        return (AssumedBuildingHeight.DefaultMetres, BuildingHeightProvenance.Assumed);
     }
 
     /// <summary>Exterior rings only — holes are courtyards, which cast no shadow of their own.</summary>

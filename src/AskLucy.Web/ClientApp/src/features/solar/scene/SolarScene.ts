@@ -10,7 +10,13 @@ import {
   shadowRadiusMetres,
 } from './sunLight'
 import { solarPositionToEnuUnitVector } from '../solar/solarPosition'
-import { buildDatedPath, buildFixedFurniture, updateCurrentPositionMarker } from './sunPathCurve'
+import {
+  SUN_PATH_DOME_RADIUS_METRES,
+  buildDatedPath,
+  buildFixedFurniture,
+  sunPathDomeRadiusFor,
+  updateCurrentPositionMarker,
+} from './sunPathCurve'
 
 /**
  * T035, research D8 — during continuous playback, a sun movement smaller than this is not drawn.
@@ -70,6 +76,12 @@ export class SolarScene {
   /** T051, T044 — a `date|lat|lng` key for the DATED path; rebuilt only when this changes, never on
    * a time-of-day tick, which just moves the marker (FR-019, FR-021, FR-023, SC-004, research D10). */
   private datedPathBuiltForKey: string | null = null
+  /** specs/076 — sized to enclose the building under study (`sunPathDomeRadiusFor`); part of both
+   * rebuild keys, since every arc, the dial and the shell are drawn at it. */
+  private domeRadiusMetres = SUN_PATH_DOME_RADIUS_METRES
+  /** The last `updateSunPath` arguments, so a new site building can resize the dome at once rather
+   * than on the next tick — the buildings and the clock are driven by separate effects. */
+  private lastSunPathArguments: Parameters<SolarScene['updateSunPath']> | null = null
 
   constructor(drawingSpace: DrawingSpaceHandle) {
     this.drawingSpace = drawingSpace
@@ -167,15 +179,17 @@ export class SolarScene {
    * replacing every arc in the group).
    */
   updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number): boolean {
+    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees]
     const [year] = localDate.split('-').map(Number)
+    const radius = this.domeRadiusMetres
     const site = `${latitude.toFixed(6)}|${longitude.toFixed(6)}`
-    const fixedKey = `${site}|${year}`
-    const datedKey = `${localDate}|${site}`
+    const fixedKey = `${site}|${year}|${radius}`
+    const datedKey = `${localDate}|${site}|${radius}`
     let rebuilt = false
 
     if (this.fixedFurnitureBuiltForKey !== fixedKey) {
       this.disposeGroupContents(this.sunPathFixedGroup)
-      const furniture = buildFixedFurniture(latitude, longitude, year)
+      const furniture = buildFixedFurniture(latitude, longitude, year, radius)
       // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
       // them; the shell carries its own `renderOrder` because it must still draw last of all.
       this.sunPathFixedGroup.add(furniture.dial, furniture.mountPost, ...furniture.monthlyArcs, furniture.shell)
@@ -189,7 +203,7 @@ export class SolarScene {
         const [y, month, day] = localDate.split('-').map(Number)
         return new Date(Date.UTC(y, month - 1, day))
       })()
-      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc)
+      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc, radius)
       for (const object of [dated.chosenDay, dated.summerExtreme, dated.winterExtreme, ...dated.hourMarks, dated.currentPositionMarker]) {
         if (object) this.sunPathDatedGroup.add(object)
       }
@@ -197,7 +211,7 @@ export class SolarScene {
       this.datedPathBuiltForKey = datedKey
       rebuilt = true
     } else {
-      updateCurrentPositionMarker(this.currentMarker, azimuthDegrees, altitudeDegrees)
+      updateCurrentPositionMarker(this.currentMarker, azimuthDegrees, altitudeDegrees, radius)
     }
 
     return rebuilt
@@ -213,9 +227,23 @@ export class SolarScene {
     const built = buildFootprintMeshes(buildings, showMass)
     if (built.mesh) this.buildingsGroup.add(built.mesh)
     this.setContentBounds(built.extentMetres, built.tallestHeightMetres)
+    this.fitDomeTo(built.siteReachMetres)
     // T032, FR-028 — returned rather than swallowed: footprints dropped here are buildings the
     // user can see on the basemap but which cast no shadow, and the caller has to say so.
     return built
+  }
+
+  /** specs/076 — grows or shrinks the dome to enclose the building under study, rebuilding it now if
+   * it has already been drawn. The shadow rig is untouched: it is sized by `setContentBounds`. */
+  private fitDomeTo(siteReachMetres: number): void {
+    const radius = sunPathDomeRadiusFor(siteReachMetres)
+    if (radius === this.domeRadiusMetres) return
+    this.domeRadiusMetres = radius
+    if (this.lastSunPathArguments) this.updateSunPath(...this.lastSunPathArguments)
+  }
+
+  get sunPathDomeRadiusMetres(): number {
+    return this.domeRadiusMetres
   }
 
   /** T041 — reveals the massing without rebuilding geometry; driven by the Building Corrections

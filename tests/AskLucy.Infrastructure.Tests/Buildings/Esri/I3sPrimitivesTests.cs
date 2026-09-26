@@ -57,6 +57,25 @@ public sealed class I3sPrimitivesTests
         act.Should().Throw<InvalidDataException>();
     }
 
+    [Theory]
+    [InlineData("Float32")]
+    [InlineData("Float64")]
+    public void ReadNumbers_ShouldRejectACountThatWouldOverflow(string valueType)
+    {
+        // '{"er' — the start of an ArcGIS error document — read as a UInt32 count.
+        var act = () => I3sAttributeReader.ReadNumbers("{\"error\":{}}"u8, valueType);
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void ReadStrings_ShouldRejectACountLongerThanTheBuffer()
+    {
+        var act = () => I3sAttributeReader.ReadStrings("{\"error\":{}}"u8);
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
     [Fact]
     public void ReadStrings_ShouldReadEachValue_WithoutItsTerminator()
     {
@@ -82,20 +101,6 @@ public sealed class I3sPrimitivesTests
             .Should().Throw<InvalidDataException>();
         FluentActions.Invoking(() => DracoI3sGeometryDecoder.ReadPositionScales(DracoHeader(("i3s-scale_x", Double(1e-7)))[..20]))
             .Should().Throw<InvalidDataException>();
-    }
-
-    [Fact]
-    public void FeatureCentres_ShouldBeTheCentreOfEachFeaturesBoundingBox()
-    {
-        float[] x = [0, 10, 10, 0, 100, 104];
-        float[] y = [0, 0, 20, 20, 50, 50];
-        int[] feature = [0, 0, 0, 0, 2, 2];
-
-        var centres = DracoI3sGeometryDecoder.FeatureCentres(x, y, feature, 3);
-
-        centres[0].Should().Be((5.0, 10.0));
-        centres[1].Should().BeNull("feature 1 has no vertices");
-        centres[2].Should().Be((102.0, 50.0));
     }
 
     private static byte[] Double(double value)

@@ -6,9 +6,11 @@ import { AppShell } from '../../../components/AppShell'
 import { AI_VOICE_DISCLOSURE } from '../../chat/voice/aiVoiceDisclosure'
 
 /** Bump together with the text below; shown to the reader as the terms' effective date. */
-export const TERMS_EFFECTIVE_DATE = '2026-09-24'
+export const TERMS_EFFECTIVE_DATE = '2026-09-26'
 
 const VOICE_MODEL_LICENCE_URL = 'https://huggingface.co/Supertone/supertonic-3'
+const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright'
+const ODBL_URL = 'https://opendatacommons.org/licenses/odbl/'
 
 /**
  * The use restrictions of the OpenRAIL-M licence under which Lucy's on-server voice model
@@ -165,7 +167,31 @@ export function TermsPage() {
 
               <Divider />
 
-              <Section title="8. Disclaimers and liability">
+              <Section title="8. Map and building data">
+                <Paragraph>
+                  The maps, building outlines and building heights used in site and solar analysis come from third
+                  parties. Map imagery, and building outlines traced from it, are © Google. Building outlines are
+                  also drawn from{' '}
+                  <Link href={OSM_COPYRIGHT_URL} target="_blank" rel="noopener noreferrer">
+                    © OpenStreetMap contributors
+                  </Link>{' '}
+                  and from the Overture Maps Foundation, whose buildings data combines OpenStreetMap with outlines
+                  from Microsoft and others. Both are available under the{' '}
+                  <Link href={ODBL_URL} target="_blank" rel="noopener noreferrer">
+                    Open Database License
+                  </Link>
+                  . Measured building heights are from Esri's 3D buildings layer (source: Esri, Vantor).
+                </Paragraph>
+                <Paragraph>
+                  These sources do not always agree and can be incomplete or out of date. Where a building's height
+                  is not recorded, Ask Lucy assumes one and says so. Shadows and sun exposure shown by Ask Lucy are
+                  estimates, not survey results.
+                </Paragraph>
+              </Section>
+
+              <Divider />
+
+              <Section title="9. Disclaimers and liability">
                 <Paragraph>
                   Ask Lucy is provided "as is", without warranties of any kind, to the extent the law allows. To
                   the extent the law allows, we are not liable for indirect or consequential loss, or for decisions
@@ -175,7 +201,7 @@ export function TermsPage() {
 
               <Divider />
 
-              <Section title="9. Changes to these terms">
+              <Section title="10. Changes to these terms">
                 <Paragraph>
                   We may update these terms. When we do, we will change the effective date above. If you keep
                   using Ask Lucy after a change takes effect, you accept the updated terms.

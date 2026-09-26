@@ -187,6 +187,8 @@ public static class DependencyInjection
             .BindConfiguration(OvertureBuildingsOptions.SectionName);
         services.AddOptions<EsriBuildingsOptions>()
             .BindConfiguration(EsriBuildingsOptions.SectionName);
+        services.AddOptions<BuildingConflationOptions>()
+            .BindConfiguration(BuildingConflationOptions.SectionName);
 
         // specs/053-rendered-building-footprints — building footprints traced from the map
         // provider's own rendered imagery. No ApiKey here either: it reuses
@@ -416,7 +418,8 @@ public static class DependencyInjection
         services.AddKeyedScoped<IBuildingFootprintProvider, RenderedBuildingFootprintProvider>(CompositeBuildingFootprintProvider.RenderedKey);
         services.AddKeyedScoped<IBuildingFootprintProvider, OverpassBuildingFootprintProvider>(CompositeBuildingFootprintProvider.OsmKey);
         // specs/075 — Overture joins the chain between rendered and OSM, and the chain is wrapped
-        // by the height decorator, which swaps assumed heights for Esri's measured ones.
+        // by the height decorator, which swaps assumed heights for Esri's measured ones. specs/076 —
+        // the three sources now run together and fill each other's gaps.
         services.AddKeyedScoped<IBuildingFootprintProvider, OvertureBuildingFootprintProvider>(CompositeBuildingFootprintProvider.OvertureKey);
         services.AddKeyedScoped<IBuildingFootprintProvider, CompositeBuildingFootprintProvider>(HeightEnrichingBuildingFootprintProvider.FootprintsKey);
         services.AddScoped<IBuildingFootprintProvider, HeightEnrichingBuildingFootprintProvider>();

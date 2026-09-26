@@ -13,7 +13,6 @@ internal static class I3sAttributeReader
 {
     public static double[] ReadNumbers(ReadOnlySpan<byte> data, string valueType)
     {
-        var count = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data));
         var size = valueType switch
         {
             "Float64" => 8,
@@ -21,11 +20,12 @@ internal static class I3sAttributeReader
             _ => throw new InvalidDataException($"I3S attribute value type '{valueType}' is not supported."),
         };
         var offset = Math.Max(4, size);
+        var count = ReadCount(data);
         if (data.Length < offset + (count * size))
             throw new InvalidDataException("The I3S attribute buffer is shorter than its count says.");
 
         var values = new double[count];
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < values.Length; i++)
         {
             var slice = data.Slice(offset + (i * size), size);
             values[i] = valueType switch
@@ -42,20 +42,31 @@ internal static class I3sAttributeReader
 
     public static string[] ReadStrings(ReadOnlySpan<byte> data)
     {
-        var count = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data));
         const int LengthsOffset = 8;
-        var valueOffset = LengthsOffset + (4 * count);
+        var count = ReadCount(data);
+        long valueOffset = LengthsOffset + (4 * count);
+        if (data.Length < valueOffset)
+            throw new InvalidDataException("The I3S attribute buffer is shorter than its count says.");
 
         var values = new string[count];
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < values.Length; i++)
         {
-            var length = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data[(LengthsOffset + (4 * i))..]));
+            long length = BinaryPrimitives.ReadUInt32LittleEndian(data[(LengthsOffset + (4 * i))..]);
             if (data.Length < valueOffset + length)
                 throw new InvalidDataException("The I3S attribute buffer is shorter than its lengths say.");
-            values[i] = Encoding.UTF8.GetString(data.Slice(valueOffset, length)).TrimEnd('\0', ' ');
+            values[i] = Encoding.UTF8.GetString(data.Slice((int)valueOffset, (int)length)).TrimEnd('\0', ' ');
             valueOffset += length;
         }
 
         return values;
     }
+
+    /// <summary>
+    /// The leading UInt32 count, widened so a corrupt count can never overflow the bounds checks
+    /// (a count read from non-attribute bytes is typically in the billions).
+    /// </summary>
+    private static long ReadCount(ReadOnlySpan<byte> data) =>
+        data.Length >= 4
+            ? BinaryPrimitives.ReadUInt32LittleEndian(data)
+            : throw new InvalidDataException("The I3S attribute buffer has no count.");
 }

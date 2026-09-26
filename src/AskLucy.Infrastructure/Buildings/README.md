@@ -68,9 +68,9 @@ radius, so no stitching is needed, unlike the boundary path's own four-tile stit
 
 ## Heights are unchanged, and deliberately not cross-matched
 
-> **Superseded in part by specs/075** — see "Measured heights (Esri)" below. The rejection of an
-> *outline-to-outline* join still stands; what specs/075 adds is a *point-in-outline* match, which
-> is a different operation.
+> **Superseded by specs/075 and specs/076** — see "Arbitration and conflation" and "Measured
+> heights" below. specs/076 does now pass a height between outlines, but only when one covers at
+> least half of the other on a 1 m grid; the loose join rejected here is still rejected.
 
 A rendered image carries no height data. Every rendered footprint gets the stated default height
 (9.0 m, matching `OverpassBuildingFootprintProvider`'s own default exactly) marked `assumed` — never
@@ -90,19 +90,35 @@ that never existed (`OverpassBuildingFootprintProvider` has always cached inside
 `Buildings:Rendered` config section, with a deliberately different cache-key prefix so the two
 providers sharing one `IMemoryCache` instance can never collide.
 
-## Arbitration
+## Arbitration and conflation (specs/076)
 
-`CompositeBuildingFootprintProvider` walks an ordered chain — rendered → Overture → OSM. The first
-source that returns anything wins outright; an empty or unavailable source moves on to the next;
-only the **last** source's failure is rethrown (the endpoint's 503). Results are **never merged**
-(two independently-derived geometries drawn together would read as duplicated, slightly-offset
-buildings — the same "ghost duplicate" failure specs/052 already solved once). Depends on
-`IBuildingFootprintProvider` via keyed DI (`"rendered"`/`"overture"`/`"osm"`), not on any concrete
-provider type — they are `sealed`, and a concrete-type constructor could never actually be
-unit-tested, since NSubstitute cannot proxy a sealed class.
+`CompositeBuildingFootprintProvider` asks all three sources — rendered, Overture, OSM — **at the
+same time** and conflates their answers (`BuildingFootprintConflation`). Superseding specs/075's
+"first non-empty source wins, never merged":
+
+- The **primary** is the highest-priority source that found anything; all of its footprints are
+  kept. Lower sources get `Buildings:Conflation:StragglerBudget` (default 8 s) after the primary
+  answers, then are cancelled and logged as too slow.
+- A lower source's footprint is **gap-filled** (drawn) only if less than 30 % of it overlaps what is
+  already kept, on a 1 m grid. Anything more is a *counterpart* — the same building traced by
+  another source, a few metres off — and is never drawn, which is what keeps specs/052's "ghost
+  duplicate" from coming back.
+- A counterpart covering at least half of a kept *assumed* footprint passes on its height: a
+  Known height makes it Known; a storey-derived height replaces the bare 9 m default but stays
+  Assumed. A Known height is never replaced.
+- The site building is the largest flagged candidate from any source; if that is a counterpart,
+  the role moves to the kept footprint it overlaps most. The result stops at
+  `Buildings:MaxBuildingCount` and says so (`Limited`).
+- Failures are logged per source. Only if **every** source fails is the last error rethrown (the
+  endpoint's 503). *Behaviour change:* if one source answered empty and the rest failed, the
+  result is empty (`Source = None`), not a 503 — "no buildings here" was an answer.
+
+Depends on `IBuildingFootprintProvider` via keyed DI (`"rendered"`/`"overture"`/`"osm"`), not on
+any concrete provider type — they are `sealed`, and a concrete-type constructor could never
+actually be unit-tested, since NSubstitute cannot proxy a sealed class.
 
 The unkeyed `IBuildingFootprintProvider` is `HeightEnrichingBuildingFootprintProvider`, a decorator
-over the chain (keyed `"footprints"`).
+over the composite (keyed `"footprints"`).
 
 ## Overture Maps (specs/075)
 
@@ -125,31 +141,45 @@ read at zoom 14, the archive's maximum.
 - Licence: ODbL (OSM-derived) / CDLA-Permissive (Microsoft footprints) — attribution
   "© OpenStreetMap contributors, Overture Maps Foundation".
 
-## Measured heights (Esri, specs/075)
+## Measured heights (Esri, specs/075, reworked by specs/076)
 
-`HeightEnrichingBuildingFootprintProvider` runs the footprint chain and
+`HeightEnrichingBuildingFootprintProvider` runs the footprint composite and
 `Esri/EsriBuildingHeightSource` concurrently, searching heights 100 m beyond the radius (the
-footprints of buildings that straddle the edge are kept whole). For each **assumed** footprint it
-takes the tallest measured height whose point lies inside the outline and marks it Known; a
-Known height is never overwritten. A height-source failure is logged and the footprints come back
-unchanged — heights are an enhancement, never a reason to fail the search.
+footprints of buildings that straddle the edge are kept whole). The height source returns a
+**`BuildingHeightMap`** — a 2 m raster of roof heights, `NaN` where nothing was measured — not one
+height per building. specs/075's one-point-per-building match failed at BurJuman: Esri models the
+mall and its tower as **one feature** whose only height is the tower top, so the whole mall was
+drawn 105 m tall.
 
-This is a point-in-outline match, not the outline-to-outline join rejected above: the Esri layer
-gives one point per building (the centre of its mesh), so a mismatch needs that centre to fall
-inside the wrong footprint, which only happens for buildings the footprint source merged.
+- An **assumed** footprint with at least half its cells measured takes their **median** and
+  becomes Known. A Known height is never overwritten. A cell under several footprints belongs to
+  the smallest.
+- A **taller part** inside a footprint (more than max(3 m, 15 %) above its base, at least 20 m²)
+  becomes an extra Known caster `{id}_part{n}`, recursing up to three setbacks. The frontend
+  treats `{siteId}_part…` as part of the building under study.
+- **Gap-fill:** measured roofs no footprint claims (claimed cells dilated by 2 cells, candidates
+  opened with a 3×3 element) of at least 30 m² with their centroid inside the radius become
+  `esri_{n}`; one becomes the site building only if no source found one.
+- A height-source failure is logged and the footprints come back unchanged — heights are an
+  enhancement, never a reason to fail the search.
 
 `EsriBuildingHeightSource` reads Esri's global 3D Buildings I3S scene layer directly:
 
 - Walks node pages breadth-first, pruning any node whose oriented bounding box (Earth-centred,
   quaternion-rotated) is more than 100 m beyond the search radius. Layer description cached 1 h,
   node pages 24 h (keyed by layer version).
-- Leaf geometry is Draco-compressed; it is decoded with `Openize.Drako` and each feature's centre
-  taken from its vertex bounding box. Draco positions are offsets from the node centre, scaled by
+- Leaf geometry is Draco-compressed; it is decoded with `Openize.Drako` and each measured
+  feature's roof triangles are rasterised (`RoofHeightRasterizer`). A feature's ground is its top
+  vertex minus its height attribute — its walls run below ground, so neither the lowest vertex nor
+  zero is the ground. Draco positions are offsets from the node centre, scaled by
   the `i3s-scale_x/y` attribute metadata, which is read from the Draco header by hand because the
   library does not expose it.
 - Attributes `height` (Float32) and `source` (String). **Vantor** heights are measured and always
   trusted. Every other source uses exactly 3.0 m as a "no height" placeholder, which is dropped.
 - The optional `Esri:ApiKey` is sent as `X-Esri-Authorization: Bearer …` only when configured.
+  ArcGIS reports a rejected or expired key (498/499) as **HTTP 200 with a JSON `error` body**; the
+  layer is public, so the source drops the key, retries anonymously and remembers the rejection
+  for the layer-cache TTL.
 - Licence: Esri terms, accepted for non-commercial use — attribution "Esri, Vantor". Revisit before
   the platform goes commercial.
 

@@ -39,8 +39,6 @@ internal sealed class OverpassBuildingFootprintProvider(
     ILogger<OverpassBuildingFootprintProvider> logger) : IBuildingFootprintProvider
 {
     private const string UserAgentHeader = "AskLucy/1.0 (+https://hydra.bimcatalyst.com)";
-    private const double MetresPerLevel = 3.0;
-    private const double DefaultHeightMetres = 9.0; // research D5 — 9 m is three levels at the same 3 m rule.
 
     private const int MaxAttempts = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
@@ -204,10 +202,10 @@ internal sealed class OverpassBuildingFootprintProvider(
         if (tags is not null && tags.TryGetValue("building:levels", out var levelsTag) &&
             double.TryParse(levelsTag.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var levels) && levels > 0)
         {
-            return (levels * MetresPerLevel, BuildingHeightProvenance.Assumed);
+            return (levels * AssumedBuildingHeight.MetresPerStorey, BuildingHeightProvenance.Assumed);
         }
 
-        return (DefaultHeightMetres, BuildingHeightProvenance.Assumed);
+        return (AssumedBuildingHeight.DefaultMetres, BuildingHeightProvenance.Assumed);
     }
 
     /// <summary>FR-013 — excludes a footprint with fewer than 4 points (already filtered by the

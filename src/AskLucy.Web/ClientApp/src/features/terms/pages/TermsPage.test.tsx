@@ -70,6 +70,23 @@ describe('TermsPage', () => {
     expect(screen.getAllByRole('link', { name: /Privacy Policy/ })[0]).toHaveAttribute('href', '/privacy')
   })
 
+  it('credits the map, building-outline and building-height sources', () => {
+    renderTerms()
+
+    const section = screen.getByRole('heading', { name: '8. Map and building data' }).parentElement!
+    expect(section).toHaveTextContent(/© Google/)
+    expect(section).toHaveTextContent(/Overture Maps Foundation/)
+    expect(section).toHaveTextContent(/source: Esri, Vantor/)
+    expect(within(section).getByRole('link', { name: '© OpenStreetMap contributors' })).toHaveAttribute(
+      'href',
+      'https://www.openstreetmap.org/copyright',
+    )
+    expect(within(section).getByRole('link', { name: 'Open Database License' })).toHaveAttribute(
+      'href',
+      'https://opendatacommons.org/licenses/odbl/',
+    )
+  })
+
   it('returns to the landing page when opened from it', async () => {
     const user = userEvent.setup()
     renderLandingWithTerms()

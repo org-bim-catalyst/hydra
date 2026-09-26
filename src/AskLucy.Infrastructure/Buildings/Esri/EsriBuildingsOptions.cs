@@ -24,4 +24,11 @@ public sealed class EsriBuildingsOptions
 
     /// <summary>Node pages near the root are shared by every request anywhere in the world.</summary>
     public TimeSpan NodePageCacheTtl { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// specs/076 — the side of one roof-height cell. 2 m resolves a villa (10–20 m across) into
+    /// dozens of cells while keeping a 400 m search to 160,000 cells (640 KB, cached per site).
+    /// Finer buys nothing: Esri's outlines and the basemap's disagree by a few metres anyway.
+    /// </summary>
+    public double HeightMapCellMetres { get; set; } = 2.0;
 }

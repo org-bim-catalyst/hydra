@@ -57,10 +57,6 @@ internal sealed class RenderedBuildingFootprintProvider(
     IMemoryCache cache,
     ILogger<RenderedBuildingFootprintProvider> logger) : IBuildingFootprintProvider
 {
-    /// <summary>research D5 — matches <c>OverpassBuildingFootprintProvider</c>'s own default
-    /// exactly, so a building resolved from either source without a known height reads identically.</summary>
-    private const double DefaultHeightMetres = 9.0;
-
     private readonly RenderedFootprintOptions _renderedOptions = renderedOptions.Value;
     private readonly BuildingRetrievalOptions _retrievalOptions = retrievalOptions.Value;
 
@@ -231,7 +227,7 @@ internal sealed class RenderedBuildingFootprintProvider(
             buildings.Add(new BuildingFootprint(
                 Id: $"rendered_{tileKey}_{i}",
                 Ring: bounded[i],
-                HeightMetres: DefaultHeightMetres,
+                HeightMetres: AssumedBuildingHeight.DefaultMetres,
                 HeightProvenance: BuildingHeightProvenance.Assumed,
                 Name: string.Empty,
                 IsSiteBuilding: i == siteBuildingIndex));

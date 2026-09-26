@@ -82,8 +82,19 @@ export interface FootprintBuildResult {
   extentMetres: number
   /** Tallest resolved height among the usable footprints — the multiplier on shadow length. */
   tallestHeightMetres: number
+  /**
+   * specs/076 — the straight-line distance from the reference point to the furthest roof corner of
+   * the building under study: the site building plus any taller part the server split off it
+   * (`{siteId}_part…`, HeightEnrichingBuildingFootprintProvider). What the sun-path dome has to
+   * enclose; 0 when there is no site building.
+   */
+  siteReachMetres: number
   /** Footprints whose ring was too degenerate to extrude. Counted rather than dropped silently. */
   excludedCount: number
+}
+
+function isPartOfSite(buildingId: string, siteIds: string[]): boolean {
+  return siteIds.some((siteId) => buildingId === siteId || buildingId.startsWith(`${siteId}_part`))
 }
 
 /**
@@ -99,7 +110,9 @@ export function buildFootprintMeshes(buildings: SiteBuildingDto[], showMass: boo
   const buildingIds: string[] = []
   let extentMetres = 0
   let tallestHeightMetres = 0
+  let siteReachMetres = 0
   let excludedCount = 0
+  const siteIds = buildings.filter((b) => b.isSiteBuilding).map((b) => b.id)
 
   for (const building of buildings) {
     const geometry = buildFootprintGeometry(building)
@@ -110,14 +123,17 @@ export function buildFootprintMeshes(buildings: SiteBuildingDto[], showMass: boo
     geometries.push(geometry)
     buildingIds.push(building.id)
     tallestHeightMetres = Math.max(tallestHeightMetres, building.heightMetres)
+    const partOfSite = isPartOfSite(building.id, siteIds)
     for (const point of building.ring) {
       const local = worldToLocal(point, 0)
-      extentMetres = Math.max(extentMetres, Math.hypot(local.x, local.y))
+      const distance = Math.hypot(local.x, local.y)
+      extentMetres = Math.max(extentMetres, distance)
+      if (partOfSite) siteReachMetres = Math.max(siteReachMetres, Math.hypot(distance, building.heightMetres))
     }
   }
 
   if (geometries.length === 0) {
-    return { mesh: null, buildingIds, extentMetres, tallestHeightMetres, excludedCount }
+    return { mesh: null, buildingIds, extentMetres, tallestHeightMetres, siteReachMetres, excludedCount }
   }
 
   // `useGroups: false` — one group would reintroduce one draw call per building, which is exactly
@@ -137,7 +153,7 @@ export function buildFootprintMeshes(buildings: SiteBuildingDto[], showMass: boo
   mesh.receiveShadow = true
   mesh.userData = { buildingIds }
 
-  return { mesh, buildingIds, extentMetres, tallestHeightMetres, excludedCount }
+  return { mesh, buildingIds, extentMetres, tallestHeightMetres, siteReachMetres, excludedCount }
 }
 
 /** T034, FR-016 — flips `colorWrite`/`depthWrite` on the one shared material, mirroring

@@ -5,6 +5,25 @@ import { solarPosition } from '../solar/solarPosition'
  * reference implementation's proven value. */
 export const SUN_PATH_DOME_RADIUS_METRES = 120
 
+/** specs/076 — how far past the building under study the dome's shell sits, and the step its
+ * radius grows in, so a small height correction does not rebuild the dome for a few centimetres. */
+const DOME_CLEARANCE = 1.15
+const DOME_RADIUS_STEP_METRES = 10
+/** A mis-flagged site footprint must not balloon the dome over the whole neighbourhood. */
+export const MAX_SUN_PATH_DOME_RADIUS_METRES = 600
+
+/**
+ * specs/076 — the dome radius that encloses the building under study: never smaller than the
+ * reference value, otherwise grown until its furthest roof corner (`siteReachMetres`, measured
+ * from the dome's centre) sits inside the shell. Purely presentational: the dome draws where the
+ * sun is, and the shadows are cast by the directional light, whose direction does not depend on
+ * how far away the dome draws the sun.
+ */
+export function sunPathDomeRadiusFor(siteReachMetres: number): number {
+  const needed = Math.ceil((siteReachMetres * DOME_CLEARANCE) / DOME_RADIUS_STEP_METRES) * DOME_RADIUS_STEP_METRES
+  return Math.min(MAX_SUN_PATH_DOME_RADIUS_METRES, Math.max(SUN_PATH_DOME_RADIUS_METRES, needed))
+}
+
 /** ENU (X=East, Y=North, Z=Up) — specs/051's published local frame, which this feature draws in
  * directly with no remapping (data-model.md "Solar Position" — Derived). */
 export function sphericalToVec(azimuthDegrees: number, altitudeDegrees: number, radiusMetres: number): THREE.Vector3 {

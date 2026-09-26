@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
@@ -17,15 +18,20 @@ internal static partial class EsriBuildingHeightSourceLog
     public static partial void SearchFailed(ILogger logger, Exception exception, double latitude, double longitude);
 
     [LoggerMessage(Level = LogLevel.Information,
-        Message = "Esri building heights for ({Latitude}, {Longitude}): {Count} measured from {LeafCount} scene nodes ({PlaceholderCount} placeholder heights ignored)")]
+        Message = "Esri building heights for ({Latitude}, {Longitude}): {Count} measured buildings from {LeafCount} scene nodes ({PlaceholderCount} placeholder heights ignored)")]
     public static partial void SearchCompleted(ILogger logger, double latitude, double longitude, int count, int leafCount, int placeholderCount);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "The configured Esri API key was rejected (error {Code}: {Error}); reading the public buildings layer without it. Renew or remove Esri:ApiKey")]
+    public static partial void KeyRejected(ILogger logger, int code, string error);
 }
 
 /// <summary>
 /// specs/075 — <see cref="IBuildingHeightSource"/> over Esri's global 3D buildings scene layer
 /// (I3S 1.7+, node pages, Draco geometry). Walks the node tree from the root, keeping only nodes
-/// whose box comes within the radius, then reads each full-detail leaf's geometry (for where each
-/// building is) and its height and source attributes.
+/// whose box comes within the radius, then reads each full-detail leaf's geometry and its height
+/// and source attributes, and rasterises every measured building's roof into a
+/// <see cref="BuildingHeightMap"/> (specs/076).
 ///
 /// <para>
 /// Only heights the layer actually measured are returned. Buildings sourced from Vantor carry a
@@ -57,14 +63,20 @@ internal sealed class EsriBuildingHeightSource(
 
     private const int MaxConcurrentRequests = 8;
 
+    /// <summary>ArcGIS error codes for an invalid or expired token, and for a missing one.</summary>
+    private const int InvalidTokenCode = 498;
+    private const int TokenRequiredCode = 499;
+
+    private const string KeyRejectedCacheKey = "esri-key-rejected";
+
     private readonly EsriBuildingsOptions _options = options.Value;
 
-    public async Task<IReadOnlyList<MeasuredBuildingHeight>> SearchAsync(GeoPoint center, int radiusMetres, CancellationToken cancellationToken = default)
+    public async Task<BuildingHeightMap> SearchAsync(GeoPoint center, int radiusMetres, CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled) return [];
+        if (!_options.Enabled) return BuildingHeightMap.Empty;
 
         var cacheKey = $"esri-heights:{center.Latitude.ToString("F5", CultureInfo.InvariantCulture)},{center.Longitude.ToString("F5", CultureInfo.InvariantCulture)}:{radiusMetres}";
-        if (cache.TryGetValue<IReadOnlyList<MeasuredBuildingHeight>>(cacheKey, out var cached) && cached is not null)
+        if (cache.TryGetValue<BuildingHeightMap>(cacheKey, out var cached) && cached is not null)
         {
             return cached;
         }
@@ -84,20 +96,22 @@ internal sealed class EsriBuildingHeightSource(
         }
     }
 
-    private async Task<IReadOnlyList<MeasuredBuildingHeight>> SearchUncachedAsync(GeoPoint center, int radiusMetres, CancellationToken cancellationToken)
+    private async Task<BuildingHeightMap> SearchUncachedAsync(GeoPoint center, int radiusMetres, CancellationToken cancellationToken)
     {
         var httpClient = httpClientFactory.CreateClient(HttpClientName);
         using var throttle = new SemaphoreSlim(MaxConcurrentRequests);
 
-        async Task<byte[]> GetAsync(string relativePath)
+        var apiKey = esriOptions.Value.ApiKey;
+
+        async Task<byte[]> SendAsync(string relativePath, bool withKey)
         {
             await throttle.WaitAsync(cancellationToken);
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"{_options.SceneLayerUrl.TrimEnd('/')}{relativePath}");
-                if (!string.IsNullOrWhiteSpace(esriOptions.Value.ApiKey))
+                if (withKey)
                 {
-                    request.Headers.Add("X-Esri-Authorization", $"Bearer {esriOptions.Value.ApiKey}");
+                    request.Headers.Add("X-Esri-Authorization", $"Bearer {apiKey}");
                 }
 
                 using var response = await httpClient.SendAsync(request, cancellationToken);
@@ -110,6 +124,29 @@ internal sealed class EsriBuildingHeightSource(
             }
         }
 
+        async Task<byte[]> GetAsync(string relativePath)
+        {
+            var withKey = !string.IsNullOrWhiteSpace(apiKey) && !cache.TryGetValue(KeyRejectedCacheKey, out _);
+            var body = await SendAsync(relativePath, withKey);
+            if (TryReadServiceError(body, out var code, out var error) && withKey && code is InvalidTokenCode or TokenRequiredCode)
+            {
+                // The layer is public: a rejected key costs heights nothing, so it is dropped (and
+                // remembered, so every later request skips the wasted round-trip) rather than failing.
+                if (!cache.TryGetValue(KeyRejectedCacheKey, out _))
+                {
+                    EsriBuildingHeightSourceLog.KeyRejected(logger, code, error);
+                }
+
+                cache.Set(KeyRejectedCacheKey, true, _options.LayerCacheTtl);
+                body = await SendAsync(relativePath, withKey: false);
+                TryReadServiceError(body, out code, out error);
+            }
+
+            return error is null
+                ? body
+                : throw new InvalidDataException($"The Esri scene layer returned error {code} for '{relativePath}': {error}");
+        }
+
         var layer = await cache.GetOrCreateAsync($"esri-layer:{_options.SceneLayerUrl}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = _options.LayerCacheTtl;
@@ -118,29 +155,28 @@ internal sealed class EsriBuildingHeightSource(
 
         var leaves = await FindLeavesAsync(layer, center, radiusMetres, GetAsync);
 
-        var nodeResults = await Task.WhenAll(leaves.Select(leaf => ReadLeafAsync(layer, leaf, GetAsync)));
+        var nodes = await Task.WhenAll(leaves.Select(leaf => ReadLeafAsync(layer, leaf, GetAsync)));
 
-        var heights = new List<MeasuredBuildingHeight>();
-        var placeholders = 0;
-        foreach (var features in nodeResults)
+        // Rasterised one node at a time, after every download: the cells are shared between nodes.
+        var grid = GeoGrid.Around(center, radiusMetres, _options.HeightMapCellMetres);
+        var heights = new float[grid.Width * grid.Height];
+        Array.Fill(heights, float.NaN);
+        int measured = 0, placeholders = 0;
+        foreach (var (mesh, featureHeights, sources) in nodes)
         {
-            foreach (var (location, height, source) in features)
+            var include = new bool[featureHeights.Length];
+            for (var f = 0; f < featureHeights.Length; f++)
             {
-                if (!IsMeasured(height, source))
-                {
-                    placeholders++;
-                    continue;
-                }
-
-                if (GeometryMath.DistanceMeters(center, location) <= radiusMetres)
-                {
-                    heights.Add(new MeasuredBuildingHeight(location, height));
-                }
+                include[f] = IsMeasured(featureHeights[f], sources[f]);
+                if (include[f]) measured++;
+                else placeholders++;
             }
+
+            RoofHeightRasterizer.Rasterize(mesh, featureHeights, include, grid, heights);
         }
 
-        EsriBuildingHeightSourceLog.SearchCompleted(logger, center.Latitude, center.Longitude, heights.Count, leaves.Count, placeholders);
-        return heights;
+        EsriBuildingHeightSourceLog.SearchCompleted(logger, center.Latitude, center.Longitude, measured, leaves.Count, placeholders);
+        return new BuildingHeightMap(grid, heights);
     }
 
     /// <summary>
@@ -195,7 +231,7 @@ internal sealed class EsriBuildingHeightSource(
         return leaves;
     }
 
-    private async Task<List<(GeoPoint Location, double Height, string Source)>> ReadLeafAsync(
+    private async Task<(I3sMesh Mesh, double[] Heights, string[] Sources)> ReadLeafAsync(
         I3sLayer layer, I3sNode leaf, Func<string, Task<byte[]>> getAsync)
     {
         var mesh = leaf.Mesh!.Value;
@@ -209,19 +245,46 @@ internal sealed class EsriBuildingHeightSource(
         if (sources.Length != heights.Length)
             throw new InvalidDataException($"Esri node {mesh.AttributeResource} has {heights.Length} heights but {sources.Length} sources.");
 
-        var centres = geometryDecoder.DecodeFeatureCentres(
-            await geometryTask, leaf.Box.CenterLongitude, leaf.Box.CenterLatitude, heights.Length);
+        var decoded = geometryDecoder.Decode(await geometryTask, leaf.Box.CenterLongitude, leaf.Box.CenterLatitude);
+        return (decoded, heights, sources);
+    }
 
-        var features = new List<(GeoPoint, double, string)>(heights.Length);
-        for (var i = 0; i < heights.Length && i < centres.Count; i++)
+    /// <summary>
+    /// ArcGIS reports some failures (rejected tokens, rate limits) as HTTP 200 with a JSON
+    /// <c>{"error": …}</c> body. Read as binary geometry or attributes that body decodes as garbage
+    /// (its first four bytes make an attribute count in the billions), so it is detected up front.
+    /// </summary>
+    internal static bool TryReadServiceError(byte[] body, out int code, [NotNullWhen(true)] out string? error)
+    {
+        code = 0;
+        error = null;
+        var span = body.AsSpan().TrimStart(" \t\r\n"u8);
+        if (span.Length == 0 || span[0] != (byte)'{') return false;
+
+        try
         {
-            if (centres[i] is { } c)
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("error", out var element))
             {
-                features.Add((new GeoPoint(c.Latitude, c.Longitude), heights[i], sources[i]));
+                return false;
             }
-        }
 
-        return features;
+            if (element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty("code", out var codeElement)
+                && codeElement.TryGetInt32(out var parsed))
+            {
+                code = parsed;
+            }
+
+            error = element.GetRawText();
+            return true;
+        }
+        catch (JsonException)
+        {
+            // Not JSON after all; the caller's own parser decides whether the bytes are valid.
+            return false;
+        }
     }
 
     /// <summary>The service gzips resources whether or not the response says so.</summary>

@@ -18,26 +18,27 @@ namespace AskLucy.Infrastructure.Buildings.Esri;
 /// </remarks>
 internal sealed class DracoI3sGeometryDecoder : II3sGeometryDecoder
 {
-    public IReadOnlyList<(double Longitude, double Latitude)?> DecodeFeatureCentres(
-        byte[] geometry, double nodeCenterLongitude, double nodeCenterLatitude, int featureCount)
+    public I3sMesh Decode(byte[] geometry, double nodeCenterLongitude, double nodeCenterLatitude)
     {
         var (scaleX, scaleY) = ReadPositionScales(geometry);
-        var mesh = Draco.Decode(geometry)
+        var mesh = Draco.Decode(geometry) as DracoMesh
             ?? throw new InvalidDataException("The node geometry is not a Draco mesh.");
         var positions = mesh.GetNamedAttribute(AttributeType.Position, 0)
             ?? throw new InvalidDataException("The node geometry has no positions.");
         var featureIndices = mesh.GetNamedAttribute(AttributeType.Generic, 0)
             ?? throw new InvalidDataException("The node geometry has no feature index.");
 
-        var x = new float[mesh.NumPoints];
-        var y = new float[mesh.NumPoints];
+        var longitudes = new double[mesh.NumPoints];
+        var latitudes = new double[mesh.NumPoints];
+        var elevations = new float[mesh.NumPoints];
         var feature = new int[mesh.NumPoints];
         var buffer = new byte[Math.Max(featureIndices.ByteStride, 8)];
         for (var point = 0; point < mesh.NumPoints; point++)
         {
             var position = positions.GetValueAsVector3(positions.MappedIndex(point));
-            x[point] = position.X;
-            y[point] = position.Y;
+            longitudes[point] = nodeCenterLongitude + (position.X * scaleX);
+            latitudes[point] = nodeCenterLatitude + (position.Y * scaleY);
+            elevations[point] = position.Z;
             featureIndices.GetValue(featureIndices.MappedIndex(point), buffer);
             feature[point] = featureIndices.ByteStride switch
             {
@@ -47,41 +48,20 @@ internal sealed class DracoI3sGeometryDecoder : II3sGeometryDecoder
             };
         }
 
-        return FeatureCentres(x, y, feature, featureCount)
-            .Select(c => c is { } offset
-                ? ((double Longitude, double Latitude)?)(nodeCenterLongitude + (offset.X * scaleX), nodeCenterLatitude + (offset.Y * scaleY))
-                : null)
-            .ToList();
-    }
-
-    /// <summary>The centre of each feature's bounding box, in the geometry's own units.</summary>
-    internal static (double X, double Y)?[] FeatureCentres(float[] x, float[] y, int[] feature, int featureCount)
-    {
-        var minX = Enumerable.Repeat(double.MaxValue, featureCount).ToArray();
-        var minY = Enumerable.Repeat(double.MaxValue, featureCount).ToArray();
-        var maxX = Enumerable.Repeat(double.MinValue, featureCount).ToArray();
-        var maxY = Enumerable.Repeat(double.MinValue, featureCount).ToArray();
-
-        for (var i = 0; i < feature.Length; i++)
+        var triangles = new int[mesh.NumFaces * 3];
+        Span<int> face = stackalloc int[3];
+        for (var f = 0; f < mesh.NumFaces; f++)
         {
-            var f = feature[i];
-            if (f < 0 || f >= featureCount) continue;
-            minX[f] = Math.Min(minX[f], x[i]);
-            maxX[f] = Math.Max(maxX[f], x[i]);
-            minY[f] = Math.Min(minY[f], y[i]);
-            maxY[f] = Math.Max(maxY[f], y[i]);
-        }
-
-        var centres = new (double X, double Y)?[featureCount];
-        for (var f = 0; f < featureCount; f++)
-        {
-            if (minX[f] <= maxX[f])
+            mesh.ReadFace(f, face);
+            for (var corner = 0; corner < 3; corner++)
             {
-                centres[f] = ((minX[f] + maxX[f]) / 2, (minY[f] + maxY[f]) / 2);
+                if ((uint)face[corner] >= (uint)mesh.NumPoints)
+                    throw new InvalidDataException($"Triangle {f} of the node geometry points past its vertices.");
+                triangles[(f * 3) + corner] = face[corner];
             }
         }
 
-        return centres;
+        return new I3sMesh(longitudes, latitudes, elevations, feature, triangles);
     }
 
     /// <summary>
