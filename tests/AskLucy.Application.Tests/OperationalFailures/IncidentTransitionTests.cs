@@ -40,8 +40,8 @@ public sealed class IncidentTransitionTests
                 Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                var ids = call.Arg<IReadOnlyCollection<Guid>>();
-                var transition = call.Arg<Func<OperationalFailureIncident, IncidentTransitionResult>>();
+                var ids = call.Arg<IReadOnlyCollection<Guid>>()!;
+                var transition = call.Arg<Func<OperationalFailureIncident, IncidentTransitionResult>>()!;
                 return ids.Select(id => _forcedOutcomes.TryGetValue(id, out var forced) ? forced
                     : _incidents.TryGetValue(id, out var incident)
                         ? new IncidentTransitionOutcome(id, transition(incident) == IncidentTransitionResult.Applied

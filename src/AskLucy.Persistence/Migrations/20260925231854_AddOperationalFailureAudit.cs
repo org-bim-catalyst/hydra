@@ -192,7 +192,7 @@ namespace AskLucy.Persistence.Migrations
                 name: "IX_Incidents_LastSeen",
                 table: "OperationalFailureIncidents",
                 column: "LastSeenUtc",
-                descending: new bool[0]);
+                descending: Array.Empty<bool>());
 
             migrationBuilder.CreateIndex(
                 name: "IX_Incidents_RootCause",
@@ -252,7 +252,7 @@ namespace AskLucy.Persistence.Migrations
                 name: "IX_UserContentAccessEvents_OccurredAtUtc",
                 table: "UserContentAccessEvents",
                 column: "OccurredAtUtc",
-                descending: new bool[0]);
+                descending: Array.Empty<bool>());
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserContentAccessEvents_OwnerUserId",

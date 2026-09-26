@@ -29,7 +29,7 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
     /// Tag values go through the same map, so <c>shop=mall</c> counts as "retail" and
     /// <c>leisure=park</c> as "park".
     /// </summary>
-    private static readonly IReadOnlyDictionary<string, string> SiteKindWords = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> SiteKindWords = new()
     {
         ["mall"] = "retail",
         ["shopping"] = "retail",

@@ -50,7 +50,7 @@ public sealed class VoiceFailureReporterTests
         CreateReporter().ReportFailover(
             VoiceOperations.TextToSpeech, ElevenLabs, new AiProviderUnavailableException("down"), fallbackServed: false, CancellationToken.None);
 
-        _recorder.Received(1).Record(Arg.Is<OperationalFailureReport>(r => r.Outcome == OperationalFailureOutcome.Failed));
+        _recorder.Received(1).Record(Arg.Is<OperationalFailureReport>(r => r != null && r.Outcome == OperationalFailureOutcome.Failed));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class VoiceFailureReporterTests
         CreateReporter().ReportFailover(
             VoiceOperations.Transcription, ElevenLabs, new InvalidOperationException("detail"), fallbackServed: true, CancellationToken.None);
 
-        _recorder.Received(1).Record(Arg.Is<OperationalFailureReport>(r => r.Reason == nameof(InvalidOperationException)));
+        _recorder.Received(1).Record(Arg.Is<OperationalFailureReport>(r => r != null && r.Reason == nameof(InvalidOperationException)));
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class VoiceFailureReporterTests
         reporter.ReportServed(VoiceOperations.TextToSpeech, ElevenLabs);
 
         _recorder.Received(1).RecordRecovery(Arg.Is<VoiceRecoveryReport>(r =>
-            r.Operation == VoiceOperations.TextToSpeech &&
+            r != null && r.Operation == VoiceOperations.TextToSpeech &&
             r.Kind == OperationalFailureKind.CredentialRejected &&
             r.ProviderName == "ElevenLabs" &&
             r.Model == "eleven_flash_v2_5" &&
@@ -126,7 +126,7 @@ public sealed class VoiceFailureReporterTests
             VoiceOperations.TextToSpeech, null, new AiProviderNotConfiguredException("No voice provider is configured."), CancellationToken.None);
 
         _recorder.Received(1).Record(Arg.Is<OperationalFailureReport>(r =>
-            r.Kind == OperationalFailureKind.NotConfigured &&
+            r != null && r.Kind == OperationalFailureKind.NotConfigured &&
             r.Outcome == OperationalFailureOutcome.Failed &&
             !r.IsFailover &&
             r.ProviderName == null));

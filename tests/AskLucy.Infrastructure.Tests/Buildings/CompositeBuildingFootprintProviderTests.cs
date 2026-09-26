@@ -225,7 +225,7 @@ public sealed class CompositeBuildingFootprintProviderTests
             return Empty(BuildingFootprintSource.Osm);
         });
 
-        var result = await composite.SearchAsync(Center, 200, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+        var result = await composite.SearchAsync(Center, 200, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         result.Buildings.Should().ContainSingle().Which.Id.Should().Be("sample");
         fallbackToken.IsCancellationRequested.Should().BeTrue("a source that is no longer waited for must not keep running");

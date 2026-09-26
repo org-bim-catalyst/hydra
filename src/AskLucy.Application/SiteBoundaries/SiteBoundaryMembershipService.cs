@@ -79,7 +79,9 @@ public sealed class SiteBoundaryMembershipService(
                 return boundary;
             }
 
-            SiteBoundaryMembershipLog.MembersFound(logger, userChatId, boundary.SiteName, members.Count, members.Count(m => m.Included));
+            var included = members.Count(m => m.Included);
+            SiteBoundaryMembershipLog.MembersFound(logger, userChatId, boundary.SiteName, members.Count, included);
+
             return Compose(boundary with { CorePolygon = core }, members);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

@@ -85,8 +85,8 @@ public sealed class ChatInvestigationTests
         var act = () => Investigate(otherChatId);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
-        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, default);
-        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, TestContext.Current.CancellationToken);
+        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -104,9 +104,9 @@ public sealed class ChatInvestigationTests
             MessageCount: 2,
             Deleted: false));
         result.FailurePoints.Should().ContainSingle().Which.Should().Match<ChatFailurePointDto>(p => p.TurnNumber == 1 && p.MessageId == _failedReply.Id);
-        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, default);
-        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
-        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, TestContext.Current.CancellationToken);
+        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, TestContext.Current.CancellationToken);
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class ChatInvestigationTests
             _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
             _messages.ListByChatIdAsync(_chat.Id, Arg.Any<CancellationToken>());
         });
-        await _accessEvents.ReceivedWithAnyArgs(1).AddAsync(default!, default);
+        await _accessEvents.ReceivedWithAnyArgs(1).AddAsync(default!, TestContext.Current.CancellationToken);
         recorded.Should().NotBeNull();
         recorded!.ViewerUserId.Should().Be(Viewer);
         recorded.OwnerUserId.Should().Be(Owner);
@@ -146,7 +146,7 @@ public sealed class ChatInvestigationTests
         var result = await Investigate();
 
         result.Transcript.Should().HaveCount(2);
-        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class ChatInvestigationTests
         var act = () => Investigate();
 
         await act.Should().ThrowAsync<InvalidOperationException>();
-        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, default);
+        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -171,8 +171,8 @@ public sealed class ChatInvestigationTests
 
         result.Chat.Deleted.Should().BeTrue();
         result.Transcript.Should().BeNull();
-        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
-        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, default);
+        await _accessEvents.DidNotReceiveWithAnyArgs().AddAsync(default!, TestContext.Current.CancellationToken);
+        await _messages.DidNotReceiveWithAnyArgs().ListByChatIdAsync(default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

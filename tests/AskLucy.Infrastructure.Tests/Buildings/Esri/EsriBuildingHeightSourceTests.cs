@@ -166,7 +166,7 @@ public sealed class EsriBuildingHeightSourceTests
     {
         var (source, _, _) = Create();
 
-        var map = await source.SearchAsync(Center, 200);
+        var map = await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         HeightAt(map, FeatureCentres[0]).Should().BeApproximately(25, 0.01f, "Vantor's 25 m is a measurement");
         HeightAt(map, FeatureCentres[2]).Should().BeApproximately(3, 0.01f, "so is Vantor's 3 m");
@@ -203,7 +203,7 @@ public sealed class EsriBuildingHeightSourceTests
     {
         var (source, layer, _) = Create();
 
-        await source.SearchAsync(Center, 200);
+        await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         layer.Requests.Should().Contain(r => r.EndsWith("/nodepages/1"), "the far node's box is only known once its page is read");
         layer.Requests.Should().NotContain(r => r.Contains("/nodes/20/"), "a leaf 130 km away must never be downloaded");
@@ -214,18 +214,18 @@ public sealed class EsriBuildingHeightSourceTests
     {
         var (source, _, _) = Create(l => l.GzipBodies = true);
 
-        HeightAt(await source.SearchAsync(Center, 200), Center).Should().BeApproximately(25, 0.01f);
+        HeightAt(await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken), Center).Should().BeApproximately(25, 0.01f);
     }
 
     [Fact]
     public async Task SearchAsync_ShouldSendTheKey_OnlyWhenOneIsConfigured()
     {
         var (withKey, _, keyedHandler) = Create(esriOptions: new EsriOptions { ApiKey = "test-key" });
-        await withKey.SearchAsync(Center, 200);
+        await withKey.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
         keyedHandler.LastRequest!.Headers.GetValues("X-Esri-Authorization").Should().Equal("Bearer test-key");
 
         var (withoutKey, _, keylessHandler) = Create();
-        await withoutKey.SearchAsync(Center, 200);
+        await withoutKey.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
         keylessHandler.LastRequest!.Headers.Contains("X-Esri-Authorization").Should().BeFalse();
     }
 
@@ -234,12 +234,12 @@ public sealed class EsriBuildingHeightSourceTests
     {
         var (source, layer, _) = Create();
 
-        await source.SearchAsync(Center, 200);
+        await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
         var afterFirst = layer.Requests.Count;
-        await source.SearchAsync(Center, 200);
+        await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
         layer.Requests.Should().HaveCount(afterFirst, "the same search is answered from the cache");
 
-        await source.SearchAsync(new GeoPoint(Center.Latitude + 0.0001, Center.Longitude), 200);
+        await source.SearchAsync(new GeoPoint(Center.Latitude + 0.0001, Center.Longitude), 200, TestContext.Current.CancellationToken);
         layer.Requests.Skip(afterFirst).Should().NotContain(r => r.Contains("/nodepages/") || r.EndsWith("?f=json"),
             "a nearby search reuses the layer description and node pages, fetching only the leaf data");
     }
@@ -278,11 +278,11 @@ public sealed class EsriBuildingHeightSourceTests
             l => { l.LeafErrorBody = ExpiredTokenError; l.LeafErrorOnlyWithKey = true; },
             new EsriOptions { ApiKey = "expired-key" });
 
-        var heights = await source.SearchAsync(Center, 200);
+        var heights = await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         HeightAt(heights, Center).Should().BeApproximately(25, 0.01f);
         var afterFirst = layer.Requests.Count;
-        await source.SearchAsync(new GeoPoint(Center.Latitude + 0.0001, Center.Longitude), 200);
+        await source.SearchAsync(new GeoPoint(Center.Latitude + 0.0001, Center.Longitude), 200, TestContext.Current.CancellationToken);
         layer.Requests.Should().HaveCount(afterFirst + 3,
             "once rejected, the key is not sent again, so each leaf resource is fetched once rather than twice");
     }
@@ -303,7 +303,7 @@ public sealed class EsriBuildingHeightSourceTests
     {
         var (source, layer, _) = Create(enabled: false);
 
-        (await source.SearchAsync(Center, 200)).HasMeasurements.Should().BeFalse();
+        (await source.SearchAsync(Center, 200, TestContext.Current.CancellationToken)).HasMeasurements.Should().BeFalse();
         layer.Requests.Should().BeEmpty();
     }
 

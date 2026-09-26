@@ -75,7 +75,7 @@ public sealed class OvertureBuildingFootprintProviderTests
             ],
             parts: [Building("part", Square(2180, 2040, 8), ("building_id", "tower"), ("height", 45.0))])));
 
-        var result = await provider.SearchAsync(Center, 200);
+        var result = await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         result.Source.Should().Be(BuildingFootprintSource.Overture);
         var byId = result.Buildings.ToDictionary(b => b.Id);
@@ -93,7 +93,7 @@ public sealed class OvertureBuildingFootprintProviderTests
     {
         var (provider, _) = Create(bucket => bucket.AddRelease("r1", SiteTileWith([Building("site", Square(2040, 2040, 16))])));
 
-        var ring = (await provider.SearchAsync(Center, 200)).Buildings.Single().Ring;
+        var ring = (await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken)).Buildings.Single().Ring;
 
         GeometryMath.Contains(ring, Center).Should().BeTrue();
         GeometryMath.DistanceMeters(ring[0], At(SiteTile, 2040, 2040)).Should().BeLessThan(0.01);
@@ -112,7 +112,7 @@ public sealed class OvertureBuildingFootprintProviderTests
             Building("far", Square(3500, 3500, 20)),
         ])));
 
-        var result = await provider.SearchAsync(Center, 200);
+        var result = await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         result.Buildings.Should().ContainSingle().Which.Id.Should().Be("overture_courtyard", "the hole is not a building of its own");
         result.ExcludedCount.Should().Be(0, "buildings merely outside the radius are not unusable footprints");
@@ -131,9 +131,9 @@ public sealed class OvertureBuildingFootprintProviderTests
             [PmTiles.TileId(Zoom, east.Item1, east.Item2)] = VectorTileWriter.Tile(("building", [Building("hall", Square(-16, 2040, 40), ("height", 20.0))])),
         }));
 
-        var result = await provider.SearchAsync(center, 200);
+        var result = await provider.SearchAsync(center, 200, TestContext.Current.CancellationToken);
 
-        result.Buildings.Select(b => b.Id).Should().BeEquivalentTo(new[] { "overture_hall_1", "overture_hall_2" });
+        result.Buildings.Select(b => b.Id).Should().BeEquivalentTo("overture_hall_1", "overture_hall_2");
         result.Buildings.Should().OnlyContain(b => b.HeightMetres == 20 && b.IsSiteBuilding,
             "every piece is the same building: same height, and all of it is the site");
         var pieceAreas = result.Buildings.Sum(b => GeometryMath.AreaSquareMeters(b.Ring.Take(4).ToList()));
@@ -147,7 +147,7 @@ public sealed class OvertureBuildingFootprintProviderTests
     {
         var (provider, _) = Create(bucket => bucket.AddRelease("r1", SiteTileWith([Building("site", Square(2040, 2040, 16))]), useLeafDirectory: true));
 
-        (await provider.SearchAsync(Center, 200)).Buildings.Should().ContainSingle();
+        (await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken)).Buildings.Should().ContainSingle();
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class OvertureBuildingFootprintProviderTests
             bucket.AddEmptyRelease("2026-09-30.0");
         });
 
-        var result = await provider.SearchAsync(Center, 200);
+        var result = await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         result.Buildings.Single().Id.Should().Be("overture_new");
         bucket.Requests.Should().Contain(r => r.Contains("2026-09-30.0"), "the newest listed release is tried first");
@@ -174,7 +174,7 @@ public sealed class OvertureBuildingFootprintProviderTests
             [PmTiles.TileId(Zoom, 0, 0)] = VectorTileWriter.Tile(("building", [])),
         }));
 
-        var result = await provider.SearchAsync(Center, 200);
+        var result = await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         result.Buildings.Should().BeEmpty();
     }
@@ -187,7 +187,7 @@ public sealed class OvertureBuildingFootprintProviderTests
                 Enumerable.Range(0, 5).Select(i => Building($"b{i}", Square(2040 + (i * 20), 2040, 16))).ToList())),
             retrieval: new BuildingRetrievalOptions { MaxBuildingCount = 3 });
 
-        var result = await provider.SearchAsync(Center, 200);
+        var result = await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         result.Buildings.Should().HaveCount(3);
         result.Limited.Should().BeTrue();
@@ -198,9 +198,9 @@ public sealed class OvertureBuildingFootprintProviderTests
     {
         var (provider, bucket) = Create(bucket => bucket.AddRelease("r1", SiteTileWith([Building("site", Square(2040, 2040, 16))])));
 
-        await provider.SearchAsync(Center, 200);
+        await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
         var requestsAfterFirst = bucket.Requests.Count;
-        await provider.SearchAsync(Center, 200);
+        await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         bucket.Requests.Should().HaveCount(requestsAfterFirst);
     }
@@ -228,7 +228,7 @@ public sealed class OvertureBuildingFootprintProviderTests
             bucket => bucket.AddRelease("r1", SiteTileWith([Building("site", Square(2040, 2040, 16))])),
             new OvertureBuildingsOptions { BucketUrl = OvertureTestBucket.BucketUrl, Enabled = false });
 
-        (await provider.SearchAsync(Center, 200)).Buildings.Should().BeEmpty();
+        (await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken)).Buildings.Should().BeEmpty();
         bucket.Requests.Should().BeEmpty();
     }
 }

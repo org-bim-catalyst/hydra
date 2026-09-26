@@ -65,10 +65,10 @@ public sealed class SiteBoundaryMembershipServiceTests
         SettingIs(false);
         var boundary = Boundary();
 
-        var result = await _service.WithRelatedBuildingsAsync(boundary, Winner, Guid.NewGuid());
+        var result = await _service.WithRelatedBuildingsAsync(boundary, Winner, Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(boundary);
-        await _provider.DidNotReceiveWithAnyArgs().FindNamedBuildingsAsync(default!, default);
+        await _provider.DidNotReceiveWithAnyArgs().FindNamedBuildingsAsync(default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class SiteBoundaryMembershipServiceTests
             .ThrowsAsync(new BoundaryProviderUnavailableException("Overpass is down."));
         var boundary = Boundary();
 
-        var result = await _service.WithRelatedBuildingsAsync(boundary, Winner, Guid.NewGuid());
+        var result = await _service.WithRelatedBuildingsAsync(boundary, Winner, Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(boundary);
     }
@@ -90,14 +90,14 @@ public sealed class SiteBoundaryMembershipServiceTests
         var joined = Rect(0, 0, 130, 100);
         _union.Union(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), SiteBoundaryMembershipService.ConnectedGapMeters).Returns([joined]);
 
-        var result = await _service.WithRelatedBuildingsAsync(Boundary(), Winner, Guid.NewGuid());
+        var result = await _service.WithRelatedBuildingsAsync(Boundary(), Winner, Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         result.Polygon.Should().BeSameAs(joined);
         result.CorePolygon.Should().BeSameAs(Mall);
         result.AdditionalPolygons.Should().BeEmpty();
         result.Members.Should().HaveCount(4);
         _union.Received(1).Union(
-            Arg.Is<IReadOnlyList<IReadOnlyList<GeoPoint>>>(rings => rings.Count == 3), SiteBoundaryMembershipService.ConnectedGapMeters);
+            Arg.Is<IReadOnlyList<IReadOnlyList<GeoPoint>>>(rings => rings != null && rings.Count == 3), SiteBoundaryMembershipService.ConnectedGapMeters);
     }
 
     [Fact]

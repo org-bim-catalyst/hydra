@@ -27,11 +27,11 @@ public sealed class CapabilitySettingsTests
     {
         var reader = new CapabilitySettingsReader(_repository, _catalog);
 
-        (await reader.GetBooleanAsync(AiCapability.BoundaryVision, Key)).Should().BeTrue();
+        (await reader.GetBooleanAsync(AiCapability.BoundaryVision, Key, TestContext.Current.CancellationToken)).Should().BeTrue();
 
         _repository.GetAsync(AiCapability.BoundaryVision, Key, Arg.Any<CancellationToken>())
             .Returns(AiCapabilitySetting.Create(AiCapability.BoundaryVision, Key, "false", "admin-1"));
-        (await reader.GetBooleanAsync(AiCapability.BoundaryVision, Key)).Should().BeFalse();
+        (await reader.GetBooleanAsync(AiCapability.BoundaryVision, Key, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class CapabilitySettingsTests
         _repository.ListAllAsync(Arg.Any<CancellationToken>())
             .Returns([AiCapabilitySetting.Create(AiCapability.BoundaryVision, Key, "false", "admin-1")]);
 
-        var result = await new GetAiCapabilitySettingsQueryHandler(_repository, _catalog).Handle(new GetAiCapabilitySettingsQuery(), default);
+        var result = await new GetAiCapabilitySettingsQueryHandler(_repository, _catalog).Handle(new GetAiCapabilitySettingsQuery(), TestContext.Current.CancellationToken);
 
         result.Should().HaveCount(Enum.GetValues<AiCapability>().Length);
         result.Single(r => r.Capability == AiCapability.Chat).Settings.Should().BeEmpty();
@@ -78,12 +78,12 @@ public sealed class CapabilitySettingsTests
             _repository, _unitOfWork, _currentUser, Substitute.For<ILogger<UpdateAiCapabilitySettingsCommandHandler>>());
         var command = new UpdateAiCapabilitySettingsCommand(AiCapability.BoundaryVision, new Dictionary<string, string> { [Key] = "false" });
 
-        await handler.Handle(command, default);
-        _repository.Received(1).Add(Arg.Is<AiCapabilitySetting>(s => s.Key == Key && s.Value == "false"));
+        await handler.Handle(command, TestContext.Current.CancellationToken);
+        _repository.Received(1).Add(Arg.Is<AiCapabilitySetting>(s => s != null && s.Key == Key && s.Value == "false"));
 
         var saved = AiCapabilitySetting.Create(AiCapability.BoundaryVision, Key, "false", "admin-1");
         _repository.ListByCapabilityAsync(AiCapability.BoundaryVision, Arg.Any<CancellationToken>()).Returns([saved]);
-        await handler.Handle(command with { Values = new Dictionary<string, string> { [Key] = "true" } }, default);
+        await handler.Handle(command with { Values = new Dictionary<string, string> { [Key] = "true" } }, TestContext.Current.CancellationToken);
 
         saved.Value.Should().Be("true");
         _repository.Received(1).Add(Arg.Any<AiCapabilitySetting>());

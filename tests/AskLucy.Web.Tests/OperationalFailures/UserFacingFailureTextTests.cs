@@ -68,9 +68,9 @@ public sealed class UserFacingFailureTextTests
     [MemberData(nameof(Kinds))]
     public async Task MidStreamFailure_ShouldShowOnlyTheCalmSentence_OnTheWireAndInTheNextTurnsContext(AiProviderFailureKind kind)
     {
-        var harness = new ChatHarness();
+        using var harness = new ChatHarness();
 
-        var wire = await harness.RunTurnThrowingAsync(Failure(kind));
+        var wire = await harness.RunTurnThrowingAsync(Failure(kind), TestContext.Current.CancellationToken);
 
         var expected = UserFacingFailureText.For(OperationalFailureKinds.FromProvider(kind));
         var notice = wire.Split("\n\n").Select(l => l.StartsWith("data: ", StringComparison.Ordinal) ? l[6..] : l)
@@ -146,7 +146,7 @@ public sealed class UserFacingFailureTextTests
     }
 
     /// <summary>The controller over a fake <see cref="ISender"/>, as <c>AiControllerTurnOutcomeStreamTests</c> drives it.</summary>
-    internal sealed class ChatHarness
+    internal sealed class ChatHarness : IDisposable
     {
         private readonly ISender _mediator = Substitute.For<ISender>();
         private readonly MemoryStream _responseBody = new();
@@ -210,5 +210,7 @@ public sealed class UserFacingFailureTextTests
             await Task.Yield();
             throw failure;
         }
+
+        public void Dispose() => _responseBody.Dispose();
     }
 }

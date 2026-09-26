@@ -142,7 +142,7 @@ public sealed class HeightEnrichingBuildingFootprintProviderTests
         footprints.SearchAsync(Center, 200, Arg.Any<CancellationToken>()).Returns(Result());
         heights.SearchAsync(Center, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(BuildingHeightMap.Empty);
 
-        await provider.SearchAsync(Center, 200);
+        await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         await heights.Received(1).SearchAsync(Center, Arg.Is<int>(r => r > 200), Arg.Any<CancellationToken>());
     }
@@ -156,7 +156,7 @@ public sealed class HeightEnrichingBuildingFootprintProviderTests
         heights.SearchAsync(Center, Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns<Task<BuildingHeightMap>>(_ => throw new BuildingProviderUnavailableException("esri down"));
 
-        var result = await provider.SearchAsync(Center, 200);
+        var result = await provider.SearchAsync(Center, 200, TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(original);
     }

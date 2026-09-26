@@ -83,11 +83,20 @@ public sealed record ProviderHealthDto(ProviderHealthStatus Status, AiProviderFa
 
 public sealed record IncidentDetailDto : IncidentSummaryDto
 {
-    /// <summary>Starts from the summary; the caller's initializer supplies the detail members.</summary>
+    /// <summary>
+    /// Starts from the summary. <see cref="SetsRequiredMembersAttribute"/> tells the compiler every
+    /// required member is set here, so the detail's own required members are parameters rather than
+    /// left to the caller's initializer, where nothing would enforce them.
+    /// </summary>
     [SetsRequiredMembers]
-    public IncidentDetailDto(IncidentSummaryDto summary)
+    public IncidentDetailDto(
+        IncidentSummaryDto summary, CorrectiveActionDto correctiveAction, IReadOnlyList<UserRefDto> sampleUsers, bool canManage, bool canViewContent)
         : base(summary)
     {
+        CorrectiveAction = correctiveAction;
+        SampleUsers = sampleUsers;
+        CanManage = canManage;
+        CanViewContent = canViewContent;
     }
 
     public Guid? RecurrenceOfIncidentId { get; init; }

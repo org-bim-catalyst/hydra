@@ -39,7 +39,12 @@ public sealed class GetIncidentQueryHandler(
             ? await permissionResolver.ResolveAsync(viewerId, cancellationToken)
             : PermissionSet.Empty;
 
-        return new IncidentDetailDto(summary)
+        return new IncidentDetailDto(
+            summary,
+            new CorrectiveActionDto(action.Text, action.AdminRoute, action.AdminAction),
+            sampleUsers,
+            canManage: permissions.Contains(AdminPermissionCatalog.OperationalFailuresManage),
+            canViewContent: permissions.Contains(AdminPermissionCatalog.OperationalFailuresContentView))
         {
             RecurrenceOfIncidentId = incident.RecurrenceOfIncidentId,
             Acknowledged = incident is { AcknowledgedByUserId: { } acknowledgedBy, AcknowledgedAtUtc: { } acknowledgedAt }
@@ -48,11 +53,7 @@ public sealed class GetIncidentQueryHandler(
             Resolved = incident is { ResolvedByUserId: { } resolvedBy, ResolvedAtUtc: { } resolvedAt }
                 ? new IncidentResolutionDto(OperationalFailureReadModelBuilder.UserRef(resolvedBy, users), resolvedAt, incident.ResolutionNote)
                 : null,
-            CorrectiveAction = new CorrectiveActionDto(action.Text, action.AdminRoute, action.AdminAction),
             ProviderHealth = await ProviderHealthAsync(incident.ProviderId, cancellationToken),
-            SampleUsers = sampleUsers,
-            CanManage = permissions.Contains(AdminPermissionCatalog.OperationalFailuresManage),
-            CanViewContent = permissions.Contains(AdminPermissionCatalog.OperationalFailuresContentView),
         };
     }
 

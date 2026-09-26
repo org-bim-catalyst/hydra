@@ -274,7 +274,7 @@ public sealed class VoiceProviderRouterTests
             true,
             Arg.Any<CancellationToken>());
         _reporter.Received(1).ReportServed(VoiceOperations.TextToSpeech, new VoiceEngineIdentity("Supertonic", supertonic.Id, "model"));
-        _reporter.DidNotReceiveWithAnyArgs().ReportFailure(default!, default, default!, default);
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailure(default!, default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public sealed class VoiceProviderRouterTests
         await act.Should().ThrowAsync<AiProviderUnavailableException>();
         _reporter.Received(1).ReportFailure(
             VoiceOperations.TextToSpeech, new VoiceEngineIdentity("Supertonic", supertonic.Id, "model"), failure, Arg.Any<CancellationToken>());
-        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, default);
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

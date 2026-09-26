@@ -11,6 +11,7 @@ namespace AskLucy.Infrastructure.Tests.Buildings.Esri;
 public sealed class I3sPrimitivesTests
 {
     private static readonly GeoPoint Dubai = new(25.1560, 55.2218);
+    private static readonly double[] Float32Values = [1.5, 317.4];
 
     [Fact]
     public void DistanceMetres_ShouldBeZero_InsideTheEarthSizedRootBox()
@@ -40,7 +41,7 @@ public sealed class I3sPrimitivesTests
     public void ReadNumbers_ShouldReadFloat32AfterTheCount_AndFloat64AfterPadding()
     {
         I3sAttributeReader.ReadNumbers(EsriBuildingHeightSourceTests.Float32Attribute([1.5f, 317.4f]), "Float32")
-            .Should().BeEquivalentTo(new[] { 1.5, 317.4 }, o => o.Using<double>(c => c.Subject.Should().BeApproximately(c.Expectation, 1e-4)).WhenTypeIs<double>());
+            .Should().BeEquivalentTo(Float32Values, o => o.Using<double>(c => c.Subject.Should().BeApproximately(c.Expectation, 1e-4)).WhenTypeIs<double>());
 
         var float64 = new byte[8 + 16];
         BinaryPrimitives.WriteUInt32LittleEndian(float64, 2);
@@ -52,7 +53,7 @@ public sealed class I3sPrimitivesTests
     [Fact]
     public void ReadNumbers_ShouldRejectATruncatedBuffer()
     {
-        var act = () => I3sAttributeReader.ReadNumbers(EsriBuildingHeightSourceTests.Float32Attribute([1f, 2f])[..8], "Float32");
+        var act = () => I3sAttributeReader.ReadNumbers(EsriBuildingHeightSourceTests.Float32Attribute([1f, 2f]).AsSpan(..8), "Float32");
 
         act.Should().Throw<InvalidDataException>();
     }
