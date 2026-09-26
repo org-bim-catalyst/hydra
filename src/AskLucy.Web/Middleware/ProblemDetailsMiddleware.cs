@@ -473,11 +473,10 @@ public sealed class ProblemDetailsMiddleware(
             return;
         }
 
-        var isChat = context.Request.Path.StartsWithSegments("/api/v1/ai", StringComparison.OrdinalIgnoreCase);
         var route = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText;
         recorder.Record(new OperationalFailureReport
         {
-            Engine = isChat ? OperationalFailureEngine.Chat : OperationalFailureEngine.AiProvider,
+            Engine = EngineFor(context.Request.Path),
             Operation = route is null ? context.Request.Method : $"{context.Request.Method} /{route.TrimStart('/')}",
             Kind = kind.Value,
             Reason = exception is AiProviderException provider ? provider.Message : classifier.FallbackReason(exception),
@@ -488,6 +487,29 @@ public sealed class ProblemDetailsMiddleware(
                 ChatId = RouteGuid(context, "chatId"),
             },
         });
+    }
+
+    /// <summary>
+    /// The engine a failure the endpoint did not record itself is filed under. The AI routes are not
+    /// all chat: voice and image failures that escape their own reporting belong on those engines, or
+    /// the admin trail sends the administrator to the wrong page to fix them.
+    /// </summary>
+    private static OperationalFailureEngine EngineFor(PathString path)
+    {
+        if (path.StartsWithSegments("/api/v1/ai/voice", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/api/v1/ai/transcriptions", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationalFailureEngine.Voice;
+        }
+
+        if (path.StartsWithSegments("/api/v1/ai/images", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationalFailureEngine.ImageGeneration;
+        }
+
+        return path.StartsWithSegments("/api/v1/ai", StringComparison.OrdinalIgnoreCase)
+            ? OperationalFailureEngine.Chat
+            : OperationalFailureEngine.AiProvider;
     }
 
     private static Guid? RouteGuid(HttpContext context, string key) =>

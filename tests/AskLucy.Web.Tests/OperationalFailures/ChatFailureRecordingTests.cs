@@ -63,6 +63,20 @@ public sealed class ChatFailureRecordingTests
             .Which.Engine.Should().Be(OperationalFailureEngine.AiProvider);
     }
 
+    [Theory]
+    [InlineData("/api/v1/ai/voice/stt-session", OperationalFailureEngine.Voice)]
+    [InlineData("/api/v1/ai/voice/speak", OperationalFailureEngine.Voice)]
+    [InlineData("/api/v1/ai/transcriptions/microphone", OperationalFailureEngine.Voice)]
+    [InlineData("/api/v1/ai/images", OperationalFailureEngine.ImageGeneration)]
+    [InlineData("/api/v1/ai/translate", OperationalFailureEngine.Chat)]
+    public async Task BeforeTheStream_ShouldFileAnUnrecordedAiRouteFailure_UnderItsOwnEngine(string path, OperationalFailureEngine engine)
+    {
+        await RunMiddlewareAsync(MiddlewareContext(path), new AiProviderNotConfiguredException("ElevenLabs is switched off."));
+
+        Drain().Should().ContainSingle().Which.Should().BeOfType<OperationalFailureReport>()
+            .Which.Engine.Should().Be(engine);
+    }
+
     [Fact]
     public async Task BeforeTheStream_ShouldRecordNothing_ForAValidationFailure()
     {
