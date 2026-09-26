@@ -90,6 +90,11 @@ export function IncidentTable({
                   <Link component="button" variant="body2" onClick={() => onOpen(incident.id)} sx={{ textAlign: 'left' }}>
                     {incident.operation}
                   </Link>
+                  {incident.isRecurrence && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      Recurrence
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>{engineLabel(incident.engine)}</TableCell>
                 <TableCell>
@@ -105,6 +110,11 @@ export function IncidentTable({
                   {incident.storedOccurrenceCount < incident.occurrenceCount && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       showing {incident.storedOccurrenceCount} of {incident.occurrenceCount}
+                    </Typography>
+                  )}
+                  {incident.recoveryCount > 0 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      recovered {incident.recoveryCount}×
                     </Typography>
                   )}
                 </TableCell>

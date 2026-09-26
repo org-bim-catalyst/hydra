@@ -51,7 +51,7 @@ export function AdminOperationalFailuresPage() {
           onOpen={setOpenIncidentId}
         />
       </Paper>
-      <IncidentDrawer incidentId={openIncidentId} onClose={() => setOpenIncidentId(null)} />
+      <IncidentDrawer incidentId={openIncidentId} onClose={() => setOpenIncidentId(null)} onOpenIncident={setOpenIncidentId} />
     </AdminShell>
   )
 }

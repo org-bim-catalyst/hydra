@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.OperationalFailures.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Ai;
@@ -20,12 +21,18 @@ namespace AskLucy.Application.Ai;
 /// <see cref="AiProviderUnavailableException"/>, one of the three types
 /// <see cref="TextToSpeechStreamer"/> turns into an <c>audio-failed</c> event and a recorded
 /// failover to the browser's own voice.
+///
+/// specs/074 US2 — every engine failure also lands on the operational failure trail through
+/// <see cref="IVoiceFailureReporter"/>: a start failure as a failover (degraded-served when a later
+/// engine spoke, failed when none did), a mid-sentence failure as a plain failure, and an engine
+/// that serves again after failing over as a recovery.
 /// </summary>
 internal sealed partial class VoiceProviderRouter(
     IVoiceProviderRepository voiceProviders,
     IEnumerable<ITextToSpeechEngine> engines,
     IAiCredentialProtector credentialProtector,
     IAIProviderRepository aiProviders,
+    IVoiceFailureReporter failureReporter,
     ILogger<VoiceProviderRouter> logger) : ITextToSpeechProvider
 {
     private const string FallbackLanguage = "en";
@@ -53,7 +60,7 @@ internal sealed partial class VoiceProviderRouter(
     {
         var candidates = await GetCandidatesAsync(cancellationToken);
         var language = NormalizeLanguage(settings.Language);
-        Exception? lastFailure = null;
+        var startFailures = new List<(VoiceEngineIdentity Engine, Exception Failure)>();
 
         foreach (var candidate in candidates)
         {
@@ -67,26 +74,31 @@ internal sealed partial class VoiceProviderRouter(
             var attemptSettings = string.Equals(settings.ProviderKey, candidate.Engine.ProviderKey, StringComparison.OrdinalIgnoreCase)
                 ? settings with { Language = language, FallbackVoiceId = candidate.DefaultVoiceId }
                 : SettingsFor(candidate, language);
+            var identity = IdentityOf(candidate, attemptSettings);
 
             var attempt = await TryStartAsync(candidate, textChunk, attemptSettings, cancellationToken);
             if (attempt.Failure is not null)
             {
                 _failedProviderKeys.Add(candidate.Engine.ProviderKey);
-                lastFailure = attempt.Failure;
+                startFailures.Add((identity, attempt.Failure));
                 Log.VoiceProviderFailedOver(logger, candidate.Engine.ProviderKey, attempt.Failure.Message);
                 continue;
             }
 
+            // This engine is speaking (or had nothing to say, which is not a failure), so every
+            // engine that failed before it was a failover the listener never noticed.
+            ReportFailovers(startFailures, fallbackServed: true, cancellationToken);
+            failureReporter.ReportServed(VoiceOperations.TextToSpeech, identity);
+
             if (attempt.Enumerator is null)
             {
-                // The engine had nothing to say for this text — not a failure.
                 yield break;
             }
 
             await using (attempt.Enumerator)
             {
                 yield return attempt.Enumerator.Current;
-                while (await attempt.Enumerator.MoveNextAsync())
+                while (await MoveNextOrReportAsync(attempt.Enumerator, identity, cancellationToken))
                 {
                     yield return attempt.Enumerator.Current;
                 }
@@ -95,10 +107,55 @@ internal sealed partial class VoiceProviderRouter(
             yield break;
         }
 
-        throw new AiProviderUnavailableException(
-            candidates.Count == 0 ? "No voice provider is configured." : "Every configured voice provider failed.",
+        var lastFailure = startFailures.Count == 0 ? null : startFailures[^1].Failure;
+        ReportFailovers(startFailures, fallbackServed: false, cancellationToken);
+        if (candidates.Count == 0)
+        {
+            var notConfigured = new AiProviderNotConfiguredException("No voice provider is configured.");
+            failureReporter.ReportFailure(VoiceOperations.TextToSpeech, null, notConfigured, cancellationToken);
+            var unconfigured = new AiProviderUnavailableException(notConfigured.Message, notConfigured);
+            unconfigured.MarkOperationalFailureRecorded();
+            throw unconfigured;
+        }
+
+        var exhausted = new AiProviderUnavailableException(
+            "Every configured voice provider failed.",
             lastFailure);
+
+        // Each engine's own failure is already on the trail; the summary adds nothing to it.
+        exhausted.MarkOperationalFailureRecorded();
+        throw exhausted;
     }
+
+    /// <summary>Pulls the next chunk after audio has started. A failure here cannot be failed
+    /// over (the listener heard part of the sentence), so it is recorded and rethrown.</summary>
+    private async ValueTask<bool> MoveNextOrReportAsync(
+        IAsyncEnumerator<byte[]> enumerator, VoiceEngineIdentity identity, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await enumerator.MoveNextAsync();
+        }
+        catch (Exception ex)
+        {
+            failureReporter.ReportFailure(VoiceOperations.TextToSpeech, identity, ex, cancellationToken);
+            throw;
+        }
+    }
+
+    private void ReportFailovers(
+        List<(VoiceEngineIdentity Engine, Exception Failure)> startFailures, bool fallbackServed, CancellationToken cancellationToken)
+    {
+        foreach (var (engine, failure) in startFailures)
+        {
+            failureReporter.ReportFailover(VoiceOperations.TextToSpeech, engine, failure, fallbackServed, cancellationToken);
+        }
+
+        startFailures.Clear();
+    }
+
+    private static VoiceEngineIdentity IdentityOf(Candidate candidate, VoiceSettingsDto settings) =>
+        new(candidate.Engine.DisplayName, candidate.ProviderId, string.IsNullOrWhiteSpace(settings.ModelId) ? null : settings.ModelId);
 
     /// <summary>Starts the engine's stream and pulls its first chunk, so a failure to produce
     /// any audio at all surfaces here — where failing over is still invisible to the listener.</summary>
@@ -181,7 +238,7 @@ internal sealed partial class VoiceProviderRouter(
                 }
             }
 
-            candidates.Add(new Candidate(engine, row.DefaultVoiceId, apiKey, credentialFailure));
+            candidates.Add(new Candidate(engine, row.Id, row.DefaultVoiceId, apiKey, credentialFailure));
         }
 
         _candidates = candidates;
@@ -201,6 +258,7 @@ internal sealed partial class VoiceProviderRouter(
 
     private sealed record Candidate(
         ITextToSpeechEngine Engine,
+        Guid ProviderId,
         string? DefaultVoiceId,
         string? ApiKey,
         AiProviderException? CredentialFailure);

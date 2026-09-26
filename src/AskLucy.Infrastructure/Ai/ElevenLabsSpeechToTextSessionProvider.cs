@@ -40,6 +40,8 @@ public sealed class ElevenLabsSpeechToTextSessionProvider(
 
     private readonly ElevenLabsOptions _options = options.Value;
 
+    public string ProviderName => "ElevenLabs";
+
     public async Task<SpeechToTextSession> CreateSessionAsync(string language, CancellationToken cancellationToken = default)
     {
         using var client = CreateClient(await ResolveApiKeyAsync(cancellationToken));

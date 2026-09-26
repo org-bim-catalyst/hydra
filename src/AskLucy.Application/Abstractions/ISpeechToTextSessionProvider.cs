@@ -14,6 +14,9 @@ public sealed record SpeechToTextSession(string Token, DateTime ExpiresAtUtc);
 /// </summary>
 public interface ISpeechToTextSessionProvider
 {
+    /// <summary>The vendor name the operational failure trail shows for this provider (specs/074).</summary>
+    string ProviderName { get; }
+
     /// <summary><paramref name="language"/> hints the provider's transcription language
     /// (research.md Decision 9) — the same value already threaded through the legacy TTS
     /// path in <c>ChatPage.tsx</c>.</summary>

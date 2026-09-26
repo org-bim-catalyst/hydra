@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.OperationalFailures;
 
 namespace AskLucy.Application.Ai;
 
@@ -41,7 +42,7 @@ internal static class TextToSpeechStreamer
 
         if (startFailure is not null)
         {
-            await healthRecorder.RecordFailoverAsync(userId, Truncate(startFailure.Message), cancellationToken);
+            await healthRecorder.RecordFailoverAsync(userId, FailureReasonSanitizer.Sanitize(startFailure.Message), cancellationToken);
             yield return VoiceReplyEvent.AudioFailedEvent();
             yield break;
         }
@@ -64,7 +65,7 @@ internal static class TextToSpeechStreamer
 
                 if (moveNextFailure is not null)
                 {
-                    await healthRecorder.RecordFailoverAsync(userId, Truncate(moveNextFailure.Message), cancellationToken);
+                    await healthRecorder.RecordFailoverAsync(userId, FailureReasonSanitizer.Sanitize(moveNextFailure.Message), cancellationToken);
                     yield return VoiceReplyEvent.AudioFailedEvent();
                     yield break;
                 }
@@ -107,8 +108,6 @@ internal static class TextToSpeechStreamer
         await Task.CompletedTask;
         yield break;
     }
-
-    private static string Truncate(string message) => message.Length > 500 ? message[..500] : message;
 
     /// <summary>ElevenLabs strips emojis and speaker-tag-like markup before checking for
     /// non-empty text, and 400s with "input_text_empty" on whatever's left — a chunk of pure

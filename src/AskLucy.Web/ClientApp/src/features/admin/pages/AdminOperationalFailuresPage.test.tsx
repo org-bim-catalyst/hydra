@@ -227,3 +227,50 @@ describe('AdminOperationalFailuresPage (specs/074 US1)', () => {
     expect(screen.getAllByText('Retry').length).toBeGreaterThan(0)
   })
 })
+
+describe('AdminOperationalFailuresPage (specs/074 US2)', () => {
+  const burst: IncidentSummary = {
+    ...credentialIncident,
+    id: 'incident-burst',
+    engine: 'Voice',
+    operation: 'Text-to-speech',
+    providerName: 'ElevenLabs',
+    model: 'eleven_flash_v2_5',
+    occurrenceCount: 7,
+    storedOccurrenceCount: 7,
+    distinctUserCount: 1,
+    recoveryCount: 7,
+    isRecurrence: true,
+  }
+
+  it('shows a burst as one row with its recoveries and marks a recurrence', async () => {
+    server.use(http.get('*/api/v1/admin/operational-failures/incidents', () => HttpResponse.json(paged([burst]))))
+    renderPage()
+
+    const row = (await screen.findByText('Text-to-speech')).closest('tr')!
+    expect(within(row).getByText('7')).toBeInTheDocument()
+    expect(within(row).getByText('recovered 7×')).toBeInTheDocument()
+    expect(within(row).getByText('Recurrence')).toBeInTheDocument()
+  })
+
+  it('links a recurrence back to the resolved incident it follows', async () => {
+    const opened: string[] = []
+    server.use(
+      http.get('*/api/v1/admin/operational-failures/incidents', () => HttpResponse.json(paged([burst]))),
+      http.get('*/api/v1/admin/operational-failures/incidents/:id', ({ params }) => {
+        opened.push(String(params.id))
+        return params.id === burst.id
+          ? HttpResponse.json({ ...detail, ...burst, recurrenceOfIncidentId: 'incident-earlier' })
+          : HttpResponse.json({ ...detail, ...burst, id: 'incident-earlier', operation: 'Earlier text-to-speech', isRecurrence: false })
+      }),
+    )
+    renderPage()
+    fireEvent.click(await screen.findByText('Text-to-speech'))
+
+    expect(await screen.findByText(/recovered 7×/)).toBeInTheDocument()
+    fireEvent.click(await screen.findByText('Recurrence of an earlier resolved incident'))
+
+    expect(await screen.findByText('Earlier text-to-speech')).toBeInTheDocument()
+    expect(opened).toContain('incident-earlier')
+  })
+})

@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="AskLucy.Application.Tests" />
+    <!-- specs/074 SC-003: the burst replay drives the real voice router into the real failure store. -->
+    <InternalsVisibleTo Include="AskLucy.Web.Tests" />
   </ItemGroup>
 
   <ItemGroup>

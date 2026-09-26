@@ -59,6 +59,11 @@ public static class DependencyInjection
         // rows. Scoped, so an engine that fails is skipped for the rest of the request only.
         services.AddScoped<ITextToSpeechProvider, VoiceProviderRouter>();
 
+        // specs/074 US2 — voice failovers and recoveries on the operational failure trail. The
+        // memory is a singleton so a failover in one request pairs with a recovery in a later one.
+        services.AddSingleton<VoiceFailoverMemory>();
+        services.AddScoped<IVoiceFailureReporter, VoiceFailureReporter>();
+
         // Image generation (specs/057 follow-up) — one service for every caller; the model comes
         // from the ImageGeneration capability assignment, and any provider response form (URL,
         // base64, data URL, binary) is normalised by the materializer.

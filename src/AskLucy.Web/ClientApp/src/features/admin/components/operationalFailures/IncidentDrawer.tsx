@@ -8,6 +8,7 @@ import {
   Divider,
   Drawer,
   IconButton,
+  Link,
   Stack,
   Tooltip,
   Typography,
@@ -67,7 +68,7 @@ function CopyCorrelationId({ value }: { value: string }) {
   )
 }
 
-function IncidentBody({ incident }: { incident: IncidentDetail }) {
+function IncidentBody({ incident, onOpenIncident }: { incident: IncidentDetail; onOpenIncident: (id: string) => void }) {
   const isAccess = incident.engine === 'Access'
 
   return (
@@ -111,7 +112,15 @@ function IncidentBody({ incident }: { incident: IncidentDetail }) {
         {isAccess
           ? `${incident.distinctSourceCount} sources · ${incident.distinctUserCount} accounts`
           : `${incident.occurrenceCount} occurrences · ${incident.distinctUserCount} users`}
+        {incident.recoveryCount > 0 && ` · recovered ${incident.recoveryCount}×`}
       </Field>
+      {incident.recurrenceOfIncidentId && (
+        <Field label="History">
+          <Link component="button" variant="body2" onClick={() => onOpenIncident(incident.recurrenceOfIncidentId!)}>
+            Recurrence of an earlier resolved incident
+          </Link>
+        </Field>
+      )}
       {incident.acknowledged && (
         <Field label="Acknowledged">
           <UserRefLink user={incident.acknowledged.by} /> · {formatWhen(incident.acknowledged.atUtc)}
@@ -145,8 +154,19 @@ function IncidentBody({ incident }: { incident: IncidentDetail }) {
   )
 }
 
-/** specs/074 FR-012/FR-015/FR-017 — one incident's detail, its fix, and the occurrences behind it. */
-export function IncidentDrawer({ incidentId, onClose }: { incidentId: string | null; onClose: () => void }) {
+/**
+ * specs/074 FR-012/FR-015/FR-017 — one incident's detail, its fix, and the occurrences behind it.
+ * A recurrence links back to the resolved incident it follows, opened in the same drawer.
+ */
+export function IncidentDrawer({
+  incidentId,
+  onClose,
+  onOpenIncident,
+}: {
+  incidentId: string | null
+  onClose: () => void
+  onOpenIncident: (id: string) => void
+}) {
   const query = useQuery({
     queryKey: operationalFailuresApi.OPERATIONAL_FAILURE_QUERY_KEYS.incident(incidentId ?? ''),
     queryFn: () => operationalFailuresApi.getIncident(incidentId!),
@@ -177,7 +197,7 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string | n
             Could not load this incident.
           </Alert>
         )}
-        {query.data && <IncidentBody incident={query.data} />}
+        {query.data && <IncidentBody incident={query.data} onOpenIncident={onOpenIncident} />}
       </Box>
     </Drawer>
   )

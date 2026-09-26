@@ -414,29 +414,32 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Tests for User Story 2 (write first, confirm failing)
 
-- [ ] T061 [P] [US2] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/ElevenLabsBurstReplayTests.cs`: drive `TextToSpeechStreamer` with a substituted ElevenLabs engine that throws `AiProviderCredentialRejectedException` and a fallback engine that succeeds, 7 failovers then 7 recoveries within 70 s (fake `TimeProvider`). Assert:
+- [X] T061 [P] [US2] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/ElevenLabsBurstReplayTests.cs`: drive `TextToSpeechStreamer` with a substituted ElevenLabs engine that throws `AiProviderCredentialRejectedException` and a fallback engine that succeeds, 7 failovers then 7 recoveries within 70 s (fake `TimeProvider`). Assert:
   - 1 incident, Critical, Voice, kind CredentialRejected.
   - `OccurrenceCount = 7`, `RecoveryCount = 7`, `DistinctUserCount = 1`.
   - Every occurrence `IsFailover`.
   - The `summary` endpoint increased by exactly 1.
   - `VoiceProviderFailoverEvents` still has its 14 rows, unchanged.
-- [ ] T062 [P] [US2] Persistence tests in `tests/AskLucy.Persistence.Tests/OperationalFailures/OperationalFailureGroupingTests.cs`:
+  - *Done 2026-09-26*: drives the real `VoiceProviderRouter` + `VoiceFailureReporter` + `ChannelOperationalFailureRecorder` into the real ingestor/store (the router, not `TextToSpeechStreamer`, is where engines fail over — see T064). The first four assertions pass. The `summary`-endpoint assertion is deferred to US3 (the endpoint does not exist yet, T069), and the `VoiceProviderFailoverEvents` assertion is dropped: the router's per-engine failover never wrote those rows (only the streamer's whole-voice give-up does), so there were never 14 to preserve.
+- [X] T062 [P] [US2] Persistence tests in `tests/AskLucy.Persistence.Tests/OperationalFailures/OperationalFailureGroupingTests.cs`:
   - The same key across 3 users gives 1 incident with `DistinctUserCount = 3`.
   - Acknowledge, then a new occurrence, leaves the state `Acknowledged` (not re-flagged).
   - Resolve, then a new occurrence, opens a new incident with `RecurrenceOfIncidentId`.
   - `IncrementRecoveryAsync` with no open incident is a no-op.
   - The same kind with a different model gives 2 incidents.
   - The same kind with a different operation gives 2 incidents.
+  - *Done*: 7 tests, gated like the rest of the persistence suite (compiled, skipped without the dedicated-database flag).
 
 ### Implementation for User Story 2
 
-- [ ] T063 [US2] Implement `IncrementRecoveryAsync(groupingKey)` in `src/AskLucy.Persistence/Repositories/OperationalFailureStore.cs`: `ExecuteUpdateAsync` `RecoveryCount + 1` on the unresolved incident for the key, returning 0 rows affected when there is none. Add `RecordRecovery` handling to `ChannelOperationalFailureRecorder` and to `OperationalFailureIngestor`, which computes the key from `VoiceRecoveryReport` with the same inputs as the failover report.
-- [ ] T064 [US2] In `src/AskLucy.Application/Ai/TextToSpeechStreamer.cs`:
+- [X] T063 [US2] Implement `IncrementRecoveryAsync(groupingKey)` in `src/AskLucy.Persistence/Repositories/OperationalFailureStore.cs`: `ExecuteUpdateAsync` `RecoveryCount + 1` on the unresolved incident for the key, returning 0 rows affected when there is none. Add `RecordRecovery` handling to `ChannelOperationalFailureRecorder` and to `OperationalFailureIngestor`, which computes the key from `VoiceRecoveryReport` with the same inputs as the failover report. *Already delivered in Foundational (T027 ingestor, T029 store, T033 recorder).*
+- [X] T064 [US2] In `src/AskLucy.Application/Ai/TextToSpeechStreamer.cs`:
   - At the failover site (≈L44), after the existing `VoiceProviderHealthRecorder` call, call `recorder.Record(new() { Engine = Voice, Operation = "Text-to-speech", Kind = classifier.Classify(ex, cancellationToken) ?? UnexpectedError, Outcome = fallbackServed ? DegradedServed : Failed, ProviderName, Model, UserId, IsFailover = true, Exception = ex, Reason = "Text-to-speech request failed" })`.
   - Stop passing `Truncate(ex.Message)` into anything user-visible.
   - At the recovery site (≈L67), call `recorder.RecordRecovery(...)` with the same provider, model, kind and operation. Keep the kind of the last failover, held for the session.
-- [ ] T065 [US2] In `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs` (≈L48), do the same, with `Operation = "Transcription"`.
-- [ ] T066 [US2] Show `recoveryCount` ("recovered N×") and `isRecurrence` ("Recurrence of an earlier resolved incident", linked) in `ClientApp/src/features/admin/components/operationalFailures/IncidentTable.tsx` and `IncidentDrawer.tsx`, and extend `AdminOperationalFailuresPage.test.tsx` for both.
+  - *Design deviation (done)*: the engine-to-engine failover and the recovery happen in `VoiceProviderRouter`, not the streamer — the streamer only sees the router's final give-up. Reporting therefore lives in a new `IVoiceFailureReporter` (`src/AskLucy.Application/Ai/VoiceFailureReporter.cs`) called by the router: a failover records Engine=Voice with the classified kind and `DegradedServed`/`Failed`; an engine that serves again records the recovery. The failover's kind and model are held in the singleton `VoiceFailoverMemory` keyed by (user, operation, provider), so a failover in one request pairs with a recovery in a later one. An all-engines failure is recorded once, and the thrown exception is marked recorded. The streamer's `Truncate(ex.Message)` is replaced by `FailureReasonSanitizer.Sanitize`.
+- [X] T065 [US2] In `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs` (≈L48), do the same, with `Operation = "Transcription"`. *Done through the same `IVoiceFailureReporter`; `ISpeechToTextSessionProvider` gained `ProviderName` for the record.*
+- [X] T066 [US2] Show `recoveryCount` ("recovered N×") and `isRecurrence` ("Recurrence of an earlier resolved incident", linked) in `ClientApp/src/features/admin/components/operationalFailures/IncidentTable.tsx` and `IncidentDrawer.tsx`, and extend `AdminOperationalFailuresPage.test.tsx` for both.
 
 **Checkpoint**: SC-003 passes. US1 and US2 together are the P1 deliverable.
 

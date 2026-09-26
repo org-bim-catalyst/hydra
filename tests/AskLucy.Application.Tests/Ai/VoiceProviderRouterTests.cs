@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
+using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public sealed class VoiceProviderRouterTests
     private readonly IVoiceProviderRepository _repository = Substitute.For<IVoiceProviderRepository>();
     private readonly IAiCredentialProtector _protector = Substitute.For<IAiCredentialProtector>();
     private readonly IAIProviderRepository _aiProviders = Substitute.For<IAIProviderRepository>();
+    private readonly IVoiceFailureReporter _reporter = Substitute.For<IVoiceFailureReporter>();
     private readonly List<AIProvider> _vendors = [];
 
     public VoiceProviderRouterTests()
@@ -27,7 +29,7 @@ public sealed class VoiceProviderRouterTests
     }
 
     private VoiceProviderRouter CreateRouter(params FakeEngine[] engines) =>
-        new(_repository, engines, _protector, _aiProviders, NullLogger<VoiceProviderRouter>.Instance);
+        new(_repository, engines, _protector, _aiProviders, _reporter, NullLogger<VoiceProviderRouter>.Instance);
 
     private void Configure(params VoiceProvider[] rows) =>
         _repository.ListByPriorityAsync(Arg.Any<CancellationToken>()).Returns(rows);
@@ -104,7 +106,7 @@ public sealed class VoiceProviderRouterTests
         var failover = FakeEngine.Speaking("ElevenLabs", [7]);
         Configure(Row("Supertonic", 0, "F1"), Row("ElevenLabs", 1, "rachel", "protected:key-1"));
         var logger = new FakeLogger<VoiceProviderRouter>();
-        var router = new VoiceProviderRouter(_repository, [primary, failover], _protector, _aiProviders, logger);
+        var router = new VoiceProviderRouter(_repository, [primary, failover], _protector, _aiProviders, _reporter, logger);
 
         var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
         var audio = await DrainAsync(router.StreamSpeechAsync("Hello", settings, CancellationToken.None));
@@ -248,6 +250,81 @@ public sealed class VoiceProviderRouterTests
         await DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
 
         engine.Calls.Should().ContainSingle().Which.ApiKey.Should().Be("vendor-key");
+    }
+
+    [Fact]
+    public async Task AFailover_ShouldBeReportedAsDegradedServed_AndTheServingEngineAsServed()
+    {
+        // specs/074 US2 — the start failure is a failover the listener never noticed.
+        var failure = new AiProviderAuthenticationException("The voice provider rejected the credential.");
+        var primary = FakeEngine.Failing("ElevenLabs", failure);
+        var failover = FakeEngine.Speaking("Supertonic", [7]);
+        var elevenLabs = Row("ElevenLabs", 0, "rachel");
+        var supertonic = Row("Supertonic", 1, "F1");
+        Configure(elevenLabs, supertonic);
+        var router = CreateRouter(primary, failover);
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+
+        await DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
+
+        _reporter.Received(1).ReportFailover(
+            VoiceOperations.TextToSpeech,
+            new VoiceEngineIdentity("ElevenLabs", elevenLabs.Id, "model"),
+            failure,
+            true,
+            Arg.Any<CancellationToken>());
+        _reporter.Received(1).ReportServed(VoiceOperations.TextToSpeech, new VoiceEngineIdentity("Supertonic", supertonic.Id, "model"));
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailure(default!, default, default!, default);
+    }
+
+    [Fact]
+    public async Task EveryEngineFailing_ShouldReportEachAsAFailedFailover_AndMarkTheSummary()
+    {
+        var primary = FakeEngine.Failing("Supertonic", new AiProviderUnavailableException("model missing"));
+        var failover = FakeEngine.Failing("ElevenLabs", new AiProviderRateLimitedException("quota"));
+        Configure(Row("Supertonic", 0), Row("ElevenLabs", 1));
+        var router = CreateRouter(primary, failover);
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+
+        var act = () => DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
+
+        var thrown = (await act.Should().ThrowAsync<AiProviderUnavailableException>()).Which;
+        thrown.IsOperationalFailureRecorded().Should().BeTrue("each engine's own failure is already on the trail");
+        _reporter.Received(2).ReportFailover(
+            VoiceOperations.TextToSpeech, Arg.Any<VoiceEngineIdentity>(), Arg.Any<Exception>(), false, Arg.Any<CancellationToken>());
+        _reporter.DidNotReceiveWithAnyArgs().ReportServed(default!, default!);
+    }
+
+    [Fact]
+    public async Task AFailureAfterAudioStarted_ShouldBeReportedAsAPlainFailure()
+    {
+        var failure = new AiProviderUnavailableException("inference failed");
+        var primary = FakeEngine.FailingAfter("Supertonic", [1], failure);
+        var supertonic = Row("Supertonic", 0);
+        Configure(supertonic);
+        var router = CreateRouter(primary);
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+
+        var act = () => DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
+
+        await act.Should().ThrowAsync<AiProviderUnavailableException>();
+        _reporter.Received(1).ReportFailure(
+            VoiceOperations.TextToSpeech, new VoiceEngineIdentity("Supertonic", supertonic.Id, "model"), failure, Arg.Any<CancellationToken>());
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, default);
+    }
+
+    [Fact]
+    public async Task NoConfiguredProvider_ShouldBeReportedAsNotConfigured()
+    {
+        Configure();
+        var router = CreateRouter(FakeEngine.Speaking("Supertonic", [1]));
+        var settings = await router.ResolveDefaultSettingsAsync("en", CancellationToken.None);
+
+        var act = () => DrainAsync(router.StreamSpeechAsync("Hello.", settings, CancellationToken.None));
+
+        (await act.Should().ThrowAsync<AiProviderUnavailableException>()).Which.IsOperationalFailureRecorded().Should().BeTrue();
+        _reporter.Received(1).ReportFailure(
+            VoiceOperations.TextToSpeech, null, Arg.Any<AiProviderNotConfiguredException>(), Arg.Any<CancellationToken>());
     }
 
     private static AIProvider Vendor(bool enabled, string ciphertext)
