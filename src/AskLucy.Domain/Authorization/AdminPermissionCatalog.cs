@@ -11,6 +11,8 @@ public static class AdminPermissionCatalog
 
     public const string OperationalFailuresView = "admin.operational-failures.view";
 
+    public const string OperationalFailuresManage = "admin.operational-failures.manage";
+
     public const string OperationalFailuresContentView = "admin.operational-failures.content.view";
 
     /// <summary>
@@ -64,7 +66,7 @@ public static class AdminPermissionCatalog
         // Operational failures (specs/074). content.view is Super-User-controlled (FR-016e–k): it
         // is the one key the built-in Administrator role does not hold implicitly.
         _allList.Add(Permission(OperationalFailuresView, AdminArea.OperationalFailures, AdminPermissionLevel.View, "View operational failures", "View the operational failure trail, with metadata-only links to affected chats, workflow runs and documents."));
-        _allList.Add(Permission("admin.operational-failures.manage", AdminArea.OperationalFailures, AdminPermissionLevel.Manage, "Manage operational failures", "Acknowledge, resolve, and reopen operational failure incidents."));
+        _allList.Add(Permission(OperationalFailuresManage, AdminArea.OperationalFailures, AdminPermissionLevel.Manage, "Manage operational failures", "Acknowledge, resolve, and reopen operational failure incidents."));
         _allList.Add(Permission(OperationalFailuresContentView, AdminArea.OperationalFailures, AdminPermissionLevel.View, "View user content in failure investigations", "Read the full content of another user's chat, workflow run or document from a failure incident. Every access is audited. Only a Super User can grant or revoke it; it grants nothing without View operational failures."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);

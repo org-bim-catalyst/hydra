@@ -308,15 +308,15 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - The credential kinds for Chat, AiProvider and Embeddings give `/admin/ai-providers?select={providerId}`; for Voice, `/admin/voice?select=…`.
   - `RateLimited`/`Unavailable`/`TimedOut` give the "No action needed unless this persists" text with no route.
   - BackgroundJob gives `AdminAction = OpenJobsDashboard`.
-- [ ] T040 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/IncidentQueriesTests.cs`: `ListIncidentsQuery`, `GetIncidentQuery` and `ListOccurrencesQuery` handlers map to the contract shapes, including `UserRef.status` Active/Deleted/Erased, the `subject.deleted` flag and the `providerHealth` projection (FR-017).
-- [ ] T041 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/ChatInvestigationTests.cs`:
+- [X] T040 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/IncidentQueriesTests.cs`: `ListIncidentsQuery`, `GetIncidentQuery` and `ListOccurrencesQuery` handlers map to the contract shapes, including `UserRef.status` Active/Deleted/Erased, the `subject.deleted` flag and the `providerHealth` projection (FR-017).
+- [X] T041 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/ChatInvestigationTests.cs`:
   - An incident not referencing the chat gives `KeyNotFoundException`.
   - Without content.view: metadata plus `failurePoints`, `transcript == null`, and no access event.
   - With content.view and the viewer ≠ owner: the transcript with `isFailedTurn` set, and exactly one `UserContentAccessEvent` added **before** the transcript loads (assert call order).
   - With content.view and the viewer == owner: no event.
   - If the access-event insert throws, the handler throws and returns no content.
   - A soft-deleted chat gives `deleted: true` and no transcript.
-- [ ] T042 [P] [US1] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/AdminOperationalFailuresEndpointsTests.cs`:
+- [X] T042 [P] [US1] Web test in `tests/AskLucy.Web.Tests/OperationalFailures/AdminOperationalFailuresEndpointsTests.cs`:
   - `GET incidents`, `incidents/{id}`, `incidents/{id}/occurrences` and `incidents/{id}/chats/{chatId}` return 403 without view, as an ordinary user and as a custom role lacking it.
   - They return 200 with view.
   - The chat investigation JSON has `transcript: null` for an Administrator (no grant) and non-null for a Super User (SC-009).
@@ -352,30 +352,36 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
   _Done:_ `Operation` is `"{METHOD} /{route template}"` rather than the endpoint display name, so ids in the URL never split one failure into several incidents. The middleware records when the exception is a provider failure or maps to ≥ 500. `DescribeTurnFailure` was removed; the mid-stream catch uses `UserFacingFailureText.For(kind)` directly and records without marking, because nothing is rethrown. The `AiCapabilityNotConfiguredException` detail is now `Later` for non-admins; admins keep the old prose. T037 (c) asserts the persisted `TurnOutcomeJson` `failureReason`, which is the exact input `RecentTurnOutcomeSummary` reads on the next turn.
 - [X] T049 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/CorrectiveActionCatalog.cs` following the [data-model.md](data-model.md#application-level-types-not-persisted) mapping table (`CorrectiveAction { Text, AdminRoute?, AdminAction? }`). Makes T039 pass. _Done:_ `For` also takes an optional `accountEmail` (Access → `/admin/users?search=`). Workflow/Agent/DocumentProcessing return "Open the item…" with no route; the investigation links live on each occurrence.
-- [ ] T050 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/OperationalFailureDtos.cs` with `IncidentSummaryDto`, `IncidentDetailDto`, `OccurrenceDto`, `UserRefDto`, `BulkTransitionResultDto`, `ChatInvestigationDto`, `WorkflowRunInvestigationDto` and `DocumentInvestigationDto`, exactly per [contracts/admin-operational-failures.md → Shapes](contracts/admin-operational-failures.md#shapes).
-- [ ] T051 [US1] Add these read methods to `IOperationalFailureStore` and implement them in `OperationalFailureStore`:
+- [X] T050 [P] [US1] Create `src/AskLucy.Application/OperationalFailures/OperationalFailureDtos.cs` with `IncidentSummaryDto`, `IncidentDetailDto`, `OccurrenceDto`, `UserRefDto`, `BulkTransitionResultDto`, `ChatInvestigationDto`, `WorkflowRunInvestigationDto` and `DocumentInvestigationDto`, exactly per [contracts/admin-operational-failures.md → Shapes](contracts/admin-operational-failures.md#shapes).
+- [X] T051 [US1] Add these read methods to `IOperationalFailureStore` and implement them in `OperationalFailureStore`:
   - `ListIncidentsAsync(IncidentFilter, page, pageSize)`, with every filter from the contract: user via `EXISTS` on participants, `state=Unresolved` by default, ordered by `LastSeenUtc DESC`, returning a total count.
   - `GetIncidentAsync`
   - `ListOccurrencesAsync(incidentId, page, pageSize)`
   - `IncidentReferencesAsync(incidentId, InvestigatedItemType, itemId)`
-- [ ] T052 [US1] Create these queries (query, validator and handler) under `src/AskLucy.Application/OperationalFailures/Queries/`:
+- [X] T052 [US1] Create these queries (query, validator and handler) under `src/AskLucy.Application/OperationalFailures/Queries/`:
   - `ListIncidents/`: validator for `from ≤ to`, `pageSize ≤ 100` and enum values.
   - `GetIncident/`: resolves users through `IIdentityService`, provider health through the AI provider repository, and the corrective action.
   - `ListOccurrences/`
 
   Makes T040 pass.
-- [ ] T053 [US1] Create `src/AskLucy.Application/OperationalFailures/Investigations/GetChatInvestigation/` (query and handler) per research D15:
+
+  _Done:_ users and item labels resolve through a new batch `IOperationalFailureReferenceLookup` (one query per kind, soft-delete filters ignored) rather than `IIdentityService`, which has no batch lookup; `OperationalFailureReadModelBuilder` shares the mapping between the three handlers. A user that no longer resolves is `Erased`; an item that no longer resolves is `deleted`. `providerHealth` is null when `ProviderId` is not an AI provider (voice providers). `OperationalFailuresManage` joined the catalogue constants for `canManage`.
+- [X] T053 [US1] Create `src/AskLucy.Application/OperationalFailures/Investigations/GetChatInvestigation/` (query and handler) per research D15:
   - Metadata from the chat repository, read-only, ignoring the ownership guard. This is the only intended bypass, gated by the incident reference.
   - The `content.view` check via `ICurrentUserPermissions` (or the existing permission accessor).
   - `IUserContentAccessEventRepository.AddAsync` plus the unit-of-work save **before** loading messages.
 
   Makes T041 pass.
-- [ ] T054 [US1] Create `src/AskLucy.Web/Controllers/v1/AdminOperationalFailuresController.cs`:
+
+  _Done:_ the store method is named `FindItemReferencesAsync` (null = not referenced). Metadata comes from a new content-free `IMessageRepository.ListOutlineByChatIdAsync` (`MessageOutline`), so message count and turn numbers need no content read; content is loaded only after the access event is saved, and only when viewer ≠ owner is an event written. The permission check uses `IEffectivePermissionResolver` on the viewer's stored role.
+- [X] T054 [US1] Create `src/AskLucy.Web/Controllers/v1/AdminOperationalFailuresController.cs`:
   - `[ApiController]`, `[EnableRateLimiting("admin-endpoints")]`, `[Route("api/v1/admin/operational-failures")]`.
   - `GET incidents`, `incidents/{id:guid}`, `incidents/{id:guid}/occurrences` and `incidents/{incidentId:guid}/chats/{chatId:guid}`, each `[RequirePermission("admin.operational-failures.view")]`, calling only `ISender`.
   - Every action documents its status codes for OpenAPI with `[ProducesResponseType]` (200 with the DTO type, 403, 404; 409 where it applies), as `AdminAiProvidersController` does (constitution §6). This applies to every endpoint later tasks add to this controller.
 
   Makes T042 pass.
+
+  _Done:_ the transcript tests seed real Identity users (Administrator, Super User, owner) because the handler resolves permissions from the stored role, not the token.
 - [ ] T055 [P] [US1] Create `ClientApp/src/features/admin/api/adminOperationalFailuresApi.ts`: typed functions and TS types mirroring the contract shapes, and TanStack Query keys under `['admin','operational-failures',…]`.
 - [ ] T056 [P] [US1] In `ClientApp/src/features/admin/adminPermissions.ts`, mirror the three new keys and `SUPER_USER_CONTROLLED_KEYS`. In `ClientApp/src/features/admin/adminNav.tsx`, add `{ path: '/admin/operational-failures', label: 'Operational failures', icon: <ReportProblemOutlinedIcon fontSize="small" />, permission: 'admin.operational-failures.view' }`.
 - [ ] T057 [US1] Create `ClientApp/src/features/admin/components/operationalFailures/`:

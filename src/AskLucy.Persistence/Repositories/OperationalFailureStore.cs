@@ -46,6 +46,137 @@ public sealed class OperationalFailureStore(AskLucyDbContext dbContext, IOptions
         return updated > 0;
     }
 
+    public async Task<(IReadOnlyList<OperationalFailureIncident> Items, int TotalCount)> ListIncidentsAsync(
+        IncidentFilter filter, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        var query = Visible().Where(i => i.LastSeenUtc >= filter.FromUtc && i.LastSeenUtc <= filter.ToUtc);
+
+        query = filter.State switch
+        {
+            IncidentStateFilter.Open => query.Where(i => i.TriageState == IncidentTriageState.Open),
+            IncidentStateFilter.Acknowledged => query.Where(i => i.TriageState == IncidentTriageState.Acknowledged),
+            IncidentStateFilter.Resolved => query.Where(i => i.TriageState == IncidentTriageState.Resolved),
+            _ => query.Where(i => i.TriageState != IncidentTriageState.Resolved),
+        };
+
+        if (filter.Severity is { } severity)
+        {
+            query = query.Where(i => i.HighestSeverity == severity);
+        }
+
+        if (filter.Engine is { } engine)
+        {
+            query = query.Where(i => i.Engine == engine);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Provider))
+        {
+            query = query.Where(i => i.ProviderName == filter.Provider);
+        }
+
+        if (filter.Kind is { } kind)
+        {
+            query = query.Where(i => i.Kind == kind);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.UserId))
+        {
+            var userId = filter.UserId;
+            query = query.Where(i => dbContext.OperationalFailureIncidentParticipants.Any(p =>
+                p.IncidentId == i.Id && p.ParticipantType == IncidentParticipantType.User && p.ParticipantKey == userId));
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(i => i.LastSeenUtc)
+            .ThenBy(i => i.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
+
+    public Task<OperationalFailureIncident?> GetIncidentAsync(Guid incidentId, CancellationToken cancellationToken = default) =>
+        Visible().FirstOrDefaultAsync(i => i.Id == incidentId, cancellationToken);
+
+    public async Task<(IReadOnlyList<OperationalFailureOccurrence> Items, int TotalCount)> ListOccurrencesAsync(
+        Guid incidentId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.OperationalFailureOccurrences.AsNoTracking().Where(o => o.IncidentId == incidentId);
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(o => o.OccurredAtUtc)
+            .ThenBy(o => o.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
+
+    public async Task<IReadOnlyList<OperationalFailureOccurrence>?> FindItemReferencesAsync(
+        Guid incidentId, InvestigatedItemType itemType, Guid itemId, CancellationToken cancellationToken = default)
+    {
+        var incident = await Visible()
+            .Where(i => i.Id == incidentId)
+            .Select(i => new { i.SubjectType, i.SubjectId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (incident is null)
+        {
+            return null;
+        }
+
+        var occurrences = dbContext.OperationalFailureOccurrences.AsNoTracking().Where(o => o.IncidentId == incidentId);
+        occurrences = itemType switch
+        {
+            InvestigatedItemType.Chat => occurrences.Where(o => o.ChatId == itemId),
+            InvestigatedItemType.WorkflowRun => occurrences.Where(o => o.WorkflowExecutionId == itemId),
+            InvestigatedItemType.Document => occurrences.Where(o => o.DocumentId == itemId),
+            _ => throw new ArgumentOutOfRangeException(nameof(itemType), itemType, null),
+        };
+
+        var referencing = await occurrences.OrderBy(o => o.OccurredAtUtc).ToListAsync(cancellationToken);
+
+        // Only a document can be an incident's subject; a run's subject is its workflow, not the run.
+        var isSubject = itemType == InvestigatedItemType.Document
+            && incident.SubjectId == itemId
+            && incident.SubjectType == nameof(ReferencedItemKind.Document);
+
+        return referencing.Count > 0 || isSubject ? referencing : null;
+    }
+
+    public async Task<IReadOnlyDictionary<string, int>> CountUnresolvedByRootCauseAsync(
+        IReadOnlyCollection<string> rootCauseKeys, CancellationToken cancellationToken = default)
+    {
+        if (rootCauseKeys.Count == 0)
+        {
+            return new Dictionary<string, int>(StringComparer.Ordinal);
+        }
+
+        return await Visible()
+            .Where(i => rootCauseKeys.Contains(i.RootCauseKey) && i.TriageState != IncidentTriageState.Resolved)
+            .GroupBy(i => i.RootCauseKey)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Count, StringComparer.Ordinal, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> ListRecentUserIdsAsync(Guid incidentId, int take, CancellationToken cancellationToken = default) =>
+        await dbContext.OperationalFailureIncidentParticipants
+            .AsNoTracking()
+            .Where(p => p.IncidentId == incidentId && p.ParticipantType == IncidentParticipantType.User)
+            .OrderByDescending(p => p.FirstSeenUtc)
+            .Select(p => p.ParticipantKey)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    /// <summary>An incident is visible once its first occurrence has been counted (see <see cref="OpenAsync"/>).</summary>
+    private IQueryable<OperationalFailureIncident> Visible() =>
+        dbContext.OperationalFailureIncidents.AsNoTracking().Where(i => i.OccurrenceCount > 0);
+
     private Task<Guid?> FindUnresolvedAsync(string groupingKey, CancellationToken cancellationToken) =>
         dbContext.OperationalFailureIncidents
             .AsNoTracking()

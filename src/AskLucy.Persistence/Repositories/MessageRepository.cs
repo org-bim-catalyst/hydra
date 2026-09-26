@@ -14,6 +14,14 @@ public sealed class MessageRepository(AskLucyDbContext dbContext) : IMessageRepo
             .OrderBy(m => m.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<MessageOutline>> ListOutlineByChatIdAsync(Guid userChatId, CancellationToken cancellationToken = default) =>
+        await dbContext.Messages
+            .AsNoTracking()
+            .Where(m => m.UserChatId == userChatId)
+            .OrderBy(m => m.CreatedAtUtc)
+            .Select(m => new MessageOutline(m.Id, m.Role, m.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+
     public async Task<(IReadOnlyList<Message> Items, string? NextCursor)> ListPagedByChatIdAsync(
         Guid userChatId, string? cursor, int pageSize, CancellationToken cancellationToken = default)
     {

@@ -359,6 +359,7 @@ public static class DependencyInjection
         // specs/074: the writer resolves the ingestor once per batch, in the batch's own scope.
         services.AddSingleton<IFailureClassifier, FailureClassifier>();
         services.AddScoped<OperationalFailureIngestor>();
+        services.AddScoped<OperationalFailureReadModelBuilder>();
 
         return services;
     }

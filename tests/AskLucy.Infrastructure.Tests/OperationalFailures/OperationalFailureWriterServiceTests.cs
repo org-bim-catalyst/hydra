@@ -164,26 +164,49 @@ public sealed class OperationalFailureWriterServiceTests
         public ConcurrentQueue<(object StoreInstance, IncidentAppendRequest Request)> Appends { get; } = new();
     }
 
-    private sealed class RecordingStore(RecordingStoreLog log) : IOperationalFailureStore
+    /// <summary>The writer only ever appends and counts recoveries; the admin reads are not its concern.</summary>
+    private abstract class WriteOnlyStore : IOperationalFailureStore
     {
-        public Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, CancellationToken cancellationToken = default)
+        public abstract Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, CancellationToken cancellationToken = default);
+
+        public Task<bool> IncrementRecoveryAsync(string groupingKey, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<(IReadOnlyList<OperationalFailureIncident> Items, int TotalCount)> ListIncidentsAsync(
+            IncidentFilter filter, int page, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<OperationalFailureIncident?> GetIncidentAsync(Guid incidentId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<(IReadOnlyList<OperationalFailureOccurrence> Items, int TotalCount)> ListOccurrencesAsync(
+            Guid incidentId, int page, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<OperationalFailureOccurrence>?> FindItemReferencesAsync(
+            Guid incidentId, InvestigatedItemType itemType, Guid itemId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<string, int>> CountUnresolvedByRootCauseAsync(
+            IReadOnlyCollection<string> rootCauseKeys, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<string>> ListRecentUserIdsAsync(Guid incidentId, int take, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class RecordingStore(RecordingStoreLog log) : WriteOnlyStore
+    {
+        public override Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, CancellationToken cancellationToken = default)
         {
             log.Appends.Enqueue((this, request));
             return Task.FromResult(new IncidentAppendResult(Guid.NewGuid(), Opened: false, request.Severity));
         }
-
-        public Task<bool> IncrementRecoveryAsync(string groupingKey, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class BlockingStore(TaskCompletionSource entered) : IOperationalFailureStore
+    private sealed class BlockingStore(TaskCompletionSource entered) : WriteOnlyStore
     {
-        public async Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, CancellationToken cancellationToken = default)
+        public override async Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, CancellationToken cancellationToken = default)
         {
             entered.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);
             throw new InvalidOperationException("unreachable");
         }
-
-        public Task<bool> IncrementRecoveryAsync(string groupingKey, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 }
