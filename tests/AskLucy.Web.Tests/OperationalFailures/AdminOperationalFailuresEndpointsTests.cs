@@ -22,7 +22,7 @@ namespace AskLucy.Web.Tests.OperationalFailures;
 /// transcript. The investigation users are real Identity rows so the handler's own permission
 /// resolution runs exactly as in production.
 /// </summary>
-[Collection(AdministratorContentAccessCollection.Name)]
+[Collection(AdministratorContentAccessGroup.Name)]
 public sealed class AdminOperationalFailuresEndpointsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private const string BaseUrl = "/api/v1/admin/operational-failures";

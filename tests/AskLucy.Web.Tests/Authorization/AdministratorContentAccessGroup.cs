@@ -8,7 +8,7 @@ namespace AskLucy.Web.Tests.Authorization;
 /// has it switched on, a parallel class asserting an Administrator can't read content sees it granted.
 /// </summary>
 [CollectionDefinition(Name)]
-public sealed class AdministratorContentAccessCollection
+public sealed class AdministratorContentAccessGroup
 {
     public const string Name = "Administrator content access";
 }
