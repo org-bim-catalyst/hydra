@@ -58,7 +58,17 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
 
         Names(result, "addedBuildings").Should().BeEmpty();
         Names(result, "removedBuildings").Should().Equal("BurJuman Arjaan by Rotana");
-        Names(result, "excludedBuildings").Should().Contain("Burjman Office Tower");
+        result.Output!.RootElement.TryGetProperty("excludedBuildings", out _).Should().BeFalse();
+        result.Output.RootElement.EnumerateObject().First().Name.Should().Be("includedBuildings");
+    }
+
+    [Fact]
+    public async Task AddingABuilding_ReportsItAsAdded_AndNothingRemoved()
+    {
+        var result = await RunAsync("""{"memberIds":["osm_way_1","osm_way_2","osm_way_3"]}""");
+
+        Names(result, "addedBuildings").Should().Equal("Burjman Office Tower");
+        Names(result, "removedBuildings").Should().BeEmpty();
     }
 
     [Fact]

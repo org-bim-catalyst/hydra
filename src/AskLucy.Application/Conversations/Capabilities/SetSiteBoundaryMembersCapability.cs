@@ -44,8 +44,8 @@ public sealed class SetSiteBoundaryMembersCapability(
     public string UsageGuidance =>
         "Pass every building the outline should include — the choice replaces the previous one, it " +
         "does not add to it. Then say which buildings the outline now covers and its new area. " +
-        "Describe as a change only what addedBuildings and removedBuildings list; excludedBuildings " +
-        "were never part of the outline unless removedBuildings names them.";
+        "Name a building as added or taken out only when addedBuildings or removedBuildings lists " +
+        "it; say nothing of buildings in neither list.";
 
     public string Label => "Choose the site buildings";
 
@@ -61,7 +61,7 @@ public sealed class SetSiteBoundaryMembersCapability(
         """{"type":"object","properties":{"memberIds":{"type":"array","items":{"type":"string"}},"memberNames":{"type":"array","items":{"type":"string"}}}}""";
 
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"includedBuildings":{"type":"array"},"excludedBuildings":{"type":"array"},"addedBuildings":{"type":"array"},"removedBuildings":{"type":"array"}}}""";
+        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"includedBuildings":{"type":"array"},"addedBuildings":{"type":"array"},"removedBuildings":{"type":"array"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
@@ -125,15 +125,29 @@ public sealed class SetSiteBoundaryMembersCapability(
         var members = active.Members.Select(m => m with { Included = chosen.Contains(m.Id) }).ToList();
         var redrawn = membershipService.Compose(ToConfirmed(active), members);
 
-        // The change against what was on screen, so the model never calls a building it was only
-        // offered "removed" — told to infer it from excludedBuildings, it did.
-        var output = JsonSerializer.SerializeToNode(SiteBoundaryPayload.Write(redrawn))!.AsObject();
-        output["addedBuildings"] = new JsonArray([.. active.Members
-            .Where(m => !m.Included && chosen.Contains(m.Id)).Select(m => JsonValue.Create(m.Name))]);
-        output["removedBuildings"] = new JsonArray([.. active.Members
-            .Where(m => m.Included && !chosen.Contains(m.Id)).Select(m => JsonValue.Create(m.Name))]);
+        // The narrating model reads this JSON and nothing else — not the chat. Given
+        // excludedBuildings, it called a building it had only been offered "previously included"
+        // even when told not to, so it gets the change against what was on screen instead, ahead
+        // of the geometry.
+        var payload = JsonSerializer.SerializeToNode(SiteBoundaryPayload.Write(redrawn))!.AsObject();
+        payload.Remove("excludedBuildings");
+        var output = new JsonObject
+        {
+            ["includedBuildings"] = payload["includedBuildings"]!.DeepClone(),
+            ["addedBuildings"] = Names(active.Members.Where(m => !m.Included && chosen.Contains(m.Id))),
+            ["removedBuildings"] = Names(active.Members.Where(m => m.Included && !chosen.Contains(m.Id))),
+        };
+        foreach (var (key, value) in payload.Where(p => !output.ContainsKey(p.Key)).ToList())
+        {
+            payload.Remove(key);
+            output[key] = value;
+        }
+
         return AgentToolResult.Success(JsonSerializer.SerializeToDocument(output));
     }
+
+    private static JsonArray Names(IEnumerable<SiteBoundaryMember> members) =>
+        new([.. members.Select(m => JsonValue.Create(m.Name))]);
 
     /// <summary>
     /// The member the user meant: an exact name first, then one whose name contains what they
