@@ -45,14 +45,18 @@ public static class SiteBoundaryMembershipOffer
         if (connected.Count > 0)
         {
             included = [.. included, .. connected];
-            options.Add(($"{site} with its connected buildings", $"Adds {NamesOf(connected)} — they share its podium.", included));
+            options.Add(($"{site} with its connected buildings", connected.Count == 1
+                ? $"Adds {NamesOf(connected)}, which shares its podium."
+                : $"Adds {NamesOf(connected)} — they share its podium.", included));
         }
 
         if (nearby.Count > 0)
         {
             included = [.. included, .. nearby];
             options.Add((connected.Count > 0 ? "Also the buildings across the street" : $"{site} with its nearby buildings",
-                $"Adds {NamesOf(nearby)}, which carry its name but stand apart.", included));
+                nearby.Count == 1
+                    ? $"Adds {NamesOf(nearby)}, which carries its name but stands apart."
+                    : $"Adds {NamesOf(nearby)}, which carry its name but stand apart.", included));
         }
 
         if (stations.Count > 0)

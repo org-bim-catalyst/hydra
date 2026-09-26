@@ -46,6 +46,7 @@ public sealed class SiteBoundaryMembershipOfferTests
             },
             options => options.WithStrictOrdering());
         offer.Actions[1].Description.Should().Contain("BurJuman Business Tower").And.Contain("BurJuman Arjaan by Rotana");
+        offer.Actions[2].Description.Should().Be("Adds Burjman Office Tower, which carries its name but stands apart.");
     }
 
     [Fact]
