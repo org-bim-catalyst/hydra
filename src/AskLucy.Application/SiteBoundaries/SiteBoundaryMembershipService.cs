@@ -42,7 +42,7 @@ public sealed class SiteBoundaryMembershipService(
 
     private const int MaximumSearchRadiusMeters = 800;
 
-    private static readonly string[] NameTagKeys = ["name", "name:en", "alt_name", "official_name"];
+    private static readonly string[] NameTagKeys = ["name", "name:en", "int_name", "alt_name", "official_name"];
 
     /// <summary>
     /// Returns <paramref name="boundary"/> with its related buildings listed and the connected

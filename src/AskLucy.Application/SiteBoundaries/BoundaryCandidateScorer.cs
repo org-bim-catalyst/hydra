@@ -37,6 +37,7 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
         ["centre"] = "retail",
         ["plaza"] = "retail",
         ["souk"] = "retail",
+        ["souq"] = "retail",
         ["market"] = "retail",
         ["marketplace"] = "retail",
         ["park"] = "park",
@@ -86,7 +87,9 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
     /// of a production mis-pick, alongside an over-broad tag filter — see
     /// OverpassBoundaryCandidateProvider's CandidateTagFilters doc comment for the full story).
     /// "alt_name" is checked as well: OSM keeps a site's other names there, and a site merged from
-    /// several separately-named parts carries the other parts' names in it.
+    /// several separately-named parts carries the other parts' names in it. So are "int_name" and
+    /// "official_name": Mutrah Souq's outline is named only in Arabic plus <c>int_name</c>
+    /// "Mutrah Souq", and with no name match at all it lost to a mosque named "Masjid" (2026-09-26).
     /// </summary>
     private static double ScoreNameMatch(BoundaryCandidate candidate, string siteNameQuery)
     {
@@ -98,7 +101,13 @@ public sealed class BoundaryCandidateScorer(IOptions<BoundaryScoringOptions> opt
 
         var alternativeNames = (candidate.Tags.GetValueOrDefault("alt_name") ?? string.Empty)
             .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        var candidateNames = new[] { candidate.Name, candidate.Tags.GetValueOrDefault("name:en") }
+        var candidateNames = new[]
+            {
+                candidate.Name,
+                candidate.Tags.GetValueOrDefault("name:en"),
+                candidate.Tags.GetValueOrDefault("int_name"),
+                candidate.Tags.GetValueOrDefault("official_name"),
+            }
             .Concat(alternativeNames)
             .Where(n => !string.IsNullOrWhiteSpace(n));
 

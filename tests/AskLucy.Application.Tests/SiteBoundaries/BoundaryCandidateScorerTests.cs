@@ -88,6 +88,32 @@ public sealed class BoundaryCandidateScorerTests
         scored.ScoreBreakdown["name_match"].Should().Be(1.0);
     }
 
+    /// <summary>
+    /// Mutrah Souq, 2026-09-26: its outline is named in Arabic with <c>int_name</c> "Mutrah Souq",
+    /// and a smaller mosque named "Masjid" beside it won.
+    /// </summary>
+    [Fact]
+    public void ScoreAll_ShouldMatchOnTheInternationalName_AndRankTheSouqAboveTheMosqueBesideIt()
+    {
+        var scorer = CreateScorer();
+        var souq = Candidate(name: "سوق مطرح", areaSquareMeters: 14_205, tags: new Dictionary<string, string>
+        {
+            ["landuse"] = "retail",
+            ["tourism"] = "attraction",
+            ["int_name"] = "Mutrah Souq",
+        });
+        var mosque = Candidate(name: "مسجد", distanceMeters: 5, areaSquareMeters: 409, tags: new Dictionary<string, string>
+        {
+            ["amenity"] = "place_of_worship",
+            ["name:en"] = "Masjid",
+        });
+
+        var ranked = scorer.ScoreAll([mosque, souq], "Mutrah Souq");
+
+        ranked[0].Candidate.Should().BeSameAs(souq);
+        ranked[0].ScoreBreakdown["name_match"].Should().Be(1.0);
+    }
+
     [Fact]
     public void ScoreAll_ShouldPreferGovernmentCadastralOverOsmBoundary()
     {

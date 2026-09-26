@@ -546,6 +546,27 @@ public sealed class BoundaryResolutionServiceTests
         outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
     }
 
+    /// <summary>
+    /// Al Alam Palace, 2026-09-26: Gemini traced a block of about the palace's size some 250 m east
+    /// of it — inside the search radius, sharing no ground with the palace — and it was adopted.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldKeepMappedGeometry_WhenTheTraceSharesNoGroundWithTheMappedRing()
+    {
+        _candidateProvider.SearchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<BoundaryCandidate> { Candidate() });
+        _satelliteImageProvider.FetchAsync(Arg.Any<GeoPoint>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(SampleImage);
+        var neighbour = ShiftedSamplePolygon(0.0, 0.0025);
+        _visionAnalyzer.AnalyzeAsync(SampleImage, Arg.Any<IReadOnlyList<StreetViewImage>>(), Arg.Any<IReadOnlyList<ScoredBoundaryCandidate>>(), "Al Safa Park 2", Arg.Any<GeoPoint>(), Arg.Any<CancellationToken>())
+            .Returns(VisionWithObservedBoundary(neighbour));
+
+        var outcome = await _service.ResolveAsync(AlSafaLocation, ChatId, TestContext.Current.CancellationToken);
+
+        outcome.ConfirmedBoundary!.Source.Should().Be(SiteBoundarySource.OsmBoundary);
+        outcome.ConfirmedBoundary.Polygon.Should().BeEquivalentTo(SamplePolygon.ExteriorRing, opts => opts.WithStrictOrdering());
+    }
+
     // specs/043 US5 (FR-032/FR-033) — Gemini vision is an enhancement, never a single point of
     // failure. Whatever reason it is unavailable for, the deterministic result still stands.
     [Theory]

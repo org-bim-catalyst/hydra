@@ -495,6 +495,13 @@ public sealed class BoundaryResolutionService(
     private const double VisionCorrectionMaxAreaRatio = 3.0;
 
     /// <summary>
+    /// The least share of the smaller of the two outlines the trace and the mapped ring must have
+    /// in common. The corrections this exists for moved a ring 16-35 m, and still overlapped most
+    /// of it.
+    /// </summary>
+    private const double VisionCorrectionMinOverlap = 0.25;
+
+    /// <summary>
     /// Replaces the mapped geometry outright with Gemini's traced shape, once it clears two
     /// plausibility gates.
     /// </summary>
@@ -519,12 +526,13 @@ public sealed class BoundaryResolutionService(
     /// <c>docs/LOCATION_TO_BOUNDARY_END_TO_END.md</c> §9.7.
     /// </para>
     /// <para>
-    /// Two gates, both of which must hold: the observed area is within
+    /// Three gates, all of which must hold: the observed area is within
     /// <see cref="VisionCorrectionMinAreaRatio"/>x-<see cref="VisionCorrectionMaxAreaRatio"/>x of
     /// the mapped area (it is looking at the same site, not some other shaded shape on the map),
-    /// and the observed centroid is inside the search radius (it did not trace something far
-    /// away). There is no separate cap on how far the traced shape sits from the mapped one — a
-    /// large shift is exactly what this exists to apply when OSM's ring is the one that is wrong.
+    /// the observed centroid is inside the search radius (it did not trace something far away),
+    /// and the two outlines share at least <see cref="VisionCorrectionMinOverlap"/> of the smaller
+    /// one. The last was added 2026-09-26: for Al Alam Palace Gemini traced a similar-sized block
+    /// to the east that shared no ground with the palace, and both older gates let it through.
     /// </para>
     /// </remarks>
     private static VisionCorrectedGeometry? TryBuildVisionTracedGeometry(
@@ -559,6 +567,11 @@ public sealed class BoundaryResolutionService(
 
         var observedCentroid = GeometryMath.Centroid(observed);
         if (GeometryMath.DistanceMeters(observedCentroid, center) > opts.SearchRadiusMeters)
+        {
+            return null;
+        }
+
+        if (GeometryMath.OverlapFraction(observed, mapped) < VisionCorrectionMinOverlap)
         {
             return null;
         }

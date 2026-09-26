@@ -29,6 +29,14 @@ public sealed class GeometryMathGapTests
         GeometryMath.GapMeters(Mall, []).Should().Be(double.PositiveInfinity);
 
     [Fact]
+    public void OverlapFraction_IsTheShareOfTheSmallerRingInsideTheOther()
+    {
+        GeometryMath.OverlapFraction(Mall, Rect(40, 40, 60, 60)).Should().BeApproximately(1.0, 0.01);
+        GeometryMath.OverlapFraction(Mall, Rect(30, 0, 130, 100)).Should().BeApproximately(0.7, 0.03);
+        GeometryMath.OverlapFraction(Mall, Rect(250, 0, 350, 100)).Should().Be(0);
+    }
+
+    [Fact]
     public void DistanceToRingMeters_IsZeroInsideAndTheWallDistanceOutside()
     {
         GeometryMath.DistanceToRingMeters(Point(50, 50), Mall).Should().Be(0);

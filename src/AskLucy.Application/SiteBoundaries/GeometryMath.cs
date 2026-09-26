@@ -155,6 +155,46 @@ public static class GeometryMath
         return gap;
     }
 
+    /// <summary>
+    /// The share (0-1) of the smaller ring's area that also lies inside the other, sampled on a
+    /// grid over the smaller ring. Tells a trace of the same site, shifted a few metres, from a
+    /// trace of the building next door: Al Alam Palace's trace on 2026-09-26 overlapped nothing.
+    /// </summary>
+    public static double OverlapFraction(IReadOnlyList<GeoPoint> first, IReadOnlyList<GeoPoint> second, int samplesPerSide = 40)
+    {
+        if (first.Count < 3 || second.Count < 3)
+        {
+            return 0.0;
+        }
+
+        var (smaller, larger) = AreaSquareMeters(first) <= AreaSquareMeters(second) ? (first, second) : (second, first);
+        var (minLat, minLon, maxLat, maxLon) = BoundingBox(smaller);
+
+        var inSmaller = 0;
+        var inBoth = 0;
+        for (var row = 0; row < samplesPerSide; row++)
+        {
+            for (var column = 0; column < samplesPerSide; column++)
+            {
+                var point = new GeoPoint(
+                    minLat + ((maxLat - minLat) * (row + 0.5) / samplesPerSide),
+                    minLon + ((maxLon - minLon) * (column + 0.5) / samplesPerSide));
+                if (!Contains(smaller, point))
+                {
+                    continue;
+                }
+
+                inSmaller++;
+                if (Contains(larger, point))
+                {
+                    inBoth++;
+                }
+            }
+        }
+
+        return inSmaller == 0 ? 0.0 : (double)inBoth / inSmaller;
+    }
+
     /// <summary>specs/077 — meters from a point to a ring's outline; 0 when the point lies inside it.</summary>
     public static double DistanceToRingMeters(GeoPoint point, IReadOnlyList<GeoPoint> ring) =>
         GapMeters([point, point], ring);
