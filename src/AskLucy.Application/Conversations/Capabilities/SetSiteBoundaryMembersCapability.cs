@@ -42,7 +42,9 @@ public sealed class SetSiteBoundaryMembersCapability(
 
     public string UsageGuidance =>
         "Pass every building the outline should include — the choice replaces the previous one, it " +
-        "does not add to it. Then say which buildings the outline now covers and its new area.";
+        "does not add to it. Then say which buildings the outline now covers and its new area. " +
+        "excludedBuildings are simply not in the outline; call one removed only if the outline " +
+        "included it before this choice.";
 
     public string Label => "Choose the site buildings";
 
