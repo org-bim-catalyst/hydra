@@ -17,7 +17,7 @@ Errors are returned as Problem Details:
 |---|---|
 | Invalid filter (unknown enum value, `from > to`, `pageSize > 100`, note > 500 characters) | 400. `errors` is keyed by field |
 | Unknown incident, or an item that the incident does not reference (research D15) | 404 |
-| Transition conflict: `rowVersion` is stale, or reopening while a newer incident for the same key is open | 409 with `type: …/incident-conflict`. `detail` says what changed. `newerIncidentId` is set when it applies. |
+| Transition conflict: the incident is no longer in a state the transition applies to (someone else moved it first — research D19), or reopening while a newer incident for the same key is open | 409 with `type: …/incident-conflict`. `detail` says what changed. `newerIncidentId` is set when it applies. |
 
 ## Incidents
 
@@ -26,10 +26,10 @@ Errors are returned as Problem Details:
 | GET | `incidents` | view | query below | `PagedResult<IncidentSummary>` (`Items`, `TotalCount`, `Page`, `PageSize`), ordered by `lastSeenUtc` descending |
 | GET | `incidents/{id}` | view | — | `IncidentDetail` |
 | GET | `incidents/{id}/occurrences` | view | `page` (1), `pageSize` (50, max 100) | `PagedResult<Occurrence>`, newest first |
-| GET | `incidents/{id}/related` | view | `page`, `pageSize` | `PagedResult<IncidentSummary>`: other **open** incidents that share its `rootCauseKey` (FR-026b) |
-| POST | `incidents/{id}/actions/acknowledge` | manage | `{ rowVersion }` | `IncidentDetail` |
-| POST | `incidents/{id}/actions/resolve` | manage | `{ rowVersion, note? }` | `IncidentDetail` |
-| POST | `incidents/{id}/actions/reopen` | manage | `{ rowVersion }` | `IncidentDetail` |
+| GET | `incidents/{id}/related` | view | `page`, `pageSize` | `PagedResult<IncidentSummary>`: other **unresolved** incidents that share its `rootCauseKey`, most recently seen first (FR-026b) |
+| POST | `incidents/{id}/actions/acknowledge` | manage | — | `IncidentDetail` |
+| POST | `incidents/{id}/actions/resolve` | manage | `{ note? }` (body optional) | `IncidentDetail` |
+| POST | `incidents/{id}/actions/reopen` | manage | — | `IncidentDetail` |
 | POST | `root-causes/{rootCauseKey}/actions/acknowledge` | manage | — | `BulkTransitionResult` |
 | POST | `root-causes/{rootCauseKey}/actions/resolve` | manage | `{ note? }` | `BulkTransitionResult` |
 | GET | `summary` | view | — | `{ unacknowledgedCriticalRootCauses: number }`. This drives the badge (FR-026). |

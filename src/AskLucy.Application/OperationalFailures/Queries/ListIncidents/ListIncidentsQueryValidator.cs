@@ -11,9 +11,9 @@ public sealed class ListIncidentsQueryValidator : AbstractValidator<ListIncident
             .When(q => q.FromUtc is not null && q.ToUtc is not null)
             .WithMessage("from must not be later than to.");
         RuleFor(q => q.State).IsInEnum();
-        RuleFor(q => q.Severity).IsInEnum();
-        RuleFor(q => q.Engine).IsInEnum();
-        RuleFor(q => q.Kind).IsInEnum();
+        RuleForEach(q => q.Severities).IsInEnum();
+        RuleForEach(q => q.Engines).IsInEnum();
+        RuleForEach(q => q.Kinds).IsInEnum();
         RuleFor(q => q.Provider).MaximumLength(100);
         RuleFor(q => q.UserId).MaximumLength(450);
         RuleFor(q => q.Page).GreaterThanOrEqualTo(1);

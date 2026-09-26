@@ -453,21 +453,24 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Tests for User Story 3 (write first, confirm failing)
 
-- [ ] T067 [P] [US3] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/IncidentTransitionTests.cs`:
+- [X] T067 [P] [US3] Application tests in `tests/AskLucy.Application.Tests/OperationalFailures/IncidentTransitionTests.cs`:
   - Acknowledge, Resolve (with note) and Reopen handlers record who and when.
   - A stale `rowVersion` gives a conflict exception that maps to 409.
+  - *Done 2026-09-26*: per research D19 the conflict is a transition whose precondition no longer holds, not a stale `rowVersion`; the tests drive every `IncidentTransitionStatus` through `IncidentTriageService`.
   - Reopen while a newer unresolved incident holds the key gives 409 with `newerIncidentId`.
   - The bulk root-cause Resolve over 40 incidents gives `succeeded = 40`. With 1 already resolved: `skipped = 1`. With 1 concurrently changed: `failed = [{…}]`, and the others still succeed.
-- [ ] T068 [P] [US3] Persistence tests in `tests/AskLucy.Persistence.Tests/OperationalFailures/OperationalFailureTriageQueryTests.cs`:
+- [X] T068 [P] [US3] Persistence tests in `tests/AskLucy.Persistence.Tests/OperationalFailures/OperationalFailureTriageQueryTests.cs`:
   - Each filter (time, severity, engine, provider, kind, user, state) alone and combined.
   - Stable paging.
   - `CountUnacknowledgedCriticalRootCausesAsync`: 40 Critical open incidents sharing one root cause plus 1 other give 2; acknowledging all 40 gives 1; Warning incidents are never counted.
   - `ListRelatedAsync` excludes the incident itself and resolved ones.
-- [ ] T069 [P] [US3] Web tests in `tests/AskLucy.Web.Tests/OperationalFailures/AdminOperationalFailuresTriageEndpointsTests.cs`:
+  - *Done 2026-09-26*: also covers multi-value OR within a filter and the reopen collision (`NewerIncidentOpen`). Gated, so compiled but not run against the shared database. Each test scopes itself by a unique provider name or root cause, and the badge assertions are deltas.
+- [X] T069 [P] [US3] Web tests in `tests/AskLucy.Web.Tests/OperationalFailures/AdminOperationalFailuresTriageEndpointsTests.cs`:
   - The transition endpoints return 403 with view-only and 200 with manage.
   - `summary` returns 403 without view.
   - A 409 body has `type: …/incident-conflict`.
   - N = 1,000 root-cause Resolve completes and the badge becomes 0 (SC-011).
+  - *Done 2026-09-26*: the database is shared, so "the badge becomes 0" is asserted as "this root cause has no Open incident left"; a global count of 0 would depend on every other test. The N = 1,000 resolve runs well inside a minute.
 - [ ] T070 [P] [US3] Frontend tests in `ClientApp/src/features/admin/components/AdminShell.test.tsx` (extend) and `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.test.tsx` (extend):
   - The badge shows the count, is hidden at 0, and shows an error dot with a tooltip on a fetch error.
   - It refetches after a transition mutation (use fake timers for the 60 s interval).
@@ -478,14 +481,15 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Implementation for User Story 3
 
-- [ ] T071 [US3] Add these to `IOperationalFailureStore` and `OperationalFailureStore`:
+- [X] T071 [US3] Add these to `IOperationalFailureStore` and `OperationalFailureStore`:
   - `GetForTransitionAsync(id)`, which returns a tracked aggregate.
   - `SaveTransitionAsync(incident, expectedRowVersion)`, which maps a concurrency conflict to an Application `IncidentConflictException` (research D3, no EF type leaking).
   - `ListOpenByRootCauseAsync(rootCauseKey)`
   - `ListRelatedAsync(id, page, pageSize)`
   - `CountUnacknowledgedCriticalRootCausesAsync()`
   - `HasOtherUnresolvedAsync(groupingKey, excludingId)`
-- [ ] T072 [US3] Create command, validator and handler for each under `src/AskLucy.Application/OperationalFailures/Commands/`:
+  - *Done 2026-09-26, differently*: research D19. The four transition methods became `TransitionAsync(ids, transition)` (batched, state-based, returns an `IncidentTransitionOutcome` per id) and `ListUnresolvedIdsByRootCauseAsync`. The list filters became multi-valued.
+- [X] T072 [US3] Create command, validator and handler for each under `src/AskLucy.Application/OperationalFailures/Commands/`:
   - `AcknowledgeIncident/`
   - `ResolveIncident/` (note ≤ 500)
   - `ReopenIncident/`
@@ -493,12 +497,12 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - `ResolveRootCause/`
 
   The bulk commands iterate per incident, each with its own reload and save, collecting a `BulkTransitionResultDto`. Add `IncidentConflictException` handling to `ProblemDetailsMiddleware` (409, `type` suffix `incident-conflict`, and a `newerIncidentId` extension). Makes T067 pass.
-- [ ] T073 [US3] Create `src/AskLucy.Application/OperationalFailures/Queries/ListRelatedIncidents/` and `Queries/GetSummary/`. Add `relatedOpenCount` to the list and detail projections. Makes T068 pass.
-- [ ] T074 [US3] Add the transition, related and summary endpoints to `src/AskLucy.Web/Controllers/v1/AdminOperationalFailuresController.cs`, per the [contract](contracts/admin-operational-failures.md#incidents): manage for `actions/*`, view for `related` and `summary`. Makes T069 pass.
+- [X] T073 [US3] Create `src/AskLucy.Application/OperationalFailures/Queries/ListRelatedIncidents/` and `Queries/GetSummary/`. Add `relatedOpenCount` to the list and detail projections. Makes T068 pass.
+- [X] T074 [US3] Add the transition, related and summary endpoints to `src/AskLucy.Web/Controllers/v1/AdminOperationalFailuresController.cs`, per the [contract](contracts/admin-operational-failures.md#incidents): manage for `actions/*`, view for `related` and `summary`. Makes T069 pass.
 - [ ] T075 [P] [US3] Create `ClientApp/src/features/admin/hooks/useOperationalFailureBadge.ts`: `useQuery` with `refetchInterval: 60_000`, enabled only when the caller holds view, and exposing `{ count, isError }`. In `ClientApp/src/features/admin/adminNav.tsx`, add `badgeKey?: 'operationalFailures'` to `AdminNavItem` and set it on the entry. In `ClientApp/src/features/admin/components/AdminShell.tsx`, render an MUI `Badge` (hidden at 0) and the error dot with a tooltip.
 - [ ] T076 [P] [US3] Create `ClientApp/src/features/admin/components/operationalFailures/IncidentFilters.tsx`: time presets (1 h, 24 h, 7 d, 30 d, custom from/to), multi-select severity, engine and kind, a provider select, a user autocomplete over the existing admin users search API, and a state select. It reads from and writes to `useSearchParams`.
 - [ ] T077 [US3] Create `ClientApp/src/features/admin/components/operationalFailures/TransitionButtons.tsx` and `RelatedIncidents.tsx`:
-  - The mutations send `rowVersion`.
+  - The mutations send no `rowVersion` (research D19).
   - `onSuccess` invalidates the list, detail and badge queries.
   - On 409, show a toast plus a refetch.
   - The bulk result shows a toast "Resolved 38, skipped 1, failed 1", with the failed ids listed in the drawer.

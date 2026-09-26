@@ -33,16 +33,40 @@ public enum IncidentStateFilter
     Unresolved,
 }
 
-/// <summary>The admin list's filters (contracts/admin-operational-failures.md → List filters). The time range applies to <c>LastSeenUtc</c>.</summary>
+/// <summary>
+/// The admin list's filters (contracts/admin-operational-failures.md → List filters). The time
+/// range applies to <c>LastSeenUtc</c>. Values within one multi-valued filter are OR-ed; an empty
+/// or absent one does not filter.
+/// </summary>
 public sealed record IncidentFilter(
     DateTime FromUtc,
     DateTime ToUtc,
     IncidentStateFilter State = IncidentStateFilter.Unresolved,
-    OperationalFailureSeverity? Severity = null,
-    OperationalFailureEngine? Engine = null,
+    IReadOnlyCollection<OperationalFailureSeverity>? Severities = null,
+    IReadOnlyCollection<OperationalFailureEngine>? Engines = null,
     string? Provider = null,
-    OperationalFailureKind? Kind = null,
+    IReadOnlyCollection<OperationalFailureKind>? Kinds = null,
     string? UserId = null);
+
+/// <summary>What a triage transition did to one incident (research D19).</summary>
+public enum IncidentTransitionStatus
+{
+    Applied,
+
+    /// <summary>The transition's precondition no longer held, typically because someone else moved the incident first.</summary>
+    AlreadyInState,
+
+    /// <summary>No visible incident has the id.</summary>
+    NotFound,
+
+    /// <summary>The row kept changing under the transition until its retries ran out.</summary>
+    Conflict,
+
+    /// <summary>A reopen collided with a newer unresolved incident holding the same grouping key.</summary>
+    NewerIncidentOpen,
+}
+
+public sealed record IncidentTransitionOutcome(Guid IncidentId, IncidentTransitionStatus Status, Guid? NewerIncidentId = null);
 
 /// <summary>
 /// Persistence of the operational failure trail. Methods are added by the phase that implements
@@ -92,4 +116,29 @@ public interface IOperationalFailureStore
 
     /// <summary>The incident's most recently added distinct users, newest first.</summary>
     Task<IReadOnlyList<string>> ListRecentUserIdsAsync(Guid incidentId, int take, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Applies <paramref name="transition"/> to each incident through the tracked aggregate, so the
+    /// audit interceptor stamps who changed it (research D19). A row that changed between load and
+    /// save — another admin, or an occurrence bumping its counters — is reloaded and the transition
+    /// re-applied to its current state. Returns one outcome per distinct id, and never throws for a
+    /// single incident's conflict.
+    /// </summary>
+    Task<IReadOnlyList<IncidentTransitionOutcome>> TransitionAsync(
+        IReadOnlyCollection<Guid> incidentIds,
+        Func<OperationalFailureIncident, IncidentTransitionResult> transition,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The ids of every unresolved incident with <paramref name="rootCauseKey"/> (FR-026b).</summary>
+    Task<IReadOnlyList<Guid>> ListUnresolvedIdsByRootCauseAsync(string rootCauseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A page of the other unresolved incidents sharing the incident's root cause, most recently seen
+    /// first; <see langword="null"/> when the incident itself is not found.
+    /// </summary>
+    Task<(IReadOnlyList<OperationalFailureIncident> Items, int TotalCount)?> ListRelatedAsync(
+        Guid incidentId, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>Distinct root causes with at least one Open (unacknowledged) Critical incident — the nav badge (FR-026).</summary>
+    Task<int> CountUnacknowledgedCriticalRootCausesAsync(CancellationToken cancellationToken = default);
 }

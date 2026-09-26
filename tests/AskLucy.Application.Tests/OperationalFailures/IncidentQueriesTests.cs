@@ -77,13 +77,13 @@ public sealed class IncidentQueriesTests
 
         await new ListIncidentsQueryHandler(_store, ReadModels(), _time).Handle(
             new ListIncidentsQuery(
-                from, Now, IncidentStateFilter.Resolved, OperationalFailureSeverity.Critical, OperationalFailureEngine.Voice,
-                "ElevenLabs", OperationalFailureKind.QuotaExhausted, "user-7", 2, 10),
+                from, Now, IncidentStateFilter.Resolved, [OperationalFailureSeverity.Critical, OperationalFailureSeverity.Error],
+                [OperationalFailureEngine.Voice], "ElevenLabs", [OperationalFailureKind.QuotaExhausted], "user-7", 2, 10),
             TestContext.Current.CancellationToken);
 
-        filter.Should().Be(new IncidentFilter(
-            from, Now, IncidentStateFilter.Resolved, OperationalFailureSeverity.Critical, OperationalFailureEngine.Voice,
-            "ElevenLabs", OperationalFailureKind.QuotaExhausted, "user-7"));
+        filter.Should().BeEquivalentTo(new IncidentFilter(
+            from, Now, IncidentStateFilter.Resolved, [OperationalFailureSeverity.Critical, OperationalFailureSeverity.Error],
+            [OperationalFailureEngine.Voice], "ElevenLabs", [OperationalFailureKind.QuotaExhausted], "user-7"));
         await _store.Received(1).ListIncidentsAsync(Arg.Any<IncidentFilter>(), 2, 10, Arg.Any<CancellationToken>());
     }
 

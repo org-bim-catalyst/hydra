@@ -17,6 +17,9 @@ namespace AskLucy.Persistence.Repositories;
 public sealed class OperationalFailureStore(AskLucyDbContext dbContext, IOptions<OperationalFailuresOptions> options)
     : IOperationalFailureStore
 {
+    private const int TransitionBatchSize = 100;
+    private const int MaxTransitionAttempts = 3;
+
     private readonly int _maxStoredOccurrences = OperationalFailuresOptions.Normalize(options.Value).MaxStoredOccurrencesPerIncident;
 
     public async Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, CancellationToken cancellationToken = default)
@@ -61,14 +64,14 @@ public sealed class OperationalFailureStore(AskLucyDbContext dbContext, IOptions
             _ => query.Where(i => i.TriageState != IncidentTriageState.Resolved),
         };
 
-        if (filter.Severity is { } severity)
+        if (filter.Severities is { Count: > 0 } severities)
         {
-            query = query.Where(i => i.HighestSeverity == severity);
+            query = query.Where(i => severities.Contains(i.HighestSeverity));
         }
 
-        if (filter.Engine is { } engine)
+        if (filter.Engines is { Count: > 0 } engines)
         {
-            query = query.Where(i => i.Engine == engine);
+            query = query.Where(i => engines.Contains(i.Engine));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Provider))
@@ -76,9 +79,9 @@ public sealed class OperationalFailureStore(AskLucyDbContext dbContext, IOptions
             query = query.Where(i => i.ProviderName == filter.Provider);
         }
 
-        if (filter.Kind is { } kind)
+        if (filter.Kinds is { Count: > 0 } kinds)
         {
-            query = query.Where(i => i.Kind == kind);
+            query = query.Where(i => kinds.Contains(i.Kind));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.UserId))
@@ -172,6 +175,160 @@ public sealed class OperationalFailureStore(AskLucyDbContext dbContext, IOptions
             .Select(p => p.ParticipantKey)
             .Take(take)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<IncidentTransitionOutcome>> TransitionAsync(
+        IReadOnlyCollection<Guid> incidentIds,
+        Func<OperationalFailureIncident, IncidentTransitionResult> transition,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(incidentIds);
+        ArgumentNullException.ThrowIfNull(transition);
+
+        var outcomes = new List<IncidentTransitionOutcome>(incidentIds.Count);
+        foreach (var batch in incidentIds.Distinct().Chunk(TransitionBatchSize))
+        {
+            outcomes.AddRange(await TransitionBatchAsync(batch, transition, cancellationToken));
+        }
+
+        return outcomes;
+    }
+
+    public async Task<IReadOnlyList<Guid>> ListUnresolvedIdsByRootCauseAsync(string rootCauseKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootCauseKey);
+
+        return await Visible()
+            .Where(i => i.RootCauseKey == rootCauseKey && i.TriageState != IncidentTriageState.Resolved)
+            .OrderBy(i => i.FirstSeenUtc)
+            .Select(i => i.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<OperationalFailureIncident> Items, int TotalCount)?> ListRelatedAsync(
+        Guid incidentId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var rootCauseKey = await Visible()
+            .Where(i => i.Id == incidentId)
+            .Select(i => i.RootCauseKey)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (rootCauseKey is null)
+        {
+            return null;
+        }
+
+        var query = Visible().Where(i =>
+            i.RootCauseKey == rootCauseKey && i.Id != incidentId && i.TriageState != IncidentTriageState.Resolved);
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(i => i.LastSeenUtc)
+            .ThenBy(i => i.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
+
+    public Task<int> CountUnacknowledgedCriticalRootCausesAsync(CancellationToken cancellationToken = default) =>
+        Visible()
+            .Where(i => i.HighestSeverity == OperationalFailureSeverity.Critical && i.TriageState == IncidentTriageState.Open)
+            .Select(i => i.RootCauseKey)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+    /// <summary>
+    /// One load and one save for the whole batch, which is what keeps a 1,000-incident root-cause
+    /// resolve inside one request (SC-011). <c>RowVersion</c> moves on every counter bump, so a busy
+    /// incident can fail the batch's save; the batch then falls back to one incident at a time.
+    /// </summary>
+    private async Task<IReadOnlyList<IncidentTransitionOutcome>> TransitionBatchAsync(
+        Guid[] incidentIds, Func<OperationalFailureIncident, IncidentTransitionResult> transition, CancellationToken cancellationToken)
+    {
+        var incidents = await dbContext.OperationalFailureIncidents
+            .Where(i => incidentIds.Contains(i.Id) && i.OccurrenceCount > 0)
+            .ToDictionaryAsync(i => i.Id, cancellationToken);
+
+        try
+        {
+            List<IncidentTransitionOutcome> outcomes = [.. incidentIds.Select(id => incidents.TryGetValue(id, out var incident)
+                ? new IncidentTransitionOutcome(id, ToStatus(transition(incident)))
+                : new IncidentTransitionOutcome(id, IncidentTransitionStatus.NotFound))];
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return outcomes;
+        }
+        catch (DbUpdateException)
+        {
+            // SaveChanges is transactional, so nothing in the batch was written; retry each on its own.
+            Detach(incidents.Values);
+            var outcomes = new List<IncidentTransitionOutcome>(incidentIds.Length);
+            foreach (var id in incidentIds)
+            {
+                outcomes.Add(await TransitionOneAsync(id, transition, cancellationToken));
+            }
+
+            return outcomes;
+        }
+        finally
+        {
+            Detach(incidents.Values);
+        }
+    }
+
+    private async Task<IncidentTransitionOutcome> TransitionOneAsync(
+        Guid incidentId, Func<OperationalFailureIncident, IncidentTransitionResult> transition, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var incident = await dbContext.OperationalFailureIncidents
+                .FirstOrDefaultAsync(i => i.Id == incidentId && i.OccurrenceCount > 0, cancellationToken);
+            if (incident is null)
+            {
+                return new IncidentTransitionOutcome(incidentId, IncidentTransitionStatus.NotFound);
+            }
+
+            try
+            {
+                if (transition(incident) == IncidentTransitionResult.AlreadyInState)
+                {
+                    return new IncidentTransitionOutcome(incidentId, IncidentTransitionStatus.AlreadyInState);
+                }
+
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return new IncidentTransitionOutcome(incidentId, IncidentTransitionStatus.Applied);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < MaxTransitionAttempts)
+            {
+                // Reloaded and re-applied to the row's current state on the next pass.
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new IncidentTransitionOutcome(incidentId, IncidentTransitionStatus.Conflict);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+            {
+                // Only a reopen can trip UX_Incidents_GroupingKey_Unresolved: a newer incident already holds the key.
+                dbContext.Entry(incident).State = EntityState.Detached;
+                var newer = await FindUnresolvedAsync(incident.GroupingKey, cancellationToken);
+                return new IncidentTransitionOutcome(incidentId, IncidentTransitionStatus.NewerIncidentOpen, newer);
+            }
+            finally
+            {
+                dbContext.Entry(incident).State = EntityState.Detached;
+            }
+        }
+    }
+
+    private static IncidentTransitionStatus ToStatus(IncidentTransitionResult result) =>
+        result == IncidentTransitionResult.Applied ? IncidentTransitionStatus.Applied : IncidentTransitionStatus.AlreadyInState;
+
+    private void Detach(IEnumerable<OperationalFailureIncident> incidents)
+    {
+        foreach (var incident in incidents)
+        {
+            dbContext.Entry(incident).State = EntityState.Detached;
+        }
+    }
 
     /// <summary>An incident is visible once its first occurrence has been counted (see <see cref="OpenAsync"/>).</summary>
     private IQueryable<OperationalFailureIncident> Visible() =>

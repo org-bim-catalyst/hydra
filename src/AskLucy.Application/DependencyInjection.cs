@@ -365,6 +365,7 @@ public static class DependencyInjection
         services.AddSingleton<IFailureClassifier, FailureClassifier>();
         services.AddScoped<OperationalFailureIngestor>();
         services.AddScoped<OperationalFailureReadModelBuilder>();
+        services.AddScoped<IncidentTriageService>();
 
         return services;
     }

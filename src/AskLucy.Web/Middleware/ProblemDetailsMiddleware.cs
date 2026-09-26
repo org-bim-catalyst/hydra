@@ -117,6 +117,11 @@ public sealed class ProblemDetailsMiddleware(
             problemDetails.Extensions["traceId"] = correlationId;
         }
 
+        if (exception is IncidentConflictException { NewerIncidentId: { } newerIncidentId })
+        {
+            problemDetails.Extensions["newerIncidentId"] = newerIncidentId;
+        }
+
         if (exception is ValidationException validationException)
         {
             problemDetails.Extensions["errors"] = validationException.Errors
@@ -222,6 +227,13 @@ public sealed class ProblemDetailsMiddleware(
             "https://hydra.bimcatalyst.com/problems/concurrency-conflict",
             "Concurrency conflict",
             concurrencyEx.Message),
+
+        // specs/074 FR-024: a triage transition someone else got to first, or a reopen blocked by a newer incident.
+        IncidentConflictException incidentConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/incident-conflict",
+            "Incident changed",
+            incidentConflictEx.Message),
 
         DomainRuleViolationException domainEx => (
             StatusCodes.Status400BadRequest,

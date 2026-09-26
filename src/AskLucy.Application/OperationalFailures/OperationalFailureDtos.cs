@@ -141,6 +141,8 @@ public sealed record BulkTransitionFailureDto(Guid IncidentId, string Reason);
 
 public sealed record BulkTransitionResultDto(int Attempted, int Succeeded, int Skipped, IReadOnlyList<BulkTransitionFailureDto> Failed);
 
+public sealed record OperationalFailureSummaryDto(int UnacknowledgedCriticalRootCauses);
+
 public sealed record ChatInvestigationChatDto(
     Guid Id, string Title, UserRefDto Owner, DateTime CreatedAtUtc, DateTime LastActivityUtc, int MessageCount, bool Deleted);
 

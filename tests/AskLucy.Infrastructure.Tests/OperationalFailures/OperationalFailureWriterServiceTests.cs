@@ -189,6 +189,20 @@ public sealed class OperationalFailureWriterServiceTests
 
         public Task<IReadOnlyList<string>> ListRecentUserIdsAsync(Guid incidentId, int take, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<IReadOnlyList<IncidentTransitionOutcome>> TransitionAsync(
+            IReadOnlyCollection<Guid> incidentIds,
+            Func<OperationalFailureIncident, IncidentTransitionResult> transition,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<Guid>> ListUnresolvedIdsByRootCauseAsync(string rootCauseKey, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<(IReadOnlyList<OperationalFailureIncident> Items, int TotalCount)?> ListRelatedAsync(
+            Guid incidentId, int page, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<int> CountUnacknowledgedCriticalRootCausesAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingStore(RecordingStoreLog log) : WriteOnlyStore

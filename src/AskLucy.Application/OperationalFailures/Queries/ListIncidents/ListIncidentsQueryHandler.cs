@@ -19,10 +19,10 @@ public sealed class ListIncidentsQueryHandler(
             from,
             to,
             request.State ?? IncidentStateFilter.Unresolved,
-            request.Severity,
-            request.Engine,
+            request.Severities,
+            request.Engines,
             request.Provider,
-            request.Kind,
+            request.Kinds,
             request.UserId);
 
         var (incidents, total) = await store.ListIncidentsAsync(filter, request.Page, request.PageSize, cancellationToken);

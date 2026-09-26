@@ -477,3 +477,45 @@ delete and is untouched.
 `CriticalIncidentOpened`, **from the writer's scope**, never from the user's request. No handler
 is registered in this feature. A future email or paging handler subscribes to it without touching
 any recording caller.
+
+## D19 — Triage concurrency is judged on state, not on `RowVersion` (implementation deviation)
+
+**Decision.** Transition requests carry no `rowVersion`. A transition whose precondition no longer
+holds — acknowledging an incident that is already acknowledged, resolving a resolved one,
+reopening one that is not resolved — is the conflict, and returns 409 `incident-conflict`. Reopening
+while a newer unresolved incident holds the same grouping key also returns 409, with
+`newerIncidentId`.
+
+**Rationale.** Every occurrence bumps the incident's counters with a set-based `ExecuteUpdate`,
+which also changes `RowVersion`. A client-supplied `rowVersion` would therefore be stale during
+exactly the bursts an admin is triaging, and almost every click would be refused for a change no
+admin made. What matters is whether another *admin* moved the incident, and the triage state says
+that directly.
+
+**How it works.**
+- `IOperationalFailureStore.TransitionAsync(ids, transition)` loads the visible incidents in batches
+  of 100, tracked, applies the domain transition and saves once per batch. It goes through the
+  tracked aggregate so the audit interceptor stamps who changed it.
+- EF's `IsRowVersion` still guards the load→save window. If a batch save fails, the store falls back
+  to one incident at a time. A `DbUpdateConcurrencyException` reloads and re-applies the transition
+  to the current state, up to 3 attempts, then reports `Conflict`. A unique-index violation on
+  reopen reports `NewerIncidentOpen` with the id of the incident holding the key.
+- One outcome is returned per id: `Applied`, `AlreadyInState`, `NotFound`, `Conflict` or
+  `NewerIncidentOpen`. No EF type crosses into Application.
+- For one incident, `IncidentTriageService` maps anything but `Applied` to 404 or
+  `IncidentConflictException`. For a root cause, `AlreadyInState` and `NotFound` count as skipped,
+  and `Conflict` and `NewerIncidentOpen` as failed.
+
+This replaces T071's `GetForTransitionAsync` / `SaveTransitionAsync(expectedRowVersion)` /
+`ListOpenByRootCauseAsync` / `HasOtherUnresolvedAsync` with `TransitionAsync` and
+`ListUnresolvedIdsByRootCauseAsync`. At N = 1,000 a root-cause resolve is 10 batched saves rather
+than 1,000 round trips (SC-011).
+
+**Related decision: multi-valued filters.** `severity`, `engine` and `kind` bind as arrays, so a
+repeated parameter is OR-ed as the contract states. `IncidentFilter` carries collections, and an
+empty collection does not filter.
+
+**Alternatives considered.** Keeping the `rowVersion` precondition and excluding the counter columns
+from it. SQL Server `rowversion` is per row, not per column, so that would need a second, manually
+maintained version column that only transitions bump. That adds a column and a convention to
+remember, and buys nothing the state check does not already give.
