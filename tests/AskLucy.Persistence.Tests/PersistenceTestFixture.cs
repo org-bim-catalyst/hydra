@@ -36,7 +36,8 @@ public sealed class Base64MemoryContentProtector : IMemoryContentProtector
 /// removed because the backend CI job runs on <c>windows-latest</c>, whose Docker daemon
 /// cannot run that (Linux-only) image — every run failed with
 /// <c>DockerImageNotFoundException</c>, on CI and on Windows dev machines alike. This instance
-/// is a persistent, shared test database instead, so <see cref="InitializeAsync"/> deletes
+/// is a persistent database dedicated to this suite instead (test2, named by
+/// <see cref="PersistenceDatabaseGate.ConnectionStringEnvironmentVariable"/>), so <see cref="InitializeAsync"/> deletes
 /// every row from every table (schema untouched) to guarantee the same fresh-data guarantee
 /// Testcontainers gave, rather than migrating/creating the database itself: this account is a
 /// shared-hosting (site4now.net) database user scoped to this one already-provisioned
@@ -49,29 +50,12 @@ public sealed class Base64MemoryContentProtector : IMemoryContentProtector
 /// already has every migration applied. Schema changes for this database are therefore applied
 /// separately via the `dotnet ef database update` CLI (which hits the same check, but is run
 /// deliberately by a maintainer, not implicitly on every test run) — see docs/TESTING.md §13.
-/// Because the database is shared rather than per-run, CI serializes the job that uses it (see
+/// Because the database is persistent rather than per-run, CI serializes the job that uses it (see
 /// the `concurrency` group on `backend-build-and-test` in ci.yml) so two runs never reset/query
 /// it at the same time.
 /// </summary>
 public sealed class PersistenceTestFixture : IAsyncLifetime
 {
-    private const string ConnectionStringEnvVar = "PERSISTENCE_TESTS_CONNECTION_STRING";
-
-    private static string ResolveConnectionString()
-    {
-        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvVar);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                $"Persistence tests need a real test SQL Server instance. Set the " +
-                $"{ConnectionStringEnvVar} environment variable to its connection string " +
-                $"(dotnet user-secrets or a local .env for development; a GitHub Actions " +
-                $"secret in CI) — see docs/TESTING.md §13.");
-        }
-
-        return connectionString;
-    }
-
     /// <summary>
     /// Command timeout for the reset below, well past the 30 s default.
     ///
@@ -186,7 +170,7 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
     }
 
     // CA1822 suggests making this static, since it only calls the (already-static)
-    // ResolveConnectionString() helper and doesn't touch instance state. Deliberately left as an
+    // PersistenceDatabaseGate.ResolveConnectionString() helper and doesn't touch instance state. Deliberately left as an
     // instance method: every test in this project calls it as `fixture.CreateDbContext()` off the
     // xUnit collection-fixture instance injected into each test class's constructor (108 call
     // sites across every file in this project) — switching to static would force every one of
@@ -224,7 +208,7 @@ public sealed class PersistenceTestFixture : IAsyncLifetime
     private static AskLucyDbContext CreateDbContext(int? commandTimeoutSeconds, params IInterceptor[] interceptors)
     {
         var options = new DbContextOptionsBuilder<AskLucyDbContext>()
-            .UseSqlServer(ResolveConnectionString(), sql =>
+            .UseSqlServer(PersistenceDatabaseGate.ResolveConnectionString(), sql =>
             {
                 if (commandTimeoutSeconds is { } seconds)
                 {

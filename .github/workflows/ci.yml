@@ -10,11 +10,12 @@ jobs:
   backend-build-and-test:
     name: Backend build, lint, and test (.NET 10)
     runs-on: windows-latest
-    # AskLucy.Persistence.Tests runs against a real, shared test SQL Server instance rather
-    # than a per-run Testcontainers instance (windows-latest's Docker daemon can't run that
-    # Linux image — see PersistenceTestFixture.cs). Serialize this job so two concurrent runs
-    # never reset/query the shared database at the same time; cancel-in-progress is false so
-    # a newer push waits its turn instead of aborting a run that might already be mid-test.
+    # AskLucy.Persistence.Tests runs against a real, persistent test SQL Server database (test2)
+    # rather than a per-run Testcontainers instance (windows-latest's Docker daemon can't run that
+    # Linux image — see PersistenceTestFixture.cs), and Web.Tests against the shared test DB.
+    # Serialize this job so two concurrent runs never reset/query either database at the same
+    # time; cancel-in-progress is false so a newer push waits its turn instead of aborting a run
+    # that might already be mid-test.
     concurrency:
       group: backend-tests-shared-db
       cancel-in-progress: false
@@ -64,7 +65,11 @@ jobs:
         working-directory: .
         run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults
         env:
+          # Web.Tests' app host: the shared test DB, never wiped.
           PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}
+          # Persistence.Tests only: the dedicated test2 DB, emptied on every run. It needs every
+          # migration applied by hand (docs/TESTING.md §13), or this suite fails.
+          PERSISTENCE_TESTS_2_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_2_CONNECTION_STRING }}
 
       - name: Upload test results
         if: always()

@@ -225,44 +225,47 @@ Run against a real SQL Server instance that exists **only** for these tests. Not
 the CI runner is `windows-latest`, which cannot run the Linux-only
 `mcr.microsoft.com/mssql/server` image.
 
-## Persistence tests are skipped unless a dedicated database is declared
+## Persistence tests are skipped unless their dedicated database is set
 
 `PersistenceTestFixture` deletes every row from every EF-mapped table before the suite runs
 (schema and `__EFMigrationsHistory` untouched), and the tests then insert their own users, chats,
-documents and memories. That is only safe against a disposable database, so **every test in
-`AskLucy.Persistence.Tests` is skipped** — and the fixture never touches the database — unless
-both are set:
+documents and memories. That is only safe against a disposable database, so the suite reads its
+own variable, `PERSISTENCE_TESTS_2_CONNECTION_STRING`, which names test2 and nothing else. **Every
+test in `AskLucy.Persistence.Tests` is skipped** — and the fixture never touches a database —
+unless it is set. If it names the same server and database as `PERSISTENCE_TESTS_CONNECTION_STRING`
+(the shared test DB), the fixture throws before it wipes anything.
 
-* `PERSISTENCE_TESTS_CONNECTION_STRING` — the dedicated test database.
-* `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` — the explicit declaration that it may be emptied.
+The old `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` flag is gone: the variable's name is now the
+declaration. `PERSISTENCE_TESTS_CONNECTION_STRING` no longer affects this suite at all.
 
 ## Two test databases: which suite uses which
 
-| Database | Used by | May be wiped? | Local connection string |
-|---|---|---|---|
-| `db_a15752_asklucytest` (shared test DB) | `AskLucy.Web.Tests`, local dev server, every test except Persistence | **No** | `ConnectionStrings:DefaultConnection` in `src/AskLucy.Web/appsettings.Development.json` |
-| `db_a15752_asklucytest2` (dedicated Persistence DB) | `AskLucy.Persistence.Tests` **only** | Yes, every run | `ConnectionStrings:PersistenceTests` in the same file |
+| Database | Used by | May be wiped? | Environment variable / CI secret | Local connection string |
+|---|---|---|---|---|
+| `db_a15752_asklucytest` (shared test DB) | `AskLucy.Web.Tests`, local dev server, every test except Persistence | **No** | `PERSISTENCE_TESTS_CONNECTION_STRING` | `ConnectionStrings:DefaultConnection` in `src/AskLucy.Web/appsettings.Development.json` |
+| `db_a15752_asklucytest2` (dedicated Persistence DB) | `AskLucy.Persistence.Tests` **only** | Yes, every run | `PERSISTENCE_TESTS_2_CONNECTION_STRING` | `ConnectionStrings:PersistenceTests` in the same file |
 
-`appsettings.Development.json` is git-ignored; neither connection string is ever committed.
-`PERSISTENCE_TESTS_CONNECTION_STRING` means a different database depending on the suite, so set it
-per command, never once for a whole shell or for a solution-wide `dotnet test`:
+`appsettings.Development.json` is git-ignored; neither connection string is ever committed. In CI
+both variables come from repository secrets of the same names, and the solution-wide
+`dotnet test` runs both suites, each against its own database. Locally:
 
 ```bash
 SETTINGS=src/AskLucy.Web/appsettings.Development.json
 cs() { python -c "import json,sys;print(json.load(open('$SETTINGS',encoding='utf-8-sig'))['ConnectionStrings'][sys.argv[1]])" "$1"; }
 
-# Persistence tests — test2 only, and only these may carry the DEDICATED flag.
-PERSISTENCE_TESTS_CONNECTION_STRING="$(cs PersistenceTests)" PERSISTENCE_TESTS_DEDICATED_DATABASE=1   dotnet test tests/AskLucy.Persistence.Tests
+# Persistence tests — test2 only.
+PERSISTENCE_TESTS_2_CONNECTION_STRING="$(cs PersistenceTests)" dotnet test tests/AskLucy.Persistence.Tests
 
-# Web tests — the shared test DB, and never with the DEDICATED flag.
+# Web tests — the shared test DB.
 PERSISTENCE_TESTS_CONNECTION_STRING="$(cs DefaultConnection)" dotnet test tests/AskLucy.Web.Tests
 ```
 
-**Never** pair `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` with the shared test DB: the fixture would
-empty it, as it once emptied the development database. CI sets no `DEDICATED` flag, so the
-Persistence suite is skipped there.
+**Never** set `PERSISTENCE_TESTS_2_CONNECTION_STRING` to the shared test DB: the fixture would
+empty it, as it once emptied the development database. The same-database check above catches
+that only when `PERSISTENCE_TESTS_CONNECTION_STRING` is set in the same process.
 
-Both databases need every migration. When you add one, apply it to each database by hand. Point
+Both databases need every migration, and CI now runs the Persistence suite, so a migration missing
+from test2 fails CI. When you add one, apply it to each database by hand. Point
 `ConnectionStrings__DefaultConnection` at the target for that one command:
 
 ```bash
@@ -274,9 +277,8 @@ test2 was created behind the shared test DB. It was brought current on 2026-09-2
 fewer rows than the shared DB's because the shared DB also records migrations that were later
 removed from the code. Compare the latest `MigrationId`, not the row count.
 
-The gate is `PersistenceDatabaseGate`. A connection string alone is deliberately not enough: it
-said where a database was, not that it could be wiped, and it pointed at the shared development
-database — each run deleted that database's migration-seeded reference rows (embedding providers,
+The gate is `PersistenceDatabaseGate`. The suite once shared `PERSISTENCE_TESTS_CONNECTION_STRING`
+with Web.Tests, which pointed it at the shared development database — each run deleted that database's migration-seeded reference rows (embedding providers,
 knowledge-base categories), its AI provider configuration and every role assignment. The
 scale-performance tests below require this gate as well as their own.
 
