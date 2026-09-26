@@ -321,18 +321,18 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - They return 200 with view.
   - The chat investigation JSON has `transcript: null` for an Administrator (no grant) and non-null for a Super User (SC-009).
   - There is no POST/PUT/DELETE route under `incidents/{id}/chats`: a POST returns 404 or 405.
-- [ ] T043 [P] [US1] Frontend tests in `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.test.tsx`, with MSW handlers for every new endpoint:
+- [X] T043 [P] [US1] Frontend tests in `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.test.tsx`, with MSW handlers for every new endpoint:
   - The list renders severity, engine, provider/model, kind, counts and last seen.
   - Opening a row shows the drawer with the reason, correlation id (copy button), user link, chat link and corrective-action link to `/admin/ai-providers?select=…`.
   - A list fetch 500 shows an inline error with retry.
   - An Access-engine incident also shows its distinct-source and distinct-account counts (FR-012a).
   - The user link points to `/admin/users?search={email}`.
-- [ ] T044 [P] [US1] Frontend tests in `ClientApp/src/features/admin/pages/investigations/ChatInvestigationPage.test.tsx`:
+- [X] T044 [P] [US1] Frontend tests in `ClientApp/src/features/admin/pages/investigations/ChatInvestigationPage.test.tsx`:
   - With `transcript: null` it renders metadata and failure points and the text "Content is visible only to staff with *View user content*".
   - With a transcript it renders messages with the failed turn highlighted.
   - There is no composer, textbox or edit/delete/download control, asserted with `queryByRole('textbox')` null.
   - `deleted: true` renders "This chat was deleted".
-- [ ] T045 [P] [US1] Frontend tests for the deep-link targets US1 renders:
+- [X] T045 [P] [US1] Frontend tests for the deep-link targets US1 renders:
   - `ClientApp/src/features/admin/pages/AdminAiProvidersPage.test.tsx` (extend): `?select=<id>` selects and scrolls to that provider on mount; an unknown id shows an inline "no longer exists" note.
   - `ClientApp/src/features/admin/pages/AdminUsersPage.test.tsx` (extend): `?search=<email>` pre-fills the search box and the list request carries it (FR-016).
 
@@ -382,22 +382,25 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   Makes T042 pass.
 
   _Done:_ the transcript tests seed real Identity users (Administrator, Super User, owner) because the handler resolves permissions from the stored role, not the token.
-- [ ] T055 [P] [US1] Create `ClientApp/src/features/admin/api/adminOperationalFailuresApi.ts`: typed functions and TS types mirroring the contract shapes, and TanStack Query keys under `['admin','operational-failures',…]`.
-- [ ] T056 [P] [US1] In `ClientApp/src/features/admin/adminPermissions.ts`, mirror the three new keys and `SUPER_USER_CONTROLLED_KEYS`. In `ClientApp/src/features/admin/adminNav.tsx`, add `{ path: '/admin/operational-failures', label: 'Operational failures', icon: <ReportProblemOutlinedIcon fontSize="small" />, permission: 'admin.operational-failures.view' }`.
-- [ ] T057 [US1] Create `ClientApp/src/features/admin/components/operationalFailures/`:
+- [X] T055 [P] [US1] Create `ClientApp/src/features/admin/api/adminOperationalFailuresApi.ts`: typed functions and TS types mirroring the contract shapes, and TanStack Query keys under `['admin','operational-failures',…]`.
+- [X] T056 [P] [US1] In `ClientApp/src/features/admin/adminPermissions.ts`, mirror the three new keys and `SUPER_USER_CONTROLLED_KEYS`. In `ClientApp/src/features/admin/adminNav.tsx`, add `{ path: '/admin/operational-failures', label: 'Operational failures', icon: <ReportProblemOutlinedIcon fontSize="small" />, permission: 'admin.operational-failures.view' }`.
+- [X] T057 [US1] Create `ClientApp/src/features/admin/components/operationalFailures/`:
   - `IncidentTable.tsx`: server-paged, with severity chip, engine, provider/model, kind, `occurrenceCount` ("showing N of M" when capped), users, last seen, and state.
   - `IncidentDrawer.tsx`: reason, correlation id with copy, provider health, sample users (each linking to `/admin/users?search={email}`), occurrences table and corrective action. For Access incidents it also shows `distinctSourceCount` and `distinctUserCount` as "N sources · M accounts" (FR-012a).
   - `OccurrenceTable.tsx`: paged, with links rendering "deleted"/"erased user".
   - `CorrectiveActionLink.tsx`: `adminRoute` renders a `RouterLink`; `OpenJobsDashboard` reuses the nav's Hangfire action.
 
   Each fetch shows an inline error with a retry button.
-- [ ] T058 [US1] Create `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.tsx`, rendered inside `AdminShell`, with the default view (unresolved, last 7 days). Add routes in `ClientApp/src/routes/router.tsx` for `/admin/operational-failures` and `/admin/operational-failures/:incidentId/chats/:chatId`, using the same guard pattern as the other admin routes. Makes T043 pass.
-- [ ] T059 [US1] Create `ClientApp/src/features/admin/pages/investigations/ChatInvestigationPage.tsx`: read-only; reuses the chat message markdown renderer used by `features/chat/components/MessageBubble.tsx` without any action props; no composer. Makes T044 pass.
-- [ ] T060 [US1] Deep-link handling for the pages US1 links to:
+  _Done:_ plus shared `operationalFailureLabels.ts` and `UserRefLink.tsx`. Workflow/document/agent/MCP items render as text until their investigation pages land in US4.
+- [X] T058 [US1] Create `ClientApp/src/features/admin/pages/AdminOperationalFailuresPage.tsx`, rendered inside `AdminShell`, with the default view (unresolved, last 7 days). Add routes in `ClientApp/src/routes/router.tsx` for `/admin/operational-failures` and `/admin/operational-failures/:incidentId/chats/:chatId`, using the same guard pattern as the other admin routes. Makes T043 pass.
+  _Done:_ both routes use `<AdminRoute permission="admin.operational-failures.view">` so custom roles with view reach them. The filter toolbar is T076 (US3); US1 ships the fixed default view with paging.
+- [X] T059 [US1] Create `ClientApp/src/features/admin/pages/investigations/ChatInvestigationPage.tsx`: read-only; reuses the chat message markdown renderer used by `features/chat/components/MessageBubble.tsx` without any action props; no composer. Makes T044 pass.
+- [X] T060 [US1] Deep-link handling for the pages US1 links to:
   - `ClientApp/src/features/admin/pages/AdminAiProvidersPage.tsx`: `?select=`, read once on mount; select and scroll to the provider, and show an inline note for an unknown id.
   - `ClientApp/src/features/admin/pages/AdminUsersPage.tsx`: `?search=`, if it does not already read it; pre-fill the search box.
 
   Makes T045 pass.
+  _Done:_ the selected row gets `selected` and scrolls once via a callback ref (`scrollIntoView?.` — jsdom has none).
 
 **Checkpoint**: US1 is independently demonstrable (quickstart S1–S4, S7). This is the MVP.
 

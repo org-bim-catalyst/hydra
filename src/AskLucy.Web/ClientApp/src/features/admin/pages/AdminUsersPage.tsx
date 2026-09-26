@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import {
   Box,
   Button,
@@ -45,7 +46,9 @@ const SELECTION_SCOPE_ACTION: UserBulkAction = 'ForceReset2fa'
  * concurrencyStamp (FR-020), unlike the legacy page this replaces.
  */
 export function AdminUsersPage() {
-  const [search, setSearch] = useState('')
+  // `?search=` lets another admin page link straight to a user (specs/074 FR-017); read once.
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const [sortBy, setSortBy] = useState<UserSortBy>('email')
   const [sortDescending, setSortDescending] = useState(false)
   const [page, setPage] = useState(0) // zero-based for MUI's TablePagination

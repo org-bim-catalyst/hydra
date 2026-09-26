@@ -33,6 +33,12 @@ export const ADMIN_PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: 'admin.mcp-servers.manage', area: 'McpServers', areaLabel: 'MCP servers', level: 'Manage', displayName: 'Manage MCP servers', description: 'Add, edit, or remove MCP server registrations.' },
   { key: 'admin.custom-models.view', area: 'CustomModels', areaLabel: 'Custom models', level: 'View', displayName: 'View custom models', description: 'View custom model deployments and their progress.' },
   { key: 'admin.custom-models.manage', area: 'CustomModels', areaLabel: 'Custom models', level: 'Manage', displayName: 'Manage custom models', description: 'Deploy models from Hugging Face to the production server, cancel deployments, and change model availability.' },
+
+  { key: 'admin.operational-failures.view', area: 'OperationalFailures', areaLabel: 'Operational failures', level: 'View', displayName: 'View operational failures', description: 'View the operational failure trail, with metadata-only links to affected chats, workflow runs and documents.' },
+
+  { key: 'admin.operational-failures.manage', area: 'OperationalFailures', areaLabel: 'Operational failures', level: 'Manage', displayName: 'Manage operational failures', description: 'Acknowledge, resolve, and reopen operational failure incidents.' },
+
+  { key: 'admin.operational-failures.content.view', area: 'OperationalFailures', areaLabel: 'Operational failures', level: 'View', displayName: 'View user content in failure investigations', description: "Read the full content of another user's chat, workflow run or document from a failure incident. Every access is audited. Only a Super User can grant or revoke it; it grants nothing without View operational failures." },
 ]
 
 export const ADMIN_PERMISSIONS = {
@@ -54,6 +60,15 @@ export const ADMIN_PERMISSIONS = {
   mcpServersManage: 'admin.mcp-servers.manage',
   customModelsView: 'admin.custom-models.view',
   customModelsManage: 'admin.custom-models.manage',
+  operationalFailuresView: 'admin.operational-failures.view',
+  operationalFailuresManage: 'admin.operational-failures.manage',
+  operationalFailuresContentView: 'admin.operational-failures.content.view',
 } as const
 
 export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS]
+
+/**
+ * specs/074 FR-016e–k — keys only a Super User can grant or revoke, mirroring
+ * `AdminPermissionCatalog.SuperUserControlledKeys`. The built-in Administrator role does not hold them implicitly.
+ */
+export const SUPER_USER_CONTROLLED_KEYS: ReadonlySet<string> = new Set<string>([ADMIN_PERMISSIONS.operationalFailuresContentView])

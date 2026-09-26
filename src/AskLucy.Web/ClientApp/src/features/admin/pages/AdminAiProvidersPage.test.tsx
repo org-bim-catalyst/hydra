@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 import { AdminAiProvidersPage } from './AdminAiProvidersPage'
 
@@ -45,11 +45,11 @@ beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-function renderPage() {
+function renderPage(initialEntry = '/admin/ai-providers') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <AdminAiProvidersPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -142,5 +142,30 @@ describe('AdminAiProvidersPage — Custom models section (specs/072)', () => {
 
     await findByText('OpenAI')
     expect(queryByText('Custom models')).not.toBeInTheDocument()
+  })
+})
+
+describe('AdminAiProvidersPage — ?select= deep link (specs/074 FR-017)', () => {
+  const second = { ...baseProvider, id: 'provider-2', providerKey: 'anthropic', displayName: 'Anthropic' }
+
+  it('selects and scrolls to the provider the link names', async () => {
+    server.use(http.get('*/api/v1/admin/ai/providers', () => HttpResponse.json([baseProvider, second])))
+    // jsdom has no layout, so scrollIntoView is missing from its elements.
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    const { findByText, getByText } = renderPage('/admin/ai-providers?select=provider-2')
+
+    const row = (await findByText('Anthropic')).closest('tr')!
+    expect(row).toHaveClass('Mui-selected')
+    expect(getByText('OpenAI').closest('tr')).not.toHaveClass('Mui-selected')
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0]).toBe(row)
+  })
+
+  it('says so inline when the linked provider no longer exists', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    const { findByText } = renderPage('/admin/ai-providers?select=provider-gone')
+
+    expect(await findByText('The provider this link pointed to no longer exists.')).toBeInTheDocument()
   })
 })

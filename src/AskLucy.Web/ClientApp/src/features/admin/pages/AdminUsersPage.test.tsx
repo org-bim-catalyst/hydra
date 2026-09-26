@@ -71,11 +71,11 @@ beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-function renderPage() {
+function renderPage(initialEntry = '/admin/users') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <AdminUsersPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -253,5 +253,14 @@ describe('AdminUsersPage', () => {
 
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('AdminUsersPage — ?search= deep link (specs/074 FR-016)', () => {
+  it('pre-fills the search box and asks for the matching users', async () => {
+    renderPage('/admin/users?search=ada%40example.com')
+
+    expect(await screen.findByLabelText('Search by name or email')).toHaveValue('ada@example.com')
+    await waitFor(() => expect(lastRequestUrl?.searchParams.get('search')).toBe('ada@example.com'))
   })
 })

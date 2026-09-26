@@ -1,5 +1,6 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useCallback, useRef, useState } from 'react'
 import {
+  Alert,
   Box,
   Chip,
   Collapse,
@@ -17,6 +18,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { visuallyHidden } from '@mui/utils'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { useCan } from '../../auth/hooks/usePermissions'
@@ -51,6 +53,21 @@ export function AdminAiProvidersPage() {
   })
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null)
 
+  // `?select=<providerId>` — the corrective-action link from an operational failure incident
+  // (specs/074 FR-017) lands on the provider it names: highlighted and scrolled into view once.
+  const [searchParams] = useSearchParams()
+  const [selectedProviderId] = useState(() => searchParams.get('select'))
+  const hasScrolledToSelection = useRef(false)
+  const selectedRowRef = useCallback((row: HTMLTableRowElement | null) => {
+    if (!row || hasScrolledToSelection.current) return
+    hasScrolledToSelection.current = true
+    row.scrollIntoView?.({ block: 'center' })
+  }, [])
+  const selectionIsMissing =
+    selectedProviderId !== null &&
+    providers !== undefined &&
+    !providers.some((provider) => provider.id === selectedProviderId)
+
   // While the body holds only the empty-state row, stretch the table over the whole container so
   // that row centres in it instead of hugging the header. Not while loading: the skeleton rows
   // fill the body themselves, and stretching would smear six of them over the page.
@@ -65,6 +82,11 @@ export function AdminAiProvidersPage() {
       subtitle="Enable a provider, configure its credential, and mark which of its models are available"
 
     >
+      {selectionIsMissing && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          The provider this link pointed to no longer exists.
+        </Alert>
+      )}
       {canViewProviders && (
         // The two sections share the page height equally (flex: 1 each); each scrolls on its own.
         <Paper
@@ -101,9 +123,10 @@ export function AdminAiProvidersPage() {
                 )}
                 {providers?.map((provider) => {
                   const isExpanded = expandedProviderId === provider.id
+                  const isSelected = selectedProviderId === provider.id
                   return (
                     <Fragment key={provider.id}>
-                      <TableRow hover>
+                      <TableRow hover selected={isSelected} ref={isSelected ? selectedRowRef : undefined}>
                         <TableCell>
                           <IconButton
                             size="small"

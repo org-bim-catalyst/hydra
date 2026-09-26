@@ -90,6 +90,16 @@ const AdminRolesPage = lazy(() =>
 const AdminRoleAssignmentsPage = lazy(() =>
   import('../features/admin/pages/AdminRoleAssignmentsPage').then((m) => ({ default: m.AdminRoleAssignmentsPage })),
 )
+const AdminOperationalFailuresPage = lazy(() =>
+  import('../features/admin/pages/AdminOperationalFailuresPage').then((m) => ({
+    default: m.AdminOperationalFailuresPage,
+  })),
+)
+const ChatInvestigationPage = lazy(() =>
+  import('../features/admin/pages/investigations/ChatInvestigationPage').then((m) => ({
+    default: m.ChatInvestigationPage,
+  })),
+)
 const ChatSettingsPage = lazy(() =>
   import('../features/settings/pages/ChatSettingsPage').then((m) => ({ default: m.ChatSettingsPage })),
 )
@@ -573,6 +583,32 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <McpAdministrationPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/operational-failures',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.operational-failures.view">
+          <Lazy>
+            <AdminOperationalFailuresPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/operational-failures/:incidentId/chats/:chatId',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.operational-failures.view">
+          <Lazy>
+            <ChatInvestigationPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>
