@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Admin;
+using AskLucy.Application.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace AskLucy.Persistence.Repositories;
@@ -66,23 +67,23 @@ public sealed class AdminDashboardRepository(AskLucyDbContext dbContext) : IAdmi
 
     private async Task<IReadOnlyList<RoleCountDto>> GetRoleDistributionAsync(int totalUsers, CancellationToken cancellationToken)
     {
-        var privilegedCounts = await (
+        var roleCounts = await (
             from userRole in dbContext.UserRoles
             join role in dbContext.Roles on userRole.RoleId equals role.Id
             group userRole by role.Name into g
             select new { RoleName = g.Key!, Count = g.Count() })
             .ToListAsync(cancellationToken);
 
-        var privilegedTotal = privilegedCounts.Sum(r => r.Count);
-        var regularCount = totalUsers - privilegedTotal;
+        // An account with no role row (data older than the User role) is a User-role holder.
+        var roleless = totalUsers - roleCounts.Sum(r => r.Count);
+        var counts = roleCounts.ToDictionary(r => r.RoleName, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        if (roleless > 0)
+        {
+            counts[DefaultRole.Name] = counts.GetValueOrDefault(DefaultRole.Name) + roleless;
+        }
 
-        var distribution = privilegedCounts
-            .Select(r => new RoleCountDto(r.RoleName, r.Count))
-            .OrderByDescending(r => r.UserCount)
-            .ToList();
-
-        distribution.Add(new RoleCountDto("Regular", regularCount));
-
-        return distribution;
+        return [.. counts
+            .Select(r => new RoleCountDto(r.Key, r.Value))
+            .OrderByDescending(r => r.UserCount)];
     }
 }

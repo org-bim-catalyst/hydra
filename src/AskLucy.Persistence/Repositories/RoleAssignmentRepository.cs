@@ -215,8 +215,9 @@ public sealed class RoleAssignmentRepository(
             // specs/074 FR-016f: a user whose custom role carries a Super-User-controlled key
             // (View user content) can't have it taken away by anyone else either.
             var controlledKeys = AdminPermissionCatalog.SuperUserControlledKeys.ToList();
-            query = query.Where(x => x.role == null || (!x.role.IsBuiltIn && !dbContext.RoleClaims.Any(c =>
-                c.RoleId == x.role.Id && c.ClaimType == PermissionClaims.Type && controlledKeys.Contains(c.ClaimValue!))));
+            query = query.Where(x => x.role == null || x.role.NormalizedName == DefaultRole.NormalizedName ||
+                (!x.role.IsBuiltIn && !dbContext.RoleClaims.Any(c =>
+                    c.RoleId == x.role.Id && c.ClaimType == PermissionClaims.Type && controlledKeys.Contains(c.ClaimValue!))));
         }
 
         return await query.Select(x => x.user.Id).ToListAsync(cancellationToken);

@@ -35,8 +35,8 @@ public sealed class BulkDeleteRolesCommandHandlerTests
 
         result.Outcome.SucceededCount.Should().Be(2);
         result.Outcome.Skipped.Should().BeEmpty();
-        result.UnassignedUserCounts["role-1"].Should().Be(2);
-        result.UnassignedUserCounts["role-2"].Should().Be(0);
+        result.ReassignedUserCounts["role-1"].Should().Be(2);
+        result.ReassignedUserCounts["role-2"].Should().Be(0);
         _cacheInvalidator.Received(1).Evict("user-1");
         _cacheInvalidator.Received(1).Evict("user-2");
     }

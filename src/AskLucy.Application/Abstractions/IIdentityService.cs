@@ -115,9 +115,8 @@ public interface IIdentityService
 
     /// <summary>
     /// Admin role change (FR-014). <paramref name="newRole"/> is <c>"Administrator"</c>,
-    /// <c>"Super User"</c>, or the sentinel <c>"Regular"</c> — the last means "remove every
-    /// privileged role, assign none" and is never itself a real <c>AspNetRoles</c> row
-    /// (data-model.md &#167; Commands).
+    /// <c>"Super User"</c>, <c>"User"</c>, or the legacy <c>"Regular"</c> — the last is another name
+    /// for the built-in User role. The user's current role is always replaced, never left empty.
     /// </summary>
     Task ChangeRoleAsync(string userId, string newRole, CancellationToken cancellationToken = default);
 

@@ -1,3 +1,4 @@
+using AskLucy.Application.Authorization;
 using AskLucy.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -7,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace AskLucy.Web.DevSeed;
 
 /// <summary>
-/// Dev-only convenience: ensures the "Administrator"/"Super User" roles exist and, if no
+/// Dev-only convenience: ensures the "Administrator"/"Super User"/"User" roles exist and, if no
 /// Administrator account exists yet, creates one from configuration. Never hardcodes a
 /// credential in source — ADR-0001 explicitly rejected the legacy pattern of a plaintext
 /// seed-admin password baked into EF migrations. Runs only in Development (see Program.cs);
@@ -25,7 +26,7 @@ public static class DevAdminSeeder
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        foreach (var role in AdminRoles)
+        foreach (var role in (string[])[.. AdminRoles, DefaultRole.Name])
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
@@ -70,7 +71,13 @@ public static class DevAdminSeeder
         }
 
         // specs/055-role-management FR-012: a user holds at most one role — the bootstrap admin
-        // gets only Super User (the more privileged of the two), never both.
+        // gets only Super User (the more privileged of the two), never both, and not User as well.
+        var currentRoles = await userManager.GetRolesAsync(user);
+        if (currentRoles.Count > 0)
+        {
+            await userManager.RemoveFromRolesAsync(user, currentRoles);
+        }
+
         await userManager.AddToRoleAsync(user, "Super User");
         DevSeedLog.SeedAdminReady(logger, email);
     }

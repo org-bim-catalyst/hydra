@@ -28,5 +28,5 @@ public sealed record MyProfileResponse(
 
 public sealed record DeleteAccountRequest(string Password);
 
-/// <summary>specs/001-admin-dashboard FR-014. <c>Role</c> is <c>"Administrator"</c>, <c>"Super User"</c>, or the sentinel <c>"Regular"</c>.</summary>
+/// <summary>specs/001-admin-dashboard FR-014. <c>Role</c> is the user's role name - <c>"User"</c> for an account with no other role.</summary>
 public sealed record ChangeUserRoleRequest(string Role);

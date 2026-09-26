@@ -83,6 +83,35 @@ public sealed class AdminRolesTests(CustomWebApplicationFactory factory) : IClas
     }
 
     [Fact]
+    public async Task UpdateDefaultRole_ShouldReturn403_WhenCallerHasNoAdminRole()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/roles/default",
+            JsonContent.Create(new { description = (string?)null, permissionKeys = DashboardViewOnly, concurrencyStamp = "stamp" }),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Administrator")]
+    public async Task DuplicateRole_ShouldReturn403_WhenCallerIsNotASuperUser(string? role)
+    {
+        var token = role is null ? TestJwtFactory.Create("user-1") : TestJwtFactory.Create("admin-1", role);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.PostAsync(
+            "/api/v1/admin/roles/some-role-id/duplicate",
+            JsonContent.Create(new { name = "Copy of Moderator", description = (string?)null }),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task GetRoles_ShouldReturn401_WhenUnauthenticated()
     {
         var response = await _client.GetAsync("/api/v1/admin/roles", TestContext.Current.CancellationToken);

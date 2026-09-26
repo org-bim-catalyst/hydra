@@ -112,13 +112,40 @@ public sealed class EffectivePermissionResolverTests
     }
 
     [Fact]
-    public async Task ResolveAsync_NoRole_ReturnsEmpty()
+    public async Task ResolveAsync_NoRoleRow_IsTreatedAsTheUserRole()
     {
         _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([]);
+        _roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("user-id", DefaultRole.Name, null, true, PermissionSet.Create("admin.dashboard.view"), 0, null, "s"));
+
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
+
+        result.Keys.Should().BeEquivalentTo(["admin.dashboard.view"]);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_UserRole_WithNothingAdded_ReturnsEmpty()
+    {
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([DefaultRole.Name]);
+        _roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("user-id", DefaultRole.Name, null, true, PermissionSet.Empty, 0, null, "s"));
 
         var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
 
         result.IsEmpty.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_UserRole_NeverHonoursAStoredContentViewGrant()
+    {
+        // Every account holds the User role: honouring this would expose every user's content to everyone.
+        _identityService.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([DefaultRole.Name]);
+        _roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("user-id", DefaultRole.Name, null, true, PermissionSet.Create(ContentView, "admin.dashboard.view"), 0, null, "s"));
+
+        var result = await _sut.ResolveAsync("user-1", TestContext.Current.CancellationToken);
+
+        result.Keys.Should().BeEquivalentTo(["admin.dashboard.view"]);
     }
 
     [Fact]

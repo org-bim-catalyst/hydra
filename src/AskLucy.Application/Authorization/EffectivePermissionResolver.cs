@@ -10,18 +10,16 @@ namespace AskLucy.Application.Authorization;
 /// Administrator role holds the <see cref="AdminPermissionCatalog.SuperUserControlledKeys"/> only
 /// when a Super User stored the grant on it, so Administrators cost one role lookup. Custom role ⇒
 /// its stored grants filtered to keys still in the catalogue (Decision 10 — a retired permission
-/// silently drops out rather than erroring). No role ⇒ empty.
+/// silently drops out rather than erroring). The built-in User role ⇒ its baseline plus what was
+/// added to it; an account with no role row (only possible for data older than the User role) is
+/// treated as a User-role holder, never as something less.
 /// </summary>
 public sealed class EffectivePermissionResolver(IIdentityService identityService, IRoleRepository roleRepository) : IEffectivePermissionResolver
 {
     public async Task<PermissionSet> ResolveAsync(string userId, CancellationToken cancellationToken = default)
     {
         var roles = await identityService.GetRolesAsync(userId, cancellationToken);
-        var roleName = roles.Count > 0 ? roles[0] : null;
-        if (roleName is null)
-        {
-            return PermissionSet.Empty;
-        }
+        var roleName = roles.Count > 0 ? roles[0] : DefaultRole.Name;
 
         // Avoids a repository round-trip for the role every Super User session already knows about.
         if (string.Equals(roleName, PrivilegedRoleNames.SuperUser, StringComparison.OrdinalIgnoreCase))

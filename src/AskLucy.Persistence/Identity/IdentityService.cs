@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Authorization;
 using AskLucy.Application.Users;
 using Microsoft.AspNetCore.Identity;
 
@@ -28,10 +29,40 @@ public sealed class IdentityService(
         };
 
         var result = await userManager.CreateAsync(user, password);
+        if (result.Succeeded)
+        {
+            result = await AddDefaultRoleOrUndoAsync(user);
+        }
 
         return result.Succeeded
             ? new IdentityOperationResult(IdentityResultStatus.Success, user.Id)
             : new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. result.Errors.Select(e => e.Description)]);
+    }
+
+    /// <summary>
+    /// Every new account starts on the built-in User role - never with no role. If that fails the
+    /// account is removed again, so a retry can register the same email instead of finding a
+    /// half-made account that can never be given its role.
+    /// </summary>
+    private async Task<IdentityResult> AddDefaultRoleOrUndoAsync(ApplicationUser user)
+    {
+        IdentityResult result;
+        try
+        {
+            result = await userManager.AddToRoleAsync(user, DefaultRole.Name);
+        }
+        catch
+        {
+            await userManager.DeleteAsync(user);
+            throw;
+        }
+
+        if (!result.Succeeded)
+        {
+            await userManager.DeleteAsync(user);
+        }
+
+        return result;
     }
 
     public async Task<IdentityOperationResult> ValidateCredentialsAsync(
@@ -143,6 +174,11 @@ public sealed class IdentityService(
             {
                 user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, CreatedAtUtc = DateTime.UtcNow };
                 var createResult = await userManager.CreateAsync(user);
+                if (createResult.Succeeded)
+                {
+                    createResult = await AddDefaultRoleOrUndoAsync(user);
+                }
+
                 if (!createResult.Succeeded)
                 {
                     return new IdentityOperationResult(IdentityResultStatus.Failed, Errors: [.. createResult.Errors.Select(e => e.Description)]);
@@ -418,18 +454,14 @@ public sealed class IdentityService(
             ?? throw new InvalidOperationException($"User '{userId}' not found.");
 
         var currentRoles = await userManager.GetRolesAsync(user);
-        var currentPrivilegedRoles = currentRoles.Where(PrivilegedRoleNames.All.Contains).ToArray();
-        if (currentPrivilegedRoles.Length > 0)
+        if (currentRoles.Count > 0)
         {
-            await userManager.RemoveFromRolesAsync(user, currentPrivilegedRoles);
+            await userManager.RemoveFromRolesAsync(user, currentRoles);
         }
 
-        // "Regular" is a sentinel meaning "no privileged role" — never a real AspNetRoles row
-        // (data-model.md § Commands), so it is never passed to AddToRoleAsync.
-        if (newRole != PrivilegedRoleNames.Regular)
-        {
-            await userManager.AddToRoleAsync(user, newRole);
-        }
+        // "Regular" is the legacy name for "no privileged role", which is the built-in User role now
+        // - a user always holds exactly one real role.
+        await userManager.AddToRoleAsync(user, newRole == PrivilegedRoleNames.Regular ? DefaultRole.Name : newRole);
     }
 
     public async Task<IReadOnlyList<string>> GetRolesAsync(string userId, CancellationToken cancellationToken = default)

@@ -38,12 +38,15 @@ public sealed class ChangeUserRoleCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RegularSentinel_DelegatesWithNullRoleId()
+    public async Task Handle_LegacyRegularName_ResolvesToTheUserRole()
     {
+        _roleRepository.GetByNormalizedNameAsync("USER", Arg.Any<CancellationToken>())
+            .Returns(new RoleRecord("user-id", "User", null, true, PermissionSet.Empty, 3, null, "stamp"));
+
         await _handler.Handle(new ChangeUserRoleCommand("target-1", "Regular"), CancellationToken.None);
 
         await _mediator.Received(1).Send(
-            Arg.Is<AssignRoleCommand>(c => c!.UserId == "target-1" && c.RoleId == null),
+            Arg.Is<AssignRoleCommand>(c => c!.UserId == "target-1" && c.RoleId == "user-id"),
             Arg.Any<CancellationToken>());
     }
 

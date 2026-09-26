@@ -12,7 +12,8 @@ public sealed class RoleName : IEquatable<RoleName>
         "ADMINISTRATOR",
         "SUPER USER",
         "REGULAR",
-        "NO ROLE"
+        "NO ROLE",
+        "USER"
     };
 
     public string Value { get; }

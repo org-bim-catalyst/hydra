@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Authorization;
 using AskLucy.Application.Users;
 using AskLucy.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,7 @@ public sealed class UserAdminRepository(AskLucyDbContext dbContext) : IUserAdmin
         (from ur in dbContext.UserRoles
          join r in dbContext.Roles on ur.RoleId equals r.Id
          where ur.UserId == u.Id
-         select r.Name!).FirstOrDefault() ?? PrivilegedRoleNames.Regular,
+         select r.Name!).FirstOrDefault() ?? DefaultRole.Name,
         u.CreatedAtUtc);
 
     public async Task<UserAdminDto?> GetByIdAsync(string userId, CancellationToken cancellationToken = default) =>

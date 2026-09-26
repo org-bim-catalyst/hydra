@@ -2,7 +2,9 @@ using AskLucy.Application.Authorization;
 using AskLucy.Application.Authorization.Roles.Commands.BulkDeleteRoles;
 using AskLucy.Application.Authorization.Roles.Commands.CreateRole;
 using AskLucy.Application.Authorization.Roles.Commands.DeleteRole;
+using AskLucy.Application.Authorization.Roles.Commands.DuplicateRole;
 using AskLucy.Application.Authorization.Roles.Commands.SetAdministratorContentAccess;
+using AskLucy.Application.Authorization.Roles.Commands.UpdateDefaultRole;
 using AskLucy.Application.Authorization.Roles.Commands.UpdateRole;
 using AskLucy.Application.Authorization.Roles.Queries.GetAdministratorContentAccess;
 using AskLucy.Application.Authorization.Roles.Queries.GetRole;
@@ -53,6 +55,20 @@ public sealed class AdminRolesController(ISender mediator) : ControllerBase
         Ok(await mediator.Send(
             new UpdateRoleCommand(roleId, request.Name, request.Description, request.PermissionKeys, request.ConcurrencyStamp), cancellationToken));
 
+    /// <summary>The built-in User role: description and added permissions only - its name and baseline are fixed.</summary>
+    [HttpPut("default")]
+    public async Task<ActionResult<RoleSummaryDto>> UpdateDefaultRole(UpdateDefaultRoleRequest request, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(
+            new UpdateDefaultRoleCommand(request.Description, request.PermissionKeys, request.ConcurrencyStamp), cancellationToken));
+
+    /// <summary>Super User only; the handler refuses everyone else with a 403.</summary>
+    [HttpPost("{roleId}/duplicate")]
+    public async Task<ActionResult<RoleSummaryDto>> DuplicateRole(string roleId, DuplicateRoleRequest request, CancellationToken cancellationToken)
+    {
+        var created = await mediator.Send(new DuplicateRoleCommand(roleId, request.Name, request.Description), cancellationToken);
+        return CreatedAtAction(nameof(GetRole), new { roleId = created.Id }, created);
+    }
+
     [HttpDelete("{roleId}")]
     public async Task<ActionResult<DeleteRoleResult>> DeleteRole(string roleId, [FromQuery] string concurrencyStamp, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new DeleteRoleCommand(roleId, concurrencyStamp), cancellationToken));
@@ -84,6 +100,6 @@ public sealed class AdminRolesController(ISender mediator) : ControllerBase
         return Ok(new BulkDeleteRolesResultResponse(
             result.Outcome.SucceededCount,
             result.Outcome.Skipped.Select(s => new BulkActionSkipResponse(s.Id, s.Reason)).ToList(),
-            result.UnassignedUserCounts));
+            result.ReassignedUserCounts));
     }
 }

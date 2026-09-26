@@ -32,7 +32,7 @@ public sealed class DeleteRoleCommandHandlerTests
 
         var result = await _handler.Handle(new DeleteRoleCommand("role-1", "stamp-1"), CancellationToken.None);
 
-        result.UnassignedUserCount.Should().Be(0);
+        result.ReassignedUserCount.Should().Be(0);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class DeleteRoleCommandHandlerTests
 
         var result = await _handler.Handle(new DeleteRoleCommand("role-1", "stamp-1"), CancellationToken.None);
 
-        result.UnassignedUserCount.Should().Be(3);
+        result.ReassignedUserCount.Should().Be(3);
         _cacheInvalidator.Received(1).Evict("user-1");
         _cacheInvalidator.Received(1).Evict("user-2");
         _cacheInvalidator.Received(1).Evict("user-3");

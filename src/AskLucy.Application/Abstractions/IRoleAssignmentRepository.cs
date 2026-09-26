@@ -40,7 +40,8 @@ public interface IRoleAssignmentRepository
     Task<IReadOnlyList<string>> ListUserIdsByRoleAsync(string roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Replaces <paramref name="userId"/>'s role with <paramref name="roleId"/> (or removes it when <see langword="null"/>),
+    /// Replaces <paramref name="userId"/>'s role with <paramref name="roleId"/> (or removes it when <see langword="null"/> -
+    /// which only migration-era data needs; the Application layer always passes a role, falling back to the User role),
     /// writes the audit row, bumps <c>SecurityStamp</c>, and evicts the user's authorization cache — all in one commit.
     /// The specific <see cref="ReplaceRoleOutcome"/> lets the caller map to the right status code
     /// (contracts/admin-roles-api.md §3: 404 not found, 400 locked, 409 concurrency mismatch).
@@ -55,8 +56,8 @@ public interface IRoleAssignmentRepository
     /// <summary>
     /// Ids of every user matching <paramref name="search"/> that <paramref name="roleId"/> could
     /// legally be assigned to right now (specs/056-bulk-select-all) — excludes locked users and,
-    /// unless <paramref name="actorIsSuperUser"/>, users currently holding a built-in role or a
-    /// role carrying a Super-User-controlled key (specs/074 FR-016f), mirroring
+    /// unless <paramref name="actorIsSuperUser"/>, users currently holding a built-in role other than
+    /// the User role, or a role carrying a Super-User-controlled key (specs/074 FR-016f), mirroring
     /// <c>AssignRoleCommandHandler</c>'s existing per-row checks.
     /// </summary>
     Task<IReadOnlyList<string>> ListEligibleIdsAsync(

@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Authorization;
 using AskLucy.Application.Users;
 using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
@@ -114,8 +115,12 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
             roleIds.AddRange([dashboardRole.Id, usersRole.Id]);
             (await RoleClaimValuesAsync(dashboardRole.Id)).Should().Equal(DashboardView);
 
+            // A new account starts on the built-in User role, never with no role.
+            var userRoleId = await CurrentRoleIdAsync(userId);
+            (await RoleNameAsync(userRoleId!)).Should().Be(DefaultRole.Name);
+
             // Assigning it reaches the user's session and the permission-gated endpoint.
-            await AssignAsync(admin, userId, dashboardRole.Id, expectedCurrentRoleId: null);
+            await AssignAsync(admin, userId, dashboardRole.Id, expectedCurrentRoleId: userRoleId);
             await RefreshAsync(user);
             (await SessionPermissionsAsync(user)).Should().Contain(DashboardView);
             (await GetStatusAsync(user, DashboardSummary)).Should().Be(HttpStatusCode.OK);
@@ -136,6 +141,20 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
             }
 
             (await RoleClaimValuesAsync(usersRole.Id)).Should().BeEquivalentTo([UsersView, DashboardView]);
+
+            // A Super User can save any role under a new name, permissions and all.
+            var copyName = $"{usersRole.Name} copy";
+            using (var duplicated = await admin.PostAsJsonAsync(
+                $"/api/v1/admin/roles/{usersRole.Id}/duplicate", new { name = copyName, description = (string?)null }, ct))
+            {
+                duplicated.StatusCode.Should().Be(HttpStatusCode.Created, await duplicated.Content.ReadAsStringAsync(ct));
+                using var json = await ReadJsonAsync(duplicated);
+                var copyId = json.RootElement.GetProperty("id").GetString()!;
+                roleIds.Add(copyId);
+                json.RootElement.GetProperty("name").GetString().Should().Be(copyName);
+                (await RoleClaimValuesAsync(copyId)).Should().BeEquivalentTo([UsersView, DashboardView]);
+            }
+
             await RefreshAsync(user);
             (await SessionPermissionsAsync(user)).Should().Contain([UsersView, DashboardView]);
 
@@ -151,11 +170,9 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
                 (await userManager.GetClaimsAsync(account)).Where(c => c.Type == "smoke").Select(c => c.Value).Should().Equal("two");
             }
 
-            // Deleting the account takes its claims with it; deleting a role takes its claims with it.
-            await DeleteUserAsync(userId);
-            (await CountUserClaimsAsync(userId)).Should().Be(0);
-            userId = null;
-
+            // Deleting a role takes its claims with it.
+            // Deleting a held role moves its holder to the User role.
+            await AssignAsync(admin, userId, dashboardRole.Id, expectedCurrentRoleId: usersRole.Id);
             var current = await GetRoleAsync(admin, dashboardRole.Id);
             using (var deleted = await admin.DeleteAsync(
                 $"/api/v1/admin/roles/{dashboardRole.Id}?concurrencyStamp={Uri.EscapeDataString(current.ConcurrencyStamp)}", ct))
@@ -164,6 +181,12 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
             }
 
             (await RoleClaimValuesAsync(dashboardRole.Id)).Should().BeEmpty();
+            (await CurrentRoleIdAsync(userId)).Should().Be(userRoleId);
+
+            // Deleting the account takes its claims with it.
+            await DeleteUserAsync(userId);
+            (await CountUserClaimsAsync(userId)).Should().Be(0);
+            userId = null;
         }
         finally
         {
@@ -241,6 +264,22 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
         var db = scope.ServiceProvider.GetRequiredService<AskLucyDbContext>();
 
         return await db.RoleClaims.Where(c => c.RoleId == roleId).Select(c => c.ClaimValue!).ToArrayAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<string?> CurrentRoleIdAsync(string userId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AskLucyDbContext>();
+
+        return await db.UserRoles.Where(ur => ur.UserId == userId).Select(ur => ur.RoleId).SingleOrDefaultAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<string?> RoleNameAsync(string roleId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AskLucyDbContext>();
+
+        return await db.Roles.Where(r => r.Id == roleId).Select(r => r.Name).SingleOrDefaultAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<int> CountUserClaimsAsync(string userId)

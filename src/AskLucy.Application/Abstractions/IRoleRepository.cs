@@ -11,7 +11,11 @@ public sealed record RoleRecord(
     PermissionSet Permissions,
     int UserCount,
     DateTime? ModifiedAtUtc,
-    string ConcurrencyStamp);
+    string ConcurrencyStamp)
+{
+    /// <summary>The built-in User role every account falls back to (<see cref="Authorization.DefaultRole"/>).</summary>
+    public bool IsDefault => IsBuiltIn && Authorization.DefaultRole.Is(Name);
+}
 
 /// <summary>Aggregate-oriented access to roles and their permission grants (contracts/admin-roles-api.md §2).</summary>
 public interface IRoleRepository
@@ -36,7 +40,11 @@ public interface IRoleRepository
         string roleId, string name, string? description, PermissionSet permissions,
         string expectedConcurrencyStamp, string actorUserId, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes a custom role and unassigns every holder in one commit. Returns the unassigned user ids, or <see langword="null"/> if not found/built-in.</summary>
+    /// <summary>
+    /// Deletes a custom role and moves every holder to the built-in User role in one commit - never
+    /// leaving anyone with no role. Returns the moved user ids, or <see langword="null"/> if not
+    /// found/built-in; throws if the User role itself is missing.
+    /// </summary>
     Task<IReadOnlyList<string>?> DeleteAsync(
         string roleId, string expectedConcurrencyStamp, string actorUserId, CancellationToken cancellationToken = default);
 
@@ -53,10 +61,29 @@ public interface IRoleRepository
     /// <summary>
     /// Bulk-delete variant of <see cref="DeleteAsync"/> — no client-supplied concurrency stamp
     /// (a bulk selection carries only ids, not per-row stamps read moments earlier); reads the
-    /// row fresh and deletes it. Returns the unassigned user ids, or <see langword="null"/> if
-    /// not found/built-in.
+    /// row fresh and deletes it. Returns the user ids moved to the User role, or <see langword="null"/>
+    /// if not found/built-in.
     /// </summary>
     Task<IReadOnlyList<string>?> DeleteByIdAsync(string roleId, string actorUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the built-in User role's description and the permissions added on top of its
+    /// baseline, and writes a <c>RoleUpdated</c> audit row. The name never changes. Callers enforce
+    /// the add-only rule and keep Super-User-controlled keys off. Returns <see langword="null"/> if the
+    /// User role doesn't exist; throws when <paramref name="expectedConcurrencyStamp"/> is stale.
+    /// </summary>
+    Task<RoleRecord?> UpdateDefaultRoleAsync(
+        string? description, PermissionSet addedPermissions, string expectedConcurrencyStamp, string actorUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a custom role holding <paramref name="permissions"/> - the effective permissions of the
+    /// role named <paramref name="sourceRoleName"/> - with a <c>RoleCreated</c> audit row recording the
+    /// source. Throws <c>DuplicateResourceException</c> if <paramref name="name"/> is taken.
+    /// </summary>
+    Task<RoleRecord> DuplicateAsync(
+        string sourceRoleName, string name, string? description, PermissionSet permissions, string actorUserId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Replaces only the <see cref="AdminPermissionCatalog.SuperUserControlledKeys"/> grants on a role

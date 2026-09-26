@@ -45,6 +45,9 @@ public sealed class SuperUserControlledPermissionGuardTests
     private static readonly RoleRecord SuperUserRole = new(
         "su-id", PrivilegedRoleNames.SuperUser, null, true, PermissionSet.Full, 1, null, "s");
 
+    private static readonly RoleRecord UserRole = new(
+        "user-id", DefaultRole.Name, null, true, PermissionSet.Empty, 1, null, "s");
+
     private readonly IRoleRepository _roleRepository = Substitute.For<IRoleRepository>();
     private readonly IRoleAssignmentRepository _assignmentRepository = Substitute.For<IRoleAssignmentRepository>();
     private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
@@ -59,6 +62,8 @@ public sealed class SuperUserControlledPermissionGuardTests
         _roleRepository.GetByIdAsync("content-id", Arg.Any<CancellationToken>()).Returns(ContentRole);
         _roleRepository.GetByIdAsync("plain-id", Arg.Any<CancellationToken>()).Returns(PlainRole);
         _roleRepository.GetByIdAsync("su-id", Arg.Any<CancellationToken>()).Returns(SuperUserRole);
+        _roleRepository.GetByIdAsync("user-id", Arg.Any<CancellationToken>()).Returns(UserRole);
+        _roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, Arg.Any<CancellationToken>()).Returns(UserRole);
         _roleRepository.ListByPermissionAsync(AdminPermissionCatalog.OperationalFailuresContentView, Arg.Any<CancellationToken>())
             .Returns([SuperUserRole, ContentRole]);
         _roleRepository.CreateAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<PermissionSet>(), Arg.Any<string>(), Arg.Any<CancellationToken>())

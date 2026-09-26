@@ -24,7 +24,7 @@ public sealed class BulkDeleteRolesCommandHandler(
 
         var succeeded = 0;
         var skipped = new List<BulkActionSkip>();
-        var unassignedUserCounts = new Dictionary<string, int>();
+        var reassignedUserCounts = new Dictionary<string, int>();
 
         foreach (var id in ids)
         {
@@ -40,10 +40,10 @@ public sealed class BulkDeleteRolesCommandHandler(
                 cacheInvalidator.Evict(userId);
             }
 
-            unassignedUserCounts[id] = affectedUserIds.Count;
+            reassignedUserCounts[id] = affectedUserIds.Count;
             succeeded++;
         }
 
-        return new BulkDeleteRolesResult(new BulkActionOutcome(succeeded, skipped), unassignedUserCounts);
+        return new BulkDeleteRolesResult(new BulkActionOutcome(succeeded, skipped), reassignedUserCounts);
     }
 }

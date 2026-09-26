@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Authorization;
 using AskLucy.Application.Authorization.Assignments.Commands.AssignRole;
 using AskLucy.Application.Users;
 using AskLucy.Domain.Authorization;
@@ -27,6 +28,7 @@ public sealed class AssignRoleCommandHandlerTests
     private static readonly RoleRecord SuperUserRole = new("su-id", PrivilegedRoleNames.SuperUser, null, true, PermissionSet.Full, 0, null, "s");
     private static readonly RoleRecord AdministratorRole = new("admin-id", PrivilegedRoleNames.Administrator, null, true, PermissionSet.Full, 0, null, "s");
     private static readonly RoleRecord CustomRole = new("custom-id", "Moderator", null, false, PermissionSet.Create("admin.dashboard.view"), 0, null, "s");
+    private static readonly RoleRecord UserRole = new("user-id", DefaultRole.Name, null, true, PermissionSet.Empty, 0, null, "s");
 
     public AssignRoleCommandHandlerTests()
     {
@@ -37,6 +39,8 @@ public sealed class AssignRoleCommandHandlerTests
         _roleRepository.GetByIdAsync("su-id", Arg.Any<CancellationToken>()).Returns(SuperUserRole);
         _roleRepository.GetByIdAsync("admin-id", Arg.Any<CancellationToken>()).Returns(AdministratorRole);
         _roleRepository.GetByIdAsync("custom-id", Arg.Any<CancellationToken>()).Returns(CustomRole);
+        _roleRepository.GetByIdAsync("user-id", Arg.Any<CancellationToken>()).Returns(UserRole);
+        _roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, Arg.Any<CancellationToken>()).Returns(UserRole);
 
         _handler = new AssignRoleCommandHandler(_roleRepository, _assignmentRepository, _identityService, _currentUser);
     }
@@ -84,6 +88,28 @@ public sealed class AssignRoleCommandHandlerTests
         await _handler.Handle(new AssignRoleCommand("target-1", "custom-id", null), CancellationToken.None);
 
         await _assignmentRepository.Received(1).ReplaceRoleAsync("target-1", "custom-id", null, "actor-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemovingARole_MovesTheUserToTheUserRole_NeverToNoRole()
+    {
+        _currentUser.IsInRole(PrivilegedRoleNames.SuperUser).Returns(false);
+        _identityService.GetRolesAsync("target-1", Arg.Any<CancellationToken>()).Returns(["Moderator"]);
+
+        await _handler.Handle(new AssignRoleCommand("target-1", null, "custom-id"), CancellationToken.None);
+
+        await _assignmentRepository.Received(1).ReplaceRoleAsync("target-1", "user-id", "custom-id", "actor-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemovingARole_Throws_WhenTheUserRoleIsMissing()
+    {
+        _roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, Arg.Any<CancellationToken>()).Returns((RoleRecord?)null);
+
+        var act = () => _handler.Handle(new AssignRoleCommand("target-1", null, "custom-id"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await _assignmentRepository.DidNotReceiveWithAnyArgs().ReplaceRoleAsync(default!, default, default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

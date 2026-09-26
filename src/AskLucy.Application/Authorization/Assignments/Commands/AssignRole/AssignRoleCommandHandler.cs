@@ -15,19 +15,19 @@ public sealed class AssignRoleCommandHandler(
     {
         var actorUserId = currentUser.UserId ?? throw new UnauthorizedAccessException();
 
-        RoleRecord? newRole = null;
-        if (request.RoleId is not null)
-        {
-            newRole = await roleRepository.GetByIdAsync(request.RoleId, cancellationToken)
+        // Removing a role means falling back to the User role - never to no role.
+        var newRole = request.RoleId is null
+            ? await roleRepository.GetByNormalizedNameAsync(DefaultRole.NormalizedName, cancellationToken)
+                ?? throw new InvalidOperationException($"The built-in '{DefaultRole.Name}' role is missing.")
+            : await roleRepository.GetByIdAsync(request.RoleId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Role '{request.RoleId}' was not found.");
-        }
 
-        var newRoleName = newRole?.Name;
+        var newRoleName = newRole.Name;
 
         // FR-016: only a Super User may grant/revoke Administrator or Super User itself, or
         // touch a target who currently holds either — mirrors ChangeUserRoleCommandHandler's
         // original two checks exactly (Clarifications 2026-07-28).
-        var newRoleIsPrivileged = newRoleName is not null && PrivilegedRoleNames.All.Contains(newRoleName);
+        var newRoleIsPrivileged = PrivilegedRoleNames.All.Contains(newRoleName);
         if (newRoleIsPrivileged && !currentUser.IsInRole(PrivilegedRoleNames.SuperUser))
         {
             throw new UnauthorizedAccessException("Only a Super User can grant or revoke the Administrator or Super User role.");
@@ -49,7 +49,7 @@ public sealed class AssignRoleCommandHandler(
         await LastSuperUserGuard.EnsureNotStrandingSystemAsync(identityService, request.UserId, actionRemovesSuperUserStatus, cancellationToken);
 
         var outcome = await assignmentRepository.ReplaceRoleAsync(
-            request.UserId, request.RoleId, request.ExpectedCurrentRoleId, actorUserId, cancellationToken);
+            request.UserId, newRole.Id, request.ExpectedCurrentRoleId, actorUserId, cancellationToken);
 
         switch (outcome)
         {
@@ -58,7 +58,7 @@ public sealed class AssignRoleCommandHandler(
             case ReplaceRoleOutcome.UserNotFound:
                 throw new KeyNotFoundException($"User '{request.UserId}' was not found.");
             case ReplaceRoleOutcome.RoleNotFound:
-                throw new KeyNotFoundException($"Role '{request.RoleId}' was not found.");
+                throw new KeyNotFoundException($"Role '{newRole.Id}' was not found.");
             case ReplaceRoleOutcome.UserLocked:
                 throw new DomainRuleViolationException("A locked user cannot be assigned a new role.");
             case ReplaceRoleOutcome.ConcurrencyMismatch:

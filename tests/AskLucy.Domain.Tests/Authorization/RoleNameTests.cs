@@ -56,6 +56,7 @@ public sealed class RoleNameTests
     [InlineData("SUPER USER")]
     [InlineData("REGULAR")]
     [InlineData("No Role")]
+    [InlineData("user")]
     public void From_ShouldThrow_WhenNameIsReserved(string value)
     {
         var act = () => RoleName.From(value);

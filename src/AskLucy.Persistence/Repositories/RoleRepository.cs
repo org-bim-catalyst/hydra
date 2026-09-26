@@ -12,7 +12,8 @@ namespace AskLucy.Persistence.Repositories;
 /// Roles live in <c>AspNetRoles</c>; a role's permission grants live in <c>AspNetRoleClaims</c>
 /// with <see cref="PermissionClaims.Type"/> (research.md Decision 1/1b). Built-in roles carry no
 /// claim rows except the Super-User-controlled grants on Administrator (specs/074 research D14);
-/// their effective permissions come from <see cref="BuiltInRolePermissions"/> (Decision 2).
+/// their effective permissions come from <see cref="BuiltInRolePermissions"/> (Decision 2). The
+/// built-in User role (<see cref="DefaultRole"/>) stores only what was added to its baseline.
 /// </summary>
 public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepository auditLog) : IRoleRepository
 {
@@ -27,9 +28,10 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        // Built-in roles always sort first (data-model.md "Roles" contract).
+        // Built-in roles always sort first (data-model.md "Roles" contract), the User role last among them.
         var roles = await query
             .OrderByDescending(r => r.IsBuiltIn)
+            .ThenBy(r => r.NormalizedName == DefaultRole.NormalizedName)
             .ThenBy(r => r.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -59,29 +61,7 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
     public async Task<RoleRecord?> CreateAsync(
         string name, string? description, PermissionSet permissions, string actorUserId, CancellationToken cancellationToken = default)
     {
-        var normalizedName = name.ToUpperInvariant();
-        var exists = await dbContext.Roles.AnyAsync(r => r.NormalizedName == normalizedName, cancellationToken);
-        if (exists)
-        {
-            throw new DuplicateResourceException($"A role named '{name}' already exists.");
-        }
-
-        var now = DateTime.UtcNow;
-        var role = new ApplicationRole(name)
-        {
-            Id = Guid.CreateVersion7().ToString(),
-            NormalizedName = normalizedName,
-            Description = description,
-            IsBuiltIn = false,
-            ConcurrencyStamp = Guid.NewGuid().ToString(),
-            CreatedAtUtc = now,
-            CreatedBy = actorUserId,
-            ModifiedAtUtc = now,
-            ModifiedBy = actorUserId,
-        };
-
-        dbContext.Roles.Add(role);
-        AddPermissionClaims(role.Id, permissions);
+        var role = await AddCustomRoleAsync(name, description, permissions, actorUserId, cancellationToken);
 
         auditLog.Add(RoleAuditLog.Record(
             RoleAuditAction.RoleCreated, actorUserId, role.Id, role.Name,
@@ -156,26 +136,7 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
 
         dbContext.Entry(role).Property(r => r.ConcurrencyStamp).OriginalValue = expectedConcurrencyStamp;
 
-        var affectedUserIds = await dbContext.UserRoles
-            .Where(ur => ur.RoleId == roleId)
-            .Select(ur => ur.UserId)
-            .ToListAsync(cancellationToken);
-
-        var claims = await dbContext.RoleClaims.Where(c => c.RoleId == roleId).ToListAsync(cancellationToken);
-        dbContext.RoleClaims.RemoveRange(claims);
-
-        var assignments = await dbContext.UserRoles.Where(ur => ur.RoleId == roleId).ToListAsync(cancellationToken);
-        dbContext.UserRoles.RemoveRange(assignments);
-
-        dbContext.Roles.Remove(role);
-
-        auditLog.Add(RoleAuditLog.Record(
-            RoleAuditAction.RoleDeleted, actorUserId, roleId, role.Name,
-            detailsJson: $"{{\"unassignedUserCount\":{affectedUserIds.Count}}}"));
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return affectedUserIds;
+        return await DeleteAndReassignHoldersAsync(role, actorUserId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<string>> ListEligibleIdsAsync(string? search, bool actorIsSuperUser, CancellationToken cancellationToken = default)
@@ -204,26 +165,58 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
             return null;
         }
 
-        var affectedUserIds = await dbContext.UserRoles
-            .Where(ur => ur.RoleId == roleId)
-            .Select(ur => ur.UserId)
+        return await DeleteAndReassignHoldersAsync(role, actorUserId, cancellationToken);
+    }
+
+    public async Task<RoleRecord?> UpdateDefaultRoleAsync(
+        string? description, PermissionSet addedPermissions, string expectedConcurrencyStamp, string actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var role = await dbContext.Roles.FirstOrDefaultAsync(r => r.NormalizedName == DefaultRole.NormalizedName && r.IsBuiltIn, cancellationToken);
+        if (role is null)
+        {
+            return null;
+        }
+
+        dbContext.Entry(role).Property(r => r.ConcurrencyStamp).OriginalValue = expectedConcurrencyStamp;
+
+        var existingClaims = await dbContext.RoleClaims
+            .Where(c => c.RoleId == role.Id && c.ClaimType == PermissionClaims.Type)
             .ToListAsync(cancellationToken);
+        var beforeKeys = DefaultRole.Permissions(existingClaims.Select(c => c.ClaimValue!)).Keys;
+        var beforeDescription = role.Description;
 
-        var claims = await dbContext.RoleClaims.Where(c => c.RoleId == roleId).ToListAsync(cancellationToken);
-        dbContext.RoleClaims.RemoveRange(claims);
+        role.Description = description;
+        role.ConcurrencyStamp = Guid.NewGuid().ToString();
+        role.ModifiedAtUtc = DateTime.UtcNow;
+        role.ModifiedBy = actorUserId;
 
-        var assignments = await dbContext.UserRoles.Where(ur => ur.RoleId == roleId).ToListAsync(cancellationToken);
-        dbContext.UserRoles.RemoveRange(assignments);
+        dbContext.RoleClaims.RemoveRange(existingClaims);
+        AddPermissionClaims(role.Id, addedPermissions);
 
-        dbContext.Roles.Remove(role);
-
+        var afterKeys = DefaultRole.Permissions(addedPermissions.Keys).Keys;
         auditLog.Add(RoleAuditLog.Record(
-            RoleAuditAction.RoleDeleted, actorUserId, roleId, role.Name,
-            detailsJson: $"{{\"unassignedUserCount\":{affectedUserIds.Count}}}"));
+            RoleAuditAction.RoleUpdated, actorUserId, role.Id, role.Name,
+            detailsJson: $"{{\"before\":{RoleJson(role.Name, beforeDescription, beforeKeys)},\"after\":{RoleJson(role.Name, description, afterKeys)}}}"));
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return affectedUserIds;
+        return await ToRecordAsync(role, cancellationToken);
+    }
+
+    public async Task<RoleRecord> DuplicateAsync(
+        string sourceRoleName, string name, string? description, PermissionSet permissions, string actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var role = await AddCustomRoleAsync(name, description, permissions, actorUserId, cancellationToken);
+
+        auditLog.Add(RoleAuditLog.Record(
+            RoleAuditAction.RoleCreated, actorUserId, role.Id, role.Name,
+            detailsJson: $"{{\"duplicatedFrom\":{Json(sourceRoleName)},\"after\":{RoleJson(name, description, permissions.Keys)}}}"));
+
+        await SaveOrThrowDuplicateAsync(name, cancellationToken);
+
+        return new RoleRecord(role.Id, role.Name!, role.Description, false, permissions, 0, role.ModifiedAtUtc, role.ConcurrencyStamp!);
     }
 
     public async Task<IReadOnlyList<RoleRecord>> ListByPermissionAsync(string permissionKey, CancellationToken cancellationToken = default)
@@ -303,6 +296,73 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
 
     private static string RoleJson(string? name, string? description, IEnumerable<string> permissionKeys) =>
         $"{{\"name\":{Json(name)},\"description\":{Json(description)},\"permissionKeys\":[{JoinJson(permissionKeys)}]}}";
+
+    private async Task<ApplicationRole> AddCustomRoleAsync(
+        string name, string? description, PermissionSet permissions, string actorUserId, CancellationToken cancellationToken)
+    {
+        var normalizedName = name.ToUpperInvariant();
+        var exists = await dbContext.Roles.AnyAsync(r => r.NormalizedName == normalizedName, cancellationToken);
+        if (exists)
+        {
+            throw new DuplicateResourceException($"A role named '{name}' already exists.");
+        }
+
+        var now = DateTime.UtcNow;
+        var role = new ApplicationRole(name)
+        {
+            Id = Guid.CreateVersion7().ToString(),
+            NormalizedName = normalizedName,
+            Description = description,
+            IsBuiltIn = false,
+            ConcurrencyStamp = Guid.NewGuid().ToString(),
+            CreatedAtUtc = now,
+            CreatedBy = actorUserId,
+            ModifiedAtUtc = now,
+            ModifiedBy = actorUserId,
+        };
+
+        dbContext.Roles.Add(role);
+        AddPermissionClaims(role.Id, permissions);
+        return role;
+    }
+
+    /// <summary>
+    /// Deletes <paramref name="role"/> and moves every holder to the built-in User role in the same
+    /// commit - an account is never left with no role. Each move gets its own <c>RoleChanged</c> row,
+    /// so a user's trail shows why their role changed without them being the one touched.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> DeleteAndReassignHoldersAsync(
+        ApplicationRole role, string actorUserId, CancellationToken cancellationToken)
+    {
+        var defaultRole = await dbContext.Roles.FirstOrDefaultAsync(r => r.NormalizedName == DefaultRole.NormalizedName && r.IsBuiltIn, cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"The built-in '{DefaultRole.Name}' role is missing, so the holders of '{role.Name}' would be left with no role; the role was not deleted.");
+
+        var assignments = await dbContext.UserRoles.Where(ur => ur.RoleId == role.Id).ToListAsync(cancellationToken);
+        var affectedUserIds = assignments.Select(ur => ur.UserId).ToList();
+
+        var claims = await dbContext.RoleClaims.Where(c => c.RoleId == role.Id).ToListAsync(cancellationToken);
+        dbContext.RoleClaims.RemoveRange(claims);
+
+        dbContext.UserRoles.RemoveRange(assignments);
+        foreach (var userId in affectedUserIds)
+        {
+            dbContext.UserRoles.Add(new IdentityUserRole<string> { UserId = userId, RoleId = defaultRole.Id });
+            auditLog.Add(RoleAuditLog.Record(
+                RoleAuditAction.RoleChanged, actorUserId, defaultRole.Id, defaultRole.Name, userId,
+                $"{{\"before\":{Json(role.Name)},\"after\":{Json(defaultRole.Name)},\"reason\":\"role-deleted\"}}"));
+        }
+
+        dbContext.Roles.Remove(role);
+
+        auditLog.Add(RoleAuditLog.Record(
+            RoleAuditAction.RoleDeleted, actorUserId, role.Id, role.Name,
+            detailsJson: $"{{\"reassignedUserCount\":{affectedUserIds.Count},\"reassignedTo\":{Json(defaultRole.Name)}}}"));
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return affectedUserIds;
+    }
 
     private void AddPermissionClaims(string roleId, PermissionSet permissions)
     {
