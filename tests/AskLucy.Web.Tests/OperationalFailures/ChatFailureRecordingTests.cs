@@ -98,7 +98,7 @@ public sealed class ChatFailureRecordingTests
     [Fact]
     public async Task MidStream_ShouldRecordTheClassifiedKind_ExactlyOnce()
     {
-        var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
+        using var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
         harness.HttpContext.Items[CorrelationIdKeys.ItemsKey] = TraceId;
         _httpContextAccessor.HttpContext.Returns(harness.HttpContext);
 
@@ -116,7 +116,7 @@ public sealed class ChatFailureRecordingTests
     [Fact]
     public async Task MidStream_ShouldRecordAnUnexpectedError_ForAnUnclassifiedException()
     {
-        var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
+        using var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
 
         await harness.RunTurnThrowingAsync(new InvalidOperationException("boom"), TestContext.Current.CancellationToken);
 
@@ -127,7 +127,7 @@ public sealed class ChatFailureRecordingTests
     [Fact]
     public async Task MidStream_ShouldRecordNothing_WhenTheCallerCancelled()
     {
-        var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
+        using var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
 
         async IAsyncEnumerable<ChatStreamChunk> CancelledStream()
@@ -138,6 +138,28 @@ public sealed class ChatFailureRecordingTests
         }
 
         await harness.RunTurnAsync(CancelledStream(), cancellation.Token);
+
+        Drain().Should().BeEmpty("the user left; nothing failed");
+    }
+
+    [Fact]
+    public async Task MidStream_ShouldRecordNothing_WhenTheCallerCancelsWhileTheReplyIsStillWorking()
+    {
+        using var harness = new UserFacingFailureTextTests.ChatHarness(_recorder);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        // Cancelled while the next chunk is still being worked on, so the keep-alive timer - which
+        // shares the token - is already cancelled when it races the pending chunk. The CI flake of
+        // 2026-09-26: the timer won, and the turn was reported as failed.
+        async IAsyncEnumerable<ChatStreamChunk> StillWorkingStream()
+        {
+            yield return new ChatStreamChunk("Looking that up", null);
+            await cancellation.CancelAsync();
+            await Task.Delay(50, CancellationToken.None);
+            throw new OperationCanceledException(cancellation.Token);
+        }
+
+        await harness.RunTurnAsync(StillWorkingStream(), cancellation.Token);
 
         Drain().Should().BeEmpty("the user left; nothing failed");
     }

@@ -772,7 +772,12 @@ public sealed partial class AiController(
         {
             var completed = await Task.WhenAny(moveNextTask, Task.Delay(interval, cancellationToken));
 
-            if (completed == moveNextTask)
+            // Once the caller cancels, the delay "wins" because it shares the token, not because the
+            // stream went quiet. Writing a keep-alive then throws, and leaving this iterator with the
+            // source's MoveNextAsync still in flight makes disposing the enumerator throw too - which
+            // hid the cancellation and reported a turn the user walked away from as a failure. The
+            // source has the same token, so waiting for it is what ends the turn as cancelled.
+            if (completed == moveNextTask || cancellationToken.IsCancellationRequested)
             {
                 if (!await moveNextTask)
                 {

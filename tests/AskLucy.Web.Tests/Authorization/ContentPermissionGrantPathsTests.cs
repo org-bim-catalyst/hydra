@@ -21,6 +21,7 @@ namespace AskLucy.Web.Tests.Authorization;
 /// synthetic token subjects (their role claim is what the handlers read); the roles and the users
 /// they're assigned to are real rows, created through the API as a Super User and removed after.
 /// </summary>
+[Collection(AdministratorContentAccessCollection.Name)]
 public sealed class ContentPermissionGrantPathsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private const string RefusalDetail = "Only a Super User can grant or remove View user content.";

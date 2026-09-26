@@ -7,6 +7,7 @@ using AskLucy.Domain.Chats;
 using AskLucy.Domain.OperationalFailures;
 using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
+using AskLucy.Web.Tests.Authorization;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ namespace AskLucy.Web.Tests.OperationalFailures;
 /// transcript. The investigation users are real Identity rows so the handler's own permission
 /// resolution runs exactly as in production.
 /// </summary>
+[Collection(AdministratorContentAccessCollection.Name)]
 public sealed class AdminOperationalFailuresEndpointsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private const string BaseUrl = "/api/v1/admin/operational-failures";
