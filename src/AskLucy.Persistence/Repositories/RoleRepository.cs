@@ -178,12 +178,19 @@ public sealed class RoleRepository(AskLucyDbContext dbContext, IRoleAuditLogRepo
         return affectedUserIds;
     }
 
-    public async Task<IReadOnlyList<string>> ListEligibleIdsAsync(string? search, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> ListEligibleIdsAsync(string? search, bool actorIsSuperUser, CancellationToken cancellationToken = default)
     {
         var query = dbContext.Roles.Where(r => !r.IsBuiltIn);
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(r => r.Name != null && r.Name.Contains(search));
+        }
+
+        if (!actorIsSuperUser)
+        {
+            var controlledKeys = AdminPermissionCatalog.SuperUserControlledKeys.ToList();
+            query = query.Where(r => !dbContext.RoleClaims.Any(c =>
+                c.RoleId == r.Id && c.ClaimType == PermissionClaims.Type && controlledKeys.Contains(c.ClaimValue!)));
         }
 
         return await query.Select(r => r.Id).ToListAsync(cancellationToken);

@@ -423,6 +423,13 @@ public sealed class ProblemDetailsMiddleware(
             "System agent is immutable",
             systemAgentImmutableEx.Message),
 
+        // Before the generic arm: its message is written to be shown (specs/074 FR-016h–j).
+        AskLucy.Application.Authorization.SuperUserRequiredException superUserRequiredEx => (
+            StatusCodes.Status403Forbidden,
+            "https://hydra.bimcatalyst.com/problems/super-user-required",
+            "Super User required",
+            superUserRequiredEx.Message),
+
         UnauthorizedAccessException => (
             StatusCodes.Status403Forbidden,
             "https://hydra.bimcatalyst.com/problems/forbidden",

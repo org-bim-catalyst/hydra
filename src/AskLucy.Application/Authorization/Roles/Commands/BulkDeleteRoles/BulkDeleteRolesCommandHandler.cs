@@ -19,6 +19,9 @@ public sealed class BulkDeleteRolesCommandHandler(
             ? await mediator.Send(new GetRolesEligibleIdsQuery(request.Search), cancellationToken)
             : request.Target.Ids!;
 
+        // All-or-nothing (FR-016j): checked before the first delete, not per row.
+        await SuperUserControlledPermissionGuard.EnsureCanDeleteAllAsync(currentUser, roleRepository, ids, cancellationToken);
+
         var succeeded = 0;
         var skipped = new List<BulkActionSkip>();
         var unassignedUserCounts = new Dictionary<string, int>();

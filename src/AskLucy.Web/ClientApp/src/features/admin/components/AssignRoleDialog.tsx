@@ -13,6 +13,8 @@ import {
 } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
+import { isSuperUserControlledRole } from '../adminPermissions'
 import * as adminRolesApi from '../api/adminRolesApi'
 import type { RoleAssignment } from '../api/adminRolesApi'
 
@@ -40,6 +42,15 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
     enabled: open,
   })
 
+  // specs/074 FR-016f: a role carrying View user content is Super-User-only to give or take away.
+  // UX only — the server refuses the change with a 403 regardless.
+  const isSuperUser = useIsSuperUser()
+  const isLockedRole = (roleId: string | undefined) => {
+    const role = roles?.items.find((r) => r.id === roleId)
+    return !isSuperUser && role !== undefined && isSuperUserControlledRole(role)
+  }
+  const currentRoleLocked = isLockedRole(assignment.role?.id)
+
   const assignMutation = useMutation({
     mutationFn: () =>
       adminRolesApi.assignRole(assignment.userId, selectedRoleId === NO_ROLE_VALUE ? null : selectedRoleId, assignment.role?.id ?? null),
@@ -60,25 +71,32 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
           <DialogContentText sx={{ mb: 2 }}>
             Assigning a role replaces this user's current role — a user holds at most one role.
           </DialogContentText>
+          {currentRoleLocked && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This user's role includes View user content. Only a Super User can change it.
+            </Alert>
+          )}
           <TextField
             select
             label="Role"
             fullWidth
             value={selectedRoleId}
+            disabled={currentRoleLocked}
             onChange={(e) => setSelectedRoleId(e.target.value)}
           >
             <MenuItem value={NO_ROLE_VALUE}>No role</MenuItem>
             {roles?.items.map((role) => (
-              <MenuItem key={role.id} value={role.id}>
+              <MenuItem key={role.id} value={role.id} disabled={isLockedRole(role.id)}>
                 {role.name}
                 {role.isBuiltIn ? ' (built-in)' : ''}
+                {isLockedRole(role.id) ? ' (Super User only)' : ''}
               </MenuItem>
             ))}
           </TextField>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={() => assignMutation.mutate()} variant="contained" disabled={assignMutation.isPending}>
+          <Button onClick={() => assignMutation.mutate()} variant="contained" disabled={assignMutation.isPending || currentRoleLocked}>
             Save
           </Button>
         </DialogActions>

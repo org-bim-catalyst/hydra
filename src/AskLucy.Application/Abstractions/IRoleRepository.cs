@@ -43,8 +43,12 @@ public interface IRoleRepository
     /// <summary>Every role (built-in included) that includes <paramref name="permissionKey"/> — Permissions screen, FR-030.</summary>
     Task<IReadOnlyList<RoleRecord>> ListByPermissionAsync(string permissionKey, CancellationToken cancellationToken = default);
 
-    /// <summary>Ids of every custom (non-built-in) role matching <paramref name="search"/>, unpaged (specs/056-bulk-select-all).</summary>
-    Task<IReadOnlyList<string>> ListEligibleIdsAsync(string? search, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Ids of every custom (non-built-in) role matching <paramref name="search"/>, unpaged
+    /// (specs/056-bulk-select-all) — unless <paramref name="actorIsSuperUser"/>, excluding roles
+    /// that carry a Super-User-controlled key (specs/074 FR-016j).
+    /// </summary>
+    Task<IReadOnlyList<string>> ListEligibleIdsAsync(string? search, bool actorIsSuperUser, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Bulk-delete variant of <see cref="DeleteAsync"/> — no client-supplied concurrency stamp

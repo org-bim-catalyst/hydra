@@ -25,6 +25,7 @@ public sealed class UpdateRoleCommandHandler(
 
         var name = RoleName.From(request.Name);
         var permissions = PermissionSet.Create(request.PermissionKeys);
+        SuperUserControlledPermissionGuard.EnsureCanChangeRolePermissions(currentUser, existing.Permissions.Keys, permissions.Keys);
 
         var updated = await roleRepository.UpdateAsync(
             request.RoleId, name.Value, request.Description, permissions, request.ConcurrencyStamp, actorUserId, cancellationToken)

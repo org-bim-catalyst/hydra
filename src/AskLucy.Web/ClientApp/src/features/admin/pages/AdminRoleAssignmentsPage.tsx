@@ -24,6 +24,8 @@ import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import { ApiError } from '../../../api/httpClient'
+import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
+import { isSuperUserControlledRole } from '../adminPermissions'
 import * as adminRolesApi from '../api/adminRolesApi'
 import type { RoleAssignment } from '../api/adminRolesApi'
 import { AdminShell } from '../components/AdminShell'
@@ -52,6 +54,15 @@ export function AdminRoleAssignmentsPage() {
     queryFn: () => adminRolesApi.getRoles({ pageSize: 100 }),
   })
 
+  // specs/074 FR-016f: only a Super User may give or take away a role carrying View user content.
+  // UX only — the server refuses it with a 403 regardless.
+  const isSuperUser = useIsSuperUser()
+  const isLockedRole = (roleId: string | undefined) => {
+    const role = roles?.items.find((r) => r.id === roleId)
+    return !isSuperUser && role !== undefined && isSuperUserControlledRole(role)
+  }
+  const isSelectable = (a: RoleAssignment) => !a.isLockedOut && !a.role?.isBuiltIn && !isLockedRole(a.role?.id)
+
   const { data, error, refetch, isError, isLoading } = useQuery({
     queryKey: ['admin', 'role-assignments', { search, roleFilter, page, pageSize }],
     queryFn: () =>
@@ -67,9 +78,7 @@ export function AdminRoleAssignmentsPage() {
   const queryClient = useQueryClient()
   const pickedRoleId = roleFilter && roleFilter !== NO_ROLE_FILTER ? roleFilter : null
 
-  const selectableIds = (data?.items ?? [])
-    .filter((a) => !a.isLockedOut && !a.role?.isBuiltIn)
-    .map((a) => a.userId)
+  const selectableIds = (data?.items ?? []).filter(isSelectable).map((a) => a.userId)
   const selection = useBulkSelection()
 
   const [scopeDialog, setScopeDialog] = useState<{ verb: 'Select' | 'Deselect' } | null>(null)
@@ -172,6 +181,7 @@ export function AdminRoleAssignmentsPage() {
             {roles?.items.map((role) => (
               <MenuItem key={role.id} value={role.id}>
                 {role.name}
+                {isLockedRole(role.id) ? ' (Super User only)' : ''}
               </MenuItem>
             ))}
           </TextField>
@@ -197,7 +207,7 @@ export function AdminRoleAssignmentsPage() {
             <Button
               size="small"
               variant="outlined"
-              disabled={pickedRoleId === null}
+              disabled={pickedRoleId === null || isLockedRole(pickedRoleId)}
               onClick={beginBulkAssign}
             >
               Assign selected
@@ -238,7 +248,7 @@ export function AdminRoleAssignmentsPage() {
                 {data?.items.map((assignment) => (
                   <TableRow key={assignment.userId} hover>
                     <TableCell padding="checkbox">
-                      {!assignment.isLockedOut && !assignment.role?.isBuiltIn && (
+                      {isSelectable(assignment) && (
                         <Checkbox
                           checked={selection.isSelected(assignment.userId)}
                           onChange={() => selection.toggleOne(assignment.userId)}

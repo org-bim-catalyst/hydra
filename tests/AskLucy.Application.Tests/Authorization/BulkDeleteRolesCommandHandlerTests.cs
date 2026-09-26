@@ -20,6 +20,7 @@ public sealed class BulkDeleteRolesCommandHandlerTests
     public BulkDeleteRolesCommandHandlerTests()
     {
         _currentUser.UserId.Returns("actor-1");
+        _roleRepository.ListByPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         _handler = new BulkDeleteRolesCommandHandler(_mediator, _roleRepository, _currentUser, _cacheInvalidator);
     }
 

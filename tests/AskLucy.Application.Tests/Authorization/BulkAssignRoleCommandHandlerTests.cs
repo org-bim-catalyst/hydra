@@ -12,6 +12,7 @@ namespace AskLucy.Application.Tests.Authorization;
 public sealed class BulkAssignRoleCommandHandlerTests
 {
     private readonly ISender _mediator = Substitute.For<ISender>();
+    private readonly IRoleRepository _roleRepository = Substitute.For<IRoleRepository>();
     private readonly IRoleAssignmentRepository _roleAssignmentRepository = Substitute.For<IRoleAssignmentRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly BulkAssignRoleCommandHandler _handler;
@@ -19,7 +20,8 @@ public sealed class BulkAssignRoleCommandHandlerTests
     public BulkAssignRoleCommandHandlerTests()
     {
         _currentUser.UserId.Returns("actor-1");
-        _handler = new BulkAssignRoleCommandHandler(_mediator, _roleAssignmentRepository, _currentUser);
+        _roleRepository.ListByPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        _handler = new BulkAssignRoleCommandHandler(_mediator, _roleRepository, _roleAssignmentRepository, _currentUser);
     }
 
     [Fact]

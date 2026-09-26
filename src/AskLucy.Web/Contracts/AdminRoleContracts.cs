@@ -5,3 +5,5 @@ public sealed record CreateRoleRequest(string Name, string? Description, IReadOn
 public sealed record UpdateRoleRequest(string Name, string? Description, IReadOnlyList<string> PermissionKeys, string ConcurrencyStamp);
 
 public sealed record AssignRoleRequest(string? RoleId, string? ExpectedCurrentRoleId);
+
+public sealed record SetAdministratorContentAccessRequest(bool Granted);

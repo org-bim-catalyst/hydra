@@ -19,6 +19,8 @@ public sealed class DeleteRoleCommandHandler(
             throw new UnauthorizedAccessException("Built-in roles cannot be deleted.");
         }
 
+        SuperUserControlledPermissionGuard.EnsureCanDelete(currentUser, existing.Permissions.Keys);
+
         var affectedUserIds = await roleRepository.DeleteAsync(request.RoleId, request.ConcurrencyStamp, actorUserId, cancellationToken)
             ?? throw new KeyNotFoundException($"Role '{request.RoleId}' was not found.");
 

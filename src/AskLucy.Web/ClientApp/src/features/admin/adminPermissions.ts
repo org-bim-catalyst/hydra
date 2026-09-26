@@ -72,3 +72,11 @@ export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_P
  * `AdminPermissionCatalog.SuperUserControlledKeys`. The built-in Administrator role does not hold them implicitly.
  */
 export const SUPER_USER_CONTROLLED_KEYS: ReadonlySet<string> = new Set<string>([ADMIN_PERMISSIONS.operationalFailuresContentView])
+
+/**
+ * Whether only a Super User may assign, unassign, edit or delete this role (specs/074 FR-016f).
+ * Built-in roles aren't covered here — they're already Super-User-only for assignment.
+ */
+export function isSuperUserControlledRole(role: { isBuiltIn: boolean; permissionKeys: readonly string[] }): boolean {
+  return !role.isBuiltIn && role.permissionKeys.some((key) => SUPER_USER_CONTROLLED_KEYS.has(key))
+}

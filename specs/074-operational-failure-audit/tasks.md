@@ -524,7 +524,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
 
 ### Tests for User Story 1b (write first, confirm failing)
 
-- [ ] T078 [P] [US1b] Application tests in `tests/AskLucy.Application.Tests/Authorization/SuperUserControlledPermissionGuardTests.cs`, as an Administrator actor. The refusals are:
+- [X] T078 [P] [US1b] Application tests in `tests/AskLucy.Application.Tests/Authorization/SuperUserControlledPermissionGuardTests.cs`, as an Administrator actor. The refusals are:
   - Create with content.view.
   - Update adding content.view.
   - Update **omitting** a stored content.view (FR-016i).
@@ -536,26 +536,26 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - `ChangeUserRoleCommand` to a role holding it.
 
   Each throws `UnauthorizedAccessException` with the detail "Only a Super User can grant or remove *View user content*." As a Super User actor, every one of these succeeds. Update echoing the stored value unchanged as an Administrator succeeds (US1b scenario 3).
-- [ ] T079 [P] [US1b] Application tests in `tests/AskLucy.Application.Tests/Authorization/SetAdministratorContentAccessCommandTests.cs`:
+- [X] T079 [P] [US1b] Application tests in `tests/AskLucy.Application.Tests/Authorization/SetAdministratorContentAccessCommandTests.cs`:
   - An Administrator actor is refused.
   - A Super User granting stores the key, writes a `RoleUpdated` audit with before/after, and evicts every Administrator's permission cache.
   - Revoking removes the key.
   - Afterwards the resolver reflects each change.
 - [ ] T080 [P] [US1b] Web test in `tests/AskLucy.Web.Tests/Authorization/ContentPermissionGrantPathsTests.cs`: every endpoint in [contracts/view-user-content-permission.md](contracts/view-user-content-permission.md#mutations-and-who-may-perform-them), as an Administrator, returns 403 with that detail; as a Super User it returns 2xx, and a `RoleAuditLog` row exists (SC-010).
-- [ ] T081 [P] [US1b] Frontend tests in `ClientApp/src/features/admin/components/PermissionPicker.test.tsx` (new) and `ClientApp/src/features/admin/pages/AdminRolesPage.test.tsx` (extend):
+- [X] T081 [P] [US1b] Frontend tests in `ClientApp/src/features/admin/components/PermissionPicker.test.tsx` (new) and `ClientApp/src/features/admin/pages/AdminRolesPage.test.tsx` (extend):
   - For a non-Super-User, the content.view checkbox is disabled, keeps its checked state, and shows the tooltip "Only a Super User can grant this". The saved payload echoes the stored value.
   - The "Administrators may view user content" switch renders for a Super User only, and a 403 shows a toast with the server detail.
   - The role-assignment picker disables roles that hold the key for a non-Super-User.
 
 ### Implementation for User Story 1b
 
-- [ ] T082 [US1b] Create `src/AskLucy.Application/Authorization/SuperUserControlledPermissionGuard.cs`:
+- [X] T082 [US1b] Create `src/AskLucy.Application/Authorization/SuperUserControlledPermissionGuard.cs`:
   - `EnsureCanChangeRolePermissions(actor, storedKeys, requestedKeys)`
   - `EnsureCanAssignOrRemove(actor, roleKeysBeingAssigned, roleKeysBeingRemoved)`
   - `EnsureCanDelete(actor, roleKeys)`
 
   Use `ICurrentUserAccessor.IsInRole(PrivilegedRoleNames.SuperUser)`.
-- [ ] T083 [US1b] Call the guard from these handlers, before any write:
+- [X] T083 [US1b] Call the guard from these handlers, before any write:
   - `src/AskLucy.Application/Authorization/Roles/Commands/CreateRole/CreateRoleCommandHandler.cs`
   - `…/UpdateRole/UpdateRoleCommandHandler.cs`
   - `…/DeleteRole/DeleteRoleCommandHandler.cs`
@@ -565,8 +565,8 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - `src/AskLucy.Application/Users/Commands/ChangeUserRole/ChangeUserRoleCommandHandler.cs` (confirm it delegates to `AssignRoleCommand`; if so, one guard call covers it)
 
   Makes T078 pass.
-- [ ] T084 [US1b] Create `src/AskLucy.Application/Authorization/Roles/Commands/SetAdministratorContentAccess/` (command, handler): Super User only, calls the `RoleRepository.SetControlledGrantsAsync` from T021, then `IAuthorizationCacheInvalidator.Evict` for every Administrator via `IRoleAssignmentRepository.ListUserIdsByRoleAsync`. Add `PUT administrator/content-access` to `src/AskLucy.Web/Controllers/v1/AdminRolesController.cs`, and a `GET` that returns `{ granted }` for the switch's initial state. Makes T079 and T080 pass.
-- [ ] T085 [US1b] Frontend changes:
+- [X] T084 [US1b] Create `src/AskLucy.Application/Authorization/Roles/Commands/SetAdministratorContentAccess/` (command, handler): Super User only, calls the `RoleRepository.SetControlledGrantsAsync` from T021, then `IAuthorizationCacheInvalidator.Evict` for every Administrator via `IRoleAssignmentRepository.ListUserIdsByRoleAsync`. Add `PUT administrator/content-access` to `src/AskLucy.Web/Controllers/v1/AdminRolesController.cs`, and a `GET` that returns `{ granted }` for the switch's initial state. Makes T079 and T080 pass.
+- [X] T085 [US1b] Frontend changes:
   - `ClientApp/src/features/admin/components/PermissionPicker.tsx`: disable `SUPER_USER_CONTROLLED_KEYS` for non-Super-Users, keeping state, with a tooltip.
   - `ClientApp/src/features/admin/pages/AdminRolesPage.tsx`: the Super-User-only "Administrators may view user content" switch using new functions in `ClientApp/src/features/admin/api/adminRolesApi.ts`, with a toast on error.
   - `ClientApp/src/features/admin/components/AssignRoleDialog.tsx` and `ClientApp/src/features/admin/pages/AdminRoleAssignmentsPage.tsx`: mark and disable key-holding roles for non-Super-Users.

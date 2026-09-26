@@ -3,9 +3,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import type { PagedResult, RoleAssignment, RoleSummary } from '../api/adminRolesApi'
 import { AdminRoleAssignmentsPage } from './AdminRoleAssignmentsPage'
+
+vi.mock('../../../hooks/useIsSuperUser', () => ({ useIsSuperUser: vi.fn(() => false) }))
 
 const roles: RoleSummary[] = [
   {
@@ -58,7 +61,10 @@ const server = setupServer(
 )
 
 beforeAll(() => server.listen())
-afterEach(() => server.resetHandlers())
+afterEach(() => {
+  server.resetHandlers()
+  vi.mocked(useIsSuperUser).mockReturnValue(false)
+})
 afterAll(() => server.close())
 
 function renderPage() {
@@ -153,5 +159,81 @@ describe('AdminRoleAssignmentsPage bulk assign', () => {
     fireEvent.click(screen.getByText('Select'))
 
     expect(await screen.findByText('1 selected')).toBeInTheDocument()
+  })
+})
+
+// specs/074 T081 (FR-016j) — only a Super User may give or take away a role carrying View user content.
+describe('AdminRoleAssignmentsPage — roles carrying View user content', () => {
+  const contentRole: RoleSummary = {
+    ...roles[0],
+    id: 'role-content',
+    name: 'Content Reviewer',
+    permissionKeys: ['admin.operational-failures.view', 'admin.operational-failures.content.view'],
+  }
+  const holder: RoleAssignment = {
+    userId: 'user-3',
+    email: 'carol@example.com',
+    firstName: 'Carol',
+    lastName: 'Clark',
+    isLockedOut: false,
+    role: { id: contentRole.id, name: contentRole.name, isBuiltIn: false },
+  }
+
+  function serveContentRole() {
+    server.use(
+      http.get('*/api/v1/admin/roles', () =>
+        HttpResponse.json<PagedResult<RoleSummary>>({ items: [...roles, contentRole], totalCount: roles.length + 1, page: 1, pageSize: 100 }),
+      ),
+      http.get('*/api/v1/admin/role-assignments', () =>
+        HttpResponse.json<PagedResult<RoleAssignment>>({ items: [...assignments, holder], totalCount: assignments.length + 1, page: 1, pageSize: 20 }),
+      ),
+    )
+  }
+
+  function openRolePicker() {
+    // getByRole throws once a dialog portal is open in jsdom, so reach the Select directly.
+    fireEvent.mouseDown(document.querySelector('[role="dialog"] [role="combobox"]')!)
+  }
+
+  it("gives a non-Super-User no bulk checkbox for a user holding one", async () => {
+    serveContentRole()
+    renderPage()
+    await screen.findByText('carol@example.com')
+
+    expect(screen.queryByLabelText('Select carol@example.com')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Select alice@example.com')).toBeInTheDocument()
+  })
+
+  it('disables such a role in the picker for a non-Super-User', async () => {
+    serveContentRole()
+    renderPage()
+    await screen.findByText('alice@example.com')
+
+    fireEvent.click(screen.getAllByText('Change role…')[0])
+    await screen.findByText('Change role for alice@example.com')
+    await waitFor(() => {
+      openRolePicker()
+      expect(screen.getByText('Content Reviewer (Super User only)')).toHaveAttribute('aria-disabled', 'true')
+    })
+  })
+
+  it("won't let a non-Super-User change a holder's role", async () => {
+    serveContentRole()
+    renderPage()
+    await screen.findByText('carol@example.com')
+
+    fireEvent.click(screen.getAllByText('Change role…')[2])
+
+    expect(await screen.findByText("This user's role includes View user content. Only a Super User can change it.")).toBeInTheDocument()
+    expect(screen.getByText('Save').closest('button')).toBeDisabled()
+  })
+
+  it('leaves such a role selectable for a Super User', async () => {
+    vi.mocked(useIsSuperUser).mockReturnValue(true)
+    serveContentRole()
+    renderPage()
+    await screen.findByText('carol@example.com')
+
+    expect(screen.getByLabelText('Select carol@example.com')).toBeInTheDocument()
   })
 })

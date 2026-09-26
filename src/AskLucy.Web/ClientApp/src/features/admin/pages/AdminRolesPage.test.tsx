@@ -3,9 +3,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import type { PagedResult, RoleSummary } from '../api/adminRolesApi'
 import { AdminRolesPage } from './AdminRolesPage'
+
+vi.mock('../../../hooks/useIsSuperUser', () => ({ useIsSuperUser: vi.fn(() => false) }))
 
 const roles: RoleSummary[] = [
   {
@@ -47,7 +50,10 @@ const server = setupServer(
 )
 
 beforeAll(() => server.listen())
-afterEach(() => server.resetHandlers())
+afterEach(() => {
+  server.resetHandlers()
+  vi.mocked(useIsSuperUser).mockReturnValue(false)
+})
 afterAll(() => server.close())
 
 function renderPage() {
@@ -141,5 +147,64 @@ describe('AdminRolesPage bulk delete', () => {
     fireEvent.click(screen.getByText('Select'))
 
     expect(await screen.findByText('1 selected')).toBeInTheDocument()
+  })
+})
+
+// specs/074 T081 (FR-016g) — the Super User's switch that lets Administrators view user content.
+describe('AdminRolesPage — Administrators may view user content', () => {
+  const SWITCH_LABEL = 'Administrators may view user content'
+
+  it('is not offered to a non-Super-User', async () => {
+    renderPage()
+    await screen.findByText('Project Reviewer')
+
+    expect(screen.queryByLabelText(SWITCH_LABEL)).not.toBeInTheDocument()
+  })
+
+  it("shows a Super User the stored state", async () => {
+    vi.mocked(useIsSuperUser).mockReturnValue(true)
+    server.use(http.get('*/api/v1/admin/roles/administrator/content-access', () => HttpResponse.json({ granted: true })))
+    renderPage()
+
+    await waitFor(() => expect(screen.getByLabelText(SWITCH_LABEL)).toBeChecked())
+  })
+
+  it("toasts the server's reason when the change is refused", async () => {
+    vi.mocked(useIsSuperUser).mockReturnValue(true)
+    server.use(
+      http.get('*/api/v1/admin/roles/administrator/content-access', () => HttpResponse.json({ granted: false })),
+      http.put('*/api/v1/admin/roles/administrator/content-access', () =>
+        HttpResponse.json(
+          { status: 403, title: 'Super User required', detail: 'Only a Super User can grant or remove View user content.' },
+          { status: 403, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    renderPage()
+    const toggle = await screen.findByLabelText(SWITCH_LABEL)
+    await waitFor(() => expect(toggle).toBeEnabled())
+
+    fireEvent.click(toggle)
+
+    expect(await screen.findByText('Only a Super User can grant or remove View user content.')).toBeInTheDocument()
+  })
+
+  it('offers a non-Super-User no way to delete a role that carries View user content', async () => {
+    server.use(
+      http.get('*/api/v1/admin/roles', () =>
+        HttpResponse.json<PagedResult<RoleSummary>>({
+          items: [{ ...roles[1], permissionKeys: ['admin.operational-failures.view', 'admin.operational-failures.content.view'] }],
+          totalCount: 1,
+          page: 1,
+          pageSize: 20,
+        }),
+      ),
+    )
+    renderPage()
+    await screen.findByText('Project Reviewer')
+
+    expect(screen.queryByLabelText('Select Project Reviewer')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Actions for Project Reviewer'))
+    expect(await screen.findByText('Delete (Super User only)')).toBeInTheDocument()
   })
 })

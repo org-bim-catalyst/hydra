@@ -5,10 +5,13 @@ import {
   Button,
   Checkbox,
   Chip,
+  FormControlLabel,
   IconButton,
   Menu,
   MenuItem,
   Paper,
+  Snackbar,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -24,8 +27,10 @@ import {
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import AddIcon from '@mui/icons-material/Add'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
+import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
+import { isSuperUserControlledRole } from '../adminPermissions'
 import { ApiError } from '../../../api/httpClient'
 import * as adminRolesApi from '../api/adminRolesApi'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
@@ -41,6 +46,8 @@ import { SelectAllScopeDialog } from '../components/SelectAllScopeDialog'
 import type { SelectionScopeChoice } from '../components/SelectAllScopeDialog'
 import { runBatchedBulkAction } from '../bulkRunner'
 
+const ADMINISTRATOR_CONTENT_ACCESS_QUERY_KEY = ['admin', 'roles', 'administrator-content-access']
+
 /** Roles screen (specs/055-role-management User Story 1) — define, edit, and delete custom roles; built-in roles are listed read-only. */
 export function AdminRolesPage() {
   const [search, setSearch] = useState('')
@@ -53,6 +60,29 @@ export function AdminRolesPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; role: RoleSummary } | null>(null)
 
   const queryClient = useQueryClient()
+  const isSuperUser = useIsSuperUser()
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  // specs/074 FR-016g: whether the built-in Administrator role holds View user content — a
+  // Super User's switch. The server refuses anyone else; the switch isn't offered to them.
+  const contentAccess = useQuery({
+    queryKey: ADMINISTRATOR_CONTENT_ACCESS_QUERY_KEY,
+    queryFn: adminRolesApi.getAdministratorContentAccess,
+    enabled: isSuperUser,
+  })
+  const contentAccessMutation = useMutation({
+    mutationFn: adminRolesApi.setAdministratorContentAccess,
+    onSuccess: (result) => {
+      queryClient.setQueryData(ADMINISTRATOR_CONTENT_ACCESS_QUERY_KEY, result)
+      return queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] })
+    },
+    onError: (err: unknown) => {
+      setToastMessage(err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.')
+    },
+  })
+
+  // A non-Super-User can neither delete nor bulk-delete a role carrying View user content (FR-016j).
+  const isLockedRole = (role: RoleSummary) => !isSuperUser && isSuperUserControlledRole(role)
 
   const { data, error, refetch, isError, isLoading } = useQuery({
     queryKey: ['admin', 'roles', { search, page, pageSize }],
@@ -60,7 +90,7 @@ export function AdminRolesPage() {
     placeholderData: (previous) => previous,
   })
 
-  const selectableIds = (data?.items ?? []).filter((r) => !r.isBuiltIn).map((r) => r.id)
+  const selectableIds = (data?.items ?? []).filter((r) => !r.isBuiltIn && !isLockedRole(r)).map((r) => r.id)
   const selection = useBulkSelection()
 
   const [scopeDialog, setScopeDialog] = useState<{ verb: 'Select' | 'Deselect' } | null>(null)
@@ -160,6 +190,32 @@ export function AdminRolesPage() {
           sx={{ mb: 2, width: { xs: '100%', sm: 320 } }}
         />
 
+        {isSuperUser && (
+          <Box sx={{ mb: 2 }}>
+            {contentAccess.isError ? (
+              <Alert
+                severity="error"
+                action={<Button onClick={() => contentAccess.refetch()}>Retry</Button>}
+              >
+                {contentAccess.error instanceof ApiError
+                  ? (contentAccess.error.detail ?? contentAccess.error.message)
+                  : 'Could not load whether Administrators may view user content.'}
+              </Alert>
+            ) : (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={contentAccess.data?.granted ?? false}
+                    disabled={contentAccess.isLoading || contentAccessMutation.isPending}
+                    onChange={(e) => contentAccessMutation.mutate(e.target.checked)}
+                  />
+                }
+                label="Administrators may view user content"
+              />
+            )}
+          </Box>
+        )}
+
         {isError && (
           <Alert
             severity="error"
@@ -214,7 +270,7 @@ export function AdminRolesPage() {
                 {data?.items.map((role) => (
                   <TableRow key={role.id} hover>
                     <TableCell padding="checkbox">
-                      {!role.isBuiltIn && (
+                      {!role.isBuiltIn && !isLockedRole(role) && (
                         <Checkbox
                           checked={selection.isSelected(role.id)}
                           onChange={() => selection.toggleOne(role.id)}
@@ -285,12 +341,13 @@ export function AdminRolesPage() {
       >
         <MenuItem onClick={() => menuAnchor && openEdit(menuAnchor.role)}>Edit&hellip;</MenuItem>
         <MenuItem
+          disabled={menuAnchor !== null && isLockedRole(menuAnchor.role)}
           onClick={() => {
             if (menuAnchor) setDeletingRole(menuAnchor.role)
             setMenuAnchor(null)
           }}
         >
-          Delete&hellip;
+          {menuAnchor !== null && isLockedRole(menuAnchor.role) ? 'Delete (Super User only)' : <>Delete&hellip;</>}
         </MenuItem>
       </Menu>
 
@@ -330,6 +387,12 @@ export function AdminRolesPage() {
           onConfirm={runBulkDelete}
         />
       )}
+
+      <Snackbar open={toastMessage !== null} autoHideDuration={6000} onClose={() => setToastMessage(null)}>
+        <Alert severity="error" variant="filled" onClose={() => setToastMessage(null)}>
+          {toastMessage}
+        </Alert>
+      </Snackbar>
     </AdminShell>
   )
 }

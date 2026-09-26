@@ -8,6 +8,7 @@ namespace AskLucy.Application.Authorization.Assignments.Commands.BulkAssignRole;
 
 public sealed class BulkAssignRoleCommandHandler(
     ISender mediator,
+    IRoleRepository roleRepository,
     IRoleAssignmentRepository roleAssignmentRepository,
     ICurrentUserAccessor currentUser) : IRequestHandler<BulkAssignRoleCommand, BulkActionOutcome>
 {
@@ -18,6 +19,9 @@ public sealed class BulkAssignRoleCommandHandler(
         var ids = request.Target.AllMatching
             ? await mediator.Send(new GetRoleAssignmentsEligibleIdsQuery(request.RoleId, request.Search), cancellationToken)
             : request.Target.Ids!;
+
+        await SuperUserControlledPermissionGuard.EnsureCanBulkAssignAsync(
+            currentUser, roleRepository, roleAssignmentRepository, request.RoleId, ids, cancellationToken);
 
         var result = await roleAssignmentRepository.BulkReplaceRoleAsync(request.RoleId, ids, actorUserId, cancellationToken);
 

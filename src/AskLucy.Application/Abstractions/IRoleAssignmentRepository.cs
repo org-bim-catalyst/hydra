@@ -55,8 +55,9 @@ public interface IRoleAssignmentRepository
     /// <summary>
     /// Ids of every user matching <paramref name="search"/> that <paramref name="roleId"/> could
     /// legally be assigned to right now (specs/056-bulk-select-all) — excludes locked users and,
-    /// unless <paramref name="actorIsSuperUser"/>, users currently holding a built-in role,
-    /// mirroring <c>AssignRoleCommandHandler</c>'s existing per-row checks.
+    /// unless <paramref name="actorIsSuperUser"/>, users currently holding a built-in role or a
+    /// role carrying a Super-User-controlled key (specs/074 FR-016f), mirroring
+    /// <c>AssignRoleCommandHandler</c>'s existing per-row checks.
     /// </summary>
     Task<IReadOnlyList<string>> ListEligibleIdsAsync(
         string roleId, string? search, bool actorIsSuperUser, CancellationToken cancellationToken = default);

@@ -13,6 +13,7 @@ public sealed class CreateRoleCommandHandler(IRoleRepository roleRepository, ICu
 
         var name = RoleName.From(request.Name);
         var permissions = PermissionSet.Create(request.PermissionKeys);
+        SuperUserControlledPermissionGuard.EnsureCanChangeRolePermissions(currentUser, [], permissions.Keys);
 
         var created = await roleRepository.CreateAsync(name.Value, request.Description, permissions, actorUserId, cancellationToken);
         return RoleSummaryDto.Create(created!);

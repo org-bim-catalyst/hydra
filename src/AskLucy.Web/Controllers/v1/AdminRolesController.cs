@@ -2,7 +2,9 @@ using AskLucy.Application.Authorization;
 using AskLucy.Application.Authorization.Roles.Commands.BulkDeleteRoles;
 using AskLucy.Application.Authorization.Roles.Commands.CreateRole;
 using AskLucy.Application.Authorization.Roles.Commands.DeleteRole;
+using AskLucy.Application.Authorization.Roles.Commands.SetAdministratorContentAccess;
 using AskLucy.Application.Authorization.Roles.Commands.UpdateRole;
+using AskLucy.Application.Authorization.Roles.Queries.GetAdministratorContentAccess;
 using AskLucy.Application.Authorization.Roles.Queries.GetRole;
 using AskLucy.Application.Authorization.Roles.Queries.GetRolesEligibleIds;
 using AskLucy.Application.Authorization.Roles.Queries.ListRoles;
@@ -54,6 +56,17 @@ public sealed class AdminRolesController(ISender mediator) : ControllerBase
     [HttpDelete("{roleId}")]
     public async Task<ActionResult<DeleteRoleResult>> DeleteRole(string roleId, [FromQuery] string concurrencyStamp, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new DeleteRoleCommand(roleId, concurrencyStamp), cancellationToken));
+
+    /// <summary>specs/074 FR-016g — whether the built-in Administrator role may view user content.</summary>
+    [HttpGet("administrator/content-access")]
+    public async Task<ActionResult<AdministratorContentAccessDto>> GetAdministratorContentAccess(CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetAdministratorContentAccessQuery(), cancellationToken));
+
+    /// <summary>specs/074 FR-016g — Super User only; the handler refuses everyone else with a 403.</summary>
+    [HttpPut("administrator/content-access")]
+    public async Task<ActionResult<AdministratorContentAccessDto>> SetAdministratorContentAccess(
+        SetAdministratorContentAccessRequest request, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new SetAdministratorContentAccessCommand(request.Granted), cancellationToken));
 
     /// <summary>specs/056-bulk-select-all — resolves the "all matching" id set server-side at execution time.</summary>
     [HttpGet("actions/bulk-eligible-ids")]

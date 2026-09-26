@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Authorization.Roles.Commands.DeleteRole;
+using AskLucy.Application.Users;
 using AskLucy.Domain.Authorization;
 using FluentAssertions;
 using NSubstitute;
@@ -17,6 +18,8 @@ public sealed class DeleteRoleCommandHandlerTests
     public DeleteRoleCommandHandlerTests()
     {
         _currentUser.UserId.Returns("actor-1");
+        // PermissionSet.Full carries View user content, which only a Super User may remove (specs/074 FR-016g).
+        _currentUser.IsInRole(PrivilegedRoleNames.SuperUser).Returns(true);
         _handler = new DeleteRoleCommandHandler(_roleRepository, _currentUser, _cacheInvalidator);
     }
 

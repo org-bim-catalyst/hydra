@@ -58,6 +58,23 @@ export function updateRole(roleId: string, payload: UpdateRolePayload) {
   return apiFetch<RoleSummary>(`/admin/roles/${roleId}`, { method: 'PUT', body: JSON.stringify(payload) })
 }
 
+export interface AdministratorContentAccess {
+  granted: boolean
+}
+
+/** Whether the built-in Administrator role holds View user content (specs/074 FR-016g). */
+export function getAdministratorContentAccess() {
+  return apiFetch<AdministratorContentAccess>('/admin/roles/administrator/content-access')
+}
+
+/** Super User only — the server refuses anyone else with a 403 whose detail names the reason. */
+export function setAdministratorContentAccess(granted: boolean) {
+  return apiFetch<AdministratorContentAccess>('/admin/roles/administrator/content-access', {
+    method: 'PUT',
+    body: JSON.stringify({ granted }),
+  })
+}
+
 export interface DeleteRoleResult {
   unassignedUserCount: number
 }
