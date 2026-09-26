@@ -51,6 +51,17 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
     }
 
     [Fact]
+    public async Task ReportsOnlyWhatTheChoiceChanged_NotEveryBuildingLeftOut()
+    {
+        // On screen: the mall with its two connected buildings. Kept: the tower sharing its wall.
+        var result = await RunAsync("""{"memberIds":["osm_way_1"]}""");
+
+        Names(result, "addedBuildings").Should().BeEmpty();
+        Names(result, "removedBuildings").Should().Equal("BurJuman Arjaan by Rotana");
+        Names(result, "excludedBuildings").Should().Contain("Burjman Office Tower");
+    }
+
+    [Fact]
     public async Task AnEmptyList_IsTheSiteAlone()
     {
         var result = await RunAsync("""{"memberIds":[]}""");
@@ -108,6 +119,8 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
             new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), _chat.Id), document);
     }
 
-    private static IEnumerable<string?> IncludedNames(AgentToolResult result) =>
-        result.Output!.RootElement.GetProperty("includedBuildings").EnumerateArray().Select(e => e.GetString());
+    private static IEnumerable<string?> IncludedNames(AgentToolResult result) => Names(result, "includedBuildings");
+
+    private static IEnumerable<string?> Names(AgentToolResult result, string property) =>
+        result.Output!.RootElement.GetProperty(property).EnumerateArray().Select(e => e.GetString());
 }

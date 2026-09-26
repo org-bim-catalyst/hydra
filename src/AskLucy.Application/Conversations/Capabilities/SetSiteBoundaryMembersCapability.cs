@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
@@ -43,8 +44,8 @@ public sealed class SetSiteBoundaryMembersCapability(
     public string UsageGuidance =>
         "Pass every building the outline should include — the choice replaces the previous one, it " +
         "does not add to it. Then say which buildings the outline now covers and its new area. " +
-        "excludedBuildings are simply not in the outline; call one removed only if the outline " +
-        "included it before this choice.";
+        "Describe as a change only what addedBuildings and removedBuildings list; excludedBuildings " +
+        "were never part of the outline unless removedBuildings names them.";
 
     public string Label => "Choose the site buildings";
 
@@ -60,7 +61,7 @@ public sealed class SetSiteBoundaryMembersCapability(
         """{"type":"object","properties":{"memberIds":{"type":"array","items":{"type":"string"}},"memberNames":{"type":"array","items":{"type":"string"}}}}""";
 
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"includedBuildings":{"type":"array"},"excludedBuildings":{"type":"array"}}}""";
+        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"includedBuildings":{"type":"array"},"excludedBuildings":{"type":"array"},"addedBuildings":{"type":"array"},"removedBuildings":{"type":"array"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
@@ -123,7 +124,15 @@ public sealed class SetSiteBoundaryMembersCapability(
 
         var members = active.Members.Select(m => m with { Included = chosen.Contains(m.Id) }).ToList();
         var redrawn = membershipService.Compose(ToConfirmed(active), members);
-        return AgentToolResult.Success(SiteBoundaryPayload.Write(redrawn));
+
+        // The change against what was on screen, so the model never calls a building it was only
+        // offered "removed" — told to infer it from excludedBuildings, it did.
+        var output = JsonSerializer.SerializeToNode(SiteBoundaryPayload.Write(redrawn))!.AsObject();
+        output["addedBuildings"] = new JsonArray([.. active.Members
+            .Where(m => !m.Included && chosen.Contains(m.Id)).Select(m => JsonValue.Create(m.Name))]);
+        output["removedBuildings"] = new JsonArray([.. active.Members
+            .Where(m => m.Included && !chosen.Contains(m.Id)).Select(m => JsonValue.Create(m.Name))]);
+        return AgentToolResult.Success(JsonSerializer.SerializeToDocument(output));
     }
 
     /// <summary>
