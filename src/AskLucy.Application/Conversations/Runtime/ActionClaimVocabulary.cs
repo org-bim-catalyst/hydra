@@ -39,6 +39,7 @@ internal static partial class ActionClaimVocabulary
         (ResolveSiteBoundaryCapability.CapabilityKey, "Highlight the site boundary"),
         (SearchKnowledgeBaseCapability.CapabilityKey, "Search my knowledge bases"),
         (SearchMemoryCapability.CapabilityKey, "Check what I remember"),
+        (SetSiteBoundaryMembersCapability.CapabilityKey, "Choose the site buildings"),
     ];
 
     /// <summary>Words that carry no capability meaning and would match anything.</summary>
@@ -53,6 +54,7 @@ internal static partial class ActionClaimVocabulary
     /// </summary>
     private static readonly Dictionary<string, string[]> IrregularPastForms = new(StringComparer.Ordinal)
     {
+        ["choose"] = ["chose", "chosen"],
         ["find"] = ["found"],
         ["show"] = ["shown", "showed"],
         ["run"] = ["ran"],

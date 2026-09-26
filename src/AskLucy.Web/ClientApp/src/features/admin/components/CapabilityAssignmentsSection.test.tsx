@@ -1,13 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AdminAiModel, AdminAiProvider, AiCapabilityAssignment } from '../api/adminAiProvidersApi'
+import type { AdminAiModel, AdminAiProvider, AiCapabilityAssignment, AiCapabilitySettings } from '../api/adminAiProvidersApi'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import { CapabilityAssignmentsSection } from './CapabilityAssignmentsSection'
 
 vi.mock('../api/adminAiProvidersApi', async () => {
   const actual = await vi.importActual<typeof adminAiProvidersApi>('../api/adminAiProvidersApi')
-  return { ...actual, getCapabilityAssignments: vi.fn(), setCapabilityAssignment: vi.fn(), getModels: vi.fn() }
+  return {
+    ...actual,
+    getCapabilityAssignments: vi.fn(),
+    setCapabilityAssignment: vi.fn(),
+    getModels: vi.fn(),
+    getCapabilitySettings: vi.fn(),
+    updateCapabilitySettings: vi.fn(),
+  }
 })
 
 function makeProvider(overrides: Partial<AdminAiProvider>): AdminAiProvider {
@@ -45,8 +52,31 @@ const unassigned: AiCapabilityAssignment = {
   effectiveModelId: 'model-gpt41',
 }
 
-function renderSection(assignments: AiCapabilityAssignment[], providers: AdminAiProvider[] = [openai, anthropic]) {
+const boundaryVisionSettings: AiCapabilitySettings = {
+  capability: 'BoundaryVision',
+  settings: [
+    {
+      key: 'includeConnectedBuildings',
+      valueType: 'Boolean',
+      label: 'Include connected buildings of the same development',
+      description: 'Proposes the towers and hotels joined to a mall as part of its site.',
+      value: 'true',
+      defaultValue: 'true',
+    },
+  ],
+}
+
+function renderSection(
+  assignments: AiCapabilityAssignment[],
+  providers: AdminAiProvider[] = [openai, anthropic],
+  settings: AiCapabilitySettings[] | Error = [],
+) {
   vi.mocked(adminAiProvidersApi.getCapabilityAssignments).mockResolvedValue(assignments)
+  if (settings instanceof Error) {
+    vi.mocked(adminAiProvidersApi.getCapabilitySettings).mockRejectedValue(settings)
+  } else {
+    vi.mocked(adminAiProvidersApi.getCapabilitySettings).mockResolvedValue(settings)
+  }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
@@ -274,5 +304,68 @@ describe('CapabilityAssignmentsSection — image generation (specs/057 follow-up
     fireEvent.click(providerMenu.getByText('Anthropic'))
 
     expect(await screen.findByText(/no Available model marked as able to produce images/i)).toBeInTheDocument()
+  })
+})
+
+describe('CapabilityAssignmentsSection — capability settings (specs/077)', () => {
+  const boundaryVision: AiCapabilityAssignment = { ...unassigned, capability: 'BoundaryVision' }
+  const chat: AiCapabilityAssignment = { ...unassigned, capability: 'Chat' }
+  const withSettings = [boundaryVisionSettings, { capability: 'Chat', settings: [] } satisfies AiCapabilitySettings]
+
+  it('enables the gear only for a capability that has something to configure', async () => {
+    renderSection([boundaryVision, chat], undefined, withSettings)
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Settings for Boundary vision' })).toBeEnabled(),
+    )
+    expect(screen.getByRole('button', { name: 'Settings for Chat' })).toBeDisabled()
+  })
+
+  /*
+   * Inside the open dialog, queries go by text and selector: role queries crash jsdom's
+   * getComputedStyle once an MUI Dialog portal is open.
+   */
+  it('saves the switch from the gear dialog', async () => {
+    vi.mocked(adminAiProvidersApi.updateCapabilitySettings).mockResolvedValue(undefined)
+    renderSection([boundaryVision], undefined, withSettings)
+
+    const gear = await screen.findByRole('button', { name: 'Settings for Boundary vision' })
+    await waitFor(() => expect(gear).toBeEnabled())
+    fireEvent.click(gear)
+
+    expect(await screen.findByText('Include connected buildings of the same development')).toBeInTheDocument()
+    const save = screen.getByText('Save').closest('button') as HTMLButtonElement
+    expect(save).toBeDisabled()
+
+    fireEvent.click(document.querySelector('.MuiDialog-root input[type="checkbox"]') as HTMLInputElement)
+    expect(save).toBeEnabled()
+    fireEvent.click(save)
+
+    await waitFor(() =>
+      expect(adminAiProvidersApi.updateCapabilitySettings).toHaveBeenCalledWith('BoundaryVision', {
+        includeConnectedBuildings: 'false',
+      }),
+    )
+    expect(await screen.findByText('Capability settings saved.')).toBeInTheDocument()
+  })
+
+  it('shows a rejected save in the dialog', async () => {
+    vi.mocked(adminAiProvidersApi.updateCapabilitySettings).mockRejectedValue(new Error('boom'))
+    renderSection([boundaryVision], undefined, withSettings)
+
+    const gear = await screen.findByRole('button', { name: 'Settings for Boundary vision' })
+    await waitFor(() => expect(gear).toBeEnabled())
+    fireEvent.click(gear)
+    await screen.findByText('Include connected buildings of the same development')
+    fireEvent.click(document.querySelector('.MuiDialog-root input[type="checkbox"]') as HTMLInputElement)
+    fireEvent.click(screen.getByText('Save'))
+
+    expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument()
+  })
+
+  it('says why every gear is disabled when the settings fail to load', async () => {
+    renderSection([boundaryVision], undefined, new Error('boom'))
+
+    expect(await screen.findByText(/Couldn't load the capability settings/)).toBeInTheDocument()
   })
 })

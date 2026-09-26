@@ -844,6 +844,7 @@ public sealed partial class AiController(
             source = confirmedBoundary.Source.ToString(),
             sourceDetail = confirmedBoundary.SourceDetail,
             alternativeCandidateNames = confirmedBoundary.AlternativeCandidateNames,
+            additionalPolygons = confirmedBoundary.AdditionalPolygons.Select(r => r.Select(p => new { latitude = p.Latitude, longitude = p.Longitude })),
         };
 
         await Response.WriteAsync($"data: __SITE_BOUNDARY__{JsonSerializer.Serialize(boundaryPayload)}\n\n", cancellationToken);

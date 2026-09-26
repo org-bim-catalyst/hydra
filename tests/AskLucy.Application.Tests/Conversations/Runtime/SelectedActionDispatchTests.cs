@@ -175,6 +175,42 @@ public sealed class SelectedActionResolverTests
         resolved.OfferingMessageId.Should().Be(offering.Id);
     }
 
+    /// <summary>
+    /// specs/077 — "the mall only" and "the mall and its tower" are the same capability with
+    /// different arguments, so the arguments are what tell the picked row apart.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ShouldPickTheRowWhoseArgumentsMatch_WhenRowsShareAKey()
+    {
+        var offering = OfferingMessage(SameKeyOffer(), DateTime.UtcNow);
+        _messages.ListByChatIdAsync(_chatId, Arg.Any<CancellationToken>()).Returns(new List<Message> { offering });
+
+        var resolved = await _resolver.ResolveAsync(
+            _chatId, offering.Id, "capability", "stub", null, """{ "query": "tower" }""", CancellationToken.None);
+
+        resolved.Row.Label.Should().Be("B. With the tower");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldRefuseStale_WhenRowsShareAKeyAndNoneHasTheClientsArguments()
+    {
+        var offering = OfferingMessage(SameKeyOffer(), DateTime.UtcNow);
+        _messages.ListByChatIdAsync(_chatId, Arg.Any<CancellationToken>()).Returns(new List<Message> { offering });
+
+        var act = () => _resolver.ResolveAsync(
+            _chatId, offering.Id, "capability", "stub", null, """{"query":"made up"}""", CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConversationActionStaleException>();
+    }
+
+    private static SuggestedActionOffer SameKeyOffer() => new(
+        "Which buildings?",
+        [
+            new SuggestedAction(SuggestedActionKind.Capability, "stub", null, "A. Only", "Only.", """{"query":"only"}"""),
+            new SuggestedAction(SuggestedActionKind.Capability, "stub", null, "B. With the tower", "With it.", """{"query":"tower"}"""),
+            SuggestedAction.Decline(),
+        ]);
+
     [Fact]
     public async Task ResolveAsync_ShouldResolve_AFollowUpSelection_MatchedByText()
     {

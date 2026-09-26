@@ -21,6 +21,7 @@ public sealed class PermissionEnforcementMatrixTests(CustomWebApplicationFactory
         { "GET", "/api/v1/users", "admin.users.view", "custom" },
         { "GET", "/api/v1/admin/ai/providers", "admin.ai-providers.view", "custom" },
         { "GET", "/api/v1/admin/ai/capabilities", "admin.ai-capabilities.view", "custom" },
+        { "GET", "/api/v1/admin/ai/capabilities/settings", "admin.ai-capabilities.view", "custom" },
         { "GET", "/api/v1/admin/agent-policies", "admin.agent-policies.view", "custom" },
         { "GET", "/api/v1/admin/agents/system", "admin.system-agents.view", "custom" },
         { "GET", "/api/v1/admin/workflow-policies", "admin.workflow-policies.view", "custom" },
@@ -57,6 +58,7 @@ public sealed class PermissionEnforcementMatrixTests(CustomWebApplicationFactory
     {
         { "PATCH", "/api/v1/users/some-user-id", "admin.users.view" },
         { "PATCH", "/api/v1/admin/ai/providers/00000000-0000-0000-0000-000000000001", "admin.ai-providers.view" },
+        { "PUT", "/api/v1/admin/ai/capabilities/BoundaryVision/settings", "admin.ai-capabilities.view" },
         { "POST", "/api/v1/admin/agent-policies", "admin.agent-policies.view" },
         { "POST", "/api/v1/admin/workflow-policies", "admin.workflow-policies.view" },
         { "POST", "/api/v1/admin/mcp/servers", "admin.mcp-servers.view" },

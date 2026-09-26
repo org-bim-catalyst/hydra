@@ -111,4 +111,14 @@ public sealed record ConfirmedSiteBoundaryData(
     BoundaryConfidenceLevel ConfidenceLevel,
     SiteBoundarySource Source,
     string SourceDetail,
-    IReadOnlyList<string> AlternativeCandidateNames);
+    IReadOnlyList<string> AlternativeCandidateNames)
+{
+    /// <summary>specs/077 — the site's own outline before any members were joined; null when none ever were (then <see cref="Polygon"/> is it).</summary>
+    public IReadOnlyList<GeoPoint>? CorePolygon { get; init; }
+
+    /// <summary>specs/077 — outlines of included members standing apart from <see cref="Polygon"/>.</summary>
+    public IReadOnlyList<IReadOnlyList<GeoPoint>> AdditionalPolygons { get; init; } = [];
+
+    /// <summary>specs/077 — buildings carrying the site's name, and which ones the highlight includes.</summary>
+    public IReadOnlyList<SiteBoundaryMember> Members { get; init; } = [];
+}

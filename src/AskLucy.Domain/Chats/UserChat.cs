@@ -253,15 +253,27 @@ public sealed class UserChat : BaseEntity
     /// specs/042-site-boundary-resolution — persists the resolved site boundary so a repeated
     /// reference to the same site in a later turn reuses it instead of forcing a fresh
     /// resolution (FR-009). Mirrors <see cref="SetActiveLocation"/> exactly.
+    /// <para>
+    /// specs/077 — the last three arguments carry the buildings found around the site that share
+    /// its name, and the outlines the included ones add. Omitted, the boundary is the site alone.
+    /// </para>
     /// </summary>
     public void SetActiveBoundary(
         string siteName, double centroidLatitude, double centroidLongitude, IReadOnlyList<GeoPoint> polygon,
         double areaSquareMeters, double confidence, BoundaryConfidenceLevel confidenceLevel,
-        SiteBoundarySource source, string sourceDetail, string actor)
+        SiteBoundarySource source, string sourceDetail, string actor,
+        IReadOnlyList<GeoPoint>? corePolygon = null,
+        IReadOnlyList<IReadOnlyList<GeoPoint>>? additionalPolygons = null,
+        IReadOnlyList<SiteBoundaryMember>? members = null)
     {
         ActiveBoundary = new ActiveSiteBoundary(
             siteName, centroidLatitude, centroidLongitude, polygon, areaSquareMeters,
-            confidence, confidenceLevel, source, sourceDetail);
+            confidence, confidenceLevel, source, sourceDetail)
+        {
+            CorePolygon = corePolygon,
+            AdditionalPolygons = additionalPolygons ?? [],
+            Members = members ?? [],
+        };
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }

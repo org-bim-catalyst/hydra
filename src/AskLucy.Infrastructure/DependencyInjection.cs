@@ -406,6 +406,8 @@ public static class DependencyInjection
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
+        services.AddScoped<IRelatedSiteBuildingProvider, OverpassRelatedSiteBuildingProvider>();
+        services.AddSingleton<ISiteFootprintUnion, RasterSiteFootprintUnion>();
         // specs/053-rendered-building-footprints T025 — IBuildingFootprintProvider now resolves to
         // the composite (rendered primary, Overpass fallback — contracts/footprint-source-
         // arbitration.md), not directly to Overpass. Both inner providers are registered as KEYED

@@ -46,22 +46,11 @@ public static class StructuredPayloadExtractor
                                 viewportEl.GetProperty("southwestLng").GetDouble())
                             : null));
 
-                case ResolveSiteBoundaryCapability.CapabilityKey
-                    when root.TryGetProperty("siteName", out var siteNameEl) && root.TryGetProperty("polygon", out var polygonEl):
-                    return new ChatStreamChunk(null, null, ConfirmedBoundary: new ConfirmedSiteBoundaryData(
-                        siteNameEl.GetString() ?? string.Empty,
-                        root.GetProperty("centroidLatitude").GetDouble(),
-                        root.GetProperty("centroidLongitude").GetDouble(),
-                        [.. polygonEl.EnumerateArray().Select(p => new GeoPoint(
-                            p.GetProperty("latitude").GetDouble(), p.GetProperty("longitude").GetDouble()))],
-                        root.GetProperty("areaSquareMeters").GetDouble(),
-                        root.TryGetProperty("confidence", out var boundaryConfEl) ? boundaryConfEl.GetDouble() : 1d,
-                        Enum.Parse<BoundaryConfidenceLevel>(root.GetProperty("confidenceLevel").GetString()!),
-                        Enum.Parse<SiteBoundarySource>(root.GetProperty("sourceType").GetString()!),
-                        root.TryGetProperty("source", out var sourceDetailEl) ? sourceDetailEl.GetString() ?? string.Empty : string.Empty,
-                        root.TryGetProperty("alternativeCandidateNames", out var altEl)
-                            ? [.. altEl.EnumerateArray().Select(a => a.GetString() ?? string.Empty)]
-                            : []));
+                // specs/077 — choosing which buildings the site includes redraws it exactly as
+                // resolving it did, so both results share SiteBoundaryPayload's one shape.
+                case ResolveSiteBoundaryCapability.CapabilityKey or SetSiteBoundaryMembersCapability.CapabilityKey
+                    when root.TryGetProperty("siteName", out _) && root.TryGetProperty("polygon", out _):
+                    return new ChatStreamChunk(null, null, ConfirmedBoundary: SiteBoundaryPayload.Read(root));
 
                 case AdjustViewerFocusCapability.CapabilityKey
                     when root.TryGetProperty("direction", out var directionEl):
@@ -106,6 +95,11 @@ public static class StructuredPayloadExtractor
         catch (ArgumentException)
         {
             // Enum.Parse on a value that doesn't match BoundaryConfidenceLevel/SiteBoundarySource.
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            // A field of the wrong JSON kind (e.g. a string where a number belongs).
             return null;
         }
     }

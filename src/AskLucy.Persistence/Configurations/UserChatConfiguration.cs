@@ -123,6 +123,44 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
                     (a, b) => a!.SequenceEqual(b!),
                     a => a.Aggregate(0, (hash, p) => HashCode.Combine(hash, p.Latitude, p.Longitude)),
                     a => a.ToList()));
+
+            // specs/077 — nullable so every boundary stored before this feature still loads: a
+            // null column leaves the property at its own default (no core, no extra rings, no
+            // members), which is exactly what those boundaries were.
+            owned.Property(a => a.CorePolygon)
+                .HasColumnName("ActiveBoundaryCorePolygonJson")
+                .HasConversion(
+                    polygon => JsonSerializer.Serialize(polygon, MembershipJsonOptions),
+                    json => JsonSerializer.Deserialize<IReadOnlyList<GeoPoint>>(json, MembershipJsonOptions))
+                .Metadata.SetValueComparer(JsonValueComparer<IReadOnlyList<GeoPoint>?>());
+
+            owned.Property(a => a.AdditionalPolygons)
+                .HasColumnName("ActiveBoundaryAdditionalPolygonsJson")
+                .IsRequired(false)
+                .HasConversion(
+                    rings => JsonSerializer.Serialize(rings, MembershipJsonOptions),
+                    json => JsonSerializer.Deserialize<IReadOnlyList<IReadOnlyList<GeoPoint>>>(json, MembershipJsonOptions) ?? new List<IReadOnlyList<GeoPoint>>())
+                .Metadata.SetValueComparer(JsonValueComparer<IReadOnlyList<IReadOnlyList<GeoPoint>>>());
+
+            owned.Property(a => a.Members)
+                .HasColumnName("ActiveBoundaryMembersJson")
+                .IsRequired(false)
+                .HasConversion(
+                    members => JsonSerializer.Serialize(members, MembershipJsonOptions),
+                    json => JsonSerializer.Deserialize<IReadOnlyList<SiteBoundaryMember>>(json, MembershipJsonOptions) ?? new List<SiteBoundaryMember>())
+                .Metadata.SetValueComparer(JsonValueComparer<IReadOnlyList<SiteBoundaryMember>>());
         });
     }
+
+    /// <summary>Enums as names, so reordering <see cref="SiteBoundaryMemberKind"/> or <see cref="SiteBoundaryMemberRelation"/> never remaps stored rows.</summary>
+    private static readonly JsonSerializerOptions MembershipJsonOptions = new()
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    /// <summary>Change tracking by serialized form — these values are replaced whole, never mutated in place.</summary>
+    private static ValueComparer<T> JsonValueComparer<T>() => new(
+        (a, b) => JsonSerializer.Serialize(a, MembershipJsonOptions) == JsonSerializer.Serialize(b, MembershipJsonOptions),
+        a => JsonSerializer.Serialize(a, MembershipJsonOptions).GetHashCode(StringComparison.Ordinal),
+        a => a);
 }

@@ -113,6 +113,7 @@ public sealed class ConversationTurnOrchestrator(
         if (request.SelectedAction is { } selection)
         {
             ConfirmedLocationData? selectionConfirmedLocation = null;
+            ConfirmedSiteBoundaryData? selectionConfirmedBoundary = null;
             var selectionFlowRecord = new List<FlowStepResult>();
 
             await foreach (var chunk in RunSelectedActionAsync(request, turnContext, selection, selectionFlowRecord, cancellationToken))
@@ -121,6 +122,8 @@ public sealed class ConversationTurnOrchestrator(
                 {
                     selectionConfirmedLocation = chunk.ConfirmedLocation;
                 }
+
+                selectionConfirmedBoundary = chunk.ConfirmedBoundary ?? selectionConfirmedBoundary;
 
                 yield return chunk;
             }
@@ -139,7 +142,7 @@ public sealed class ConversationTurnOrchestrator(
                 };
                 var justHappened = $"The user chose to: {selection.Key}. Lucy ran it.";
 
-                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext.AfterConfirming(selectionConfirmedLocation), memoryOutcome: null, chat, justHappened, [], cancellationToken))
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, outcome, turnContext.AfterConfirming(selectionConfirmedLocation), selectionConfirmedBoundary, memoryOutcome: null, chat, justHappened, [], cancellationToken))
                 {
                     yield return chunk;
                 }
@@ -202,6 +205,7 @@ public sealed class ConversationTurnOrchestrator(
         {
             var retryRecord = new List<FlowStepResult>();
             ConfirmedLocationData? retryConfirmedLocation = null;
+            ConfirmedSiteBoundaryData? retryConfirmedBoundary = null;
 
             await foreach (var chunk in RunRetryAsync(request, turnContext, retry, retryRecord, cancellationToken))
             {
@@ -209,6 +213,8 @@ public sealed class ConversationTurnOrchestrator(
                 {
                     retryConfirmedLocation = chunk.ConfirmedLocation;
                 }
+
+                retryConfirmedBoundary = chunk.ConfirmedBoundary ?? retryConfirmedBoundary;
 
                 yield return chunk;
             }
@@ -225,7 +231,7 @@ public sealed class ConversationTurnOrchestrator(
                 };
                 var retryJustHappened = $"The user asked to retry: {retry.CapabilityKey}. Lucy ran it again.";
 
-                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, retryOutcome, turnContext.AfterConfirming(retryConfirmedLocation), memoryOutcome: null, chat, retryJustHappened, [], cancellationToken))
+                await foreach (var chunk in EmitOfferIfDueAsync(request, TurnIntent.Act, retryOutcome, turnContext.AfterConfirming(retryConfirmedLocation), retryConfirmedBoundary, memoryOutcome: null, chat, retryJustHappened, [], cancellationToken))
                 {
                     yield return chunk;
                 }
@@ -256,6 +262,7 @@ public sealed class ConversationTurnOrchestrator(
 
         MemoryRetrievalOutcome? memoryOutcome = null;
         ConfirmedLocationData? confirmedLocationThisTurn = null;
+        ConfirmedSiteBoundaryData? confirmedBoundaryThisTurn = null;
         var flowRunRecord = new List<FlowStepResult>();
         var sliceRunRecord = new List<SubAgentDelegationResult>();
 
@@ -279,6 +286,8 @@ public sealed class ConversationTurnOrchestrator(
                     {
                         confirmedLocationThisTurn = chunk.ConfirmedLocation;
                     }
+
+                    confirmedBoundaryThisTurn = chunk.ConfirmedBoundary ?? confirmedBoundaryThisTurn;
 
                     yield return chunk;
                 }
@@ -317,6 +326,8 @@ public sealed class ConversationTurnOrchestrator(
                     confirmedLocationThisTurn = chunk.ConfirmedLocation;
                 }
 
+                confirmedBoundaryThisTurn = chunk.ConfirmedBoundary ?? confirmedBoundaryThisTurn;
+
                 yield return chunk;
             }
         }
@@ -350,7 +361,7 @@ public sealed class ConversationTurnOrchestrator(
         // snapshot had none. The same request in a chat that already had a site did offer, which
         // is how it looked intermittent. See TurnContext.AfterConfirming.
         var offerContext = turnContext.AfterConfirming(confirmedLocationThisTurn);
-        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, offerContext, memoryOutcome, chat, decideJustHappened, flowVariantCandidates, cancellationToken))
+        await foreach (var chunk in EmitOfferIfDueAsync(request, decision.Intent, decideOutcome, offerContext, confirmedBoundaryThisTurn, memoryOutcome, chat, decideJustHappened, flowVariantCandidates, cancellationToken))
         {
             yield return chunk;
         }
@@ -705,6 +716,7 @@ public sealed class ConversationTurnOrchestrator(
         TurnIntent intent,
         TurnOutcome outcome,
         TurnContext turnContext,
+        ConfirmedSiteBoundaryData? confirmedBoundary,
         MemoryRetrievalOutcome? memoryOutcome,
         Domain.Chats.UserChat? chat,
         string justHappened,
@@ -716,6 +728,17 @@ public sealed class ConversationTurnOrchestrator(
         // repository). Everyone is treated as opted in, the safe default while there is no toggle
         // to have turned off.
         const bool suggestedActionsEnabled = true;
+
+        // specs/077 — a site just outlined with buildings of the same development asks which of
+        // them it includes, ahead of (and instead of) any generic "what next": the answer decides
+        // what every later analysis covers, so it is the question worth the user's attention now.
+        if (outcome.WasInvokedThisTurn(ResolveSiteBoundaryCapability.CapabilityKey) &&
+            confirmedBoundary is not null &&
+            SiteBoundaryMembershipOffer.Build(confirmedBoundary) is { } membershipOffer)
+        {
+            yield return new ChatStreamChunk(null, null, SuggestedActions: membershipOffer.Actions, SuggestedActionsQuestion: membershipOffer.Question);
+            yield break;
+        }
 
         var suppression = OfferSuppressionRules.Evaluate(intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled, flowVariantCandidates);
         if (suppression != OfferSuppressionReason.None)

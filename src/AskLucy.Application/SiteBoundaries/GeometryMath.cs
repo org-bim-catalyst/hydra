@@ -115,5 +115,72 @@ public static class GeometryMath
         return points;
     }
 
+    /// <summary>
+    /// specs/077 — the shortest distance in meters between two rings' outlines: 0 when they touch,
+    /// cross, or one holds a vertex of the other. BurJuman's office tower shares a wall with the
+    /// mall (0 m), its hotel stands 0.5 m off it, and the tower across the street 26 m.
+    /// </summary>
+    public static double GapMeters(IReadOnlyList<GeoPoint> first, IReadOnlyList<GeoPoint> second)
+    {
+        if (first.Count == 0 || second.Count == 0)
+        {
+            return double.PositiveInfinity;
+        }
+
+        if (first.Any(p => Contains(second, p)) || second.Any(p => Contains(first, p)))
+        {
+            return 0.0;
+        }
+
+        var reference = first[0];
+        var a = first.Select(p => ToLocalMeters(p, reference)).ToList();
+        var b = second.Select(p => ToLocalMeters(p, reference)).ToList();
+
+        var gap = double.PositiveInfinity;
+        for (var i = 0; i < a.Count - 1; i++)
+        {
+            for (var j = 0; j < b.Count - 1; j++)
+            {
+                if (SegmentsIntersect(a[i], a[i + 1], b[j], b[j + 1]))
+                {
+                    return 0.0;
+                }
+
+                gap = Math.Min(gap, Math.Min(
+                    Math.Min(PointToSegment(a[i], b[j], b[j + 1]), PointToSegment(a[i + 1], b[j], b[j + 1])),
+                    Math.Min(PointToSegment(b[j], a[i], a[i + 1]), PointToSegment(b[j + 1], a[i], a[i + 1]))));
+            }
+        }
+
+        return gap;
+    }
+
+    /// <summary>specs/077 — meters from a point to a ring's outline; 0 when the point lies inside it.</summary>
+    public static double DistanceToRingMeters(GeoPoint point, IReadOnlyList<GeoPoint> ring) =>
+        GapMeters([point, point], ring);
+
+    private static double PointToSegment((double X, double Y) p, (double X, double Y) s, (double X, double Y) e)
+    {
+        var dx = e.X - s.X;
+        var dy = e.Y - s.Y;
+        var lengthSquared = (dx * dx) + (dy * dy);
+        var t = lengthSquared == 0 ? 0 : Math.Clamp((((p.X - s.X) * dx) + ((p.Y - s.Y) * dy)) / lengthSquared, 0, 1);
+        var x = s.X + (t * dx) - p.X;
+        var y = s.Y + (t * dy) - p.Y;
+        return Math.Sqrt((x * x) + (y * y));
+    }
+
+    private static bool SegmentsIntersect((double X, double Y) p1, (double X, double Y) p2, (double X, double Y) q1, (double X, double Y) q2)
+    {
+        static double Cross((double X, double Y) o, (double X, double Y) a, (double X, double Y) b) =>
+            ((a.X - o.X) * (b.Y - o.Y)) - ((a.Y - o.Y) * (b.X - o.X));
+
+        var d1 = Cross(q1, q2, p1);
+        var d2 = Cross(q1, q2, p2);
+        var d3 = Cross(p1, p2, q1);
+        var d4 = Cross(p1, p2, q2);
+        return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+    }
+
     private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180.0;
 }

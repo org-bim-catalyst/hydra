@@ -64,6 +64,9 @@ public sealed record ChatActiveBoundaryDto(
     string Source,
     string SourceDetail)
 {
+    /// <summary>specs/077 — outlines of included buildings standing apart from <see cref="Polygon"/>.</summary>
+    public IReadOnlyList<IReadOnlyList<ChatGeoPointDto>> AdditionalPolygons { get; init; } = [];
+
     public static ChatActiveBoundaryDto FromEntity(ActiveSiteBoundary boundary) => new(
         boundary.SiteName,
         new ChatGeoPointDto(boundary.CentroidLatitude, boundary.CentroidLongitude),
@@ -72,7 +75,10 @@ public sealed record ChatActiveBoundaryDto(
         boundary.Confidence,
         boundary.ConfidenceLevel.ToString().ToLowerInvariant(),
         boundary.Source.ToString(),
-        boundary.SourceDetail);
+        boundary.SourceDetail)
+    {
+        AdditionalPolygons = [.. boundary.AdditionalPolygons.Select(r => (IReadOnlyList<ChatGeoPointDto>)[.. r.Select(p => new ChatGeoPointDto(p.Latitude, p.Longitude))])],
+    };
 }
 
 public sealed record ChatGeoPointDto(double Latitude, double Longitude);

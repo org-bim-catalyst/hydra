@@ -30,7 +30,10 @@ public sealed class RecordActiveSiteBoundaryCommandHandler(
             boundary.ConfidenceLevel,
             boundary.Source,
             boundary.SourceDetail,
-            actor);
+            actor,
+            boundary.CorePolygon,
+            boundary.AdditionalPolygons,
+            boundary.Members);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

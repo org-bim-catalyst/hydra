@@ -17,4 +17,18 @@ public sealed record ActiveSiteBoundary(
     double Confidence,
     BoundaryConfidenceLevel ConfidenceLevel,
     SiteBoundarySource Source,
-    string SourceDetail);
+    string SourceDetail)
+{
+    /// <summary>
+    /// specs/077 — the site's own outline before any <see cref="Members"/> were joined to it. Null
+    /// when nothing was ever joined, which is every boundary stored before specs/077: then
+    /// <see cref="Polygon"/> is the site's own outline.
+    /// </summary>
+    public IReadOnlyList<GeoPoint>? CorePolygon { get; init; }
+
+    /// <summary>specs/077 — outlines of included members that stand apart from <see cref="Polygon"/>, e.g. a tower across the street.</summary>
+    public IReadOnlyList<IReadOnlyList<GeoPoint>> AdditionalPolygons { get; init; } = [];
+
+    /// <summary>specs/077 — buildings carrying the site's name, and whether the user included each.</summary>
+    public IReadOnlyList<SiteBoundaryMember> Members { get; init; } = [];
+}

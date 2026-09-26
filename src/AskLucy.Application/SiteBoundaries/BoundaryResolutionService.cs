@@ -48,6 +48,7 @@ public sealed class BoundaryResolutionService(
     IStreetViewImageProvider streetViewImageProvider,
     IBoundaryVisionAnalyzer visionAnalyzer,
     IRenderedFillBoundaryExtractor renderedFillExtractor,
+    SiteBoundaryMembershipService membershipService,
     IOptions<BoundaryScoringOptions> options,
     ILogger<BoundaryResolutionService> logger) : IBoundaryResolutionService
 {
@@ -148,6 +149,7 @@ public sealed class BoundaryResolutionService(
             selection.CombinedScore, confidenceLevel,
             finalSource, sourceDetail,
             alternativeNames);
+        confirmedBoundary = await membershipService.WithRelatedBuildingsAsync(confirmedBoundary, winner.Candidate, userChatId, cancellationToken);
 
         // Said out loud when it did not happen. The cross-check failing is invisible otherwise:
         // the outline still renders, still says "high confidence", and simply is not corrected —
@@ -261,6 +263,7 @@ public sealed class BoundaryResolutionService(
             winner.Score, confidenceLevel,
             SiteBoundarySource.RenderedMapExtraction, sourceDetail,
             alternativeNames);
+        confirmedBoundary = await membershipService.WithRelatedBuildingsAsync(confirmedBoundary, winner.Candidate, userChatId, cancellationToken);
 
         var confirmationText = BoundaryConfirmationTemplates.WithAiVerificationNote(
             BoundaryConfirmationTemplates.WithAlternatives(

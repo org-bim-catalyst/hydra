@@ -59,7 +59,10 @@ function resolveSelectedActionLabel(
   actions: SuggestedAction[] | undefined, next: PersistedMessage | undefined,
 ): string | null | undefined {
   if (!actions || !next?.selectedActionKind) return undefined
-  const picked = actions.find((a) => a.kind === next.selectedActionKind && (a.capabilityKey ?? null) === next.selectedActionKey)
+  const candidates = actions.filter((a) => a.kind === next.selectedActionKind && (a.capabilityKey ?? null) === next.selectedActionKey)
+  // specs/077 — one capability can back several rows that differ only in their arguments ("the
+  // site only" / "with its connected buildings"), so the recorded label decides between them.
+  const picked = candidates.find((a) => a.label === next.content) ?? candidates[0]
   if (!picked) return next.content
   return picked.isDecline ? null : picked.label
 }
@@ -342,6 +345,7 @@ export function useChatStream(
               siteName: event.siteName,
               centroid: event.centroid,
               polygon: event.polygon,
+              additionalPolygons: event.additionalPolygons,
               areaSquareMeters: event.areaSquareMeters,
               confidence: event.confidence,
               confidenceLevel: event.confidenceLevel,
@@ -565,6 +569,7 @@ export function useChatStream(
               siteName: event.siteName,
               centroid: event.centroid,
               polygon: event.polygon,
+              additionalPolygons: event.additionalPolygons,
               areaSquareMeters: event.areaSquareMeters,
               confidence: event.confidence,
               confidenceLevel: event.confidenceLevel,

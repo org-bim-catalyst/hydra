@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IEffectivePermissionResolver, AskLucy.Application.Authorization.EffectivePermissionResolver>();
         services.AddScoped<IAIProviderRepository, AIProviderRepository>();
         services.AddScoped<IAiCapabilityAssignmentRepository, AiCapabilityAssignmentRepository>();
+        services.AddScoped<IAiCapabilitySettingRepository, AiCapabilitySettingRepository>();
         services.AddScoped<IAIModelRepository, AIModelRepository>();
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();

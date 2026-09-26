@@ -98,6 +98,8 @@ export interface ChatActiveBoundary {
   siteName: string
   centroid: { latitude: number; longitude: number }
   polygon: { latitude: number; longitude: number }[]
+  /** specs/077 — absent from a chat saved before separate rings existed. */
+  additionalPolygons?: { latitude: number; longitude: number }[][]
   areaSquareMeters: number
   confidence: number
   confidenceLevel: 'low' | 'medium' | 'high'

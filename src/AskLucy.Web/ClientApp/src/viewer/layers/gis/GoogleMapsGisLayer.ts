@@ -86,7 +86,18 @@ export interface GoogleMapsGisLayerHandle {
   /** US5 (FR-018): visually distinguishes the marker as selected/unselected. */
   setMarkerHighlighted(highlighted: boolean): void
   /** specs/042-site-boundary-resolution: shows/updates/clears the animated site-boundary highlight. Pass `null` to remove it. */
-  setSiteBoundary(input: { exteriorRing: { latitude: number; longitude: number }[]; confidenceLevel: BorderConfidenceLevel } | null): void
+  /**
+   * `additionalRings` (specs/077) are the site's outlines that do not touch the exterior ring —
+   * a same-named building across a street. They join the native polygon as further paths; the
+   * animated Three.js highlight follows the main ring only.
+   */
+  setSiteBoundary(
+    input: {
+      exteriorRing: { latitude: number; longitude: number }[]
+      additionalRings?: { latitude: number; longitude: number }[][]
+      confidenceLevel: BorderConfidenceLevel
+    } | null,
+  ): void
   /** T051 (specs/051 US4) — advances the site-boundary comet animation's internal clock by
    * `deltaSeconds`. Called from `siteBoundaryExtension.tsx`'s own `context.onFrame()`
    * subscription, not automatically every draw — the animation only ticks while that extension
@@ -534,11 +545,15 @@ export async function createGoogleMapsGisLayer(
 
       // The reliable path — always runs, never depends on the Three.js bridge.
       const style = BOUNDARY_STYLE[input.confidenceLevel]
-      const path = input.exteriorRing.map((p) => ({ lat: p.latitude, lng: p.longitude }))
+      // Separate outer rings of one google.maps.Polygon draw as separate shapes, not holes, as
+      // long as they do not overlap — which the rings of a union never do.
+      const paths = [input.exteriorRing, ...(input.additionalRings ?? [])].map((ring) =>
+        ring.map((p) => ({ lat: p.latitude, lng: p.longitude })),
+      )
       if (!boundaryPolygon) {
         boundaryPolygon = new google.maps.Polygon({
           map,
-          paths: path,
+          paths,
           strokeColor: style.color,
           strokeOpacity: style.strokeOpacity,
           strokeWeight: style.strokeWeight,
@@ -548,7 +563,7 @@ export async function createGoogleMapsGisLayer(
           zIndex: 10,
         })
       } else {
-        boundaryPolygon.setPath(path)
+        boundaryPolygon.setPaths(paths)
         boundaryPolygon.setOptions({
           strokeColor: style.color,
           strokeOpacity: style.strokeOpacity,

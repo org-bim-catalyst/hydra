@@ -1,6 +1,6 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
-import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
+import { siteRingsOf, useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
 import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
 import type { ExtensionContext } from '../../../viewer/extensions/context'
 import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
@@ -84,10 +84,16 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
     const showBuildingMass = useSolarAnalysisStore((s) => s.showBuildingMass)
     // specs/076 — the site's resolved outline, so the dome encloses the whole site and not just the
     // one footprint flagged as the site building.
-    const siteBoundary = useActiveSiteBoundaryStore((s) => s.polygon)
+    // specs/077 — every ring of it: a site of one development can be more than one outline.
+    const sitePolygon = useActiveSiteBoundaryStore((s) => s.polygon)
+    const siteAdditionalPolygons = useActiveSiteBoundaryStore((s) => s.additionalPolygons)
+    const siteRings = useMemo(
+      () => siteRingsOf({ polygon: sitePolygon, additionalPolygons: siteAdditionalPolygons }),
+      [sitePolygon, siteAdditionalPolygons],
+    )
     // specs/076 — the query radius has to reach the far side of a large site, or the dome encloses
     // ground with no masses on it. A number, so an unchanged boundary never refetches.
-    const buildingsRadius = site ? siteBuildingsRadiusFor(site, siteBoundary) : undefined
+    const buildingsRadius = site ? siteBuildingsRadiusFor(site, siteRings.flat()) : undefined
     // FR-025, FR-026, research D11 — reactive: a correction edit (a different object reference
     // for this site key) re-triggers the geometry-rebuild effect below, without depending on
     // corrections for any OTHER site re-rendering this overlay.
@@ -192,7 +198,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         // T023/T033 — the shadow rig is sized from the footprints themselves, measured as they are
         // built, not from the radius they were queried with. `rebuildBuildings` reports those
         // bounds to the scene, so there is nothing to compute here.
-        const built = solarScene.rebuildBuildings(correctedBuildings, siteBoundary)
+        const built = solarScene.rebuildBuildings(correctedBuildings, siteRings)
         solarScene.setGroundOffset(corrections?.groundOffsetMetres ?? 0)
         solarScene.invalidate()
 
@@ -210,7 +216,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         // (constitution §2.VIII: the failure surfaced must describe what actually failed).
         useSolarAnalysisStore.getState().markFailed(copy.viewerUnavailable)
       }
-    }, [activation, siteBuildings, corrections, siteBoundary, anchorVersion])
+    }, [activation, siteBuildings, corrections, siteRings, anchorVersion])
 
     // FR-016 — the massing switch flips the one shared material in place; no rebuild. Keyed on
     // `activation` too, because a re-activated extension builds a fresh scene that starts hidden.

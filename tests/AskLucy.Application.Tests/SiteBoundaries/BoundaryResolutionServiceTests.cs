@@ -1,3 +1,4 @@
+using AskLucy.Application.Ai.CapabilitySettings;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
@@ -49,6 +50,11 @@ public sealed class BoundaryResolutionServiceTests
         _service = new BoundaryResolutionService(
             _candidateProvider, scorer, _satelliteImageProvider, _streetViewImageProvider, _visionAnalyzer,
             _renderedFillExtractor,
+            // specs/077: an unconfigured settings reader answers false — "don't look for related
+            // buildings" — so every resolution here returns the site's own outline unchanged.
+            new SiteBoundaryMembershipService(
+                Substitute.For<IRelatedSiteBuildingProvider>(), Substitute.For<ISiteFootprintUnion>(),
+                Substitute.For<ICapabilitySettingsReader>(), Substitute.For<ILogger<SiteBoundaryMembershipService>>()),
             Microsoft.Extensions.Options.Options.Create(_options), Substitute.For<ILogger<BoundaryResolutionService>>());
     }
 

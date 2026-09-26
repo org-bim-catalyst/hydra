@@ -4,11 +4,13 @@ using AskLucy.Application.Ai.Commands.CheckAiProviderHealth;
 using AskLucy.Application.Ai.Commands.ClearAiProviderCredential;
 using AskLucy.Application.Ai.Commands.SetAiCapabilityAssignment;
 using AskLucy.Application.Ai.Commands.SetAiProviderCredential;
+using AskLucy.Application.Ai.Commands.UpdateAiCapabilitySettings;
 using AskLucy.Application.Ai.Commands.UpdateAiModelStatus;
 using AskLucy.Application.Ai.Commands.UpdateAiProvider;
 using AskLucy.Application.Ai.Queries.GetAdminAiModels;
 using AskLucy.Application.Ai.Queries.GetAdminAiProviders;
 using AskLucy.Application.Ai.Queries.GetAiCapabilityAssignments;
+using AskLucy.Application.Ai.Queries.GetAiCapabilitySettings;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
 using AskLucy.Domain.Ai;
 using AskLucy.Web.Auth;
@@ -85,6 +87,24 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
         AiCapability capability, SetAiCapabilityAssignmentRequest request, CancellationToken cancellationToken)
     {
         await mediator.Send(new SetAiCapabilityAssignmentCommand(capability, request.ProviderId, request.ModelId), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// specs/077 — every capability with the settings it declares (an empty list when it has none),
+    /// each carrying its saved value or, when nothing is saved, its default.
+    /// </summary>
+    [HttpGet("capabilities/settings")]
+    [RequirePermission("admin.ai-capabilities.view")]
+    public async Task<ActionResult<IReadOnlyList<AiCapabilitySettingsDto>>> GetCapabilitySettings(CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetAiCapabilitySettingsQuery(), cancellationToken));
+
+    [HttpPut("capabilities/{capability}/settings")]
+    [RequirePermission("admin.ai-capabilities.manage")]
+    public async Task<IActionResult> UpdateCapabilitySettings(
+        AiCapability capability, UpdateAiCapabilitySettingsRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new UpdateAiCapabilitySettingsCommand(capability, request.Values), cancellationToken);
         return NoContent();
     }
 

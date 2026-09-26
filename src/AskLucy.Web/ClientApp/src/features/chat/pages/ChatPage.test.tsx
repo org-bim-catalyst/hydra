@@ -1975,6 +1975,59 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 
+  // specs/077 — "which buildings?" offers one capability several times with different
+  // arguments, so the key alone would name the first row whichever one was picked.
+  it('names the picked row on reload when several rows share one capability', async () => {
+    const row = (label: string, memberIds: string[]) => ({
+      kind: 'capability',
+      capabilityKey: 'set_site_boundary_members',
+      text: null,
+      label,
+      description: '',
+      arguments: { memberIds },
+      isDecline: false,
+    })
+    const membershipOffer = {
+      offeredByMessageId: 'msg-assistant-1',
+      question: 'Which buildings should the BurJuman Mall site include?',
+      actions: [
+        row('A. BurJuman Mall only', []),
+        row('B. BurJuman Mall with its connected buildings (shown now)', ['osm_way_1', 'osm_way_2']),
+        { kind: 'decline', capabilityKey: null, text: null, label: 'Keep the outline as it is', description: '', arguments: {}, isDecline: true },
+      ],
+    }
+
+    server.use(
+      http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
+        HttpResponse.json(
+          messagesPage([
+            makeMessage({ id: 'msg-user-1', role: 'User', content: 'Show me BurJuman' }),
+            makeMessage({
+              id: 'msg-assistant-1',
+              role: 'Assistant',
+              content: 'BurJuman Mall is outlined with its tower and hotel.',
+              suggestedActionsJson: JSON.stringify(membershipOffer),
+            }),
+            makeMessage({
+              id: 'msg-user-2',
+              role: 'User',
+              content: 'B. BurJuman Mall with its connected buildings (shown now)',
+              selectedActionKind: 'capability',
+              selectedActionKey: 'set_site_boundary_members',
+            }),
+            makeMessage({ id: 'msg-assistant-2', role: 'Assistant', content: 'Kept the tower and hotel.' }),
+          ]),
+        ),
+      ),
+    )
+
+    renderConversation(CHAT_A)
+
+    await screen.findByText('Kept the tower and hotel.')
+    expect(screen.getByText('You chose: B. BurJuman Mall with its connected buildings (shown now)')).toBeInTheDocument()
+    expect(screen.queryByText('You chose: A. BurJuman Mall only')).not.toBeInTheDocument()
+  })
+
   /**
    * specs/045-conversational-agent-runtime US1 — the turn shape this whole feature exists to
    * produce: an acknowledgement, delivered before the work, in its own bubble; then a named

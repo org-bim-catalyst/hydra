@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Ai.CapabilitySettings;
 using AskLucy.Application.Ai.Images;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Authentication.PasswordReset;
@@ -54,6 +55,10 @@ public static class DependencyInjection
         services.AddScoped<DefaultProviderResolver>();
         services.AddScoped<AiCapabilityProviderResolver>();
 
+        // specs/077 — per-capability settings (the admin page's gear column).
+        services.AddSingleton<CapabilitySettingCatalog>();
+        services.AddScoped<ICapabilitySettingsReader, CapabilitySettingsReader>();
+
         // specs/070: every voice-output handler speaks through the router, which orders the
         // Infrastructure-registered ITextToSpeechEngine set by the admin-configured VoiceProvider
         // rows. Scoped, so an engine that fails is skipped for the rest of the request only.
@@ -100,6 +105,7 @@ public static class DependencyInjection
         // SendChatMessageCommandHandler pipeline hook (research.md #11), not an IAgentTool.
         services.AddScoped<BoundaryCandidateScorer>();
         services.AddScoped<IBoundaryResolutionService, BoundaryResolutionService>();
+        services.AddScoped<SiteBoundaryMembershipService>();
         services.AddOptions<BoundaryScoringOptions>()
             .BindConfiguration(BoundaryScoringOptions.SectionName)
             .ValidateDataAnnotations()
@@ -269,6 +275,7 @@ public static class DependencyInjection
         // paired concrete registration. Adding a capability is one line and nothing else.
         services.AddScoped<IAgentTool, ResolveLocationCapability>();
         services.AddScoped<IAgentTool, ResolveSiteBoundaryCapability>();
+        services.AddScoped<IAgentTool, SetSiteBoundaryMembersCapability>();
         services.AddScoped<IAgentTool, AdjustViewerFocusCapability>();
         services.AddScoped<IAgentTool, SearchKnowledgeBaseCapability>();
         services.AddScoped<IAgentTool, SearchMemoryCapability>();

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
@@ -80,7 +82,15 @@ public sealed class SelectedActionResolver(
         }
 
         var offer = DeserializeOffer(offering.SuggestedActionsJson);
-        var row = offer.Actions.FirstOrDefault(a => a.Kind == parsedKind && RowMatches(a, key, text));
+        var matching = offer.Actions.Where(a => a.Kind == parsedKind && RowMatches(a, key, text)).ToList();
+
+        // specs/077 — one offer can carry the same capability more than once with different
+        // arguments ("the mall only" / "the mall and its tower" are both set_site_boundary_members),
+        // so the key alone no longer says which row was picked. The client's arguments are used
+        // only to tell the rows apart; what is dispatched is still the matched row's own.
+        var row = matching.Count > 1
+            ? matching.FirstOrDefault(a => ArgumentsEqual(a.ArgumentsJson, argumentsJson))
+            : matching.FirstOrDefault();
         if (row is null)
         {
             throw new ConversationActionStaleException("That offer no longer contains this option.");
@@ -137,6 +147,20 @@ public sealed class SelectedActionResolver(
         SuggestedActionKind.Decline => true,
         _ => false,
     };
+
+    private static bool ArgumentsEqual(string? offered, string selected)
+    {
+        try
+        {
+            return JsonNode.DeepEquals(
+                string.IsNullOrWhiteSpace(offered) ? null : JsonNode.Parse(offered),
+                string.IsNullOrWhiteSpace(selected) ? null : JsonNode.Parse(selected));
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 
     private static SuggestedActionKind ParseKind(string kind) =>
         SuggestedActionWire.TryParseKind(kind, out var parsed)

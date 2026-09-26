@@ -1302,6 +1302,60 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("AiCapabilityAssignments", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Ai.AiCapabilitySetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Capability")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Capability", "Key")
+                        .IsUnique()
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.ToTable("AiCapabilitySettings", (string)null);
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Ai.ProviderHealthCheck", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9089,6 +9143,10 @@ namespace AskLucy.Persistence.Migrations
                             b1.Property<Guid>("UserChatId")
                                 .HasColumnType("uniqueidentifier");
 
+                            b1.Property<string>("AdditionalPolygons")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ActiveBoundaryAdditionalPolygonsJson");
+
                             b1.Property<double>("AreaSquareMeters")
                                 .HasColumnType("float")
                                 .HasColumnName("ActiveBoundaryAreaSquareMeters");
@@ -9110,6 +9168,14 @@ namespace AskLucy.Persistence.Migrations
                                 .HasMaxLength(10)
                                 .HasColumnType("nvarchar(10)")
                                 .HasColumnName("ActiveBoundaryConfidenceLevel");
+
+                            b1.Property<string>("CorePolygon")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ActiveBoundaryCorePolygonJson");
+
+                            b1.Property<string>("Members")
+                                .HasColumnType("nvarchar(max)")
+                                .HasColumnName("ActiveBoundaryMembersJson");
 
                             b1.Property<string>("Polygon")
                                 .IsRequired()

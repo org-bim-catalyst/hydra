@@ -68,6 +68,7 @@ describe('SiteBoundaryOverlay', () => {
 
     expect(handle.setSiteBoundary).toHaveBeenCalledWith({
       exteriorRing: sampleBoundary.polygon,
+      additionalRings: [],
       confidenceLevel: 'high',
     })
   })
@@ -98,6 +99,7 @@ describe('SiteBoundaryOverlay', () => {
 
     expect(handle.setSiteBoundary).toHaveBeenLastCalledWith({
       exteriorRing: sampleBoundary.polygon,
+      additionalRings: [],
       confidenceLevel: 'high',
     })
   })

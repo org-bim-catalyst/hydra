@@ -134,7 +134,7 @@ function centreOf(ring: SiteBuildingDto['ring']): LocalPoint {
 export function buildFootprintMeshes(
   buildings: SiteBuildingDto[],
   showMass: boolean,
-  siteBoundary: SiteBuildingDto['ring'] | null = null,
+  siteRings: SiteBuildingDto['ring'][] = [],
 ): FootprintBuildResult {
   const geometries: THREE.ExtrudeGeometry[] = []
   const buildingIds: string[] = []
@@ -142,11 +142,12 @@ export function buildFootprintMeshes(
   let tallestHeightMetres = 0
   let siteReachMetres = 0
   let excludedCount = 0
-  const boundary = siteBoundary && siteBoundary.length >= 3 ? siteBoundary.map((point) => worldToLocal(point, 0)) : null
+  // specs/077 — a site can be several outlines (a mall and the same-named tower across the street).
+  const boundaries = siteRings.filter((ring) => ring.length >= 3).map((ring) => ring.map((point) => worldToLocal(point, 0)))
   const siteIds = buildings
-    .filter((b) => b.isSiteBuilding || (boundary !== null && b.ring.length > 0 && isInside(centreOf(b.ring), boundary)))
+    .filter((b) => b.isSiteBuilding || (b.ring.length > 0 && boundaries.some((boundary) => isInside(centreOf(b.ring), boundary))))
     .map((b) => b.id)
-  for (const corner of boundary ?? []) siteReachMetres = Math.max(siteReachMetres, Math.hypot(corner.x, corner.y))
+  for (const corner of boundaries.flat()) siteReachMetres = Math.max(siteReachMetres, Math.hypot(corner.x, corner.y))
 
   for (const building of buildings) {
     const geometry = buildFootprintGeometry(building)

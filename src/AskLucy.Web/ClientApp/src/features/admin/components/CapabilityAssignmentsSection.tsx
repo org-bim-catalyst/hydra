@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import {
   Alert,
   Box,
+  Button,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Paper,
@@ -14,6 +17,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import { visuallyHidden } from '@mui/utils'
@@ -23,9 +27,11 @@ import { ApiError } from '../../../api/httpClient'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import type { AdminAiProvider, AiCapability, AiCapabilityAssignment } from '../api/adminAiProvidersApi'
+import type { AdminAiProvider, AiCapability, AiCapabilityAssignment, AiCapabilitySettings } from '../api/adminAiProvidersApi'
+import { CapabilitySettingsDialog } from './CapabilitySettingsDialog'
 
 const CAPABILITY_QUERY_KEY = ['admin', 'ai-capabilities']
+const CAPABILITY_SETTINGS_QUERY_KEY = ['admin', 'ai-capabilities', 'settings']
 
 /**
  * Both control columns are pinned rather than left to the table's own sizing. Their contents
@@ -35,6 +41,8 @@ const CAPABILITY_QUERY_KEY = ['admin', 'ai-capabilities']
  */
 const PROVIDER_CONTROL_WIDTH = 200
 const MODEL_CONTROL_WIDTH = 260
+const SETTINGS_COLUMN_WIDTH = 96
+const COLUMN_COUNT = 4
 
 /**
  * Plain-language names and, more usefully, what breaks when the assigned provider stops working.
@@ -96,6 +104,7 @@ interface CapabilityAssignmentsSectionProps {
 export function CapabilityAssignmentsSection({ providers }: CapabilityAssignmentsSectionProps) {
   const queryClient = useQueryClient()
   const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
+  const [configuring, setConfiguring] = useState<{ settings: AiCapabilitySettings; label: string } | null>(null)
 
   const { data: assignments, isLoading: assignmentsLoading } = useQuery({
     queryKey: CAPABILITY_QUERY_KEY,
@@ -117,9 +126,21 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
     })),
   })
 
+  // specs/077 — which capabilities have settings behind their gear. Fetched once for the whole
+  // table; until it arrives, or if it fails, every gear stays disabled rather than guessing.
+  const {
+    data: capabilitySettings,
+    isLoading: settingsLoading,
+    isError: settingsFailed,
+    refetch: refetchSettings,
+  } = useQuery({
+    queryKey: CAPABILITY_SETTINGS_QUERY_KEY,
+    queryFn: adminAiProvidersApi.getCapabilitySettings,
+  })
+
   // A failed fetch ends the wait like a successful one does; the row that needed it says so
   // itself, in the caption under its model dropdown.
-  const isLoading = assignmentsLoading || modelQueries.some((query) => query.isLoading)
+  const isLoading = assignmentsLoading || settingsLoading || modelQueries.some((query) => query.isLoading)
 
   const assignMutation = useMutation({
     mutationFn: ({ capability, providerId, modelId }: AssignVariables) =>
@@ -168,12 +189,15 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
               <TableCell>Capability</TableCell>
               <TableCell sx={{ width: PROVIDER_CONTROL_WIDTH }}>Assigned provider</TableCell>
               <TableCell sx={{ width: MODEL_CONTROL_WIDTH }}>Model</TableCell>
+              <TableCell align="center" sx={{ width: SETTINGS_COLUMN_WIDTH }}>
+                Settings
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {isLoading && <TableLoadingRow colSpan={3} />}
+            {isLoading && <TableLoadingRow colSpan={COLUMN_COUNT} />}
             {!isLoading && (assignments ?? []).length === 0 && (
-              <TableEmptyRow colSpan={3} message="No capabilities found." />
+              <TableEmptyRow colSpan={COLUMN_COUNT} message="No capabilities found." />
             )}
             {/*
               Gated on the same flag as the skeleton, not just on having data: the assignments
@@ -204,6 +228,8 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
                         ? providers.filter((p) => p.isEnabled && p.hasCredential)
                         : selectable
                     }
+                    settings={capabilitySettings?.find((s) => s.capability === assignment.capability) ?? null}
+                    onConfigure={(settings) => setConfiguring({ settings, label: copy.label })}
                     disabled={assignMutation.isPending}
                     onAssign={(providerId, modelId) =>
                       assignMutation.mutate({
@@ -226,6 +252,20 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
         a provider&apos;s default is a chat model and cannot draw.
       </Alert>
 
+      {settingsFailed && (
+        <Alert
+          severity="error"
+          sx={{ mt: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => void refetchSettings()}>
+              Retry
+            </Button>
+          }
+        >
+          Couldn&apos;t load the capability settings, so every settings button is disabled.
+        </Alert>
+      )}
+
       {selectable.length === 0 && (
         <Alert severity="warning" sx={{ mt: 2 }}>
           No provider can be assigned yet. Enable a provider with its credential on the Providers
@@ -238,6 +278,17 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
           {feedback?.message}
         </Alert>
       </Snackbar>
+
+      <CapabilitySettingsDialog
+        capabilitySettings={configuring?.settings ?? null}
+        capabilityLabel={configuring?.label ?? ''}
+        onClose={() => setConfiguring(null)}
+        onSaved={() => {
+          setConfiguring(null)
+          void queryClient.invalidateQueries({ queryKey: CAPABILITY_SETTINGS_QUERY_KEY })
+          setFeedback({ severity: 'success', message: 'Capability settings saved.' })
+        }}
+      />
     </Box>
   )
 }
@@ -248,6 +299,9 @@ interface CapabilityRowProps {
   consequence: string
   /** The providers offerable for this capability. */
   providers: AdminAiProvider[]
+  /** specs/077 — the capability's settings; null while unknown. An empty list disables the gear. */
+  settings: AiCapabilitySettings | null
+  onConfigure: (settings: AiCapabilitySettings) => void
   disabled: boolean
   onAssign: (providerId: string | null, modelId: string | null) => void
 }
@@ -265,7 +319,7 @@ interface CapabilityRowProps {
  * there the provider choice is held locally until a model is picked, and "Provider default" is
  * not offered at all.
  */
-function CapabilityRow({ assignment, label, consequence, providers, disabled, onAssign }: CapabilityRowProps) {
+function CapabilityRow({ assignment, label, consequence, providers, settings, onConfigure, disabled, onAssign }: CapabilityRowProps) {
   const needsPinnedModel = assignment.capability === 'ImageGeneration'
   const [providerId, setProviderId] = useState<string>(assignment.providerId ?? '')
 
@@ -416,6 +470,40 @@ function CapabilityRow({ assignment, label, consequence, providers, disabled, on
           </Box>
         )}
       </TableCell>
+      <TableCell align="center" sx={{ width: SETTINGS_COLUMN_WIDTH }}>
+        <SettingsButton label={label} settings={settings} onConfigure={onConfigure} />
+      </TableCell>
     </TableRow>
+  )
+}
+
+/**
+ * specs/077 — every row has a gear so the column reads the same all the way down; it is dimmed
+ * and disabled where the capability has nothing to configure. The tooltip sits on a wrapper span
+ * because a disabled button fires no pointer events of its own.
+ */
+function SettingsButton({
+  label,
+  settings,
+  onConfigure,
+}: {
+  label: string
+  settings: AiCapabilitySettings | null
+  onConfigure: (settings: AiCapabilitySettings) => void
+}) {
+  const configurable = settings !== null && settings.settings.length > 0
+  return (
+    <Tooltip title={configurable ? `Configure ${label}` : 'Nothing to configure'}>
+      <span>
+        <IconButton
+          size="small"
+          aria-label={`Settings for ${label}`}
+          disabled={!configurable}
+          onClick={() => configurable && onConfigure(settings)}
+        >
+          <SettingsOutlinedIcon fontSize="small" />
+        </IconButton>
+      </span>
+    </Tooltip>
   )
 }

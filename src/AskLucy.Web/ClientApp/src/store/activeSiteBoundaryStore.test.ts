@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { useActiveSiteBoundaryStore } from './activeSiteBoundaryStore'
+import { siteRingsOf, useActiveSiteBoundaryStore } from './activeSiteBoundaryStore'
 
 const sampleBoundary = {
   siteName: 'Al Safa Park 2',
@@ -65,5 +65,30 @@ describe('activeSiteBoundaryStore', () => {
       expect(s.confidenceLevel).toBeNull()
       expect(s.alternativeCandidateNames).toEqual([])
     })
+  })
+})
+
+// specs/077 — a site whose chosen buildings stand apart (a tower across the street) is several rings.
+describe('siteRingsOf', () => {
+  it('is empty with no site', () => {
+    expect(siteRingsOf(useActiveSiteBoundaryStore.getState())).toEqual([])
+  })
+
+  it('lists the outline first, then every separate building', () => {
+    const tower = [
+      { latitude: 25.158, longitude: 55.221 },
+      { latitude: 25.158, longitude: 55.2215 },
+      { latitude: 25.1575, longitude: 55.2215 },
+    ]
+    useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, additionalPolygons: [tower] })
+
+    expect(siteRingsOf(useActiveSiteBoundaryStore.getState())).toEqual([sampleBoundary.polygon, tower])
+  })
+
+  it('forgets the separate buildings when a site without them replaces it', () => {
+    useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, additionalPolygons: [sampleBoundary.polygon] })
+    useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary)
+
+    expect(useActiveSiteBoundaryStore.getState().additionalPolygons).toEqual([])
   })
 })

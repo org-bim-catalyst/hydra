@@ -59,7 +59,9 @@ public sealed class ResolveSiteBoundaryCapability(
         "survey, and a user acting on it needs to know how sure it is. Name the source " +
         "(OpenStreetMap, imagery) when confidence is anything below high. Do not re-run this for " +
         "a site already outlined; say it is already shown instead. This step is expensive and " +
-        "slow, so it must never be started without the user having asked for it or accepted it.";
+        "slow, so it must never be started without the user having asked for it or accepted it. " +
+        "When the result lists includedBuildings or excludedBuildings, name every one of them and " +
+        "say which the outline includes — the user is about to be asked which to keep.";
 
     public string Label => "Highlight the site boundary";
 
@@ -80,7 +82,7 @@ public sealed class ResolveSiteBoundaryCapability(
     // the __SITE_BOUNDARY__ event (specs/045 Phase 6) — the deciding/narrating model never needs
     // them and this schema is Tier 3 (never shown to it) regardless.
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"confidenceLevel":{"type":"string"},"source":{"type":"string"},"centroidLatitude":{"type":"number"},"centroidLongitude":{"type":"number"},"confidence":{"type":"number"},"sourceType":{"type":"string"},"polygon":{"type":"array"},"alternativeCandidateNames":{"type":"array"}}}""";
+        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"confidenceLevel":{"type":"string"},"source":{"type":"string"},"centroidLatitude":{"type":"number"},"centroidLongitude":{"type":"number"},"confidence":{"type":"number"},"sourceType":{"type":"string"},"polygon":{"type":"array"},"alternativeCandidateNames":{"type":"array"},"corePolygon":{"type":"array"},"additionalPolygons":{"type":"array"},"includedBuildings":{"type":"array"},"excludedBuildings":{"type":"array"},"members":{"type":"array"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Extended;
 
@@ -133,19 +135,7 @@ public sealed class ResolveSiteBoundaryCapability(
                 return AgentToolResult.Failure(outcome.ConfirmationText ?? "No site boundary could be resolved.");
             }
 
-            return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new
-            {
-                siteName = boundary.SiteName,
-                areaSquareMeters = boundary.AreaSquareMeters,
-                confidenceLevel = boundary.ConfidenceLevel.ToString(),
-                source = boundary.SourceDetail,
-                centroidLatitude = boundary.CentroidLatitude,
-                centroidLongitude = boundary.CentroidLongitude,
-                confidence = boundary.Confidence,
-                sourceType = boundary.Source.ToString(),
-                polygon = boundary.Polygon.Select(p => new { latitude = p.Latitude, longitude = p.Longitude }),
-                alternativeCandidateNames = boundary.AlternativeCandidateNames,
-            }));
+            return AgentToolResult.Success(SiteBoundaryPayload.Write(boundary));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

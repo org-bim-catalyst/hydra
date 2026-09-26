@@ -188,6 +188,8 @@ export type ChatStreamEvent =
       siteName: string
       centroid: { latitude: number; longitude: number }
       polygon: { latitude: number; longitude: number }[]
+      /** specs/077 — the site's rings that do not touch `polygon`; empty for a one-outline site. */
+      additionalPolygons: { latitude: number; longitude: number }[][]
       areaSquareMeters: number
       confidence: number
       confidenceLevel: 'low' | 'medium' | 'high'
@@ -392,6 +394,7 @@ export async function* streamChat(
           siteName: string
           centroid: { latitude: number; longitude: number }
           polygon: { latitude: number; longitude: number }[]
+          additionalPolygons?: { latitude: number; longitude: number }[][]
           areaSquareMeters: number
           confidence: number
           confidenceLevel: 'low' | 'medium' | 'high'
@@ -404,6 +407,8 @@ export async function* streamChat(
           siteName: payload.siteName,
           centroid: payload.centroid,
           polygon: payload.polygon,
+          // Absent from a server that predates specs/077.
+          additionalPolygons: payload.additionalPolygons ?? [],
           areaSquareMeters: payload.areaSquareMeters,
           confidence: payload.confidence,
           confidenceLevel: payload.confidenceLevel,

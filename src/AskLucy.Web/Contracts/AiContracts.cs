@@ -68,6 +68,9 @@ public sealed record SetAiCapabilityAssignmentRequest(Guid? ProviderId, Guid? Mo
 
 public sealed record SetAiProviderCredentialRequest(string ApiKey);
 
+/// <summary>specs/077 — setting key to its new value, as text ("true"/"false" for a switch); keys left out keep their value.</summary>
+public sealed record UpdateAiCapabilitySettingsRequest(IReadOnlyDictionary<string, string> Values);
+
 
 public sealed record UpdateAiModelStatusRequest(AIModelStatus Status);
 

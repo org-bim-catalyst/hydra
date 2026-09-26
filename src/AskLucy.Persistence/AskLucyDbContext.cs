@@ -55,6 +55,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<AiCapabilityAssignment> AiCapabilityAssignments => Set<AiCapabilityAssignment>();
 
+    public DbSet<AiCapabilitySetting> AiCapabilitySettings => Set<AiCapabilitySetting>();
+
     public DbSet<UserAiPreference> UserAiPreferences => Set<UserAiPreference>();
 
     public DbSet<UserVoicePreference> UserVoicePreferences => Set<UserVoicePreference>();

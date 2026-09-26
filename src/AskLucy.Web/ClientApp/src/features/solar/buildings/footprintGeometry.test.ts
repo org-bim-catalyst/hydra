@@ -193,7 +193,7 @@ describe('buildFootprintMeshes measures the building under study for the dome (s
         makeBuilding({ id: 'neighbour', ring: farRing, heightMetres: 300 }),
       ],
       false,
-      boundary,
+      [boundary],
     )
 
     const reach = (ring: SiteBuildingDto['ring'], height: number) =>
@@ -203,10 +203,21 @@ describe('buildFootprintMeshes measures the building under study for the dome (s
     result.mesh!.geometry.dispose()
   })
 
+  it("counts a building in any of the site's separate outlines", () => {
+    // specs/077 — a tower across the street, chosen as part of the site, is its own ring.
+    const farRing = OTHER_RING.map((p) => ({ latitude: p.latitude + 0.004, longitude: p.longitude }))
+    const withoutIt = buildFootprintMeshes([makeBuilding({ id: 'tower', ring: farRing, heightMetres: 120 })], false, [RING])
+    const withIt = buildFootprintMeshes([makeBuilding({ id: 'tower', ring: farRing, heightMetres: 120 })], false, [RING, farRing])
+
+    expect(withIt.siteReachMetres).toBeGreaterThan(withoutIt.siteReachMetres)
+    withoutIt.mesh!.geometry.dispose()
+    withIt.mesh!.geometry.dispose()
+  })
+
   it('reaches the boundary itself even where no footprint stands', () => {
     // A park or an empty plot: the site is the outline, and the dome still has to enclose it.
     const boundary = OTHER_RING
-    const result = buildFootprintMeshes([makeBuilding()], false, boundary)
+    const result = buildFootprintMeshes([makeBuilding()], false, [boundary])
 
     const furthestCorner = Math.max(...boundary.map((point) => Math.hypot(worldToLocal(point, 0).x, worldToLocal(point, 0).y)))
     expect(result.siteReachMetres).toBeCloseTo(furthestCorner, 6)

@@ -15,6 +15,7 @@ import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 export function SiteBoundaryOverlay() {
   const handle = useGoogleMapsStore((s) => s.handle)
   const polygon = useActiveSiteBoundaryStore((s) => s.polygon)
+  const additionalPolygons = useActiveSiteBoundaryStore((s) => s.additionalPolygons)
   const confidenceLevel = useActiveSiteBoundaryStore((s) => s.confidenceLevel)
   const anchorVersion = useSyncExternalStore(sceneAnchor.subscribe, () => sceneAnchor.version)
 
@@ -26,12 +27,12 @@ export function SiteBoundaryOverlay() {
       return
     }
 
-    handle.setSiteBoundary({ exteriorRing: polygon, confidenceLevel })
+    handle.setSiteBoundary({ exteriorRing: polygon, additionalRings: additionalPolygons, confidenceLevel })
 
     return () => {
       handle.setSiteBoundary(null)
     }
-  }, [handle, polygon, confidenceLevel, anchorVersion])
+  }, [handle, polygon, additionalPolygons, confidenceLevel, anchorVersion])
 
   return null
 }

@@ -67,9 +67,9 @@ public static class SystemAgentDefinitions
                 Constraints: "Never guess a candidate location when resolution is ambiguous or unsuccessful — say so plainly instead of moving the viewer to the wrong site.",
                 BehavioralRules: null,
                 OutputRequirements: "Report the resolved place by its canonical name, and a boundary's area and confidence together — a boundary is a best match, not a survey.",
-                ToolUsageRules: "Only resolve_location, resolve_site_boundary and adjust_viewer_focus are available to you.",
+                ToolUsageRules: "Only resolve_location, resolve_site_boundary, set_site_boundary_members and adjust_viewer_focus are available to you.",
                 SafetyRules: null),
-            [ResolveLocationCapability.CapabilityKey, ResolveSiteBoundaryCapability.CapabilityKey, AdjustViewerFocusCapability.CapabilityKey],
+            [ResolveLocationCapability.CapabilityKey, ResolveSiteBoundaryCapability.CapabilityKey, SetSiteBoundaryMembersCapability.CapabilityKey, AdjustViewerFocusCapability.CapabilityKey],
             AgentExecutionPolicy.Empty),
 
         new SystemAgentDefinition(

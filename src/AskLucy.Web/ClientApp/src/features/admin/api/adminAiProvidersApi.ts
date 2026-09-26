@@ -189,3 +189,32 @@ export const setCapabilityAssignment = (capability: AiCapability, providerId: st
     method: 'PUT',
     body: JSON.stringify({ providerId, modelId }),
   })
+
+/** specs/077 — how a capability setting is edited. Only on/off switches exist so far. */
+export type CapabilitySettingValueType = 'Boolean'
+
+export interface AiCapabilitySetting {
+  key: string
+  valueType: CapabilitySettingValueType
+  label: string
+  description: string
+  /** The value that applies now — the saved one, or `defaultValue` when none is saved. Invariant text ("true"/"false"). */
+  value: string
+  defaultValue: string
+}
+
+/** A capability's settings; an empty list when it has none, which is what disables its gear. */
+export interface AiCapabilitySettings {
+  capability: AiCapability
+  settings: AiCapabilitySetting[]
+}
+
+export const getCapabilitySettings = () =>
+  apiFetch<AiCapabilitySettings[]>('/admin/ai/capabilities/settings')
+
+/** Keys left out keep their current value. */
+export const updateCapabilitySettings = (capability: AiCapability, values: Record<string, string>) =>
+  apiFetch<void>(`/admin/ai/capabilities/${capability}/settings`, {
+    method: 'PUT',
+    body: JSON.stringify({ values }),
+  })
