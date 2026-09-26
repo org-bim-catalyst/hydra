@@ -16,6 +16,8 @@ const roles: RoleSummary[] = [
     name: 'Project Reviewer',
     description: null,
     isBuiltIn: false,
+    isDefault: false,
+    lockedPermissionKeys: [],
     permissionKeys: [],
     userCount: 2,
     modifiedAtUtc: null,
@@ -235,5 +237,62 @@ describe('AdminRoleAssignmentsPage — roles carrying View user content', () => 
     await screen.findByText('carol@example.com')
 
     expect(screen.getByLabelText('Select carol@example.com')).toBeInTheDocument()
+  })
+})
+
+// Every account holds a role — there is no "No role" to pick, and a User-role holder is as
+// assignable as anyone on a custom role.
+describe('AdminRoleAssignmentsPage — the User role', () => {
+  const userRole: RoleSummary = {
+    ...roles[0],
+    id: 'user-role',
+    name: 'User',
+    isBuiltIn: true,
+    isDefault: true,
+  }
+  const userHolder: RoleAssignment = {
+    userId: 'user-4',
+    email: 'dan@example.com',
+    firstName: 'Dan',
+    lastName: 'Dunn',
+    isLockedOut: false,
+    role: { id: userRole.id, name: userRole.name, isBuiltIn: true },
+  }
+  const legacyRoleless: RoleAssignment = { ...userHolder, userId: 'user-5', email: 'eve@example.com', role: null }
+
+  function serveUserRole() {
+    server.use(
+      http.get('*/api/v1/admin/roles', () =>
+        HttpResponse.json<PagedResult<RoleSummary>>({ items: [...roles, userRole], totalCount: roles.length + 1, page: 1, pageSize: 100 }),
+      ),
+      http.get('*/api/v1/admin/role-assignments', () =>
+        HttpResponse.json<PagedResult<RoleAssignment>>({ items: [userHolder, legacyRoleless], totalCount: 2, page: 1, pageSize: 20 }),
+      ),
+    )
+  }
+
+  it('shows an account with no role row as holding the User role, and lets either be bulk-selected', async () => {
+    serveUserRole()
+    renderPage()
+    await screen.findByText('eve@example.com')
+
+    expect(screen.getAllByText('User', { selector: '.MuiChip-label' })).toHaveLength(2)
+    expect(screen.getByLabelText('Select dan@example.com')).toBeInTheDocument()
+    expect(screen.getByLabelText('Select eve@example.com')).toBeInTheDocument()
+  })
+
+  it('offers no "No role" choice and starts a roleless account on the User role', async () => {
+    serveUserRole()
+    renderPage()
+    await screen.findByText('eve@example.com')
+
+    fireEvent.click(screen.getAllByText('Change role…')[1])
+    await screen.findByText('Change role for eve@example.com')
+    await waitFor(() => expect(document.querySelector('[role="dialog"] [role="combobox"]')).toHaveTextContent('User'))
+
+    fireEvent.mouseDown(document.querySelector('[role="dialog"] [role="combobox"]')!)
+    // getByRole throws once a dialog portal is open in jsdom, so read the listbox directly.
+    await waitFor(() => expect(document.querySelector('[role="listbox"]')).toHaveTextContent('Project Reviewer'))
+    expect(document.querySelector('[role="listbox"]')).not.toHaveTextContent('No role')
   })
 })

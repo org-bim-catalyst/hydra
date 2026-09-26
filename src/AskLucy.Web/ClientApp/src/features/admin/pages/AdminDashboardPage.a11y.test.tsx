@@ -21,7 +21,7 @@ const summary: DashboardSummary = {
   roleDistribution: [
     { roleName: 'Super User', userCount: 1 },
     { roleName: 'Administrator', userCount: 2 },
-    { roleName: 'Regular', userCount: 47 },
+    { roleName: 'User', userCount: 47 },
   ],
 }
 

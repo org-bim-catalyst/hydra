@@ -39,6 +39,7 @@ import type { RoleSummary } from '../api/adminRolesApi'
 import { AdminShell } from '../components/AdminShell'
 import { RoleEditorDialog } from '../components/RoleEditorDialog'
 import { DeleteRoleDialog } from '../components/DeleteRoleDialog'
+import { DuplicateRoleDialog } from '../components/DuplicateRoleDialog'
 import { RolePermissionsDialog } from '../components/RolePermissionsDialog'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import { BulkActionConfirmDialog } from '../components/BulkActionConfirmDialog'
@@ -48,7 +49,11 @@ import { runBatchedBulkAction } from '../bulkRunner'
 
 const ADMINISTRATOR_CONTENT_ACCESS_QUERY_KEY = ['admin', 'roles', 'administrator-content-access']
 
-/** Roles screen (specs/055-role-management User Story 1) — define, edit, and delete custom roles; built-in roles are listed read-only. */
+/**
+ * Roles screen (specs/055-role-management User Story 1) — define, edit, and delete custom roles. Built-in
+ * roles are read-only, except the User role, whose description and added permissions can be edited.
+ * A Super User can duplicate any role into a new custom one.
+ */
 export function AdminRolesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
@@ -56,6 +61,7 @@ export function AdminRolesPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<RoleSummary | undefined>(undefined)
   const [deletingRole, setDeletingRole] = useState<RoleSummary | null>(null)
+  const [duplicatingRole, setDuplicatingRole] = useState<RoleSummary | null>(null)
   const [viewingPermissionsRole, setViewingPermissionsRole] = useState<RoleSummary | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; role: RoleSummary } | null>(null)
 
@@ -83,6 +89,9 @@ export function AdminRolesPage() {
 
   // A non-Super-User can neither delete nor bulk-delete a role carrying View user content (FR-016j).
   const isLockedRole = (role: RoleSummary) => !isSuperUser && isSuperUserControlledRole(role)
+
+  const canEdit = (role: RoleSummary) => !role.isBuiltIn || role.isDefault
+  const hasActions = (role: RoleSummary) => canEdit(role) || isSuperUser
 
   const { data, error, refetch, isError, isLoading } = useQuery({
     queryKey: ['admin', 'roles', { search, page, pageSize }],
@@ -283,6 +292,11 @@ export function AdminRolesPage() {
                       {role.isBuiltIn && (
                         <Chip size="small" label="Built-in" variant="outlined" sx={{ ml: 0.5 }} />
                       )}
+                      {role.isDefault && (
+                        <Tooltip title="Every account's starting role, and where users go when their role is deleted">
+                          <Chip size="small" label="Default" color="primary" variant="outlined" sx={{ ml: 0.5 }} />
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell>{role.description}</TableCell>
                     <TableCell>
@@ -304,7 +318,7 @@ export function AdminRolesPage() {
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      {!role.isBuiltIn && (
+                      {hasActions(role) && (
                         <IconButton
                           size="small"
                           aria-label={`Actions for ${role.name}`}
@@ -339,21 +353,38 @@ export function AdminRolesPage() {
         open={menuAnchor !== null}
         onClose={() => setMenuAnchor(null)}
       >
-        <MenuItem onClick={() => menuAnchor && openEdit(menuAnchor.role)}>Edit&hellip;</MenuItem>
-        <MenuItem
-          disabled={menuAnchor !== null && isLockedRole(menuAnchor.role)}
-          onClick={() => {
-            if (menuAnchor) setDeletingRole(menuAnchor.role)
-            setMenuAnchor(null)
-          }}
-        >
-          {menuAnchor !== null && isLockedRole(menuAnchor.role) ? 'Delete (Super User only)' : <>Delete&hellip;</>}
-        </MenuItem>
+        {menuAnchor !== null && canEdit(menuAnchor.role) && (
+          <MenuItem onClick={() => openEdit(menuAnchor.role)}>Edit&hellip;</MenuItem>
+        )}
+        {isSuperUser && (
+          <MenuItem
+            onClick={() => {
+              if (menuAnchor) setDuplicatingRole(menuAnchor.role)
+              setMenuAnchor(null)
+            }}
+          >
+            Duplicate&hellip;
+          </MenuItem>
+        )}
+        {menuAnchor !== null && !menuAnchor.role.isBuiltIn && (
+          <MenuItem
+            disabled={isLockedRole(menuAnchor.role)}
+            onClick={() => {
+              setDeletingRole(menuAnchor.role)
+              setMenuAnchor(null)
+            }}
+          >
+            {isLockedRole(menuAnchor.role) ? 'Delete (Super User only)' : <>Delete&hellip;</>}
+          </MenuItem>
+        )}
       </Menu>
 
       <RoleEditorDialog open={editorOpen} onClose={() => setEditorOpen(false)} role={editingRole} />
       {deletingRole && (
         <DeleteRoleDialog open onClose={() => setDeletingRole(null)} role={deletingRole} />
+      )}
+      {duplicatingRole && (
+        <DuplicateRoleDialog open onClose={() => setDuplicatingRole(null)} role={duplicatingRole} />
       )}
       {viewingPermissionsRole && (
         <RolePermissionsDialog

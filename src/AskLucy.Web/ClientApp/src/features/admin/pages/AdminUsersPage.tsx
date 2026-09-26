@@ -26,6 +26,7 @@ import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import type { UserBulkAction, UserSortBy } from '../api/adminApi'
 import { AdminShell } from '../components/AdminShell'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
+import { ADMIN_ROLES } from '../../../hooks/useIsAdmin'
 import { useMyProfile } from '../../profile/hooks/useProfile'
 import { UserActionMenu } from '../components/UserActionMenu'
 import { useBulkSelection } from '../hooks/useBulkSelection'
@@ -298,7 +299,7 @@ export function AdminUsersPage() {
                       <Chip
                         size="small"
                         label={user.role}
-                        color={user.role === 'Regular' ? 'default' : 'primary'}
+                        color={ADMIN_ROLES.includes(user.role) ? 'primary' : 'default'}
                         variant="outlined"
                       />
                     </TableCell>

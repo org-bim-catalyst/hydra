@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
@@ -16,6 +16,8 @@ const roles: RoleSummary[] = [
     name: 'Super User',
     description: 'Full access',
     isBuiltIn: true,
+    isDefault: false,
+    lockedPermissionKeys: [],
     permissionKeys: ['admin.users.view', 'admin.users.manage'],
     userCount: 1,
     modifiedAtUtc: null,
@@ -26,6 +28,8 @@ const roles: RoleSummary[] = [
     name: 'Project Reviewer',
     description: 'Custom role',
     isBuiltIn: false,
+    isDefault: false,
+    lockedPermissionKeys: [],
     permissionKeys: ['admin.users.view'],
     userCount: 3,
     modifiedAtUtc: '2026-09-01T00:00:00Z',
@@ -45,7 +49,7 @@ const server = setupServer(
   }),
   http.get('*/api/v1/admin/roles/actions/bulk-eligible-ids', () => HttpResponse.json({ ids: ['role-1'] })),
   http.post('*/api/v1/admin/roles/actions/bulk-delete', () =>
-    HttpResponse.json({ succeededCount: 1, skipped: [], unassignedUserCounts: { 'role-1': 3 } }),
+    HttpResponse.json({ succeededCount: 1, skipped: [], reassignedUserCounts: { 'role-1': 3 } }),
   ),
 )
 
@@ -206,5 +210,115 @@ describe('AdminRolesPage — Administrators may view user content', () => {
     expect(screen.queryByLabelText('Select Project Reviewer')).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Actions for Project Reviewer'))
     expect(await screen.findByText('Delete (Super User only)')).toBeInTheDocument()
+  })
+})
+
+// Every account holds a role: the built-in User role is the default, can't be deleted, only gains
+// permissions, and a Super User can save any role under a new name.
+describe('AdminRolesPage — the User role and duplicating roles', () => {
+  const userRole: RoleSummary = {
+    id: 'user-role',
+    name: 'User',
+    description: 'Every account',
+    isBuiltIn: true,
+    isDefault: true,
+    lockedPermissionKeys: [],
+    permissionKeys: [],
+    userCount: 146,
+    modifiedAtUtc: null,
+    concurrencyStamp: 'stamp-u',
+  }
+
+  function serveRoles(items: RoleSummary[]) {
+    server.use(
+      http.get('*/api/v1/admin/roles', () =>
+        HttpResponse.json<PagedResult<RoleSummary>>({ items, totalCount: items.length, page: 1, pageSize: 20 }),
+      ),
+    )
+  }
+
+  it('marks the User role as the default and offers Edit but never Delete', async () => {
+    serveRoles([userRole, ...roles])
+    renderPage()
+    await screen.findByText('Every account')
+
+    expect(screen.getByText('Default')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Select User')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Actions for User'))
+    expect(await screen.findByText('Edit…')).toBeInTheDocument()
+    expect(screen.queryByText('Delete…')).not.toBeInTheDocument()
+    expect(screen.queryByText('Duplicate…')).not.toBeInTheDocument()
+  })
+
+  it('gives a non-Super-User no actions on the other built-in roles', async () => {
+    renderPage()
+    await screen.findByText('Project Reviewer')
+
+    expect(screen.queryByLabelText('Actions for Super User')).not.toBeInTheDocument()
+  })
+
+  it('saves the User role through the default-role endpoint, keeping its name', async () => {
+    let body: unknown
+    serveRoles([userRole])
+    server.use(
+      http.put('*/api/v1/admin/roles/default', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ ...userRole, permissionKeys: ['admin.dashboard.view'] })
+      }),
+    )
+    renderPage()
+    await screen.findByText('Every account')
+
+    fireEvent.click(screen.getByLabelText('Actions for User'))
+    fireEvent.click(await screen.findByText('Edit…'))
+    await screen.findByText('Edit User')
+
+    expect(screen.getByDisplayValue('User')).toBeDisabled()
+    expect(screen.queryByText('View user content in failure investigations')).not.toBeInTheDocument()
+    fireEvent.click(within(screen.getByText('Dashboard').parentElement!).getByLabelText('View'))
+    fireEvent.click(screen.getByText('Save'))
+
+    await waitFor(() =>
+      expect(body).toEqual({ description: 'Every account', permissionKeys: ['admin.dashboard.view'], concurrencyStamp: 'stamp-u' }),
+    )
+  })
+
+  it('lets a Super User duplicate a built-in role into a new custom role', async () => {
+    vi.mocked(useIsSuperUser).mockReturnValue(true)
+    let body: unknown
+    server.use(
+      http.get('*/api/v1/admin/roles/administrator/content-access', () => HttpResponse.json({ granted: false })),
+      http.post('*/api/v1/admin/roles/super-user/duplicate', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ ...roles[1], id: 'copy-1', name: 'Deputy' }, { status: 201 })
+      }),
+    )
+    renderPage()
+    await screen.findByText('Project Reviewer')
+
+    fireEvent.click(screen.getByLabelText('Actions for Super User'))
+    fireEvent.click(await screen.findByText('Duplicate…'))
+    expect(await screen.findByText("Saves a new custom role with Super User's 2 permissions. No users are moved to it.")).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Copy of Super User')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByDisplayValue('Copy of Super User'), { target: { value: 'Deputy' } })
+    fireEvent.click(screen.getByText('Duplicate'))
+
+    await waitFor(() => expect(body).toEqual({ name: 'Deputy', description: 'Full access' }))
+    await waitFor(() => expect(screen.queryByText('Duplicate Super User')).not.toBeInTheDocument())
+  })
+
+  it("won't duplicate a role with no permissions", async () => {
+    vi.mocked(useIsSuperUser).mockReturnValue(true)
+    serveRoles([userRole])
+    server.use(http.get('*/api/v1/admin/roles/administrator/content-access', () => HttpResponse.json({ granted: false })))
+    renderPage()
+    await screen.findByText('Every account')
+
+    fireEvent.click(screen.getByLabelText('Actions for User'))
+    fireEvent.click(await screen.findByText('Duplicate…'))
+
+    expect(await screen.findByText(/User has no permissions to copy/)).toBeInTheDocument()
+    expect(screen.getByText('Duplicate').closest('button')).toBeDisabled()
   })
 })

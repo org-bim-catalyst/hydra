@@ -16,6 +16,8 @@ const roles: RoleSummary[] = [
     name: 'Project Reviewer',
     description: 'Custom role',
     isBuiltIn: false,
+    isDefault: false,
+    lockedPermissionKeys: [],
     permissionKeys: ['admin.users.view'],
     userCount: 3,
     modifiedAtUtc: '2026-09-01T00:00:00Z',

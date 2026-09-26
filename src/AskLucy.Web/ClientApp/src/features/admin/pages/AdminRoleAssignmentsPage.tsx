@@ -36,7 +36,6 @@ import { SelectAllScopeDialog } from '../components/SelectAllScopeDialog'
 import type { SelectionScopeChoice } from '../components/SelectAllScopeDialog'
 import { runBatchedBulkAction } from '../bulkRunner'
 
-const NO_ROLE_FILTER = 'none'
 const ANY_ROLE_FILTER = ''
 
 /** Role assignments screen (specs/055-role-management User Story 2) — search users, filter by role, assign/change/remove. */
@@ -61,7 +60,9 @@ export function AdminRoleAssignmentsPage() {
     const role = roles?.items.find((r) => r.id === roleId)
     return !isSuperUser && role !== undefined && isSuperUserControlledRole(role)
   }
-  const isSelectable = (a: RoleAssignment) => !a.isLockedOut && !a.role?.isBuiltIn && !isLockedRole(a.role?.id)
+  // The User role is built-in but unprivileged, so its holders are as assignable as a custom role's.
+  const isSelectable = (a: RoleAssignment) =>
+    !a.isLockedOut && (!a.role?.isBuiltIn || adminRolesApi.isDefaultRole(a.role)) && !isLockedRole(a.role?.id)
 
   const { data, error, refetch, isError, isLoading } = useQuery({
     queryKey: ['admin', 'role-assignments', { search, roleFilter, page, pageSize }],
@@ -76,7 +77,7 @@ export function AdminRoleAssignmentsPage() {
   })
 
   const queryClient = useQueryClient()
-  const pickedRoleId = roleFilter && roleFilter !== NO_ROLE_FILTER ? roleFilter : null
+  const pickedRoleId = roleFilter || null
 
   const selectableIds = (data?.items ?? []).filter(isSelectable).map((a) => a.userId)
   const selection = useBulkSelection()
@@ -177,7 +178,6 @@ export function AdminRoleAssignmentsPage() {
             sx={{ width: { xs: '100%', sm: 220 } }}
           >
             <MenuItem value={ANY_ROLE_FILTER}>Any role</MenuItem>
-            <MenuItem value={NO_ROLE_FILTER}>No role</MenuItem>
             {roles?.items.map((role) => (
               <MenuItem key={role.id} value={role.id}>
                 {role.name}
@@ -261,16 +261,12 @@ export function AdminRoleAssignmentsPage() {
                       {[assignment.firstName, assignment.lastName].filter(Boolean).join(' ')}
                     </TableCell>
                     <TableCell>
-                      {assignment.role ? (
-                        <Chip
-                          size="small"
-                          label={assignment.role.name}
-                          color="primary"
-                          variant="outlined"
-                        />
-                      ) : (
-                        <Chip size="small" label="No role" variant="outlined" />
-                      )}
+                      <Chip
+                        size="small"
+                        label={assignment.role?.name ?? adminRolesApi.DEFAULT_ROLE_NAME}
+                        color={assignment.role && !adminRolesApi.isDefaultRole(assignment.role) ? 'primary' : 'default'}
+                        variant="outlined"
+                      />
                     </TableCell>
                     <TableCell>
                       <Chip

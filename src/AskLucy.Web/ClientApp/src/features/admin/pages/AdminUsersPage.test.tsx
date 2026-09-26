@@ -29,7 +29,7 @@ const users: UserAdmin[] = [
     twoFactorEnabled: false,
     lockoutEnabled: true,
     isLockedOut: true,
-    role: 'Regular',
+    role: 'User',
     createdAtUtc: '2026-07-21T00:00:00Z',
   },
 ]

@@ -1,5 +1,12 @@
 import { apiFetch } from '../../../api/httpClient'
 
+/** The built-in role every account holds unless given another one — never deletable or renamable. */
+export const DEFAULT_ROLE_NAME = 'User'
+
+export function isDefaultRole(role: { name: string; isBuiltIn: boolean }): boolean {
+  return role.isBuiltIn && role.name === DEFAULT_ROLE_NAME
+}
+
 export interface RoleSummary {
   id: string
   name: string
@@ -9,6 +16,10 @@ export interface RoleSummary {
   userCount: number
   modifiedAtUtc: string | null
   concurrencyStamp: string
+  /** The built-in User role: editable by addition only, never deleted or renamed. */
+  isDefault: boolean
+  /** Permissions that can't be taken off the role (the User role's baseline). */
+  lockedPermissionKeys: string[]
 }
 
 export interface PagedResult<T> {
@@ -58,6 +69,27 @@ export function updateRole(roleId: string, payload: UpdateRolePayload) {
   return apiFetch<RoleSummary>(`/admin/roles/${roleId}`, { method: 'PUT', body: JSON.stringify(payload) })
 }
 
+export interface UpdateDefaultRolePayload {
+  description?: string | null
+  permissionKeys: string[]
+  concurrencyStamp: string
+}
+
+/** The User role: description and added permissions only — its name and baseline are fixed. */
+export function updateDefaultRole(payload: UpdateDefaultRolePayload) {
+  return apiFetch<RoleSummary>('/admin/roles/default', { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export interface DuplicateRolePayload {
+  name: string
+  description?: string | null
+}
+
+/** Super User only — saves any role under a new name as a custom role with the same permissions. */
+export function duplicateRole(roleId: string, payload: DuplicateRolePayload) {
+  return apiFetch<RoleSummary>(`/admin/roles/${roleId}/duplicate`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
 export interface AdministratorContentAccess {
   granted: boolean
 }
@@ -76,7 +108,8 @@ export function setAdministratorContentAccess(granted: boolean) {
 }
 
 export interface DeleteRoleResult {
-  unassignedUserCount: number
+  /** How many holders were moved to the User role. */
+  reassignedUserCount: number
 }
 
 export function deleteRole(roleId: string, concurrencyStamp: string) {
@@ -103,7 +136,6 @@ export interface RoleAssignment {
 
 export interface GetRoleAssignmentsParams {
   search?: string
-  /** A role id, or `"none"` for users with no role. */
   roleId?: string
   assignableOnly?: boolean
   page?: number
@@ -148,7 +180,7 @@ export function getRolesEligibleIds(search?: string) {
 export interface BulkDeleteRolesResult {
   succeededCount: number
   skipped: BulkActionSkip[]
-  unassignedUserCounts: Record<string, number>
+  reassignedUserCounts: Record<string, number>
 }
 
 export const bulkDeleteRoles = (target: BulkTargetRequest) =>

@@ -13,7 +13,7 @@ interface DeleteRoleDialogProps {
 
 const ROLES_QUERY_KEY = ['admin', 'roles']
 
-/** Confirms deletion, naming how many users will be left with no role (FR-007/US1-AS5). */
+/** Confirms deletion, naming how many users will be moved to the User role (FR-007/US1-AS5). */
 export function DeleteRoleDialog({ open, onClose, role }: DeleteRoleDialogProps) {
   const queryClient = useQueryClient()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -36,7 +36,7 @@ export function DeleteRoleDialog({ open, onClose, role }: DeleteRoleDialogProps)
         <DialogContent>
           <DialogContentText>
             {role.userCount > 0
-              ? `${role.userCount} user${role.userCount === 1 ? '' : 's'} currently hold${role.userCount === 1 ? 's' : ''} this role and will be left with no role.`
+              ? `${role.userCount} user${role.userCount === 1 ? '' : 's'} currently hold${role.userCount === 1 ? 's' : ''} this role and will be moved to the ${adminRolesApi.DEFAULT_ROLE_NAME} role.`
               : 'No users currently hold this role.'}{' '}
             This cannot be undone.
           </DialogContentText>

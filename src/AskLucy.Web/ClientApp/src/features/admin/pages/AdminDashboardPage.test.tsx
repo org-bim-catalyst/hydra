@@ -18,7 +18,7 @@ const summary: DashboardSummary = {
   roleDistribution: [
     { roleName: 'Super User', userCount: 1 },
     { roleName: 'Administrator', userCount: 2 },
-    { roleName: 'Regular', userCount: 47 },
+    { roleName: 'User', userCount: 47 },
   ],
 }
 
@@ -71,7 +71,7 @@ describe('AdminDashboardPage', () => {
           emailConfirmedUsers: 0,
           emailPendingUsers: 0,
           twoFactorEnabledUsers: 0,
-          roleDistribution: [{ roleName: 'Regular', userCount: 0 }],
+          roleDistribution: [{ roleName: 'User', userCount: 0 }],
         } satisfies DashboardSummary),
       ),
     )

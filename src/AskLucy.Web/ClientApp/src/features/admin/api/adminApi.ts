@@ -23,7 +23,8 @@ export interface DashboardSummary {
 
 export const getDashboardSummary = () => apiFetch<DashboardSummary>('/admin/dashboard/summary')
 
-export type UserRole = 'Administrator' | 'Super User' | 'Regular'
+/** A built-in role the legacy role-change endpoint accepts. */
+export type UserRole = 'Administrator' | 'Super User' | 'User'
 
 export interface UserAdmin {
   id: string
@@ -34,7 +35,8 @@ export interface UserAdmin {
   twoFactorEnabled: boolean
   lockoutEnabled: boolean
   isLockedOut: boolean
-  role: UserRole
+  /** The user's role name — a built-in or a custom role. */
+  role: string
   createdAtUtc: string
 }
 

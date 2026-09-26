@@ -9,6 +9,8 @@ const customRole: RoleSummary = {
   name: 'Project Reviewer',
   description: 'Custom role',
   isBuiltIn: false,
+  isDefault: false,
+  lockedPermissionKeys: [],
   permissionKeys: ['admin.users.view', 'admin.ai-providers.view'],
   userCount: 3,
   modifiedAtUtc: null,

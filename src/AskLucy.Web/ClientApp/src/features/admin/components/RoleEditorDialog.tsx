@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
 import * as adminRolesApi from '../api/adminRolesApi'
 import type { RoleSummary } from '../api/adminRolesApi'
+import { SUPER_USER_CONTROLLED_KEYS } from '../adminPermissions'
 import { PermissionPicker } from './PermissionPicker'
 
 interface RoleEditorDialogProps {
@@ -24,10 +25,16 @@ interface RoleEditorDialogProps {
 
 const ROLES_QUERY_KEY = ['admin', 'roles']
 
-/** Create/edit form for a custom role (US1) — mirrors CreateRoleCommandValidator/UpdateRoleCommandValidator's rules for immediate inline feedback. */
+/**
+ * Create/edit form for a custom role (US1) — mirrors CreateRoleCommandValidator/UpdateRoleCommandValidator's
+ * rules for immediate inline feedback. For the built-in User role it edits only the description and
+ * the permissions added on top of its basic ones: the name is fixed, the basics can't be unticked, and
+ * View user content isn't offered (every account holds this role).
+ */
 export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps) {
   const queryClient = useQueryClient()
   const isEdit = role !== undefined
+  const isDefault = role?.isDefault === true
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -67,12 +74,18 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      adminRolesApi.updateRole(role!.id, {
-        name: name.trim(),
-        description: description.trim() || null,
-        permissionKeys,
-        concurrencyStamp: role!.concurrencyStamp,
-      }),
+      isDefault
+        ? adminRolesApi.updateDefaultRole({
+            description: description.trim() || null,
+            permissionKeys: [...new Set([...role!.lockedPermissionKeys, ...permissionKeys])],
+            concurrencyStamp: role!.concurrencyStamp,
+          })
+        : adminRolesApi.updateRole(role!.id, {
+            name: name.trim(),
+            description: description.trim() || null,
+            permissionKeys,
+            concurrencyStamp: role!.concurrencyStamp,
+          }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ROLES_QUERY_KEY })
       onClose()
@@ -93,7 +106,8 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
       setNameError(null)
     }
 
-    if (permissionKeys.length === 0) {
+    // The User role may hold nothing beyond its basic permissions.
+    if (permissionKeys.length === 0 && !isDefault) {
       setPermissionError('Select at least one permission.')
       valid = false
     } else {
@@ -115,13 +129,14 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
         <DialogTitle>{isEdit ? `Edit ${role.name}` : 'Create role'}</DialogTitle>
         <DialogContent>
           <TextField
-            autoFocus
+            autoFocus={!isDefault}
             label="Name"
             fullWidth
             value={name}
+            disabled={isDefault}
             onChange={(e) => setName(e.target.value)}
             error={nameError !== null}
-            helperText={nameError}
+            helperText={nameError ?? (isDefault ? "Every account's starting role — it can't be renamed." : undefined)}
             sx={{ mt: 1, mb: 2 }}
           />
           <TextField
@@ -133,7 +148,12 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
             onChange={(e) => setDescription(e.target.value)}
             slotProps={{ htmlInput: { maxLength: 250 } }}
           />
-          <PermissionPicker selectedKeys={permissionKeys} onChange={setPermissionKeys} />
+          <PermissionPicker
+            selectedKeys={permissionKeys}
+            onChange={setPermissionKeys}
+            lockedKeys={isDefault ? role.lockedPermissionKeys : undefined}
+            hiddenKeys={isDefault ? SUPER_USER_CONTROLLED_KEYS : undefined}
+          />
           {permissionError && (
             <Alert severity="error" sx={{ mt: 1 }}>
               {permissionError}

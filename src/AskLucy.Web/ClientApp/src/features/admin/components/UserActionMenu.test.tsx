@@ -38,7 +38,7 @@ const user: UserAdmin = {
   twoFactorEnabled: true,
   lockoutEnabled: true,
   isLockedOut: false,
-  role: 'Regular',
+  role: 'User',
   createdAtUtc: '2026-07-28T00:00:00Z',
 }
 

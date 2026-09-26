@@ -78,3 +78,33 @@ describe('PermissionPicker — Super-User-controlled keys', () => {
     expect(onChange.mock.calls[0][0]).not.toContain(ADMIN_PERMISSIONS.operationalFailuresContentView)
   })
 })
+
+// The User role's basic permissions are shown ticked but can't be removed, and keys the role may
+// never carry are left out of the catalog altogether.
+describe('PermissionPicker — basic and hidden keys', () => {
+  function usersArea(): HTMLElement {
+    return screen.getByText('Users').parentElement!
+  }
+
+  it('shows a basic permission ticked and locked even when the selection omits it', () => {
+    render(<PermissionPicker selectedKeys={[]} onChange={vi.fn()} lockedKeys={[ADMIN_PERMISSIONS.usersView]} />)
+
+    const checkbox = within(usersArea()).getByLabelText('View')
+    expect(checkbox).toBeChecked()
+    expect(checkbox).toBeDisabled()
+    expect(within(usersArea()).getByLabelText('Manage')).toBeEnabled()
+  })
+
+  it('leaves hidden keys out of the catalog', () => {
+    render(
+      <PermissionPicker
+        selectedKeys={[]}
+        onChange={vi.fn()}
+        hiddenKeys={new Set([ADMIN_PERMISSIONS.operationalFailuresContentView])}
+      />,
+    )
+
+    expect(screen.queryByText(CONTENT_VIEW_LABEL)).not.toBeInTheDocument()
+    expect(within(operationalFailuresArea()).getByLabelText('View')).toBeInTheDocument()
+  })
+})

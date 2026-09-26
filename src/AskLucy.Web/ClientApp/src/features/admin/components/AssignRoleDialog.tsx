@@ -24,16 +24,19 @@ interface AssignRoleDialogProps {
   assignment: RoleAssignment
 }
 
-const NO_ROLE_VALUE = ''
 const ASSIGNMENTS_QUERY_KEY = ['admin', 'role-assignments']
 
-/** Assign/change/remove one user's role (US2) — the server enforces the privileged-role rule and the last-Super-User safeguard; this dialog just surfaces whatever it says. */
+/**
+ * Assign/change one user's role (US2) — the server enforces the privileged-role rule and the
+ * last-Super-User safeguard; this dialog just surfaces whatever it says. There's no "no role": a user
+ * always holds one, the User role at the least.
+ */
 export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialogProps) {
   const queryClient = useQueryClient()
   // The parent conditionally renders this dialog (`editingAssignment && <AssignRoleDialog .../>`)
   // rather than toggling `open`, so a fresh mount — not an effect — is what resets these on
   // every open/close cycle.
-  const [selectedRoleId, setSelectedRoleId] = useState(assignment.role?.id ?? NO_ROLE_VALUE)
+  const [pickedRoleId, setPickedRoleId] = useState(assignment.role?.id ?? '')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const { data: roles } = useQuery({
@@ -50,10 +53,12 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
     return !isSuperUser && role !== undefined && isSuperUserControlledRole(role)
   }
   const currentRoleLocked = isLockedRole(assignment.role?.id)
+  // An account from before the User role existed has no role row, and is a User-role holder.
+  const selectedRoleId = pickedRoleId || (roles?.items.find(adminRolesApi.isDefaultRole)?.id ?? '')
 
   const assignMutation = useMutation({
     mutationFn: () =>
-      adminRolesApi.assignRole(assignment.userId, selectedRoleId === NO_ROLE_VALUE ? null : selectedRoleId, assignment.role?.id ?? null),
+      adminRolesApi.assignRole(assignment.userId, selectedRoleId, assignment.role?.id ?? null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ASSIGNMENTS_QUERY_KEY })
       onClose()
@@ -82,9 +87,8 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
             fullWidth
             value={selectedRoleId}
             disabled={currentRoleLocked}
-            onChange={(e) => setSelectedRoleId(e.target.value)}
+            onChange={(e) => setPickedRoleId(e.target.value)}
           >
-            <MenuItem value={NO_ROLE_VALUE}>No role</MenuItem>
             {roles?.items.map((role) => (
               <MenuItem key={role.id} value={role.id} disabled={isLockedRole(role.id)}>
                 {role.name}
@@ -96,7 +100,7 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={() => assignMutation.mutate()} variant="contained" disabled={assignMutation.isPending || currentRoleLocked}>
+          <Button onClick={() => assignMutation.mutate()} variant="contained" disabled={assignMutation.isPending || currentRoleLocked || !selectedRoleId}>
             Save
           </Button>
         </DialogActions>

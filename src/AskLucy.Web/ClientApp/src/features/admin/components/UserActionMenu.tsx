@@ -25,6 +25,7 @@ import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ApiError } from '../../../api/httpClient'
+import { ADMIN_ROLES } from '../../../hooks/useIsAdmin'
 import * as adminApi from '../api/adminApi'
 import type { UserAdmin } from '../api/adminApi'
 
@@ -61,10 +62,10 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [feedback, setFeedback] = useState<Feedback>(null)
 
-  // A plain Administrator can only touch a currently-Regular user's role — any grant/revoke of
-  // Administrator/Super User requires Super User (FR-014, FR-016). Hide the action entirely for
-  // rows a plain Administrator could never change; the server re-checks regardless.
-  const canOfferRoleChange = isSuperUser || user.role === 'Regular'
+  // A plain Administrator can't touch an Administrator's or Super User's role — any grant/revoke of
+  // those requires Super User (FR-014, FR-016). Hide the action entirely for rows a plain
+  // Administrator could never change; the server re-checks regardless.
+  const canOfferRoleChange = isSuperUser || !ADMIN_ROLES.includes(user.role)
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY })
 
