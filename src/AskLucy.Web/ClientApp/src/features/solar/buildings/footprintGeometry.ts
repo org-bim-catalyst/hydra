@@ -85,8 +85,11 @@ export interface FootprintBuildResult {
   /**
    * specs/076 — the straight-line distance from the reference point to the furthest roof corner of
    * the building under study: the site building plus any taller part the server split off it
-   * (`{siteId}_part…`, HeightEnrichingBuildingFootprintProvider). What the sun-path dome has to
-   * enclose; 0 when there is no site building.
+   * (`{siteId}_part…`, HeightEnrichingBuildingFootprintProvider). When the site has a resolved
+   * boundary, every footprint whose centre lies inside it counts too, and so does the boundary
+   * itself: BurJuman is two footprints (and a tower) the boundary resolver already merges into one
+   * site, but only one of them is flagged. What the sun-path dome has to enclose; 0 when there is
+   * neither a site building nor a boundary.
    */
   siteReachMetres: number
   /** Footprints whose ring was too degenerate to extrude. Counted rather than dropped silently. */
@@ -97,6 +100,29 @@ function isPartOfSite(buildingId: string, siteIds: string[]): boolean {
   return siteIds.some((siteId) => buildingId === siteId || buildingId.startsWith(`${siteId}_part`))
 }
 
+type LocalPoint = { x: number; y: number }
+
+/** Even-odd ray cast, in the scene's local metres. */
+function isInside(point: LocalPoint, ring: LocalPoint[]): boolean {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]
+    const b = ring[j]
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+function centreOf(ring: SiteBuildingDto['ring']): LocalPoint {
+  const local = ring.map((point) => worldToLocal(point, 0))
+  return {
+    x: local.reduce((sum, p) => sum + p.x, 0) / local.length,
+    y: local.reduce((sum, p) => sum + p.y, 0) / local.length,
+  }
+}
+
 /**
  * T031, T032, T033 — builds every footprint, merges them into a single mesh, and reports the
  * extent, the tallest height and the exclusions in the same pass, so neither the shadow radius
@@ -105,14 +131,22 @@ function isPartOfSite(buildingId: string, siteIds: string[]): boolean {
  * Returning zero extent/height on an empty list is deliberate: the caller applies the stated
  * no-buildings fallback (FR-013) rather than this module inventing one.
  */
-export function buildFootprintMeshes(buildings: SiteBuildingDto[], showMass: boolean): FootprintBuildResult {
+export function buildFootprintMeshes(
+  buildings: SiteBuildingDto[],
+  showMass: boolean,
+  siteBoundary: SiteBuildingDto['ring'] | null = null,
+): FootprintBuildResult {
   const geometries: THREE.ExtrudeGeometry[] = []
   const buildingIds: string[] = []
   let extentMetres = 0
   let tallestHeightMetres = 0
   let siteReachMetres = 0
   let excludedCount = 0
-  const siteIds = buildings.filter((b) => b.isSiteBuilding).map((b) => b.id)
+  const boundary = siteBoundary && siteBoundary.length >= 3 ? siteBoundary.map((point) => worldToLocal(point, 0)) : null
+  const siteIds = buildings
+    .filter((b) => b.isSiteBuilding || (boundary !== null && b.ring.length > 0 && isInside(centreOf(b.ring), boundary)))
+    .map((b) => b.id)
+  for (const corner of boundary ?? []) siteReachMetres = Math.max(siteReachMetres, Math.hypot(corner.x, corner.y))
 
   for (const building of buildings) {
     const geometry = buildFootprintGeometry(building)

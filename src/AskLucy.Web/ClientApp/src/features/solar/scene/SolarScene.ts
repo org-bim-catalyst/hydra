@@ -220,11 +220,11 @@ export class SolarScene {
   /** T040, T042 — rebuilds the buildings group from a fresh footprint list. Rebuilt only when
    * buildings or heights change (FR-019), never on a time-of-day tick. T033/T023: the extent and
    * tallest height measured while building feed the shadow radius directly, so the caller never has
-   * to walk the footprints a second time to size the rig. */
-  rebuildBuildings(buildings: SiteBuildingDto[], showMass: boolean = this.showBuildingMass): FootprintBuildResult {
-    this.showBuildingMass = showMass
+   * to walk the footprints a second time to size the rig. `siteBoundary` is the active site's
+   * resolved outline, when there is one: the dome grows to enclose it and the buildings inside it. */
+  rebuildBuildings(buildings: SiteBuildingDto[], siteBoundary: SiteBuildingDto['ring'] | null = null): FootprintBuildResult {
     this.disposeGroupContents(this.buildingsGroup)
-    const built = buildFootprintMeshes(buildings, showMass)
+    const built = buildFootprintMeshes(buildings, this.showBuildingMass, siteBoundary)
     if (built.mesh) this.buildingsGroup.add(built.mesh)
     this.setContentBounds(built.extentMetres, built.tallestHeightMetres)
     this.fitDomeTo(built.siteReachMetres)

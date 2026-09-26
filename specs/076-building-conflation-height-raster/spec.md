@@ -29,7 +29,12 @@ After specs/075, shadows at BurJuman still made no sense:
    assumed footprint passes on its height. The site building is resolved across sources.
 4. **The dome grows to enclose the building under study.** Its radius is
    `max(120 m, 1.15 × furthest roof corner)`, rounded up to 10 m and capped at 600 m. "Building
-   under study" means the site building plus its `_part` casters. The dome is display-only.
+   under study" means the site building plus its `_part` casters. When the site has a resolved
+   boundary (specs/042), it also covers every footprint whose centre lies inside that boundary, with
+   their parts, and the boundary's own corners. BurJuman shows why. Its boundary is two OSM mall
+   ways merged into one site. The footprint that gets flagged is only the north-east half: a 220 m
+   dome left the south-west half and its 84.5 m tower outside. With the boundary included, the
+   dome is 480 m. The dome is display-only.
    Shadows come from the directional light, which is sized by the content bounds, so the dome's
    size never enters the calculation.
 5. **Attribution goes on the Terms page only (section 8), not on screen.** It credits Google,

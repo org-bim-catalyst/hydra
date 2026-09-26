@@ -173,6 +173,45 @@ describe('buildFootprintMeshes measures the building under study for the dome (s
     expect(result.siteReachMetres).toBe(0)
     result.mesh!.geometry.dispose()
   })
+
+  it("counts every footprint inside the site's boundary, and its parts, as the building under study", () => {
+    // BurJuman: the flagged footprint is one half of the mall; the other half and its tower lie
+    // inside the same resolved boundary but are not flagged.
+    const boundary = [
+      { latitude: 25.1545, longitude: 55.2205 },
+      { latitude: 25.1585, longitude: 55.2205 },
+      { latitude: 25.1585, longitude: 55.2225 },
+      { latitude: 25.1545, longitude: 55.2225 },
+      { latitude: 25.1545, longitude: 55.2205 },
+    ]
+    const farRing = OTHER_RING.map((p) => ({ latitude: p.latitude + 0.004, longitude: p.longitude }))
+    const result = buildFootprintMeshes(
+      [
+        makeBuilding({ id: 'mall_east', isSiteBuilding: true, heightMetres: 22 }),
+        makeBuilding({ id: 'mall_west', ring: OTHER_RING, heightMetres: 26 }),
+        makeBuilding({ id: 'mall_west_part0', ring: OTHER_RING, heightMetres: 98 }),
+        makeBuilding({ id: 'neighbour', ring: farRing, heightMetres: 300 }),
+      ],
+      false,
+      boundary,
+    )
+
+    const reach = (ring: SiteBuildingDto['ring'], height: number) =>
+      Math.max(...ring.map((point) => Math.hypot(Math.hypot(worldToLocal(point, 0).x, worldToLocal(point, 0).y), height)))
+    expect(result.siteReachMetres).toBeCloseTo(Math.max(reach(OTHER_RING, 98), reach(boundary, 0)), 6)
+    expect(result.siteReachMetres).toBeLessThan(reach(farRing, 300))
+    result.mesh!.geometry.dispose()
+  })
+
+  it('reaches the boundary itself even where no footprint stands', () => {
+    // A park or an empty plot: the site is the outline, and the dome still has to enclose it.
+    const boundary = OTHER_RING
+    const result = buildFootprintMeshes([makeBuilding()], false, boundary)
+
+    const furthestCorner = Math.max(...boundary.map((point) => Math.hypot(worldToLocal(point, 0).x, worldToLocal(point, 0).y)))
+    expect(result.siteReachMetres).toBeCloseTo(furthestCorner, 6)
+    result.mesh!.geometry.dispose()
+  })
 })
 
 describe('buildFootprintMeshes with nothing usable (T029, FR-017)', () => {
