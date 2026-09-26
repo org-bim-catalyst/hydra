@@ -163,9 +163,17 @@ public sealed class OperationalFailureStoreTests(PersistenceTestFixture fixture)
     private async Task<IncidentAppendResult> AppendAsync(IncidentAppendRequest request, int? maxStoredOccurrences = null, bool audited = false)
     {
         await using var dbContext = audited
-            ? fixture.CreateAuditedDbContext(Substitute.For<ICurrentUserAccessor>(), Substitute.For<ICorrelationIdAccessor>())
+            ? fixture.CreateAuditedDbContext(BackgroundWriter(), Substitute.For<ICorrelationIdAccessor>())
             : fixture.CreateDbContext();
         return await Store(dbContext, maxStoredOccurrences).AppendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>The recorder writes from its own scope, which has no signed-in user; a bare substitute would say <c>""</c>, not null.</summary>
+    private static ICurrentUserAccessor BackgroundWriter()
+    {
+        var currentUser = Substitute.For<ICurrentUserAccessor>();
+        currentUser.UserId.Returns((string?)null);
+        return currentUser;
     }
 
     private static OperationalFailureStore Store(AskLucyDbContext dbContext, int? maxStoredOccurrences = null) =>

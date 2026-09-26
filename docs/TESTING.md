@@ -94,8 +94,9 @@ The project includes:
 * FluentAssertions
 * Moq (or NSubstitute)
 * ASP.NET Core Test Host
-* A real, dedicated test SQL Server instance for persistence integration tests (reset to a
-  clean schema on every run — see §13; not Testcontainers, which the CI runner's OS can't run)
+* A real, dedicated test SQL Server database for persistence integration tests
+  (`db_a15752_asklucytest2`, emptied on every run — see §13; not Testcontainers, which the CI
+  runner's OS can't run). Every other suite uses the shared test DB, which is never emptied.
 
 ## Frontend
 
@@ -235,6 +236,44 @@ both are set:
 * `PERSISTENCE_TESTS_CONNECTION_STRING` — the dedicated test database.
 * `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` — the explicit declaration that it may be emptied.
 
+## Two test databases: which suite uses which
+
+| Database | Used by | May be wiped? | Local connection string |
+|---|---|---|---|
+| `db_a15752_asklucytest` (shared test DB) | `AskLucy.Web.Tests`, local dev server, every test except Persistence | **No** | `ConnectionStrings:DefaultConnection` in `src/AskLucy.Web/appsettings.Development.json` |
+| `db_a15752_asklucytest2` (dedicated Persistence DB) | `AskLucy.Persistence.Tests` **only** | Yes, every run | `ConnectionStrings:PersistenceTests` in the same file |
+
+`appsettings.Development.json` is git-ignored; neither connection string is ever committed.
+`PERSISTENCE_TESTS_CONNECTION_STRING` means a different database depending on the suite, so set it
+per command, never once for a whole shell or for a solution-wide `dotnet test`:
+
+```bash
+SETTINGS=src/AskLucy.Web/appsettings.Development.json
+cs() { python -c "import json,sys;print(json.load(open('$SETTINGS',encoding='utf-8-sig'))['ConnectionStrings'][sys.argv[1]])" "$1"; }
+
+# Persistence tests — test2 only, and only these may carry the DEDICATED flag.
+PERSISTENCE_TESTS_CONNECTION_STRING="$(cs PersistenceTests)" PERSISTENCE_TESTS_DEDICATED_DATABASE=1   dotnet test tests/AskLucy.Persistence.Tests
+
+# Web tests — the shared test DB, and never with the DEDICATED flag.
+PERSISTENCE_TESTS_CONNECTION_STRING="$(cs DefaultConnection)" dotnet test tests/AskLucy.Web.Tests
+```
+
+**Never** pair `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` with the shared test DB: the fixture would
+empty it, as it once emptied the development database. CI sets no `DEDICATED` flag, so the
+Persistence suite is skipped there.
+
+Both databases need every migration. When you add one, apply it to each database by hand. Point
+`ConnectionStrings__DefaultConnection` at the target for that one command:
+
+```bash
+ConnectionStrings__DefaultConnection="$(cs PersistenceTests)" ASPNETCORE_ENVIRONMENT=Development   dotnet ef database update --project src/AskLucy.Persistence --startup-project src/AskLucy.Web
+```
+
+test2 was created behind the shared test DB. It was brought current on 2026-09-26, to
+`20260926125557_AddCapabilitySettingsAndSiteBoundaryMembers`. Its `__EFMigrationsHistory` has
+fewer rows than the shared DB's because the shared DB also records migrations that were later
+removed from the code. Compare the latest `MigrationId`, not the row count.
+
 The gate is `PersistenceDatabaseGate`. A connection string alone is deliberately not enough: it
 said where a database was, not that it could be wiped, and it pointed at the shared development
 database — each run deleted that database's migration-seeded reference rows (embedding providers,
@@ -242,7 +281,8 @@ knowledge-base categories), its AI provider configuration and every role assignm
 scale-performance tests below require this gate as well as their own.
 
 `AskLucy.Web.Tests` still points its app host at `PERSISTENCE_TESTS_CONNECTION_STRING` when it is
-set. It does not wipe anything, but its tests do create users and data there.
+set — the shared test DB, per the table above. It does not wipe anything, but its tests do create
+users and data there.
 
 Avoid the EF Core InMemory provider for relational behavior.
 

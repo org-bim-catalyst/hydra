@@ -5,11 +5,14 @@ This is a validation run-book, not an implementation guide. The shapes and rules
 
 ## Prerequisites
 
-- The migration `AddOperationalFailureAudit` is applied to **both** the shared test DB and
-  production. They are different catalogs, and each must be migrated by hand (data-model.md
-  Migration notes).
-- `PERSISTENCE_TESTS_CONNECTION_STRING` is set for Web.Tests and Persistence.Tests. Its value is in
-  `appsettings.Development.json`.
+- The migration `AddOperationalFailureAudit` is applied to the shared test DB, the dedicated
+  Persistence test2 DB, and production. They are different catalogs, and each must be migrated by
+  hand (data-model.md Migration notes).
+- `PERSISTENCE_TESTS_CONNECTION_STRING` is set **per suite**. For Web.Tests it is the shared test DB
+  (`ConnectionStrings:DefaultConnection`). For Persistence.Tests it is the dedicated test2 DB
+  (`ConnectionStrings:PersistenceTests`), with `PERSISTENCE_TESTS_DEDICATED_DATABASE=1`. Both values
+  are in `appsettings.Development.json`, and docs/TESTING.md §13 has the exact commands. Never set
+  the DEDICATED flag with the shared test DB.
 - Four accounts: a **Super User**; an **Administrator**; a **custom role** "Support lead" holding
   `admin.operational-failures.view`; and an ordinary **user**.
 

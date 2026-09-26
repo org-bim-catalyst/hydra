@@ -154,18 +154,20 @@ public sealed class CustomModelRepositoryTests(PersistenceTestFixture fixture)
     [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task FindActiveJobOverlappingDestinationAsync_ShouldMatchOnSegmentBoundaries_IgnoringCase()
     {
+        // Under a parent of its own: other tests in this class leave active jobs directly under "Models".
+        var parent = $"Models/{Unique("p")}";
         var folder = Unique("a");
-        var active = await SeedAsync(Unique("active"), destination: $"Models/{folder}");
+        var active = await SeedAsync(Unique("active"), destination: $"{parent}/{folder}");
         var ct = TestContext.Current.CancellationToken;
 
         await using var dbContext = fixture.CreateDbContext();
         var repository = new CustomModelRepository(dbContext);
 
-        (await repository.FindActiveJobOverlappingDestinationAsync($"Models/{folder}", ct))!.Id.Should().Be(active.Id);
-        (await repository.FindActiveJobOverlappingDestinationAsync($"models/{folder.ToUpperInvariant()}", ct))!.Id.Should().Be(active.Id);
-        (await repository.FindActiveJobOverlappingDestinationAsync($"Models/{folder}/b", ct))!.Id.Should().Be(active.Id);
-        (await repository.FindActiveJobOverlappingDestinationAsync("Models", ct))!.Id.Should().Be(active.Id);
-        (await repository.FindActiveJobOverlappingDestinationAsync($"Models/{folder}b", ct)).Should().BeNull();
+        (await repository.FindActiveJobOverlappingDestinationAsync($"{parent}/{folder}", ct))!.Id.Should().Be(active.Id);
+        (await repository.FindActiveJobOverlappingDestinationAsync($"{parent.ToLowerInvariant()}/{folder.ToUpperInvariant()}", ct))!.Id.Should().Be(active.Id);
+        (await repository.FindActiveJobOverlappingDestinationAsync($"{parent}/{folder}/b", ct))!.Id.Should().Be(active.Id);
+        (await repository.FindActiveJobOverlappingDestinationAsync(parent, ct))!.Id.Should().Be(active.Id);
+        (await repository.FindActiveJobOverlappingDestinationAsync($"{parent}/{folder}b", ct)).Should().BeNull();
     }
 
     [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]

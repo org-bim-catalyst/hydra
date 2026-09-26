@@ -166,7 +166,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - The cap: with `MaxStoredOccurrencesPerIncident = 3`, 5 appends give `StoredOccurrenceCount = 3` and `OccurrenceCount = 5`.
   - Participants: 5 appends from 2 users give `DistinctUserCount = 2`. Beyond the cap, a new user still increments the count.
   - Audit columns: the incident's `CreatedBy` is `"system"`, and a joined occurrence does **not** change `ModifiedAtUtc`, because counter updates are bookkeeping. `LastSeenUtc` is the activity timestamp.
-  - _Written and compiling, not yet executed:_ the Persistence fixture wipes every table, and the only DB available is the shared dev/test DB, so these run only where `PERSISTENCE_TESTS_DEDICATED_DATABASE=1` is safe. The store is exercised end to end against real SQL Server by T036.
+  - _Executed 2026-09-26 against the dedicated Persistence DB `db_a15752_asklucytest2`; all pass._ The first run caught a test bug: a bare NSubstitute `ICurrentUserAccessor` returns `""`, not null, so `CreatedBy` was stamped `""` instead of `"system"`. The test now models the recorder's user-less scope explicitly. Only Persistence.Tests may use test2, and every other suite uses the shared test DB (docs/TESTING.md §13).
 - [X] T016 [P] Application tests in `tests/AskLucy.Application.Tests/Authorization/EffectivePermissionResolverTests.cs` (extend the existing file):
   - Super User gets every key, including `admin.operational-failures.content.view`.
   - Administrator gets every key **except** content.view when the Administrator role has no stored grant, and gets it when the grant is stored.
@@ -240,7 +240,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - Stamp it once, centrally: the existing SaveChanges audit interceptor in `src/AskLucy.Persistence/` sets `CorrelationId` from `ICorrelationIdAccessor.Current` on every **added** `ICorrelated` entity whose value is null. This covers the 4 `RoleRepository`, 2 `RoleAssignmentRepository`, `PermissionDeniedAuditResultHandler`, `PermissionCatalogReconciler` and 10 MCP handler call sites without editing them.
   - Map `CorrelationId nvarchar(64) NULL` with a nonclustered index in both existing configurations, so T031's migration includes it.
   - Test in `tests/AskLucy.Persistence.Tests/OperationalFailures/AuditLogCorrelationTests.cs`: with the accessor returning `"abc"`, a saved `RoleAuditLog` and `McpAuditLog` both read back `"abc"`; with null, they stay null.
-  - _Test written and compiling, not yet executed:_ it needs the dedicated persistence DB (see T015). `PersistenceTestFixture.CreateAuditedDbContext` adds the interceptor, which the bare fixture context lacks.
+  - _Executed 2026-09-26 against the dedicated Persistence DB (see T015); passes. `PersistenceTestFixture.CreateAuditedDbContext` adds the interceptor, which the bare fixture context lacks.
 - [X] T031 Create the migration `src/AskLucy.Persistence/Migrations/<ts>_AddOperationalFailureAudit.cs`, using the command in standing rule 10:
   - Check there is no BOM (`xxd … | head -1`) and that `System` usings come first.
   - Run `dotnet ef migrations has-pending-model-changes`; it must report none.
