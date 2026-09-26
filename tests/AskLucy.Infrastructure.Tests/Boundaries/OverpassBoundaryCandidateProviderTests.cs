@@ -150,6 +150,29 @@ public sealed class OverpassBoundaryCandidateProviderTests
             "an any-value landuse relation query drags in district-scale areas nobody names as a site");
     }
 
+    /// <summary>
+    /// Muscat, 2026-09-26: the Royal Opera House is <c>amenity=theatre</c> and Sultan Qaboos Grand
+    /// Mosque a <c>building=mosque</c> relation. Neither was queried.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldQueryTheatresAndPlacesOfWorship_ButOnlyNamedLandmarkBuildingValues()
+    {
+        string? capturedQuery = null;
+        var provider = CreateProvider(request =>
+        {
+            capturedQuery = WebUtility.UrlDecode(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            return JsonResponse("""{"elements":[]}""");
+        }, out _);
+
+        await provider.SearchAsync(AlSafaCenter, 500, CancellationToken.None);
+
+        capturedQuery.Should().Contain("""way(around:500,25.156,55.2218)["amenity"="theatre"];""");
+        capturedQuery.Should().Contain("""way(around:500,25.156,55.2218)["amenity"="place_of_worship"];""");
+        capturedQuery.Should().Contain("""relation(around:500,25.156,55.2218)["type"="multipolygon"]["building"="mosque"];""");
+        capturedQuery.Should().NotContain("""way(around:500,25.156,55.2218)["building"];""",
+            "every building in the radius is far too much to download");
+    }
+
     [Fact]
     public async Task SearchAsync_ShouldAssembleARelationsOuterRing_FromOutOfOrderReversedMemberWays()
     {

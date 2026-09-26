@@ -59,12 +59,19 @@ internal sealed class OverpassBoundaryCandidateProvider(
     /// <c>shop=mall</c> added 2026-09-25: malls are among the most-named sites in the city and
     /// match none of the other filters, so The Dubai Mall and BurJuman were never candidates and
     /// whatever landuse way lay nearest the pin was highlighted instead.
+    ///
+    /// <c>amenity=place_of_worship</c>/<c>theatre</c> and the <c>building</c> values for places of
+    /// worship added 2026-09-26: Muscat's Royal Opera House (<c>amenity=theatre</c>) and Sultan
+    /// Qaboos Grand Mosque (a <c>building=mosque</c> relation, its amenity on a separate node) were
+    /// never candidates; around the mosque only unnamed orchards were left to choose from. Only these
+    /// named-landmark values of <c>building</c> are queried; the cost concern above is for any value.
     /// </summary>
     private static readonly (string Key, string[]? Values)[] CandidateTagFilters =
     [
         ("leisure", ["park", "garden", "nature_reserve", "recreation_ground"]),
         ("landuse", null),
-        ("amenity", ["school", "hospital", "university", "college"]),
+        ("amenity", ["school", "hospital", "university", "college", "place_of_worship", "theatre"]),
+        ("building", ["mosque", "cathedral", "church", "temple"]),
         ("tourism", null),
         ("natural", null),
         ("shop", ["mall"]),
