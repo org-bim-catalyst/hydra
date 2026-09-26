@@ -541,7 +541,7 @@ US1b comes after US3 because its UI lives on the Roles page, not on the new page
   - A Super User granting stores the key, writes a `RoleUpdated` audit with before/after, and evicts every Administrator's permission cache.
   - Revoking removes the key.
   - Afterwards the resolver reflects each change.
-- [ ] T080 [P] [US1b] Web test in `tests/AskLucy.Web.Tests/Authorization/ContentPermissionGrantPathsTests.cs`: every endpoint in [contracts/view-user-content-permission.md](contracts/view-user-content-permission.md#mutations-and-who-may-perform-them), as an Administrator, returns 403 with that detail; as a Super User it returns 2xx, and a `RoleAuditLog` row exists (SC-010).
+- [X] T080 [P] [US1b] Web test in `tests/AskLucy.Web.Tests/Authorization/ContentPermissionGrantPathsTests.cs`: every endpoint in [contracts/view-user-content-permission.md](contracts/view-user-content-permission.md#mutations-and-who-may-perform-them), as an Administrator, returns 403 with that detail; as a Super User it returns 2xx, and a `RoleAuditLog` row exists (SC-010).
 - [X] T081 [P] [US1b] Frontend tests in `ClientApp/src/features/admin/components/PermissionPicker.test.tsx` (new) and `ClientApp/src/features/admin/pages/AdminRolesPage.test.tsx` (extend):
   - For a non-Super-User, the content.view checkbox is disabled, keeps its checked state, and shows the tooltip "Only a Super User can grant this". The saved payload echoes the stored value.
   - The "Administrators may view user content" switch renders for a Super User only, and a 403 shows a toast with the server detail.
