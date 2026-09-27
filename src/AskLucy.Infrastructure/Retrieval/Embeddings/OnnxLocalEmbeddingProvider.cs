@@ -12,8 +12,8 @@ namespace AskLucy.Infrastructure.Retrieval.Embeddings;
 /// Decision 5) — a BERT-family sentence-embedding model (e.g. all-MiniLM-L6-v2) run entirely
 /// in-process via ONNX Runtime, no network call per request, mirroring the exact precedent
 /// specs/015's plan.md cites for OCR: "a self-hosted OCR engine (Tesseract, mirroring the
-/// existing self-hosted Whisper.net STT precedent)" — <see cref="WhisperLocalTranscriptionProvider"/>
-/// (specs/012) is the same in-process, no-network-call shape this provider follows. This is what
+/// existing self-hosted Whisper.net STT precedent)" — the in-process, no-network-call shape this
+/// provider follows. (That Whisper.net provider was removed on 2026-09-27, unused since specs/013.) This is what
 /// literally satisfies "content never leaves the platform's environment" (FR-009a).
 ///
 /// <para><b>Deployment prerequisite</b> (not a code gap — same category as Tesseract's trained-

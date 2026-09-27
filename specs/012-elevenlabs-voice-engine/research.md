@@ -83,6 +83,14 @@ never transits our own backend for the primary STT path.
 records a WAV via `useWavRecorder.ts` and posts it to the existing
 `/api/v1/ai/transcriptions/microphone` endpoint. No transport change on the fallback side.
 
+> **Superseded (2026-09-27).** This fallback never shipped as described. SPEC-013 (2026-08-04)
+> removed `useWavRecorder.ts`, and the dictation fallback became OpenAI's hosted `whisper-1`
+> via `/api/v1/ai/transcriptions`, which covers every supported language (the local Whisper.net
+> model was English-only). The unused `/api/v1/ai/transcriptions/microphone` endpoint, the local
+> Whisper.net provider, its startup warm-up and the `Whisper.net` packages were removed on
+> 2026-09-27. Since then, while an administrator has ElevenLabs switched off, Whisper is the
+> normal dictation engine, not a fallback (`contracts/voice-stt-session.md`).
+
 ## Decision 3: TTS transport — backend orchestrates LLM streaming + ElevenLabs TTS together, relayed over the existing chunked-streaming convention
 
 **Decision**: A new endpoint, `POST /api/v1/ai/voice/reply`, replaces `/api/v1/ai/chat` for

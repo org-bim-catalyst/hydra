@@ -7,7 +7,7 @@ namespace AskLucy.Web.Tests.Ai;
 
 /// <summary>
 /// specs/034-transcription-crash-gesture-and-continuous-view T003 — proves
-/// <c>AiController.Transcribe</c>/<c>TranscribeMicrophone</c> reject a missing/empty file part
+/// <c>AiController.Transcribe</c> rejects a missing/empty file part
 /// with a specific 400 instead of an uncaught <see cref="NullReferenceException"/> falling
 /// through to a generic 500 (the actual root cause behind the transcription-500 that survived
 /// two prior fix rounds, both scoped to <c>OpenAIProvider.cs</c> — this gap is upstream of that
@@ -41,17 +41,6 @@ public sealed class TranscriptionUploadGuardTests(CustomWebApplicationFactory fa
         form.Add(emptyContent, "file", "recording.webm");
 
         var response = await _client.PostAsync("/api/v1/ai/transcriptions", form, TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task TranscribeMicrophone_ShouldReturn400_WhenNoFilePartIsPresent()
-    {
-        AuthenticateAsUser();
-        using var form = new MultipartFormDataContent();
-
-        var response = await _client.PostAsync("/api/v1/ai/transcriptions/microphone", form, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

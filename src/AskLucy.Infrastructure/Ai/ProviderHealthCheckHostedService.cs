@@ -18,9 +18,7 @@ internal static partial class ProviderHealthCheckLog
 
 /// <summary>
 /// Periodically checks every enabled <see cref="AIProvider"/>'s health (FR-027, research.md
-/// Decision 7) — mirrors <see cref="WhisperWarmupHostedService"/>'s background-work pattern,
-/// extended to run on a recurring interval via <see cref="BackgroundService"/> instead of a
-/// one-time warmup. Deliberately interval-based, not triggered per chat request, so health
+/// Decision 7) on a recurring interval via <see cref="BackgroundService"/>. Deliberately interval-based, not triggered per chat request, so health
 /// checks never add latency to a user-facing send (spec.md Assumptions).
 /// </summary>
 public sealed class ProviderHealthCheckHostedService(

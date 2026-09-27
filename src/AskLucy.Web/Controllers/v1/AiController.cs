@@ -10,7 +10,6 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Ai.Commands.StreamVoiceReply;
 using AskLucy.Application.Ai.Commands.SynthesizeSpeech;
 using AskLucy.Application.Ai.Commands.Transcribe;
-using AskLucy.Application.Ai.Commands.TranscribeMicrophoneAudio;
 using AskLucy.Application.Ai.Commands.Translate;
 using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
@@ -913,23 +912,6 @@ public sealed partial class AiController(
         await using var stream = file.OpenReadStream();
         var text = await mediator.Send(
             new TranscribeAudioCommand(stream, file.FileName, file.ContentType, language), cancellationToken);
-
-        return Ok(new TranscriptionResponse(text));
-    }
-
-    // Separate from the endpoint above: this expects 16-bit PCM WAV specifically (what the
-    // ChatComposer mic recorder produces) and runs through a free, self-hosted Whisper.net
-    // model instead of the paid OpenAI API — see ITranscriptionProvider's doc comment.
-    [HttpPost("transcriptions/microphone")]
-    public async Task<ActionResult<TranscriptionResponse>> TranscribeMicrophone(IFormFile file, CancellationToken cancellationToken)
-    {
-        if (file is null || file.Length == 0)
-        {
-            return BadRequest(new ProblemDetails { Title = "No audio file was provided", Status = StatusCodes.Status400BadRequest });
-        }
-
-        await using var stream = file.OpenReadStream();
-        var text = await mediator.Send(new TranscribeMicrophoneAudioCommand(stream), cancellationToken);
 
         return Ok(new TranscriptionResponse(text));
     }

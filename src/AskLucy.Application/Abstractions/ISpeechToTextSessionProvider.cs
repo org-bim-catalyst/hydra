@@ -6,9 +6,9 @@ namespace AskLucy.Application.Abstractions;
 public sealed record SpeechToTextSession(string Token, DateTime ExpiresAtUtc);
 
 /// <summary>
-/// The primary speech-to-text provider abstraction (constitution §9), mirroring
-/// <see cref="ITranscriptionProvider"/>'s separation from <see cref="IAIProvider"/> — this
-/// covers the streaming realtime path specifically, not the legacy batch/fallback path.
+/// The primary speech-to-text provider abstraction (constitution §9), kept separate from
+/// <see cref="IAIProvider"/> — this covers the streaming realtime path specifically, not the
+/// Whisper batch path (<see cref="IAIProvider.TranscribeAudioAsync"/>).
 /// One implementation today (<c>ElevenLabsSpeechToTextSessionProvider</c>), swappable per
 /// spec's "future support for additional speech providers" goal.
 /// </summary>

@@ -80,9 +80,6 @@ public static class DependencyInjection
         services.AddOptions<ProviderHealthCheckOptions>()
             .Bind(configuration.GetSection(ProviderHealthCheckOptions.SectionName));
 
-        services.AddOptions<WhisperOptions>()
-            .Bind(configuration.GetSection(WhisperOptions.SectionName));
-
         services.AddOptions<ElevenLabsOptions>()
             .Bind(configuration.GetSection(ElevenLabsOptions.SectionName))
             .ValidateOnStart();
@@ -545,13 +542,6 @@ public static class DependencyInjection
         services.AddSingleton<IMcpCredentialProtector, McpCredentialProtector>();
         services.AddSingleton<IMcpRateLimiter, McpRateLimiter>();
 
-        // Singleton: caches the loaded WhisperFactory (and the one-time model download)
-        // across requests instead of reloading it every call. Registered as its concrete
-        // type too (mapped to the same instance) so WhisperWarmupHostedService can trigger
-        // that load at startup instead of on a user's first request.
-        services.AddSingleton<WhisperLocalTranscriptionProvider>();
-        services.AddSingleton<ITranscriptionProvider>(sp => sp.GetRequiredService<WhisperLocalTranscriptionProvider>());
-        services.AddHostedService<WhisperWarmupHostedService>();
         // specs/043 FR-019 - stateless, so a singleton; shares the same options instance the
         // hosted service reads, which is what keeps the window and the interval in step.
         services.AddSingleton<IProviderHealthFreshnessPolicy, ProviderHealthFreshnessPolicy>();

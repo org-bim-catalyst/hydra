@@ -17,8 +17,8 @@ internal static partial class SystemAgentProvisioningHostedServiceLog
 
 /// <summary>
 /// Runs <see cref="ISystemAgentProvisioner.ProvisionAsync"/> once as the app starts (specs/045
-/// FR-033, SC-011), following <c>WhisperWarmupHostedService</c>'s fire-and-forget
-/// <c>Task.Run</c>-inside-<c>StartAsync</c> shape — a one-time startup task, not a periodic loop
+/// FR-033, SC-011), as a fire-and-forget <c>Task.Run</c>-inside-<c>StartAsync</c> — a one-time
+/// startup task, not a periodic loop
 /// like <c>ProviderHealthCheckHostedService</c>. A fresh <see cref="IServiceScope"/> is required
 /// because <see cref="ISystemAgentProvisioner"/> and its repository dependencies are scoped, while
 /// this hosted service, like every <see cref="IHostedService"/>, is a singleton.

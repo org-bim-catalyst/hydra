@@ -87,6 +87,14 @@ records a WAV via `useWavRecorder.ts` and posts it to the existing
 no change to the never-a-silent-outage-source in `IUserVoicePreferenceRepository`'s existing
 credential handling.
 
+> **Superseded (2026-09-27).** This fallback never shipped as described. SPEC-013 (2026-08-04)
+> removed `useWavRecorder.ts`, and the dictation fallback became OpenAI's hosted `whisper-1`
+> via `/api/v1/ai/transcriptions`, which covers every supported language (the local Whisper.net
+> model was English-only). The unused `/api/v1/ai/transcriptions/microphone` endpoint, the local
+> Whisper.net provider, its startup warm-up and the `Whisper.net` packages were removed on
+> 2026-09-27. Since then, while an administrator has ElevenLabs switched off, Whisper is the
+> normal dictation engine, not a fallback (`specs/012-elevenlabs-voice-engine/contracts/voice-stt-session.md`).
+
 See `specs/012-elevenlabs-voice-engine/research.md` Decisions 1–2 for the full alternatives
 analysis this ADR summarizes.
 
