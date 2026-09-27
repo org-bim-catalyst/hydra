@@ -2,11 +2,12 @@ import { apiFetch, API_BASE_URL } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import type { ChatMessage, GenerationParameters } from './aiApi'
 
-/** contracts/voice-stt-session.md. */
-export interface SpeechToTextSession {
-  token: string
-  expiresAtUtc: string
-}
+/** contracts/voice-stt-session.md — which dictation engine the server wants this turn to use.
+ * `Whisper` means an administrator has switched ElevenLabs off: Whisper is then the normal
+ * engine, not a failover. */
+export type SpeechToTextSession =
+  | { engine: 'Realtime'; token: string; expiresAtUtc: string }
+  | { engine: 'Whisper'; token: null; expiresAtUtc: null }
 
 export const createSttSession = (language: string) =>
   apiFetch<SpeechToTextSession>('/ai/voice/stt-session', {

@@ -43,7 +43,7 @@ export function extensionForRecordingMimeType(mimeType: string): string {
  * ref-based-`getIntensity()`-polled-per-frame pattern (research.md #3) — never React
  * state per frame.
  */
-export function useVoiceRecorder() {
+export function useVoiceRecorder(language?: string) {
   const [phase, setPhase] = useState<RecordingPhase>('idle')
   const [permissionState, setPermissionState] = useState<MicrophonePermissionState>('unknown')
   const [error, setError] = useState<string | null>(null)
@@ -148,7 +148,7 @@ export function useVoiceRecorder() {
     try {
       const mimeType = blob.type || 'audio/webm'
       const file = new File([blob], `recording.${extensionForRecordingMimeType(mimeType)}`, { type: mimeType })
-      const transcript = await transcribeAudio(file)
+      const transcript = await transcribeAudio(file, language)
       setPhaseBoth('idle')
       return transcript
     } catch (err) {
@@ -156,7 +156,7 @@ export function useVoiceRecorder() {
       setPhaseBoth('idle')
       return ''
     }
-  }, [cleanupAudioGraph])
+  }, [cleanupAudioGraph, language])
 
   /** FR-004/FR-024: discards the captured audio from an in-progress `recording` and
    * never transmits it. Also the path a collapse mid-recording routes through. */

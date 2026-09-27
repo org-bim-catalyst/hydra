@@ -177,6 +177,7 @@ describe('useSpeechRecognition', () => {
   it('connects on the first attempt and starts listening (FR-001/FR-002)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -205,6 +206,7 @@ describe('useSpeechRecognition', () => {
   it('reconnects transparently within the retry budget without failing over (research.md Decision 8, FR-004)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -240,6 +242,7 @@ describe('useSpeechRecognition', () => {
   it('fails over to the fallback engine once the retry budget is exhausted (research.md Decision 8, FR-033)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -294,6 +297,7 @@ describe('useSpeechRecognition', () => {
   it('surfaces partial and committed transcripts from the WebSocket (FR-001/FR-002)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -336,6 +340,7 @@ describe('useSpeechRecognition', () => {
   it('sends outbound messages in ElevenLabs\' verified realtime STT wire format (SPEC-013 T010)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -388,6 +393,7 @@ describe('useSpeechRecognition', () => {
   it('auto-commits after a silence pause in continuous mode, without waiting for a manual stop (FR-014)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -434,6 +440,7 @@ describe('useSpeechRecognition', () => {
   it('resets the silence timer on each new partial transcript, in continuous mode (FR-005)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -496,6 +503,7 @@ describe('useSpeechRecognition', () => {
     } as unknown as MediaStream
     installAudioEnvironment(() => Promise.resolve(streamWithAudioTrack))
     vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
     })
@@ -542,7 +550,7 @@ describe('useSpeechRecognition', () => {
       vi.mocked(transcribeAudio).mockReset()
     })
 
-    function renderRecognition(overrides: { onError?: (message: string) => void } = {}) {
+    function renderRecognition(overrides: { onError?: (message: string) => void; language?: string } = {}) {
       const onPartialTranscript = vi.fn()
       const onFinalTranscript = vi.fn()
       const rendered = renderHook(() =>
@@ -575,6 +583,43 @@ describe('useSpeechRecognition', () => {
       expect(result.current.isListening).toBe(true)
       expect(result.current.engineNotice).toContain('Whisper')
       expect(result.current.error).toBeNull()
+    })
+
+    it('dictates through Whisper as the normal engine while ElevenLabs is switched off, with no failover', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: true, browser: true })
+      vi.mocked(createSttSession).mockResolvedValue({ engine: 'Whisper', token: null, expiresAtUtc: null })
+
+      const { result } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+
+      expect(createSttSession).toHaveBeenCalledTimes(1)
+      expect(FakeWebSocket.instances).toHaveLength(0)
+      // An admin's choice, not an outage: nothing is degraded and nothing needs explaining.
+      expect(useVoiceProviderStatus.getState().provider).toBe('primary')
+      expect(FakeMediaRecorder.instances).toHaveLength(1)
+      expect(result.current.isListening).toBe(true)
+      expect(result.current.engineNotice).toBeNull()
+      expect(result.current.error).toBeNull()
+    })
+
+    it("backs Whisper up with the browser's recognizer while ElevenLabs is switched off", async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ whisper: false, browser: true })
+      vi.mocked(createSttSession).mockResolvedValue({ engine: 'Whisper', token: null, expiresAtUtc: null })
+
+      const { result } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+
+      expect(FakeSpeechRecognition.instances).toHaveLength(1)
+      expect(result.current.engineNotice).toBe(
+        "Whisper transcription is unavailable — using your browser's speech recognition instead.",
+      )
+      expect(useVoiceProviderStatus.getState().provider).toBe('primary')
     })
 
     it('goes straight to the fallback once failed over, without asking for a session again', async () => {
@@ -618,6 +663,8 @@ describe('useSpeechRecognition', () => {
 
       expect(transcribeAudio).toHaveBeenCalledTimes(1)
       expect(vi.mocked(transcribeAudio).mock.calls[0][0].name).toBe('dictation.webm')
+      // Named, so Whisper doesn't have to guess what was spoken.
+      expect(vi.mocked(transcribeAudio).mock.calls[0][1]).toBe('en')
       expect(onFinalTranscript).toHaveBeenCalledWith('hello there')
       expect(result.current.isListening).toBe(false)
     })

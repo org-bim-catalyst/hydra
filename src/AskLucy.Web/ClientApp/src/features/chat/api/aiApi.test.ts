@@ -367,6 +367,19 @@ describe('transcribeAudio', () => {
     await expect(transcribeAudio(file)).rejects.toMatchObject({ message: 'Transcription failed', status: 500 })
   })
 
+  it('names the spoken language only when the caller knows it', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ text: 'hi' }), { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    const file = new File([new Blob(['audio'])], 'recording.webm', { type: 'audio/webm' })
+
+    await transcribeAudio(file, 'ar')
+    await transcribeAudio(file)
+
+    const sentForm = (call: number) => (fetchMock.mock.calls[call] as unknown as [string, RequestInit])[1].body as FormData
+    expect(sentForm(0).get('language')).toBe('ar')
+    expect(sentForm(1).has('language')).toBe(false)
+  })
+
   it('retries once after a silent refresh when the transcription request itself 401s', async () => {
     const fetchMock = vi
       .fn()

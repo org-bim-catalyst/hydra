@@ -61,6 +61,7 @@ export function startWhisperDictation(
   stream: MediaStream,
   analyser: AnalyserNode,
   { onPartial, onFinal, onError }: DictationCallbacks,
+  language?: string,
 ): DictationSession {
   const samples = new Float32Array(analyser.fftSize)
   let chunks: Blob[] = []
@@ -128,7 +129,7 @@ export function startWhisperDictation(
       const file = new File([new Blob(chunks, { type: mimeType })], `dictation.${extensionForRecordingMimeType(mimeType)}`, {
         type: mimeType,
       })
-      transcribeAudio(file).then(
+      transcribeAudio(file, language).then(
         (text) => onFinal(text.trim()),
         (err: unknown) =>
           onError({

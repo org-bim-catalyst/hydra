@@ -526,9 +526,12 @@ export async function generateImage(chatId: string, prompt: string): Promise<str
   return result.documentId
 }
 
-export async function transcribeAudio(file: File): Promise<string> {
+/** `language` names what was spoken (e.g. `ar`); without it Whisper guesses, and can mistake
+ * Arabic for Persian or Urdu. */
+export async function transcribeAudio(file: File, language?: string): Promise<string> {
   const form = new FormData()
   form.append('file', file)
+  if (language) form.append('language', language)
 
   const sendRequest = () => {
     const accessToken = useAuthStore.getState().accessToken
