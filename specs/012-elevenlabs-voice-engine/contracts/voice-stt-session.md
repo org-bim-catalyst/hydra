@@ -21,6 +21,11 @@ Request body:
 STT can be hinted to the caller's selected language rather than relying on autodetection.
 
 Server behavior:
+0. *(Added 2026-09-27.)* If an administrator has switched ElevenLabs off under Admin → AI
+   providers, returns `200` with `"engine": "Whisper"` and no token, without calling ElevenLabs.
+   Whisper is then the normal dictation engine: this is not a failover, so nothing is recorded
+   (no `VoiceProviderFailoverEvent`, no provider-health change, no operational failure).
+   ElevenLabs switched **on** but broken is still a failure, handled as in step 3.
 1. Calls ElevenLabs server-side (using `ElevenLabsOptions.ApiKey`, never exposed to the
    client) to obtain a single-use, short-lived realtime-STT token, passing `language` through
    as ElevenLabs' `language_code` parameter (research.md Decision 9; realtime-endpoint support
@@ -29,9 +34,9 @@ Server behavior:
    recoveries are logged, per data-model.md's `VoiceProviderFailoverEvent`).
 3. On failure (ElevenLabs unreachable, rate-limited, or errors), records a
    `VoiceProviderFailoverEvent` (`Direction = FailedOverToFallback`, `Reason` = a short
-   sanitized summary) and returns an error — the client is expected to fall back to the
-   legacy Whisper-based capture path (`/api/v1/ai/transcriptions/microphone`, unchanged) for
-   this turn (FR-033).
+   sanitized summary) and returns an error — the client is expected to fall back to Whisper
+   (`/api/v1/ai/transcriptions`, OpenAI's hosted `whisper-1`, with the turn's `language`
+   form field) for this turn (FR-033).
 
 **Transient vs. failover distinction (research.md Decision 8)**: this endpoint itself has no
 retry logic server-side — it is the *client* (`useSpeechRecognition.ts`) that retries calling
@@ -43,10 +48,22 @@ are.
 Response (`200 OK`):
 ```json
 {
+  "engine": "Realtime",
   "token": "opaque short-lived token",
   "expiresAtUtc": "2026-08-02T10:15:00Z"
 }
 ```
+
+Response (`200 OK`, ElevenLabs switched off by an administrator):
+```json
+{
+  "engine": "Whisper",
+  "token": null,
+  "expiresAtUtc": null
+}
+```
+The client dictates through Whisper with no degraded notice, backed by the browser's own
+`SpeechRecognition` if Whisper can't record or fails.
 
 Response (failure, RFC 7807 Problem Details, same shape/error-type vocabulary already
 established by spec 005's `ai-provider-unavailable`/`ai-provider-rate-limited` types —
@@ -78,4 +95,6 @@ A single transient failure that succeeds on retry (FR-004) is invisible to the u
 
 Before each subsequent voice turn while the session is on the fallback engine, the client
 calls this endpoint again as a health probe (research.md Decision 5); a `200` response means
-the primary has recovered and the session switches back before that turn begins (FR-034).
+the primary has recovered and the session switches back before that turn begins (FR-034). A
+`200` with `"engine": "Whisper"` also ends the degraded state: the next turn runs on Whisper as
+the normal engine.

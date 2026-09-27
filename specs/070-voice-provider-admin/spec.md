@@ -102,6 +102,11 @@ Lawyer review of `/terms` is still outstanding.
   1.2 s pause). If Whisper can't record in this browser or fails server-side, it uses the
   browser's `SpeechRecognition`. A caption names the engine in use, and every failure is shown to
   the user (`features/chat/voice/dictationFallback.ts`).
+- **Switched off is not a failure (2026-09-27).** While ElevenLabs is switched off under Admin →
+  AI providers, `POST /ai/voice/stt-session` answers `"engine": "Whisper"`, so Whisper is the
+  normal dictation engine: no caption, no failover event, no operational failure. The browser's
+  `SpeechRecognition` still backs Whisper up. Every Whisper request names the user's language
+  (`language` form field, ISO 639-1), so Whisper doesn't have to detect it.
 - **Voice order.** Supertonic is Lucy's voice unless an administrator reorders Admin → Voice.
   Other configured engines (ElevenLabs) are tried next; when every engine fails, the client
   speaks with the browser's own voice.
