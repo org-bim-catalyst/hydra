@@ -57,6 +57,8 @@ describe('useRestoreChatSite', () => {
     })
     expect(useActiveSiteBoundaryStore.getState()).toMatchObject({
       siteName: 'Al Safa Park 2',
+      // The outline is this chat's, so its own later "show me" of the same site keeps it.
+      chatId: 'chat-1',
       confidenceLevel: 'high',
       source: 'OsmBoundary',
       polygon: boundary.polygon,

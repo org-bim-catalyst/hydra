@@ -70,7 +70,7 @@ Users could not say "just the mall podium", and could not add the tower across t
 
 ## Found testing outside Dubai (Muscat, 2026-09-26)
 
-Seven Muscat landmarks were tried to check that nothing here is Dubai-specific. Five bugs showed up
+Seven Muscat landmarks were tried to check that nothing here is Dubai-specific. Six bugs showed up
 and were fixed:
 
 - **Theatres and mosques were never candidates.** The Royal Opera House and the Grand Mosque are
@@ -99,6 +99,11 @@ and were fixed:
   now narrates with a provider resolved in the step's own scope
   (`ConversationTurnRequest.ProviderKey`). Rows run in order on the request itself, so they
   never raced.
+- **A fresh chat showed the last chat's buildings.** The viewer keeps the outline across chats,
+  and a new location only cleared it when the name differed. So a new chat asking for Muscat
+  Grand Mall showed the mall with Phase 2, as the earlier chat had left it, until its own outline
+  (the mall alone) arrived. The outline now records the chat that drew it, and a location from
+  any other chat clears it (`clearUnlessShowing`).
 
 Results after the fixes:
 

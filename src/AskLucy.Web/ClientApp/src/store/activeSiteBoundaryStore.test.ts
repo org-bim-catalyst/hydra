@@ -55,6 +55,33 @@ describe('activeSiteBoundaryStore', () => {
     })
   })
 
+  describe('clearUnlessShowing (specs/077)', () => {
+    it("keeps the outline this conversation drew of the site it just confirmed again", () => {
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, chatId: 'chat-1' })
+
+      useActiveSiteBoundaryStore.getState().clearUnlessShowing('Al Safa Park 2', 'chat-1')
+
+      expect(useActiveSiteBoundaryStore.getState().polygon).toHaveLength(3)
+    })
+
+    it("clears the same site's outline when another conversation drew it", () => {
+      // A fresh chat asking for the site again must not show the buildings an earlier chat chose.
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, chatId: 'chat-1' })
+
+      useActiveSiteBoundaryStore.getState().clearUnlessShowing('Al Safa Park 2', 'chat-2')
+
+      expect(useActiveSiteBoundaryStore.getState().polygon).toBeNull()
+    })
+
+    it("clears another site's outline", () => {
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, chatId: 'chat-1' })
+
+      useActiveSiteBoundaryStore.getState().clearUnlessShowing('Zabeel Park', 'chat-1')
+
+      expect(useActiveSiteBoundaryStore.getState().siteName).toBeNull()
+    })
+  })
+
   describe('clearBoundary', () => {
     it('resets all fields to null (edge case: a new, unrelated site must not leave the old one overlaid)', () => {
       useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary)

@@ -308,9 +308,7 @@ export function useChatStream(
             // same-turn 'siteBoundary' event (if any) still applies cleanly, and so it's also
             // cleared correctly when boundary resolution came back Unavailable this turn (no
             // 'siteBoundary' event follows to replace it otherwise).
-            if (useActiveSiteBoundaryStore.getState().siteName !== event.locationName) {
-              useActiveSiteBoundaryStore.getState().clearBoundary()
-            }
+            useActiveSiteBoundaryStore.getState().clearUnlessShowing(event.locationName, activeChatId)
           } else if (event.type === 'zoom') {
             // specs/038-viewer-poi-zoom US2: explicit zoom command — only execute when an active
             // location exists (C1 fix: no zoom without a confirmed location on screen).
@@ -343,6 +341,7 @@ export function useChatStream(
             // previously active one wholesale (a new site fully supersedes the previous one).
             useActiveSiteBoundaryStore.getState().setBoundary({
               siteName: event.siteName,
+              chatId: activeChatId,
               centroid: event.centroid,
               polygon: event.polygon,
               additionalPolygons: event.additionalPolygons,
@@ -543,9 +542,7 @@ export function useChatStream(
               event.confidenceLevel,
               event.confidenceReason,
             )
-            if (useActiveSiteBoundaryStore.getState().siteName !== event.locationName) {
-              useActiveSiteBoundaryStore.getState().clearBoundary()
-            }
+            useActiveSiteBoundaryStore.getState().clearUnlessShowing(event.locationName, activeChatId)
           } else if (event.type === 'zoom') {
             if (useActiveLocationStore.getState().latitude !== null) {
               viewerEngine.zoomBy(event.direction)
@@ -567,6 +564,7 @@ export function useChatStream(
           } else if (event.type === 'siteBoundary') {
             useActiveSiteBoundaryStore.getState().setBoundary({
               siteName: event.siteName,
+              chatId: activeChatId,
               centroid: event.centroid,
               polygon: event.polygon,
               additionalPolygons: event.additionalPolygons,

@@ -39,6 +39,7 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
     if (boundary) {
       useActiveSiteBoundaryStore.getState().setBoundary({
         siteName: boundary.siteName,
+        chatId: chatDetail.id,
         centroid: boundary.centroid,
         polygon: boundary.polygon,
         additionalPolygons: boundary.additionalPolygons ?? [],
@@ -50,9 +51,9 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
         // Not persisted with the boundary — only the live resolution knows them.
         alternativeCandidateNames: [],
       })
-    } else if (useActiveSiteBoundaryStore.getState().siteName !== location.locationName) {
+    } else {
       // Same rule as a live 'location' event: an outline of some other site must not stay overlaid.
-      useActiveSiteBoundaryStore.getState().clearBoundary()
+      useActiveSiteBoundaryStore.getState().clearUnlessShowing(location.locationName, chatDetail.id)
     }
   }, [chatDetail, locationSource])
 }
