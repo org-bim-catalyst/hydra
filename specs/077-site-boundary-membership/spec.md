@@ -45,6 +45,13 @@ Users could not say "just the mall podium", and could not add the tower across t
    Letters follow the groups actually found. A–D are all the new `set_site_boundary_members`
    capability with different `memberIds`; "Other" is a follow-up the user answers in words, which
    the same capability resolves by name (`memberNames`).
+
+   After the choice, Lucy says which buildings the outline covers, its new area, and what the
+   choice added or removed. `set_site_boundary_members` returns `includedBuildings`,
+   `addedBuildings` and `removedBuildings`, worked out against the outline that was on screen,
+   ahead of the geometry. It does not return `excludedBuildings`. The model that writes the reply
+   sees only this result, not the chat. When it was given the excluded list, it called a building
+   it had only offered "previously included", even when told not to.
 5. **Setting off means no question.** Discovery is skipped entirely: the site alone is
    outlined and nothing is asked.
 
@@ -55,8 +62,44 @@ Users could not say "just the mall podium", and could not add the tower across t
   is still the matched row's own arguments. On reload the chat names the picked row by its
   persisted label.
 - **A site can be several rings.** The SSE `siteBoundary` event, `ChatDetailDto.activeBoundary`
-  and the client store carry `additionalPolygons`. The map draws every ring; the solar dome and
-  building-fetch radius (specs/076) cover all of them.
+  and the client store carry `additionalPolygons`. The map draws every ring with its own animated
+  border (`SiteBoundaryRenderer.setRings`); the solar dome and building-fetch radius (specs/076)
+  cover all of them.
+
+## Found testing outside Dubai (Muscat, 2026-09-26)
+
+Seven Muscat landmarks were tried to check that nothing here is Dubai-specific. Four bugs showed up
+and were fixed:
+
+- **Theatres and mosques were never candidates.** The Royal Opera House and the Grand Mosque are
+  mapped as `amenity=theatre` and `building=mosque`. `OverpassBoundaryCandidateProvider` now also
+  queries `amenity` `place_of_worship` and `theatre`, and `building` `mosque`, `cathedral`,
+  `church` and `temple`. Only these named landmark `building` values are queried, never
+  `building=*`.
+- **Mutrah Souq picked the mosque beside it.** The souq's `name` is Arabic and its English name is
+  in `int_name`, which nothing read. `BoundaryCandidateScorer` and `SiteBoundaryMembershipService`
+  now read `name`, `name:en`, `int_name`, `official_name` and `alt_name`. The scorer also treats
+  "souq" as a retail word, like "mall".
+- **Al Alam Palace took a trace of the wrong block.** Gemini traced a block about 250 m east. It
+  passed the area and distance checks, so it replaced the palace's mapped outline.
+  `TryBuildVisionTracedGeometry` now also requires the trace and the mapped outline to overlap:
+  at least 25% of the smaller one must lie inside the other (`GeometryMath.OverlapFraction`).
+  The rendered-fill path for parks does not apply this check.
+- **The second outline was hard to see.** Choosing "Muscat Grand Mall with its nearby buildings"
+  added Phase 2 as a separate ring, but only the main ring got the animated border. Phase 2 had
+  only the faint fallback fill. Every ring now gets its own border.
+
+Results after the fixes:
+
+| Site | Area | Source |
+|------|------|--------|
+| Muscat Grand Mall | 34,065 m² (48,860 m² with Phase 2) | OSM, with Phase 2 offered as nearby |
+| Oman Avenues Mall | 25,764 m² | OSM |
+| Royal Opera House Muscat | 20,297 m² | OSM |
+| Mall of Oman | 90,718 m² | OSM |
+| Sultan Qaboos Grand Mosque | 8,608 m² (the building) | OSM |
+| Mutrah Souq | 14,205 m² | OSM `landuse=retail`, with Muttrah Gold Market offered as nearby |
+| Al Alam Palace | 20,673 m² | OSM |
 
 ## API
 
@@ -79,11 +122,15 @@ Applied automatically at startup. No backfill: with no stored row the setting re
 
 ## Verification
 
-- Application: `SiteNameMatcherTests`, `GeometryMathGapTests`, `SiteBoundaryMembershipServiceTests`,
-  `SiteBoundaryPayloadTests`, `SiteBoundaryMembershipOfferTests`,
-  `SetSiteBoundaryMembersCapabilityTests`, `CapabilitySettingsTests`, and same-key cases in
-  `SelectedActionResolverTests`.
+- Application: `SiteNameMatcherTests`, `GeometryMathGapTests` (including `OverlapFraction`),
+  `SiteBoundaryMembershipServiceTests`, `SiteBoundaryPayloadTests`,
+  `SiteBoundaryMembershipOfferTests`, `SetSiteBoundaryMembersCapabilityTests` (including
+  added/removed reporting), `CapabilitySettingsTests`, same-key cases in
+  `SelectedActionResolverTests`, the souq/`int_name` case in `BoundaryCandidateScorerTests`, and
+  the no-overlap trace case in `BoundaryResolutionServiceTests`.
 - Infrastructure: `RelatedSiteBuildingsTests` (Overpass interpretation, station entrances mapped
-  onto their hall, seam bridging).
+  onto their hall, seam bridging), and the theatre/place-of-worship query in
+  `OverpassBoundaryCandidateProviderTests`.
 - Frontend: gear and dialog in `CapabilityAssignmentsSection.test.tsx`, `siteRingsOf`, multi-ring
-  dome reach, and same-key label resolution in `ChatPage.test.tsx`.
+  dome reach, same-key label resolution in `ChatPage.test.tsx`, and one border per ring in
+  `SiteBoundaryRenderer.test.ts`.

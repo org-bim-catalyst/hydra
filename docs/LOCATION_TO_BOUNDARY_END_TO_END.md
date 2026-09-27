@@ -818,6 +818,22 @@ Things a reviewer should push on.
 
    Checked live: the merged mall now ranks first at 0.842 (name_match 1.0), and the park second at
    0.742. Al Safa Park 2 (0.914) and The Dubai Mall (0.872) rank first as before.
+
+   **Eighth update (2026-09-26): Muscat.** Seven Muscat landmarks were tested to check that none of
+   this is Dubai-specific. The full list and results are in
+   `specs/077-site-boundary-membership/spec.md`. Three changes affect this pipeline:
+   - **More landmark kinds.** `OverpassBoundaryCandidateProvider` now also queries `amenity`
+     `place_of_worship` and `theatre`, and `building` `mosque`, `cathedral`, `church` and `temple`.
+     Without these, the Royal Opera House and the Grand Mosque had no candidate at all.
+   - **More name tags.** The scorer compares `name`, `name:en`, `int_name`, `official_name` and
+     `alt_name`. Mutrah Souq's `name` is Arabic and its English name is only in `int_name`, so a
+     mosque beside it won the name match. "Souq" now counts as a retail word too.
+   - **A third gate on adopting a trace.** `TryBuildVisionTracedGeometry` now needs the trace to
+     overlap the mapped candidate: at least 25% of the smaller ring inside the other
+     (`GeometryMath.OverlapFraction`). This is on top of the area ratio (0.3x-3.0x) and the centroid
+     check. For Al Alam Palace, Gemini traced a block about 250 m east that passed both old gates
+     and replaced a correct OSM outline. The rendered-fill path for parks still uses only the
+     first two gates.
 ---
 
 ## 10. Where to look in the code

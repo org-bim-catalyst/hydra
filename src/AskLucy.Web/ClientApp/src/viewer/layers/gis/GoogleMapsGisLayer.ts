@@ -88,8 +88,9 @@ export interface GoogleMapsGisLayerHandle {
   /** specs/042-site-boundary-resolution: shows/updates/clears the animated site-boundary highlight. Pass `null` to remove it. */
   /**
    * `additionalRings` (specs/077) are the site's outlines that do not touch the exterior ring —
-   * a same-named building across a street. They join the native polygon as further paths; the
-   * animated Three.js highlight follows the main ring only.
+   * a same-named building across a street. They join the native polygon as further paths, and
+   * each gets its own animated Three.js border, so they read as part of the site rather than as
+   * the faint fallback fill alone.
    */
   setSiteBoundary(
     input: {
@@ -536,7 +537,7 @@ export async function createGoogleMapsGisLayer(
         boundaryPolygon = undefined
         nudgeMapRepaint()
         try {
-          siteBoundaryRenderer.setPolygon(null, 'low')
+          siteBoundaryRenderer.setRings(null, 'low')
         } catch (error) {
           console.error('[GoogleMapsGisLayer] Failed to clear the Three.js site-boundary highlight:', error)
         }
@@ -583,11 +584,13 @@ export async function createGoogleMapsGisLayer(
         // never re-anchors it to this boundary's own centroid, which was the exact per-capability
         // reference-point violation this feature removes (see the `sceneAnchor.set()` call
         // above). `worldToLocal`'s 1-metre tolerance (SC-002) covers this boundary's own scale.
-        const localRing = input.exteriorRing.map((p) => {
-          const local = worldToLocal(p, 0)
-          return { x: local.x, y: local.y }
-        })
-        siteBoundaryRenderer.setPolygon(localRing, input.confidenceLevel)
+        const localRings = [input.exteriorRing, ...(input.additionalRings ?? [])].map((ring) =>
+          ring.map((p) => {
+            const local = worldToLocal(p, 0)
+            return { x: local.x, y: local.y }
+          }),
+        )
+        siteBoundaryRenderer.setRings(localRings, input.confidenceLevel)
       } catch (error) {
         console.error('[GoogleMapsGisLayer] Failed to build the Three.js site-boundary highlight (native polygon above still shows the boundary):', error)
       }
