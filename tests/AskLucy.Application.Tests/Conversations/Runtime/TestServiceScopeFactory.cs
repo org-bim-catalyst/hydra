@@ -1,3 +1,4 @@
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,11 +17,17 @@ namespace AskLucy.Application.Tests.Conversations.Runtime;
 /// </summary>
 internal static class TestServiceScopeFactory
 {
-    public static IServiceScopeFactory Create(ConversationCapabilityCatalog capabilityCatalog, CapabilityExecutor capabilityExecutor)
+    public static IServiceScopeFactory Create(
+        ConversationCapabilityCatalog capabilityCatalog, CapabilityExecutor capabilityExecutor, IAIProviderResolver? providerResolver = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(capabilityCatalog);
         services.AddSingleton(capabilityExecutor);
+        if (providerResolver is not null)
+        {
+            services.AddSingleton(providerResolver);
+        }
+
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 }

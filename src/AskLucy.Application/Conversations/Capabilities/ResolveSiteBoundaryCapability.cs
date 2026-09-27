@@ -60,8 +60,9 @@ public sealed class ResolveSiteBoundaryCapability(
         "(OpenStreetMap, imagery) when confidence is anything below high. Do not re-run this for " +
         "a site already outlined; say it is already shown instead. This step is expensive and " +
         "slow, so it must never be started without the user having asked for it or accepted it. " +
-        "When the result lists includedBuildings or excludedBuildings, name every one of them and " +
-        "say which the outline includes — the user is about to be asked which to keep.";
+        "When the result lists excludedBuildings, say the outline covers what outlineCovers lists " +
+        "and name every building in excludedBuildings as found but left out — the user is about " +
+        "to be asked which to keep.";
 
     public string Label => "Highlight the site boundary";
 

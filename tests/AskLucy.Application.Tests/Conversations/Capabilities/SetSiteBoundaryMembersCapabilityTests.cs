@@ -46,7 +46,7 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
         var result = await RunAsync("""{"memberIds":["osm_way_3"]}""");
 
         result.Succeeded.Should().BeTrue(result.FailureReason);
-        IncludedNames(result).Should().Equal("Burjman Office Tower");
+        Covered(result).Should().Equal("BurJuman Mall", "Burjman Office Tower");
         result.Output!.RootElement.GetProperty("additionalPolygons").GetArrayLength().Should().Be(1);
     }
 
@@ -59,7 +59,7 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
         Names(result, "addedBuildings").Should().BeEmpty();
         Names(result, "removedBuildings").Should().Equal("BurJuman Arjaan by Rotana");
         result.Output!.RootElement.TryGetProperty("excludedBuildings", out _).Should().BeFalse();
-        result.Output.RootElement.EnumerateObject().First().Name.Should().Be("includedBuildings");
+        result.Output.RootElement.EnumerateObject().First().Name.Should().Be("outlineCovers");
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
     {
         var result = await RunAsync("""{"memberIds":[]}""");
 
-        IncludedNames(result).Should().BeEmpty();
+        Covered(result).Should().Equal("BurJuman Mall");
         result.Output!.RootElement.GetProperty("areaSquareMeters").GetDouble()
             .Should().BeApproximately(GeometryMath.AreaSquareMeters(Mall), 1);
     }
@@ -87,7 +87,7 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
         var result = await RunAsync("""{"memberNames":["the metro station","Burjuman Office Tower"]}""");
 
         result.Succeeded.Should().BeTrue(result.FailureReason);
-        IncludedNames(result).Should().BeEquivalentTo("Burjman Office Tower", "BurJuman Metro Station");
+        Covered(result).Should().BeEquivalentTo("BurJuman Mall", "Burjman Office Tower", "BurJuman Metro Station");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
             new AgentToolExecutionContext(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), _chat.Id), document);
     }
 
-    private static IEnumerable<string?> IncludedNames(AgentToolResult result) => Names(result, "includedBuildings");
+    private static IEnumerable<string?> Covered(AgentToolResult result) => Names(result, "outlineCovers");
 
     private static IEnumerable<string?> Names(AgentToolResult result, string property) =>
         result.Output!.RootElement.GetProperty(property).EnumerateArray().Select(e => e.GetString());

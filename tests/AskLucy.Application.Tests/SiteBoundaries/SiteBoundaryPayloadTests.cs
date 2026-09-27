@@ -32,13 +32,13 @@ public sealed class SiteBoundaryPayloadTests
     }
 
     [Fact]
-    public void Write_NamesTheIncludedAndExcludedBuildingsForTheModelToSay()
+    public void Write_NamesWhatTheOutlineCoversAndWhatItLeavesOut_ForTheModelToSay()
     {
         using var written = SiteBoundaryPayload.Write(Boundary(Members));
         var root = written.RootElement;
 
-        root.GetProperty("includedBuildings").EnumerateArray().Select(e => e.GetString())
-            .Should().Equal("BurJuman Business Tower", "BurJuman Arjaan by Rotana");
+        root.GetProperty("outlineCovers").EnumerateArray().Select(e => e.GetString())
+            .Should().Equal("BurJuman Mall", "BurJuman Business Tower", "BurJuman Arjaan by Rotana");
         root.GetProperty("excludedBuildings").EnumerateArray().Select(e => e.GetString())
             .Should().Equal("Burjman Office Tower", "BurJuman Metro Station");
     }
@@ -53,5 +53,8 @@ public sealed class SiteBoundaryPayloadTests
         read.CorePolygon.Should().BeNull();
         read.AdditionalPolygons.Should().BeEmpty();
         read.Members.Should().BeEmpty();
+
+        // No related buildings, nothing to ask about — so nothing for the narration to list.
+        written.RootElement.GetProperty("outlineCovers").GetArrayLength().Should().Be(0);
     }
 }

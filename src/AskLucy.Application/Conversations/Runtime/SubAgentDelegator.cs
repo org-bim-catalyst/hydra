@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Options;
@@ -314,7 +315,18 @@ public sealed class SubAgentDelegator(
         await writer.WriteAsync(new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: slice.PendingLabel ?? capability.Label), cancellationToken);
 
         var result = await scopedExecutor.ExecuteAsync(capability, turnContext, slice.ArgumentsJson, cancellationToken);
-        var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);
+
+        // The narration call reads the provider's credential from the database, and request.Provider
+        // was resolved in the request's scope. This slice runs alongside the controller, which is
+        // saving the acknowledgement through that scope's DbContext at the same moment - so a slice
+        // quick enough to narrate before that save finished ("show me the mall only", no network
+        // call at all) failed the whole turn with "a second operation was started on this context
+        // instance". Narrating with this slice's own instance of the provider keeps it off that
+        // DbContext, the same isolation the capability itself already gets from this scope.
+        var sliceRequest = request.ProviderKey is { } providerKey
+            ? request with { Provider = scope.ServiceProvider.GetRequiredService<IAIProviderResolver>().Resolve(providerKey) }
+            : request;
+        var narration = await narrator.NarrateAsync(sliceRequest, capability, result, nextStepLabel: null, cancellationToken);
         await writer.WriteAsync(new ChatStreamChunk(narration, null), cancellationToken);
 
         if (result.Succeeded)

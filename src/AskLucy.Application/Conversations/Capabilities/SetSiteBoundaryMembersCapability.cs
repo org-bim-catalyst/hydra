@@ -43,7 +43,8 @@ public sealed class SetSiteBoundaryMembersCapability(
 
     public string UsageGuidance =>
         "Pass every building the outline should include — the choice replaces the previous one, it " +
-        "does not add to it. Then say which buildings the outline now covers and its new area. " +
+        "does not add to it. Then say what the outline now covers — everything outlineCovers lists, " +
+        "the site first — and its new area. " +
         "Name a building as added or taken out only when addedBuildings or removedBuildings lists " +
         "it; say nothing of buildings in neither list.";
 
@@ -61,7 +62,7 @@ public sealed class SetSiteBoundaryMembersCapability(
         """{"type":"object","properties":{"memberIds":{"type":"array","items":{"type":"string"}},"memberNames":{"type":"array","items":{"type":"string"}}}}""";
 
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"includedBuildings":{"type":"array"},"addedBuildings":{"type":"array"},"removedBuildings":{"type":"array"}}}""";
+        """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"outlineCovers":{"type":"array"},"addedBuildings":{"type":"array"},"removedBuildings":{"type":"array"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Brief;
 
@@ -133,7 +134,7 @@ public sealed class SetSiteBoundaryMembersCapability(
         payload.Remove("excludedBuildings");
         var output = new JsonObject
         {
-            ["includedBuildings"] = payload["includedBuildings"]!.DeepClone(),
+            ["outlineCovers"] = payload["outlineCovers"]!.DeepClone(),
             ["addedBuildings"] = Names(active.Members.Where(m => !m.Included && chosen.Contains(m.Id))),
             ["removedBuildings"] = Names(active.Members.Where(m => m.Included && !chosen.Contains(m.Id))),
         };

@@ -28,8 +28,11 @@ public static class SiteBoundaryPayload
             corePolygon = boundary.CorePolygon is { } core ? Points(core) : null,
             additionalPolygons = boundary.AdditionalPolygons.Select(Points),
 
-            // What the narrating model reads to tell the user which buildings the outline covers.
-            includedBuildings = boundary.Members.Where(m => m.Included).Select(m => m.Name),
+            // What the narrating model reads to tell the user what the outline covers. The site
+            // itself comes first: given only its included buildings, the model said "the outline
+            // includes no buildings" of a mall it had just outlined, and "only Phase 2" once one
+            // was added. Empty for a site with no related buildings, which asks nothing.
+            outlineCovers = OutlineCovers(boundary),
             excludedBuildings = boundary.Members.Where(m => !m.Included).Select(m => m.Name),
             members = boundary.Members.Select(m => new
             {
@@ -42,6 +45,11 @@ public static class SiteBoundaryPayload
                 ring = Points(m.Ring),
             }),
         });
+
+    private static string[] OutlineCovers(ConfirmedSiteBoundaryData boundary) =>
+        boundary.Members.Count == 0
+            ? []
+            : [boundary.SiteName, .. boundary.Members.Where(m => m.Included).Select(m => m.Name)];
 
     /// <summary>Rebuilds the boundary; throws <see cref="KeyNotFoundException"/>/<see cref="ArgumentException"/>/<see cref="InvalidOperationException"/> on a malformed payload, for the caller to treat as "no payload".</summary>
     public static ConfirmedSiteBoundaryData Read(JsonElement root) =>

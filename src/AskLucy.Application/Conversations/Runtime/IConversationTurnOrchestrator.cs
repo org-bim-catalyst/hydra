@@ -55,4 +55,13 @@ public sealed record ConversationTurnRequest(
     /// Like <see cref="SelectedAction"/>, the decide step is skipped: what to run was resolved
     /// from the persisted outcome before the turn began.
     /// </summary>
-    RetryInput? Retry = null);
+    RetryInput? Retry = null,
+
+    /// <summary>
+    /// The key <see cref="Provider"/> was resolved under, so work running outside the request's
+    /// own scope can resolve its own instance of the same provider. <see cref="Provider"/> reads
+    /// its credential through the request's <c>DbContext</c>, which is not safe to share with a
+    /// concurrent task (see <see cref="SubAgentDelegator"/>). Null only where no second instance is
+    /// ever needed.
+    /// </summary>
+    string? ProviderKey = null);

@@ -37,6 +37,7 @@ public sealed class SubAgentDelegatorTests
     private readonly IRagService _ragService = Substitute.For<IRagService>();
     private readonly IMemoryService _memoryService = Substitute.For<IMemoryService>();
     private readonly IAIProvider _provider = Substitute.For<IAIProvider>();
+    private readonly IAIProvider _sliceScopeProvider = Substitute.For<IAIProvider>();
     private readonly IConversationKnowledgeBaseRepository _knowledgeBaseRepository = Substitute.For<IConversationKnowledgeBaseRepository>();
     private readonly Guid _chatId = Guid.NewGuid();
 
@@ -83,7 +84,9 @@ public sealed class SubAgentDelegatorTests
             runtimeOptions, NullLogger<CapabilityExecutor>.Instance);
         var narrator = new CapabilityNarrator(NullLogger<CapabilityNarrator>.Instance);
 
-        var scopeFactory = new CountingServiceScopeFactory(TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor));
+        var providerResolver = Substitute.For<IAIProviderResolver>();
+        providerResolver.Resolve("test-provider").Returns(_sliceScopeProvider);
+        var scopeFactory = new CountingServiceScopeFactory(TestServiceScopeFactory.Create(capabilityCatalog, capabilityExecutor, providerResolver));
 
         return (new SubAgentDelegator(scopeFactory, capabilityCatalog, narrator, runtimeOptions, NullLogger<SubAgentDelegator>.Instance), scopeFactory);
     }
@@ -161,6 +164,25 @@ public sealed class SubAgentDelegatorTests
         // research.md D12 — a scope per slice, never the request's own scope, so two slices racing
         // in the same wave can never share a scoped DbContext.
         counting.CreateScopeCallCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldNarrateWithTheSlicesOwnProvider_NotTheRequestScopedOne()
+    {
+        // specs/077 — the request's provider reads its credential through the request's DbContext,
+        // which the controller is using to save the acknowledgement while this slice runs. An
+        // instant slice ("show me the mall only") narrated before that save finished and failed
+        // the whole turn; narration must come from the slice's own scope.
+        _sliceScopeProvider.ChatAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>())
+            .Returns(new ChatCompletionResult("Zoomed in.", new ChatUsage(null, null, null, null, null)));
+        var (delegator, _) = BuildDelegator();
+        var slices = new List<TurnSlice> { new(AdjustViewerFocusCapability.CapabilityKey, """{"direction":"in"}""", null, DependsOn: null) };
+
+        var chunks = await CollectAsync(delegator, Request() with { ProviderKey = "test-provider" }, slices, []);
+
+        chunks.Should().Contain(c => c.ContentDelta == "Zoomed in.");
+        await _provider.DidNotReceive().ChatAsync(
+            Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<string>(), Arg.Any<GenerationParametersDto?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
