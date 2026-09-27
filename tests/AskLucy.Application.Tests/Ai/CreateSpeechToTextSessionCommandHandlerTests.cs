@@ -65,9 +65,9 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
         // An admin switching ElevenLabs off is a choice, not an outage: Whisper is the normal
         // engine, so there is no failover, no health change and no operational failure.
         session.Should().Be(DictationSession.Whisper);
-        await _sessionProvider.DidNotReceiveWithAnyArgs().CreateSessionAsync(default!, default);
-        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, default);
+        await _sessionProvider.DidNotReceiveWithAnyArgs().CreateSessionAsync(default!, TestContext.Current.CancellationToken);
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, TestContext.Current.CancellationToken);
         _reporter.DidNotReceiveWithAnyArgs().ReportServed(default!, default!);
-        await _healthRecorder.DidNotReceiveWithAnyArgs().RecordFailoverAsync(default!, default!, default);
+        await _healthRecorder.DidNotReceiveWithAnyArgs().RecordFailoverAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 }

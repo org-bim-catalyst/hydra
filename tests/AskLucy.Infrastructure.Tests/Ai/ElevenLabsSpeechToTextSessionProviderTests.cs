@@ -140,9 +140,9 @@ public sealed class ElevenLabsSpeechToTextSessionProviderTests
         vendor.SetCredential("protected:vendor-key", null, "test");
         var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK), out _, vendor);
 
-        (await provider.IsSwitchedOnAsync()).Should().BeFalse();
+        (await provider.IsSwitchedOnAsync(TestContext.Current.CancellationToken)).Should().BeFalse();
         vendor.Enable("test");
-        (await provider.IsSwitchedOnAsync()).Should().BeTrue();
+        (await provider.IsSwitchedOnAsync(TestContext.Current.CancellationToken)).Should().BeTrue();
     }
 
     [Fact]
@@ -150,6 +150,6 @@ public sealed class ElevenLabsSpeechToTextSessionProviderTests
     {
         var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK), out _);
 
-        (await provider.IsSwitchedOnAsync()).Should().BeTrue();
+        (await provider.IsSwitchedOnAsync(TestContext.Current.CancellationToken)).Should().BeTrue();
     }
 }
