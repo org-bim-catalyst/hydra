@@ -171,7 +171,10 @@ public interface IAIProvider
     /// </summary>
     Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default);
 
-    Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default);
+    /// <param name="language">The speaker's language (BCP 47, e.g. "ar" or "ar-SA") when the caller
+    /// knows it, as dictation does; null lets the model detect it, as for an uploaded file.</param>
+    Task<string> TranscribeAudioAsync(
+        Stream audioContent, string fileName, string contentType, string? language, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// A cheap operation (e.g. a models-list call), not a full chat completion (research.md

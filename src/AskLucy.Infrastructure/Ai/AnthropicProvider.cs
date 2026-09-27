@@ -169,7 +169,8 @@ public sealed class AnthropicProvider(
     public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Anthropic does not support image generation.");
 
-    public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
+    public Task<string> TranscribeAudioAsync(
+        Stream audioContent, string fileName, string contentType, string? language, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Anthropic does not support audio transcription.");
 
     public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>

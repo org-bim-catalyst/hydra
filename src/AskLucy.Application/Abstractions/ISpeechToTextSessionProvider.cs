@@ -17,6 +17,14 @@ public interface ISpeechToTextSessionProvider
     /// <summary>The vendor name the operational failure trail shows for this provider (specs/074).</summary>
     string ProviderName { get; }
 
+    /// <summary>
+    /// False when an administrator has deliberately switched the provider off. Dictation then
+    /// runs on Whisper as a matter of course: an admin's choice is not an outage, so it is neither
+    /// a failover nor an operational failure. A provider that is switched on but broken is still
+    /// both.
+    /// </summary>
+    Task<bool> IsSwitchedOnAsync(CancellationToken cancellationToken = default);
+
     /// <summary><paramref name="language"/> hints the provider's transcription language
     /// (research.md Decision 9) — the same value already threaded through the legacy TTS
     /// path in <c>ChatPage.tsx</c>.</summary>

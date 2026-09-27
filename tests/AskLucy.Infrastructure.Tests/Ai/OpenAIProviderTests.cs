@@ -51,7 +51,48 @@ public sealed class OpenAIProviderTests
     }
 
     private static Task<string> TranscribeAsync(OpenAIProvider provider) =>
-        provider.TranscribeAudioAsync(new MemoryStream([1, 2, 3]), "recording.webm", "audio/webm", CancellationToken.None);
+        provider.TranscribeAudioAsync(new MemoryStream([1, 2, 3]), "recording.webm", "audio/webm", null, CancellationToken.None);
+
+    [Theory]
+    [InlineData("ar-SA", "ar")]
+    [InlineData("EN", "en")]
+    public async Task TranscribeAudioAsync_ShouldNameTheSpokenLanguage_AsItsIso639Code(string language, string expected)
+    {
+        string? sentLanguage = null;
+        var provider = CreateProvider(request =>
+        {
+            sentLanguage = ReadFormField(request, "language");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"text":"hello"}""", Encoding.UTF8, "application/json") };
+        }, out _);
+
+        await provider.TranscribeAudioAsync(new MemoryStream([1, 2, 3]), "recording.webm", "audio/webm", language, CancellationToken.None);
+
+        sentLanguage.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task TranscribeAudioAsync_ShouldLetWhisperDetectTheLanguage_WhenNoneIsGiven()
+    {
+        var sawForm = false;
+        string? sentLanguage = "unset";
+        var provider = CreateProvider(request =>
+        {
+            sawForm = request.Content is MultipartFormDataContent;
+            sentLanguage = ReadFormField(request, "language");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"text":"hello"}""", Encoding.UTF8, "application/json") };
+        }, out _);
+
+        await TranscribeAsync(provider);
+
+        sawForm.Should().BeTrue();
+        sentLanguage.Should().BeNull();
+    }
+
+    /// <summary>Read inside the responder: the provider disposes the form once the call returns.</summary>
+    private static string? ReadFormField(HttpRequestMessage request, string name) =>
+        request.Content is MultipartFormDataContent form
+            ? form.FirstOrDefault(part => part.Headers.ContentDisposition?.Name?.Trim('"') == name)?.ReadAsStringAsync().GetAwaiter().GetResult()
+            : null;
 
     [Fact]
     public async Task TranscribeAudioAsync_ShouldThrowAiProviderRequestInvalidException_When400()
@@ -206,7 +247,7 @@ public sealed class OpenAIProviderTests
         }, out _);
 
         var result = await provider.TranscribeAudioAsync(
-            new MemoryStream([1, 2, 3]), "recording.webm", "audio/webm;codecs=opus", CancellationToken.None);
+            new MemoryStream([1, 2, 3]), "recording.webm", "audio/webm;codecs=opus", null, CancellationToken.None);
 
         result.Should().Be("hello from whisper");
     }

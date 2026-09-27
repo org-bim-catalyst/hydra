@@ -22,6 +22,7 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
     {
         _currentUser.UserId.Returns("user-1");
         _sessionProvider.ProviderName.Returns("ElevenLabs");
+        _sessionProvider.IsSwitchedOnAsync(Arg.Any<CancellationToken>()).Returns(true);
     }
 
     private CreateSpeechToTextSessionCommandHandler CreateHandler() =>
@@ -32,8 +33,10 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
     {
         _sessionProvider.CreateSessionAsync("en", Arg.Any<CancellationToken>()).Returns(new SpeechToTextSession("token", DateTime.UtcNow));
 
-        await CreateHandler().Handle(new CreateSpeechToTextSessionCommand("en"), CancellationToken.None);
+        var session = await CreateHandler().Handle(new CreateSpeechToTextSessionCommand("en"), CancellationToken.None);
 
+        session.Engine.Should().Be(DictationEngine.Realtime);
+        session.Token.Should().Be("token");
         _reporter.Received(1).ReportServed(VoiceOperations.Transcription, new VoiceEngineIdentity("ElevenLabs"));
     }
 
@@ -50,5 +53,21 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
             VoiceOperations.Transcription, new VoiceEngineIdentity("ElevenLabs"), failure, true, Arg.Any<CancellationToken>());
         await _healthRecorder.Received(1).RecordFailoverAsync("user-1", failure.Message, Arg.Any<CancellationToken>());
         _reporter.DidNotReceiveWithAnyArgs().ReportServed(default!, default!);
+    }
+
+    [Fact]
+    public async Task ASwitchedOffProvider_ShouldHandDictationToWhisper_WithoutRecordingAFailure()
+    {
+        _sessionProvider.IsSwitchedOnAsync(Arg.Any<CancellationToken>()).Returns(false);
+
+        var session = await CreateHandler().Handle(new CreateSpeechToTextSessionCommand("en"), CancellationToken.None);
+
+        // An admin switching ElevenLabs off is a choice, not an outage: Whisper is the normal
+        // engine, so there is no failover, no health change and no operational failure.
+        session.Should().Be(DictationSession.Whisper);
+        await _sessionProvider.DidNotReceiveWithAnyArgs().CreateSessionAsync(default!, default);
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, default);
+        _reporter.DidNotReceiveWithAnyArgs().ReportServed(default!, default!);
+        await _healthRecorder.DidNotReceiveWithAnyArgs().RecordFailoverAsync(default!, default!, default);
     }
 }

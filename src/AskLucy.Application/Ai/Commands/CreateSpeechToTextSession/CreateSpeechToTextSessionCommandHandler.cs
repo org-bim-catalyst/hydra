@@ -14,17 +14,26 @@ namespace AskLucy.Application.Ai.Commands.CreateSpeechToTextSession;
 /// specs/074 US2 — a failure is also a failover on the operational failure trail (the browser's
 /// own recogniser serves the user), and the next session this provider mints for the same user is
 /// the recovery that pairs with it.
+///
+/// A provider an administrator has switched off is not a failure: the session says to dictate
+/// with Whisper, and nothing is recorded (the 2026-09-26 "Not configured" Critical incident was
+/// ElevenLabs being switched off on purpose).
 /// </summary>
 public sealed class CreateSpeechToTextSessionCommandHandler(
     ISpeechToTextSessionProvider sessionProvider,
     IVoiceProviderHealthRecorder healthRecorder,
     IVoiceProviderFailoverEventRepository failoverEvents,
     IVoiceFailureReporter failureReporter,
-    ICurrentUserAccessor currentUser) : IRequestHandler<CreateSpeechToTextSessionCommand, SpeechToTextSession>
+    ICurrentUserAccessor currentUser) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
 {
-    public async Task<SpeechToTextSession> Handle(CreateSpeechToTextSessionCommand request, CancellationToken cancellationToken)
+    public async Task<DictationSession> Handle(CreateSpeechToTextSessionCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        if (!await sessionProvider.IsSwitchedOnAsync(cancellationToken))
+        {
+            return DictationSession.Whisper;
+        }
+
         var engine = new VoiceEngineIdentity(sessionProvider.ProviderName);
 
         try
@@ -41,7 +50,7 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
                 await healthRecorder.RecordRecoveryAsync(userId, cancellationToken);
             }
 
-            return session;
+            return DictationSession.Realtime(session.Token, session.ExpiresAtUtc);
         }
         // specs/068 - every provider failure, not the three that were listed. The named set left
         // out the two that occur most often in practice: NotConfigured (the provider is switched

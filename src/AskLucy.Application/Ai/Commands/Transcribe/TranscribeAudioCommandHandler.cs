@@ -6,5 +6,5 @@ namespace AskLucy.Application.Ai.Commands.Transcribe;
 public sealed class TranscribeAudioCommandHandler(IAIProvider aiProvider) : IRequestHandler<TranscribeAudioCommand, string>
 {
     public Task<string> Handle(TranscribeAudioCommand request, CancellationToken cancellationToken) =>
-        aiProvider.TranscribeAudioAsync(request.Audio, request.FileName, request.ContentType, cancellationToken);
+        aiProvider.TranscribeAudioAsync(request.Audio, request.FileName, request.ContentType, request.Language, cancellationToken);
 }

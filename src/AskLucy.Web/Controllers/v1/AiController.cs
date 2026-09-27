@@ -897,7 +897,8 @@ public sealed partial class AiController(
     }
 
     [HttpPost("transcriptions")]
-    public async Task<ActionResult<TranscriptionResponse>> Transcribe(IFormFile file, CancellationToken cancellationToken)
+    public async Task<ActionResult<TranscriptionResponse>> Transcribe(
+        IFormFile file, [FromForm] string? language, CancellationToken cancellationToken)
     {
         // specs/034: a missing multipart file part binds IFormFile to null rather than failing
         // model validation, and a present-but-empty file previously sailed through to a real
@@ -911,7 +912,7 @@ public sealed partial class AiController(
 
         await using var stream = file.OpenReadStream();
         var text = await mediator.Send(
-            new TranscribeAudioCommand(stream, file.FileName, file.ContentType), cancellationToken);
+            new TranscribeAudioCommand(stream, file.FileName, file.ContentType, language), cancellationToken);
 
         return Ok(new TranscriptionResponse(text));
     }
@@ -937,7 +938,7 @@ public sealed partial class AiController(
     // contracts/voice-stt-session.md, voice-preferences.md, voice-provider-health.md,
     // voice-reply-stream.md.
     [HttpPost("voice/stt-session")]
-    public async Task<ActionResult<SpeechToTextSession>> CreateSttSession(CreateSpeechToTextSessionRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<DictationSession>> CreateSttSession(CreateSpeechToTextSessionRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new CreateSpeechToTextSessionCommand(request.Language), cancellationToken));
 
     [HttpGet("voice/preferences")]

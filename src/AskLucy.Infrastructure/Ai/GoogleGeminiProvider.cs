@@ -188,7 +188,8 @@ public sealed class GoogleGeminiProvider(
             throw new AiProviderUnavailableException("The AI service returned no image.");
         }, cancellationToken);
 
-    public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
+    public Task<string> TranscribeAudioAsync(
+        Stream audioContent, string fileName, string contentType, string? language, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Google Gemini audio transcription is not supported by this provider.");
 
     public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>

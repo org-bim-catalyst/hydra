@@ -155,7 +155,8 @@ public sealed class OpenRouterProvider(
     public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("OpenRouter image generation is not supported by this provider.");
 
-    public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
+    public Task<string> TranscribeAudioAsync(
+        Stream audioContent, string fileName, string contentType, string? language, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("OpenRouter audio transcription is not supported by this provider.");
 
     public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>

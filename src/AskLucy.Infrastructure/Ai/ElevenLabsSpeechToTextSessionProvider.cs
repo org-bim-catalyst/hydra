@@ -42,6 +42,17 @@ public sealed class ElevenLabsSpeechToTextSessionProvider(
 
     public string ProviderName => "ElevenLabs";
 
+    /// <summary>
+    /// The on/off switch under Admin → AI providers. With no such row (a database that predates
+    /// it) a configured <see cref="ElevenLabsOptions.ApiKey"/> is the switch, as in
+    /// <see cref="ResolveApiKeyAsync"/>.
+    /// </summary>
+    public async Task<bool> IsSwitchedOnAsync(CancellationToken cancellationToken = default)
+    {
+        var provider = await providerRepository.GetByKeyAsync(ElevenLabsProvider.ProviderKey, cancellationToken);
+        return provider?.IsEnabled ?? !string.IsNullOrWhiteSpace(_options.ApiKey);
+    }
+
     public async Task<SpeechToTextSession> CreateSessionAsync(string language, CancellationToken cancellationToken = default)
     {
         using var client = CreateClient(await ResolveApiKeyAsync(cancellationToken));

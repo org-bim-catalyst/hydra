@@ -203,7 +203,7 @@ public sealed class OpenAIProvider(
         }, cancellationToken);
 
     public Task<string> TranscribeAudioAsync(
-        Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
+        Stream audioContent, string fileName, string contentType, string? language, CancellationToken cancellationToken = default) =>
         WithRetryAsync(async ct =>
         {
             using var client = await CreateClientAsync(ct);
@@ -217,6 +217,13 @@ public sealed class OpenAIProvider(
 
             form.Add(fileContent, "file", fileName);
             form.Add(new StringContent(_options.TranscriptionModel), "model");
+
+            // Whisper takes an ISO 639-1 code. Naming it beats detection on a short utterance,
+            // which can mistake Arabic for Persian or Urdu.
+            if (!string.IsNullOrWhiteSpace(language))
+            {
+                form.Add(new StringContent(language.Split('-')[0].ToLowerInvariant()), "language");
+            }
 
             using var response = await client.PostAsync("audio/transcriptions", form, ct);
             await EnsureSuccessAsync(response, ct);

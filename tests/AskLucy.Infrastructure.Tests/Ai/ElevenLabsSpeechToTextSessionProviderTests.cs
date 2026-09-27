@@ -132,4 +132,24 @@ public sealed class ElevenLabsSpeechToTextSessionProviderTests
         (await act.Should().ThrowAsync<AiProviderNotConfiguredException>()).WithMessage("*switched off*");
         handler.LastRequest.Should().BeNull();
     }
+
+    [Fact]
+    public async Task IsSwitchedOnAsync_ShouldFollowTheAdminSwitch()
+    {
+        var vendor = AIProvider.Create(ElevenLabsProvider.ProviderKey, "ElevenLabs", "test", AIProviderKind.Speech);
+        vendor.SetCredential("protected:vendor-key", null, "test");
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK), out _, vendor);
+
+        (await provider.IsSwitchedOnAsync()).Should().BeFalse();
+        vendor.Enable("test");
+        (await provider.IsSwitchedOnAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsSwitchedOnAsync_ShouldFallBackToTheConfiguredKey_WhenThereIsNoAdminRow()
+    {
+        var provider = CreateProvider(_ => new HttpResponseMessage(HttpStatusCode.OK), out _);
+
+        (await provider.IsSwitchedOnAsync()).Should().BeTrue();
+    }
 }

@@ -45,7 +45,8 @@ public sealed class ElevenLabsProvider(
     public Task<GeneratedImagePayload> GenerateImageAsync(string prompt, string model, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("ElevenLabs image generation is not supported by this provider.");
 
-    public Task<string> TranscribeAudioAsync(Stream audioContent, string fileName, string contentType, CancellationToken cancellationToken = default) =>
+    public Task<string> TranscribeAudioAsync(
+        Stream audioContent, string fileName, string contentType, string? language, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("ElevenLabs file transcription is not supported by this provider; live dictation uses its realtime session.");
 
     public Task<ProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default) =>
