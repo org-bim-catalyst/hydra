@@ -32,7 +32,7 @@ Full rationale is in [research.md](research.md).
   - SignalR, MailKit 4.17, Serilog and ASP.NET Identity.
   - MUI 9 with Emotion 11, TanStack Query 5, Zustand 5, RHF, Zod 4, d3 7, `@microsoft/signalr`, and Vitest with jest-axe and MSW.
 - **New**:
-  - Frontend: `stylis-plugin-rtl`, plus an explicit `@emotion/cache` (already a transitive dependency). Recorded in ADR 0017.
+  - Frontend: `stylis-plugin-rtl`, plus an explicit `@emotion/cache` (already a transitive dependency). Recorded in ADR 0019.
   - Backend: no new packages. Metrics use BCL `System.Diagnostics.Metrics`, and resources use BCL resx.
 
 **Storage**: SQL Server via EF Core code-first.
@@ -100,7 +100,7 @@ Checked against constitution v1.1.1. **Pre-research: PASS. Post-design re-check:
 | **§7 Voice** | Not touched. Notifications have no TTS. | n/a |
 | **§8 Security** | OWASP coverage per the spec's Security Threats table: ownership returns 404, plain-text in-app rendering, context escaping, header sanitization, constructed links only, no stored tokens, a masked PII address, server-only secrets, and an immutable audit. | ✅ |
 | **§10 Testing** | Unit tests (Domain router, catalogue, renderer), integration tests (repositories, workers, fault injection against the real DB), a11y tests, an OpenAPI contract test, gated scale and latency tests, and a stub-channel proof. | ⚠️ perf gating, see Complexity Tracking |
-| **§13 and §17 ADRs** | **ADR 0016**: transactional notification outbox and in-process workers, a new cross-cutting pattern. **ADR 0017**: frontend i18n and RTL approach, a new dependency and a precedent. Both ship with the implementation. | ✅ (planned deliverables) |
+| **§13 and §17 ADRs** | **ADR 0018**: transactional notification outbox and in-process workers, a new cross-cutting pattern. **ADR 0019**: frontend i18n and RTL approach, a new dependency and a precedent. Both ship with the implementation. | ✅ (planned deliverables) |
 | **§14 Observability** | Correlation id from edge to delivery. The `AskLucy.Notifications` meter. `notifications-*` checks on `/health/ready`. Structured Serilog events. | ✅ |
 | **§15 Performance** | Keyset paging, filtered covering indexes, set-based mark-all and retention, and admin screens lazy-loaded. | ✅ |
 
@@ -124,8 +124,8 @@ specs/067-notifications-communication-hub/
 ├── checklists/requirements.md
 └── tasks.md             # Phase 2 (/speckit-tasks — not created here)
 
-docs/adr/0016-transactional-notification-outbox.md     # written during implementation
-docs/adr/0017-frontend-i18n-and-rtl.md                  # written during implementation
+docs/adr/0018-transactional-notification-outbox.md     # written during implementation
+docs/adr/0019-frontend-i18n-and-rtl.md                  # written during implementation
 docs/localization/do-not-translate.md                   # canonical protected-terms list (FR-046b)
 docs/ARCHITECTURE.md, docs/DATABASE.md, docs/API_GUIDELINES.md   # updated (Documentation principle)
 ```
@@ -235,6 +235,6 @@ Every merge to main deploys, so each slice must leave production coherent (resea
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
-| §7 i18n rule scope: introducing an i18n framework triggers "user-facing strings MUST NOT be hardcoded inline", but this feature moves only the notification screens and the admin area onto catalogs | The spec limits Arabic to those surfaces (Assumptions: Arabic scope). Retrofitting chat, the workspace, the studio, landing and auth pages is explicitly out of scope. | Converting the whole app now would multiply the scope and risk with no user-visible benefit, because those screens stay English. Mitigation: those surfaces already use centralized copy (§7's pre-i18n rule), which keeps extraction mechanical, and ADR 0017 records moving each surface onto `i18n/` catalogs when it is localized. |
-| New cross-cutting infrastructure pattern: a transactional outbox plus in-process `BackgroundService` workers, alongside Hangfire | The durability required by FR-006, plus the latency in SC-001 and SC-014, can't be met by Hangfire enqueue (not transactional with EF) or Hangfire recurring jobs (1-minute granularity). | Hangfire-only misses the latency targets and keeps the lost-event window. A message broker is new infrastructure that 10k/hour doesn't justify. Recorded in ADR 0016. |
+| §7 i18n rule scope: introducing an i18n framework triggers "user-facing strings MUST NOT be hardcoded inline", but this feature moves only the notification screens and the admin area onto catalogs | The spec limits Arabic to those surfaces (Assumptions: Arabic scope). Retrofitting chat, the workspace, the studio, landing and auth pages is explicitly out of scope. | Converting the whole app now would multiply the scope and risk with no user-visible benefit, because those screens stay English. Mitigation: those surfaces already use centralized copy (§7's pre-i18n rule), which keeps extraction mechanical, and ADR 0019 records moving each surface onto `i18n/` catalogs when it is localized. |
+| New cross-cutting infrastructure pattern: a transactional outbox plus in-process `BackgroundService` workers, alongside Hangfire | The durability required by FR-006, plus the latency in SC-001 and SC-014, can't be met by Hangfire enqueue (not transactional with EF) or Hangfire recurring jobs (1-minute granularity). | Hangfire-only misses the latency targets and keeps the lost-event window. A message broker is new infrastructure that 10k/hour doesn't justify. Recorded in ADR 0018. |
 | §10 "performance tests fail the build": the throughput and latency tests (T224, T232, T233, T234) run only when `RUN_SCALE_PERFORMANCE_TESTS=1`, like the existing scale tests | CI runs against a shared hosted SQL Server whose IO latency varies by an order of magnitude between runs, so timings there measure the host, not the code. Ungated, the tests fail at random and get ignored. | Running them ungated on the shared host gives flaky, meaningless failures. Loosening the thresholds until they pass would hide real regressions. Mitigation: the tests exist and assert the real SC targets now; the gate is switched on at go-live on dedicated infrastructure, the same plan as the existing scale tests. |

@@ -24,6 +24,8 @@ public sealed record NotificationRequest(
     string? EventKey = null,                          // de-duplication identity (FR-008)
     string? Language = null);                         // explicit language, the first FR-044 candidate
 
+public sealed record RelatedItem(string Type, string Id, string? ParentId = null); // ParentId fills {parentId} in nested routes (R11 addendum)
+
 public abstract record NotificationRecipient
 {
     public sealed record User(string UserId) : NotificationRecipient;

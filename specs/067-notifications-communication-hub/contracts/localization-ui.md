@@ -1,6 +1,6 @@
 # Contract: Frontend Localization & RTL
 
-**Scope**: This contract covers the notification center (bell popover and full page), notification details, notification preferences and the language switch. It also covers the entire admin area (FR-046, FR-046a). Every other surface stays English, left-to-right, and on centralized copy (Assumptions: Arabic scope). Decision records are in [research.md](../research.md) R16–R17 and ADR 0017.
+**Scope**: This contract covers the notification center (bell popover and full page), notification details, notification preferences and the language switch. It also covers the entire admin area (FR-046, FR-046a). Every other surface stays English, left-to-right, and on centralized copy (Assumptions: Arabic scope). Decision records are in [research.md](../research.md) R16–R17 and ADR 0019.
 
 ---
 

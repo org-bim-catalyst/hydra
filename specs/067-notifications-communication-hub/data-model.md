@@ -284,7 +284,7 @@ It uses `RowVersion` for optimistic concurrency. A conflict returns 409, and the
 
 ## Notification type catalogue
 
-The definitions below are code-owned in `NotificationTypeCatalog`.
+The definitions below are code-owned in `NotificationTypeCatalog`. Routes were reconciled against `ClientApp/src/routes/router.tsx` (research R11 addendum): `{id}` is `RelatedItem.Id` and `{parentId}` is `RelatedItem.ParentId`.
 
 **Column key**:
 - **In-app / Email**: the default state. **on** or **off** means optional, following the user preference; **M** means mandatory and can't be disabled; **—** means the channel isn't used.
@@ -294,16 +294,16 @@ The definitions below are code-owned in `NotificationTypeCatalog`.
 
 | Type key | Category | Priority | In-app | Email | Extra declared variables | Route |
 |---|---|---|---|---|---|---|
-| `agent.execution.started` | Agent | Low | on | off | `agentName` | `/agents/executions/{id}` |
+| `agent.execution.started` | Agent | Low | on | off | `agentName` | `/agents/{parentId}/executions/{id}` |
 | `agent.execution.completed` | Agent | Normal | on | off | `agentName`, `duration` | same |
 | `agent.execution.failed` | Agent | High | on | on | `agentName`, `failureSummary` | same |
-| `agent.approval.requested` | Agent | High | on | on | `agentName`, `intendedAction` | agent approval screen |
-| `workflow.execution.started` | Workflow | Low | on | off | `workflowName` | `/workflows/executions/{id}` |
+| `agent.approval.requested` | Agent | High | on | on | `agentName`, `intendedAction` | same (the execution page shows the pending approval) |
+| `workflow.execution.started` | Workflow | Low | on | off | `workflowName` | `/workflows/{parentId}/executions/{id}` |
 | `workflow.execution.completed` | Workflow | Normal | on | off | `workflowName`, `duration` | same |
 | `workflow.execution.failed` | Workflow | High | on | on | `workflowName`, `failureSummary` | same |
 | `workflow.execution.paused` | Workflow | Normal | on | off | `workflowName` | same |
-| `workflow.approval.requested` | Workflow | High | on | on | `workflowName`, `nodeName`, `intendedAction` | workflow approval screen |
-| `document.upload.completed` | Document | Normal | on | off | `documentName` | `/documents/{id}` |
+| `workflow.approval.requested` | Workflow | High | on | on | `workflowName`, `nodeName`, `intendedAction` | same (the execution page shows the pending approval) |
+| `document.upload.completed` | Document | Normal | on | off | `documentName` | `/documents?documentId={id}` |
 | `document.processing.completed` | Document | Normal | on | off | `documentName` | same |
 | `document.processing.failed` | Document | High | on | on | `documentName`, `failureSummary` | same |
 | `document.ocr.completed` | Document | Normal | on | off | `documentName` | same |
@@ -315,18 +315,18 @@ The definitions below are code-owned in `NotificationTypeCatalog`.
 | `knowledge-base.indexing.completed` | KnowledgeBase | Normal | on | off | `knowledgeBaseName` | `/knowledge-bases/{id}` |
 | `knowledge-base.indexing.failed` | KnowledgeBase | High | on | on | `knowledgeBaseName`, `failureSummary` | same |
 | `knowledge-base.updated` | KnowledgeBase | Low | on | off | `knowledgeBaseName`, `changeSummary` | same |
-| `memory.auto-created` | Memory | Low | on | off | `memorySummary` | `/memory/{id}` |
+| `memory.auto-created` | Memory | Low | on | off | `memorySummary` | `/memory?memoryId={id}` |
 | `memory.auto-approved` | Memory | Low | on | off | `memorySummary` | same |
-| `memory.conflict.confirmation-needed` | Memory | Normal | on | off | `memorySummary` | existing memory-confirmation screen |
+| `memory.conflict.confirmation-needed` | Memory | Normal | on | off | `memorySummary` | `/memory?memoryId={id}` |
 | `account.email-confirmation.requested` | Account | Critical | — | **M** | Link: `EmailConfirmation` | — |
 | `account.email-change.requested` | Account | Critical | — | **M** | Link: `EmailChange`, `newEmailMasked` | — |
 | `account.password-reset.requested` | Account | Critical | — | **M** | Link: `PasswordReset` | — |
 | `account.support-request.submitted` | Account | High | — | **M** (support mailbox) | `requesterEmail`, `requestKind`, `messageBody` | — |
 | `security.password-changed` | Security | Critical | — | **M** | `changedAt`, `ipAddress` | — |
-| `security.two-factor.enabled` | Security | Critical | **M** | **M** | `changedAt` | `/settings/security` |
+| `security.two-factor.enabled` | Security | Critical | **M** | **M** | `changedAt` | `/settings?tab=security` |
 | `security.two-factor.disabled` | Security | Critical | **M** | **M** | `changedAt` | same |
 | `security.recovery-codes.regenerated` | Security | Critical | **M** | **M** | `changedAt` | same |
-| `system.announcement.published` | System | Normal, or High when critical | on | on, sent only if `IsCritical` (FR-004a) | `announcementTitle`, `announcementMessage`, `announcementKind`, `endsAt` | `/notifications/{id}` |
+| `system.announcement.published` | System | Normal, or High when critical | **M** (FR-004a: every announcement reaches its audience in-app) | on, sent only if `IsCritical` (FR-004a) | `announcementTitle`, `announcementMessage`, `announcementKind`, `endsAt` | `/notifications/{notificationId}` (the materialized notification's own id, filled by the link builder) |
 | `template.test` | System | Normal | — | **M** (the calling admin's own verified address only) | the template's own variables, sample values | — |
 | `conversation.export.completed` | Conversation | Normal | defined, **not emitted** (FR-005) | | | |
 | `billing.payment.failed`, `billing.subscription.renewed` | Billing | High / Normal | defined, **not emitted** (FR-005) | | | |
@@ -416,15 +416,15 @@ When a user is deleted:
 
 | Legacy source | Legacy event | Hub type | Route |
 |---|---|---|---|
-| `DocumentNotifications` | `UploadCompleted` | `document.upload.completed` | `/documents/{DocumentId}` (or none if null) |
+| `DocumentNotifications` | `UploadCompleted` | `document.upload.completed` | `/documents?documentId={DocumentId}` (or none if null) |
 | | `ProcessingCompleted` | `document.processing.completed` | same |
 | | `ProcessingFailed` | `document.processing.failed` | same |
 | | `OcrFailed` | `document.ocr.failed` | same |
 | | `VersionCreated` | `document.version.created` | same |
 | | `StorageLimitReached` | `document.storage.limit-reached` | `/documents` |
-| `MemoryNotifications` | `AutoCreated` | `memory.auto-created` | `/memory/{MemoryId}` |
+| `MemoryNotifications` | `AutoCreated` | `memory.auto-created` | `/memory?memoryId={MemoryId}` |
 | | `AutoApproved` | `memory.auto-approved` | same |
-| | `ConflictNeedsConfirmation` | `memory.conflict.confirmation-needed` | existing confirmation screen |
+| | `ConflictNeedsConfirmation` | `memory.conflict.confirmation-needed` | `/memory?memoryId={MemoryId}` |
 
 Each imported row is set as follows:
 

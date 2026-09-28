@@ -12,5 +12,6 @@ public enum AdminArea
     WorkflowPolicies,
     McpServers,
     CustomModels,
-    OperationalFailures
+    OperationalFailures,
+    Notifications
 }

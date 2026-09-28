@@ -15,13 +15,17 @@ public static class AdminPermissionCatalog
 
     public const string OperationalFailuresContentView = "admin.operational-failures.content.view";
 
+    public const string NotificationsView = "admin.notifications.view";
+
+    public const string NotificationsManage = "admin.notifications.manage";
+
     /// <summary>
     /// Keys only a Super User may grant or revoke, and the only keys the built-in Administrator role
     /// does not hold implicitly (specs/074 research D14).
     /// </summary>
     public static IReadOnlySet<string> SuperUserControlledKeys { get; }
 
-    private static readonly List<AdminPermission> _allList = new(21);
+    private static readonly List<AdminPermission> _allList = new(23);
 
     static AdminPermissionCatalog()
     {
@@ -68,6 +72,10 @@ public static class AdminPermissionCatalog
         _allList.Add(Permission(OperationalFailuresView, AdminArea.OperationalFailures, AdminPermissionLevel.View, "View operational failures", "View the operational failure trail, with metadata-only links to affected chats, workflow runs and documents."));
         _allList.Add(Permission(OperationalFailuresManage, AdminArea.OperationalFailures, AdminPermissionLevel.Manage, "Manage operational failures", "Acknowledge, resolve, and reopen operational failure incidents."));
         _allList.Add(Permission(OperationalFailuresContentView, AdminArea.OperationalFailures, AdminPermissionLevel.View, "View user content in failure investigations", "Read the full content of another user's chat, workflow run or document from a failure incident. Every access is audited. Only a Super User can grant or revoke it; it grants nothing without View operational failures."));
+
+        // Notifications (specs/067, R18). Manage covers templates, retries, announcements and localization.
+        _allList.Add(Permission(NotificationsView, AdminArea.Notifications, AdminPermissionLevel.View, "View notifications", "View notification templates, delivery history, failed deliveries, channel health and localization settings."));
+        _allList.Add(Permission(NotificationsManage, AdminArea.Notifications, AdminPermissionLevel.Manage, "Manage notifications", "Edit and publish notification templates, retry failed deliveries, publish system announcements, and change localization settings."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);
         SuperUserControlledKeys = new HashSet<string>(StringComparer.Ordinal) { OperationalFailuresContentView };

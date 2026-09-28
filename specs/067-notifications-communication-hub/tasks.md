@@ -58,7 +58,7 @@ These apply to every task below, and each one assumes them:
 
 **Purpose**: Configuration and design records that every later phase reads.
 
-- [ ] T001 Create `src/AskLucy.Application/Options/NotificationsOptions.cs`. Follow the style of `AppOptions.cs`, and give every property a default:
+- [X] T001 Create `src/AskLucy.Application/Options/NotificationsOptions.cs`. Follow the style of `AppOptions.cs`, and give every property a default:
   - `Dispatch`: `PollIntervalSeconds=1`, `IdlePollIntervalSeconds=5`, `BatchSize=50`, `LeaseMinutes=2`.
   - `Retry`: `MaxAttempts=5`, `DelaysMinutes=[1,4,10,20,30]`, `CriticalDelaysSeconds=[30,60,120,300,600]`.
   - `Email`: `MaxPerMinute=60`, `ReservedPerMinuteForMandatory=20`, `SendTimeoutSeconds=60`.
@@ -66,8 +66,8 @@ These apply to every task below, and each one assumes them:
   - `Channels`: `InApp.Enabled=true`, `Email.Enabled=true`.
   - `Center`: `DefaultPageSize=25`, `MaxPageSize=100`.
   - `HealthChecks`: `HeartbeatStaleSeconds=30`, `BacklogDegradedMinutes=5`, `BacklogUnhealthyMinutes=30`, `SmtpProbeCacheMinutes=5`.
-- [ ] T002 [P] Add a `"Notifications"` section to `src/AskLucy.Web/appsettings.json` with the defaults from the task above. Add `Email.MaxPerMinute=600` to `src/AskLucy.Web/appsettings.Development.json`, so local runs aren't throttled.
-- [ ] T003 [P] Write `docs/adr/0016-transactional-notification-outbox.md` (context, decision, consequences). It records:
+- [X] T002 [P] Add a `"Notifications"` section to `src/AskLucy.Web/appsettings.json` with the defaults from the task above. Add `Email.MaxPerMinute=600` to `src/AskLucy.Web/appsettings.Development.json`, so local runs aren't throttled.
+- [X] T003 [P] Write `docs/adr/0018-transactional-notification-outbox.md` (context, decision, consequences). It records:
   - the transactional outbox and why Hangfire enqueue isn't transactional with EF;
   - the two `BackgroundService` workers, the wake signal and the lease-based claim (R2–R4);
   - at-most-once email with `AmbiguousOutcome` (R5);
@@ -85,7 +85,7 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for Foundational (write first)
 
-- [ ] T004 [P] `NotificationRouterTests` in `tests/AskLucy.Domain.Tests/Notifications/NotificationRouterTests.cs`. Cover the full FR-003 decision table (SC-009):
+- [X] T004 [P] `NotificationRouterTests` in `tests/AskLucy.Domain.Tests/Notifications/NotificationRouterTests.cs`. Cover the full FR-003 decision table (SC-009):
   - mandatory pairs ignore preference overrides;
   - optional pairs follow overrides, falling back to catalogue defaults;
   - a channel that is disabled or has no registered sender gives `Skipped(ChannelDisabled)`;
@@ -93,15 +93,15 @@ These apply to every task below, and each one assumes them:
   - `system.announcement.published` email only when `IsCritical`, otherwise `Skipped(NotCritical)`;
   - a missing verified address gives `Skipped(NoVerifiedAddress)`;
   - preference precedence ([research.md R28](research.md)): a saved `(category, channel)` override switches **every optional type** in that category that supports the channel, on or off; with no saved override, each type uses its own catalogue default (so `workflow.execution.failed` emails and `workflow.execution.completed` doesn't); an override never affects a mandatory pair, and never adds a channel a type marks `—`.
-- [ ] T005 [P] `NotificationTypeCatalogTests` in `tests/AskLucy.Domain.Tests/Notifications/NotificationTypeCatalogTests.cs`. Assert:
+- [X] T005 [P] `NotificationTypeCatalogTests` in `tests/AskLucy.Domain.Tests/Notifications/NotificationTypeCatalogTests.cs`. Assert:
   - keys are unique and every row of the [data-model.md catalogue](data-model.md#notification-type-catalogue) is present;
   - Security types have `MinimizeSensitiveContent`;
   - Account types have `ShowInCenter=false` and are email-only;
   - FR-005 types (`conversation.*`, `billing.*`) and `knowledge-base.updated` (R27) are defined but flagged not-emitted, and every other type is emitted;
   - every declared variable name is a valid token;
   - every route template resolves against the reconciled routes (see the route-reconciliation task below).
-- [ ] T006 [P] `NotificationStateMachineTests` in `tests/AskLucy.Domain.Tests/Notifications/NotificationStateMachineTests.cs`. Cover every allowed and forbidden transition of `Notification.Status`, `NotificationDelivery.Status`, `NotificationTemplateVersion.Status` and `NotificationOutboxEvent.Status` ([data-model.md § State machines](data-model.md#state-machines)). A forbidden transition throws `DomainRuleViolationException`.
-- [ ] T007 [P] `TemplateTokenParserTests` in `tests/AskLucy.Domain.Tests/Notifications/TemplateTokenParserTests.cs`. Cover:
+- [X] T006 [P] `NotificationStateMachineTests` in `tests/AskLucy.Domain.Tests/Notifications/NotificationStateMachineTests.cs`. Cover every allowed and forbidden transition of `Notification.Status`, `NotificationDelivery.Status`, `NotificationTemplateVersion.Status` and `NotificationOutboxEvent.Status` ([data-model.md § State machines](data-model.md#state-machines)). A forbidden transition throws `DomainRuleViolationException`.
+- [X] T007 [P] `TemplateTokenParserTests` in `tests/AskLucy.Domain.Tests/Notifications/TemplateTokenParserTests.cs`. Cover:
   - `{{ var }}` with whitespace variants;
   - malformed `{{`/`}}`;
   - an unknown variable, reported with the offending token;
@@ -134,12 +134,12 @@ These apply to every task below, and each one assumes them:
 
 ### Domain
 
-- [ ] T012 [P] Create one file per enum in `src/AskLucy.Domain/Notifications/Enums/`, with values exactly as in [data-model.md § Enumerations](data-model.md#enumerations):
+- [X] T012 [P] Create one file per enum in `src/AskLucy.Domain/Notifications/Enums/`, with values exactly as in [data-model.md § Enumerations](data-model.md#enumerations):
   - `NotificationCategory`, `NotificationPriority`, `NotificationStatus`, `NotificationChannel`
   - `DeliveryStatus`, `DeliveryFailureKind`, `DeliverySkipReason`, `RecipientKind`
   - `DeliveryFrequency`, `TemplateVersionStatus`, `OutboxEventStatus`
   - `AnnouncementKind`, `AnnouncementAudience`
-- [ ] T013 Route reconciliation. The catalogue routes in data-model.md don't match `ClientApp/src/routes/router.tsx`:
+- [X] T013 Route reconciliation. The catalogue routes in data-model.md don't match `ClientApp/src/routes/router.tsx`:
   - executions are `/agents/:agentId/executions/:executionId` and `/workflows/:workflowId/executions/:executionId`;
   - `/documents/{id}`, `/memory/{id}` and `/settings/security` don't exist, and Settings selects its tab via `location.state`, which an email link can't carry.
 
@@ -153,31 +153,31 @@ These apply to every task below, and each one assumes them:
   Add an optional `ParentId` to `RelatedItem` in `contracts/module-integration.md`, and record the change as an addendum in `research.md` under R11.
 
   **T013 blocks T014, T047, T050 and T092**, which read the reconciled routes; run it before any of them even though they are marked [P] against each other.
-- [ ] T014 [P] (after T013) Create `NotificationTypeDefinition.cs` and `NotificationTypeCatalog.cs` in `src/AskLucy.Domain/Notifications/`:
+- [X] T014 [P] (after T013) Create `NotificationTypeDefinition.cs` and `NotificationTypeCatalog.cs` in `src/AskLucy.Domain/Notifications/`:
   - The definition fields are those of R7, plus `ShowInCenter` and `IsEmitted`.
   - The catalogue holds every row of the reconciled catalogue table (the route-reconciliation task above), and exposes `Get(key)`, which throws for an unknown key, `TryGet` and `All`.
   - Define a `NotificationTypeKeys` constants class so emitters never use string literals.
-- [ ] T015 [P] Create the `Notification.cs` aggregate root and its child `NotificationDelivery.cs` in `src/AskLucy.Domain/Notifications/`:
+- [X] T015 [P] Create the `Notification.cs` aggregate root and its child `NotificationDelivery.cs` in `src/AskLucy.Domain/Notifications/`:
   - Fields are per data-model.md.
   - `Notification` methods: `Create`, `AddDelivery`, `MarkRead`, `DeleteByOwner`, `Expire`, `Cancel`, and `RecomputeStatus` (status is aggregated from the deliveries, R8).
   - `NotificationDelivery` methods: `MarkSending`, `MarkSent`, `MarkDelivered`, `Skip(reason)`, `ScheduleRetry(nextAttemptAt, kind, safeReason, providerResponse)`, `Fail(kind, …)`, `DeadLetter`, `Cancel`, `Expire` and `ResetForRetry`.
   - Both entities inherit `BaseEntity` and carry `RowVersion`.
-- [ ] T016 [P] Create `NotificationOutboxEvent.cs` in `src/AskLucy.Domain/Notifications/`:
+- [X] T016 [P] Create `NotificationOutboxEvent.cs` in `src/AskLucy.Domain/Notifications/`:
   - Fields: `Type`, the recipient payload JSON, the variables JSON, `RelatedItem`, `EventKey`, `Language`, `CorrelationId`, `Attempts`, `NextAttemptAtUtc`, `LeaseOwner`, `LeaseExpiresAtUtc` and `FanOutCursor`.
   - The status machine is `Pending → Processing → Completed | Failed`.
-- [ ] T017 [P] Create `NotificationTemplate.cs` and `NotificationTemplateVersion.cs` in `src/AskLucy.Domain/Notifications/`:
+- [X] T017 [P] Create `NotificationTemplate.cs` and `NotificationTemplateVersion.cs` in `src/AskLucy.Domain/Notifications/`:
   - Versions carry the email fields `Subject`, `Preheader`, `Greeting`, `Heading`, `BodyParagraphs`, `ActionLabel`, `SafetyNote` and `FooterNote`, and the in-app fields `Title`, `Message` and `ActionLabel`.
   - Enforce the length limits.
   - Only a `Draft` can be edited. `Publish` archives the previous published version. `Archive` refuses when it would leave a shipped default with no published version.
-- [ ] T018 [P] Create `NotificationPreference.cs`, a sparse override of `UserId`, `Category`, `Channel`, `Enabled` and `Frequency`. Only `Immediate` is accepted.
-- [ ] T019 [P] Create `SystemAnnouncement.cs` and `NotificationAuditLog.cs` in `src/AskLucy.Domain/Notifications/`, per data-model.md. The announcement is immutable after `Publish`. The audit log is append-only and has no mutators.
-- [ ] T020 [P] Create `TemplateTokenParser.cs` in `src/AskLucy.Domain/Notifications/`. It is pure: `Parse`, `ValidateAgainst(declaredVariables)` and `ContainsRawUrlOrHtml`.
-- [ ] T021 Create `NotificationRouter.cs` in `src/AskLucy.Domain/Notifications/`. It is a pure function:
+- [X] T018 [P] Create `NotificationPreference.cs`, a sparse override of `UserId`, `Category`, `Channel`, `Enabled` and `Frequency`. Only `Immediate` is accepted.
+- [X] T019 [P] Create `SystemAnnouncement.cs` and `NotificationAuditLog.cs` in `src/AskLucy.Domain/Notifications/`, per data-model.md. The announcement is immutable after `Publish`. The audit log is append-only and has no mutators.
+- [X] T020 [P] Create `TemplateTokenParser.cs` in `src/AskLucy.Domain/Notifications/`. It is pure: `Parse`, `ValidateAgainst(declaredVariables)` and `ContainsRawUrlOrHtml`.
+- [X] T021 Create `NotificationRouter.cs` in `src/AskLucy.Domain/Notifications/`. It is a pure function:
 
   `(definition, recipientState, preferenceOverrides, availableChannels, isCritical) → IReadOnlyList<ChannelDecision>`
 
   `availableChannels` = the registered senders that are enabled in config, plus `InApp`. It depends on the catalogue, enum and preference tasks above.
-- [ ] T022 [P] Add `AdminArea.Notifications` to `src/AskLucy.Domain/Authorization/AdminArea.cs`, and add `admin.notifications.view` and `admin.notifications.manage` to `src/AskLucy.Domain/Authorization/AdminPermissionCatalog.cs`. `PermissionCatalogReconciler` syncs them at startup.
+- [X] T022 [P] Add `AdminArea.Notifications` to `src/AskLucy.Domain/Authorization/AdminArea.cs`, and add `admin.notifications.view` and `admin.notifications.manage` to `src/AskLucy.Domain/Authorization/AdminPermissionCatalog.cs`. `PermissionCatalogReconciler` syncs them at startup.
 
 ### Application abstractions and core services
 
@@ -874,7 +874,7 @@ These apply to every task below, and each one assumes them:
   - apply `[LocalizedSurface]` to `NotificationsController`, `NotificationPreferencesController`, `UserLocalizationController` and every `Admin*` controller.
 - [ ] T198 [P] [US8] Write `docs/localization/do-not-translate.md`, the canonical list: vendor, product and model names such as OpenAI, Anthropic, Gemini and OpenRouter, and acronyms such as API, MCP, SMTP, 2FA, RAG, OCR and BIM. Add `src/AskLucy.Infrastructure/Notifications/Templates/ProtectedTerms.cs` mirroring it.
 - [ ] T199 [P] [US8] Create the Arabic seeds in `src/AskLucy.Infrastructure/Notifications/Templates/Seed/ar/`: one file for every `en` seed file (in-app and email). Protected terms stay verbatim, and dates and numbers are variables. The seeder picks them up without code changes.
-- [ ] T200 [P] [US8] Write `docs/adr/0017-frontend-i18n-and-rtl.md`, recording:
+- [ ] T200 [P] [US8] Write `docs/adr/0019-frontend-i18n-and-rtl.md`, recording:
   - the in-house `i18n/` module instead of a library;
   - the scope (notification screens and the admin area only), with the §7 complexity-tracking justification;
   - the RTL Emotion cache;
@@ -937,7 +937,7 @@ These apply to every task below, and each one assumes them:
 
 **Purpose**: Documentation, the gated scale and proof suites, a security review, and release readiness.
 
-- [ ] T220 [P] Update `docs/ARCHITECTURE.md` with a Notification hub section: the outbox, dispatcher and delivery worker; the catalogue, router and templates; the channel seam; how modules emit. Link ADR 0016 and ADR 0017.
+- [ ] T220 [P] Update `docs/ARCHITECTURE.md` with a Notification hub section: the outbox, dispatcher and delivery worker; the catalogue, router and templates; the channel seam; how modules emit. Link ADR 0018 and ADR 0019.
 - [ ] T221 [P] Update `docs/DATABASE.md` with the 9 new tables and column, the indexes and their purpose, the retention windows, the legacy tables pending the follow-up drop, and the migration notes.
 - [ ] T222 [P] Update `docs/API_GUIDELINES.md` with the user and admin notification endpoints, the localization endpoints, the new rate-limit policies, the `/hubs/notifications` events, and the removed legacy endpoints and events.
 - [ ] T223 [P] Update `docs/SECURITY.md` with send-time link minting, anti-enumeration, content minimization, the masking rules, the sandboxed preview, and the audit coverage.

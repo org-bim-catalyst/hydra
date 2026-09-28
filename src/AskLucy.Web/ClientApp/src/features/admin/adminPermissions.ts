@@ -39,6 +39,10 @@ export const ADMIN_PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: 'admin.operational-failures.manage', area: 'OperationalFailures', areaLabel: 'Operational failures', level: 'Manage', displayName: 'Manage operational failures', description: 'Acknowledge, resolve, and reopen operational failure incidents.' },
 
   { key: 'admin.operational-failures.content.view', area: 'OperationalFailures', areaLabel: 'Operational failures', level: 'View', displayName: 'View user content in failure investigations', description: "Read the full content of another user's chat, workflow run or document from a failure incident. Every access is audited. Only a Super User can grant or revoke it; it grants nothing without View operational failures." },
+
+  { key: 'admin.notifications.view', area: 'Notifications', areaLabel: 'Notifications', level: 'View', displayName: 'View notifications', description: 'View notification templates, delivery history, failed deliveries, channel health and localization settings.' },
+
+  { key: 'admin.notifications.manage', area: 'Notifications', areaLabel: 'Notifications', level: 'Manage', displayName: 'Manage notifications', description: 'Edit and publish notification templates, retry failed deliveries, publish system announcements, and change localization settings.' },
 ]
 
 export const ADMIN_PERMISSIONS = {
@@ -63,6 +67,8 @@ export const ADMIN_PERMISSIONS = {
   operationalFailuresView: 'admin.operational-failures.view',
   operationalFailuresManage: 'admin.operational-failures.manage',
   operationalFailuresContentView: 'admin.operational-failures.content.view',
+  notificationsView: 'admin.notifications.view',
+  notificationsManage: 'admin.notifications.manage',
 } as const
 
 export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS]

@@ -21,7 +21,7 @@ Phase 0 of `/speckit-plan`. Each topic records the decision, why it was chosen, 
 
 ## R2. Durable capture of notification requests (FR-006, FR-007)
 
-**Decision**: A **transactional outbox**. Each module calls `INotificationPublisher.Publish(NotificationRequest)` (Application abstraction). The Persistence implementation *adds* a `NotificationOutboxEvent` entity to the scoped `AskLucyDbContext` and does not save. The row commits atomically with the caller's own state change on the caller's existing `IUnitOfWork.SaveChangesAsync`. The publisher never performs I/O, so it cannot fail or slow the originating operation (FR-007). A new cross-cutting pattern, so it needs **ADR 0016**.
+**Decision**: A **transactional outbox**. Each module calls `INotificationPublisher.Publish(NotificationRequest)` (Application abstraction). The Persistence implementation *adds* a `NotificationOutboxEvent` entity to the scoped `AskLucyDbContext` and does not save. The row commits atomically with the caller's own state change on the caller's existing `IUnitOfWork.SaveChangesAsync`. The publisher never performs I/O, so it cannot fail or slow the originating operation (FR-007). A new cross-cutting pattern, so it needs **ADR 0018**.
 
 **Rationale**:
 - Today's pattern is `SaveChangesAsync` followed by a separate `IBackgroundJobClient.Enqueue`. Hangfire's SQL storage is not enlisted in the EF transaction, so a crash between the two loses the notification. An enqueue that happens before a rollback notifies about a change that never happened.
@@ -228,6 +228,8 @@ Each type's `RequestValidity` bounds how long a queued request stays sendable: 6
 
 **Alternatives considered**: allow-listing hosts on arbitrary URL variables. Rejected: it is easier to get wrong than never accepting URLs at all.
 
+**Addendum (T013, route reconciliation)**: the catalogue routes were checked against `ClientApp/src/routes/router.tsx`. Executions are nested under their agent or workflow, so `RelatedItem` gains an optional `ParentId`, and route templates use `{id}` and `{parentId}` only. Documents, memory and settings have no per-item routes, so their links use query parameters the pages read on load: `/documents?documentId={id}`, `/memory?memoryId={id}` and `/settings?tab=security` (Settings used `location.state`, which an email link can't carry). Approval notifications link to the execution page, which already shows the pending approval, so no `?approval=` parameter is needed. Announcements link to `/notifications/{notificationId}`, the materialized notification's own id, which the link builder fills at dispatch; their in-app channel is Mandatory (FR-004a), while System email stays a user preference even for critical announcements.
+
 ## R12. Anti-enumeration and the account-email request path (FR-009c, FR-009e, SC-014)
 
 **Decision**: The account handlers are `Register`, `ResendConfirmation`, `RequestEmailChange`, `RequestPasswordReset`, `ChangePassword`, the 2FA change handlers, and `RequestAccountSupport`. They stop calling `IEmailSender`, `IAccountEmailJob` and `IPasswordEmailJob` directly and call `INotificationPublisher.Publish` instead.
@@ -312,7 +314,7 @@ Each type's `RequestValidity` bounds how long a queued request stays sendable: 6
   - Portaled MUI surfaces get `dir` on their paper through `LocalizedSurface`'s slot defaults.
   - d3 time-series charts render their axes inside `dir="ltr"` groups (Assumptions: charts keep time left-to-right), with translated captions and legends.
 - **Effective language**: fetched once through TanStack Query (`GET /api/v1/users/me/localization`) and invalidated on change. No Zustand duplication (§7).
-- **New dependencies**: `stylis-plugin-rtl`, plus an explicit `@emotion/cache`, which is already present transitively. Both need **ADR 0017**, which records the i18n approach as the platform precedent.
+- **New dependencies**: `stylis-plugin-rtl`, plus an explicit `@emotion/cache`, which is already present transitively. Both need **ADR 0019**, which records the i18n approach as the platform precedent.
 
 **Rationale**:
 - Typed catalogs give compile-time completeness for the "100% Arabic" criterion without an i18n runtime.
@@ -321,7 +323,7 @@ Each type's `RequestValidity` bounds how long a queued request stays sendable: 6
 - Scoping direction per surface respects the spec's rule that the rest of the app stays English.
 
 **Alternatives considered**:
-- `react-i18next` or `i18next`. Mature, but two runtime dependencies and string keys without compile-time completeness. Deferred to whenever the whole app is localized, and ADR 0017 records that option.
+- `react-i18next` or `i18next`. Mature, but two runtime dependencies and string keys without compile-time completeness. Deferred to whenever the whole app is localized, and ADR 0019 records that option.
 - FormatJS (`react-intl`). Heavier ICU runtime, and still needs RTL handling.
 - Global RTL on the whole app. Contradicts the Arabic scope.
 

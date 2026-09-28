@@ -7,16 +7,16 @@ namespace AskLucy.Domain.Tests.Authorization;
 public sealed class AdminPermissionCatalogTests
 {
     [Fact]
-    public void All_ShouldContainExactly21Permissions()
+    public void All_ShouldContainExactly23Permissions()
     {
-        AdminPermissionCatalog.All.Should().HaveCount(21);
+        AdminPermissionCatalog.All.Should().HaveCount(23);
     }
 
     [Fact]
     public void All_ShouldHaveUniqueKeys()
     {
         var keys = AdminPermissionCatalog.All.Select(p => p.Key).ToList();
-        keys.Distinct().Should().HaveCount(21, "all permission keys must be unique");
+        keys.Distinct().Should().HaveCount(23, "all permission keys must be unique");
     }
 
     [Theory]
@@ -41,6 +41,8 @@ public sealed class AdminPermissionCatalogTests
     [InlineData("admin.operational-failures.view")]
     [InlineData("admin.operational-failures.manage")]
     [InlineData("admin.operational-failures.content.view")]
+    [InlineData("admin.notifications.view")]
+    [InlineData("admin.notifications.manage")]
     public void TryGet_ShouldReturnTrueForAllCatalogueKeys(string key)
     {
         var result = AdminPermissionCatalog.TryGet(key, out var permission);
@@ -165,6 +167,7 @@ public sealed class AdminPermissionCatalogTests
         AdminArea.McpServers => "mcp-servers",
         AdminArea.CustomModels => "custom-models",
         AdminArea.OperationalFailures => "operational-failures",
+        AdminArea.Notifications => "notifications",
         _ => throw new System.ArgumentOutOfRangeException(nameof(area))
     };
 }
