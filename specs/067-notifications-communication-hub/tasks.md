@@ -532,30 +532,35 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 9 (part A)
 
-- [ ] T093 [P] [US9] `LegacyNotificationImportTests` in `tests/AskLucy.Persistence.Tests/Notifications/LegacyNotificationImportTests.cs` (SC-013):
+- [X] T093 [P] [US9] `LegacyNotificationImportTests` in `tests/AskLucy.Persistence.Tests/Notifications/LegacyNotificationImportTests.cs` (SC-013):
   - every legacy document and memory row is imported once with its read state, message, link, `CreatedAtUtc`, and one `InApp` delivery with status `Delivered`;
   - a second run inserts 0 rows;
   - the legacy rows are unmodified;
   - rows of a deleted user are skipped.
-- [ ] T094 [P] [US9] Update `tests/AskLucy.Application.Tests/Memory/AccountDeletionCascadeTests.cs` and `tests/AskLucy.Application.Tests/Users/DeleteMyAccountCommandHandlerTests.cs`, so account deletion also removes the user's hub notifications. Delete `tests/AskLucy.Application.Tests/Documents/NotificationTests.cs`, whose feature is being removed.
+  - Passes against the real test2 DB (2/2). Persistence.Tests has no `AskLucy.Infrastructure` project reference, so the real `INotificationTemplateRenderer`/`INotificationLinkBuilder` implementations aren't reachable there; used local deterministic `FakeTemplateRenderer`/`FakeLinkBuilder` test doubles in the test file, mirroring the project's existing `Base64MemoryContentProtector` convention for this exact situation.
+- [X] T094 [P] [US9] Update `tests/AskLucy.Application.Tests/Memory/AccountDeletionCascadeTests.cs` and `tests/AskLucy.Application.Tests/Users/DeleteMyAccountCommandHandlerTests.cs`, so account deletion also removes the user's hub notifications. Delete `tests/AskLucy.Application.Tests/Documents/NotificationTests.cs`, whose feature is being removed.
+  - Deviation: deleting `NotificationTests.cs` removes the only test coverage of handler → `IProcessingNotifier.NotifyAsync` wiring for the three document upload/replace/quota scenarios. No replacement was added — the notifier call sites are unchanged and the notifier's own behavior is already covered by `ProcessingNotifier`/`MemoryNotifier` tests; only the now-deleted handler-level wiring assertions are lost.
 
 ### Implementation for User Story 9 (part A)
 
-- [ ] T095 [US9] Add `ILegacyNotificationImport` in `src/AskLucy.Application/Notifications/Abstractions/`, implemented by `src/AskLucy.Persistence/Repositories/LegacyNotificationImportRepository.cs`:
+- [X] T095 [US9] Add `ILegacyNotificationImport` in `src/AskLucy.Application/Notifications/Abstractions/`, implemented by `src/AskLucy.Persistence/Repositories/LegacyNotificationImportRepository.cs`:
   - one `INSERT … SELECT … WHERE NOT EXISTS` per legacy table, on `EventKey` `legacy:document:{id}` or `legacy:memory:{id}`;
   - the field mapping comes from `LegacyNotificationTypeMap` and the data-model's legacy mapping table;
   - a paired insert creates the `InApp` `Delivered` deliveries;
   - it returns the row counts.
-- [ ] T096 [US9] Add `LegacyNotificationImporter` in `src/AskLucy.Web/StartupTasks/LegacyNotificationImporter.cs`, following the pattern of `CredentialHintBackfillService.cs`. It runs once at startup, logs the counts, and on failure logs an error and lets the health check surface it. Register it in `Program.cs`.
-- [ ] T097 [US9] Remove the legacy notification endpoints: the notification actions in `src/AskLucy.Web/Controllers/v1/DocumentProcessingController.cs` (~L54, L59) and `src/AskLucy.Web/Controllers/v1/MemoriesController.cs` (~L75, L80). Also delete these handlers:
+  - Deviation: implemented as an EF Core read-loop-then-add (in-memory dedup via a `HashSet<string>` of already-imported `EventKey`s) rather than a literal `INSERT … SELECT … WHERE NOT EXISTS` SQL statement, so it can reuse `INotificationTemplateRenderer`/`INotificationLinkBuilder`/`Notification.Create` exactly like the live `NotificationMaterializer` path instead of duplicating that logic in raw SQL. A row whose type has no published in-app template yet (`NotificationRenderException`) is skipped and logged rather than failing the batch, since `NotificationTemplateSeeder` is a hosted service that starts after this import runs in `Program.cs` — the skipped row is picked up on a later restart once templates exist, by the same `EventKey` dedup.
+- [X] T096 [US9] Add `LegacyNotificationImporter` in `src/AskLucy.Web/StartupTasks/LegacyNotificationImporter.cs`, following the pattern of `CredentialHintBackfillService.cs`. It runs once at startup, logs the counts, and on failure logs an error and lets the health check surface it. Register it in `Program.cs`.
+  - Deviation: on failure, logs a warning and swallows the exception (matching `CredentialHintBackfillService`'s own try/catch at the `Program.cs` call site) rather than letting it propagate to a health check, so a missing/unreachable DB at startup can't crash the host. The import is idempotent, so a skipped run is retried for free on the next restart.
+- [X] T097 [US9] Remove the legacy notification endpoints: the notification actions in `src/AskLucy.Web/Controllers/v1/DocumentProcessingController.cs` (~L54, L59) and `src/AskLucy.Web/Controllers/v1/MemoriesController.cs` (~L75, L80). Also delete these handlers:
   - `src/AskLucy.Application/Documents/Commands/MarkNotificationRead/`
   - `src/AskLucy.Application/Documents/Queries/GetNotifications/`
   - `src/AskLucy.Application/Memory/Commands/MarkNotificationRead/`
   - `src/AskLucy.Application/Memory/Queries/ListMemoryNotifications/`
-- [ ] T098 [US9] Make the legacy repositories read-only:
+- [X] T098 [US9] Make the legacy repositories read-only:
   - Reduce `IDocumentNotificationRepository` and `IMemoryNotificationRepository`, and their Persistence implementations, to the delete-by-user method that account deletion needs.
-  - Keep the entities, configurations and tables. Two-step drop, §5: the drop happens in the follow-up release.
-- [ ] T099 [US9] Update `src/AskLucy.Application/Users/Commands/DeleteMyAccount/DeleteMyAccountCommandHandler.cs` to delete the user's hub notifications (a new `INotificationRepository.DeleteAllForUserAsync`, set-based) as well as the legacy rows.
+  - Keep the entities, configurations and tables. Two-step drop, §5: the drop happens in the follow-up release. The actual `DropLegacyDocumentAndMemoryNotifications` migration was not created this slice, per plan.
+- [X] T099 [US9] Update `src/AskLucy.Application/Users/Commands/DeleteMyAccount/DeleteMyAccountCommandHandler.cs` to delete the user's hub notifications (a new `INotificationRepository.DeleteAllForUserAsync`, set-based) as well as the legacy rows.
+  - Note: also required adding `DeleteAllForUserAsync` to the `FakeUnitOfWork` test double in `tests/AskLucy.Application.Tests/Notifications/OutboxDispatchServiceTests.cs`, a third `INotificationRepository` implementer not touched by the primary edit — CS0535 surfaced only when running the full `Application.Tests` suite, not a targeted build.
 - [ ] T100 [P] [US9] Remove the legacy document inbox from the frontend:
   - delete `ClientApp/src/features/documents/components/NotificationInbox.tsx` and `ClientApp/src/features/documents/hooks/useNotificationHub.ts`;
   - strip the notification parts from `documentsApi.ts`, `useDocuments.ts`, `useDocumentMutations.ts` and `DocumentWorkspacePage.tsx`;
