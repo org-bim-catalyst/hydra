@@ -148,22 +148,23 @@ public sealed class MemoryExtractionJob(
 
         var consumedByMerge = await conflictDetectionService.DetectAndResolveAsync(memory, cancellationToken);
 
+        // T085 — before the save below, so the outbox event commits in the same unit of work.
+        // spec.md FR-006a — a low-noise signal specifically for the "created without review"
+        // case (Automatic mode); Manual/sensitive-forced candidates surface through the
+        // approval queue instead, and an ambiguous-conflict candidate already got its own
+        // notification from IMemoryConflictDetectionService above.
+        if (!consumedByMerge && memory.State == MemoryLifecycleState.Active)
+        {
+            await notifier.NotifyAsync(
+                userChat.UserId, memory.Id, MemoryNotificationEventType.AutoApproved,
+                "Lucy automatically remembered something new.", cancellationToken);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         if (consumedByMerge)
         {
             return; // Merged into an existing memory — no embedding of its own to create.
-        }
-
-        // spec.md FR-006a — a low-noise signal specifically for the "created without review"
-        // case (Automatic mode); Manual/sensitive-forced candidates surface through the
-        // approval queue instead, and an ambiguous-conflict candidate already got its own
-        // notification from IMemoryConflictDetectionService above.
-        if (memory.State == MemoryLifecycleState.Active)
-        {
-            await notifier.NotifyAsync(
-                userChat.UserId, memory.Id, MemoryNotificationEventType.AutoApproved,
-                "Lucy automatically remembered something new.", cancellationToken);
         }
 
         await EmbedAndUpsertAsync(memory, cancellationToken);

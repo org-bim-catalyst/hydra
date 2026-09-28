@@ -97,9 +97,11 @@ public sealed class ProcessingFailureAndRetryTests
         await CreateSut().RunJobAsync(job.Id, CancellationToken.None);
 
         await _notifier.Received(1).NotifyAsync(
-            document.OwnerId, DocumentNotificationEventType.OcrFailed, document.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            document.OwnerId, DocumentNotificationEventType.OcrFailed, document.Id, Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), null, null, null, Arg.Any<CancellationToken>());
         await _notifier.DidNotReceive().NotifyAsync(
-            document.OwnerId, DocumentNotificationEventType.ProcessingFailed, Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            document.OwnerId, DocumentNotificationEventType.ProcessingFailed, Arg.Any<Guid?>(), Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -112,7 +114,8 @@ public sealed class ProcessingFailureAndRetryTests
         await CreateSut().RunJobAsync(job.Id, CancellationToken.None);
 
         await _notifier.Received(1).NotifyAsync(
-            document.OwnerId, DocumentNotificationEventType.ProcessingFailed, document.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            document.OwnerId, DocumentNotificationEventType.ProcessingFailed, document.Id, Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -53,14 +53,15 @@ public sealed class NotificationTests
         documentRepository.FindDocumentIdByChecksumAsync("user-1", Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((Guid?)null);
 
         var finalizer = new DocumentUploadFinalizer(
-            fileValidator, fileStorage, documentRepository, statisticsRepository, processingNotifier, UploadOptions(), QuotaOptions());
+            fileValidator, fileStorage, documentRepository, statisticsRepository, processingNotifier, unitOfWork, UploadOptions(), QuotaOptions());
         var handler = new CompleteUploadCommandHandler(
             sessionRepository, resumableStorage, finalizer, processingPipeline, processingNotifier, unitOfWork, currentUser);
 
         await handler.Handle(new CompleteUploadCommand(session.Id), CancellationToken.None);
 
         await processingNotifier.Received(1).NotifyAsync(
-            "user-1", DocumentNotificationEventType.UploadCompleted, Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            "user-1", DocumentNotificationEventType.UploadCompleted, Arg.Any<Guid?>(), Arg.Any<string>(),
+            Arg.Any<string?>(), null, null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -97,7 +98,8 @@ public sealed class NotificationTests
         await handler.Handle(new ReplaceDocumentCommand(document.Id, session.Id, VersionIncrement.Minor), CancellationToken.None);
 
         await processingNotifier.Received(1).NotifyAsync(
-            "user-1", DocumentNotificationEventType.VersionCreated, document.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            "user-1", DocumentNotificationEventType.VersionCreated, document.Id, Arg.Any<string>(),
+            Arg.Any<string?>(), null, Arg.Any<string?>(), null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -122,7 +124,8 @@ public sealed class NotificationTests
 
         await act.Should().ThrowAsync<DomainRuleViolationException>();
         await processingNotifier.Received(1).NotifyAsync(
-            "user-1", DocumentNotificationEventType.StorageLimitReached, null, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            "user-1", DocumentNotificationEventType.StorageLimitReached, null, Arg.Any<string>(),
+            null, null, null, Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
         sessionRepository.DidNotReceive().Add(Arg.Any<DocumentUploadSession>());
     }
 }

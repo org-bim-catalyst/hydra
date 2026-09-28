@@ -45,10 +45,13 @@ public sealed class CompleteUploadAsNewCommandHandler(
         documentRepository.Add(document);
 
         session.Complete(userId);
+
+        // T084 — before the save below, so the outbox event commits in the same unit of work.
+        await processingNotifier.NotifyAsync(
+            userId, DocumentNotificationEventType.UploadCompleted, document.Id,
+            dedupeKey: version.Id.ToString(), documentName: document.FileName, cancellationToken: cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await processingNotifier.NotifyAsync(
-            userId, DocumentNotificationEventType.UploadCompleted, document.Id, $"\"{document.FileName}\" uploaded successfully.", cancellationToken);
         await processingPipeline.EnqueueAsync(document.Id, version.Id, cancellationToken);
 
         return DocumentSummaryDto.FromEntity(document);

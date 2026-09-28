@@ -125,6 +125,13 @@ public sealed class DocumentProcessingPipeline(
                 else
                 {
                     stage.Complete(SystemActor);
+
+                    if (stageType == DocumentProcessingStageType.Ocr)
+                    {
+                        // T083 — before the save below, so the outbox event commits in the same
+                        // unit of work as the stage's own completion.
+                        await notifier.NotifyOcrCompletedAsync(document.OwnerId, document.Id, document.FileName, job.Id.ToString(), cancellationToken);
+                    }
                 }
 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -139,13 +146,14 @@ public sealed class DocumentProcessingPipeline(
 
         job.Complete(SystemActor);
         document.SetProcessingStatus(DocumentProcessingStatus.Completed, SystemActor);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
         jobRepository.AddLog(DocumentProcessingLog.Create(document.Id, job.Id, "ProcessingCompleted", null, SystemActor));
+
+        // T083 — before the final save, so the outbox event commits alongside the job/document/log
+        // rows above rather than in a save of its own.
+        await notifier.NotifyAsync(document.OwnerId, DocumentNotificationEventType.ProcessingCompleted, document.Id, job.Id.ToString(), documentName: document.FileName, cancellationToken: cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         await notifier.NotifyProcessingCompletedAsync(document.OwnerId, document.Id, cancellationToken);
-        await notifier.NotifyAsync(document.OwnerId, DocumentNotificationEventType.ProcessingCompleted, document.Id, $"\"{document.FileName}\" finished processing.", cancellationToken);
 
         // research.md Decision 12 — the event-trigger dispatch point for FR-063's "document
         // processed" trigger; published only after every commit above has succeeded.
@@ -167,16 +175,17 @@ public sealed class DocumentProcessingPipeline(
         stage.Fail(failureReason, SystemActor);
         job.Fail(failureReason, SystemActor);
         document.SetProcessingStatus(DocumentProcessingStatus.Failed, SystemActor);
-
         jobRepository.AddLog(DocumentProcessingLog.Create(document.Id, job.Id, $"Stage{stageType}Failed", failureReason, SystemActor));
+
+        // T083 — a failed OCR stage publishes document.ocr.failed instead of
+        // document.processing.failed (one notification per failure), before the save below.
+        var eventType = stageType == DocumentProcessingStageType.Ocr
+            ? DocumentNotificationEventType.OcrFailed
+            : DocumentNotificationEventType.ProcessingFailed;
+        await notifier.NotifyAsync(document.OwnerId, eventType, document.Id, job.Id.ToString(), documentName: document.FileName, failureSummary: failureReason, cancellationToken: cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         await notifier.NotifyStageChangedAsync(document.OwnerId, document.Id, stageType, DocumentProcessingStageStatus.Failed, cancellationToken);
         await notifier.NotifyProcessingFailedAsync(document.OwnerId, document.Id, failureReason, cancellationToken);
-
-        var eventType = stageType == DocumentProcessingStageType.Ocr
-            ? DocumentNotificationEventType.OcrFailed
-            : DocumentNotificationEventType.ProcessingFailed;
-        await notifier.NotifyAsync(document.OwnerId, eventType, document.Id, $"\"{document.FileName}\" failed to process: {failureReason}", cancellationToken);
     }
 }

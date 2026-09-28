@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
@@ -87,7 +88,8 @@ public sealed class AgentResourceConflictTests
             _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
             new AgentToolCatalog([], mcpToolRegistry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
-            Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _unitOfWork);
+            Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository,
+            Substitute.For<INotificationPublisher>(), _unitOfWork);
 
         await orchestrator.RunAsync(execution.Id, CancellationToken.None);
 

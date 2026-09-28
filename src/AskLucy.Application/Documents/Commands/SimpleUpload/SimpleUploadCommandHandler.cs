@@ -28,10 +28,12 @@ public sealed class SimpleUploadCommandHandler(
             return new SimpleUploadResultDto(true, result.DuplicateOfDocumentId, session.Id, null);
         }
 
+        // T084 — before the save below, so the outbox event commits in the same unit of work.
+        await processingNotifier.NotifyAsync(
+            userId, DocumentNotificationEventType.UploadCompleted, result.Document!.Id,
+            dedupeKey: result.Document.CurrentVersionId.ToString(), documentName: result.Document.FileName, cancellationToken: cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await processingNotifier.NotifyAsync(
-            userId, DocumentNotificationEventType.UploadCompleted, result.Document!.Id, $"\"{result.Document.FileName}\" uploaded successfully.", cancellationToken);
         await processingPipeline.EnqueueAsync(result.Document.Id, result.Document.CurrentVersionId, cancellationToken);
 
         return new SimpleUploadResultDto(false, null, null, DocumentSummaryDto.FromEntity(result.Document));

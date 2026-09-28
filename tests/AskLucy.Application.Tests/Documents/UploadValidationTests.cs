@@ -65,7 +65,7 @@ public sealed class UploadValidationTests
         _fileValidator.ValidateAsync(Arg.Any<Stream>(), "fake.pdf", Arg.Any<CancellationToken>())
             .Returns(DocumentFileValidationResult.Invalid("File content looks like plain text, but its extension 'pdf' is not supported."));
 
-        var finalizer = new DocumentUploadFinalizer(_fileValidator, _fileStorage, _documentRepository, _statisticsRepository, _processingNotifier, Options(), QuotaOptions());
+        var finalizer = new DocumentUploadFinalizer(_fileValidator, _fileStorage, _documentRepository, _statisticsRepository, _processingNotifier, _unitOfWork, Options(), QuotaOptions());
         var handler = new CompleteUploadCommandHandler(
             _sessionRepository, _resumableStorage, finalizer, _processingPipeline, _processingNotifier, _unitOfWork, _currentUser);
 
@@ -83,7 +83,7 @@ public sealed class UploadValidationTests
         _sessionRepository.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
         _resumableStorage.GetSizeAsync(session.Id.ToString(), Arg.Any<CancellationToken>()).Returns(500L); // incomplete
 
-        var finalizer = new DocumentUploadFinalizer(_fileValidator, _fileStorage, _documentRepository, _statisticsRepository, _processingNotifier, Options(), QuotaOptions());
+        var finalizer = new DocumentUploadFinalizer(_fileValidator, _fileStorage, _documentRepository, _statisticsRepository, _processingNotifier, _unitOfWork, Options(), QuotaOptions());
         var handler = new CompleteUploadCommandHandler(
             _sessionRepository, _resumableStorage, finalizer, _processingPipeline, _processingNotifier, _unitOfWork, _currentUser);
 

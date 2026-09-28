@@ -11,6 +11,10 @@ namespace AskLucy.Application.Abstractions;
 /// </summary>
 public interface IMemoryNotifier
 {
-    /// <summary>Creates a <see cref="MemoryNotification"/> row and pushes it over the same connection.</summary>
+    /// <summary>
+    /// Maps <paramref name="eventType"/> to its <c>memory.*</c> catalogue key (specs/067
+    /// data-model.md § Legacy mapping) and publishes it through <c>INotificationPublisher</c>
+    /// (T085) — no longer writes a <see cref="MemoryNotification"/> row.
+    /// </summary>
     Task NotifyAsync(string userId, Guid? memoryId, MemoryNotificationEventType eventType, string message, CancellationToken cancellationToken = default);
 }

@@ -5,6 +5,7 @@ using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Mcp.Tools;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Tests.Mcp.Fixtures;
 using AskLucy.Domain.Agents;
@@ -98,7 +99,7 @@ public sealed class McpHighRiskApprovalTests
             _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
             new AgentToolCatalog([], registry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(_policyRepository), Substitute.For<IAgentExecutionNotifier>(),
-            Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _unitOfWork);
+            Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);
     }
 
     [Fact]

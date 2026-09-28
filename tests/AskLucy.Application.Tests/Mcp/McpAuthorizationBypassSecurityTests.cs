@@ -3,6 +3,7 @@ using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Mcp.Tools;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
@@ -91,7 +92,8 @@ public sealed class McpAuthorizationBypassSecurityTests
             executionRepository, agentRepository, providerRepository, modelRepository, providerResolver, planner,
             new AgentToolCatalog([], registry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(policyRepository), Substitute.For<IAgentExecutionNotifier>(),
-            Substitute.For<IAgentAuditLogRepository>(), Substitute.For<IUserChatRepository>(), Substitute.For<IMessageRepository>(), unitOfWork);
+            Substitute.For<IAgentAuditLogRepository>(), Substitute.For<IUserChatRepository>(), Substitute.For<IMessageRepository>(),
+            Substitute.For<INotificationPublisher>(), unitOfWork);
 
         await orchestrator.RunAsync(execution.Id, CancellationToken.None);
 

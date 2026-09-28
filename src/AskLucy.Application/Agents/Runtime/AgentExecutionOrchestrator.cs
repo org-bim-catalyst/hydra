@@ -1,10 +1,13 @@
+using System.Globalization;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Notifications;
 
 namespace AskLucy.Application.Agents.Runtime;
 
@@ -54,6 +57,7 @@ public sealed class AgentExecutionOrchestrator(
     IAgentAuditLogRepository auditLogRepository,
     IUserChatRepository userChatRepository,
     IMessageRepository messageRepository,
+    INotificationPublisher notificationPublisher,
     IUnitOfWork unitOfWork)
 {
     private const string SystemActor = "system:agent-runtime";
@@ -78,10 +82,21 @@ public sealed class AgentExecutionOrchestrator(
             return; // Already terminal — nothing to do (a defensive guard against a duplicate/racing enqueue).
         }
 
+        // Declared outside the try so the catch block's agent.execution.failed publish can use it
+        // even when the failure happened before the Agent lookup below ran.
+        var agentName = "your agent";
+
         try
         {
             var agentVersion = await agentRepository.GetVersionByIdAsync(execution.AgentVersionId, cancellationToken)
                 ?? throw new InvalidOperationException("The agent version this execution ran under no longer exists.");
+
+            // T086 — the parent Agent isn't otherwise needed by this runtime (only its published
+            // AgentVersion is), so it's fetched solely to name agent.execution.* notifications.
+            // GetByIdAsync bypasses owner scoping deliberately, matching every other lookup in this
+            // background job (see class doc comment).
+            var agent = await agentRepository.GetByIdAsync(execution.AgentId, cancellationToken);
+            agentName = agent?.Name ?? "your agent";
 
             var isFirstRun = execution.StartedAtUtc is null;
             execution.Start();
@@ -89,6 +104,13 @@ public sealed class AgentExecutionOrchestrator(
 
             if (isFirstRun)
             {
+                notificationPublisher.Publish(new NotificationRequest(
+                    NotificationTypeKeys.AgentExecutionStarted,
+                    new NotificationRecipient.User(execution.RunByUserId),
+                    new Dictionary<string, string?> { ["agentName"] = agentName },
+                    new RelatedItem("AgentExecution", execution.Id.ToString(), execution.AgentId.ToString()),
+                    EventKey: $"agent-execution:{execution.Id}:started"));
+
                 await RecordAndNotifyAsync(
                     execution, agentVersion.Id, AgentExecutionEventType.ExecutionStarted, stepId: null, status: "Running", safeMetadataJson: null,
                     () => notifier.NotifyExecutionStartedAsync(execution.RunByUserId, execution.Id, execution.AgentId, agentVersion.VersionNumber, execution.Objective, DateTime.UtcNow, cancellationToken),
@@ -393,6 +415,19 @@ public sealed class AgentExecutionOrchestrator(
             var finalOutputJson = citations.Count > 0 ? JsonSerializer.Serialize(new { citations }) : null;
             execution.Complete(finalOutputText, finalOutputJson);
             auditLogRepository.Add(AgentAuditLog.Create(execution.Id, execution.RunByUserId, AgentAuditAction.ExecutionCompleted, "{}"));
+
+            var duration = execution.StartedAtUtc is { } startedAt ? (DateTime.UtcNow - startedAt) : (TimeSpan?)null;
+            notificationPublisher.Publish(new NotificationRequest(
+                NotificationTypeKeys.AgentExecutionCompleted,
+                new NotificationRecipient.User(execution.RunByUserId),
+                new Dictionary<string, string?>
+                {
+                    ["agentName"] = agentName,
+                    ["duration"] = duration is { } d ? FormatDuration(d) : "—",
+                },
+                new RelatedItem("AgentExecution", execution.Id.ToString(), execution.AgentId.ToString()),
+                EventKey: $"agent-execution:{execution.Id}:completed"));
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await RecordAndNotifyAsync(
                 execution, agentVersion.Id, AgentExecutionEventType.ExecutionCompleted, stepId: null, status: "Completed", safeMetadataJson: null,
@@ -412,6 +447,17 @@ public sealed class AgentExecutionOrchestrator(
                 // "the execution fails that step with a clear permission/availability error").
                 auditLogRepository.Add(AgentAuditLog.Create(execution.Id, execution.RunByUserId, AgentAuditAction.PermissionDenied, "{}"));
             }
+
+            notificationPublisher.Publish(new NotificationRequest(
+                NotificationTypeKeys.AgentExecutionFailed,
+                new NotificationRecipient.User(execution.RunByUserId),
+                new Dictionary<string, string?>
+                {
+                    ["agentName"] = agentName,
+                    ["failureSummary"] = SafeFailureMessage(ex),
+                },
+                new RelatedItem("AgentExecution", execution.Id.ToString(), execution.AgentId.ToString()),
+                EventKey: $"agent-execution:{execution.Id}:failed"));
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await RecordAndNotifyAsync(
@@ -554,6 +600,11 @@ public sealed class AgentExecutionOrchestrator(
 
         chat.TouchLastActivity(SystemActor);
     }
+
+    /// <summary>T086 — human-readable duration for the <c>agent.execution.completed</c> notification's <c>duration</c> variable.</summary>
+    private static string FormatDuration(TimeSpan duration) => duration.TotalMinutes >= 1
+        ? $"{(int)duration.TotalMinutes}m {duration.Seconds}s"
+        : $"{duration.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s";
 
     private static AgentExecutionErrorCategory CategorizeFailure(Exception ex) => ex switch
     {

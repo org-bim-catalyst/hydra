@@ -1,3 +1,4 @@
+using System.Globalization;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Documents.Authorization;
 using AskLucy.Application.Options;
@@ -33,10 +34,15 @@ public sealed class StartUploadCommandHandler(
         var currentUsage = await statisticsRepository.ComputeAggregateAsync(userId, cancellationToken);
         if (currentUsage.TotalStorageBytes + request.DeclaredSizeBytes > quotaOptions.Value.DefaultQuotaBytes)
         {
+            // T084 — the outbox add must be saved here, before the throw below: nothing else in
+            // this request will ever call SaveChangesAsync once the exception propagates.
             await processingNotifier.NotifyAsync(
-                userId, DocumentNotificationEventType.StorageLimitReached, null,
-                "Your storage limit has been reached — delete or archive documents to free up space before uploading more.",
-                cancellationToken);
+                userId, DocumentNotificationEventType.StorageLimitReached, documentId: null,
+                dedupeKey: DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+                usedStorage: $"{currentUsage.TotalStorageBytes / (1024 * 1024 * 1024)} GB",
+                storageLimit: $"{quotaOptions.Value.DefaultQuotaBytes / (1024 * 1024 * 1024)} GB",
+                cancellationToken: cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             throw new DomainRuleViolationException(
                 $"This upload would exceed your storage limit of {quotaOptions.Value.DefaultQuotaBytes / (1024 * 1024 * 1024)} GB.");

@@ -40,7 +40,7 @@ public sealed class DuplicateDetectionTests
         Microsoft.Extensions.Options.Options.Create(new DocumentStorageQuotaOptions());
 
     private DocumentUploadFinalizer CreateFinalizer() =>
-        new(_fileValidator, _fileStorage, _documentRepository, _statisticsRepository, _processingNotifier, Options(), QuotaOptions());
+        new(_fileValidator, _fileStorage, _documentRepository, _statisticsRepository, _processingNotifier, _unitOfWork, Options(), QuotaOptions());
 
     private DocumentUploadSession SetUpSessionReadyToComplete(long sizeBytes)
     {

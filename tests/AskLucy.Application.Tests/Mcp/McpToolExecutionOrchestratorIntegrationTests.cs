@@ -6,6 +6,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Mcp.Validation;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
@@ -73,7 +74,7 @@ public sealed class McpToolExecutionOrchestratorIntegrationTests
         _executionRepository, _agentRepository, _providerRepository, _modelRepository,
         _providerResolver, _planner, toolCatalog, new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
         new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(_policyRepository), _notifier,
-        Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _unitOfWork);
+        Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);
 
     private (AgentExecution Execution, McpTool McpTool) SetUpExecutionWithMcpTool()
     {

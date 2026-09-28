@@ -45,11 +45,14 @@ public sealed class CompleteUploadAsVersionCommandHandler(
         document.SetProcessingStatus(DocumentProcessingStatus.Queued, userId);
 
         session.Complete(userId);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // T084 — before the save below, so the outbox event commits in the same unit of work.
         await processingNotifier.NotifyAsync(
             userId, DocumentNotificationEventType.VersionCreated, document.Id,
-            $"A new version ({version.VersionMajor}.{version.VersionMinor}) of \"{document.FileName}\" was created.", cancellationToken);
+            dedupeKey: version.Id.ToString(), documentName: document.FileName,
+            versionNumber: $"{version.VersionMajor}.{version.VersionMinor}", cancellationToken: cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
         await processingPipeline.EnqueueAsync(document.Id, version.Id, cancellationToken);
 
         return DocumentSummaryDto.FromEntity(document);

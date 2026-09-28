@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Options;
@@ -27,6 +28,7 @@ public sealed class DocumentUploadFinalizer(
     IDocumentRepository documentRepository,
     IDocumentStatisticsRepository statisticsRepository,
     IProcessingNotifier processingNotifier,
+    IUnitOfWork unitOfWork,
     IOptions<DocumentUploadOptions> uploadOptions,
     IOptions<DocumentStorageQuotaOptions> quotaOptions)
 {
@@ -95,10 +97,15 @@ public sealed class DocumentUploadFinalizer(
             return;
         }
 
+        // T084 — saved here explicitly: nothing else in this request will call SaveChangesAsync
+        // once the exception below propagates.
         await processingNotifier.NotifyAsync(
-            ownerId, DocumentNotificationEventType.StorageLimitReached, null,
-            "Your storage limit has been reached — delete or archive documents to free up space before uploading more.",
-            cancellationToken);
+            ownerId, DocumentNotificationEventType.StorageLimitReached, documentId: null,
+            dedupeKey: DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+            usedStorage: $"{currentUsage.TotalStorageBytes / (1024 * 1024 * 1024)} GB",
+            storageLimit: $"{quotaOptions.Value.DefaultQuotaBytes / (1024 * 1024 * 1024)} GB",
+            cancellationToken: cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         throw new DomainRuleViolationException(
             $"This upload would exceed your storage limit of {quotaOptions.Value.DefaultQuotaBytes / (1024 * 1024 * 1024)} GB.");

@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
@@ -52,6 +53,7 @@ public sealed class TestExecutionSkipsMutatingToolsTests
 
         executionRepository.GetByIdAsync(execution.Id, Arg.Any<CancellationToken>()).Returns(execution);
         agentRepository.GetVersionByIdAsync(version.Id, Arg.Any<CancellationToken>()).Returns(version);
+        agentRepository.GetByIdAsync(agent.Id, Arg.Any<CancellationToken>()).Returns(agent);
         providerRepository.GetByIdAsync(version.ModelProviderId!.Value, Arg.Any<CancellationToken>()).Returns(provider);
         modelRepository.GetByIdAsync(version.ModelId!.Value, Arg.Any<CancellationToken>()).Returns(model);
         executionRepository.ListToolCallsByStepIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(new List<AgentToolCall>());
@@ -70,7 +72,8 @@ public sealed class TestExecutionSkipsMutatingToolsTests
             executionRepository, agentRepository, providerRepository, modelRepository, providerResolver, planner,
             new AgentToolCatalog([mutatingTool], mcpToolRegistry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
-            Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), chatRepository, messageRepository, unitOfWork);
+            Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), chatRepository, messageRepository,
+            Substitute.For<INotificationPublisher>(), unitOfWork);
 
         await orchestrator.RunAsync(execution.Id, CancellationToken.None);
 

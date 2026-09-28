@@ -1,23 +1,23 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Application.Notifications.Legacy;
 using AskLucy.Domain.Documents;
+using AskLucy.Domain.Notifications;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AskLucy.Infrastructure.Documents;
 
 /// <summary>
-/// <see cref="IProcessingNotifier"/> implementation — pushes over <see cref="DocumentProcessingHub"/>
-/// and persists <see cref="DocumentNotification"/> rows (FR-027, FR-047, research.md Decision 7).
-/// The actor for created rows is always <c>"system:processing"</c> — these events originate from
-/// the background pipeline, not an interactive user request with its own <c>ICurrentUserAccessor</c>
-/// context.
+/// <see cref="IProcessingNotifier"/> implementation — pushes the near-real-time stage/progress
+/// events over <see cref="DocumentProcessingHub"/> unchanged, and publishes the hub notification
+/// types through <see cref="INotificationPublisher"/> (specs/067 T082). It no longer writes a
+/// <see cref="DocumentNotification"/> row or pushes <c>notificationCreated</c> — the notification
+/// hub (dispatcher/materializer) owns delivery from here on.
 /// </summary>
 public sealed class ProcessingNotifier(
     IHubContext<DocumentProcessingHub> hubContext,
-    IDocumentNotificationRepository notificationRepository,
-    IUnitOfWork unitOfWork) : IProcessingNotifier
+    INotificationPublisher publisher) : IProcessingNotifier
 {
-    private const string SystemActor = "system:processing";
-
     public Task NotifyStageChangedAsync(string userId, Guid documentId, DocumentProcessingStageType stageType, DocumentProcessingStageStatus status, CancellationToken cancellationToken = default) =>
         hubContext.Clients.Group(DocumentProcessingHub.UserGroup(userId))
             .SendAsync("documentStageChanged", new { documentId, stageType = stageType.ToString(), status = status.ToString() }, cancellationToken);
@@ -30,20 +30,59 @@ public sealed class ProcessingNotifier(
         hubContext.Clients.Group(DocumentProcessingHub.UserGroup(userId))
             .SendAsync("documentProcessingFailed", new { documentId, failureReason }, cancellationToken);
 
-    public async Task NotifyAsync(string userId, DocumentNotificationEventType eventType, Guid? documentId, string message, CancellationToken cancellationToken = default)
+    public Task NotifyAsync(
+        string userId,
+        DocumentNotificationEventType eventType,
+        Guid? documentId,
+        string dedupeKey,
+        string? documentName = null,
+        string? failureSummary = null,
+        string? versionNumber = null,
+        string? usedStorage = null,
+        string? storageLimit = null,
+        CancellationToken cancellationToken = default)
     {
-        var notification = DocumentNotification.Create(userId, documentId, eventType, message, SystemActor);
-        notificationRepository.Add(notification);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var catalogKey = LegacyNotificationTypeMap.ToCatalogKey(eventType);
 
-        await hubContext.Clients.Group(DocumentProcessingHub.UserGroup(userId))
-            .SendAsync("notificationCreated", new
+        var variables = eventType switch
+        {
+            DocumentNotificationEventType.StorageLimitReached => new Dictionary<string, string?>
             {
-                id = notification.Id,
-                documentId,
-                eventType = eventType.ToString(),
-                message,
-                createdAtUtc = notification.CreatedAtUtc,
-            }, cancellationToken);
+                ["usedStorage"] = usedStorage,
+                ["storageLimit"] = storageLimit,
+            },
+            DocumentNotificationEventType.VersionCreated => new Dictionary<string, string?>
+            {
+                ["documentName"] = documentName,
+                ["versionNumber"] = versionNumber,
+            },
+            DocumentNotificationEventType.ProcessingFailed or DocumentNotificationEventType.OcrFailed => new Dictionary<string, string?>
+            {
+                ["documentName"] = documentName,
+                ["failureSummary"] = failureSummary,
+            },
+            _ => new Dictionary<string, string?> { ["documentName"] = documentName },
+        };
+
+        publisher.Publish(new NotificationRequest(
+            catalogKey,
+            new NotificationRecipient.User(userId),
+            variables,
+            documentId is { } id ? new RelatedItem("Document", id.ToString()) : null,
+            EventKey: $"document:{documentId?.ToString() ?? userId}:{eventType}:{dedupeKey}"));
+
+        return Task.CompletedTask;
+    }
+
+    public Task NotifyOcrCompletedAsync(string userId, Guid documentId, string documentName, string dedupeKey, CancellationToken cancellationToken = default)
+    {
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.DocumentOcrCompleted,
+            new NotificationRecipient.User(userId),
+            new Dictionary<string, string?> { ["documentName"] = documentName },
+            new RelatedItem("Document", documentId.ToString()),
+            EventKey: $"document:{documentId}:ocr-completed:{dedupeKey}"));
+
+        return Task.CompletedTask;
     }
 }

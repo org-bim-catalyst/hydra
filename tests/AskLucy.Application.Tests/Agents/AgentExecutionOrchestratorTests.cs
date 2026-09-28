@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
@@ -49,7 +50,7 @@ public sealed class AgentExecutionOrchestratorTests
     private AgentExecutionOrchestrator CreateOrchestrator() => new(
         _executionRepository, _agentRepository, _providerRepository, _modelRepository,
         _providerResolver, _planner, _toolCatalog, _budgetGuard, _duplicateDetector, _policyEvaluator, _notifier,
-        Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _unitOfWork);
+        Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);
 
     private static readonly AIModelCapabilities NoCapabilities = new(
         Streaming: true, Vision: false, FunctionCalling: false, JsonMode: false, Reasoning: false,

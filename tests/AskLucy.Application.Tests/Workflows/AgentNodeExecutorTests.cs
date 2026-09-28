@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
@@ -59,7 +60,7 @@ public sealed class AgentNodeExecutorTests
         var orchestrator = new AgentExecutionOrchestrator(
             _agentExecutionRepository, _agentRepository, _providerRepository, _modelRepository,
             _providerResolver, _planner, toolCatalog, budgetGuard, duplicateDetector, policyEvaluator, _notifier,
-            _agentAuditLogRepository, _chatRepository, _messageRepository, _unitOfWork);
+            _agentAuditLogRepository, _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);
 
         _agentExecutionRepository.When(r => r.Add(Arg.Any<AgentExecution>())).Do(call => _createdExecution = call.Arg<AgentExecution>());
         _agentExecutionRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(_ => _createdExecution);
