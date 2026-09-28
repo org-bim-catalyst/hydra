@@ -16,6 +16,7 @@ public sealed class Notification : BaseEntity
     public const int RelatedItemTypeMaxLength = 50;
     public const int RelatedItemIdMaxLength = 100;
     public const int ActionRouteMaxLength = 300;
+    public const int ActionLabelMaxLength = 60;
     public const int CorrelationIdMaxLength = 100;
     public const int EventKeyMaxLength = 200;
     public const int MetadataMaxBytes = 4 * 1024;
@@ -51,6 +52,9 @@ public sealed class Notification : BaseEntity
 
     /// <summary>App-relative route built by the link builder (FR-047).</summary>
     public string? ActionRoute { get; private set; }
+
+    /// <summary>The rendered label for <see cref="ActionRoute"/>, in <see cref="Language"/>.</summary>
+    public string? ActionLabel { get; private set; }
 
     /// <summary>Non-sensitive display metadata only (FR-013).</summary>
     public string? MetadataJson { get; private set; }
@@ -95,7 +99,9 @@ public sealed class Notification : BaseEntity
         string? metadataJson = null,
         string? eventKey = null,
         Guid? sourceEventId = null,
-        DateTime? expiresAtUtc = null)
+        DateTime? expiresAtUtc = null,
+        string? actionLabel = null,
+        Guid? id = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentException.ThrowIfNullOrWhiteSpace(language);
@@ -122,6 +128,7 @@ public sealed class Notification : BaseEntity
         RequireMaxLength(relatedItemType, RelatedItemTypeMaxLength, "related item type");
         RequireMaxLength(relatedItemId, RelatedItemIdMaxLength, "related item id");
         RequireMaxLength(actionRoute, ActionRouteMaxLength, "action route");
+        RequireMaxLength(actionLabel, ActionLabelMaxLength, "action label");
         RequireMaxLength(eventKey, EventKeyMaxLength, "event key");
         if (metadataJson is not null && Encoding.UTF8.GetByteCount(metadataJson) > MetadataMaxBytes)
         {
@@ -135,7 +142,8 @@ public sealed class Notification : BaseEntity
 
         return new Notification
         {
-            Id = Guid.CreateVersion7(),
+            // A caller may pre-generate the id when a route must point at the notification itself.
+            Id = id ?? Guid.CreateVersion7(),
             RecipientUserId = string.IsNullOrWhiteSpace(recipientUserId) ? null : recipientUserId,
             Category = definition.Category,
             Type = definition.Key,
@@ -148,6 +156,7 @@ public sealed class Notification : BaseEntity
             RelatedItemType = relatedItemType,
             RelatedItemId = relatedItemId,
             ActionRoute = actionRoute,
+            ActionLabel = actionRoute is null ? null : actionLabel,
             MetadataJson = metadataJson,
             CorrelationId = correlationId,
             EventKey = eventKey,

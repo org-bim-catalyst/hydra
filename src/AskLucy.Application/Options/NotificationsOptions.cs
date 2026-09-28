@@ -41,11 +41,20 @@ public sealed class NotificationDispatchOptions
 /// <summary>Research R6 — per-priority retry schedules. Attempt n waits the n-th delay; the last delay repeats.</summary>
 public sealed class NotificationRetryOptions
 {
+    private static readonly int[] DefaultDelaysMinutes = [1, 4, 10, 20, 30];
+    private static readonly int[] DefaultCriticalDelaysSeconds = [30, 60, 120, 300, 600];
+
     public int MaxAttempts { get; init; } = 5;
 
-    public int[] DelaysMinutes { get; init; } = [1, 4, 10, 20, 30];
+    // Empty by default: the configuration binder appends to a non-empty array, so a default here
+    // plus the appsettings values would bind as ten delays. The Effective* properties fall back.
+    public int[] DelaysMinutes { get; init; } = [];
 
-    public int[] CriticalDelaysSeconds { get; init; } = [30, 60, 120, 300, 600];
+    public int[] CriticalDelaysSeconds { get; init; } = [];
+
+    public IReadOnlyList<int> EffectiveDelaysMinutes => DelaysMinutes.Length > 0 ? DelaysMinutes : DefaultDelaysMinutes;
+
+    public IReadOnlyList<int> EffectiveCriticalDelaysSeconds => CriticalDelaysSeconds.Length > 0 ? CriticalDelaysSeconds : DefaultCriticalDelaysSeconds;
 }
 
 /// <summary>Research R6 — the email send limiter and its reserved lane for mandatory mail.</summary>

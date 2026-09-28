@@ -107,14 +107,14 @@ These apply to every task below, and each one assumes them:
   - an unknown variable, reported with the offending token;
   - raw URL and HTML detection in text fields;
   - `actionUrl` accepted only in link fields.
-- [ ] T008 [P] `NotificationPublisherTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationPublisherTests.cs`:
+- [X] T008 [P] `NotificationPublisherTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationPublisherTests.cs`:
   - an unknown type throws;
   - an undeclared variable throws;
   - `Users` with more than 100 ids throws;
   - `Audience` from a non-announcement type throws;
   - the event is added to the unit of work without `SaveChangesAsync` being called;
   - the correlation id is captured.
-- [ ] T009 [P] `OutboxDispatchServiceTests` in `tests/AskLucy.Application.Tests/Notifications/OutboxDispatchServiceTests.cs`, using fakes:
+- [X] T009 [P] `OutboxDispatchServiceTests` in `tests/AskLucy.Application.Tests/Notifications/OutboxDispatchServiceTests.cs`, using fakes:
   - an event materializes one `Notification` with an `InApp` delivery `Delivered` and an `Email` delivery `Pending` or `Skipped` per the router;
   - a duplicate `EventKey` materializes nothing;
   - an inactive recipient gets a cancelled delivery;
@@ -181,20 +181,22 @@ These apply to every task below, and each one assumes them:
 
 ### Application abstractions and core services
 
-- [ ] T023 [P] Create `INotificationPublisher.cs` in `src/AskLucy.Application/Notifications/Abstractions/`. It contains `NotificationRequest`, `NotificationRecipient` (`User`, `Users`, `Audience`, `AddressForUser`, `AddressLookup`, `SupportMailbox`) and `RelatedItem(Type, Id, ParentId?)`, verbatim per [contracts/module-integration.md](contracts/module-integration.md).
-- [ ] T024 [P] Create one file per hub-internal interface in `src/AskLucy.Application/Notifications/Abstractions/`:
+- [X] T023 [P] Create `INotificationPublisher.cs` in `src/AskLucy.Application/Notifications/Abstractions/`. It contains `NotificationRequest`, `NotificationRecipient` (`User`, `Users`, `Audience`, `AddressForUser`, `AddressLookup`, `SupportMailbox`) and `RelatedItem(Type, Id, ParentId?)`, verbatim per [contracts/module-integration.md](contracts/module-integration.md).
+- [X] T024 [P] Create one file per hub-internal interface in `src/AskLucy.Application/Notifications/Abstractions/`:
   - `INotificationOutboxStore`, `INotificationRepository`, `INotificationTemplateRepository`, `INotificationPreferenceRepository`
   - `IEffectiveLanguageResolver`, `INotificationTemplateRenderer` (with `RenderedInApp` and `RenderedEmail`), `INotificationLinkBuilder`
   - `INotificationRealtimePublisher`, `INotificationAccessCheck` (`ItemType`, `CanAccessAsync(userId, id)` and `GetAvailableAsync(ids)`)
   - `INotificationWakeSignal`, `INotificationAuditWriter`
-- [ ] T025 [P] Add `ICorrelationIdAccessor` to `src/AskLucy.Application/Abstractions/ICorrelationIdAccessor.cs`, implemented in `src/AskLucy.Web/Middleware/HttpCorrelationIdAccessor.cs`:
+  - *Done. Also added: `INotificationRecipientDirectory`, `INotificationChannelRegistry`, `INotificationAuditLogRepository` and `NotificationRecipientJson`. `RenderedEmail`/`RenderEmailAsync` are deferred to US3 (T085), where the email path lands.*
+- [X] T025 [P] Add `ICorrelationIdAccessor` to `src/AskLucy.Application/Abstractions/ICorrelationIdAccessor.cs`, implemented in `src/AskLucy.Web/Middleware/HttpCorrelationIdAccessor.cs`:
   - It reads `HttpContext.Items[CorrelationIdMiddleware.HeaderName]`.
   - With no HTTP context, it falls back to `Activity.Current?.TraceId`, then to a new GUID v7.
-- [ ] T026 Implement `NotificationPublisher` in `src/AskLucy.Application/Notifications/NotificationPublisher.cs`. It:
+  - *Already existed as `ICorrelationIdAccessor` / `Web/Middleware/CorrelationIdAccessor.cs` (a singleton). The trace and GUID v7 fallbacks live in `NotificationPublisher` instead.*
+- [X] T026 Implement `NotificationPublisher` in `src/AskLucy.Application/Notifications/NotificationPublisher.cs`. It:
   - validates the type, the declared variables and the recipient shape;
   - serializes an outbox event and adds it through `INotificationOutboxStore.Add`;
   - performs no I/O.
-- [ ] T027 Implement `OutboxDispatchService` in `src/AskLucy.Application/Notifications/Processing/OutboxDispatchService.cs`. It:
+- [X] T027 Implement `OutboxDispatchService` in `src/AskLucy.Application/Notifications/Processing/OutboxDispatchService.cs`. It:
   - claims a batch;
   - resolves `User`, `Users`, `AddressForUser` and `SupportMailbox` recipients. `AddressLookup` and `Audience` are added later by US9 and US6.
   - checks the recipient is active, plus `INotificationAccessCheck` when `RequiresItemAccess`;
@@ -206,7 +208,9 @@ These apply to every task below, and each one assumes them:
   - completes the event.
 
   On failure it releases the event with backoff and logs `Type`, `EventKey` and `CorrelationId`.
-- [ ] T028 [P] Implement `NotificationAuditWriter` in `src/AskLucy.Application/Notifications/NotificationAuditWriter.cs`. It adds `NotificationAuditLog` rows to the current unit of work, with the actor from `ICurrentUserAccessor` (null for system) and the correlation id.
+
+  *Done, split to avoid a god class: `OutboxDispatchService` (claim, per-event scope, release with 10 s × 2ⁿ backoff capped at 15 min, operational-failure record after 10 attempts), `OutboxEventProcessor` (scoped; recipients, active and access re-checks, de-duplication, one commit), `NotificationMaterializer` (route, language, render, deliveries) and `NotificationCreatedPusher` (post-commit push, which carries the unread count). The access check fails closed: a related-item type with no registered `INotificationAccessCheck` throws and retries, so every emitting module must register one.*
+- [X] T028 [P] Implement `NotificationAuditWriter` in `src/AskLucy.Application/Notifications/NotificationAuditWriter.cs`. It adds `NotificationAuditLog` rows to the current unit of work, with the actor from `ICurrentUserAccessor` (null for system) and the correlation id.
 
 ### Persistence
 
@@ -214,7 +218,7 @@ These apply to every task below, and each one assumes them:
   - a soft-delete query filter on the owner delete, and `RowVersion`;
   - the filtered covering center index `(RecipientUserId, CreatedAtUtc DESC, Id DESC) WHERE DeletedAtUtc IS NULL AND ShowInCenter = 1`, plus an unread filtered index (R19);
   - the due-queue index `(Status, NextAttemptAtUtc)`, filtered to `Pending`/`Retrying`.
-- [ ] T030 [P] Add `NotificationOutboxEventConfiguration.cs` in `src/AskLucy.Persistence/Configurations/Notifications/`: a unique filtered index on `EventKey`, and a pending/lease index.
+- [ ] T030 [P] Add `NotificationOutboxEventConfiguration.cs` in `src/AskLucy.Persistence/Configurations/Notifications/`: a **non-unique** filtered index on `EventKey` (data-model.md: de-duplication is enforced on `Notifications`, so the outbox may hold repeats), and a pending/lease index.
 - [ ] T031 [P] Add `NotificationTemplateConfiguration.cs` and `NotificationTemplateVersionConfiguration.cs`:
   - templates are unique on `(Type, Channel, Language)`;
   - a filtered unique index allows at most one `Published` version per template;

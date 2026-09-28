@@ -57,6 +57,7 @@ One message for one recipient about one event (FR-010).
 | `RelatedItemType` | `string(50)?` | for example `WorkflowExecution`, `Document`, `Memory` |
 | `RelatedItemId` | `string(100)?` | |
 | `ActionRoute` | `string(300)?` | app-relative route, built by `INotificationLinkBuilder` (FR-047) |
+| `ActionLabel` | `string(60)?` | the template's `ActionLabel`, rendered in `Language` at materialization; null when there is no route |
 | `MetadataJson` | `nvarchar(max)?` | non-sensitive display metadata only (FR-013); ≤ 4 KB enforced |
 | `CorrelationId` | `string(100)` | from the originating request (FR-057) |
 | `EventKey` | `string(200)?` | de-duplication identity (FR-008) |
