@@ -334,22 +334,25 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 1
 
-- [ ] T055 [P] [US1] `NotificationCenterQueryTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationCenterQueryTests.cs`:
+- [X] T055 [P] [US1] `NotificationCenterQueryTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationCenterQueryTests.cs`:
   - the keyset order is stable while new rows are inserted;
   - the category and state filters work;
   - owner-deleted and `ShowInCenter=false` rows are excluded;
   - mark-all-read touches only the caller's rows, optionally filtered by category.
-- [ ] T056 [P] [US1] `NotificationsEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/NotificationsEndpointsTests.cs`. Cover every endpoint in [contracts/notifications-api.md](contracts/notifications-api.md) (the center section):
+  - Runs against the real site4now.net test2 DB, gated by `PERSISTENCE_TESTS_2_CONNECTION_STRING` like every other `Persistence.Tests` suite; skips cleanly (4/4) when unset, as it was in this session. `dotnet build` clean.
+- [X] T056 [P] [US1] `NotificationsEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/NotificationsEndpointsTests.cs`. Cover every endpoint in [contracts/notifications-api.md](contracts/notifications-api.md) (the center section):
   - status codes 200/204/400/401/404/429;
   - another user's id returns 404;
   - a deleted notification returns 404;
   - `title` and `message` are never HTML;
   - `relatedItem.available=false` for a deleted item;
   - a malformed cursor returns 400.
-- [ ] T057 [P] [US1] `NotificationCenterHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationCenterHandlerTests.cs`:
+  - Deviation: built as `IClassFixture<NotificationsApiFactory>` (one real host shared by the whole class) rather than per-test `WithWebHostBuilder` — the latter stalled 5+ minutes (a documented Web.Tests anti-pattern: a fresh host + Hangfire server per test). `NotificationsApiFactory` mirrors `CustomModelsApiFactory` exactly. 429 is deliberately not exercised in-process, matching `AnalyticsControllerTests`. 15/15 pass in ~26s.
+- [X] T057 [P] [US1] `NotificationCenterHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationCenterHandlerTests.cs`:
   - mark-read is idempotent and pushes `notificationUpdated` and `unreadCountChanged`;
   - mark-all-read pushes `unreadCountChanged` exactly once;
   - delete pushes `notificationUpdated` with `deleted: true`.
+  - "Pushes notificationUpdated and unreadCountChanged" is realized as the single `NotificationUpdatedAsync(..., unreadCount, ...)` call the handler actually makes (the DTO carries the fresh count, not a second push) — matches `INotificationRealtimePublisher`. Also extended `OutboxDispatchServiceTests`' pre-existing `FakeUnitOfWork` with the three `INotificationRepository` members (`CountUnreadAsync(string)`, `ListAsync`, `MarkAllReadAsync`) it was missing after this feature's earlier T060/T061 interface growth, mirroring `NotificationRepository`'s real filters. 53/53 pass in Application.Tests' Notifications namespace, 0 warnings.
 - [ ] T058 [P] [US1] Frontend tests: `ClientApp/src/features/notifications/components/NotificationBell.test.tsx`, `NotificationPopover.test.tsx`, `NotificationItem.test.tsx`, and `ClientApp/src/features/notifications/pages/NotificationsPage.test.tsx` with `.a11y.test.tsx`. Cover:
   - the badge count and its aria-label;
   - text rendered as plain text, where a `<b>` payload shows literally;

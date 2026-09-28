@@ -464,6 +464,56 @@ public sealed class OutboxDispatchServiceTests : IDisposable
                 id => id,
                 id => db.Committed.Count(n => n.RecipientUserId == id && n.ShowInCenter && !n.IsRead)));
 
+        // The three members below are exercised by NotificationCenterHandlerTests and
+        // NotificationCenterQueryTests, not this class's own tests — they only need to compile
+        // and to mirror NotificationRepository's real filters closely enough not to lie.
+        public Task<int> CountUnreadAsync(string userId, CancellationToken cancellationToken) =>
+            Task.FromResult(db.Committed.Count(n => n.RecipientUserId == userId && n.ShowInCenter && !n.IsRead));
+
+        public Task<(IReadOnlyList<Notification> Items, string? NextCursor)> ListAsync(
+            string userId,
+            IReadOnlyCollection<NotificationCategory>? categories,
+            NotificationReadState state,
+            string? cursor,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            var query = db.Committed.Where(n => n.RecipientUserId == userId && n.ShowInCenter);
+            if (categories is { Count: > 0 })
+            {
+                query = query.Where(n => categories.Contains(n.Category));
+            }
+
+            query = state switch
+            {
+                NotificationReadState.Unread => query.Where(n => n.ReadAtUtc == null),
+                NotificationReadState.Read => query.Where(n => n.ReadAtUtc != null),
+                _ => query,
+            };
+
+            var items = query.OrderByDescending(n => n.CreatedAtUtc).ThenByDescending(n => n.Id).Take(limit).ToList();
+            return Task.FromResult<(IReadOnlyList<Notification>, string?)>((items, null));
+        }
+
+        public Task<int> MarkAllReadAsync(string userId, NotificationCategory? category, DateTime now, CancellationToken cancellationToken)
+        {
+            var matches = db.Committed.Where(n =>
+                n.RecipientUserId == userId &&
+                n.ShowInCenter &&
+                n.ReadAtUtc == null &&
+                (n.Status == NotificationStatus.Delivered || n.Status == NotificationStatus.Sent) &&
+                (category is null || n.Category == category));
+
+            var updated = 0;
+            foreach (var notification in matches)
+            {
+                notification.MarkRead(now);
+                updated++;
+            }
+
+            return Task.FromResult(updated);
+        }
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             foreach (var tracked in _trackedEvents)

@@ -1,3 +1,4 @@
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 
@@ -52,4 +53,12 @@ internal static partial class NotificationDispatchLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Could not count unread notifications before pushing (CorrelationId {CorrelationId}); {Count} realtime push(es) skipped, and the client catches up on reconnect.")]
     public static partial void UnreadCountFailed(ILogger logger, Exception exception, string correlationId, int count);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Realtime notificationUpdated push failed (NotificationId {NotificationId}, Change {Change}); the client catches up on reconnect.")]
+    public static partial void UpdatePushFailed(ILogger logger, Exception exception, Guid notificationId, NotificationChange change);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Realtime unreadCountChanged push failed for user {UserId}; the client catches up on reconnect.")]
+    public static partial void UnreadCountPushFailed(ILogger logger, Exception exception, string userId);
 }

@@ -49,20 +49,15 @@ public sealed class NotificationCreatedPusher(
 
     /// <summary>
     /// The push shape. A just-created item's related item is available by construction: the
-    /// dispatcher re-checked access moments ago (R24).
+    /// dispatcher re-checked access moments ago (R24) — so <see cref="NotificationMapper"/> is
+    /// handed an availability map that always answers "yes" for this one item.
     /// </summary>
-    public static NotificationListItemDto ToListItem(Notification n) => new(
-        n.Id,
-        n.Category,
-        n.Type,
-        n.Title,
-        n.Message,
-        n.Priority,
-        n.Status,
-        n.Language,
-        n.CreatedAtUtc,
-        n.ReadAtUtc,
-        n.ExpiresAtUtc,
-        n.ActionRoute is null ? null : new NotificationActionDto(n.ActionLabel, n.ActionRoute),
-        n is { RelatedItemType: { } type, RelatedItemId: { } id } ? new NotificationRelatedItemDto(type, id, Available: true) : null);
+    public static NotificationListItemDto ToListItem(Notification n)
+    {
+        var availableByType = n is { RelatedItemType: { } type, RelatedItemId: { } id }
+            ? new Dictionary<string, IReadOnlySet<string>> { [type] = new HashSet<string>(StringComparer.Ordinal) { id } }
+            : new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal);
+
+        return NotificationMapper.ToListItemDto(n, availableByType);
+    }
 }

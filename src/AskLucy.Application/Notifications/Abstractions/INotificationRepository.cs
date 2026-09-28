@@ -1,3 +1,4 @@
+using AskLucy.Application.Notifications;
 using AskLucy.Domain.Notifications;
 
 namespace AskLucy.Application.Notifications.Abstractions;
@@ -20,4 +21,27 @@ public interface INotificationRepository
 
     /// <summary>Unread notification-center items (not deleted, not expired) per user; users with none are omitted.</summary>
     Task<IReadOnlyDictionary<string, int>> CountUnreadAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken);
+
+    /// <summary>Unread notification-center items for a single user (research R19: index-only count).</summary>
+    Task<int> CountUnreadAsync(string userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Keyset-paginated notification center list for <paramref name="userId"/>, newest first
+    /// (FR-014, FR-015, contracts/notifications-api.md). <paramref name="categories"/> null or
+    /// empty means every category.
+    /// </summary>
+    Task<(IReadOnlyList<Notification> Items, string? NextCursor)> ListAsync(
+        string userId,
+        IReadOnlyCollection<NotificationCategory>? categories,
+        NotificationReadState state,
+        string? cursor,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Marks every unread, deliverable notification for <paramref name="userId"/> read in one
+    /// set-based update (contracts/notifications-api.md `mark-all-read`), optionally limited to
+    /// one category. Returns the number of rows updated.
+    /// </summary>
+    Task<int> MarkAllReadAsync(string userId, NotificationCategory? category, DateTime now, CancellationToken cancellationToken);
 }

@@ -595,6 +595,20 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // Notification center endpoints (specs/067-notifications-communication-hub, T065,
+    // contracts/notifications-api.md: "Rate limit: notifications-endpoints (per user, 120/min)").
+    options.AddPolicy("notifications-endpoints", context =>
+    {
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // --- CORS: explicit allow-list, replacing the legacy wildcard (research.md Topic 7) ---
