@@ -6,16 +6,18 @@ namespace AskLucy.Application.Ai.Dictation.Commands.TranscribeDictationClip;
 
 /// <summary>
 /// contracts/dictation-transcription.md — transcribes one recorded dictation clip on the engine
-/// <see cref="DictationEngineSetting.ResolveEngine"/> resolves for this turn. This story
-/// (specs/078 US1) implements steps 1–4: resolving the engine, validating the WAV header, picking
-/// the one transcriber for that engine, and reporting success. A transcriber failure (step 5,
-/// including Local Whisper's never-suspend rule) arrives with US2.
+/// <see cref="DictationEngineSetting.ResolveEngine"/> resolves for this turn: resolving the engine,
+/// validating the WAV header, picking the one transcriber for that engine, and reporting success or
+/// failure. specs/078 US2 — a transcriber failure is a failover (no second transcriber to try, so
+/// the client's own next attempt is the browser built-in); Local Whisper never suspends (FR-005).
+/// An invalid WAV clip is a validation failure, not a failover — nothing served it.
 /// </summary>
 public sealed class TranscribeDictationClipCommandHandler(
     IDictationEngineSettingRepository settings,
     ILocalWhisperModelCatalog catalog,
     IEnumerable<IDictationClipTranscriber> transcribers,
-    IVoiceFailureReporter failureReporter) : IRequestHandler<TranscribeDictationClipCommand, DictationTranscriptionResult>
+    IVoiceFailureReporter failureReporter,
+    DictationFailurePolicy failurePolicy) : IRequestHandler<TranscribeDictationClipCommand, DictationTranscriptionResult>
 {
     private readonly record struct ResolvedClipEngine(DictationClipEngine Engine, string? ModelPath, string? ModelLabel);
 
@@ -32,18 +34,35 @@ public sealed class TranscribeDictationClipCommandHandler(
             return DictationTranscriptionResult.Unavailable.Instance;
         }
 
+        var identity = clipEngine.Engine == DictationClipEngine.LocalWhisper
+            ? new VoiceEngineIdentity("Local Whisper", null, clipEngine.ModelLabel)
+            : new VoiceEngineIdentity("OpenAI Whisper");
+
         if (!WavHeader.TryRead(request.Wav, out _, out var wavError))
         {
-            throw new DictationAudioInvalidException(wavError ?? "The clip isn't a 16 kHz mono WAV recording.");
+            var invalid = new DictationAudioInvalidException(wavError ?? "The clip isn't a 16 kHz mono WAV recording.");
+            failurePolicy.ReportValidationFailure(VoiceOperations.Transcription, identity, invalid, cancellationToken);
+            throw invalid;
         }
 
         var transcriber = transcribers.Single(t => t.Engine == clipEngine.Engine);
         var clip = new DictationClip(request.Wav, request.Language, clipEngine.ModelPath);
-        var transcript = await transcriber.TranscribeAsync(clip, cancellationToken);
 
-        var identity = clipEngine.Engine == DictationClipEngine.LocalWhisper
-            ? new VoiceEngineIdentity("Local Whisper", null, clipEngine.ModelLabel)
-            : new VoiceEngineIdentity("OpenAI Whisper");
+        DictationTranscript transcript;
+        try
+        {
+            transcript = await transcriber.TranscribeAsync(clip, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // No second transcriber to try for this turn (research D4): the client's own next
+            // attempt is the browser built-in, so there is nothing left to serve this one. Whether
+            // to suspend a cloud engine's future turns is US3 (T066); Local Whisper never suspends.
+            var isCloudEngine = clipEngine.Engine == DictationClipEngine.OpenAiWhisper;
+            failurePolicy.ReportEngineFailure(VoiceOperations.Transcription, identity, isCloudEngine, ex, cancellationToken);
+            return DictationTranscriptionResult.Unavailable.Instance;
+        }
+
         failureReporter.ReportServed(VoiceOperations.Transcription, identity);
 
         return new DictationTranscriptionResult.Transcribed(transcript.Text, transcript.DetectedLanguage ?? request.Language);

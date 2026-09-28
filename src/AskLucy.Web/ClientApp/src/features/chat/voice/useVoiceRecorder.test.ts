@@ -131,11 +131,12 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024, s
     expect(result.current.phase).toBe('idle')
   })
 
-  it('a transcription failure surfaces via error and still resolves the phase to idle (FR-015)', async () => {
+  it('a transcription failure shows the gentle-repeat message, calls onGentleRepeat, forces the next attempt to the browser built-in, and reverts on the attempt after that (specs/078 US2/FR-005b)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
     vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
-    vi.mocked(transcribeDictationClip).mockRejectedValue(new Error('Transcription failed with 500'))
-    const { result } = renderHook(() => useVoiceRecorder())
+    vi.mocked(transcribeDictationClip).mockRejectedValueOnce(new Error('Transcription failed with 500'))
+    const onGentleRepeat = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder(undefined, onGentleRepeat))
 
     await act(async () => {
       await result.current.start()
@@ -148,7 +149,40 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024, s
 
     expect(transcript).toBe('')
     expect(result.current.phase).toBe('idle')
-    expect(result.current.error).toBe('Transcription failed with 500')
+    expect(result.current.error).toBe('Sorry, I missed that — could you say it again?')
+    expect(onGentleRepeat).toHaveBeenCalledWith('Sorry, I missed that — could you say it again?')
+
+    // The very next attempt is forced straight to the browser built-in — no stt-session call.
+    vi.mocked(createSttSession).mockClear()
+    class FakeRecognitionCtor {}
+    vi.mocked(getBrowserSpeechRecognition).mockReturnValue(
+      FakeRecognitionCtor as unknown as ReturnType<typeof getBrowserSpeechRecognition>,
+    )
+    vi.mocked(startBrowserDictation).mockReturnValue({ commit: vi.fn(), cancel: vi.fn() })
+
+    await act(async () => {
+      await result.current.start()
+    })
+
+    expect(createSttSession).not.toHaveBeenCalled()
+    expect(startBrowserDictation).toHaveBeenCalledTimes(1)
+
+    // The attempt after that reverts to normal engine resolution.
+    act(() => {
+      result.current.cancel()
+    })
+    vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Clip',
+      token: null,
+      expiresAtUtc: null,
+      degraded: false,
+    })
+
+    await act(async () => {
+      await result.current.start()
+    })
+
+    expect(createSttSession).toHaveBeenCalledTimes(1)
   })
 
   it('resolves the phase to idle without transcribing when the clip could not be converted to WAV', async () => {

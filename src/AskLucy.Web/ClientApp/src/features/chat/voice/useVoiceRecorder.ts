@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from 'react'
 import { transcribeDictationClip } from '../api/aiApi'
-import { createSttSession } from '../api/voiceApi'
+import { createSttSession, type SpeechToTextSession } from '../api/voiceApi'
 import {
   getBrowserSpeechRecognition,
   startBrowserDictation,
   type DictationSession,
 } from './dictationFallback'
+import { gentleRepeatMessage } from './gentleRepeat'
 import type { MicrophonePermissionState } from './useSpeechRecognition'
 import { toWav16kMono } from './wavEncoder'
 
@@ -47,7 +48,7 @@ const FFT_SIZE = 256
  * ref-based-`getIntensity()`-polled-per-frame pattern (research.md #3) — never React
  * state per frame.
  */
-export function useVoiceRecorder(language?: string) {
+export function useVoiceRecorder(language?: string, onGentleRepeat?: (message: string) => void) {
   const [phase, setPhase] = useState<RecordingPhase>('idle')
   const [permissionState, setPermissionState] = useState<MicrophonePermissionState>('unknown')
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +65,9 @@ export function useVoiceRecorder(language?: string) {
   const browserSessionRef = useRef<DictationSession | null>(null)
   const browserTranscriptResolveRef = useRef<((text: string) => void) | null>(null)
   const browserTranscriptPromiseRef = useRef<Promise<string> | null>(null)
+  /** specs/078 FR-005b — set when a clip transcription fails; the very next `start()` is
+   * forced to the browser built-in, bypassing `stt-session` (never another cloud engine). */
+  const forceNextBrowserRef = useRef(false)
 
   const isSupported =
     typeof navigator !== 'undefined' &&
@@ -100,9 +104,17 @@ export function useVoiceRecorder(language?: string) {
     // contracts/dictation-session.md — resolved before the microphone opens (FR-005a). A
     // failed request itself (server unreachable) is not retried: it falls back to the
     // browser built-in the same way an explicit `Browser` answer does (FR-005b).
-    const session = await createSttSession(language ?? 'en', 'PushToTalk').catch(
-      () => ({ engine: 'Browser' as const, token: null, expiresAtUtc: null, degraded: true }),
-    )
+    let session: SpeechToTextSession
+    if (forceNextBrowserRef.current) {
+      // specs/078 FR-005b — the attempt right after a mid-clip failure never re-resolves
+      // through stt-session: it goes straight to the browser built-in.
+      forceNextBrowserRef.current = false
+      session = { engine: 'Browser', token: null, expiresAtUtc: null, degraded: false }
+    } else {
+      session = await createSttSession(language ?? 'en', 'PushToTalk').catch(
+        () => ({ engine: 'Browser' as const, token: null, expiresAtUtc: null, degraded: true }),
+      )
+    }
 
     if (session.engine === 'Realtime') {
       // FR-017/research D4: Push-to-Talk never legitimately resolves to ElevenLabs realtime —
@@ -230,12 +242,19 @@ export function useVoiceRecorder(language?: string) {
       const result = await transcribeDictationClip(wav.blob, language)
       setPhaseBoth('idle')
       return result.text
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to transcribe the recording.')
+    } catch {
+      // specs/078 US2/FR-005b — a mid-clip failure never escalates to another cloud engine:
+      // show the gentle-repeat message (spoken aloud by the caller via onGentleRepeat when
+      // voice replies are on) and force the very next attempt to the browser built-in only.
+      // Push-to-Talk doesn't auto-restart recording — the user presses the mic again.
+      const message = gentleRepeatMessage(language)
+      forceNextBrowserRef.current = true
+      setError(message)
+      onGentleRepeat?.(message)
       setPhaseBoth('idle')
       return ''
     }
-  }, [cleanupAudioGraph, finishBrowserEngine, language])
+  }, [cleanupAudioGraph, finishBrowserEngine, language, onGentleRepeat])
 
   /** FR-004/FR-024: discards the captured audio from an in-progress `recording` and
    * never transmits it. Also the path a collapse mid-recording routes through. */

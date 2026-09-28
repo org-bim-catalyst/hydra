@@ -29,7 +29,8 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
     IVoiceFailureReporter failureReporter,
     ICurrentUserAccessor currentUser,
     IDictationEngineSettingRepository settings,
-    ILocalWhisperModelCatalog catalog) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
+    ILocalWhisperModelCatalog catalog,
+    DictationFailurePolicy failurePolicy) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
 {
     public async Task<DictationSession> Handle(CreateSpeechToTextSessionCommand request, CancellationToken cancellationToken)
     {
@@ -65,10 +66,20 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
             LocalWhisperModelResolution.None or LocalWhisperModelResolution.Unavailable =>
                 DictationSession.Browser(degraded: false),
 
-            // A Broken model (its file missing/unreadable) is a Local Whisper failure; recording
-            // it arrives with US2 (T051).
+            // A Broken model (its file missing/unreadable) is a Local Whisper failure (FR-007):
+            // the browser built-in serves instead, degraded.
+            LocalWhisperModelResolution.Broken broken => ReportBrokenModel(broken, cancellationToken),
+
             _ => DictationSession.Browser(degraded: false),
         };
+    }
+
+    private DictationSession ReportBrokenModel(LocalWhisperModelResolution.Broken broken, CancellationToken cancellationToken)
+    {
+        var engine = new VoiceEngineIdentity("Local Whisper", null, broken.ModelLabel);
+        failurePolicy.ReportEngineFailure(
+            VoiceOperations.Transcription, engine, isCloudEngine: false, new LocalWhisperModelBrokenException(broken.Reason), cancellationToken);
+        return DictationSession.Browser(degraded: true);
     }
 
     private async Task<DictationSession> MintRealtimeSessionAsync(string language, string userId, CancellationToken cancellationToken)

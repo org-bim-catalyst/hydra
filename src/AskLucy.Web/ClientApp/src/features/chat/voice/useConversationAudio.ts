@@ -23,6 +23,10 @@ interface UseConversationAudioOptions {
   onUserTranscript: (text: string) => void
   onAssistantTextDelta: (text: string) => void
   onAssistantTurnComplete: () => void
+  /** specs/078 FR-005b — forwarded straight to `useSpeechRecognition`: called with the
+   * gentle-repeat phrase when the server-resolved (primary) dictation engine fails
+   * mid-utterance, so the caller's own TTS can speak it aloud. */
+  onGentleRepeat?: (message: string) => void
 }
 
 /**
@@ -50,6 +54,7 @@ export function useConversationAudio({
   onUserTranscript,
   onAssistantTextDelta,
   onAssistantTurnComplete,
+  onGentleRepeat,
 }: UseConversationAudioOptions) {
   const voiceState = useVoiceState()
   const analyzer = useVoiceAnalyzer()
@@ -155,6 +160,7 @@ export function useConversationAudio({
     onFinalTranscript: handleFinalTranscript,
     preferredMicrophoneDeviceId,
     onError: handleUnrecoverableFailure,
+    onGentleRepeat,
   })
 
   useEffect(() => {

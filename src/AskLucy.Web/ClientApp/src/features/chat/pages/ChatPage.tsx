@@ -578,6 +578,11 @@ export function ConversationView({
     onUserTranscript: () => {},
     onAssistantTextDelta: () => {},
     onAssistantTurnComplete: () => {},
+    // specs/078 FR-005b — spoken aloud in Lucy's own voice persona (tts, not the AI-reply
+    // pipeline: this is a canned phrase, not a generated turn).
+    onGentleRepeat: (message) => {
+      tts.speak(message, language)
+    },
   })
 
   useEffect(() => {
@@ -589,7 +594,10 @@ export function ConversationView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMutedPreference])
 
-  const recorder = useVoiceRecorder(language)
+  // specs/078 FR-005b — same canned-phrase TTS as Continuous mode's onGentleRepeat above.
+  const recorder = useVoiceRecorder(language, (message) => {
+    tts.speak(message, language)
+  })
   // specs/031-voice-controls-redesign FR-001/FR-002, research.md Decision 1 — finish() now
   // stops and transcribes in one step; this just appends the result into the draft text
   // field, replacing the old two-step finish-then-manually-accept flow.

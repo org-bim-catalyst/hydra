@@ -10,6 +10,7 @@ import {
   type DictationSession,
   type FallbackEngine,
 } from './dictationFallback'
+import { gentleRepeatMessage } from './gentleRepeat'
 import { downsampleTo16kHz, float32ToInt16Pcm, toBase64 } from './pcm16'
 import { useVoiceProviderStatus } from './voiceProviderStatus'
 
@@ -34,6 +35,9 @@ interface UseSpeechRecognitionOptions {
   /** Every failure the hook surfaces through `error`, as it happens — so a caller that owns
    * the visible voice state can show it rather than leaving the mic "listening". */
   onError?: (message: string) => void
+  /** specs/078 FR-005b — called with the gentle-repeat phrase when a server-resolved
+   * (primary) engine fails mid-utterance, so a caller with voice replies on can speak it. */
+  onGentleRepeat?: (message: string) => void
 }
 
 /** Shown when ElevenLabs' realtime connection itself could not be opened (retries exhausted, or
@@ -92,6 +96,7 @@ export function useSpeechRecognition({
   onFinalTranscript,
   preferredMicrophoneDeviceId,
   onError,
+  onGentleRepeat,
 }: UseSpeechRecognitionOptions) {
   const [isListening, setIsListening] = useState(false)
   const [permissionState, setPermissionState] = useState<MicrophonePermissionState>('unknown')
@@ -112,10 +117,20 @@ export function useSpeechRecognition({
   const unusableEnginesRef = useRef(new Set<FallbackEngine>())
   const modeRef = useRef(mode)
   const onErrorRef = useRef(onError)
+  const onGentleRepeatRef = useRef(onGentleRepeat)
   useEffect(() => {
     modeRef.current = mode
     onErrorRef.current = onError
-  }, [mode, onError])
+    onGentleRepeatRef.current = onGentleRepeat
+  }, [mode, onError, onGentleRepeat])
+
+  /** specs/078 FR-005b — set when a server-resolved (primary) engine fails mid-utterance; the
+   * very next `start()` is forced to the browser built-in, bypassing `stt-session` entirely
+   * (never another cloud engine). */
+  const forceNextBrowserRef = useRef(false)
+  /** Populated once `start` is defined below (`startFallback`'s `onError` needs to call it
+   * back into `start`, which is itself defined after `startFallback` for readability). */
+  const startRef = useRef<() => Promise<void>>(async () => {})
 
   const fail = useCallback((message: string) => {
     setError(message)
@@ -367,9 +382,17 @@ export function useSpeechRecognition({
             if (fallbackSessionRef.current !== session) return
             endTurn()
             if (forcedEngine !== undefined) {
-              // A server-resolved turn failing mid-utterance isn't escalated here — US2 wires
-              // that trail entry and the gentle-repeat notice; for now the user just sees why.
-              fail(failure.message)
+              // specs/078 US2/FR-005b — a mid-clip failure on a server-resolved (primary) engine
+              // never escalates to another cloud engine: the very next attempt is forced to the
+              // browser built-in only, and Continuous mode restarts listening for it immediately
+              // (Push-to-Talk has no equivalent — the user presses the mic again).
+              forceNextBrowserRef.current = true
+              const message = gentleRepeatMessage(language)
+              fail(message)
+              onGentleRepeatRef.current?.(message)
+              if (modeRef.current === 'continuous') {
+                void startRef.current?.()
+              }
               return
             }
             if (failure.engineUnusable) unusableEnginesRef.current.add(engine)
@@ -463,6 +486,14 @@ export function useSpeechRecognition({
       return
     }
 
+    if (forceNextBrowserRef.current) {
+      // specs/078 FR-005b — the attempt right after a mid-clip failure never re-resolves
+      // through stt-session: it goes straight to the browser built-in, no server round trip.
+      forceNextBrowserRef.current = false
+      startFallback(stream, 'browser')
+      return
+    }
+
     // Once failed over, stay on the fallback — the caller's probeRecoveryIfDegraded flips the
     // store back to primary as soon as ElevenLabs answers again.
     const outcome =
@@ -526,6 +557,10 @@ export function useSpeechRecognition({
     startFallback,
     buildMicGraph,
   ])
+
+  useEffect(() => {
+    startRef.current = start
+  }, [start])
 
   /** Manual end of capture (FR-006) — discards without waiting for a commit round trip. */
   const cancel = useCallback(() => {

@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.CreateSpeechToTextSession;
 using AskLucy.Application.Ai.Dictation;
+using AskLucy.Application.OperationalFailures;
 using AskLucy.Domain.Ai.Dictation;
 using FluentAssertions;
 using NSubstitute;
@@ -24,6 +25,7 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly IDictationEngineSettingRepository _settings = Substitute.For<IDictationEngineSettingRepository>();
     private readonly ILocalWhisperModelCatalog _catalog = Substitute.For<ILocalWhisperModelCatalog>();
+    private readonly IFailureClassifier _classifier = Substitute.For<IFailureClassifier>();
 
     public CreateSpeechToTextSessionCommandHandlerTests()
     {
@@ -45,7 +47,8 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
     }
 
     private CreateSpeechToTextSessionCommandHandler CreateHandler() =>
-        new(_sessionProvider, _healthRecorder, _failoverEvents, _reporter, _currentUser, _settings, _catalog);
+        new(_sessionProvider, _healthRecorder, _failoverEvents, _reporter, _currentUser, _settings, _catalog,
+            new DictationFailurePolicy(_classifier, _reporter));
 
     [Theory]
     [InlineData(DictationCaptureMode.Continuous)]
@@ -91,6 +94,29 @@ public sealed class CreateSpeechToTextSessionCommandHandlerTests
 
         session.Should().Be(DictationSession.Clip);
         await _sessionProvider.DidNotReceiveWithAnyArgs().CreateSessionAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(DictationCaptureMode.Continuous)]
+    [InlineData(DictationCaptureMode.PushToTalk)]
+    public async Task ModelBroken_ShouldReportAFailoverAndServeTheBrowserDegraded(DictationCaptureMode mode)
+    {
+        var modelId = Guid.NewGuid();
+        _settings.GetOrCreateAsync(Arg.Any<CancellationToken>()).Returns(LocalWhisperPrimary(modelId));
+        _catalog.ResolveSelectedAsync(modelId, Arg.Any<CancellationToken>())
+            .Returns(new LocalWhisperModelResolution.Broken("File missing.", "whisper.cpp (ggml-base.bin)"));
+
+        var session = await CreateHandler().Handle(new CreateSpeechToTextSessionCommand("en", mode), CancellationToken.None);
+
+        session.Should().Be(DictationSession.Browser(degraded: true));
+        // The handler forwards Handle's own token (CancellationToken.None above), not the test
+        // runner's TestContext token — asserting against the latter mismatched arguments here.
+        _reporter.Received(1).ReportFailover(
+            VoiceOperations.Transcription,
+            Arg.Is<VoiceEngineIdentity>(e => e.ProviderName == "Local Whisper" && e.Model == "whisper.cpp (ggml-base.bin)"),
+            Arg.Any<Exception>(),
+            true,
+            CancellationToken.None);
     }
 
     [Fact]

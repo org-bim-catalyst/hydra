@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Dictation;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Domain.OperationalFailures;
 using FluentAssertions;
@@ -65,6 +66,13 @@ public sealed class FailureClassifierTests
             .Should().Be(OperationalFailureKind.DependencyUnreachable);
         _classifier.Classify(new SocketException((int)SocketError.ConnectionRefused), CancellationToken.None)
             .Should().Be(OperationalFailureKind.DependencyUnreachable);
+    }
+
+    [Fact]
+    public void Classify_MapsAnInvalidDictationClipToValidationFailed()
+    {
+        _classifier.Classify(new DictationAudioInvalidException("Not a 16 kHz mono WAV clip."), CancellationToken.None)
+            .Should().Be(OperationalFailureKind.ValidationFailed);
     }
 
     [Fact]

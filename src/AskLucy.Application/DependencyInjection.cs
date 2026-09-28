@@ -146,6 +146,9 @@ public static class DependencyInjection
 
         // specs/078 — whether a dictation engine's vendor is switched on under AI providers.
         services.AddScoped<AskLucy.Application.Ai.Dictation.DictationVendorGate>();
+
+        // specs/078 US2 — classifies and reports a dictation engine failure on the operational failure trail.
+        services.AddScoped<AskLucy.Application.Ai.Dictation.DictationFailurePolicy>();
         services.AddSingleton<CustomModelDeploymentRecovery>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's

@@ -260,13 +260,13 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Tests for User Story 2
 
-- [ ] T051 [P] [US2] Extend `tests/AskLucy.Application.Tests/Ai/CreateSpeechToTextSessionCommandHandlerTests.cs`: a selected model that is `Broken` → `Browser`, `degraded: true`, and `ReportFailover(Transcription, "Local Whisper", fallbackServed: true)`.
-- [ ] T052 [P] [US2] Extend `tests/AskLucy.Application.Tests/Ai/Dictation/TranscribeDictationClipCommandHandlerTests.cs`:
+- [X] T051 [P] [US2] Extend `tests/AskLucy.Application.Tests/Ai/CreateSpeechToTextSessionCommandHandlerTests.cs`: a selected model that is `Broken` → `Browser`, `degraded: true`, and `ReportFailover(Transcription, "Local Whisper", fallbackServed: true)`.
+- [X] T052 [P] [US2] Extend `tests/AskLucy.Application.Tests/Ai/Dictation/TranscribeDictationClipCommandHandlerTests.cs`:
   - A transcriber exception → `ReportFailover(..., fallbackServed: true)` and the unavailable result, with no second transcriber called.
   - An invalid WAV → `ReportFailure` (`ValidationFailed`).
   - Local Whisper failures never suspend.
   - The reason passes through `FailureReasonSanitizer`.
-- [ ] T053 [P] [US2] Frontend tests:
+- [X] T053 [P] [US2] Frontend tests:
   - `src/AskLucy.Web/ClientApp/src/features/chat/voice/gentleRepeat.test.ts`: all 5 languages, falling back to English.
   - `useVoiceRecorder.test.ts` and `useSpeechRecognition.test.ts`: any non-200 or network error shows the gentle repeat; the next attempt only is marked "browser built-in"; Continuous restarts listening after the message; the attempt after that calls stt-session again.
   - `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.test.tsx`: the message is spoken through `useVoiceOutput` when voice replies are on.
@@ -274,10 +274,10 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Implementation for User Story 2
 
-- [ ] T054 [US2] Create `src/AskLucy.Application/Ai/Dictation/DictationFailurePolicy.cs`. It is the single place that classifies a failure (`IFailureClassifier`), reports it through `IVoiceFailureReporter` with the glossary engine name, and returns whether to suspend (always false for Local Whisper; the cloud engines are wired up in US3). Use it from the stt-session and clip handlers. Make T051 and T052 pass.
-- [ ] T055 [US2] Add the Broken branch to `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs` and the exception path to `src/AskLucy.Application/Ai/Dictation/Commands/TranscribeDictationClip/TranscribeDictationClipCommandHandler.cs`, both through `DictationFailurePolicy`. Keep the user-facing Problem Details generic (FR-007).
-- [ ] T056 [P] [US2] Create `src/AskLucy.Web/ClientApp/src/features/chat/voice/gentleRepeat.ts`: an en/ar/es/fr/de phrase map keyed by dictation language, with an English fallback.
-- [ ] T057 [US2] Wire the gentle repeat:
+- [X] T054 [US2] Create `src/AskLucy.Application/Ai/Dictation/DictationFailurePolicy.cs`. It is the single place that classifies a failure (`IFailureClassifier`), reports it through `IVoiceFailureReporter` with the glossary engine name, and returns whether to suspend (always false for Local Whisper; the cloud engines are wired up in US3). Use it from the stt-session and clip handlers. Make T051 and T052 pass.
+- [X] T055 [US2] Add the Broken branch to `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs` and the exception path to `src/AskLucy.Application/Ai/Dictation/Commands/TranscribeDictationClip/TranscribeDictationClipCommandHandler.cs`, both through `DictationFailurePolicy`. Keep the user-facing Problem Details generic (FR-007).
+- [X] T056 [P] [US2] Create `src/AskLucy.Web/ClientApp/src/features/chat/voice/gentleRepeat.ts`: an en/ar/es/fr/de phrase map keyed by dictation language, with an English fallback.
+- [X] T057 [US2] Wire the gentle repeat:
   - In `src/AskLucy.Web/ClientApp/src/features/chat/voice/useVoiceRecorder.ts`, `useSpeechRecognition.ts` and `dictationFallback.ts`: show the message and switch the next attempt to the browser built-in.
   - In `src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx`: speak it through `useVoiceOutput` (persona voice) when voice replies are on.
   - In `src/AskLucy.Web/ClientApp/src/features/chat/voice/useSpeechRecognition.ts`: remove or align the `FALLBACK_NOTICES` inline copy with the new flow. Make T053 pass.

@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Dictation;
 using AskLucy.Domain.OperationalFailures;
 
 namespace AskLucy.Application.OperationalFailures;
@@ -29,6 +30,7 @@ public sealed class FailureClassifier : IFailureClassifier
         return exception switch
         {
             AiProviderException provider => OperationalFailureKinds.FromProvider(provider.Kind),
+            DictationAudioInvalidException => OperationalFailureKind.ValidationFailed,
             OperationCanceledException when callerToken.IsCancellationRequested => null,
             OperationCanceledException or TimeoutException => OperationalFailureKind.TimedOut,
             HttpRequestException or SocketException => OperationalFailureKind.DependencyUnreachable,

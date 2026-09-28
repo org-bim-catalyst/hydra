@@ -49,6 +49,9 @@ public sealed class DictationEngineNotSelectableException(string reason) : Excep
 /// <summary>specs/078 FR-009a — the deployment can't be the Local Whisper model, with the reason (422).</summary>
 public sealed class LocalWhisperModelNotSelectableException(string reason) : Exception(reason);
 
+/// <summary>specs/078 FR-007 — the selected Local Whisper model's file is missing or unreadable: a Local Whisper failure.</summary>
+public sealed class LocalWhisperModelBrokenException(string reason) : Exception(reason);
+
 /// <summary>specs/078 FR-013 — the clip isn't 16 kHz mono 16-bit PCM WAV (422). The message is the detail shown.</summary>
 public sealed class DictationAudioInvalidException(string message) : Exception(message);
 

@@ -565,7 +565,14 @@ describe('useSpeechRecognition', () => {
       vi.mocked(toWav16kMono).mockReset()
     })
 
-    function renderRecognition(overrides: { onError?: (message: string) => void; language?: string } = {}) {
+    function renderRecognition(
+      overrides: {
+        onError?: (message: string) => void
+        onGentleRepeat?: (message: string) => void
+        language?: string
+        mode?: 'push-to-talk' | 'continuous'
+      } = {},
+    ) {
       const onPartialTranscript = vi.fn()
       const onFinalTranscript = vi.fn()
       const rendered = renderHook(() =>
@@ -766,6 +773,108 @@ describe('useSpeechRecognition', () => {
       })
       expect(FakeSpeechRecognition.instances).toHaveLength(1)
       expect(result.current.engineNotice).toContain("browser's speech recognition")
+    })
+
+    it('a mid-clip failure on a server-resolved (primary) engine shows the gentle-repeat message, calls onGentleRepeat, auto-restarts straight to the browser built-in in continuous mode, and reverts to normal resolution on the attempt after that (specs/078 US2/FR-005b)', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ clip: true, browser: true })
+      // An admin-configured primary engine (not an ElevenLabs outage): resolved directly, no
+      // escalation between cloud engines on failure.
+      vi.mocked(createSttSession).mockResolvedValue({
+        engine: 'Clip',
+        token: null,
+        expiresAtUtc: null,
+        degraded: false,
+      })
+      vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
+      vi.mocked(transcribeDictationClip).mockRejectedValue(new Error('model failed to load'))
+      vi.useFakeTimers()
+      const onGentleRepeat = vi.fn()
+
+      const { result, onFinalTranscript } = renderRecognition({ onGentleRepeat })
+      await act(async () => {
+        await result.current.start()
+      })
+      expect(createSttSession).toHaveBeenCalledTimes(1)
+      expect(FakeMediaRecorder.instances).toHaveLength(1)
+
+      micLevel = 0.2
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200)
+      })
+      micLevel = 0
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1300)
+      })
+
+      const message = 'Sorry, I missed that — could you say it again?'
+      expect(onGentleRepeat).toHaveBeenCalledWith(message)
+      expect(onFinalTranscript).not.toHaveBeenCalled()
+
+      // Continuous mode's auto-restart calls start() in the same tick, which — like every
+      // start() call — clears the hook's local `error` right away; the gentle-repeat message
+      // itself already reached the caller synchronously via onGentleRepeat above (and, in the
+      // real app, via onError into useConversationAudio's own persisted errorMessage).
+      expect(result.current.error).toBeNull()
+
+      // Continuous mode restarts listening automatically, forced straight to the browser
+      // built-in — no second stt-session call, and no escalation to another cloud engine.
+      expect(createSttSession).toHaveBeenCalledTimes(1)
+      expect(FakeSpeechRecognition.instances).toHaveLength(1)
+      expect(result.current.isListening).toBe(true)
+
+      // The attempt after that reverts to normal engine resolution.
+      act(() => {
+        result.current.cancel()
+      })
+      vi.mocked(createSttSession).mockResolvedValue({
+        engine: 'Clip',
+        token: null,
+        expiresAtUtc: null,
+        degraded: false,
+      })
+
+      await act(async () => {
+        await result.current.start()
+      })
+      expect(createSttSession).toHaveBeenCalledTimes(2)
+    })
+
+    it('a mid-clip failure in Push-to-Talk mode shows the gentle-repeat message but does not auto-restart listening (specs/078 FR-005b)', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ clip: true, browser: true })
+      vi.mocked(createSttSession).mockResolvedValue({
+        engine: 'Clip',
+        token: null,
+        expiresAtUtc: null,
+        degraded: false,
+      })
+      vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
+      vi.mocked(transcribeDictationClip).mockRejectedValue(new Error('model failed to load'))
+      vi.useFakeTimers()
+      const onGentleRepeat = vi.fn()
+
+      const { result } = renderRecognition({ mode: 'push-to-talk', onGentleRepeat })
+      await act(async () => {
+        await result.current.start()
+      })
+
+      micLevel = 0.2
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200)
+      })
+      micLevel = 0
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1300)
+      })
+
+      const message = 'Sorry, I missed that — could you say it again?'
+      expect(onGentleRepeat).toHaveBeenCalledWith(message)
+      // Push-to-Talk never auto-restarts — the user presses the mic again — so, unlike
+      // Continuous mode, nothing clears the hook's local error afterward.
+      expect(result.current.error).toBe(message)
+      expect(result.current.isListening).toBe(false)
+      expect(createSttSession).toHaveBeenCalledTimes(1)
     })
 
     it("dictates through the browser's recognizer when a recorded clip can't be captured here", async () => {

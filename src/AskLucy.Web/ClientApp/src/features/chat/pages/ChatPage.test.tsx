@@ -1129,6 +1129,34 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
     )
   })
 
+  // specs/078-restore-local-whisper US2/FR-005b — a mid-clip failure never surfaces the raw
+  // vendor error; it shows the gentle-repeat message and speaks it through the caller's own
+  // useVoiceOutput persona voice (T053/T057), same as every other voice-persona notice.
+  it('a mid-clip transcription failure speaks the gentle-repeat message through useVoiceOutput', async () => {
+    server.use(
+      http.post('*/api/v1/ai/voice/transcriptions', () =>
+        HttpResponse.json({ title: 'Transcription failed' }, { status: 500 }),
+      ),
+    )
+    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    renderConversation(CHAT_A)
+    const micButton = await findMicButton()
+
+    fireEvent.pointerDown(micButton)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Stop voice input' })).toBeInTheDocument(),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    fireEvent.pointerUp(micButton)
+
+    await waitFor(() =>
+      expect(speak).toHaveBeenCalledWith(
+        'Sorry, I missed that — could you say it again?',
+        'en',
+      ),
+    )
+  })
+
   // specs/034-transcription-crash-gesture-and-continuous-view's resolved clarification (carried
   // from specs/033): the dedicated mid-recording Cancel affordance is unreachable once a hold's
   // release always finishes directly (research.md Decision 3). Discarding an unwanted recording
