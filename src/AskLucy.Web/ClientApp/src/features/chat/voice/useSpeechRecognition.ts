@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../../api/httpClient'
-import { createSttSession } from '../api/voiceApi'
+import { createSttSession, type SpeechToTextSession } from '../api/voiceApi'
 import {
   getBrowserSpeechRecognition,
-  isWhisperDictationSupported,
+  isClipDictationSupported,
   startBrowserDictation,
-  startWhisperDictation,
+  startClipDictation,
   type DictationFailure,
   type DictationSession,
   type FallbackEngine,
@@ -36,17 +36,16 @@ interface UseSpeechRecognitionOptions {
   onError?: (message: string) => void
 }
 
+/** Shown when ElevenLabs' realtime connection itself could not be opened (retries exhausted, or
+ * the server refused the session outright) — a genuine outage on the primary engine. */
 const FALLBACK_NOTICES: Record<FallbackEngine, string> = {
-  whisper: 'ElevenLabs live dictation is unavailable — using Whisper transcription instead.',
+  clip: 'ElevenLabs live dictation is unavailable — transcribing a recording instead.',
   browser: "ElevenLabs live dictation is unavailable — using your browser's speech recognition instead.",
 }
 
-/** While ElevenLabs is switched off, Whisper is the normal engine: it needs no notice, and only
- * losing it to the browser's recognizer does. */
-const WHISPER_PRIMARY_NOTICES: Record<FallbackEngine, string | null> = {
-  whisper: null,
-  browser: "Whisper transcription is unavailable — using your browser's speech recognition instead.",
-}
+/** contracts/dictation-session.md — shown for a resolved `Browser` turn only when the server
+ * itself says `degraded: true` (a failover from a broken engine, not nothing-configured-yet). */
+const RESOLVED_BROWSER_NOTICE = "Dictation is unavailable — using your browser's speech recognition instead."
 
 /**
  * Primary-path speech-to-text: mints a session token via `voiceApi.createSttSession`, opens a
@@ -72,16 +71,19 @@ const WHISPER_PRIMARY_NOTICES: Record<FallbackEngine, string | null> = {
  * - `partial_transcript`/`committed_transcript` (server→client) were already correct; only
  *   their envelope's discriminator field name (`message_type`) needed fixing.
  *
- * When an administrator has switched ElevenLabs off under Admin → AI providers, the server
- * answers the session request with the Whisper engine instead of a token. Whisper is then the
- * normal engine (`dictationFallback.ts`), so there is no failover and no notice, and the
- * browser's own recognizer backs it up.
+ * contracts/dictation-session.md — when ElevenLabs isn't the primary engine (switched off, or an
+ * administrator has chosen Local/OpenAI Whisper), the server answers the session request with
+ * `Clip` or `Browser` directly instead of a token; the client runs exactly that engine, no
+ * picking involved. `degraded` says whether that's the normal path (nothing configured yet,
+ * `false`) or a failover from a broken engine (`true`, show a notice) — see `startFallback`'s
+ * `forcedEngine` branch.
  *
- * When the realtime session can't be opened — ElevenLabs unconfigured or unreachable — the turn
- * continues on a fallback engine (Whisper, else the browser's own recognizer) instead of
- * failing, and `engineNotice` says which one is listening. The provider status store remembers
- * the failover, so later turns go straight to the fallback until `probeRecoveryIfDegraded`
- * finds ElevenLabs healthy again.
+ * When the realtime *session itself* can't be opened — ElevenLabs unconfigured, unreachable, or
+ * the connection retries (research.md Decision 8) are exhausted — the turn continues on a
+ * fallback engine the client picks itself (a recorded clip, else the browser's own recognizer)
+ * instead of failing, and `engineNotice` says which one is listening (`startFallback`). The
+ * provider status store remembers the failover, so later turns go straight to the fallback
+ * until `probeRecoveryIfDegraded` finds ElevenLabs healthy again.
  */
 export function useSpeechRecognition({
   language,
@@ -127,7 +129,7 @@ export function useSpeechRecognition({
     typeof navigator !== 'undefined' &&
     !!navigator.mediaDevices?.getUserMedia &&
     typeof AudioContext !== 'undefined' &&
-    (canStreamRealtime || isWhisperDictationSupported() || !!getBrowserSpeechRecognition())
+    (canStreamRealtime || isClipDictationSupported() || !!getBrowserSpeechRecognition())
 
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
@@ -158,19 +160,26 @@ export function useSpeechRecognition({
     socketRef.current = null
   }, [])
 
+  /** contracts/dictation-session.md — the server resolved a `Clip` or `Browser` turn directly;
+   * no token to mint, no socket to open. */
+  type ResolvedTurn = { engine: Extract<SpeechToTextSession['engine'], 'Clip' | 'Browser'>; degraded: boolean }
+
   /** One attempt to mint a token and open the ElevenLabs WebSocket — no retry inside this
    * function; {@link connectWithRetry} owns the bounded retry budget (research.md Decision 8).
-   * `'whisper'` when the server says ElevenLabs is switched off and Whisper is the engine.
+   * A {@link ResolvedTurn} when the server says this turn resolves to `Clip` or `Browser`
+   * directly (an admin's/config's choice, not an outage — see the hook's own doc comment).
    * `'refused'` when our own server answered that no session can be had (not configured):
    * that's a decision, not a blip, so it isn't retried. */
-  const connectOnce = useCallback(async (): Promise<WebSocket | null | 'refused' | 'whisper'> => {
+  const connectOnce = useCallback(async (): Promise<WebSocket | ResolvedTurn | null | 'refused'> => {
     let session: Awaited<ReturnType<typeof createSttSession>>
     try {
       session = await createSttSession(language)
     } catch (err) {
       return err instanceof ApiError ? 'refused' : null
     }
-    if (session.engine === 'Whisper') return 'whisper'
+    if (session.engine === 'Clip' || session.engine === 'Browser') {
+      return { engine: session.engine, degraded: session.degraded }
+    }
 
     try {
       const socket = new WebSocket(
@@ -196,12 +205,13 @@ export function useSpeechRecognition({
     }
   }, [language])
 
-  const connectWithRetry = useCallback(async (): Promise<WebSocket | 'whisper' | null> => {
+  const connectWithRetry = useCallback(async (): Promise<WebSocket | ResolvedTurn | null> => {
     for (let attempt = 0; attempt <= MAX_RECONNECT_ATTEMPTS; attempt++) {
-      const socket = await connectOnce()
-      if (socket === 'refused') break
-      // A socket, or 'whisper' — an admin's choice, not an outage, so no failover.
-      if (socket) return socket
+      const outcome = await connectOnce()
+      if (outcome === 'refused') break
+      // A socket, or a resolved Clip/Browser turn — an admin's/config's choice, not an
+      // outage, so no failover.
+      if (outcome) return outcome
       if (attempt < MAX_RECONNECT_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY_MS))
       }
@@ -294,25 +304,36 @@ export function useSpeechRecognition({
     return { audioContext, source, micAnalyser }
   }, [])
 
-  /** Runs one utterance on a fallback engine over `stream`, which the caller has already opened.
-   * `whisperIsPrimary` when ElevenLabs is switched off and Whisper is the normal engine. */
+  /**
+   * Runs one utterance over `stream`, which the caller has already opened.
+   *
+   * Two callers, two behaviors:
+   * - The realtime connection itself is down (retries exhausted, or the server refused the
+   *   session outright): `forcedEngine` is omitted, so this picks between the engines itself
+   *   (a recorded clip, else the browser's own recognizer) and, on a failure that makes the
+   *   current one unusable, escalates to the next for later turns (`FALLBACK_NOTICES`).
+   * - The server already resolved this turn to `Clip` or `Browser` directly
+   *   (contracts/dictation-session.md): `forcedEngine` is that answer, so there is no picking,
+   *   and a failure is just reported — this story doesn't escalate a server-resolved turn
+   *   (specs/078 US2 adds gentle-repeat and the operational failure trail for that).
+   */
   const startFallback = useCallback(
-    (stream: MediaStream, whisperIsPrimary = false) => {
+    (stream: MediaStream, forcedEngine?: FallbackEngine, notice: string | null = null) => {
       const pickEngine = (): FallbackEngine | null => {
         const unusable = unusableEnginesRef.current
-        if (!unusable.has('whisper') && isWhisperDictationSupported()) return 'whisper'
+        if (!unusable.has('clip') && isClipDictationSupported()) return 'clip'
         if (!unusable.has('browser') && getBrowserSpeechRecognition()) return 'browser'
         return null
       }
 
-      const engine = pickEngine()
+      const engine = forcedEngine ?? pickEngine()
       if (!engine) {
         stream.getTracks().forEach((track) => track.stop())
         setEngineNotice(null)
         fail(
-          whisperIsPrimary
-            ? 'Live dictation is unavailable: this browser can neither record audio for Whisper nor recognise speech itself.'
-            : 'Live dictation is unavailable: ElevenLabs could not be reached, and this browser can neither record audio for Whisper nor recognise speech itself.',
+          forcedEngine === undefined
+            ? 'Live dictation is unavailable: ElevenLabs could not be reached, and this browser can neither record a clip nor recognise speech itself.'
+            : 'Live dictation is unavailable in this browser.',
         )
         return
       }
@@ -345,11 +366,17 @@ export function useSpeechRecognition({
           onError: (failure: DictationFailure) => {
             if (fallbackSessionRef.current !== session) return
             endTurn()
+            if (forcedEngine !== undefined) {
+              // A server-resolved turn failing mid-utterance isn't escalated here — US2 wires
+              // that trail entry and the gentle-repeat notice; for now the user just sees why.
+              fail(failure.message)
+              return
+            }
             if (failure.engineUnusable) unusableEnginesRef.current.add(engine)
             const next = failure.engineUnusable ? pickEngine() : null
             fail(
               next
-                ? `${failure.message} Dictation will use ${next === 'browser' ? "your browser's speech recognition" : 'Whisper'} from your next turn.`
+                ? `${failure.message} Dictation will use ${next === 'browser' ? "your browser's speech recognition" : 'a recording'} from your next turn.`
                 : failure.message,
             )
           },
@@ -357,7 +384,7 @@ export function useSpeechRecognition({
         const session: DictationSession =
           engine === 'browser' && Recognition
             ? startBrowserDictation(Recognition, language, callbacks)
-            : startWhisperDictation(stream, micAnalyser, callbacks, language)
+            : startClipDictation(stream, micAnalyser, callbacks, language)
         fallbackSessionRef.current = session
       }
 
@@ -366,11 +393,11 @@ export function useSpeechRecognition({
       } catch (err) {
         endTurn()
         unusableEnginesRef.current.add(engine)
-        fail(err instanceof Error && err.message ? err.message : 'The backup dictation engine could not start.')
+        fail(err instanceof Error && err.message ? err.message : 'The dictation engine could not start.')
         return
       }
 
-      setEngineNotice((whisperIsPrimary ? WHISPER_PRIMARY_NOTICES : FALLBACK_NOTICES)[engine])
+      setEngineNotice(forcedEngine === undefined ? FALLBACK_NOTICES[engine] : notice)
       setIsListening(true)
     },
     [buildMicGraph, cleanupAudioGraph, fail, language, onFinalTranscript, onPartialTranscript],
@@ -438,12 +465,23 @@ export function useSpeechRecognition({
 
     // Once failed over, stay on the fallback — the caller's probeRecoveryIfDegraded flips the
     // store back to primary as soon as ElevenLabs answers again.
-    const socket =
+    const outcome =
       canStreamRealtime && useVoiceProviderStatus.getState().provider === 'primary' ? await connectWithRetry() : null
-    if (!socket || socket === 'whisper') {
-      startFallback(stream, socket === 'whisper')
+    if (outcome === null) {
+      startFallback(stream)
       return
     }
+    if (!(outcome instanceof WebSocket)) {
+      // contracts/dictation-session.md — the server resolved this turn to Clip or Browser
+      // directly; no picking, and `degraded` (not an admin's/config's outage) decides the notice.
+      startFallback(
+        stream,
+        outcome.engine === 'Browser' ? 'browser' : 'clip',
+        outcome.engine === 'Browser' && outcome.degraded ? RESOLVED_BROWSER_NOTICE : null,
+      )
+      return
+    }
+    const socket = outcome
 
     setEngineNotice(null)
     socketRef.current = socket

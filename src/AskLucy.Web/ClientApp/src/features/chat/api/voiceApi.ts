@@ -2,17 +2,22 @@ import { apiFetch, API_BASE_URL } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import type { ChatMessage, GenerationParameters } from './aiApi'
 
-/** contracts/voice-stt-session.md — which dictation engine the server wants this turn to use.
- * `Whisper` means an administrator has switched ElevenLabs off: Whisper is then the normal
- * engine, not a failover. */
+/** contracts/dictation-session.md — which dictation engine the server wants this turn to use.
+ * `Clip` means record a clip and post it to {@link transcribeDictationClip} — the primary is
+ * Local Whisper or OpenAI Whisper, not ElevenLabs realtime. `Browser` means dictate through the
+ * browser built-in from the start; `degraded` tells the caller whether that is the normal path
+ * (nothing configured yet, `false`) or a failover from a broken engine (`true`, show a notice). */
 export type SpeechToTextSession =
-  | { engine: 'Realtime'; token: string; expiresAtUtc: string }
-  | { engine: 'Whisper'; token: null; expiresAtUtc: null }
+  | { engine: 'Realtime'; token: string; expiresAtUtc: string; degraded: false }
+  | { engine: 'Clip'; token: null; expiresAtUtc: null; degraded: false }
+  | { engine: 'Browser'; token: null; expiresAtUtc: null; degraded: boolean }
 
-export const createSttSession = (language: string) =>
+/** contracts/dictation-session.md — `mode` is optional and defaults to Continuous server-side;
+ * Push-to-Talk must pass it explicitly (FR-005a). */
+export const createSttSession = (language: string, mode?: 'PushToTalk' | 'Continuous') =>
   apiFetch<SpeechToTextSession>('/ai/voice/stt-session', {
     method: 'POST',
-    body: JSON.stringify({ language }),
+    body: JSON.stringify({ language, mode }),
   })
 
 /** contracts/voice-preferences.md. */

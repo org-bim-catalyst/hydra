@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AskLucy.Application.Ai;
+using AskLucy.Domain.Ai.Dictation;
 using AskLucy.Web.Contracts;
 using FluentAssertions;
 using Xunit;
@@ -40,6 +42,27 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
         // the handler rather than being rejected at the auth gate.
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
+    /// tasks.md T042/T047, contracts/dictation-session.md — `mode` is a new, optional request
+    /// field; this proves the route still accepts it and the response carries `degraded`,
+    /// without asserting which engine the shared test database's dictation setting resolves to.
+    /// </summary>
+    [Fact]
+    public async Task CreateVoiceSttSession_ShouldAcceptMode_AndReturnDegradedField()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+
+        var response = await _client.PostAsync(
+            "/api/v1/ai/voice/stt-session",
+            JsonContent.Create(new CreateSpeechToTextSessionRequest("en", DictationCaptureMode.PushToTalk)),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        body.RootElement.TryGetProperty("degraded", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -160,5 +183,66 @@ public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) 
         // authorization let the admin through to the handler, never 401/403.
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
+
+    // specs/078 contracts/dictation-transcription.md, T042. Same guard-only scope as
+    // TranscriptionUploadGuardTests.cs on the legacy endpoint: these prove the auth gate, the
+    // missing/empty-file guard and the request size limit, all of which run before the shared
+    // test database's dictation setting is ever read. There is deliberately no "a well-formed
+    // WAV succeeds" test here — with no Local Whisper model deployed on this environment, that
+    // would depend on the shared database's row state instead of on this endpoint's own
+    // behavior; the 200/422/503 outcomes are covered instead by
+    // TranscribeDictationClipCommandHandlerTests.cs, which substitutes every dependency.
+    [Fact]
+    public async Task TranscribeDictationClip_ShouldReturn401_WhenAnonymous()
+    {
+        using var form = new MultipartFormDataContent();
+
+        var response = await _client.PostAsync("/api/v1/ai/voice/transcriptions", form, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task TranscribeDictationClip_ShouldReturn400_WhenNoFilePartIsPresent()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+        using var form = new MultipartFormDataContent();
+
+        var response = await _client.PostAsync("/api/v1/ai/voice/transcriptions", form, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task TranscribeDictationClip_ShouldReturn400_WhenFileIsEmpty()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+        using var form = new MultipartFormDataContent();
+        using var emptyContent = new ByteArrayContent([]);
+        emptyContent.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
+        form.Add(emptyContent, "file", "clip.wav");
+
+        var response = await _client.PostAsync("/api/v1/ai/voice/transcriptions", form, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    /// <summary>
+    /// A real server answers 413 from the request size limit before the body is read; the test
+    /// server doesn't enforce that limit, so the multipart limit refuses it during binding (400).
+    /// </summary>
+    [Fact]
+    public async Task TranscribeDictationClip_ShouldRefuseAClipOverTheLimit()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("user-1"));
+        using var form = new MultipartFormDataContent();
+        using var oversized = new ByteArrayContent(new byte[(4 * 1024 * 1024) + 1]);
+        oversized.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
+        form.Add(oversized, "file", "clip.wav");
+
+        var response = await _client.PostAsync("/api/v1/ai/voice/transcriptions", form, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().BeOneOf(HttpStatusCode.RequestEntityTooLarge, HttpStatusCode.BadRequest);
     }
 }

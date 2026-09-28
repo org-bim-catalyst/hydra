@@ -2,11 +2,27 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../api/aiApi', () => ({
-  transcribeAudio: vi.fn(),
+  transcribeDictationClip: vi.fn(),
 }))
 
-import { transcribeAudio } from '../api/aiApi'
+vi.mock('../api/voiceApi', () => ({
+  createSttSession: vi.fn(),
+}))
+
+vi.mock('./wavEncoder', () => ({
+  toWav16kMono: vi.fn(),
+}))
+
+vi.mock('./dictationFallback', () => ({
+  getBrowserSpeechRecognition: vi.fn(),
+  startBrowserDictation: vi.fn(),
+}))
+
+import { transcribeDictationClip } from '../api/aiApi'
+import { createSttSession } from '../api/voiceApi'
+import { getBrowserSpeechRecognition, startBrowserDictation } from './dictationFallback'
 import { useVoiceRecorder } from './useVoiceRecorder'
+import { toWav16kMono } from './wavEncoder'
 
 class FakeMediaRecorder {
   static instances: FakeMediaRecorder[] = []
@@ -57,9 +73,20 @@ function installAudioEnvironment(getUserMediaImpl: () => Promise<MediaStream>) {
 let stopTrackMock: ReturnType<typeof vi.fn>
 let fakeStream: MediaStream
 
-describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)', () => {
+describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024, specs/078-restore-local-whisper)', () => {
   beforeEach(() => {
-    vi.mocked(transcribeAudio).mockReset()
+    vi.mocked(transcribeDictationClip).mockReset()
+    vi.mocked(toWav16kMono).mockReset()
+    vi.mocked(getBrowserSpeechRecognition).mockReset()
+    vi.mocked(startBrowserDictation).mockReset()
+    // contracts/dictation-session.md — the ordinary path unless a test overrides it: the
+    // server resolves this Push-to-Talk turn to a recorded clip, nothing degraded.
+    vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Clip',
+      token: null,
+      expiresAtUtc: null,
+      degraded: false,
+    })
     stopTrackMock = vi.fn()
     fakeStream = { getTracks: () => [{ stop: stopTrackMock }] } as unknown as MediaStream
   })
@@ -70,21 +97,22 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
 
   it('finish() stops capture, transcribes, and resolves to idle in one step (specs/031-voice-controls-redesign FR-001/FR-002)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
-    vi.mocked(transcribeAudio).mockResolvedValue('hello world')
+    vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
+    vi.mocked(transcribeDictationClip).mockResolvedValue({ text: 'hello world', language: 'en' })
     const { result } = renderHook(() => useVoiceRecorder())
 
     await act(async () => {
       await result.current.start()
     })
     expect(result.current.phase).toBe('recording')
-    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(transcribeDictationClip).not.toHaveBeenCalled()
 
     let transcript = ''
     await act(async () => {
       transcript = await result.current.finish()
     })
 
-    expect(transcribeAudio).toHaveBeenCalledTimes(1)
+    expect(transcribeDictationClip).toHaveBeenCalledTimes(1)
     expect(transcript).toBe('hello world')
     expect(result.current.phase).toBe('idle')
   })
@@ -99,13 +127,14 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     })
 
     expect(transcript).toBe('')
-    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(transcribeDictationClip).not.toHaveBeenCalled()
     expect(result.current.phase).toBe('idle')
   })
 
-  it('a transcribeAudio failure surfaces via error and still resolves the phase to idle (FR-015)', async () => {
+  it('a transcription failure surfaces via error and still resolves the phase to idle (FR-015)', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
-    vi.mocked(transcribeAudio).mockRejectedValue(new Error('Transcription failed with 500'))
+    vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
+    vi.mocked(transcribeDictationClip).mockRejectedValue(new Error('Transcription failed with 500'))
     const { result } = renderHook(() => useVoiceRecorder())
 
     await act(async () => {
@@ -122,53 +151,26 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     expect(result.current.error).toBe('Transcription failed with 500')
   })
 
-  // specs/032 T006 (U1): before this fix the uploaded filename was hardcoded to
-  // 'recording.webm' regardless of the browser's actual MediaRecorder mimeType — a
-  // concrete, code-identified trigger for OpenAI rejecting the upload with a 400.
-  it.each([
-    ['audio/webm', 'recording.webm'],
-    ['audio/webm;codecs=opus', 'recording.webm'],
-    ['audio/mp4', 'recording.mp4'],
-    ['audio/mp4;codecs=mp4a.40.2', 'recording.mp4'],
-    ['audio/ogg;codecs=opus', 'recording.ogg'],
-    ['audio/wav', 'recording.wav'],
-    ['audio/mpeg', 'recording.mp3'],
-    ['audio/x-made-up-format', 'recording.webm'],
-  ])('finish() names the uploaded file to match the recorded mimeType %s -> %s', async (mimeType, expectedFileName) => {
+  it('resolves the phase to idle without transcribing when the clip could not be converted to WAV', async () => {
     installAudioEnvironment(() => Promise.resolve(fakeStream))
-    vi.mocked(transcribeAudio).mockResolvedValue('hello world')
+    vi.mocked(toWav16kMono).mockResolvedValue({ converted: false, blob: new Blob(['webm']), error: new Error('bad') })
     const { result } = renderHook(() => useVoiceRecorder())
 
     await act(async () => {
       await result.current.start()
     })
-    FakeMediaRecorder.instances[0].mimeType = mimeType
 
+    let transcript = 'unset'
     await act(async () => {
-      await result.current.finish()
+      transcript = await result.current.finish()
     })
 
-    const uploadedFile = vi.mocked(transcribeAudio).mock.calls[0][0]
-    expect(uploadedFile.name).toBe(expectedFileName)
-    expect(uploadedFile.type).toBe(mimeType)
-  })
-
-  it('a rejected transcription surfaces the ApiError message (the Problem Details detail), not a generic string', async () => {
-    installAudioEnvironment(() => Promise.resolve(fakeStream))
-    vi.mocked(transcribeAudio).mockRejectedValue(
-      new Error('The AI provider could not process this request. Please try again.'),
+    expect(transcript).toBe('')
+    expect(transcribeDictationClip).not.toHaveBeenCalled()
+    expect(result.current.phase).toBe('idle')
+    expect(result.current.engineNotice).toBe(
+      "Dictation is unavailable — using your browser's speech recognition instead.",
     )
-    const { result } = renderHook(() => useVoiceRecorder())
-
-    await act(async () => {
-      await result.current.start()
-    })
-
-    await act(async () => {
-      await result.current.finish()
-    })
-
-    expect(result.current.error).toBe('The AI provider could not process this request. Please try again.')
   })
 
   it('cancel() from the recording phase discards everything and never transmits (FR-021)', async () => {
@@ -185,7 +187,7 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     })
 
     expect(result.current.phase).toBe('idle')
-    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(transcribeDictationClip).not.toHaveBeenCalled()
   })
 
   it('an externally-triggered cancel() (e.g. collapsing mid-recording) discards state just like a user-initiated one (FR-024)', async () => {
@@ -202,7 +204,7 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     })
 
     expect(result.current.phase).toBe('idle')
-    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(transcribeDictationClip).not.toHaveBeenCalled()
     expect(stopTrackMock).toHaveBeenCalled()
   })
 
@@ -217,5 +219,89 @@ describe('useVoiceRecorder (specs/026-floating-chat-assistant FR-019–FR-024)',
     expect(result.current.phase).toBe('idle')
     expect(result.current.permissionState).toBe('denied')
     expect(result.current.error).toContain('Microphone access was denied')
+  })
+
+  it('fails closed rather than opening the microphone when the server resolves Realtime (FR-017)', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Realtime',
+      token: 'tok-1',
+      expiresAtUtc: new Date().toISOString(),
+      degraded: false,
+    })
+    const { result } = renderHook(() => useVoiceRecorder())
+
+    await act(async () => {
+      await result.current.start()
+    })
+
+    expect(result.current.phase).toBe('idle')
+    expect(result.current.error).toBe('Dictation is not available.')
+    expect(FakeMediaRecorder.instances).toHaveLength(0)
+  })
+
+  it('falls back to the browser built-in the same way a Browser answer does when the session request itself fails (FR-005b)', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(createSttSession).mockRejectedValue(new Error('unreachable'))
+    class FakeRecognitionCtor {}
+    vi.mocked(getBrowserSpeechRecognition).mockReturnValue(
+      FakeRecognitionCtor as unknown as ReturnType<typeof getBrowserSpeechRecognition>,
+    )
+    vi.mocked(startBrowserDictation).mockReturnValue({ commit: vi.fn(), cancel: vi.fn() })
+
+    const { result } = renderHook(() => useVoiceRecorder())
+    await act(async () => {
+      await result.current.start()
+    })
+
+    expect(result.current.phase).toBe('recording')
+    expect(startBrowserDictation).toHaveBeenCalledTimes(1)
+    expect(FakeMediaRecorder.instances).toHaveLength(0)
+    expect(result.current.engineNotice).toBe(
+      "Dictation is unavailable — using your browser's speech recognition instead.",
+    )
+  })
+
+  it('records and transcribes through the browser recognizer when the server resolves Browser', async () => {
+    installAudioEnvironment(() => Promise.resolve(fakeStream))
+    vi.mocked(createSttSession).mockResolvedValue({
+      engine: 'Browser',
+      token: null,
+      expiresAtUtc: null,
+      degraded: true,
+    })
+    class FakeRecognitionCtor {}
+    vi.mocked(getBrowserSpeechRecognition).mockReturnValue(
+      FakeRecognitionCtor as unknown as ReturnType<typeof getBrowserSpeechRecognition>,
+    )
+    const commitMock = vi.fn()
+    const cancelMock = vi.fn()
+    let onFinal: ((text: string) => void) | undefined
+    vi.mocked(startBrowserDictation).mockImplementation((_Recognition, _language, callbacks) => {
+      onFinal = callbacks.onFinal
+      return { commit: commitMock, cancel: cancelMock }
+    })
+
+    const { result } = renderHook(() => useVoiceRecorder())
+    await act(async () => {
+      await result.current.start()
+    })
+
+    expect(result.current.phase).toBe('recording')
+    expect(result.current.engineNotice).toBe(
+      "Dictation is unavailable — using your browser's speech recognition instead.",
+    )
+
+    let transcript = ''
+    await act(async () => {
+      const promise = result.current.finish()
+      onFinal?.('hello there')
+      transcript = await promise
+    })
+
+    expect(commitMock).toHaveBeenCalledTimes(1)
+    expect(transcribeDictationClip).not.toHaveBeenCalled()
+    expect(transcript).toBe('hello there')
+    expect(result.current.phase).toBe('idle')
   })
 })

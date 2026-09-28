@@ -1,49 +1,93 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Dictation;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Ai.Dictation;
 using MediatR;
 
 namespace AskLucy.Application.Ai.Commands.CreateSpeechToTextSession;
 
 /// <summary>
-/// Mints a primary-provider STT session token (contracts/voice-stt-session.md). Makes exactly
-/// one attempt — the client (<c>useSpeechRecognition.ts</c>) owns the bounded reconnect/retry
-/// policy (research.md Decision 8) and calls this command again on failure, rather than this
-/// handler retrying internally.
+/// Answers "how should this turn be dictated?" (contracts/dictation-session.md, research D6).
+/// Makes exactly one attempt — the client (<c>useSpeechRecognition.ts</c>/<c>useVoiceRecorder.ts</c>)
+/// owns the bounded reconnect/retry policy (research.md Decision 8) and calls this command again
+/// on failure, rather than this handler retrying internally.
 ///
-/// specs/074 US2 — a failure is also a failover on the operational failure trail (the browser's
-/// own recogniser serves the user), and the next session this provider mints for the same user is
-/// the recovery that pairs with it.
+/// This story (specs/078 US1) implements the Local Whisper and Browser rows of the table. The
+/// OpenAI Whisper and ElevenLabs realtime rows keep today's behavior until US3 adds their health
+/// checks and suspension.
 ///
-/// A provider an administrator has switched off is not a failure: the session says to dictate
-/// with Whisper, and nothing is recorded (the 2026-09-26 "Not configured" Critical incident was
-/// ElevenLabs being switched off on purpose).
+/// specs/074 US2 — an ElevenLabs mint failure is also a failover on the operational failure trail
+/// (the browser's own recogniser serves the user), and the next session this provider mints for
+/// the same user is the recovery that pairs with it. A provider an administrator has switched off
+/// is not a failure: the browser built-in serves, and nothing is recorded.
 /// </summary>
 public sealed class CreateSpeechToTextSessionCommandHandler(
     ISpeechToTextSessionProvider sessionProvider,
     IVoiceProviderHealthRecorder healthRecorder,
     IVoiceProviderFailoverEventRepository failoverEvents,
     IVoiceFailureReporter failureReporter,
-    ICurrentUserAccessor currentUser) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
+    ICurrentUserAccessor currentUser,
+    IDictationEngineSettingRepository settings,
+    ILocalWhisperModelCatalog catalog) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
 {
     public async Task<DictationSession> Handle(CreateSpeechToTextSessionCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        var setting = await settings.GetOrCreateAsync(cancellationToken);
+        var turnEngine = setting.ResolveEngine(request.Mode);
+
+        return turnEngine switch
+        {
+            DictationTurnEngine.LocalWhisper => await ResolveLocalWhisperAsync(setting.LocalWhisperModelId, cancellationToken),
+
+            // The Push-to-Talk engine is deliberately Browser (FR-017): a configuration choice,
+            // not a failure.
+            DictationTurnEngine.Browser => DictationSession.Browser(degraded: false),
+
+            DictationTurnEngine.ElevenLabsRealtime => await MintRealtimeSessionAsync(request.Language, userId, cancellationToken),
+
+            // OpenAI Whisper's local health check (switched off / credential unresolvable) arrives
+            // with US3 (T065); until then a clip is always routed to it.
+            _ => DictationSession.Clip,
+        };
+    }
+
+    private async Task<DictationSession> ResolveLocalWhisperAsync(Guid? modelId, CancellationToken cancellationToken)
+    {
+        var resolution = await catalog.ResolveSelectedAsync(modelId, cancellationToken);
+        return resolution switch
+        {
+            LocalWhisperModelResolution.Ready => DictationSession.Clip,
+
+            // FR-002/FR-010: neither a fresh deployment nor an administrator marking a deployment
+            // Unavailable is a failure, so nothing is reported.
+            LocalWhisperModelResolution.None or LocalWhisperModelResolution.Unavailable =>
+                DictationSession.Browser(degraded: false),
+
+            // A Broken model (its file missing/unreadable) is a Local Whisper failure; recording
+            // it arrives with US2 (T051).
+            _ => DictationSession.Browser(degraded: false),
+        };
+    }
+
+    private async Task<DictationSession> MintRealtimeSessionAsync(string language, string userId, CancellationToken cancellationToken)
+    {
         if (!await sessionProvider.IsSwitchedOnAsync(cancellationToken))
         {
-            return DictationSession.Whisper;
+            return DictationSession.Browser(degraded: false);
         }
 
         var engine = new VoiceEngineIdentity(sessionProvider.ProviderName);
 
         try
         {
-            var session = await sessionProvider.CreateSessionAsync(request.Language, cancellationToken);
+            var session = await sessionProvider.CreateSessionAsync(language, cancellationToken);
             failureReporter.ReportServed(VoiceOperations.Transcription, engine);
 
             // FR-034/SC-010: only record a recovery when the user's most recent event shows
             // they were actually degraded — a normal, uneventful success is not itself logged
-            // (contracts/voice-stt-session.md).
+            // (contracts/dictation-session.md).
             var mostRecent = await failoverEvents.GetMostRecentForUserAsync(userId, cancellationToken);
             if (mostRecent?.Direction == VoiceProviderFailoverDirection.FailedOverToFallback)
             {
@@ -52,13 +96,6 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
 
             return DictationSession.Realtime(session.Token, session.ExpiresAtUtc);
         }
-        // specs/068 - every provider failure, not the three that were listed. The named set left
-        // out the two that occur most often in practice: NotConfigured (the provider is switched
-        // off or has no key) and CredentialUnreadable. Those escaped uncaught, so the user was
-        // silently pushed onto the fallback recogniser with nothing recorded, and the recovery
-        // check above - which only fires when the most recent event says the user was degraded -
-        // then never saw that they had been. The health trail showed an uninterrupted primary
-        // provider for a user who had not reached it in weeks (constitution §2.VIII).
         catch (AiProviderException ex)
         {
             failureReporter.ReportFailover(VoiceOperations.Transcription, engine, ex, fallbackServed: true, cancellationToken);

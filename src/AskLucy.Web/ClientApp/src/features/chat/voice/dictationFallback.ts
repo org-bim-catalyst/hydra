@@ -1,22 +1,24 @@
 import { ApiError } from '../../../api/httpClient'
-import { transcribeAudio } from '../api/aiApi'
-import { extensionForRecordingMimeType } from './useVoiceRecorder'
+import { transcribeDictationClip } from '../api/aiApi'
+import { toWav16kMono } from './wavEncoder'
 
 /**
  * The engines live dictation falls back to when ElevenLabs' realtime session can't be opened —
  * switched off under Admin → AI providers, unconfigured, or unreachable. In order of preference:
  *
- * 1. **Whisper** — the utterance is recorded locally and sent to `/ai/transcriptions` (the
- *    same endpoint Push-to-Talk uses) once a pause is heard. Consistent quality and language
- *    detection in every browser that can record audio; no partial transcripts.
- * 2. **The browser's own speech recognition** — used when Whisper can't record in this
+ * 1. **Clip** — the utterance is recorded locally, converted to a 16 kHz mono WAV
+ *    (`wavEncoder.ts`) and posted to `/ai/voice/transcriptions` (contracts/dictation-transcription.md)
+ *    once a pause is heard. The server resolves which clip transcriber actually serves it (Local
+ *    Whisper or OpenAI Whisper); the client doesn't need to know which. Consistent quality and
+ *    language detection in every browser that can record audio; no partial transcripts.
+ * 2. **The browser's own speech recognition** — used when a clip can't be recorded in this
  *    browser, or has already failed this session on the server side. Live partials, but the
  *    quality and language coverage are the browser vendor's.
  *
  * Each engine runs one utterance at a time as a {@link DictationSession}; `useSpeechRecognition`
  * owns the microphone, the audio graph and the choice between them.
  */
-export type FallbackEngine = 'whisper' | 'browser'
+export type FallbackEngine = 'clip' | 'browser'
 
 export interface DictationSession {
   /** Finish now with what has been heard so far. */
@@ -41,23 +43,23 @@ interface DictationCallbacks {
 
 /** Root-mean-square level (0–1) above which the microphone signal counts as speech. */
 const SPEECH_LEVEL = 0.02
-/** A longer pause than the realtime path's: Whisper has no partials to show the pause is
- * being heard, so ending an utterance too eagerly would cut a slow speaker off mid-sentence. */
-const WHISPER_SILENCE_COMMIT_MS = 1200
+/** A longer pause than the realtime path's: a recorded clip has no partials to show the pause
+ * is being heard, so ending an utterance too eagerly would cut a slow speaker off mid-sentence. */
+const CLIP_SILENCE_COMMIT_MS = 1200
 /** Recording restarts after this long without speech, so an idle microphone never builds up
  * a long silent recording to upload once someone does speak. */
 const IDLE_SEGMENT_MS = 30_000
 const MAX_UTTERANCE_MS = 60_000
 const LEVEL_POLL_MS = 50
 
-export const isWhisperDictationSupported = () => typeof MediaRecorder !== 'undefined'
+export const isClipDictationSupported = () => typeof MediaRecorder !== 'undefined'
 
 /**
- * Records `stream` until speech has been followed by {@link WHISPER_SILENCE_COMMIT_MS} of quiet
- * (or {@link commit} is called), then transcribes the recording with Whisper. `analyser` must be
- * fed by the same stream; its time-domain signal is how the pause is detected.
+ * Records `stream` until speech has been followed by {@link CLIP_SILENCE_COMMIT_MS} of quiet
+ * (or {@link commit} is called), then posts the recording to `/ai/voice/transcriptions`.
+ * `analyser` must be fed by the same stream; its time-domain signal is how the pause is detected.
  */
-export function startWhisperDictation(
+export function startClipDictation(
   stream: MediaStream,
   analyser: AnalyserNode,
   { onPartial, onFinal, onError }: DictationCallbacks,
@@ -103,7 +105,7 @@ export function startWhisperDictation(
     }
 
     if (heardSpeechAt !== null) {
-      if (now - lastSpeechAt >= WHISPER_SILENCE_COMMIT_MS || now - heardSpeechAt >= MAX_UTTERANCE_MS) commit()
+      if (now - lastSpeechAt >= CLIP_SILENCE_COMMIT_MS || now - heardSpeechAt >= MAX_UTTERANCE_MS) commit()
     } else if (now - segmentStartedAt >= IDLE_SEGMENT_MS) {
       discardRecorder()
       chunks = []
@@ -125,20 +127,23 @@ export function startWhisperDictation(
 
     const finished = recorder
     finished.onstop = () => {
-      const mimeType = finished.mimeType || 'audio/webm'
-      const file = new File([new Blob(chunks, { type: mimeType })], `dictation.${extensionForRecordingMimeType(mimeType)}`, {
-        type: mimeType,
+      const clip = new Blob(chunks, { type: finished.mimeType || 'audio/webm' })
+      toWav16kMono(clip).then((wav) => {
+        if (!wav.converted) {
+          onError({ message: 'The recording could not be prepared for transcription.', engineUnusable: false })
+          return
+        }
+        transcribeDictationClip(wav.blob, language).then(
+          (result) => onFinal(result.text.trim()),
+          (err: unknown) =>
+            onError({
+              message: err instanceof Error && err.message ? err.message : 'The recording could not be transcribed.',
+              // A 5xx is the server saying transcription itself is down or unconfigured; anything
+              // else (a dropped connection, an oversized clip) is this utterance's problem.
+              engineUnusable: err instanceof ApiError && err.status >= 500,
+            }),
+        )
       })
-      transcribeAudio(file, language).then(
-        (text) => onFinal(text.trim()),
-        (err: unknown) =>
-          onError({
-            message: err instanceof Error && err.message ? err.message : 'Whisper could not transcribe what you said.',
-            // A 5xx is the server saying transcription itself is down or unconfigured; anything
-            // else (a dropped connection, an oversized clip) is this utterance's problem.
-            engineUnusable: err instanceof ApiError && err.status >= 500,
-          }),
-      )
     }
     finished.stop()
   }

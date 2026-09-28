@@ -203,45 +203,45 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Tests for User Story 1
 
-- [ ] T040 [P] [US1] Rewrite `tests/AskLucy.Application.Tests/Ai/CreateSpeechToTextSessionCommandHandlerTests.cs` for the Local Whisper rows of the research D6 table, for both `mode` values:
+- [X] T040 [P] [US1] Rewrite `tests/AskLucy.Application.Tests/Ai/CreateSpeechToTextSessionCommandHandlerTests.cs` for the Local Whisper rows of the research D6 table, for both `mode` values:
   - No model selected → `Browser`, `degraded: false`, nothing reported.
   - Model Unavailable → `Browser`, `degraded: false`.
   - Model Ready → `Clip`.
   - `mode` absent defaults to Continuous.
   - No network call is made for Local Whisper.
-- [ ] T041 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/Ai/Dictation/TranscribeDictationClipCommandHandlerTests.cs`:
+- [X] T041 [P] [US1] Application tests in `tests/AskLucy.Application.Tests/Ai/Dictation/TranscribeDictationClipCommandHandlerTests.cs`:
   - Resolves the clip engine through the setting and calls exactly that transcriber.
   - Success → `ReportServed` and the transcript.
   - Not configured (no model / Unavailable) → the unavailable result with nothing reported.
-- [ ] T042 [P] [US1] Web tests in `tests/AskLucy.Web.Tests/Ai/AiControllerVoiceTests.cs`:
+- [X] T042 [P] [US1] Web tests in `tests/AskLucy.Web.Tests/Ai/AiControllerVoiceTests.cs`:
   - `POST /api/v1/ai/voice/transcriptions` requires auth, enforces 4 MB, rejects non-WAV with 422 `dictation-audio-invalid` (header read, content type ignored), and returns `{ text, language }`.
   - `stt-session` accepts `mode` and returns `degraded`.
   - The legacy `POST /api/v1/ai/transcriptions` is unchanged.
   - Load the env first: `eval "$(python $S/webenv.py src/AskLucy.Web/appsettings.Development.json)"`.
-- [ ] T043 [P] [US1] Frontend tests:
+- [X] T043 [P] [US1] Frontend tests:
   - `src/AskLucy.Web/ClientApp/src/features/chat/voice/useVoiceRecorder.test.ts`: Push-to-Talk calls stt-session before opening the mic, `Clip` → posts WAV to `/ai/voice/transcriptions`, and `Browser` with `degraded: false` → uses the browser built-in with no notice.
   - `useSpeechRecognition.test.ts`: the same for Continuous.
   - Extend `src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.test.ts` for the new call.
 
 ### Implementation for User Story 1
 
-- [ ] T044 [US1] Update `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/DictationSession.cs`:
+- [X] T044 [US1] Update `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/DictationSession.cs`:
   - `DictationEngine { Realtime, Clip, Browser }`: rename `Whisper` → `Clip`.
   - Add `bool Degraded`.
   - Add optional `Mode` (default Continuous) to `CreateSpeechToTextSessionCommand.cs`.
-- [ ] T045 [US1] Rewrite `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs` around `setting.ResolveEngine(mode)` and the research D6 table. This story implements the Local Whisper and Browser rows; the OpenAI Whisper and ElevenLabs realtime rows keep today's behavior until US3. Make T040 pass.
-- [ ] T046 [US1] Create `src/AskLucy.Application/Ai/Dictation/Commands/TranscribeDictationClip/` (command, validator for language regex and non-empty file, handler per contracts/dictation-transcription.md steps 1–4). Report success with `IVoiceFailureReporter.ReportServed` using `VoiceEngineIdentity("Local Whisper", null, <model file>)`. Make T041 pass.
-- [ ] T047 [US1] Add the `POST voice/transcriptions` action to `src/AskLucy.Web/Controllers/v1/AiController.cs`:
+- [X] T045 [US1] Rewrite `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs` around `setting.ResolveEngine(mode)` and the research D6 table. This story implements the Local Whisper and Browser rows; the OpenAI Whisper and ElevenLabs realtime rows keep today's behavior until US3. Make T040 pass.
+- [X] T046 [US1] Create `src/AskLucy.Application/Ai/Dictation/Commands/TranscribeDictationClip/` (command, validator for language regex and non-empty file, handler per contracts/dictation-transcription.md steps 1–4). Report success with `IVoiceFailureReporter.ReportServed` using `VoiceEngineIdentity("Local Whisper", null, <model file>)`. Make T041 pass.
+- [X] T047 [US1] Add the `POST voice/transcriptions` action to `src/AskLucy.Web/Controllers/v1/AiController.cs`:
   - `[Authorize]`, `[EnableRateLimiting("ai-endpoints")]`, `[RequestSizeLimit(4 MB)]`.
   - The WAV header is validated server-side via `WavHeader`: invalid → 422 `dictation-audio-invalid`; not served → 503 `dictation-engine-unavailable`.
   - Pass `mode` through on `voice/stt-session`. Make T042 pass.
-- [ ] T048 [P] [US1] Update `src/AskLucy.Web/ClientApp/src/features/chat/api/voiceApi.ts` and `aiApi.ts`: the `'Realtime' | 'Clip' | 'Browser'` engine union, `mode`, `degraded`, and `transcribeDictationClip(wav, language)`.
-- [ ] T049 [US1] Update `src/AskLucy.Web/ClientApp/src/features/chat/voice/useVoiceRecorder.ts` (Push-to-Talk):
+- [X] T048 [P] [US1] Update `src/AskLucy.Web/ClientApp/src/features/chat/api/voiceApi.ts` and `aiApi.ts`: the `'Realtime' | 'Clip' | 'Browser'` engine union, `mode`, `degraded`, and `transcribeDictationClip(wav, language)`.
+- [X] T049 [US1] Update `src/AskLucy.Web/ClientApp/src/features/chat/voice/useVoiceRecorder.ts` (Push-to-Talk):
   - Call stt-session with `mode: 'PushToTalk'` before opening the mic.
   - On `Clip`, record, convert with `wavEncoder.ts` and post to the new endpoint.
   - On `Browser`, dictate through the browser built-in, showing the notice only when `degraded`.
   - Every promise is awaited or caught with a visible error path (CLAUDE.md Error Handling).
-- [ ] T050 [US1] Update `src/AskLucy.Web/ClientApp/src/features/chat/voice/useSpeechRecognition.ts` and `dictationFallback.ts` (Continuous):
+- [X] T050 [US1] Update `src/AskLucy.Web/ClientApp/src/features/chat/voice/useSpeechRecognition.ts` and `dictationFallback.ts` (Continuous):
   - The `Clip` path posts WAV to `/ai/voice/transcriptions` instead of `/ai/transcriptions`.
   - `Browser` + `degraded: false` shows no notice.
   - Only one listener holds the mic at a time (FR-005a). Make T043 pass.

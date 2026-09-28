@@ -8,7 +8,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import type { useVoiceOutput } from '../voice/useVoiceOutput'
 import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
+import { toWav16kMono } from '../voice/wavEncoder'
 import { ChatPage, ConversationView } from './ChatPage'
+
+// specs/078-restore-local-whisper T050 — see the identical mock/rationale in
+// ChatPage.test.tsx: real webm→WAV decoding needs a Web Audio decoder jsdom doesn't
+// provide. The Push-to-Talk describe block below resolves it via `beforeEach`.
+vi.mock('../voice/wavEncoder', () => ({
+  toWav16kMono: vi.fn(),
+}))
 
 const CHAT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 
@@ -256,12 +264,20 @@ describe('ConversationView accessibility — Push-to-Talk recording review (spec
       preferredSpeakerDeviceId: null,
       error: null,
     })
+    vi.mocked(toWav16kMono).mockResolvedValue({
+      converted: true,
+      blob: new Blob(['wav-bytes'], { type: 'audio/wav' }),
+    })
     server.use(
       http.get(`*/api/v1/chats/${CHAT_A}/messages`, () =>
         HttpResponse.json({ items: [], nextCursor: null }),
       ),
-      http.post('*/api/v1/ai/transcriptions', () =>
-        HttpResponse.json({ text: 'transcribed text' }),
+      // contracts/dictation-session.md — the ordinary path: nothing configured yet.
+      http.post('*/api/v1/ai/voice/stt-session', () =>
+        HttpResponse.json({ engine: 'Clip', token: null, expiresAtUtc: null, degraded: false }),
+      ),
+      http.post('*/api/v1/ai/voice/transcriptions', () =>
+        HttpResponse.json({ text: 'transcribed text', language: 'en' }),
       ),
     )
     vi.stubGlobal('AudioContext', FakeAudioContext)

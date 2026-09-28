@@ -8,11 +8,17 @@ vi.mock('../api/voiceApi', () => ({
 
 vi.mock('../api/aiApi', () => ({
   transcribeAudio: vi.fn(),
+  transcribeDictationClip: vi.fn(),
+}))
+
+vi.mock('./wavEncoder', () => ({
+  toWav16kMono: vi.fn(),
 }))
 
 import { ApiError } from '../../../api/httpClient'
-import { transcribeAudio } from '../api/aiApi'
+import { transcribeDictationClip } from '../api/aiApi'
 import { createSttSession } from '../api/voiceApi'
+import { toWav16kMono } from './wavEncoder'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 class FakeWebSocket extends EventTarget {
@@ -154,10 +160,10 @@ class FakeSpeechRecognition {
   }
 }
 
-function installFallbackEngines({ whisper, browser }: { whisper: boolean; browser: boolean }) {
+function installFallbackEngines({ clip, browser }: { clip: boolean; browser: boolean }) {
   FakeMediaRecorder.instances = []
   FakeSpeechRecognition.instances = []
-  if (whisper) vi.stubGlobal('MediaRecorder', FakeMediaRecorder)
+  if (clip) vi.stubGlobal('MediaRecorder', FakeMediaRecorder)
   if (browser) vi.stubGlobal('SpeechRecognition', FakeSpeechRecognition)
 }
 
@@ -180,6 +186,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
 
     const { result } = renderHook(() =>
@@ -209,6 +216,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
     vi.useFakeTimers({ shouldAdvanceTime: true })
 
@@ -245,6 +253,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
     vi.useFakeTimers({ shouldAdvanceTime: true })
 
@@ -300,6 +309,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
 
     const onPartialTranscript = vi.fn()
@@ -343,6 +353,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
 
     const { result } = renderHook(() =>
@@ -396,6 +407,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
     vi.useFakeTimers({ shouldAdvanceTime: true })
 
@@ -443,6 +455,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
     vi.useFakeTimers({ shouldAdvanceTime: true })
 
@@ -506,6 +519,7 @@ describe('useSpeechRecognition', () => {
       engine: 'Realtime',
       token: 'tok-1',
       expiresAtUtc: new Date().toISOString(),
+      degraded: false,
     })
 
     const { result } = renderHook(() =>
@@ -547,7 +561,8 @@ describe('useSpeechRecognition', () => {
   describe('when ElevenLabs is unavailable', () => {
     beforeEach(() => {
       micLevel = 0
-      vi.mocked(transcribeAudio).mockReset()
+      vi.mocked(transcribeDictationClip).mockReset()
+      vi.mocked(toWav16kMono).mockReset()
     })
 
     function renderRecognition(overrides: { onError?: (message: string) => void; language?: string } = {}) {
@@ -565,9 +580,9 @@ describe('useSpeechRecognition', () => {
       return { ...rendered, onPartialTranscript, onFinalTranscript }
     }
 
-    it('does not retry a session the server refused, and dictates through Whisper instead', async () => {
+    it('does not retry a session the server refused, and dictates through a recorded clip instead', async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: true, browser: true })
+      installFallbackEngines({ clip: true, browser: true })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
 
       const { result } = renderRecognition()
@@ -581,14 +596,21 @@ describe('useSpeechRecognition', () => {
       expect(FakeMediaRecorder.instances).toHaveLength(1)
       expect(FakeSpeechRecognition.instances).toHaveLength(0)
       expect(result.current.isListening).toBe(true)
-      expect(result.current.engineNotice).toContain('Whisper')
+      expect(result.current.engineNotice).toBe(
+        'ElevenLabs live dictation is unavailable — transcribing a recording instead.',
+      )
       expect(result.current.error).toBeNull()
     })
 
-    it('dictates through Whisper as the normal engine while ElevenLabs is switched off, with no failover', async () => {
+    it('dictates through a recorded clip as the normal engine while ElevenLabs is switched off, with no failover', async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: true, browser: true })
-      vi.mocked(createSttSession).mockResolvedValue({ engine: 'Whisper', token: null, expiresAtUtc: null })
+      installFallbackEngines({ clip: true, browser: true })
+      vi.mocked(createSttSession).mockResolvedValue({
+        engine: 'Clip',
+        token: null,
+        expiresAtUtc: null,
+        degraded: false,
+      })
 
       const { result } = renderRecognition()
       await act(async () => {
@@ -597,7 +619,7 @@ describe('useSpeechRecognition', () => {
 
       expect(createSttSession).toHaveBeenCalledTimes(1)
       expect(FakeWebSocket.instances).toHaveLength(0)
-      // An admin's choice, not an outage: nothing is degraded and nothing needs explaining.
+      // An admin's/config's choice, not an outage: nothing is degraded and nothing needs explaining.
       expect(useVoiceProviderStatus.getState().provider).toBe('primary')
       expect(FakeMediaRecorder.instances).toHaveLength(1)
       expect(result.current.isListening).toBe(true)
@@ -605,10 +627,15 @@ describe('useSpeechRecognition', () => {
       expect(result.current.error).toBeNull()
     })
 
-    it("backs Whisper up with the browser's recognizer while ElevenLabs is switched off", async () => {
+    it('dictates through the browser recognizer silently when nothing is configured yet (degraded: false)', async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: false, browser: true })
-      vi.mocked(createSttSession).mockResolvedValue({ engine: 'Whisper', token: null, expiresAtUtc: null })
+      installFallbackEngines({ clip: true, browser: true })
+      vi.mocked(createSttSession).mockResolvedValue({
+        engine: 'Browser',
+        token: null,
+        expiresAtUtc: null,
+        degraded: false,
+      })
 
       const { result } = renderRecognition()
       await act(async () => {
@@ -616,16 +643,34 @@ describe('useSpeechRecognition', () => {
       })
 
       expect(FakeSpeechRecognition.instances).toHaveLength(1)
-      expect(result.current.engineNotice).toBe(
-        "Whisper transcription is unavailable — using your browser's speech recognition instead.",
-      )
+      expect(result.current.engineNotice).toBeNull()
+      expect(useVoiceProviderStatus.getState().provider).toBe('primary')
+    })
+
+    it('dictates through the browser recognizer with a notice when the server reports a genuine failover (degraded: true)', async () => {
+      installAudioEnvironment(() => Promise.resolve(fakeStream))
+      installFallbackEngines({ clip: true, browser: true })
+      vi.mocked(createSttSession).mockResolvedValue({
+        engine: 'Browser',
+        token: null,
+        expiresAtUtc: null,
+        degraded: true,
+      })
+
+      const { result } = renderRecognition()
+      await act(async () => {
+        await result.current.start()
+      })
+
+      expect(FakeSpeechRecognition.instances).toHaveLength(1)
+      expect(result.current.engineNotice).toBe("Dictation is unavailable — using your browser's speech recognition instead.")
       expect(useVoiceProviderStatus.getState().provider).toBe('primary')
     })
 
     it('goes straight to the fallback once failed over, without asking for a session again', async () => {
       useVoiceProviderStatus.setState({ provider: 'fallback', degradedNoticeVisible: true })
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: true, browser: false })
+      installFallbackEngines({ clip: true, browser: false })
 
       const { result } = renderRecognition()
       await act(async () => {
@@ -637,11 +682,12 @@ describe('useSpeechRecognition', () => {
       expect(result.current.isListening).toBe(true)
     })
 
-    it('transcribes an utterance with Whisper once the speaker pauses', async () => {
+    it('transcribes an utterance with a recorded clip once the speaker pauses', async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: true, browser: false })
+      installFallbackEngines({ clip: true, browser: false })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
-      vi.mocked(transcribeAudio).mockResolvedValue('  hello there  ')
+      vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
+      vi.mocked(transcribeDictationClip).mockResolvedValue({ text: '  hello there  ', language: 'en' })
       vi.useFakeTimers()
 
       const { result, onPartialTranscript, onFinalTranscript } = renderRecognition()
@@ -654,24 +700,22 @@ describe('useSpeechRecognition', () => {
         await vi.advanceTimersByTimeAsync(500)
       })
       expect(onPartialTranscript).toHaveBeenCalledWith('')
-      expect(transcribeAudio).not.toHaveBeenCalled()
+      expect(transcribeDictationClip).not.toHaveBeenCalled()
 
       micLevel = 0
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1300)
       })
 
-      expect(transcribeAudio).toHaveBeenCalledTimes(1)
-      expect(vi.mocked(transcribeAudio).mock.calls[0][0].name).toBe('dictation.webm')
-      // Named, so Whisper doesn't have to guess what was spoken.
-      expect(vi.mocked(transcribeAudio).mock.calls[0][1]).toBe('en')
+      expect(transcribeDictationClip).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(transcribeDictationClip).mock.calls[0][1]).toBe('en')
       expect(onFinalTranscript).toHaveBeenCalledWith('hello there')
       expect(result.current.isListening).toBe(false)
     })
 
     it('never uploads a recording in which nobody spoke', async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: true, browser: false })
+      installFallbackEngines({ clip: true, browser: false })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
       vi.useFakeTimers()
 
@@ -683,17 +727,18 @@ describe('useSpeechRecognition', () => {
         await vi.advanceTimersByTimeAsync(31_000)
       })
 
-      expect(transcribeAudio).not.toHaveBeenCalled()
+      expect(transcribeDictationClip).not.toHaveBeenCalled()
       // The idle recording was restarted rather than left to grow.
       expect(FakeMediaRecorder.instances).toHaveLength(2)
       expect(result.current.isListening).toBe(true)
     })
 
-    it("surfaces a Whisper failure and switches later turns to the browser's recognizer", async () => {
+    it("surfaces a clip-engine failure and switches later turns to the browser's recognizer", async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: true, browser: true })
+      installFallbackEngines({ clip: true, browser: true })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
-      vi.mocked(transcribeAudio).mockRejectedValue(new ApiError(502, 'Transcription is not configured.'))
+      vi.mocked(toWav16kMono).mockResolvedValue({ converted: true, blob: new Blob(['wav']) })
+      vi.mocked(transcribeDictationClip).mockRejectedValue(new ApiError(502, 'Transcription is not configured.'))
       vi.useFakeTimers()
       const onError = vi.fn()
 
@@ -723,9 +768,9 @@ describe('useSpeechRecognition', () => {
       expect(result.current.engineNotice).toContain("browser's speech recognition")
     })
 
-    it("dictates through the browser's recognizer when Whisper can't record here", async () => {
+    it("dictates through the browser's recognizer when a recorded clip can't be captured here", async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: false, browser: true })
+      installFallbackEngines({ clip: false, browser: true })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
 
       const { result, onPartialTranscript, onFinalTranscript } = renderRecognition()
@@ -754,7 +799,7 @@ describe('useSpeechRecognition', () => {
 
     it("surfaces the browser recognizer's own failure", async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: false, browser: true })
+      installFallbackEngines({ clip: false, browser: true })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
       const onError = vi.fn()
 
@@ -770,7 +815,7 @@ describe('useSpeechRecognition', () => {
 
     it('says so when no engine at all can take over', async () => {
       installAudioEnvironment(() => Promise.resolve(fakeStream))
-      installFallbackEngines({ whisper: false, browser: false })
+      installFallbackEngines({ clip: false, browser: false })
       vi.mocked(createSttSession).mockRejectedValue(refusedByServer())
       const onError = vi.fn()
 

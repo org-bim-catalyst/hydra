@@ -11,6 +11,7 @@ using AskLucy.Application.Ai.Commands.StreamVoiceReply;
 using AskLucy.Application.Ai.Commands.SynthesizeSpeech;
 using AskLucy.Application.Ai.Commands.Transcribe;
 using AskLucy.Application.Ai.Commands.Translate;
+using AskLucy.Application.Ai.Dictation.Commands.TranscribeDictationClip;
 using AskLucy.Application.Ai.Queries.GetUserVoicePreference;
 using AskLucy.Application.Ai.Queries.GetVoiceProviderHealth;
 using AskLucy.Application.Chats.Commands.AppendMessage;
@@ -25,6 +26,7 @@ using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Viewer;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Ai.Dictation;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
 using AskLucy.Domain.OperationalFailures;
@@ -921,7 +923,48 @@ public sealed partial class AiController(
     // voice-reply-stream.md.
     [HttpPost("voice/stt-session")]
     public async Task<ActionResult<DictationSession>> CreateSttSession(CreateSpeechToTextSessionRequest request, CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(new CreateSpeechToTextSessionCommand(request.Language), cancellationToken));
+        Ok(await mediator.Send(new CreateSpeechToTextSessionCommand(request.Language, request.Mode), cancellationToken));
+
+    // specs/078 contracts/dictation-transcription.md. A clip arriving here is, by definition, the
+    // record-then-transcribe flow — the one Continuous mode also falls back to when ElevenLabs
+    // realtime can't take a clip (research D4) — so it always resolves like Push-to-Talk. That
+    // matches ResolveEngine exactly: whenever the primary isn't ElevenLabs realtime the mode makes
+    // no difference, and whenever it is, only Push-to-Talk ever posts a clip here.
+    [HttpPost("voice/transcriptions")]
+    [RequestSizeLimit(TranscriptionSizeLimitBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = TranscriptionSizeLimitBytes)]
+    public async Task<ActionResult<DictationTranscriptionResponse>> TranscribeDictationClip(
+        IFormFile file, [FromForm] string? language, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "No audio file was provided", Status = StatusCodes.Status400BadRequest });
+        }
+
+        await using var stream = file.OpenReadStream();
+        var result = await mediator.Send(
+            new TranscribeDictationClipCommand(stream, language, DictationCaptureMode.PushToTalk), cancellationToken);
+
+        if (result is DictationTranscriptionResult.Unavailable)
+        {
+            var problem = new ProblemDetails
+            {
+                Type = "https://hydra.bimcatalyst.com/problems/dictation-engine-unavailable",
+                Title = "Dictation unavailable",
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Detail = "Dictation isn't available right now.",
+            };
+            if (HttpContext.Items.TryGetValue(CorrelationIdKeys.ItemsKey, out var correlationId))
+            {
+                problem.Extensions["traceId"] = correlationId;
+            }
+
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, problem);
+        }
+
+        var transcribed = (DictationTranscriptionResult.Transcribed)result;
+        return Ok(new DictationTranscriptionResponse(transcribed.Text, transcribed.Language));
+    }
 
     [HttpGet("voice/preferences")]
     public async Task<ActionResult<UserVoicePreferenceDto>> GetVoicePreferences(CancellationToken cancellationToken) =>
@@ -1077,4 +1120,6 @@ public sealed partial class AiController(
 
     [GeneratedRegex("<.*?>")]
     private static partial Regex TagPattern();
+
+    private const long TranscriptionSizeLimitBytes = 4 * 1024 * 1024;
 }

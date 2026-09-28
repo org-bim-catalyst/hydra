@@ -570,3 +570,21 @@ export async function transcribeAudio(file: File, language?: string): Promise<st
   return result.text
 }
 
+/** contracts/dictation-transcription.md — the dictation-only clip endpoint `useVoiceRecorder`/
+ * `useSpeechRecognition` post to when `stt-session` answers `Clip`. Unlike {@link transcribeAudio},
+ * `wav` must already be a 16 kHz mono PCM WAV (`wavEncoder.ts`); the server validates the header
+ * and never trusts the declared content type. `language` is the same optional hint. */
+export async function transcribeDictationClip(
+  wav: Blob,
+  language?: string,
+): Promise<{ text: string; language: string | null }> {
+  const form = new FormData()
+  form.append('file', wav, 'clip.wav')
+  if (language) form.append('language', language)
+
+  return apiFetch<{ text: string; language: string | null }>('/ai/voice/transcriptions', {
+    method: 'POST',
+    body: form,
+  })
+}
+

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../api/httpClient'
 import type { ChatStreamEvent } from './aiApi'
-import { streamChat, transcribeAudio } from './aiApi'
+import { streamChat, transcribeAudio, transcribeDictationClip } from './aiApi'
 
 function sseResponse(lines: string[]): Response {
   const body = new ReadableStream<Uint8Array>({
@@ -415,5 +415,72 @@ describe('transcribeAudio', () => {
       expect(assignSpy).toHaveBeenCalledWith('/login')
     })
     expect(settled).not.toHaveBeenCalled()
+  })
+})
+
+describe('transcribeDictationClip', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // contracts/dictation-transcription.md — `/ai/voice/transcriptions`, the dictation-only
+  // endpoint `useSpeechRecognition`'s clip fallback and `useVoiceRecorder`'s Push-to-Talk post
+  // a pre-converted 16 kHz mono WAV to. Always named 'clip.wav', unlike transcribeAudio's
+  // browser-mimeType-dependent filename — there is no mimeType left to guess from by this point.
+  it('posts the WAV blob as a form field named clip.wav', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ text: 'hi', language: 'en' }), { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    const wav = new Blob(['wav-bytes'], { type: 'audio/wav' })
+
+    await transcribeDictationClip(wav, 'en')
+
+    const sentForm = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as FormData
+    const uploaded = sentForm.get('file') as File
+    expect(uploaded.name).toBe('clip.wav')
+    expect(sentForm.get('language')).toBe('en')
+  })
+
+  it('names the spoken language only when the caller knows it', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ text: 'hi', language: null }), { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    const wav = new Blob(['wav-bytes'], { type: 'audio/wav' })
+
+    await transcribeDictationClip(wav)
+
+    const sentForm = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as FormData
+    expect(sentForm.has('language')).toBe(false)
+  })
+
+  it('resolves with the transcribed text and detected language', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: 'hello there', language: 'en' }), { status: 200 })),
+    )
+    const wav = new Blob(['wav-bytes'], { type: 'audio/wav' })
+
+    await expect(transcribeDictationClip(wav)).resolves.toEqual({ text: 'hello there', language: 'en' })
+  })
+
+  // contracts/dictation-transcription.md — 503 dictation-engine-unavailable, 422
+  // dictation-audio-invalid: both problem-details responses, both carried as an ApiError (via
+  // the shared `apiFetch`) so callers (dictationFallback.ts) can tell a broken engine (5xx,
+  // `engineUnusable: true`) from a bad recording (4xx) by `status` alone.
+  it('throws an ApiError carrying the response status on failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ title: 'Dictation engine unavailable', status: 503, detail: 'Transcription is not configured.' }),
+          { status: 503, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    const wav = new Blob(['wav-bytes'], { type: 'audio/wav' })
+
+    await expect(transcribeDictationClip(wav)).rejects.toMatchObject({
+      message: 'Dictation engine unavailable',
+      detail: 'Transcription is not configured.',
+      status: 503,
+    })
   })
 })

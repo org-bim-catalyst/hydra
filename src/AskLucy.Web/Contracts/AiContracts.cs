@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Ai.Dictation;
 
 namespace AskLucy.Web.Contracts;
 
@@ -54,6 +55,9 @@ public sealed record GenerateImageResponse(Guid DocumentId);
 
 public sealed record TranscriptionResponse(string Text);
 
+/// <summary>contracts/dictation-transcription.md — `language` is the engine's detected language, else the caller's hint, else null.</summary>
+public sealed record DictationTranscriptionResponse(string Text, string? Language);
+
 public sealed record UpdateAiProviderRequest(bool? IsEnabled, Guid? DefaultModelId, bool? ClearDefaultModel);
 
 /// <summary>specs/055-role-management contracts §4 — the permission-split successor to <c>UpdateAiProviderRequest</c>'s deprecated default-model fields. <c>DefaultModelId</c> null clears the default.</summary>
@@ -76,7 +80,8 @@ public sealed record UpdateAiModelStatusRequest(AIModelStatus Status);
 
 public sealed record ApplyProviderModelSyncRequest(IReadOnlyList<ProviderModelInfo> Added, IReadOnlyList<RemovedModelDto> RemovedFromVendor);
 
-public sealed record CreateSpeechToTextSessionRequest(string Language);
+/// <summary>contracts/dictation-session.md — <see cref="Mode"/> defaults to Continuous so a tab loaded before this deploy keeps working.</summary>
+public sealed record CreateSpeechToTextSessionRequest(string Language, DictationCaptureMode Mode = DictationCaptureMode.Continuous);
 
 public sealed record SaveVoicePreferenceRequest(
     string ConversationMode,
