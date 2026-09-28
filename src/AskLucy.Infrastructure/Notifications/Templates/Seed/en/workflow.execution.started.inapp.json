@@ -1,0 +1,6 @@
+{
+  "name": "Workflow run started",
+  "title": "Workflow started",
+  "message": "{{ workflowName }} started running.",
+  "actionLabel": "View run"
+}

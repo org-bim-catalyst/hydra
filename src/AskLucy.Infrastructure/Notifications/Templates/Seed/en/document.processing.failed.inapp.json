@@ -1,0 +1,6 @@
+{
+  "name": "Document processing failed",
+  "title": "Document processing failed",
+  "message": "\"{{ documentName }}\" failed to process: {{ failureSummary }}",
+  "actionLabel": "Open document"
+}

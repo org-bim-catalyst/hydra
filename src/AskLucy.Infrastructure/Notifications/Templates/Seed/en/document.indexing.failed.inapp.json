@@ -1,0 +1,6 @@
+{
+  "name": "Document indexing failed",
+  "title": "Document indexing failed",
+  "message": "\"{{ documentName }}\" couldn't be indexed: {{ failureSummary }}",
+  "actionLabel": "Open document"
+}

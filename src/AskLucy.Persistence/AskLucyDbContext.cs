@@ -11,6 +11,7 @@ using AskLucy.Domain.CustomModels;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Mcp;
+using AskLucy.Domain.Notifications;
 using AskLucy.Domain.OperationalFailures;
 using AskLucy.Domain.Panels;
 using AskLucy.Domain.Projects;
@@ -286,6 +287,19 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<IncidentParticipant> OperationalFailureIncidentParticipants => Set<IncidentParticipant>();
 
     public DbSet<UserContentAccessEvent> UserContentAccessEvents => Set<UserContentAccessEvent>();
+
+    /// <summary>specs/067 — the Notifications &amp; Communication Hub. Deliveries and template versions are children with no DbSet (§5).</summary>
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<NotificationOutboxEvent> NotificationOutboxEvents => Set<NotificationOutboxEvent>();
+
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    public DbSet<SystemAnnouncement> SystemAnnouncements => Set<SystemAnnouncement>();
+
+    public DbSet<NotificationAuditLog> NotificationAuditLogs => Set<NotificationAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

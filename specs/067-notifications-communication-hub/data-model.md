@@ -249,7 +249,7 @@ This is append-only (FR-037, FR-054, SC-008) and mirrors `RoleAuditLog`. It is *
 | `Id` | `Guid` | PK |
 | `OccurredAtUtc` | `datetime2` | |
 | `ActorUserId` | `string(450)?` | null for system-generated approval-history rows |
-| `Action` | `string(60)` | for example `TemplateVersionPublished`, `DeliveryRetried`, `DeliveriesBulkRetried`, `AnnouncementPublished`, `LocalizationSettingChanged`, `TemplateTestSent`, `ApprovalNotificationCreated`, `ApprovalNotificationDelivered`, `ApprovalNotificationRead` |
+| `Action` | `string(60)` | for example `TemplateVersionPublished`, `DeliveryRetried`, `DeliveriesBulkRetried`, `AnnouncementPublished`, `LocalizationSettingChanged`, `TemplateTestSent`, `ApprovalNotificationCreated`, `ApprovalNotificationDelivered`, `ApprovalNotificationRead`, and the admin-view actions `StatisticsViewed`, `ChannelsViewed`, `DeliveriesViewed`, `DeliveryViewed`, `AuditViewed`, `TemplatesViewed`, `TemplateViewed`, `TemplateVersionViewed` (T230) |
 | `TargetType` | `string(60)` | |
 | `TargetId` | `string(100)` | |
 | `Outcome` | `string(20)` | `Succeeded` / `Rejected` / `Failed` |

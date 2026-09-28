@@ -1,0 +1,6 @@
+{
+  "name": "Document text recognition failed",
+  "title": "Text recognition failed",
+  "message": "Text in \"{{ documentName }}\" couldn't be recognized: {{ failureSummary }}",
+  "actionLabel": "Open document"
+}

@@ -3,6 +3,7 @@ using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
@@ -31,6 +32,9 @@ using AskLucy.Infrastructure.Identity;
 using AskLucy.Infrastructure.KnowledgeBases;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
+using AskLucy.Infrastructure.Notifications;
+using AskLucy.Infrastructure.Notifications.Templates;
+using AskLucy.Infrastructure.Notifications.Workers;
 using AskLucy.Infrastructure.OperationalFailures;
 using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
@@ -517,6 +521,19 @@ public static class DependencyInjection
         // WorkflowExecutionNotifier live here for the same reason AgentExecutionHub/
         // AgentExecutionNotifier do — Application must never reference SignalR directly (constitution §3).
         services.AddScoped<IWorkflowExecutionNotifier, WorkflowExecutionNotifier>();
+
+        // Notifications & Communication Hub (specs/067). The wake signal, metrics and heartbeats
+        // are process-wide; the dispatcher itself is registered in Program.cs.
+        services.AddSingleton<INotificationWakeSignal, NotificationWakeSignal>();
+        services.AddSingleton<NotificationMetrics>();
+        services.AddSingleton<INotificationMetrics>(sp => sp.GetRequiredService<NotificationMetrics>());
+        services.AddSingleton<NotificationWorkerHeartbeats>();
+        services.AddSingleton<INotificationChannelRegistry, NotificationChannelRegistry>();
+        services.AddSingleton<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
+        services.AddSingleton<INotificationLinkBuilder, NotificationLinkBuilder>();
+        services.AddScoped<INotificationTemplateRenderer, LogicFreeTemplateRenderer>();
+        services.AddScoped<INotificationRealtimePublisher, SignalRNotificationRealtimePublisher>();
+        services.AddHostedService<NotificationTemplateSeeder>();
 
         // AI-to-UI Floating Panel Framework (specs/028-ai-floating-panels) — User Story 1.
         // PanelHub/PanelNotifier live here for the same reason AgentExecutionHub/

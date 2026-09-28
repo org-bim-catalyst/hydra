@@ -1,0 +1,6 @@
+{
+  "name": "Agent run started",
+  "title": "Agent run started",
+  "message": "{{ agentName }} started running.",
+  "actionLabel": "View run"
+}

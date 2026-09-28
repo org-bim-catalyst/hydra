@@ -1,0 +1,6 @@
+{
+  "name": "Document text recognition completed",
+  "title": "Text recognition complete",
+  "message": "Text in \"{{ documentName }}\" is now searchable.",
+  "actionLabel": "Open document"
+}

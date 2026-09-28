@@ -1,0 +1,6 @@
+{
+  "name": "System announcement",
+  "title": "{{ announcementTitle }}",
+  "message": "{{ announcementMessage }}",
+  "actionLabel": "Read more"
+}

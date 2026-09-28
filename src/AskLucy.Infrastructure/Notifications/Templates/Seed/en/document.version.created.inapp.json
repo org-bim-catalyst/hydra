@@ -1,0 +1,6 @@
+{
+  "name": "Document version created",
+  "title": "New document version",
+  "message": "\"{{ documentName }}\" has a new version ({{ versionNumber }}).",
+  "actionLabel": "Open document"
+}

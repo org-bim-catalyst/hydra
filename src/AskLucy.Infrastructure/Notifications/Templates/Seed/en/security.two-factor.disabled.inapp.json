@@ -1,0 +1,6 @@
+{
+  "name": "Two-factor authentication disabled",
+  "title": "Two-factor authentication turned off",
+  "message": "Two-factor authentication was turned off for your account {{ changedAt }}. If this wasn't you, secure your account now.",
+  "actionLabel": "Review security"
+}

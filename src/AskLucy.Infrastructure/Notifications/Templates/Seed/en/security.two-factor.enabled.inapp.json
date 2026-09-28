@@ -1,0 +1,6 @@
+{
+  "name": "Two-factor authentication enabled",
+  "title": "Two-factor authentication turned on",
+  "message": "Two-factor authentication was turned on for your account {{ changedAt }}. If this wasn't you, secure your account now.",
+  "actionLabel": "Review security"
+}

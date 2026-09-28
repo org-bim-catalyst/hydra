@@ -22,6 +22,9 @@ using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Mcp.Validation;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Application.Notifications.Processing;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Application.Options;
 using AskLucy.Application.Retrieval;
@@ -50,6 +53,7 @@ public static class DependencyInjection
 
         services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(AdminViewAuditBehavior<,>));
 
         services.AddScoped<TokenIssuer>();
         services.AddScoped<DefaultProviderResolver>();
@@ -376,6 +380,17 @@ public static class DependencyInjection
         services.AddScoped<OperationalFailureIngestor>();
         services.AddScoped<OperationalFailureReadModelBuilder>();
         services.AddScoped<IncidentTriageService>();
+
+        // Notifications & Communication Hub (specs/067). The dispatch service is a singleton that
+        // opens a scope per event; the processor and everything it touches are scoped to that event.
+        // No ValidateOnStart: every NotificationsOptions value has a default and is clamped on read.
+        services.AddOptions<NotificationsOptions>().Bind(configuration.GetSection(NotificationsOptions.SectionName));
+        services.AddScoped<INotificationPublisher, NotificationPublisher>();
+        services.AddScoped<INotificationAuditWriter, NotificationAuditWriter>();
+        services.AddScoped<NotificationMaterializer>();
+        services.AddScoped<NotificationCreatedPusher>();
+        services.AddScoped<OutboxEventProcessor>();
+        services.AddSingleton<OutboxDispatchService>();
 
         return services;
     }

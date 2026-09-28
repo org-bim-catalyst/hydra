@@ -1,0 +1,6 @@
+{
+  "name": "Document storage limit reached",
+  "title": "Storage limit reached",
+  "message": "You've used {{ usedStorage }} of {{ storageLimit }}. Delete documents to upload more.",
+  "actionLabel": "Manage documents"
+}

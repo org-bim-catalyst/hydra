@@ -1,0 +1,6 @@
+{
+  "name": "Memory conflict",
+  "title": "Please confirm a memory",
+  "message": "A new memory conflicts with one you already have: {{ memorySummary }}",
+  "actionLabel": "Resolve conflict"
+}

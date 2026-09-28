@@ -1,0 +1,6 @@
+{
+  "name": "Workflow run failed",
+  "title": "Workflow failed",
+  "message": "{{ workflowName }} couldn't finish: {{ failureSummary }}",
+  "actionLabel": "View run"
+}

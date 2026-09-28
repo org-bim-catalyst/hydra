@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.CustomModels.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Interceptors;
@@ -18,6 +19,7 @@ public static class DependencyInjection
     public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<AuditSaveChangesInterceptor>();
+        services.AddScoped<NotificationWakeInterceptor>();
 
         // Resolve the connection string lazily from the container's IConfiguration at
         // DbContext-construction time, not eagerly from the `configuration` parameter
@@ -30,7 +32,9 @@ public static class DependencyInjection
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             options.UseSqlServer(connectionString)
-                   .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
+                   .AddInterceptors(
+                       sp.GetRequiredService<AuditSaveChangesInterceptor>(),
+                       sp.GetRequiredService<NotificationWakeInterceptor>());
         });
 
         services
@@ -158,6 +162,14 @@ public static class DependencyInjection
 
         // Site Analysis Agent (specs/057-site-analysis-agent).
         services.AddScoped<ISiteAnalysisRepository, SiteAnalysisRepository>();
+
+        // Notifications & Communication Hub (specs/067-notifications-communication-hub).
+        services.AddScoped<INotificationOutboxStore, NotificationOutboxStore>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
+        services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
+        services.AddScoped<INotificationRecipientDirectory, NotificationRecipientDirectory>();
+        services.AddScoped<INotificationAuditLogRepository, NotificationAuditLogRepository>();
 
         return services;
     }

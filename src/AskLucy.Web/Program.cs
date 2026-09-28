@@ -14,6 +14,8 @@ using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
+using AskLucy.Infrastructure.Notifications;
+using AskLucy.Infrastructure.Notifications.Workers;
 using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.SiteAnalysis;
@@ -230,6 +232,9 @@ builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHand
 builder.Services.AddScoped<IAuthorizationCacheInvalidator, MemoryCacheAuthorizationCacheInvalidator>();
 builder.Services.Replace(ServiceDescriptor.Scoped<IAuthorizationMiddlewareResultHandler, PermissionDeniedAuditResultHandler>());
 builder.Services.AddHostedService<PermissionCatalogReconciler>();
+
+// specs/067: drains the notification outbox (research R4).
+builder.Services.AddHostedService<NotificationOutboxDispatcher>();
 
 // --- Session revocation enforced on the access token, not just the refresh cookie ---
 // Same shape as the role-claims gap directly above, and for the same reason: a JWT keeps working
@@ -798,6 +803,7 @@ app.MapHub<WorkflowExecutionHub>("/hubs/workflow-execution");
 app.MapHub<PanelHub>("/hubs/panels");
 app.MapHub<SiteAnalysisHub>("/hubs/site-analysis");
 app.MapHub<CustomModelDeploymentHub>("/hubs/custom-model-deployments");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 // SPA fallback: any GET that didn't match a static file (the app.Use above) or any endpoint
 // mapped above (controllers, hubs, health checks, OpenAPI) serves index.html so React Router

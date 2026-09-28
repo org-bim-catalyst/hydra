@@ -1,0 +1,6 @@
+{
+  "name": "Document uploaded",
+  "title": "Upload complete",
+  "message": "\"{{ documentName }}\" finished uploading.",
+  "actionLabel": "Open document"
+}

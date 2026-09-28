@@ -1,0 +1,6 @@
+{
+  "name": "Document indexing completed",
+  "title": "Document indexed",
+  "message": "\"{{ documentName }}\" is ready to search.",
+  "actionLabel": "Open document"
+}

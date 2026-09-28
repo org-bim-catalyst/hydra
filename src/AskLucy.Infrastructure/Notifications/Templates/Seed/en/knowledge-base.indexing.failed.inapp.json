@@ -1,0 +1,6 @@
+{
+  "name": "Knowledge base indexing failed",
+  "title": "Knowledge base indexing failed",
+  "message": "A document in {{ knowledgeBaseName }} couldn't be indexed: {{ failureSummary }}",
+  "actionLabel": "Open knowledge base"
+}

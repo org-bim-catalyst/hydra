@@ -19,6 +19,7 @@ public sealed class OutboxEventProcessor(
     IEnumerable<INotificationAccessCheck> accessChecks,
     NotificationMaterializer materializer,
     NotificationCreatedPusher pusher,
+    INotificationMetrics metrics,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     ILogger<OutboxEventProcessor> logger)
@@ -77,6 +78,11 @@ public sealed class OutboxEventProcessor(
         }
 
         NotificationDispatchLog.Dispatched(logger, definition.Key, outboxEvent.EventKey, outboxEvent.CorrelationId, result.Outcome, result.Created.Count);
+        foreach (var notification in result.Created)
+        {
+            metrics.NotificationCreated(notification.Category, notification.Type);
+        }
+
         await pusher.PushAsync(result.Created, cancellationToken);
     }
 

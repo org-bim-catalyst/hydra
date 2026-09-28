@@ -15,6 +15,16 @@ public enum NotificationAuditAction
     ApprovalNotificationCreated,
     ApprovalNotificationDelivered,
     ApprovalNotificationRead,
+
+    // Admin read-only views, audited at most once per admin per resource per hour (AdminViewAuditBehavior).
+    StatisticsViewed,
+    ChannelsViewed,
+    DeliveriesViewed,
+    DeliveryViewed,
+    AuditViewed,
+    TemplatesViewed,
+    TemplateViewed,
+    TemplateVersionViewed,
 }
 
 public enum NotificationAuditOutcome

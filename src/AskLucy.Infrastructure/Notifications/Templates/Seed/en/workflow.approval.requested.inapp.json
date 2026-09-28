@@ -1,0 +1,6 @@
+{
+  "name": "Workflow approval requested",
+  "title": "Approval needed",
+  "message": "{{ workflowName }} is waiting at {{ nodeName }} for your approval to {{ intendedAction }}.",
+  "actionLabel": "Review request"
+}

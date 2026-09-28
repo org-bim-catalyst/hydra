@@ -1,0 +1,6 @@
+{
+  "name": "Memory created",
+  "title": "New memory saved",
+  "message": "Lucy remembered: {{ memorySummary }}",
+  "actionLabel": "Review memory"
+}

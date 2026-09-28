@@ -1,0 +1,6 @@
+{
+  "name": "Workflow run completed",
+  "title": "Workflow completed",
+  "message": "{{ workflowName }} finished in {{ duration }}.",
+  "actionLabel": "View results"
+}

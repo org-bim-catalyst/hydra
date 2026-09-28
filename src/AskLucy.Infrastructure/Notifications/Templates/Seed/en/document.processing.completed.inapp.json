@@ -1,0 +1,6 @@
+{
+  "name": "Document processing completed",
+  "title": "Document ready",
+  "message": "\"{{ documentName }}\" finished processing.",
+  "actionLabel": "Open document"
+}

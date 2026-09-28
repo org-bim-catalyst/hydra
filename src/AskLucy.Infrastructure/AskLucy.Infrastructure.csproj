@@ -40,6 +40,11 @@
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- specs/067: default notification templates, read by NotificationTemplateSeeder. -->
+    <EmbeddedResource Include="Notifications\Templates\Seed\**\*.json" LogicalName="NotificationSeed/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

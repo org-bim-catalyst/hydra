@@ -1,0 +1,6 @@
+{
+  "name": "Agent approval requested",
+  "title": "Approval needed",
+  "message": "{{ agentName }} is waiting for your approval to {{ intendedAction }}.",
+  "actionLabel": "Review request"
+}

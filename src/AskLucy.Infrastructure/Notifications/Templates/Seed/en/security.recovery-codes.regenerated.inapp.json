@@ -1,0 +1,6 @@
+{
+  "name": "Recovery codes regenerated",
+  "title": "New recovery codes created",
+  "message": "New recovery codes were created for your account {{ changedAt }}. Your old codes no longer work.",
+  "actionLabel": "Review security"
+}

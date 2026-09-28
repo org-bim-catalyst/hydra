@@ -1,0 +1,6 @@
+{
+  "name": "Workflow run paused",
+  "title": "Workflow paused",
+  "message": "{{ workflowName }} is paused.",
+  "actionLabel": "View run"
+}

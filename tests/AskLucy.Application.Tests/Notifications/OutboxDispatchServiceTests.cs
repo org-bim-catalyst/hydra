@@ -74,6 +74,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
             .AddSingleton(links)
             .AddSingleton<INotificationRealtimePublisher>(_realtime)
             .AddSingleton(_failureRecorder)
+            .AddSingleton(Substitute.For<INotificationMetrics>())
             .AddSingleton<ILogger<OutboxDispatchService>>(_dispatchLogger)
             .AddSingleton<ILogger<OutboxEventProcessor>>(_processorLogger)
             .AddSingleton<ILogger<NotificationMaterializer>>(_materializerLogger)

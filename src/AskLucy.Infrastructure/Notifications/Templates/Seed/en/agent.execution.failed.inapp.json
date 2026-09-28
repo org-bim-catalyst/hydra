@@ -1,0 +1,6 @@
+{
+  "name": "Agent run failed",
+  "title": "Agent run failed",
+  "message": "{{ agentName }} couldn't finish: {{ failureSummary }}",
+  "actionLabel": "View run"
+}

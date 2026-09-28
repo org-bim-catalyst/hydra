@@ -1,0 +1,6 @@
+{
+  "name": "Knowledge base indexing completed",
+  "title": "Knowledge base updated",
+  "message": "New documents in {{ knowledgeBaseName }} are ready to search.",
+  "actionLabel": "Open knowledge base"
+}

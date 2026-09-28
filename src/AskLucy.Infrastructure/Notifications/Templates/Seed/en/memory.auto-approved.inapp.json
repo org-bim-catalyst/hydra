@@ -1,0 +1,6 @@
+{
+  "name": "Memory approved",
+  "title": "Memory approved",
+  "message": "Lucy approved a memory: {{ memorySummary }}",
+  "actionLabel": "Review memory"
+}

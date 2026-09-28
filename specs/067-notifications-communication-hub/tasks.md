@@ -121,16 +121,18 @@ These apply to every task below, and each one assumes them:
   - when `INotificationAccessCheck` denies, no notification is created and the outcome is logged;
   - a template render error gives `Failed(RenderError)` and is logged;
   - the realtime push happens only after the commit succeeds.
-- [ ] T010 [P] `NotificationOutboxClaimTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationOutboxClaimTests.cs`:
+- [X] T010 [P] `NotificationOutboxClaimTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationOutboxClaimTests.cs`:
   - two concurrent claimers never claim the same event;
   - an expired lease is reclaimable;
   - completing requires the claiming worker's lease.
-- [ ] T011 [P] `InAppTemplateRenderTests` and `NotificationLinkBuilderTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/`. Cover:
+- [X] T011 [P] `InAppTemplateRenderTests` and `NotificationLinkBuilderTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/`. Cover:
   - a missing value uses the fallback and logs a warning;
   - the output is plain text, never HTML;
   - route placeholders are substituted;
   - external links are rejected unless `AllowsExternalLink`;
   - absolute URLs are built from `AppOptions.FrontendBaseUrl`.
+
+  *Done. Also added `NotificationTemplateSeederTests` (`LoadSeeds()` parses to a real catalogue type/channel, covers every emitted in-app type except the deliberately-dormant `knowledge-base.updated`, and has no duplicate keys).*
 
 ### Domain
 
@@ -214,52 +216,72 @@ These apply to every task below, and each one assumes them:
 
 ### Persistence
 
-- [ ] T029 [P] Add `NotificationConfiguration.cs` and `NotificationDeliveryConfiguration.cs` in `src/AskLucy.Persistence/Configurations/Notifications/`:
+- [X] T029 [P] Add `NotificationConfiguration.cs` and `NotificationDeliveryConfiguration.cs` in `src/AskLucy.Persistence/Configurations/Notifications/`:
   - a soft-delete query filter on the owner delete, and `RowVersion`;
   - the filtered covering center index `(RecipientUserId, CreatedAtUtc DESC, Id DESC) WHERE DeletedAtUtc IS NULL AND ShowInCenter = 1`, plus an unread filtered index (R19);
   - the due-queue index `(Status, NextAttemptAtUtc)`, filtered to `Pending`/`Retrying`.
-- [ ] T030 [P] Add `NotificationOutboxEventConfiguration.cs` in `src/AskLucy.Persistence/Configurations/Notifications/`: a **non-unique** filtered index on `EventKey` (data-model.md: de-duplication is enforced on `Notifications`, so the outbox may hold repeats), and a pending/lease index.
-- [ ] T031 [P] Add `NotificationTemplateConfiguration.cs` and `NotificationTemplateVersionConfiguration.cs`:
+
+  *Deviation: the due-queue index also includes `Priority` (not just `Status`/`NextAttemptAtUtc`) so the dispatcher can order a claimed batch by priority without a second lookup; it is not part of the key, only an included column.*
+- [X] T030 [P] Add `NotificationOutboxEventConfiguration.cs` in `src/AskLucy.Persistence/Configurations/Notifications/`: a **non-unique** filtered index on `EventKey` (data-model.md: de-duplication is enforced on `Notifications`, so the outbox may hold repeats), and a pending/lease index.
+- [X] T031 [P] Add `NotificationTemplateConfiguration.cs` and `NotificationTemplateVersionConfiguration.cs`:
   - templates are unique on `(Type, Channel, Language)`;
   - a filtered unique index allows at most one `Published` version per template;
   - `RowVersion`.
-- [ ] T032 [P] Add `NotificationPreferenceConfiguration.cs` (unique on `(UserId, Category, Channel)`), `SystemAnnouncementConfiguration.cs` and `NotificationAuditLogConfiguration.cs`, all in `src/AskLucy.Persistence/Configurations/Notifications/`.
-- [ ] T033 Register `DbSet`s in `src/AskLucy.Persistence/AskLucyDbContext.cs` for the 6 roots and standalone entities only: `Notifications`, `NotificationOutboxEvents`, `NotificationTemplates`, `NotificationPreferences`, `SystemAnnouncements` and `NotificationAuditLogs`. The children `NotificationDelivery` and `NotificationTemplateVersion` get **no** `DbSet` (constitution §5). Their configurations are still applied, and only their aggregate's repository reaches them, through the parent's navigation or `Set<T>()`.
-- [ ] T034 Create the migration `AddNotificationHubCore` in `src/AskLucy.Persistence/Migrations/`. It adds `Notifications`, `NotificationDeliveries` and `NotificationOutboxEvents`, with their indexes.
-- [ ] T035 Create the migration `AddNotificationTemplates` in `src/AskLucy.Persistence/Migrations/`. It holds schema only; the content comes from the seeder.
-- [ ] T036 Create the migration `AddNotificationPreferences` in `src/AskLucy.Persistence/Migrations/`.
-- [ ] T037 Create the migration `AddSystemAnnouncementsAndNotificationAudit` in `src/AskLucy.Persistence/Migrations/`.
-- [ ] T038 [P] Implement `NotificationOutboxRepository` (`INotificationOutboxStore`) in `src/AskLucy.Persistence/Repositories/NotificationOutboxRepository.cs`:
+- [X] T032 [P] Add `NotificationPreferenceConfiguration.cs` (unique on `(UserId, Category, Channel)`), `SystemAnnouncementConfiguration.cs` and `NotificationAuditLogConfiguration.cs`, all in `src/AskLucy.Persistence/Configurations/Notifications/`.
+- [X] T033 Register `DbSet`s in `src/AskLucy.Persistence/AskLucyDbContext.cs` for the 6 roots and standalone entities only: `Notifications`, `NotificationOutboxEvents`, `NotificationTemplates`, `NotificationPreferences`, `SystemAnnouncements` and `NotificationAuditLogs`. The children `NotificationDelivery` and `NotificationTemplateVersion` get **no** `DbSet` (constitution §5). Their configurations are still applied, and only their aggregate's repository reaches them, through the parent's navigation or `Set<T>()`.
+- [X] T034 Create the migration `AddNotificationHubCore` in `src/AskLucy.Persistence/Migrations/`. It adds `Notifications`, `NotificationDeliveries` and `NotificationOutboxEvents`, with their indexes.
+- [X] T035 Create the migration `AddNotificationTemplates` in `src/AskLucy.Persistence/Migrations/`. It holds schema only; the content comes from the seeder.
+- [X] T036 Create the migration `AddNotificationPreferences` in `src/AskLucy.Persistence/Migrations/`.
+- [X] T037 Create the migration `AddSystemAnnouncementsAndNotificationAudit` in `src/AskLucy.Persistence/Migrations/`.
+
+  *Deviation (T034–T037): all four schemas shipped as one migration, `20260928041922_AddNotificationHub`, instead of four. `SystemAnnouncement` and the templates/preferences tables have FK cycles back through `Notifications`/`NotificationDeliveries` (e.g. a delivery can reference an announcement, an announcement audit row references a template), so splitting them into separately-applied migrations would leave an intermediate migration with a dangling FK. Applied to the shared test2 DB.*
+- [X] T038 [P] Implement `NotificationOutboxRepository` (`INotificationOutboxStore`) in `src/AskLucy.Persistence/Repositories/NotificationOutboxRepository.cs`:
   - `Add`;
   - `ClaimBatchAsync(workerId, lease, batchSize)` as a conditional `ExecuteUpdateAsync` and re-read (R4);
   - `CompleteAsync`;
   - `ReleaseAsync(nextAttemptAt)`.
-- [ ] T039 [P] Implement `NotificationRepository` (`INotificationRepository`) in `src/AskLucy.Persistence/Repositories/NotificationRepository.cs`, with `Add`, `GetByIdAsync` and `ExistsByEventKeyAsync`. Center queries are added in US1, and the delivery queue in US3.
-- [ ] T040 [P] Implement `NotificationTemplateRepository` in `src/AskLucy.Persistence/Repositories/NotificationTemplateRepository.cs`. It looks up the published version by `(type, channel, language)` with an `en` fallback.
-- [ ] T041 [P] Implement `NotificationPreferenceRepository` in `src/AskLucy.Persistence/Repositories/NotificationPreferenceRepository.cs`, with `GetOverridesAsync(userId)` and `GetOverridesForUsersAsync(userIds)`.
-- [ ] T042 Implement `NotificationWakeInterceptor` in `src/AskLucy.Persistence/Interceptors/NotificationWakeInterceptor.cs`. In `SavedChangesAsync`, it pulses `INotificationWakeSignal` when the saved change set added any `NotificationOutboxEvent` or `NotificationDelivery`. Register it next to `AuditSaveChangesInterceptor`.
-- [ ] T043 Register the repositories and the interceptor in `src/AskLucy.Persistence/DependencyInjection.cs`.
+
+  *Deviation: the class is `NotificationOutboxStore` (matches its interface name, `INotificationOutboxStore`, rather than the `…Repository` convention used elsewhere). `CompleteAsync`/`ReleaseAsync` are the domain methods (`Complete`, `Release`) plus a save, not repository-only logic. Also added `GetClaimedAsync` and `ReleaseClaimsAsync`, both needed by `NotificationOutboxDispatcher.StopAsync` to hand back an in-flight lease on shutdown.*
+- [X] T039 [P] Implement `NotificationRepository` (`INotificationRepository`) in `src/AskLucy.Persistence/Repositories/NotificationRepository.cs`, with `Add`, `GetByIdAsync` and `ExistsByEventKeyAsync`. Center queries are added in US1, and the delivery queue in US3.
+
+  *Deviation: method names differ slightly from the literal list above; the behavior (add, id lookup, event-key existence check) is unchanged.*
+- [X] T040 [P] Implement `NotificationTemplateRepository` in `src/AskLucy.Persistence/Repositories/NotificationTemplateRepository.cs`. It looks up the published version by `(type, channel, language)` with an `en` fallback.
+
+  *Deviation: `GetPublishedVersionAsync` is an exact `(type, channel, language)` match with no fallback here; the `en` fallback moved to `LogicFreeTemplateRenderer` (T048), which is also where it gets logged. The repository also gained `GetExistingKeysAsync` and `Add`, both needed by `NotificationTemplateSeeder` (T049).*
+- [X] T041 [P] Implement `NotificationPreferenceRepository` in `src/AskLucy.Persistence/Repositories/NotificationPreferenceRepository.cs`, with `GetOverridesAsync(userId)` and `GetOverridesForUsersAsync(userIds)`.
+- [X] T042 Implement `NotificationWakeInterceptor` in `src/AskLucy.Persistence/Interceptors/NotificationWakeInterceptor.cs`. In `SavedChangesAsync`, it pulses `INotificationWakeSignal` when the saved change set added any `NotificationOutboxEvent` or `NotificationDelivery`. Register it next to `AuditSaveChangesInterceptor`.
+- [X] T043 Register the repositories and the interceptor in `src/AskLucy.Persistence/DependencyInjection.cs`.
+
+  *Extras beyond the literal task list: `NotificationRecipientDirectory` and `NotificationAuditLogRepository` were also implemented and registered here (both declared in T024's "Also added").*
 
 ### Infrastructure
 
-- [ ] T044 [P] Implement `NotificationWakeSignal` in `src/AskLucy.Infrastructure/Notifications/NotificationWakeSignal.cs`. It is a singleton `SemaphoreSlim` wrapper with separate wait handles for the dispatcher and the delivery worker.
-- [ ] T045 [P] Implement `NotificationMetrics` in `src/AskLucy.Infrastructure/Notifications/NotificationMetrics.cs`, using the Meter `AskLucy.Notifications`:
+- [X] T044 [P] Implement `NotificationWakeSignal` in `src/AskLucy.Infrastructure/Notifications/NotificationWakeSignal.cs`. It is a singleton `SemaphoreSlim` wrapper with separate wait handles for the dispatcher and the delivery worker.
+- [X] T045 [P] Implement `NotificationMetrics` in `src/AskLucy.Infrastructure/Notifications/NotificationMetrics.cs`, using the Meter `AskLucy.Notifications`:
   - counters `notifications.created`, `deliveries.sent`, `deliveries.failed`, `deliveries.retried` and `deliveries.dead_lettered`;
   - the counter `deliveries.provider_errors`, tagged by `channel` and `failure_kind` (FR-057);
   - the histogram `deliveries.latency_ms`;
   - an observable backlog gauge, and an observable `notifications.unread` gauge read from a cached (60 s) count (FR-057).
-- [ ] T046 [P] Implement `EffectiveLanguageResolver` in `src/AskLucy.Infrastructure/Notifications/EffectiveLanguageResolver.cs`. For now it returns the explicit `Language` when it is `en`, and otherwise `en`. US8 replaces this with the full FR-044 chain.
-- [ ] T047 [P] (after T013) Implement `NotificationLinkBuilder` in `src/AskLucy.Infrastructure/Notifications/NotificationLinkBuilder.cs`:
+
+  *Deviation: added the Application-side abstraction `INotificationMetrics` (`NotificationMetrics` implements it) so `OutboxEventProcessor` can record metrics without Application referencing Infrastructure. The backlog and unread gauges report nothing until fed via `ReportBacklog`/`ReportUnread`; they are not self-polling 60 s caches here — the US3 health check (which already owns the DB query) is what will call them, so the count isn't computed twice.*
+- [X] T046 [P] Implement `EffectiveLanguageResolver` in `src/AskLucy.Infrastructure/Notifications/EffectiveLanguageResolver.cs`. For now it returns the explicit `Language` when it is `en`, and otherwise `en`. US8 replaces this with the full FR-044 chain.
+- [X] T047 [P] (after T013) Implement `NotificationLinkBuilder` in `src/AskLucy.Infrastructure/Notifications/NotificationLinkBuilder.cs`:
   - it builds the relative route for in-app and the absolute `AppOptions.FrontendBaseUrl` + route for email;
   - it substitutes `{id}`, `{parentId}` and query tokens, URL-encoded;
   - it rejects any external host.
-- [ ] T048 Implement the in-app path of `LogicFreeTemplateRenderer` in `src/AskLucy.Infrastructure/Notifications/Templates/LogicFreeTemplateRenderer.cs`. It uses `TemplateTokenParser`, gives plain text only, and applies the fallback-and-warn rule. The email path is added in US3.
-- [ ] T049 Implement `NotificationTemplateSeeder` in `src/AskLucy.Infrastructure/Notifications/Templates/NotificationTemplateSeeder.cs`:
+
+  *Deviation: a route token the related item can't fill (e.g. no `parentId`) returns `null` and logs a warning, rather than throwing — the notification is still shown without its action link, per the spec's edge-case handling. An unknown token name in the route template itself (a code bug, not a data gap) still throws.*
+- [X] T048 Implement the in-app path of `LogicFreeTemplateRenderer` in `src/AskLucy.Infrastructure/Notifications/Templates/LogicFreeTemplateRenderer.cs`. It uses `TemplateTokenParser`, gives plain text only, and applies the fallback-and-warn rule. The email path is added in US3.
+
+  *Deviation: also truncates the rendered title/message/action label to `Notification.TitleMaxLength`/`MessageMaxLength`/`ActionLabelMaxLength` with an ellipsis, so a long substituted value (e.g. a document name) can't push the row past its column limit.*
+- [X] T049 Implement `NotificationTemplateSeeder` in `src/AskLucy.Infrastructure/Notifications/Templates/NotificationTemplateSeeder.cs`:
   - It is an idempotent startup hosted service.
   - It reads embedded JSON `Seed/{lang}/{type}.{channel}.json`.
   - It creates the template and a published v1 only when the template is missing, and never overwrites.
   - Add `<EmbeddedResource Include="Notifications\Templates\Seed\**\*.json" />` to `src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`.
-- [ ] T050 [P] (after T013) Create the English in-app seed files in `src/AskLucy.Infrastructure/Notifications/Templates/Seed/en/`, as `{type}.inapp.json`, one per in-app type:
+
+  *Deviation: the embedded resource uses `LogicalName="NotificationSeed/%(RecursiveDir)%(Filename)%(Extension)"` so the resource name is stable regardless of the build machine's path separator. A single seed file that fails to parse or violates a domain rule is logged and skipped; it never stops the rest from installing or crashes the host. `PublishedBy` is `system:template-seeder`.*
+- [X] T050 [P] (after T013) Create the English in-app seed files in `src/AskLucy.Infrastructure/Notifications/Templates/Seed/en/`, as `{type}.inapp.json`, one per in-app type:
   - `agent.execution.{started,completed,failed}`, `agent.approval.requested`
   - `workflow.execution.{started,completed,failed,paused}`, `workflow.approval.requested`
   - the 9 `document.*` types and the 2 emitted `knowledge-base.indexing.*` types (`knowledge-base.updated` is not emitted, R27, and gets no seed)
@@ -268,29 +290,37 @@ These apply to every task below, and each one assumes them:
   - `system.announcement.published`
 
   Base the wording on the current legacy messages where they exist (`ProcessingNotifier`, `MemoryNotifier`).
-- [ ] T051 Implement `NotificationHub` in `src/AskLucy.Infrastructure/Notifications/NotificationHub.cs`:
+
+  *Done: 27 files, verified by `NotificationTemplateSeederTests` against the live catalogue.*
+- [X] T051 Implement `NotificationHub` in `src/AskLucy.Infrastructure/Notifications/NotificationHub.cs`:
   - `[Authorize]`;
   - `OnConnectedAsync` adds the connection to the group `user:{userId}`;
   - there are no client-to-server methods (R1).
 
   Also implement `SignalRNotificationRealtimePublisher` in `src/AskLucy.Infrastructure/Notifications/SignalRNotificationRealtimePublisher.cs`, which sends `notificationCreated`, `notificationUpdated` and `unreadCountChanged` with the payloads in [contracts/notification-hub.md](contracts/notification-hub.md).
-- [ ] T052 Implement the `NotificationOutboxDispatcher` `BackgroundService` in `src/AskLucy.Infrastructure/Notifications/Workers/NotificationOutboxDispatcher.cs`:
+- [X] T052 Implement the `NotificationOutboxDispatcher` `BackgroundService` in `src/AskLucy.Infrastructure/Notifications/Workers/NotificationOutboxDispatcher.cs`:
   - Each loop waits for the wake signal or the poll interval, whichever comes first, and runs `OutboxDispatchService` in a new scope.
   - Worker id is `{machine}:{pid}:{guid}`.
   - It records a heartbeat timestamp for the health check.
   - It catches and logs per-iteration exceptions with backoff, and never exits silently.
   - `StopAsync` releases any claimed-but-unfinished events (standing rule 10).
-- [ ] T230 Add the view-audit pipeline behavior (constitution §3: queries never mutate state, and cross-cutting logging lives in `IPipelineBehavior`):
+
+  *Deviation: the heartbeat lives in a new singleton, `NotificationWorkerHeartbeats`, rather than on the dispatcher instance itself, so the US3 health check can read it without resolving the hosted service (a self-referential factory would otherwise be needed).*
+- [X] T230 Add the view-audit pipeline behavior (constitution §3: queries never mutate state, and cross-cutting logging lives in `IPipelineBehavior`):
   - the marker `IAuditedAdminView` in `src/AskLucy.Application/Notifications/Abstractions/`, exposing `AuditAction`, `TargetType` and `TargetId`;
   - `AdminViewAuditBehavior<TRequest, TResponse>` in `src/AskLucy.Application/Common/Behaviors/`. For a request with the marker, after the handler succeeds, it writes the `…Viewed` row through `INotificationAuditWriter` in its own `IServiceScopeFactory` scope and save, at most once per admin, per resource, per hour (an `IMemoryCache` key, plus a DB check on a miss). If the audit write fails, the failure is logged and surfaced as a 500 Problem Details; it is not swallowed.
   - Register it in `src/AskLucy.Application/DependencyInjection.cs` and add `AdminViewAuditBehaviorTests` in `tests/AskLucy.Application.Tests/Notifications/`.
 
   The admin query handlers (T158, T159, T161, T176) implement the marker and contain no audit code.
-- [ ] T053 Register the Foundational services in `src/AskLucy.Application/DependencyInjection.cs` (publisher, dispatch service, audit writer, options binding) and in `src/AskLucy.Infrastructure/DependencyInjection.cs` (wake signal as a singleton, metrics, resolver, link builder, renderer, seeder, realtime publisher). In `src/AskLucy.Web/Program.cs`:
+
+  *Deviation: the behavior lives in `src/AskLucy.Application/Behaviors/`, this codebase's actual home for `IPipelineBehavior`s (`LoggingBehavior` etc.), not `Common/Behaviors` as written above — there is no `Common/Behaviors` folder in this codebase. The marker's property names are `AuditAction`/`AuditTargetType`/`AuditTargetId` (matching `NotificationAuditLog`'s own field names) rather than the literal `AuditAction`/`TargetType`/`TargetId`. Added the 8 `…Viewed` values to `NotificationAuditAction` (`NotificationAuditLog.cs`) and updated data-model.md's enum list to match.*
+- [X] T053 Register the Foundational services in `src/AskLucy.Application/DependencyInjection.cs` (publisher, dispatch service, audit writer, options binding) and in `src/AskLucy.Infrastructure/DependencyInjection.cs` (wake signal as a singleton, metrics, resolver, link builder, renderer, seeder, realtime publisher). In `src/AskLucy.Web/Program.cs`:
   - register `AddHostedService<NotificationOutboxDispatcher>` near `PermissionCatalogReconciler` (~L230);
   - add `app.MapHub<NotificationHub>("/hubs/notifications")` beside the existing `MapHub` calls (~L791–797);
   - register `HttpCorrelationIdAccessor`.
-- [ ] T054 Boot verification. Run `dotnet build "Ask Lucy.sln" -warnaserror`, then the full `tests/AskLucy.Web.Tests` suite. `CustomWebApplicationFactory` boots the real host, so it catches options validation failures and DI cycles that unit tests miss.
+
+  *Deviation: `HttpCorrelationIdAccessor` was already registered under the name `CorrelationIdAccessor` (see T025's note) — nothing further to add. `NotificationOutboxDispatcher` is registered in `Program.cs` itself (not `Infrastructure/DependencyInjection.cs`), so the test host can swap it for a manually-driven pass, matching how other per-request background workers are registered in this codebase.*
+- [X] T054 Boot verification. Run `dotnet build "Ask Lucy.sln" -warnaserror`, then the full `tests/AskLucy.Web.Tests` suite. `CustomWebApplicationFactory` boots the real host, so it catches options validation failures and DI cycles that unit tests miss.
 
 **Checkpoint**: Publishing a request in a test host produces a materialized in-app notification and a realtime push. User stories can start.
 
