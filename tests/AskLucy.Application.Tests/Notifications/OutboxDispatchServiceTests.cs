@@ -514,6 +514,12 @@ public sealed class OutboxDispatchServiceTests : IDisposable
             return Task.FromResult(updated);
         }
 
+        public Task<int> DeleteAllForUserAsync(string userId, CancellationToken cancellationToken)
+        {
+            var removed = db.Committed.RemoveAll(n => n.RecipientUserId == userId);
+            return Task.FromResult(removed);
+        }
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             foreach (var tracked in _trackedEvents)

@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Users.Commands.DeleteMyAccount;
 using FluentAssertions;
 using NSubstitute;
@@ -11,13 +12,17 @@ public sealed class DeleteMyAccountCommandHandlerTests
     private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
     private readonly IMemoryAuditLogRepository _memoryAuditLogRepository = Substitute.For<IMemoryAuditLogRepository>();
     private readonly IMemoryNotificationRepository _memoryNotificationRepository = Substitute.For<IMemoryNotificationRepository>();
+    private readonly IDocumentNotificationRepository _documentNotificationRepository = Substitute.For<IDocumentNotificationRepository>();
+    private readonly INotificationRepository _notificationRepository = Substitute.For<INotificationRepository>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly DeleteMyAccountCommandHandler _handler;
 
     public DeleteMyAccountCommandHandlerTests()
     {
         _currentUser.UserId.Returns("user-1");
-        _handler = new DeleteMyAccountCommandHandler(_identityService, _memoryAuditLogRepository, _memoryNotificationRepository, _currentUser);
+        _handler = new DeleteMyAccountCommandHandler(
+            _identityService, _memoryAuditLogRepository, _memoryNotificationRepository, _documentNotificationRepository,
+            _notificationRepository, _currentUser);
     }
 
     [Fact]

@@ -2,14 +2,15 @@ using AskLucy.Domain.Memory;
 
 namespace AskLucy.Application.Abstractions;
 
+/// <summary>
+/// specs/067 T098 — <see cref="MemoryNotification"/> moved onto the notification hub; the legacy
+/// inbox, its endpoints and its read/list operations are gone (T097, T101), so this repository is
+/// read-only now: the single method account deletion still needs. Unlike <c>MemoryAuditLog</c>,
+/// these rows carry no audit obligation, so deletion (not anonymization) is correct here. The
+/// entity, its configuration and its table stay until the follow-up release's two-step drop
+/// (data-model.md § Migrations).
+/// </summary>
 public interface IMemoryNotificationRepository
 {
-    Task<MemoryNotification?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<MemoryNotification>> GetByUserAsync(string userId, Guid? afterId, int pageSize, CancellationToken cancellationToken = default);
-
-    void Add(MemoryNotification notification);
-
-    /// <summary>spec.md FR-026, research.md Decision 19 — same reasoning as <see cref="IMemoryAuditLogRepository.AnonymizeUserAsync"/>.</summary>
-    Task AnonymizeUserAsync(string userId, CancellationToken cancellationToken = default);
+    Task DeleteAllForUserAsync(string userId, CancellationToken cancellationToken = default);
 }

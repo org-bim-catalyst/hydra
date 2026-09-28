@@ -908,6 +908,21 @@ catch (Exception ex)
 #pragma warning restore CA1848
 }
 
+// specs/067 data-model.md § Legacy mapping (T096): one-time replay of the pre-hub
+// DocumentNotification/MemoryNotification rows onto the notification hub. Production carries the
+// real backlog to migrate, so — like the backfill above — this runs outside the IsDevelopment()
+// guard and degrades to a logged warning rather than a crashed host.
+try
+{
+    await LegacyNotificationImporter.RunAsync(app.Services, app.Logger);
+}
+catch (Exception ex)
+{
+#pragma warning disable CA1848
+    app.Logger.LogWarning(ex, "Legacy notification import skipped — could not reach the database.");
+#pragma warning restore CA1848
+}
+
 // Which geocoding provider is live is decided silently by whether Geocoding:GoogleMapsApiKey
 // happens to be configured (Infrastructure/DependencyInjection.cs), and the two report their
 // candidate `importance` on visibly different scales — Google synthesises 0.40-0.90 from

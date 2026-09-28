@@ -139,4 +139,13 @@ public sealed class NotificationRepository(AskLucyDbContext dbContext) : INotifi
                 .SetProperty(n => n.Status, NotificationStatus.Read),
             cancellationToken);
     }
+
+    // Account deletion (T099): ignores the soft-delete filter, so an owner-deleted notification is
+    // purged too, and bypasses NotificationDelivery's "child of Notification" access rule via the
+    // FK cascade (NotificationConfiguration: DeleteBehavior.Cascade) rather than loading deliveries.
+    public Task<int> DeleteAllForUserAsync(string userId, CancellationToken cancellationToken) =>
+        dbContext.Notifications
+            .IgnoreQueryFilters()
+            .Where(n => n.RecipientUserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 }

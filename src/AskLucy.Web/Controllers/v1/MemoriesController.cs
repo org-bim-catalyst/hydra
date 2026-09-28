@@ -4,7 +4,6 @@ using AskLucy.Application.Memory.Commands.ApproveMemory;
 using AskLucy.Application.Memory.Commands.ClearAllMemories;
 using AskLucy.Application.Memory.Commands.DeleteMemory;
 using AskLucy.Application.Memory.Commands.EditMemory;
-using AskLucy.Application.Memory.Commands.MarkNotificationRead;
 using AskLucy.Application.Memory.Commands.RejectMemory;
 using AskLucy.Application.Memory.Commands.RequestMemoryExport;
 using AskLucy.Application.Memory.Commands.ResolveMemoryConflict;
@@ -13,7 +12,6 @@ using AskLucy.Application.Memory.Queries.GetMemory;
 using AskLucy.Application.Memory.Queries.GetMemoryExportStatus;
 using AskLucy.Application.Memory.Queries.GetMemoryPreferences;
 using AskLucy.Application.Memory.Queries.ListMemories;
-using AskLucy.Application.Memory.Queries.ListMemoryNotifications;
 using AskLucy.Domain.Memory;
 using AskLucy.Web.Contracts;
 using MediatR;
@@ -66,18 +64,6 @@ public sealed class MemoriesController(ISender mediator, ISignedUrlService signe
             .ToList();
 
         await mediator.Send(new UpdateMemoryPreferencesCommand(request.MemoryEnabled, categories), cancellationToken);
-        return NoContent();
-    }
-
-    [HttpGet("notifications")]
-    public async Task<ActionResult<PagedResult<MemoryNotificationDto>>> ListNotifications(
-        [FromQuery] string? cursor = null, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default) =>
-        Ok(await mediator.Send(new ListMemoryNotificationsQuery(cursor, pageSize), cancellationToken));
-
-    [HttpPost("notifications/{id:guid}/actions/mark-read")]
-    public async Task<IActionResult> MarkNotificationRead(Guid id, CancellationToken cancellationToken)
-    {
-        await mediator.Send(new MarkNotificationReadCommand(id), cancellationToken);
         return NoContent();
     }
 

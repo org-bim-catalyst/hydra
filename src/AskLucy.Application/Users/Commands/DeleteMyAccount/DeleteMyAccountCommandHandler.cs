@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using MediatR;
 
 namespace AskLucy.Application.Users.Commands.DeleteMyAccount;
@@ -12,15 +13,24 @@ namespace AskLucy.Application.Users.Commands.DeleteMyAccount;
 /// <c>MemoryCategoryPreference</c>/<c>Project</c> tables already cascade-delete from directly
 /// (the same `ApplicationUser`-rooted FK cascade `UserChats` already relies on — see
 /// `MemoryConfiguration`/`ProjectConfiguration`'s doc comments), so no extra code purges those.
-/// <c>MemoryAuditLog</c>/<c>MemoryNotification</c> are deliberately *not* FK'd to
-/// <c>ApplicationUser</c> (their own doc comments explain why — the audit trail must survive a
-/// hard-purged memory), so they need an explicit anonymization step here instead, run before the
-/// user row itself is deleted while <paramref name="request"/>'s caller is still known-valid.
+/// <c>MemoryAuditLog</c> is deliberately *not* FK'd to <c>ApplicationUser</c> (its own doc comment
+/// explains why — the audit trail must survive a hard-purged memory), so it needs an explicit
+/// anonymization step here instead, run before the user row itself is deleted while
+/// <paramref name="request"/>'s caller is still known-valid.
 /// </para>
+/// <para>specs/067 T098/T099 — the legacy <c>DocumentNotification</c>/<c>MemoryNotification</c>
+/// inboxes moved onto the notification hub and carry no audit obligation, so their rows are simply
+/// deleted (not anonymized) here, alongside an explicit, set-based purge of the hub's own
+/// <c>Notification</c> rows (<see cref="INotificationRepository.DeleteAllForUserAsync"/>) rather
+/// than relying solely on its FK cascade.</para>
 /// </summary>
 public sealed class DeleteMyAccountCommandHandler(
-    IIdentityService identityService, IMemoryAuditLogRepository memoryAuditLogRepository,
-    IMemoryNotificationRepository memoryNotificationRepository, ICurrentUserAccessor currentUser)
+    IIdentityService identityService,
+    IMemoryAuditLogRepository memoryAuditLogRepository,
+    IMemoryNotificationRepository memoryNotificationRepository,
+    IDocumentNotificationRepository documentNotificationRepository,
+    INotificationRepository notificationRepository,
+    ICurrentUserAccessor currentUser)
     : IRequestHandler<DeleteMyAccountCommand, IdentityOperationResult>
 {
     public async Task<IdentityOperationResult> Handle(DeleteMyAccountCommand request, CancellationToken cancellationToken)
@@ -34,7 +44,9 @@ public sealed class DeleteMyAccountCommandHandler(
         }
 
         await memoryAuditLogRepository.AnonymizeUserAsync(userId, cancellationToken);
-        await memoryNotificationRepository.AnonymizeUserAsync(userId, cancellationToken);
+        await memoryNotificationRepository.DeleteAllForUserAsync(userId, cancellationToken);
+        await documentNotificationRepository.DeleteAllForUserAsync(userId, cancellationToken);
+        await notificationRepository.DeleteAllForUserAsync(userId, cancellationToken);
 
         await identityService.DeleteAsync(userId, cancellationToken);
         return new IdentityOperationResult(IdentityResultStatus.Success, userId);

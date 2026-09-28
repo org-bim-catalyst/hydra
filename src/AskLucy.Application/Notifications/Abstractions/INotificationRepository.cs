@@ -44,4 +44,14 @@ public interface INotificationRepository
     /// one category. Returns the number of rows updated.
     /// </summary>
     Task<int> MarkAllReadAsync(string userId, NotificationCategory? category, DateTime now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// specs/067 T099 — explicit, set-based purge of every <see cref="Notification"/> (and, via the
+    /// FK, its <see cref="NotificationDelivery"/> rows) for <paramref name="userId"/>, called from
+    /// account deletion before the <c>ApplicationUser</c> row itself is removed. The database's own
+    /// <c>ON DELETE CASCADE</c> (data-model.md § Relationships) would do this too, but account
+    /// deletion doesn't rely on that alone — it deletes explicitly, matching the
+    /// audit-log/legacy-notification anonymization steps already run here.
+    /// </summary>
+    Task<int> DeleteAllForUserAsync(string userId, CancellationToken cancellationToken);
 }

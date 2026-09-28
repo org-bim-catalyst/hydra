@@ -170,6 +170,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
         services.AddScoped<INotificationRecipientDirectory, NotificationRecipientDirectory>();
         services.AddScoped<INotificationAuditLogRepository, NotificationAuditLogRepository>();
+        services.AddScoped<ILegacyNotificationImport, LegacyNotificationImportRepository>();
 
         return services;
     }

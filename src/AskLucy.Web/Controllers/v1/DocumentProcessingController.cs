@@ -1,8 +1,6 @@
-using AskLucy.Application.Documents.Commands.MarkNotificationRead;
 using AskLucy.Application.Documents.Commands.RetryProcessing;
 using AskLucy.Application.Documents.Queries.GetDocumentDashboardSummary;
 using AskLucy.Application.Documents.Queries.GetDocumentProcessingStatus;
-using AskLucy.Application.Documents.Queries.GetNotifications;
 using AskLucy.Application.Documents.Queries.GetOrganizationDashboardSummary;
 using AskLucy.Application.Documents.Queries.GetProcessingHistory;
 using MediatR;
@@ -13,8 +11,10 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace AskLucy.Web.Controllers.v1;
 
 /// <summary>
-/// Per-document processing status/history/retry, dashboards, and notifications (FR-013, FR-027,
-/// FR-029, FR-045, FR-045a, FR-047, contracts/document-processing-api.md). Every operation is
+/// Per-document processing status/history/retry and dashboards (FR-013, FR-027, FR-029, FR-045,
+/// FR-045a, contracts/document-processing-api.md). specs/067 T097 moved document notifications onto
+/// the notification hub (<see cref="AskLucy.Web.Controllers.v1.NotificationsController"/>); this
+/// controller no longer exposes a legacy notifications endpoint. Every operation is
 /// implicitly scoped to the caller (FR-048) except the organization dashboard, which is
 /// deliberately admin-only (FR-045a) — mirrors <see cref="DocumentsController"/>.
 /// </summary>
@@ -47,16 +47,4 @@ public sealed class DocumentProcessingController(ISender mediator) : ControllerB
     [Authorize(Policy = "AdministratorOrSuperUser")]
     public async Task<ActionResult<DocumentDashboardSummaryDto>> GetOrganizationDashboard(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetOrganizationDashboardSummaryQuery(), cancellationToken));
-
-    [HttpGet("notifications")]
-    public async Task<ActionResult<DocumentNotificationPageDto>> GetNotifications(
-        [FromQuery] bool unreadOnly, [FromQuery] string? cursor, [FromQuery] int pageSize, CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(new GetNotificationsQuery(unreadOnly, cursor, pageSize == 0 ? 50 : pageSize), cancellationToken));
-
-    [HttpPost("notifications/{id:guid}/actions/mark-read")]
-    public async Task<IActionResult> MarkNotificationRead(Guid id, CancellationToken cancellationToken)
-    {
-        await mediator.Send(new MarkNotificationReadCommand(id), cancellationToken);
-        return NoContent();
-    }
 }
