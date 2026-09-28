@@ -455,6 +455,8 @@ public static class DependencyInjection
         services.AddScoped<IOcrEngine, TesseractOcrEngine>();
         services.AddSingleton<IDocumentTextExtractor, OpenXmlTextExtractor>();
         services.AddSingleton<IDocumentTextExtractor, DocnetPdfTextExtractor>();
+        // specs/067 T236 — Markdown/CSV/Text had no extractor at all until this fix (see PlainTextExtractor's own doc comment).
+        services.AddSingleton<IDocumentTextExtractor, PlainTextExtractor>();
         services.AddSingleton<IDocumentPreviewGenerator, PdfPreviewGenerator>();
         services.AddSingleton<IDocumentPreviewGenerator, ImageThumbnailGenerator>();
         services.AddScoped<IDocumentLanguageAndClassifier, AiDocumentLanguageAndClassifier>();

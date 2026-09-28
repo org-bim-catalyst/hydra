@@ -79,4 +79,20 @@ public sealed class NotificationLinkBuilderTests
 
         route.Should().Be($"/notifications/{notificationId}");
     }
+
+    /// <summary>specs/067 T240 — the knowledge-base document deep link deferred from T092: unlike
+    /// documents/memory/settings, <c>/knowledge-bases/{id}</c> was already a plain page route before
+    /// this feature, so <c>NotificationItem</c>'s generic <c>navigate(item.action.route)</c> needs no
+    /// new frontend code — only this route-resolution check.</summary>
+    [Fact]
+    public void BuildRelative_ShouldResolveTheKnowledgeBaseIndexingRoute_ToTheKnowledgeBaseDetailPage()
+    {
+        var completed = NotificationTypeCatalog.Get(NotificationTypeKeys.KnowledgeBaseIndexingCompleted);
+        var sut = CreateSut();
+        var knowledgeBaseId = Guid.NewGuid().ToString();
+
+        var route = sut.BuildRelative(completed, new RelatedItem("KnowledgeBase", knowledgeBaseId), Guid.NewGuid());
+
+        route.Should().Be($"/knowledge-bases/{knowledgeBaseId}");
+    }
 }

@@ -1,4 +1,4 @@
-using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Documents;
 using AskLucy.Infrastructure.Documents;
 using Microsoft.AspNetCore.SignalR;
@@ -7,14 +7,16 @@ using NSubstitute;
 namespace AskLucy.Web.Tests.Documents;
 
 /// <summary>
-/// T065 — <see cref="ProcessingNotifier"/> targets only the owning user's SignalR group
-/// (<see cref="DocumentProcessingHub.UserGroup"/>), never a broadcast — the other half of the
-/// group-isolation guarantee alongside <see cref="DocumentProcessingHubTests"/>.
+/// T065 (updated specs/067 T082) — <see cref="ProcessingNotifier"/> targets only the owning user's
+/// SignalR group (<see cref="DocumentProcessingHub.UserGroup"/>) for the near-real-time stage/progress
+/// events — the other half of the group-isolation guarantee alongside
+/// <see cref="DocumentProcessingHubTests"/> — and routes the notification-hub events through
+/// <see cref="INotificationPublisher"/> rather than persisting a <see cref="DocumentNotification"/>
+/// row itself (the dispatcher/materializer owns that from here on).
 /// </summary>
 public sealed class ProcessingNotifierTests
 {
-    private readonly IDocumentNotificationRepository _notificationRepository = Substitute.For<IDocumentNotificationRepository>();
-    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly INotificationPublisher _publisher = Substitute.For<INotificationPublisher>();
     private readonly IHubClients _hubClients = Substitute.For<IHubClients>();
     private readonly IClientProxy _ownerGroupProxy = Substitute.For<IClientProxy>();
 
@@ -23,7 +25,7 @@ public sealed class ProcessingNotifierTests
         _hubClients.Group(DocumentProcessingHub.UserGroup(ownerUserId)).Returns(_ownerGroupProxy);
         var hubContext = Substitute.For<IHubContext<DocumentProcessingHub>>();
         hubContext.Clients.Returns(_hubClients);
-        return new ProcessingNotifier(hubContext, _notificationRepository, _unitOfWork);
+        return new ProcessingNotifier(hubContext, _publisher);
     }
 
     [Fact]
@@ -58,14 +60,30 @@ public sealed class ProcessingNotifierTests
     }
 
     [Fact]
-    public async Task NotifyAsync_ShouldPersistTheNotificationAndSendOnlyToTheOwningUsersGroup()
+    public async Task NotifyAsync_ShouldPublishANotificationRequestForTheOwningUser()
     {
         var sut = CreateSut("user-3");
+        var documentId = Guid.CreateVersion7();
 
-        await sut.NotifyAsync("user-3", DocumentNotificationEventType.ProcessingCompleted, Guid.CreateVersion7(), "Done.", CancellationToken.None);
+        await sut.NotifyAsync("user-3", DocumentNotificationEventType.ProcessingCompleted, documentId, "dedupe-1", documentName: "Report.pdf");
 
-        _notificationRepository.Received(1).Add(Arg.Any<DocumentNotification>());
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-        await _ownerGroupProxy.Received(1).SendCoreAsync("notificationCreated", Arg.Any<object?[]>(), Arg.Any<CancellationToken>());
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+            ((NotificationRecipient.User)r.Recipient).UserId == "user-3" &&
+            r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
+            r.EventKey == $"document:{documentId}:{DocumentNotificationEventType.ProcessingCompleted}:dedupe-1"));
+    }
+
+    [Fact]
+    public async Task NotifyOcrCompletedAsync_ShouldPublishANotificationRequestForTheOwningUser()
+    {
+        var sut = CreateSut("user-4");
+        var documentId = Guid.CreateVersion7();
+
+        await sut.NotifyOcrCompletedAsync("user-4", documentId, "Report.pdf", "dedupe-2");
+
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+            ((NotificationRecipient.User)r.Recipient).UserId == "user-4" &&
+            r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
+            r.EventKey == $"document:{documentId}:ocr-completed:dedupe-2"));
     }
 }

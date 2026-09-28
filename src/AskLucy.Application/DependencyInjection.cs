@@ -128,6 +128,12 @@ public static class DependencyInjection
         // jobs (Infrastructure) that Hangfire's RecurringJob.AddOrUpdate<T> resolves by concrete type.
         services.AddScoped<IMemoryExtractionJob, MemoryExtractionJob>();
 
+        // Knowledge-base indexing (specs/067 T237/T238) — same idiom: the interface is enqueued,
+        // never the concrete type; KnowledgeBaseDocumentUploadedIndexingHandler is an
+        // INotificationHandler<DocumentUploadedNotification>, so MediatR's own assembly scan
+        // registers it, not this block.
+        services.AddScoped<IKnowledgeBaseIndexingJob, AskLucy.Application.Retrieval.Indexing.KnowledgeBaseIndexingJob>();
+
         // Password reset issuance runs on a worker so the request path costs the same for every
         // address (specs/058-password-recovery, FR-003).
         services.AddScoped<IPasswordResetIssuanceJob, PasswordResetIssuanceJob>();
