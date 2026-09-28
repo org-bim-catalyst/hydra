@@ -1,19 +1,32 @@
 import SearchIcon from '@mui/icons-material/Search'
 import { Alert, Chip, InputAdornment, MenuItem, Snackbar, Stack, Tab, Tabs, TextField } from '@mui/material'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
-import type { MemoryCategory, MemoryLifecycleState, MemoryListItem } from '../api/memoryApi'
+import type { MemoryCategory, MemoryDetail, MemoryLifecycleState, MemoryListItem } from '../api/memoryApi'
 import { MemoryApprovalQueue } from '../components/MemoryApprovalQueue'
 import { MemoryEditDialog } from '../components/MemoryEditDialog'
 import { MemoryList } from '../components/MemoryList'
 import { MemoryNotificationList } from '../components/MemoryNotificationList'
 import { MemoryPreferencesPanel } from '../components/MemoryPreferencesPanel'
 import { ProjectManagementPanel } from '../components/ProjectManagementPanel'
-import { useMemories } from '../hooks/useMemories'
+import { useMemories, useMemory } from '../hooks/useMemories'
 import { useDeleteMemory, useEditMemory } from '../hooks/useMemoryMutations'
 import { useMemoryNotificationsHub } from '../hooks/useMemoryNotificationsHub'
 import { useMemoryCenterStore } from '../store/memoryCenterStore'
+
+/** `MemoryEditDialog` only reads `.content` off its `memory` prop, but its prop type is the list-shaped `MemoryListItem`; `MemoryDetail` (from `useMemory`) lacks `projectName`/`sourceType`/`sourceConversationId`/`createdAtUtc`/`lastReinforcedAtUtc`, none of which the dialog renders, so this adapter fills them with placeholders. */
+function toListItem(detail: MemoryDetail): MemoryListItem {
+  return {
+    ...detail,
+    projectName: null,
+    sourceType: 'ExplicitUserStatement',
+    sourceConversationId: null,
+    lastReinforcedAtUtc: '',
+    createdAtUtc: '',
+  }
+}
 
 const CATEGORY_OPTIONS: { value: MemoryCategory; label: string }[] = [
   { value: 'UserPreference', label: 'Preference' },
@@ -45,6 +58,23 @@ export function MemoryCenterPage() {
   // the poll fallback (useMemoryNotifications inside MemoryNotificationList) covers anything
   // missed while this connection was down or the tab wasn't mounted at all.
   const { isLive: isMemoryHubLive } = useMemoryNotificationsHub()
+
+  // specs/067 T092 — a notification's deep link (?memoryId=) opens that memory's edit dialog
+  // directly, without requiring it to be present in the current filtered/paged list.
+  const [urlParams, setUrlParams] = useSearchParams()
+  const deepLinkMemoryId = urlParams.get('memoryId')
+  const deepLinkMemory = useMemory(deepLinkMemoryId)
+  const clearDeepLink = () => {
+    urlParams.delete('memoryId')
+    setUrlParams(urlParams, { replace: true })
+  }
+  useEffect(() => {
+    if (deepLinkMemoryId && deepLinkMemory.data) {
+      setEditTarget(toListItem(deepLinkMemory.data))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkMemoryId, deepLinkMemory.data])
+  const deepLinkUnavailable = Boolean(deepLinkMemoryId) && deepLinkMemory.isError
 
   const isFiltered = query.trim() !== '' || Boolean(category) || Boolean(state)
 
@@ -195,8 +225,15 @@ export function MemoryCenterPage() {
         onClose={() => {
           setEditTarget(null)
           setEditErrorMessage(null)
+          if (deepLinkMemoryId) clearDeepLink()
         }}
       />
+
+      <Snackbar open={deepLinkUnavailable} autoHideDuration={6000} onClose={clearDeepLink}>
+        <Alert severity="warning" variant="filled">
+          This memory is no longer available.
+        </Alert>
+      </Snackbar>
 
       <ConfirmDialog
         open={deleteTarget !== null}

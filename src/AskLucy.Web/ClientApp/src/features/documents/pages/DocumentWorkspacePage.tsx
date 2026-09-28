@@ -1,5 +1,6 @@
 import { Alert, Box, Chip, Container, Snackbar, Stack, Tab, Tabs, Typography } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
 import { DocumentCard } from '../components/DocumentCard'
@@ -10,7 +11,7 @@ import { NotificationInbox } from '../components/NotificationInbox'
 import { OrganizationDashboard } from '../components/OrganizationDashboard'
 import { ProcessingDashboard } from '../components/ProcessingDashboard'
 import { UploadPanel } from '../components/UploadPanel'
-import { useDashboard, useDocuments, useOrganizationDashboard } from '../hooks/useDocuments'
+import { useDashboard, useDocument, useDocuments, useOrganizationDashboard } from '../hooks/useDocuments'
 import { useNotificationHub } from '../hooks/useNotificationHub'
 import type { DocumentListView, DocumentSearchFilters, DocumentSummary } from '../api/documentsApi'
 
@@ -26,6 +27,18 @@ export function DocumentWorkspacePage() {
   const dashboard = useDashboard()
   const organizationDashboard = useOrganizationDashboard(isAdmin)
   const { latest: latestNotification, dismiss: dismissNotification, isLive: isNotificationHubLive } = useNotificationHub()
+
+  // specs/067 T092 — a notification's deep link (?documentId=) opens that document's detail
+  // panel directly, without requiring it to be present in the current filtered/paged list.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkDocumentId = searchParams.get('documentId')
+  const deepLinkDocument = useDocument(deepLinkDocumentId)
+  useEffect(() => {
+    if (deepLinkDocumentId && deepLinkDocument.data) {
+      setDetailDocument(deepLinkDocument.data.summary)
+    }
+  }, [deepLinkDocumentId, deepLinkDocument.data])
+  const deepLinkUnavailable = Boolean(deepLinkDocumentId) && deepLinkDocument.isError
 
   return (
     <AppShell
@@ -122,7 +135,29 @@ export function DocumentWorkspacePage() {
           </Box>
         </Box>
 
-        <DocumentDetailPanel document={detailDocument} onClose={() => setDetailDocument(null)} />
+        <DocumentDetailPanel
+          document={detailDocument}
+          onClose={() => {
+            setDetailDocument(null)
+            if (deepLinkDocumentId) {
+              searchParams.delete('documentId')
+              setSearchParams(searchParams, { replace: true })
+            }
+          }}
+        />
+
+        <Snackbar
+          open={deepLinkUnavailable}
+          autoHideDuration={6000}
+          onClose={() => {
+            searchParams.delete('documentId')
+            setSearchParams(searchParams, { replace: true })
+          }}
+        >
+          <Alert severity="warning" variant="filled">
+            This document is no longer available.
+          </Alert>
+        </Snackbar>
 
         <Snackbar
           open={Boolean(latestNotification)}

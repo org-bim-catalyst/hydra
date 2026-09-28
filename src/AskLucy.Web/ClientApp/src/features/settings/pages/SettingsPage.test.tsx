@@ -31,6 +31,17 @@ function renderSettings(initialTab?: number) {
   )
 }
 
+function renderSettingsAtPath(path: string) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <SettingsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
 describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () => {
   it('renders only the tabs that still belong here', async () => {
     // Five tabs left this page: "AI Providers" to the admin panel (which model answers a user is
@@ -77,6 +88,24 @@ describe('SettingsPage tabs (specs/025-chat-configuration-settings, T006)', () =
 
 // specs/058-password-recovery T046/T052. The section has two shapes, and which one renders is the
 // server's answer about the account, not a client guess.
+describe('SettingsPage ?tab= deep link (specs/067-notifications-communication-hub T092)', () => {
+  it('opens the named tab from a notification deep link', async () => {
+    renderSettingsAtPath('/settings?tab=security')
+    await screen.findByRole('heading', { name: 'Account settings' })
+
+    expect(screen.getByRole('tab', { name: 'Security' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('shows an inline message for an unknown tab name, without crashing', async () => {
+    renderSettingsAtPath('/settings?tab=not-a-real-tab')
+    await screen.findByRole('heading', { name: 'Account settings' })
+
+    expect(screen.getByText('That settings tab is not available.')).toBeInTheDocument()
+    // Falls back to the default tab rather than showing nothing.
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true')
+  })
+})
+
 describe('SettingsPage password section (specs/058-password-recovery)', () => {
   it('asks for the current password and a confirmation when the account has a password', async () => {
     renderSettings(SETTINGS_TAB_INDEX.Security)

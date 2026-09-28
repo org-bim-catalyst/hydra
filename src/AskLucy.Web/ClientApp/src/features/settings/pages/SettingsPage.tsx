@@ -28,7 +28,7 @@ import {
 } from '@mui/material'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
+import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { API_BASE_URL, ApiError } from '../../../api/httpClient'
 import { AppShell } from '../../../components/AppShell'
 import { codeFontFamily } from '../../../theme/tokens/typography'
@@ -69,6 +69,15 @@ export function TabContentContainer({ children }: { children: ReactNode }) {
  */
 export function TwoColumnTabContentContainer({ children }: { children: ReactNode }) {
   return <Box sx={{ width: { xs: '100%', md: '83.3333%' }, mx: 'auto' }}>{children}</Box>
+}
+
+/** specs/067 T092 — the `?tab=` name a notification deep link uses, mapped to `SETTINGS_TAB_INDEX`. */
+const SETTINGS_TAB_NAME_INDEX: Record<string, number> = {
+  security: SETTINGS_TAB_INDEX.Security,
+  account: SETTINGS_TAB_INDEX.Account,
+  data: SETTINGS_TAB_INDEX.Data,
+  cookies: SETTINGS_TAB_INDEX.Cookies,
+  profile: SETTINGS_TAB_INDEX.Profile,
 }
 
 function TabPanel({
@@ -811,11 +820,19 @@ export function VoiceTab() {
 
 export function SettingsPage() {
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  // specs/067 T092 — a notification's deep link (?tab=security) opens that tab by name, since
+  // a notification has no `location.state` to carry the numeric SETTINGS_TAB_INDEX value.
+  const deepLinkTabName = searchParams.get('tab')
+  const deepLinkTabUnavailable = Boolean(deepLinkTabName) && !(deepLinkTabName! in SETTINGS_TAB_NAME_INDEX)
   // specs/025-chat-configuration-settings, research.md Decision 4 — lets both the account
   // menus and Chat Configuration's own entry-point links land on a specific tab, without
   // introducing per-tab routes.
-  const [tab, setTab] = useState(
-    () => (location.state as { tab?: number } | null)?.tab ?? SETTINGS_TAB_INDEX.Profile,
+  const [tab, setTab] = useState<number>(
+    () =>
+      (deepLinkTabName ? SETTINGS_TAB_NAME_INDEX[deepLinkTabName] : undefined) ??
+      (location.state as { tab?: number } | null)?.tab ??
+      SETTINGS_TAB_INDEX.Profile,
   )
   // `useState`'s initializer only runs on the very first mount — a navigation to `/settings`
   // while SettingsPage is *already* mounted (e.g. Chat Configuration's own "Go to AI
@@ -860,6 +877,11 @@ export function SettingsPage() {
           <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
         </Tabs>
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
+          {deepLinkTabUnavailable && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              That settings tab is not available.
+            </Alert>
+          )}
           <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Profile}>
             <TabContentContainer>
               <ProfileTab />
