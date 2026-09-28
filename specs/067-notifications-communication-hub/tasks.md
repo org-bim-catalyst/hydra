@@ -366,18 +366,21 @@ These apply to every task below, and each one assumes them:
 
 ### Implementation for User Story 1
 
-- [ ] T060 [US1] Add `NotificationCursor.cs` in `src/AskLucy.Persistence/Repositories/`, mirroring `ConversationCursor.cs`: `(CreatedAtUtc, Id)`, base64 JSON, and strict decoding that throws a validation error. Add the center methods to `NotificationRepository`:
+- [X] T060 [US1] Add `NotificationCursor.cs` in `src/AskLucy.Persistence/Repositories/`, mirroring `ConversationCursor.cs`: `(CreatedAtUtc, Id)`, base64 JSON, and strict decoding that throws a validation error. Add the center methods to `NotificationRepository`:
   - `ListAsync(userId, categories, state, cursor, limit)`;
   - `CountUnreadAsync`;
   - `GetForOwnerAsync`;
   - `MarkAllReadAsync(userId, category?)` as a set-based `ExecuteUpdateAsync` that returns the count.
-- [ ] T061 [P] [US1] Add the query `GetNotifications` (query, handler, validator with limit 1–100, and `NotificationDto` with `action` and `relatedItem` per the contract) in `src/AskLucy.Application/Notifications/Queries/GetNotifications/`:
+  - Deviation: no separate `GetForOwnerAsync` — every owner-scoped read (get-one, mark-read, delete) reuses the existing `GetByIdAsync` plus `NotificationOwnershipGuard.EnsureOwnedBy`, which throws `KeyNotFoundException` for a non-owned or missing row. One less method with the same 404 behavior the contract asks for.
+- [X] T061 [P] [US1] Add the query `GetNotifications` (query, handler, validator with limit 1–100, and `NotificationDto` with `action` and `relatedItem` per the contract) in `src/AskLucy.Application/Notifications/Queries/GetNotifications/`:
   - It batch-resolves `relatedItem.available` through the registered `INotificationAccessCheck.GetAvailableAsync` for each item type in the page.
   - Types with no registered check report `available=true`.
-- [ ] T062 [P] [US1] Add the queries `GetUnreadNotificationCount` and `GetNotification` (the latter includes non-sensitive `metadata`) in `src/AskLucy.Application/Notifications/Queries/`.
-- [ ] T063 [P] [US1] Add the commands `MarkNotificationRead`, `MarkAllNotificationsRead` and `DeleteNotification`, with their validators, in `src/AskLucy.Application/Notifications/Commands/`. After each save, push through `INotificationRealtimePublisher` to the caller's other sessions.
-- [ ] T064 [US1] Add `NotificationsController` in `src/AskLucy.Web/Controllers/v1/NotificationsController.cs`, with the routes in the contract's center section. Apply `[Authorize]` and `[EnableRateLimiting("notifications-endpoints")]`. Controllers only dispatch MediatR requests.
-- [ ] T065 [US1] Add the rate-limit policy `notifications-endpoints` (120 per minute, partitioned with `RateLimitPartitions.UserOrClientKey(context)`, standing rule 11) in `AddRateLimiter` in `src/AskLucy.Web/Program.cs` (~L240–580).
+  - Deviation: the DTO is named `NotificationListItemDto` (in `Notifications/Abstractions/INotificationRealtimePublisher.cs`, shared with the `notificationCreated` push per its own doc comment), not `NotificationDto` — same shape.
+- [X] T062 [P] [US1] Add the queries `GetUnreadNotificationCount` and `GetNotification` (the latter includes non-sensitive `metadata`) in `src/AskLucy.Application/Notifications/Queries/`.
+- [X] T063 [P] [US1] Add the commands `MarkNotificationRead`, `MarkAllNotificationsRead` and `DeleteNotification`, with their validators, in `src/AskLucy.Application/Notifications/Commands/`. After each save, push through `INotificationRealtimePublisher` to the caller's other sessions.
+  - `MarkNotificationReadCommand`/`DeleteNotificationCommand` have no validator: their only input is the route's `Guid`, already model-bound, so there's nothing FluentValidation would add.
+- [X] T064 [US1] Add `NotificationsController` in `src/AskLucy.Web/Controllers/v1/NotificationsController.cs`, with the routes in the contract's center section. Apply `[Authorize]` and `[EnableRateLimiting("notifications-endpoints")]`. Controllers only dispatch MediatR requests.
+- [X] T065 [US1] Add the rate-limit policy `notifications-endpoints` (120 per minute, partitioned with `RateLimitPartitions.UserOrClientKey(context)`, standing rule 11) in `AddRateLimiter` in `src/AskLucy.Web/Program.cs` (~L240–580).
 - [ ] T066 [P] [US1] Add `ClientApp/src/features/notifications/api/notificationsApi.ts`, with Axios calls and TypeScript types matching the contract (`NotificationItem`, `NotificationPage`, `UnreadCount`), and MSW handlers in the existing test mocks location.
 - [ ] T067 [US1] Add `ClientApp/src/features/notifications/hooks/useNotifications.ts` (`useInfiniteQuery`, keyset), `useUnreadCount.ts` and `useNotificationMutations.ts`. Mark-read, mark-all and delete each invalidate the relevant queries and show an error toast on failure.
 - [ ] T068 [US1] Add `ClientApp/src/features/notifications/hooks/useNotificationHub.ts`:
