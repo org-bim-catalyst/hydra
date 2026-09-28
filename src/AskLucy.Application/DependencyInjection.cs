@@ -1,5 +1,6 @@
 using System.Reflection;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Agents.Notifications;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
@@ -14,14 +15,17 @@ using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.CustomModels;
 using AskLucy.Application.CustomModels.Jobs;
 using AskLucy.Application.Documents.Commands;
+using AskLucy.Application.Documents.Notifications;
 using AskLucy.Application.Documents.Processing;
 using AskLucy.Application.Documents.Processing.Stages;
 using AskLucy.Application.KnowledgeBases;
+using AskLucy.Application.KnowledgeBases.Notifications;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Mcp.Validation;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Memory.Notifications;
 using AskLucy.Application.Notifications;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Notifications.Processing;
@@ -33,6 +37,7 @@ using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteAnalysis.Tools;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Workflows.Expressions;
+using AskLucy.Application.Workflows.Notifications;
 using AskLucy.Application.Workflows.Runtime;
 using AskLucy.Application.Workflows.Validation;
 using FluentValidation;
@@ -391,6 +396,15 @@ public static class DependencyInjection
         services.AddScoped<NotificationCreatedPusher>();
         services.AddScoped<OutboxEventProcessor>();
         services.AddSingleton<OutboxDispatchService>();
+
+        // T091 — one INotificationAccessCheck per related-item type module currently emits
+        // (research R24); registered as IEnumerable<INotificationAccessCheck> and resolved by
+        // ItemType at the call sites (dispatcher, GetNotification(s) queries).
+        services.AddScoped<INotificationAccessCheck, DocumentNotificationAccessCheck>();
+        services.AddScoped<INotificationAccessCheck, AgentExecutionNotificationAccessCheck>();
+        services.AddScoped<INotificationAccessCheck, WorkflowExecutionNotificationAccessCheck>();
+        services.AddScoped<INotificationAccessCheck, KnowledgeBaseNotificationAccessCheck>();
+        services.AddScoped<INotificationAccessCheck, MemoryNotificationAccessCheck>();
 
         return services;
     }
