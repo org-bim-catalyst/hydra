@@ -17,7 +17,7 @@ function previewReturning(nameAvailable: boolean) {
       error: null,
       repositoryId: 'Supertone/supertonic-3',
       revision: 'main',
-      ignoredFilePath: null,
+      filePath: null,
       derivedName: 'supertonic-3',
       nameAvailable,
     }),

@@ -45,8 +45,8 @@ All four stories are P1. They are ordered by dependency rather than by number:
 **Purpose**: Restore the Local Whisper runtime dependency and its configuration.
 
 - [ ] T001 Restore `Whisper.net` and `Whisper.net.Runtime` 1.9.1 (the exact versions removed in `2c1717be`; see `git show 2c1717be -- src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`) in `src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`. Then confirm no other package ships `whisper.dll` or `ggml*.dll` (memory: PDFium native DLL collision) by listing `src/AskLucy.Web/bin/**/runtimes/**` after a build.
-- [ ] T002 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperOptions.cs` (section `LocalWhisper`) with `MaxConcurrentTranscriptions` (default 2) and `QueueTimeoutSeconds` (default 10). No `DefaultModelFile`; no `ValidateOnStart`; defaults in code so a missing section never fails the host (memory: required IOptions crash).
-- [ ] T003 [P] Add a `LocalWhisper` section with the two defaults to `src/AskLucy.Web/appsettings.json`. Edit only that section; the user's uncommitted Smtp change in the same file must stay uncommitted (stage with `git add -p`).
+- [X] T002 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperOptions.cs` (section `LocalWhisper`) with `MaxConcurrentTranscriptions` (default 2) and `QueueTimeoutSeconds` (default 10). No `DefaultModelFile`; no `ValidateOnStart`; defaults in code so a missing section never fails the host (memory: required IOptions crash).
+- [X] T003 [P] Add a `LocalWhisper` section with the two defaults to `src/AskLucy.Web/appsettings.json`. Edit only that section; the user's uncommitted Smtp change in the same file must stay uncommitted (stage with `git add -p`).
 
 ---
 
@@ -58,7 +58,7 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Tests for the foundation
 
-- [ ] T004 [P] Domain tests for `DictationEngineSetting` in `tests/AskLucy.Domain.Tests/Ai/Dictation/DictationEngineSettingTests.cs`, covering:
+- [X] T004 [P] Domain tests for `DictationEngineSetting` in `tests/AskLucy.Domain.Tests/Ai/Dictation/DictationEngineSettingTests.cs`, covering:
   - `CreateDefault`: primary and Push-to-Talk engine both `LocalWhisper`, no model, `Active`.
   - `SetPrimary`: clears a suspension, including when the same engine is set again.
   - `SetPushToTalkEngine`: clears a suspension of that engine's vendor.
@@ -68,60 +68,60 @@ All four stories are P1. They are ordered by dependency rather than by number:
   - `IsSuspendedFor`: Local Whisper as the Push-to-Talk engine is not suspended by an ElevenLabs suspension.
   - `RevertToLocalWhisper`: resets primary and/or Push-to-Talk engine for OpenAI; resets primary for ElevenLabs; is a no-op for an unrelated vendor; sets the `LastReverted*` fields; clears that vendor's suspension.
   - `DependsOnVendor`.
-- [ ] T005 [P] Infrastructure tests for the WAV header reader in `tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/WavHeaderTests.cs`:
+- [X] T005 [P] Infrastructure tests for the WAV header reader in `tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/WavHeaderTests.cs`: _(Done: the WAV header tests live in `tests/AskLucy.Application.Tests/Ai/Dictation/`, because the reader is used by the Application try handler too.)_
   - Accepts RIFF/WAVE PCM(1), 1 channel, 16000 Hz, 16-bit.
   - Rejects other rates, stereo, float, truncated headers, webm/ogg bytes and an empty stream.
-- [ ] T006 [P] Infrastructure tests for the model catalog in `tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/LocalWhisperModelCatalogTests.cs`, using a temp directory:
+- [X] T006 [P] Infrastructure tests for the model catalog in `tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/LocalWhisperModelCatalogTests.cs`, using a temp directory:
   - `None` when nothing is selected.
   - `Unavailable` for an Unavailable deployment.
   - `Ready(path)` for a Completed deployment whose `<destination>/<SourceFilePath>` starts with the ggml magic `lmgg`.
   - `Broken(reason)` for a missing file or wrong magic.
   - The selectable check refuses a deployment with no `SourceFilePath` ("Deploy the model from a URL that names its .bin file") and one that isn't Completed.
-- [ ] T007 [P] Infrastructure tests for `LocalWhisperTranscriber` in `tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/LocalWhisperTranscriberTests.cs`, behind a factory seam with no real model:
+- [X] T007 [P] Infrastructure tests for `LocalWhisperTranscriber` in `tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/LocalWhisperTranscriberTests.cs`, behind a factory seam with no real model:
   - A factory is loaded lazily on the first clip and cached per model path.
   - A model change loads the new model; the old factory is disposed only after its lease count reaches zero.
   - The concurrency cap: a request that can't get a slot within `QueueTimeoutSeconds` throws an exception the classifier maps to `Unavailable`.
-- [ ] T008 [P] Persistence test for the singleton row and `CustomModels.SourceFilePath` round-trip in `tests/AskLucy.Persistence.Tests/Dictation/DictationEngineSettingRepositoryTests.cs`. Cover `GetOrCreateAsync` creating the row once, and resolving a concurrent insert by re-reading. Run against test2 only (`PERSISTENCE_TESTS_2_CONNECTION_STRING`).
-- [ ] T009 [P] Frontend test for the WAV encoder in `src/AskLucy.Web/ClientApp/src/features/chat/voice/wavEncoder.test.ts`:
+- [X] T008 [P] Persistence test for the singleton row and `CustomModels.SourceFilePath` round-trip in `tests/AskLucy.Persistence.Tests/Dictation/DictationEngineSettingRepositoryTests.cs`. Cover `GetOrCreateAsync` creating the row once, and resolving a concurrent insert by re-reading. Run against test2 only (`PERSISTENCE_TESTS_2_CONNECTION_STRING`).
+- [X] T009 [P] Frontend test for the WAV encoder in `src/AskLucy.Web/ClientApp/src/features/chat/voice/wavEncoder.test.ts`:
   - The output starts with a 44-byte RIFF header: PCM, 1 channel, 16000 Hz, 16-bit, correct data length.
   - A decode failure resolves to the raw blob with a `converted: false` flag rather than throwing.
 
 ### Implementation for the foundation
 
-- [ ] T010 [P] Create the Domain enums in `src/AskLucy.Domain/Ai/Dictation/`: `DictationPrimaryEngine.cs`, `DictationClipEngine.cs`, `DictationTurnEngine.cs`, `DictationEngineState.cs` and `DictationRevertReason.cs` (data-model.md "Value types").
-- [ ] T011 Create the aggregate `src/AskLucy.Domain/Ai/Dictation/DictationEngineSetting.cs`:
+- [X] T010 [P] Create the Domain enums in `src/AskLucy.Domain/Ai/Dictation/`: `DictationPrimaryEngine.cs`, `DictationClipEngine.cs`, `DictationTurnEngine.cs`, `DictationEngineState.cs` and `DictationRevertReason.cs` (data-model.md "Value types").
+- [X] T011 Create the aggregate `src/AskLucy.Domain/Ai/Dictation/DictationEngineSetting.cs`:
   - `SingletonId`, every field in data-model.md, and every method listed there.
   - All invariants live in the aggregate, none in handlers.
   - Make T004 pass.
-- [ ] T012 [P] Add `SourceFilePath` (nullable, max 1024, immutable after submit) to `src/AskLucy.Domain/CustomModels/CustomModel.cs`, set through its create factory.
-- [ ] T013 [P] Create the Application ports in `src/AskLucy.Application/Abstractions/`:
+- [X] T012 [P] Add `SourceFilePath` (nullable, max 1024, immutable after submit) to `src/AskLucy.Domain/CustomModels/CustomModel.cs`, set through its create factory.
+- [X] T013 [P] Create the Application ports in `src/AskLucy.Application/Abstractions/`:
   - `IDictationEngineSettingRepository.cs` (`GetOrCreateAsync`).
   - `IDictationClipTranscriber.cs` (`DictationClipEngine Engine`; `TranscribeAsync(Stream wav, string? language, CancellationToken)` → `DictationTranscript`).
   - `ILocalWhisperModelCatalog.cs` (`ResolveSelectedAsync(Guid? id)` → None/Unavailable/Ready/Broken; `CheckSelectableAsync(Guid id)`).
   - `IAiProviderSwitchedOffObserver.cs`.
   - Put `DictationTranscript` and `DictationCaptureMode` in `src/AskLucy.Application/Ai/Dictation/DictationTypes.cs`.
   - No EF Core reference (memory: Application never references EF Core).
-- [ ] T014 [P] Create `src/AskLucy.Persistence/Configurations/DictationEngineSettingConfiguration.cs`: table `DictationEngineSettings`, enums as `nvarchar(32)` strings, `RowVersion` as `IsRowVersion()`, `SuspensionReason` max 500, `UpdatedBy` max 450, unique key on `Id`. Also map `SourceFilePath` (max 1024) in `src/AskLucy.Persistence/Configurations/CustomModelConfiguration.cs`.
-- [ ] T015 Add the `DbSet<DictationEngineSetting>` to `src/AskLucy.Persistence/AskLucyDbContext.cs`. Create `src/AskLucy.Persistence/Repositories/DictationEngineSettingRepository.cs`: create on first read, and re-read on a unique-key conflict. Register it in `src/AskLucy.Persistence/DependencyInjection.cs`.
-- [ ] T016 Generate the migration `RestoreLocalWhisperDictation` in `src/AskLucy.Persistence/Migrations/`:
+- [X] T014 [P] Create `src/AskLucy.Persistence/Configurations/DictationEngineSettingConfiguration.cs`: table `DictationEngineSettings`, enums as `nvarchar(32)` strings, `RowVersion` as `IsRowVersion()`, `SuspensionReason` max 500, `UpdatedBy` max 450, unique key on `Id`. Also map `SourceFilePath` (max 1024) in `src/AskLucy.Persistence/Configurations/CustomModelConfiguration.cs`.
+- [X] T015 Add the `DbSet<DictationEngineSetting>` to `src/AskLucy.Persistence/AskLucyDbContext.cs`. Create `src/AskLucy.Persistence/Repositories/DictationEngineSettingRepository.cs`: create on first read, and re-read on a unique-key conflict. Register it in `src/AskLucy.Persistence/DependencyInjection.cs`.
+- [X] T016 Generate the migration `RestoreLocalWhisperDictation` in `src/AskLucy.Persistence/Migrations/`:
   - It adds the new table plus the nullable `CustomModels.SourceFilePath` column; no backfill.
   - Strip any BOM, and check line endings (memory: dotnet format & migration CI gotchas).
   - Apply it by hand to test2 (`db_a15752_asklucytest2`) only, never the shared test DB. Make T008 pass.
-- [ ] T017 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/WavHeader.cs` (header reader and validator; make T005 pass).
-- [ ] T018 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperModelCatalog.cs` implementing `ILocalWhisperModelCatalog`:
+- [X] T017 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/WavHeader.cs` (header reader and validator; make T005 pass).
+- [X] T018 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperModelCatalog.cs` implementing `ILocalWhisperModelCatalog`:
   - Resolve the deployment via `IHostedModelLocator.ResolveByIdAsync` (added in T020), combine `<destination>/<SourceFilePath>` through the existing safe path combination, and read the first 4 bytes for the ggml magic.
   - Never read the loose `App_Data/whisper-models/ggml-BaseEn.bin`.
   - Make T006 pass.
-- [ ] T019 Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperTranscriber.cs` implementing `IDictationClipTranscriber` (Engine = `LocalWhisper`), per research D1:
+- [X] T019 Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperTranscriber.cs` implementing `IDictationClipTranscriber` (Engine = `LocalWhisper`), per research D1:
   - Load lazily; cache one factory per model path, with a lease count.
   - Cap concurrency with a `SemaphoreSlim` sized from the options.
   - Pass the language hint to `WithLanguage(...)`, otherwise use `WithLanguageDetection()`.
   - Log model load and swap with `[LoggerMessage]`.
   - Use the removed `WhisperLocalTranscriptionProvider.cs` (`git show 2c1717be^:src/AskLucy.Infrastructure/Ai/WhisperLocalTranscriptionProvider.cs`) as the Whisper.net API reference.
   - Make T007 pass.
-- [ ] T020 Add `ResolveByIdAsync(Guid customModelId)` to `src/AskLucy.Application/CustomModels/Abstractions/IHostedModelLocator.cs` and implement it in `src/AskLucy.Infrastructure/CustomModels/ScopedHostedModelLocator.cs`. It returns the same `HostedModelResolution`. Extend `tests/AskLucy.Infrastructure.Tests/CustomModels/ScopedHostedModelLocatorTests.cs` accordingly.
-- [ ] T021 Register the transcriber (singleton, owns the factory cache), the catalog (scoped) and `LocalWhisperOptions` in `src/AskLucy.Infrastructure/DependencyInjection.cs`. Use direct registrations only, never `sp => sp.GetRequiredService<T>()` aliases (memory: hidden DI cycle).
-- [ ] T022 [P] Create `src/AskLucy.Web/ClientApp/src/features/chat/voice/wavEncoder.ts`: `decodeAudioData` → `OfflineAudioContext(1, …, 16000)` → `float32ToInt16Pcm` from `pcm16.ts` → 44-byte RIFF header; on a decode failure return the raw blob (research D3). Make T009 pass.
+- [X] T020 Add `ResolveByIdAsync(Guid customModelId)` to `src/AskLucy.Application/CustomModels/Abstractions/IHostedModelLocator.cs` and implement it in `src/AskLucy.Infrastructure/CustomModels/ScopedHostedModelLocator.cs`. It returns the same `HostedModelResolution`. Extend `tests/AskLucy.Infrastructure.Tests/CustomModels/ScopedHostedModelLocatorTests.cs` accordingly. _(N/A: `LocalWhisperModelCatalog` reads the deployment by id from `ICustomModelRepository` and combines `ContentRootPath/<Destination>/<SourceFilePath>` itself, checking containment. `HostedModelResolution` is built around a model folder, not a single named file, so `IHostedModelLocator` is left unchanged.)_
+- [X] T021 Register the transcriber (singleton, owns the factory cache), the catalog (scoped) and `LocalWhisperOptions` in `src/AskLucy.Infrastructure/DependencyInjection.cs`. Use direct registrations only, never `sp => sp.GetRequiredService<T>()` aliases (memory: hidden DI cycle).
+- [X] T022 [P] Create `src/AskLucy.Web/ClientApp/src/features/chat/voice/wavEncoder.ts`: `decodeAudioData` → `OfflineAudioContext(1, …, 16000)` → `float32ToInt16Pcm` from `pcm16.ts` → 44-byte RIFF header; on a decode failure return the raw blob (research D3). Make T009 pass.
 
 **Checkpoint**: The foundation builds (`dotnet build "Ask Lucy.sln" -v q -nologo -m:1`), T004–T009 pass, and nothing is user-visible yet.
 
@@ -139,51 +139,51 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Tests for User Story 4
 
-- [ ] T023 [P] [US4] Update `tests/AskLucy.Domain.Tests/CustomModels/HuggingFaceModelSourceTests.cs` for the `IgnoredFilePath` → `FilePath` rename. Cover `/resolve/`, `/blob/`, `/tree/` and a bare repository URL.
-- [ ] T024 [P] [US4] Extend `tests/AskLucy.Application.Tests/CustomModels/CustomModelDeploymentJobTests.cs`:
+- [X] T023 [P] [US4] Update `tests/AskLucy.Domain.Tests/CustomModels/HuggingFaceModelSourceTests.cs` for the `IgnoredFilePath` → `FilePath` rename. Cover `/resolve/`, `/blob/`, `/tree/` and a bare repository URL.
+- [X] T024 [P] [US4] Extend `tests/AskLucy.Application.Tests/CustomModels/CustomModelDeploymentJobTests.cs`:
   - With `SourceFilePath` set, the listing is filtered to that one path (case-sensitive) before `PlanTransfer`, so the size cap and overwrite report see only that file, placed at `<destination>/<path>`.
   - A path absent from the listing fails the deployment with "The file <path> is not in <repo> at <revision>."
   - A null `SourceFilePath` deploys the whole repository, unchanged.
-- [ ] T025 [P] [US4] Extend `tests/AskLucy.Application.Tests/CustomModels/RemoveCustomModelCommandHandlerTests.cs` for the FR-009b guard: removing the selected Local Whisper model is refused with "Select a different Local Whisper model first."; other deployments are unaffected.
-- [ ] T026 [P] [US4] Application tests in `tests/AskLucy.Application.Tests/Ai/Dictation/LocalWhisperModelAdminTests.cs`:
+- [X] T025 [P] [US4] Extend `tests/AskLucy.Application.Tests/CustomModels/RemoveCustomModelCommandHandlerTests.cs` for the FR-009b guard: removing the selected Local Whisper model is refused with "Select a different Local Whisper model first."; other deployments are unaffected.
+- [X] T026 [P] [US4] Application tests in `tests/AskLucy.Application.Tests/Ai/Dictation/LocalWhisperModelAdminTests.cs`:
   - `GetDictationSettingsQuery` lists every Completed, non-deleted deployment with its selectable reason, and reports `effectiveModel.problem` for no model selected / Unavailable / Broken.
   - `SelectLocalWhisperModelCommand` refuses an unselectable model (422 reason) and accepts `null`.
   - `TryLocalWhisperModelCommand` runs on a transient factory, never changes the setting, and returns `try-in-progress` while another try runs.
-- [ ] T027 [P] [US4] Web tests in `tests/AskLucy.Web.Tests/Ai/AdminDictationControllerTests.cs`, and extend `tests/AskLucy.Web.Tests/CustomModels/AdminCustomModelsControllerTests.cs`:
+- [X] T027 [P] [US4] Web tests in `tests/AskLucy.Web.Tests/Ai/AdminDictationControllerTests.cs`, and extend `tests/AskLucy.Web.Tests/CustomModels/AdminCustomModelsControllerTests.cs`:
   - `GET /api/v1/admin/voice/dictation`, `PUT …/local-whisper-model` and `POST …/try` require Administrator.
   - A stale `rowVersion` returns 409.
   - The try route enforces the 4 MB limit.
   - The source preview returns `filePath`.
   - `DELETE /api/v1/admin/custom-models/{id}` returns 409 `custom-model-selected-for-local-whisper`.
   - Use a derived factory as the class fixture, never `WithWebHostBuilder` per test (memory).
-- [ ] T028 [P] [US4] Frontend tests:
+- [X] T028 [P] [US4] Frontend tests:
   - `src/AskLucy.Web/ClientApp/src/features/admin/components/customModels/AddCustomModelDialog.test.tsx`: the "Only <file> will be deployed" notice.
   - `src/AskLucy.Web/ClientApp/src/features/admin/components/DictationSettingsSection.test.tsx`: the model picker, the no-model/Unavailable explanation, Try it recording and result, and an error toast on a failed try.
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Rename `IgnoredFilePath` → `FilePath` in the Domain and DTOs (contracts/custom-models-single-file.md):
+- [X] T029 [US4] Rename `IgnoredFilePath` → `FilePath` in the Domain and DTOs (contracts/custom-models-single-file.md):
   - `src/AskLucy.Domain/CustomModels/HuggingFaceModelSource.cs`.
   - `SourcePreviewDto`, `SubmittedCustomModelDto`, `SubmitCustomModelDeploymentCommand` in `src/AskLucy.Application/CustomModels/CustomModelDtos.cs` and `Commands/SubmitCustomModelDeployment/`, and `Queries/PreviewCustomModelSource/`.
   - Persist `SourceFilePath` on submit.
-- [ ] T030 [US4] Filter the listing to `SourceFilePath` before `PlanTransfer` in `src/AskLucy.Application/CustomModels/Jobs/CustomModelDeploymentJob.cs`, and fail with the not-in-repository reason when the path is absent (research D11). Make T024 pass.
-- [ ] T031 [US4] Add `sourceFilePath` and `selectedForLocalWhisper` to `CustomModelSummaryDto` in `src/AskLucy.Application/CustomModels/CustomModelDtos.cs` and `CustomModelSummaryBuilder.cs` (read the setting through `IDictationEngineSettingRepository`).
-- [ ] T032 [US4] Add the FR-009b guard in `src/AskLucy.Application/CustomModels/Commands/RemoveCustomModel/RemoveCustomModelCommandHandler.cs`, and map it to 409 `custom-model-selected-for-local-whisper` in `src/AskLucy.Web/Controllers/v1/AdminCustomModelsController.cs`. Make T025 pass.
-- [ ] T033 [US4] Create `src/AskLucy.Application/Ai/Dictation/Queries/GetDictationSettings/` (query, handler, DTOs matching contracts/admin-dictation.md):
+- [X] T030 [US4] Filter the listing to `SourceFilePath` before `PlanTransfer` in `src/AskLucy.Application/CustomModels/Jobs/CustomModelDeploymentJob.cs`, and fail with the not-in-repository reason when the path is absent (research D11). Make T024 pass.
+- [X] T031 [US4] Add `sourceFilePath` and `selectedForLocalWhisper` to `CustomModelSummaryDto` in `src/AskLucy.Application/CustomModels/CustomModelDtos.cs` and `CustomModelSummaryBuilder.cs` (read the setting through `IDictationEngineSettingRepository`).
+- [X] T032 [US4] Add the FR-009b guard in `src/AskLucy.Application/CustomModels/Commands/RemoveCustomModel/RemoveCustomModelCommandHandler.cs`, and map it to 409 `custom-model-selected-for-local-whisper` in `src/AskLucy.Web/Controllers/v1/AdminCustomModelsController.cs`. Make T025 pass. _(Done: the 409 mapping is in `ProblemDetailsMiddleware`, alongside the other domain exceptions.)_
+- [X] T033 [US4] Create `src/AskLucy.Application/Ai/Dictation/Queries/GetDictationSettings/` (query, handler, DTOs matching contracts/admin-dictation.md):
   - Fields: `primaryEngine`, `pushToTalkEngine`, `state`, `suspension`, `lastRevert`, `engines`, `pushToTalkEngines`, `localWhisper { selectedModelId, effectiveModel, models }` and `rowVersion`.
   - Engine selectability comes from the AI provider rows' `IsEnabled`, with the same fallback `ElevenLabsSpeechToTextSessionProvider.IsSwitchedOnAsync` uses.
-- [ ] T034 [US4] Create `src/AskLucy.Application/Ai/Dictation/Commands/SelectLocalWhisperModel/` (command, validator, handler; checks `ILocalWhisperModelCatalog.CheckSelectableAsync`, then `setting.SelectLocalWhisperModel`, then commits).
-- [ ] T035 [US4] Create `src/AskLucy.Application/Ai/Dictation/Commands/TryLocalWhisperModel/` (command, validator, handler) and a transient try entry point on `LocalWhisperTranscriber` in `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperTranscriber.cs`:
+- [X] T034 [US4] Create `src/AskLucy.Application/Ai/Dictation/Commands/SelectLocalWhisperModel/` (command, validator, handler; checks `ILocalWhisperModelCatalog.CheckSelectableAsync`, then `setting.SelectLocalWhisperModel`, then commits).
+- [X] T035 [US4] Create `src/AskLucy.Application/Ai/Dictation/Commands/TryLocalWhisperModel/` (command, validator, handler) and a transient try entry point on `LocalWhisperTranscriber` in `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperTranscriber.cs`:
   - The factory is not cached, is disposed after the call, and one try runs at a time.
   - The result is the transcript, elapsed ms and model label.
   - Failures are logged with `[LoggerMessage]`, not put on the trail. Make T026 pass.
-- [ ] T036 [US4] Add the routes `GET dictation`, `PUT dictation/local-whisper-model` and `POST dictation/try` (`[RequestSizeLimit(4 MB)]`, multipart) to `src/AskLucy.Web/Controllers/v1/AdminVoiceProvidersController.cs`. Use the existing Administrator policy and `admin-endpoints` rate limit; map the Problem Details types from the contract. Make T027 pass.
-- [ ] T037 [P] [US4] Add `getDictationSettings`, `selectLocalWhisperModel` and `tryLocalWhisperModel` to `src/AskLucy.Web/ClientApp/src/features/admin/api/adminVoiceApi.ts`. Rename `ignoredFilePath` → `filePath` and add `sourceFilePath` and `selectedForLocalWhisper` in `src/AskLucy.Web/ClientApp/src/features/admin/api/adminCustomModelsApi.ts`.
-- [ ] T038 [US4] Create `src/AskLucy.Web/ClientApp/src/features/admin/components/DictationSettingsSection.tsx` (the model part) and render it on `src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminVoicePage.tsx`:
+- [X] T036 [US4] Add the routes `GET dictation`, `PUT dictation/local-whisper-model` and `POST dictation/try` (`[RequestSizeLimit(4 MB)]`, multipart) to `src/AskLucy.Web/Controllers/v1/AdminVoiceProvidersController.cs`. Use the existing Administrator policy and `admin-endpoints` rate limit; map the Problem Details types from the contract. Make T027 pass.
+- [X] T037 [P] [US4] Add `getDictationSettings`, `selectLocalWhisperModel` and `tryLocalWhisperModel` to `src/AskLucy.Web/ClientApp/src/features/admin/api/adminVoiceApi.ts`. Rename `ignoredFilePath` → `filePath` and add `sourceFilePath` and `selectedForLocalWhisper` in `src/AskLucy.Web/ClientApp/src/features/admin/api/adminCustomModelsApi.ts`.
+- [X] T038 [US4] Create `src/AskLucy.Web/ClientApp/src/features/admin/components/DictationSettingsSection.tsx` (the model part) and render it on `src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminVoicePage.tsx`:
   - The Local Whisper model picker and the `effectiveModel.problem` text. With no model, the text points the admin to deploy `ggml-base.bin` under Custom Models.
   - Try it: record with `wavEncoder.ts`, then show the transcript and elapsed ms.
   - Every mutation has an error toast.
-- [ ] T039 [P] [US4] Update the customModels components in `src/AskLucy.Web/ClientApp/src/features/admin/components/customModels/`:
+- [X] T039 [P] [US4] Update the customModels components in `src/AskLucy.Web/ClientApp/src/features/admin/components/customModels/`:
   - `AddCustomModelDialog.tsx`: the notice becomes "Only <filePath> will be deployed".
   - Add a "Local Whisper" chip on the selected deployment.
   - `RemoveCustomModelButton.tsx`: disabled with the "Select a different Local Whisper model first" tooltip. Make T028 pass.

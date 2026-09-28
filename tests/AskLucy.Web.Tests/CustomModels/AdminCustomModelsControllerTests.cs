@@ -39,6 +39,7 @@ public sealed class AdminCustomModelsControllerTests : IClassFixture<CustomModel
     private readonly IDeploymentTargetSettingsProvider _deploymentTarget;
     private readonly IBackgroundJobClient _jobs;
     private readonly IModelRepositorySource _huggingFace;
+    private readonly AskLucy.Application.Abstractions.IDictationEngineSettingRepository _dictationSettings;
     private readonly HttpClient _client;
 
     public AdminCustomModelsControllerTests(CustomModelsApiFactory factory)
@@ -48,6 +49,7 @@ public sealed class AdminCustomModelsControllerTests : IClassFixture<CustomModel
         _deploymentTarget = factory.DeploymentTarget;
         _jobs = factory.Jobs;
         _huggingFace = factory.HuggingFace;
+        _dictationSettings = factory.DictationSettings;
 
         _deploymentTarget.GetAsync(Arg.Any<CancellationToken>())
             .Returns(new DeploymentTargetSettings(Host, 21, Username, Password, RootPath, AllowPlainFtp: false));
@@ -254,6 +256,24 @@ public sealed class AdminCustomModelsControllerTests : IClassFixture<CustomModel
     }
 
     [Fact]
+    public async Task SourcePreview_ShouldNameTheFile_ForAResolveUrl()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PostAsync(
+            "/api/v1/admin/custom-models/source-preview",
+            JsonContent.Create(new PreviewCustomModelSourceRequest("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin")),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        body.RootElement.GetProperty("isValid").GetBoolean().Should().BeTrue();
+        body.RootElement.GetProperty("repositoryId").GetString().Should().Be("ggerganov/whisper.cpp");
+        body.RootElement.GetProperty("filePath").GetString().Should().Be("ggml-base.bin");
+        _huggingFace.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Cancel_ShouldReturn202_AndCancelAQueuedDeployment()
     {
         var model = QueuedModel();
@@ -408,6 +428,22 @@ public sealed class AdminCustomModelsControllerTests : IClassFixture<CustomModel
         var response = await _client.DeleteAsync($"/api/v1/admin/custom-models/{model.Id}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        model.IsDeleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Remove_ShouldReturn409_WhenLocalWhisperIsSetToUseIt()
+    {
+        var model = QueuedModel();
+        ApplyUpdatesTo(model);
+        _dictationSettings.GetSelectedLocalWhisperModelIdAsync(Arg.Any<CancellationToken>()).Returns(model.Id);
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.DeleteAsync($"/api/v1/admin/custom-models/{model.Id}", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.Should().Contain("custom-model-selected-for-local-whisper");
         model.IsDeleted.Should().BeFalse();
     }
 

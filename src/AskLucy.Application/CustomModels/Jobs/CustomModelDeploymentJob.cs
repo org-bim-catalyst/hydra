@@ -129,7 +129,7 @@ public sealed partial class CustomModelDeploymentJob(
         await UpdateOrStopAsync(run, m => m.CanonicaliseRepositoryId(revision.RepositoryId));
 
         var listing = await modelSource.ListFilesAsync(run.Model.RepositoryId, revision.CommitSha, run.Token);
-        var plan = PlanTransfer(destination, listing);
+        var plan = PlanTransfer(destination, OnlyTheNamedFile(listing, run.Model, revision.CommitSha));
 
         // BeginTransfer enforces the size cap; its CustomModelDeploymentFailedException leaves the
         // lambda unsaved and fails the record through the catch in RunAsync.
@@ -158,6 +158,25 @@ public sealed partial class CustomModelDeploymentJob(
         }
 
         await CompleteAsync(run);
+    }
+
+    /// <summary>
+    /// specs/078 FR-011: a <c>/resolve/</c> or <c>/blob/</c> URL deploys only the file it names, so
+    /// the size cap, the reserved-name check and the overwrite report all see just that file.
+    /// Hugging Face paths are case-sensitive.
+    /// </summary>
+    private static IReadOnlyList<ModelRepositoryFile> OnlyTheNamedFile(IReadOnlyList<ModelRepositoryFile> listing, CustomModel model, string commitSha)
+    {
+        if (model.SourceFilePath is not { } path)
+        {
+            return listing;
+        }
+
+        var file = listing.FirstOrDefault(f => string.Equals(f.Path, path, StringComparison.Ordinal))
+            ?? throw new CustomModelDeploymentFailedException(
+                CustomModelFailureKind.SourceNotFound,
+                $"The file {path} is not in {model.RepositoryId} at {commitSha}.");
+        return [file];
     }
 
     private static TransferPlan PlanTransfer(DeploymentDestination destination, IReadOnlyList<ModelRepositoryFile> listing)

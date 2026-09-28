@@ -15,9 +15,11 @@ public sealed class HuggingFaceModelSourceTests
     [InlineData("https://huggingface.co/Supertone/supertonic-3/tree/main", "Supertone/supertonic-3", "main", null)]
     [InlineData("https://huggingface.co/Supertone/supertonic-3/tree/v1.0", "Supertone/supertonic-3", "v1.0", null)]
     [InlineData("https://huggingface.co/Supertone/supertonic-3/tree/refs/pr/3", "Supertone/supertonic-3", "refs/pr/3", null)]
+    [InlineData("https://huggingface.co/Supertone/supertonic-3/tree/main/onnx", "Supertone/supertonic-3", "main", null)]
     [InlineData("https://huggingface.co/Supertone/supertonic-3/resolve/main/onnx/x.onnx", "Supertone/supertonic-3", "main", "onnx/x.onnx")]
     [InlineData("https://huggingface.co/Supertone/supertonic-3/blob/0123456789abcdef0123456789abcdef01234567/README.md", "Supertone/supertonic-3", "0123456789abcdef0123456789abcdef01234567", "README.md")]
-    public void TryParse_ShouldAccept_ModelRepositoryUrls(string raw, string repositoryId, string revision, string? ignoredFilePath)
+    [InlineData("https://huggingface.co/Supertone/supertonic-3/resolve/refs/pr/3/ggml-base.bin", "Supertone/supertonic-3", "refs/pr/3", "ggml-base.bin")]
+    public void TryParse_ShouldAccept_ModelRepositoryUrls(string raw, string repositoryId, string revision, string? filePath)
     {
         var ok = HuggingFaceModelSource.TryParse(raw, out var source, out var error);
 
@@ -27,7 +29,7 @@ public sealed class HuggingFaceModelSourceTests
         source.Owner.Should().Be("Supertone");
         source.Repository.Should().Be("supertonic-3");
         source.Revision.Should().Be(revision);
-        source.IgnoredFilePath.Should().Be(ignoredFilePath);
+        source.FilePath.Should().Be(filePath);
         source.DerivedName.Should().Be("supertonic-3");
         source.SourceUrl.Should().Be(raw);
     }

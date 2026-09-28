@@ -9,7 +9,8 @@ import { errorMessage } from './errorMessage'
 
 /**
  * specs/072 FR-031 — removes a failed or cancelled model's record after confirmation. The row
- * disappearing is the success feedback; a failure keeps the row and shows why.
+ * disappearing is the success feedback; a failure keeps the row and shows why. specs/078 FR-009b:
+ * the deployment Local Whisper uses stays disabled until another model is selected.
  */
 export function RemoveCustomModelButton({ model }: { model: CustomModelSummary }) {
   const queryClient = useQueryClient()
@@ -29,12 +30,12 @@ export function RemoveCustomModelButton({ model }: { model: CustomModelSummary }
 
   return (
     <>
-      <Tooltip title="Remove">
+      <Tooltip title={model.selectedForLocalWhisper ? 'Select a different Local Whisper model first' : 'Remove'}>
         <span>
           <IconButton
             size="small"
             aria-label={`Remove ${model.name}`}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || model.selectedForLocalWhisper}
             onClick={() => setConfirming(true)}
           >
             <DeleteOutlineIcon fontSize="small" />

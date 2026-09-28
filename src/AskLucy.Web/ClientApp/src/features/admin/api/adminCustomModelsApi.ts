@@ -43,6 +43,10 @@ export interface CustomModelSummary {
   finishedAtUtc: string | null
   /** e.g. "Supertonic" when the repository backs a hosted engine. */
   backsEngine: string | null
+  /** specs/078 — the one file deployed from a /resolve/ or /blob/ URL; `null` for a whole repository. */
+  sourceFilePath: string | null
+  /** specs/078 FR-009b — dictation's Local Whisper uses this deployment, so it can't be removed. */
+  selectedForLocalWhisper: boolean
 }
 
 export interface OverwrittenFile {
@@ -68,7 +72,8 @@ export interface SourcePreview {
   error: string | null
   repositoryId: string | null
   revision: string | null
-  ignoredFilePath: string | null
+  /** specs/078 — the one file a /resolve/ or /blob/ URL names; only it is deployed. */
+  filePath: string | null
   derivedName: string | null
   /** false → the dialog shows the required Name field. */
   nameAvailable: boolean

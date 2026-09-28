@@ -8,6 +8,7 @@ using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
+using AskLucy.Infrastructure.Ai.LocalWhisper;
 using AskLucy.Infrastructure.Ai.Supertonic;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.Boundaries;
@@ -87,6 +88,10 @@ public static class DependencyInjection
         // specs/070: every property defaults, so no section at all still boots the host.
         services.AddOptions<SupertonicOptions>()
             .Bind(configuration.GetSection(SupertonicOptions.SectionName));
+
+        // specs/078: every property defaults, so no section at all still boots the host.
+        services.AddOptions<LocalWhisperOptions>()
+            .Bind(configuration.GetSection(LocalWhisperOptions.SectionName));
 
         // specs/074: deliberately no ValidateOnStart — every value has a default and out-of-range
         // values are clamped by OperationalFailuresOptions.Normalize, so a bad setting can never
@@ -573,6 +578,15 @@ public static class DependencyInjection
         services.AddSingleton<IHostedModelEngine>(sp => sp.GetRequiredService<SupertonicTextToSpeechEngine>());
         services.AddScoped<ISpeechToTextSessionProvider, ElevenLabsSpeechToTextSessionProvider>();
         services.AddScoped<IVoiceProviderHealthRecorder, VoiceProviderHealthRecorder>();
+
+        // specs/078 research D1/D4: the runtime is the process-wide owner of the loaded Local
+        // Whisper model and the concurrency cap; the clip engine and "Try it" are thin scoped
+        // adapters over it. The model is loaded on the first clip, never at startup.
+        services.AddSingleton<IWhisperModelLoader, WhisperNetModelLoader>();
+        services.AddSingleton<LocalWhisperRuntime>();
+        services.AddScoped<IDictationClipTranscriber, LocalWhisperTranscriber>();
+        services.AddScoped<ILocalWhisperModelTrial, LocalWhisperModelTrial>();
+        services.AddScoped<ILocalWhisperModelCatalog, LocalWhisperModelCatalog>();
 
         // specs/072: the single, temporary swap point for the deployment target (plan.md).
         services.AddSingleton<IDeploymentTargetSettingsProvider, ConfigurationDeploymentTargetSettingsProvider>();

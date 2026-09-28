@@ -153,7 +153,7 @@ public sealed class SetCustomModelAvailabilityCommandHandlerTests
         return new SetCustomModelAvailabilityCommandHandler(
             _repository,
             _notifier,
-            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), []),
+            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), [], Substitute.For<IDictationEngineSettingRepository>()),
             currentUser,
             _logger);
     }

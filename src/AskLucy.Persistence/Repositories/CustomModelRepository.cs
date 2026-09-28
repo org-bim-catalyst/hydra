@@ -105,6 +105,12 @@ public sealed class CustomModelRepository(AskLucyDbContext dbContext) : ICustomM
             .OrderByDescending(m => m.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<CustomModel>> ListCompletedAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.CustomModels.AsNoTracking()
+            .Where(m => m.DeploymentState == CustomModelDeploymentState.Completed)
+            .OrderByDescending(m => m.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
     public Task UpdateProgressAsync(Guid id, CustomModelProgress progress, CancellationToken cancellationToken = default) =>
         dbContext.CustomModels
             .Where(m => m.Id == id

@@ -18,6 +18,7 @@ public sealed class RemoveCustomModelCommandHandlerTests
     private readonly FakeCustomModelRepository _repository = new();
     private readonly ICustomModelDeploymentNotifier _notifier = Substitute.For<ICustomModelDeploymentNotifier>();
     private readonly IDeploymentFileUploader _uploader = Substitute.For<IDeploymentFileUploader>();
+    private readonly IDictationEngineSettingRepository _dictationSettings = Substitute.For<IDictationEngineSettingRepository>();
     private readonly FakeLogger<RemoveCustomModelCommandHandler> _logger = new();
 
     [Theory]
@@ -67,6 +68,21 @@ public sealed class RemoveCustomModelCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_TheLocalWhisperSelection_IsRejected()
+    {
+        // specs/078 FR-009b T025.
+        var model = await SeedAsync(CustomModelDeploymentState.Failed);
+        _dictationSettings.GetSelectedLocalWhisperModelIdAsync(Arg.Any<CancellationToken>()).Returns(model.Id);
+
+        var act = () => Remove(model.Id);
+
+        await act.Should().ThrowAsync<CustomModelSelectedForLocalWhisperException>()
+            .WithMessage("Select a different Local Whisper model first.");
+        model.IsDeleted.Should().BeFalse();
+        await _notifier.DidNotReceiveWithAnyArgs().NotifyStateChangedAsync(default!, default, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task Handle_Missing_NotFound()
     {
         var act = () => Remove(Guid.NewGuid());
@@ -92,8 +108,9 @@ public sealed class RemoveCustomModelCommandHandlerTests
         // The uploader is deliberately not a dependency: removal leaves the files on the target (FR-031).
         return new RemoveCustomModelCommandHandler(
             _repository,
+            _dictationSettings,
             _notifier,
-            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), []),
+            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), [], _dictationSettings),
             currentUser,
             TimeProvider.System,
             _logger);

@@ -381,6 +381,27 @@ describe('CustomModelsSection', () => {
     expect(screen.getByRole('button', { name: 'Remove kokoro' })).toBeInTheDocument()
   })
 
+  it('marks the Local Whisper model and keeps its Remove disabled with the reason', async () => {
+    server.use(
+      http.get('*/api/v1/admin/custom-models', () =>
+        HttpResponse.json(
+          page([
+            customModel({ id: 'model-base', name: 'whisper-base', sourceFilePath: 'ggml-base.bin', selectedForLocalWhisper: true }),
+            customModel({ id: 'model-2', name: 'kokoro', deploymentState: 'Failed', canRemove: true, canMakeAvailable: false }),
+          ]),
+        ),
+      ),
+    )
+    renderSection()
+
+    const row = (await screen.findByText('whisper-base')).closest('tr')!
+    expect(within(row).getByText('Local Whisper')).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: 'Remove whisper-base' })).toBeDisabled()
+    expect(within(row).getByLabelText('Select a different Local Whisper model first')).toBeInTheDocument()
+    const other = screen.getByText('kokoro').closest('tr')!
+    expect(within(other).queryByText('Local Whisper')).not.toBeInTheDocument()
+  })
+
   it('removes a model after confirmation', async () => {
     let removed = false
     server.use(

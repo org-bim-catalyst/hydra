@@ -2,6 +2,7 @@ using System.Reflection;
 using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Ai.Dictation;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Authorization;
 using AskLucy.Domain.Chats;
@@ -70,6 +71,9 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     /// <summary>specs/070 — the admin-ordered text-to-speech engines; priority 0 is Lucy's voice.</summary>
     public DbSet<VoiceProvider> VoiceProviders => Set<VoiceProvider>();
+
+    /// <summary>specs/078 — the single platform-wide dictation engine choice.</summary>
+    public DbSet<DictationEngineSetting> DictationEngineSettings => Set<DictationEngineSetting>();
 
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
 

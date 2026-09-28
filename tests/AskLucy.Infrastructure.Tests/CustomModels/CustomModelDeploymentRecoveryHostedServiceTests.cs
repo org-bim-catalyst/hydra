@@ -282,6 +282,8 @@ public sealed class CustomModelDeploymentRecoveryHostedServiceTests : IDisposabl
 
         public Task<IReadOnlyList<CustomModel>> FindCompletedForRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
+        public Task<IReadOnlyList<CustomModel>> ListCompletedAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task UpdateProgressAsync(Guid id, CustomModelProgress progress, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task AddOverwrittenFileAsync(CustomModelOverwrittenFile file, CancellationToken cancellationToken = default) => throw new NotSupportedException();

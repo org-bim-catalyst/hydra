@@ -36,8 +36,12 @@ public sealed partial class HuggingFaceModelSource
     /// <summary><see cref="DefaultRevision"/> when the URL names none.</summary>
     public string Revision { get; }
 
-    /// <summary>The file a <c>/resolve/…</c> or <c>/blob/…</c> URL pointed at. The whole repository is still deployed; the UI says so.</summary>
-    public string? IgnoredFilePath { get; }
+    /// <summary>
+    /// specs/078 FR-011 — the file a <c>/resolve/…</c> or <c>/blob/…</c> URL names. When set, only
+    /// this file is deployed. Null for a repository or <c>/tree/…</c> URL, which deploys the whole
+    /// repository.
+    /// </summary>
+    public string? FilePath { get; }
 
     /// <summary>The repository name, or <see langword="null"/> when it wouldn't be a valid model name, so the admin must supply one (FR-002).</summary>
     public string? DerivedName { get; }
@@ -45,12 +49,12 @@ public sealed partial class HuggingFaceModelSource
     /// <summary>The URL as submitted (trimmed). Display only.</summary>
     public string SourceUrl { get; }
 
-    private HuggingFaceModelSource(string owner, string repository, string revision, string? ignoredFilePath, string sourceUrl)
+    private HuggingFaceModelSource(string owner, string repository, string revision, string? filePath, string sourceUrl)
     {
         Owner = owner;
         Repository = repository;
         Revision = revision;
-        IgnoredFilePath = ignoredFilePath;
+        FilePath = filePath;
         SourceUrl = sourceUrl;
         DerivedName = CustomModel.IsValidName(repository) ? repository : null;
     }
@@ -117,7 +121,7 @@ public sealed partial class HuggingFaceModelSource
         }
 
         var revision = DefaultRevision;
-        string? ignoredFilePath = null;
+        string? filePath = null;
         if (segments.Count > 2)
         {
             if (!RevisionSections.Contains(segments[2]))
@@ -147,14 +151,21 @@ public sealed partial class HuggingFaceModelSource
                 return false;
             }
 
+            // A /tree/<rev>/<folder> URL names a folder, not a file, so it still deploys the whole
+            // repository; only /resolve/ and /blob/ name a single file.
             var fileSegments = segments.Skip(3 + revisionSegmentCount).ToList();
-            if (fileSegments.Count > 0)
+            if (fileSegments.Count > 0 && !segments[2].Equals("tree", StringComparison.OrdinalIgnoreCase))
             {
-                ignoredFilePath = string.Join('/', fileSegments);
+                filePath = string.Join('/', fileSegments);
+                if (filePath.Length > CustomModel.MaxSourceFilePathLength)
+                {
+                    error = $"The file path must be at most {CustomModel.MaxSourceFilePathLength} characters.";
+                    return false;
+                }
             }
         }
 
-        source = new HuggingFaceModelSource(owner, repository, revision, ignoredFilePath, trimmed);
+        source = new HuggingFaceModelSource(owner, repository, revision, filePath, trimmed);
         error = null;
         return true;
     }

@@ -62,6 +62,9 @@ public interface ICustomModelRepository
     /// <summary>FR-039. Non-deleted <see cref="CustomModelDeploymentState.Completed"/> models for the repository, ignoring case. Not tracked.</summary>
     Task<IReadOnlyList<CustomModel>> FindCompletedForRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
 
+    /// <summary>specs/078 FR-009a. Every non-deleted <see cref="CustomModelDeploymentState.Completed"/> model, newest first. Not tracked.</summary>
+    Task<IReadOnlyList<CustomModel>> ListCompletedAsync(CancellationToken cancellationToken = default);
+
     /// <summary>One forward-only <c>UPDATE</c> (<c>WHERE TransferredBytes &lt;= @new</c>), only while transferring. Bumps the RowVersion.</summary>
     Task UpdateProgressAsync(Guid id, CustomModelProgress progress, CancellationToken cancellationToken = default);
 

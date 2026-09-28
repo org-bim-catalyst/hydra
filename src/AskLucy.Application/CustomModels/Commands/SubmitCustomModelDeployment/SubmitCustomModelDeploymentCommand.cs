@@ -8,14 +8,14 @@ namespace AskLucy.Application.CustomModels.Commands.SubmitCustomModelDeployment;
 /// </summary>
 public sealed record SubmitCustomModelDeploymentCommand(string Source, string Destination, string? Name) : IRequest<SubmittedCustomModelDto>;
 
-/// <summary>The summary plus the file path a <c>/resolve/…</c> or <c>/blob/…</c> URL named, which is ignored (the whole repository is deployed).</summary>
+/// <summary>The summary plus the file path a <c>/resolve/…</c> or <c>/blob/…</c> URL named: the only file deployed (specs/078 FR-011).</summary>
 public sealed record SubmittedCustomModelDto : CustomModelSummaryDto
 {
-    public SubmittedCustomModelDto(CustomModelSummaryDto summary, string? ignoredFilePath)
+    public SubmittedCustomModelDto(CustomModelSummaryDto summary, string? filePath)
         : base(summary)
     {
-        IgnoredFilePath = ignoredFilePath;
+        FilePath = filePath;
     }
 
-    public string? IgnoredFilePath { get; init; }
+    public string? FilePath { get; init; }
 }

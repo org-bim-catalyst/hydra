@@ -32,6 +32,7 @@ public sealed class CustomModelTests
         model.RepositoryId.Should().Be("Supertone/supertonic-3");
         model.Revision.Should().Be("main");
         model.SourceUrl.Should().Be("https://huggingface.co/Supertone/supertonic-3");
+        model.SourceFilePath.Should().BeNull();
         model.Destination.Should().Be("Models/supertonic-3");
         model.SubmittedByUserId.Should().Be("admin-1");
         model.CreatedBy.Should().Be("admin-1");
@@ -490,6 +491,16 @@ public sealed class CustomModelTests
     [InlineData(Stage.Cancelled, false)]
     public void IsInProgress_ShouldTrackTheState(Stage stage, bool expected) =>
         At(stage).IsInProgress.Should().Be(expected);
+
+    [Fact]
+    public void Create_ShouldKeepTheFileASingleFileUrlNames()
+    {
+        HuggingFaceModelSource.TryParse("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", out var source, out _).Should().BeTrue();
+
+        var model = CustomModel.Create("whisper.cpp", source!, Destination(), "admin-1");
+
+        model.SourceFilePath.Should().Be("ggml-base.bin");
+    }
 
     private static HuggingFaceModelSource Source()
     {

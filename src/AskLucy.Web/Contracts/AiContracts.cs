@@ -104,5 +104,8 @@ public sealed record AddVoiceProviderRequest(string ProviderKey, string? ApiKey)
 /// <summary>specs/070 — makes a voice provider Lucy's primary voice, speaking with <c>VoiceId</c>.</summary>
 public sealed record SetPrimaryVoiceProviderRequest(Guid ProviderId, string VoiceId);
 
+/// <summary>specs/078 contracts/admin-dictation.md; a null <see cref="CustomModelId"/> selects no model.</summary>
+public sealed record SelectLocalWhisperModelRequest(Guid? CustomModelId, string RowVersion);
+
 /// <summary>specs/070 — speaks <c>Text</c> in <c>Language</c> with one of the provider's voices, for the administrator to audition.</summary>
 public sealed record PreviewVoiceRequest(string VoiceId, string Text, string Language);

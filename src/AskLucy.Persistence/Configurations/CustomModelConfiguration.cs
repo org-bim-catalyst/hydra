@@ -27,6 +27,7 @@ public sealed class CustomModelConfiguration : IEntityTypeConfiguration<CustomMo
         builder.Property(m => m.Revision).IsRequired().HasMaxLength(CustomModel.MaxRevisionLength);
         builder.Property(m => m.ResolvedCommitSha).HasMaxLength(40).IsFixedLength();
         builder.Property(m => m.SourceUrl).IsRequired().HasMaxLength(CustomModel.MaxSourceUrlLength);
+        builder.Property(m => m.SourceFilePath).HasMaxLength(CustomModel.MaxSourceFilePathLength);
         builder.Property(m => m.Destination).IsRequired().HasMaxLength(DeploymentDestination.MaxLength).UseCollation(CaseInsensitiveCollation);
 
         builder.Property(m => m.DeploymentState).HasConversion<string>().HasMaxLength(20).IsRequired();

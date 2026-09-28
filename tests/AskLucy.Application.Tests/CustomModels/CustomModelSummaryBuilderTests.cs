@@ -14,6 +14,7 @@ namespace AskLucy.Application.Tests.CustomModels;
 public sealed class CustomModelSummaryBuilderTests
 {
     private readonly IHostedModelEngine _supertonic = Substitute.For<IHostedModelEngine>();
+    private readonly IDictationEngineSettingRepository _dictationSettings = Substitute.For<IDictationEngineSettingRepository>();
 
     public CustomModelSummaryBuilderTests()
     {
@@ -21,7 +22,7 @@ public sealed class CustomModelSummaryBuilderTests
         _supertonic.ModelRepositoryId.Returns("Supertone/supertonic-3");
     }
 
-    private CustomModelSummaryBuilder CreateBuilder() => new(Substitute.For<IUserAdminRepository>(), [_supertonic]);
+    private CustomModelSummaryBuilder CreateBuilder() => new(Substitute.For<IUserAdminRepository>(), [_supertonic], _dictationSettings);
 
     private static CustomModel Model(string sourceUrl, string destination)
     {
@@ -51,5 +52,18 @@ public sealed class CustomModelSummaryBuilderTests
             TestContext.Current.CancellationToken);
 
         summary.BacksEngine.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task BuildAsync_ShouldMarkOnlyTheLocalWhisperSelection_AndCarryTheSourceFile()
+    {
+        var selected = Model("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", "Models/whisper-base");
+        var other = Model("https://huggingface.co/ggerganov/whisper.cpp", "Models/whisper-all");
+        _dictationSettings.GetSelectedLocalWhisperModelIdAsync(Arg.Any<CancellationToken>()).Returns(selected.Id);
+
+        var summaries = await CreateBuilder().BuildAsync([selected, other], TestContext.Current.CancellationToken);
+
+        summaries.Select(s => s.SelectedForLocalWhisper).Should().Equal(true, false);
+        summaries.Select(s => s.SourceFilePath).Should().Equal("ggml-base.bin", null);
     }
 }

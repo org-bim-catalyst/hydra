@@ -18,6 +18,6 @@ public sealed class PreviewCustomModelSourceQueryHandler(ICustomModelRepository 
         var nameAvailable = source.DerivedName is not null
             && !await customModels.NameExistsAsync(source.DerivedName, cancellationToken);
 
-        return new SourcePreviewDto(true, null, source.RepositoryId, source.Revision, source.IgnoredFilePath, source.DerivedName, nameAvailable);
+        return new SourcePreviewDto(true, null, source.RepositoryId, source.Revision, source.FilePath, source.DerivedName, nameAvailable);
     }
 }

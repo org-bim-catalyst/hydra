@@ -5,6 +5,7 @@ import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AdminVoiceProvider, VoiceEngine, VoiceOption } from '../api/adminVoiceApi'
+import { dictationSettings } from '../components/dictationFixtures'
 import { AdminVoicePage } from './AdminVoicePage'
 
 const elevenLabs: AdminVoiceProvider = {
@@ -56,6 +57,7 @@ const server = setupServer(
   http.get('*/api/v1/admin/voice/providers/:id/voices', ({ params }) =>
     HttpResponse.json(voicesByProvider[params.id as string] ?? []),
   ),
+  http.get('*/api/v1/admin/voice/dictation', () => HttpResponse.json(dictationSettings())),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))

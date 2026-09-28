@@ -156,7 +156,8 @@ export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomMo
           <DialogTitle>Add custom model</DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ mb: 2 }}>
-              The server downloads the whole repository from Hugging Face and uploads it to the destination folder.
+              The server downloads the repository from Hugging Face (or only the file a /resolve/ or /blob/ URL
+              names) and uploads it to the destination folder.
               You can close this page while it runs.
             </DialogContentText>
             <Stack spacing={2}>
@@ -194,10 +195,8 @@ export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomMo
               {previewQuery.isError && debouncedSource === source.trim() && (
                 <Alert severity="error">We couldn&apos;t check that URL. {errorMessage(previewQuery.error)}</Alert>
               )}
-              {preview?.ignoredFilePath && (
-                <Alert severity="info">
-                  Only whole repositories are deployed; {preview.ignoredFilePath} is ignored.
-                </Alert>
+              {preview?.filePath && (
+                <Alert severity="info">Only {preview.filePath} will be deployed.</Alert>
               )}
               <TextField
                 id="custom-model-destination"

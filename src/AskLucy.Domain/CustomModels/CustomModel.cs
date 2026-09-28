@@ -24,6 +24,7 @@ public sealed partial class CustomModel : BaseEntity
     public const int MaxSourceUrlLength = 2048;
     public const int MaxFailureReasonLength = 1000;
     public const int MaxCurrentFilePathLength = 1024;
+    public const int MaxSourceFilePathLength = 1024;
     public const int MaxBackgroundJobIdLength = 100;
 
     public string Name { get; private set; } = string.Empty;
@@ -38,6 +39,13 @@ public sealed partial class CustomModel : BaseEntity
 
     /// <summary>Display only — never fetched (research D4).</summary>
     public string SourceUrl { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// specs/078 FR-011 — the one repository file to deploy, from a <c>/resolve/…</c> or
+    /// <c>/blob/…</c> source URL; placed at <c>&lt;Destination&gt;/&lt;SourceFilePath&gt;</c>. Null deploys the
+    /// whole repository. Set once, at submit.
+    /// </summary>
+    public string? SourceFilePath { get; private set; }
 
     /// <summary>Canonical, relative to the deployment root, which it never contains.</summary>
     public string Destination { get; private set; } = string.Empty;
@@ -111,6 +119,7 @@ public sealed partial class CustomModel : BaseEntity
             RepositoryId = source.RepositoryId,
             Revision = source.Revision,
             SourceUrl = source.SourceUrl,
+            SourceFilePath = source.FilePath,
             Destination = destination.Value,
             DeploymentState = CustomModelDeploymentState.Queued,
             Availability = CustomModelAvailability.Unavailable,

@@ -92,7 +92,8 @@ function performFetch(path: string, init: ApiFetchInit): Promise<Response> {
     ...init,
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      // A multipart body needs the browser-generated boundary in its content type.
+      ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...init.headers,
     },

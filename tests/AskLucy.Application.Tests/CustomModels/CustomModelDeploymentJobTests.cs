@@ -48,6 +48,7 @@ public sealed class CustomModelDeploymentJobTests : IDisposable
         _services = new ServiceCollection()
             .AddSingleton<ICustomModelRepository>(_repository)
             .AddSingleton(Substitute.For<IUserAdminRepository>())
+            .AddSingleton(Substitute.For<IDictationEngineSettingRepository>())
             .AddScoped<CustomModelSummaryBuilder>()
             .BuildServiceProvider();
     }
@@ -108,6 +109,34 @@ public sealed class CustomModelDeploymentJobTests : IDisposable
 
         _uploader.Uploads.Should().BeEquivalentTo([$"{Destination}/config.json", $"{Destination}/onnx/model.onnx"]);
         _uploader.OpenedWith!.RootPath.Should().Be("/site");
+    }
+
+    [Fact]
+    public async Task RunAsync_ResolveUrl_DeploysOnlyTheNamedFile()
+    {
+        // specs/078 FR-011: the size cap and file count see only the named file.
+        var model = await SeedAsync("https://huggingface.co/Supertone/supertonic-3/resolve/main/onnx/model.onnx");
+
+        await CreateJob().RunAsync(model.Id, TestContext.Current.CancellationToken);
+
+        model.DeploymentState.Should().Be(CustomModelDeploymentState.Completed);
+        model.TotalFileCount.Should().Be(1);
+        model.TotalBytes.Should().Be(4096);
+        _uploader.Uploads.Should().Equal($"{Destination}/onnx/model.onnx");
+    }
+
+    [Fact]
+    public async Task RunAsync_ResolveUrl_ForAFileNotInTheListing_FailsWithoutUploading()
+    {
+        // Hugging Face paths are case-sensitive, so a differently-cased name is not a match.
+        var model = await SeedAsync("https://huggingface.co/Supertone/supertonic-3/resolve/main/ONNX/model.onnx");
+
+        var act = () => CreateJob().RunAsync(model.Id, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<CustomModelDeploymentFailedException>();
+        model.FailureKind.Should().Be(CustomModelFailureKind.SourceNotFound);
+        model.FailureReason.Should().Be($"The file ONNX/model.onnx is not in Supertone/supertonic-3 at {FakeModelRepositorySource.CommitSha}.");
+        _uploader.Uploads.Should().BeEmpty();
     }
 
     [Fact]

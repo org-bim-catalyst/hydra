@@ -9,8 +9,12 @@ namespace AskLucy.Application.CustomModels;
 /// submitter's display name once per call. Admin lists are small (research D13), so a lookup per
 /// distinct submitter is cheaper than a dedicated batch query. <c>BacksEngine</c> names the
 /// registered on-server engine whose repository the model was deployed from, matched ignoring case.
+/// <c>SelectedForLocalWhisper</c> marks the deployment dictation's Local Whisper uses (specs/078).
 /// </summary>
-public sealed class CustomModelSummaryBuilder(IUserAdminRepository users, IEnumerable<IHostedModelEngine> hostedEngines)
+public sealed class CustomModelSummaryBuilder(
+    IUserAdminRepository users,
+    IEnumerable<IHostedModelEngine> hostedEngines,
+    IDictationEngineSettingRepository dictationSettings)
 {
     public const string UnknownUserDisplayName = "Unknown user";
 
@@ -25,7 +29,11 @@ public sealed class CustomModelSummaryBuilder(IUserAdminRepository users, IEnume
             submitters[userId] = await ResolveUserAsync(userId, cancellationToken);
         }
 
-        return models.Select(m => m.ToSummaryDto(submitters[m.SubmittedByUserId], FindBackedEngine(m.RepositoryId))).ToList();
+        var localWhisperModelId = await dictationSettings.GetSelectedLocalWhisperModelIdAsync(cancellationToken);
+
+        return models
+            .Select(m => m.ToSummaryDto(submitters[m.SubmittedByUserId], FindBackedEngine(m.RepositoryId), m.Id == localWhisperModelId))
+            .ToList();
     }
 
     private string? FindBackedEngine(string repositoryId) =>

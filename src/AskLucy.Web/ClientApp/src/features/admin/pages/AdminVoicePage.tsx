@@ -29,6 +29,7 @@ import * as adminVoiceApi from '../api/adminVoiceApi'
 import type { AdminVoiceProvider } from '../api/adminVoiceApi'
 import { AddVoiceProviderDialog } from '../components/AddVoiceProviderDialog'
 import { AdminShell } from '../components/AdminShell'
+import { DictationSettingsSection } from '../components/DictationSettingsSection'
 import { VoiceProviderCredentialDialog } from '../components/VoiceProviderCredentialDialog'
 import { useSampleAudioPlayer } from '../hooks/useSampleAudioPlayer'
 
@@ -133,7 +134,7 @@ export function AdminVoicePage() {
   const canPreview = provider !== null && voiceId !== '' && sampleText.trim() !== ''
 
   return (
-    <AdminShell title="Voice" subtitle="Choose the text-to-speech provider and voice Lucy speaks with">
+    <AdminShell title="Voice" subtitle="Choose the voice Lucy speaks with and how dictation is transcribed">
       <Paper elevation={1} sx={{ p: 3, maxWidth: 760 }}>
         {providersQuery.isError && (
           <Alert
@@ -349,6 +350,8 @@ export function AdminVoicePage() {
           </Stack>
         </Stack>
       </Paper>
+
+      <DictationSettingsSection />
 
       <AddVoiceProviderDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onAdded={handleProviderAdded} />
       <VoiceProviderCredentialDialog

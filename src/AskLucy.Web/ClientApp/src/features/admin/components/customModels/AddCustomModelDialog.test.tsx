@@ -21,7 +21,7 @@ function previewFor(overrides: Partial<SourcePreview> = {}): SourcePreview {
     error: null,
     repositoryId: 'Supertone/supertonic-3',
     revision: 'main',
-    ignoredFilePath: null,
+    filePath: null,
     derivedName: 'supertonic-3',
     nameAvailable: true,
     ...overrides,
@@ -126,10 +126,10 @@ describe('AddCustomModelDialog', () => {
     expect(screen.queryByLabelText(/^Name/)).not.toBeInTheDocument()
   })
 
-  it('tells the admin a single-file URL deploys the whole repository', async () => {
+  it('tells the admin a single-file URL deploys only that file', async () => {
     server.use(
       http.post('*/api/v1/admin/custom-models/source-preview', () =>
-        HttpResponse.json(previewFor({ ignoredFilePath: 'onnx/model.onnx' })),
+        HttpResponse.json(previewFor({ filePath: 'ggml-base.bin' })),
       ),
     )
     renderDialog()
@@ -137,7 +137,7 @@ describe('AddCustomModelDialog', () => {
     fireEvent.change(screen.getByLabelText(/^Source/), { target: { value: `${SOURCE}/resolve/main/onnx/model.onnx` } })
 
     expect(
-      await screen.findByText('Only whole repositories are deployed; onnx/model.onnx is ignored.'),
+      await screen.findByText('Only ggml-base.bin will be deployed.'),
     ).toBeInTheDocument()
   })
 

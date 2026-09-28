@@ -1,0 +1,237 @@
+import { useState } from 'react'
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Snackbar,
+  Stack,
+  Typography,
+} from '@mui/material'
+import MicIcon from '@mui/icons-material/Mic'
+import StopIcon from '@mui/icons-material/Stop'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '../../../api/httpClient'
+import { useCan } from '../../auth/hooks/usePermissions'
+import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
+import * as adminVoiceApi from '../api/adminVoiceApi'
+import type { LocalWhisperTryResult } from '../api/adminVoiceApi'
+import { MAX_SAMPLE_SECONDS, useWavSampleRecorder } from '../hooks/useWavSampleRecorder'
+
+/** The Select's value for "no model"; a real id is never empty. */
+const NO_MODEL = ''
+
+const errorMessage = (err: unknown) =>
+  err instanceof ApiError
+    ? err.detail ?? err.message
+    : err instanceof Error
+      ? err.message
+      : 'Something went wrong. Please try again.'
+
+/**
+ * specs/078 contracts/admin-dictation.md — the dictation half of Admin → Voice. Picks the Custom
+ * Models deployment Local Whisper uses, says why it isn't serving when it isn't, and lets the
+ * administrator try a deployment on a recorded sample before selecting it (FR-009a, FR-009c).
+ */
+export function DictationSettingsSection() {
+  const queryClient = useQueryClient()
+  const canManage = useCan('admin.ai-providers.manage')
+  const recorder = useWavSampleRecorder()
+
+  // `undefined` until the administrator picks: then the saved selection shows.
+  const [chosenModelId, setChosenModelId] = useState<string | undefined>(undefined)
+  const [language, setLanguage] = useState('en')
+  const [tryResult, setTryResult] = useState<LocalWhisperTryResult | null>(null)
+  const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
+
+  const settingsQuery = useQuery({
+    queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation,
+    queryFn: adminVoiceApi.getDictationSettings,
+  })
+  const settings = settingsQuery.data
+  const localWhisper = settings?.localWhisper
+  const savedModelId = localWhisper?.selectedModelId ?? NO_MODEL
+  const modelId = chosenModelId ?? savedModelId
+  const chosenOption = localWhisper?.models.find((m) => m.id === modelId)
+
+  const showError = (err: unknown) => setFeedback({ severity: 'error', message: errorMessage(err) })
+
+  const selectMutation = useMutation({
+    mutationFn: () => adminVoiceApi.selectLocalWhisperModel(modelId || null, settings!.rowVersion),
+    onSuccess: async () => {
+      setChosenModelId(undefined)
+      setFeedback({
+        severity: 'success',
+        message: chosenOption ? `Local Whisper now uses ${chosenOption.label}.` : 'Local Whisper has no model selected.',
+      })
+      await queryClient.invalidateQueries({ queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation })
+    },
+    onError: (err: unknown) => {
+      showError(err)
+      // Someone else changed the setting: show theirs so the next save starts from it.
+      if (err instanceof ApiError && err.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation })
+      }
+    },
+  })
+
+  const tryMutation = useMutation({
+    mutationFn: (wav: Blob) => adminVoiceApi.tryLocalWhisperModel(modelId, wav, language),
+    onSuccess: setTryResult,
+    onError: showError,
+  })
+
+  const toggleRecording = async () => {
+    try {
+      if (recorder.isRecording) {
+        tryMutation.mutate(await recorder.stop())
+      } else {
+        setTryResult(null)
+        await recorder.start()
+      }
+    } catch (err) {
+      showError(err)
+    }
+  }
+
+  const chooseModel = (id: string) => {
+    setChosenModelId(id)
+    setTryResult(null)
+  }
+
+  return (
+    <Paper elevation={1} sx={{ p: 3, mt: 3, maxWidth: 760 }}>
+      <Typography variant="h6" component="h2" gutterBottom>
+        Dictation
+      </Typography>
+
+      {settingsQuery.isLoading && <CircularProgress size={24} aria-label="Loading dictation settings" />}
+      {settingsQuery.isError && (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => void settingsQuery.refetch()}>
+              Retry
+            </Button>
+          }
+        >
+          We couldn&apos;t load the dictation settings. {errorMessage(settingsQuery.error)}
+        </Alert>
+      )}
+
+      {settings && localWhisper && (
+        <Stack spacing={2}>
+          <Typography variant="subtitle1" component="h3">
+            Local Whisper model
+          </Typography>
+
+          {localWhisper.effectiveModel.problem ? (
+            <Alert severity={localWhisper.selectedModelId ? 'warning' : 'info'}>{localWhisper.effectiveModel.problem}</Alert>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Local Whisper uses {localWhisper.effectiveModel.label}.
+            </Typography>
+          )}
+
+          <FormControl size="small" disabled={!canManage}>
+            <InputLabel id="local-whisper-model-label">Model</InputLabel>
+            <Select
+              labelId="local-whisper-model-label"
+              label="Model"
+              value={modelId}
+              onChange={(event) => chooseModel(event.target.value)}
+            >
+              <MenuItem value={NO_MODEL}>No model (browser built-in)</MenuItem>
+              {localWhisper.models.map((model) => (
+                <MenuItem key={model.id} value={model.id} disabled={!model.selectable}>
+                  {model.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {localWhisper.models.length === 0 && (
+              <FormHelperText>No completed Custom Models deployments yet.</FormHelperText>
+            )}
+          </FormControl>
+
+          {localWhisper.models
+            .filter((model) => !model.selectable && model.reason)
+            .map((model) => (
+              <Typography key={model.id} variant="caption" color="text.secondary">
+                {model.label}: {model.reason}
+              </Typography>
+            ))}
+
+          {canManage && (
+            <Box>
+              <Button
+                variant="contained"
+                disabled={modelId === savedModelId || selectMutation.isPending}
+                onClick={() => selectMutation.mutate()}
+              >
+                {selectMutation.isPending ? 'Saving…' : 'Use this model'}
+              </Button>
+            </Box>
+          )}
+
+          {canManage && chosenOption && (
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2" component="h4">
+                Try {chosenOption.label}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Record up to {MAX_SAMPLE_SECONDS} seconds and hear how this model transcribes it. Trying a model
+                doesn&apos;t select it.
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                  <InputLabel id="try-language-label">Language</InputLabel>
+                  <Select
+                    labelId="try-language-label"
+                    label="Language"
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value)}
+                  >
+                    {SUPPORTED_LANGUAGES.map((option) => (
+                      <MenuItem key={option.code} value={option.code}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="outlined"
+                  startIcon={recorder.isRecording ? <StopIcon /> : <MicIcon />}
+                  disabled={tryMutation.isPending}
+                  onClick={() => void toggleRecording()}
+                >
+                  {recorder.isRecording ? 'Stop and transcribe' : 'Try it'}
+                </Button>
+                {tryMutation.isPending && <CircularProgress size={20} aria-label="Transcribing" />}
+              </Stack>
+              {tryResult && (
+                <Alert severity="success">
+                  <Typography variant="body2">&ldquo;{tryResult.text}&rdquo;</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {tryResult.modelLabel} · {tryResult.elapsedMs} ms
+                  </Typography>
+                </Alert>
+              )}
+            </Stack>
+          )}
+        </Stack>
+      )}
+
+      <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
+        <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
+          {feedback?.message}
+        </Alert>
+      </Snackbar>
+    </Paper>
+  )
+}

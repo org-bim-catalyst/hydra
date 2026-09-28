@@ -106,7 +106,7 @@ public sealed class CustomModelQueryHandlerTests
         preview.Error.Should().BeNull();
         preview.RepositoryId.Should().Be("Supertone/supertonic-3");
         preview.Revision.Should().Be("v1.2");
-        preview.IgnoredFilePath.Should().Be("onnx/model.onnx");
+        preview.FilePath.Should().Be("onnx/model.onnx");
         preview.DerivedName.Should().Be("supertonic-3");
         preview.NameAvailable.Should().BeTrue();
     }
@@ -194,7 +194,7 @@ public sealed class CustomModelQueryHandlerTests
     }
 
     private ListCustomModelsQueryHandler CreateListHandler() =>
-        new(_repository, new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), []));
+        new(_repository, new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), [], Substitute.For<IDictationEngineSettingRepository>()));
 
     private GetDeploymentStatusQueryHandler CreateStatusHandler(CustomModelsOptions value)
     {
@@ -204,7 +204,7 @@ public sealed class CustomModelQueryHandlerTests
     }
 
     private GetCustomModelQueryHandler CreateGetHandler() =>
-        new(_repository, new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), []));
+        new(_repository, new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), [], Substitute.For<IDictationEngineSettingRepository>()));
 
     private PreviewCustomModelSourceQueryHandler CreatePreviewHandler() => new(_repository);
 }

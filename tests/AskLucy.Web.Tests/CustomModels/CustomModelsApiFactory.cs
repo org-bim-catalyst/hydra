@@ -1,3 +1,4 @@
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.CustomModels.Abstractions;
 using Hangfire;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +28,9 @@ public sealed class CustomModelsApiFactory : CustomWebApplicationFactory
 
     public IModelRepositorySource HuggingFace { get; } = Substitute.For<IModelRepositorySource>();
 
+    /// <summary>specs/078 FR-009b — which deployment Local Whisper is set to use; none unless a test stubs it.</summary>
+    public IDictationEngineSettingRepository DictationSettings { get; } = Substitute.For<IDictationEngineSettingRepository>();
+
     /// <summary>Forgets every stub and received call left by the previous test.</summary>
     public void Reset()
     {
@@ -34,6 +38,7 @@ public sealed class CustomModelsApiFactory : CustomWebApplicationFactory
         DeploymentTarget.ClearSubstitute(ClearOptions.All);
         Jobs.ClearSubstitute(ClearOptions.All);
         HuggingFace.ClearSubstitute(ClearOptions.All);
+        DictationSettings.ClearSubstitute(ClearOptions.All);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -50,6 +55,8 @@ public sealed class CustomModelsApiFactory : CustomWebApplicationFactory
             services.AddSingleton(Jobs);
             services.RemoveAll<IModelRepositorySource>();
             services.AddSingleton(HuggingFace);
+            services.RemoveAll<IDictationEngineSettingRepository>();
+            services.AddSingleton(DictationSettings);
         });
     }
 }

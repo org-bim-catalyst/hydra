@@ -38,7 +38,9 @@ public record CustomModelSummaryDto(
     DateTime CreatedAtUtc,
     DateTime? StartedAtUtc,
     DateTime? FinishedAtUtc,
-    string? BacksEngine);
+    string? BacksEngine,
+    string? SourceFilePath,
+    bool SelectedForLocalWhisper);
 
 public sealed record OverwrittenFileDto(string RelativePath, long PreviousSizeBytes, DateTime OverwrittenAtUtc);
 
@@ -65,7 +67,7 @@ public sealed record SourcePreviewDto(
     string? Error,
     string? RepositoryId,
     string? Revision,
-    string? IgnoredFilePath,
+    string? FilePath,
     string? DerivedName,
     bool NameAvailable);
 
@@ -96,7 +98,8 @@ public static class CustomModelDtoMapping
 {
     public const string NotCompletedReason = "The deployment has not completed.";
 
-    public static CustomModelSummaryDto ToSummaryDto(this CustomModel model, CustomModelUserDto submittedBy, string? backsEngine)
+    public static CustomModelSummaryDto ToSummaryDto(
+        this CustomModel model, CustomModelUserDto submittedBy, string? backsEngine, bool selectedForLocalWhisper = false)
     {
         var completed = model.DeploymentState == CustomModelDeploymentState.Completed;
         return new CustomModelSummaryDto(
@@ -127,7 +130,9 @@ public static class CustomModelDtoMapping
             model.CreatedAtUtc,
             model.StartedAtUtc,
             model.FinishedAtUtc,
-            backsEngine);
+            backsEngine,
+            model.SourceFilePath,
+            selectedForLocalWhisper);
     }
 
     public static OverwrittenFileDto ToDto(this CustomModelOverwrittenFile file) =>

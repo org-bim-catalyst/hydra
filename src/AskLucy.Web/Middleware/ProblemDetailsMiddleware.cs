@@ -377,6 +377,48 @@ public sealed class ProblemDetailsMiddleware(
             "Deployment not in progress",
             notInProgressEx.Message),
 
+        // specs/078 contracts/admin-dictation.md: the engine's vendor is switched off (FR-004).
+        AskLucy.Application.Ai.Dictation.DictationEngineNotSelectableException engineNotSelectableEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/dictation-engine-not-selectable",
+            "Dictation engine not selectable",
+            engineNotSelectableEx.Message),
+
+        // specs/078 FR-009a: the deployment can't be the Local Whisper model; the reason is the detail.
+        AskLucy.Application.Ai.Dictation.LocalWhisperModelNotSelectableException modelNotSelectableEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/local-whisper-model-not-selectable",
+            "Local Whisper model not selectable",
+            modelNotSelectableEx.Message),
+
+        // specs/078 FR-013: the clip isn't 16 kHz mono PCM WAV.
+        AskLucy.Application.Ai.Dictation.DictationAudioInvalidException audioInvalidEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/dictation-audio-invalid",
+            "Recording not usable",
+            audioInvalidEx.Message),
+
+        // specs/078 research D12: one Local Whisper try at a time.
+        AskLucy.Application.Ai.Dictation.LocalWhisperTrialBusyException trialBusyEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/try-in-progress",
+            "Another try is running",
+            trialBusyEx.Message),
+
+        // specs/078 FR-009c: only administrators try models, so the reason is shown.
+        AskLucy.Application.Ai.Dictation.LocalWhisperTrialFailedException trialFailedEx => (
+            StatusCodes.Status503ServiceUnavailable,
+            "https://hydra.bimcatalyst.com/problems/local-whisper-try-failed",
+            "The model couldn't be tried",
+            trialFailedEx.Message),
+
+        // specs/078 FR-009b: removing the model Local Whisper is set to use.
+        AskLucy.Domain.CustomModels.CustomModelSelectedForLocalWhisperException selectedForWhisperEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/custom-model-selected-for-local-whisper",
+            "Model in use by Local Whisper",
+            selectedForWhisperEx.Message),
+
         // The provider answered, but not with a usable image (malformed data, unsupported
         // format, oversized) — upstream's fault, same 502 family as a provider failure.
         AskLucy.Application.Ai.Images.InvalidGeneratedImageException => (

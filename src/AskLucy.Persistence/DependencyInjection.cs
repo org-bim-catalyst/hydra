@@ -91,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<IUserContentAccessEventRepository, UserContentAccessEventRepository>();
         services.AddScoped<IOperationalFailureReferenceLookup, OperationalFailureReferenceLookup>();
         services.AddScoped<IVoiceProviderRepository, VoiceProviderRepository>();
+        services.AddScoped<IDictationEngineSettingRepository, DictationEngineSettingRepository>();
         services.AddScoped<ICustomModelRepository, CustomModelRepository>();
         services.AddScoped<IKnowledgeBaseRepository, KnowledgeBaseRepository>();
         services.AddScoped<IKnowledgeBaseAuditLogRepository, KnowledgeBaseAuditLogRepository>();

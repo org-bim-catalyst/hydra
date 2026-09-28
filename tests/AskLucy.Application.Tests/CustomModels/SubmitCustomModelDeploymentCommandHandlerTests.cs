@@ -57,7 +57,8 @@ public sealed class SubmitCustomModelDeploymentCommandHandlerTests
             Arg.Any<CancellationToken>());
 
         result.Id.Should().Be(saved.Id);
-        result.IgnoredFilePath.Should().BeNull();
+        result.FilePath.Should().BeNull();
+        saved.SourceFilePath.Should().BeNull();
     }
 
     [Fact]
@@ -107,13 +108,14 @@ public sealed class SubmitCustomModelDeploymentCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ResolveUrl_ReturnsIgnoredFilePath()
+    public async Task Handle_ResolveUrl_ReturnsAndKeepsTheFilePath()
     {
         var result = await CreateHandler().Handle(
             new SubmitCustomModelDeploymentCommand("https://huggingface.co/Supertone/supertonic-3/resolve/main/onnx/model.onnx", Destination, null),
             TestContext.Current.CancellationToken);
 
-        result.IgnoredFilePath.Should().Be("onnx/model.onnx");
+        result.FilePath.Should().Be("onnx/model.onnx");
+        result.SourceFilePath.Should().Be("onnx/model.onnx");
         result.Revision.Should().Be("main");
     }
 
@@ -174,7 +176,7 @@ public sealed class SubmitCustomModelDeploymentCommandHandlerTests
             _deploymentTarget,
             _jobs,
             _notifier,
-            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), []),
+            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), [], Substitute.For<IDictationEngineSettingRepository>()),
             options,
             currentUser,
             TimeProvider.System,

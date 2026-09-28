@@ -106,6 +106,10 @@ internal sealed class FakeCustomModelRepository : ICustomModelRepository
             && m.DeploymentState == CustomModelDeploymentState.Completed
             && string.Equals(m.RepositoryId, repositoryId, StringComparison.OrdinalIgnoreCase)).ToList());
 
+    public Task<IReadOnlyList<CustomModel>> ListCompletedAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<CustomModel>>(Models.Where(m => !m.IsDeleted
+            && m.DeploymentState == CustomModelDeploymentState.Completed).ToList());
+
     public Task UpdateProgressAsync(Guid id, CustomModelProgress progress, CancellationToken cancellationToken = default)
     {
         var model = Find(id);

@@ -50,10 +50,55 @@ export interface VoicePreview {
   contentType: string
 }
 
+/** specs/078 — the dictation engines an administrator can choose. */
+export type DictationPrimaryEngine = 'LocalWhisper' | 'OpenAiWhisper' | 'ElevenLabsRealtime'
+export type PushToTalkEngine = 'LocalWhisper' | 'OpenAiWhisper' | 'Browser'
+
+export interface DictationEngineChoice<TEngine extends string = string> {
+  engine: TEngine
+  selectable: boolean
+  /** e.g. "OpenAI is switched off under AI providers."; `null` when selectable. */
+  unavailableReason: string | null
+}
+
+/** specs/078 — one Completed Custom Models deployment as a Local Whisper model choice. */
+export interface LocalWhisperModelOption {
+  id: string
+  label: string
+  selectable: boolean
+  reason: string | null
+}
+
+/** specs/078 contracts/admin-dictation.md — mirrors `DictationSettingsDto`. */
+export interface DictationSettings {
+  primaryEngine: DictationPrimaryEngine
+  pushToTalkEngine: PushToTalkEngine
+  state: 'Active' | 'Suspended'
+  suspension: { engine: string; atUtc: string; reason: string; browserInUse: boolean } | null
+  lastRevert: { atUtc: string; reason: string; from: string } | null
+  engines: DictationEngineChoice<DictationPrimaryEngine>[]
+  pushToTalkEngines: DictationEngineChoice<PushToTalkEngine>[]
+  localWhisper: {
+    selectedModelId: string | null
+    /** `problem` says why Local Whisper isn't serving, and that the browser built-in serves instead. */
+    effectiveModel: { label: string | null; ready: boolean; problem: string | null }
+    models: LocalWhisperModelOption[]
+  }
+  /** Sent back on every change; a stale one is refused with 409. */
+  rowVersion: string
+}
+
+export interface LocalWhisperTryResult {
+  text: string
+  elapsedMs: number
+  modelLabel: string
+}
+
 export const VOICE_QUERY_KEYS = {
   providers: ['admin', 'voice-providers'],
   engines: ['admin', 'voice-engines'],
   voices: (providerId: string) => ['admin', 'voice-provider-voices', providerId],
+  dictation: ['admin', 'voice-dictation'],
 }
 
 export const getVoiceEngines = () => apiFetch<VoiceEngine[]>('/admin/voice/engines')
@@ -80,6 +125,24 @@ export const setPrimaryVoiceProvider = (providerId: string, voiceId: string) =>
     method: 'PUT',
     body: JSON.stringify({ providerId, voiceId }),
   })
+
+export const getDictationSettings = () => apiFetch<DictationSettings>('/admin/voice/dictation')
+
+/** `null` selects no model, so Local Whisper's paths use the browser built-in. Doesn't change the primary engine. */
+export const selectLocalWhisperModel = (customModelId: string | null, rowVersion: string) =>
+  apiFetch<void>('/admin/voice/dictation/local-whisper-model', {
+    method: 'PUT',
+    body: JSON.stringify({ customModelId, rowVersion }),
+  })
+
+/** Transcribes a 16 kHz mono WAV sample on a deployment without selecting it (FR-009c). */
+export const tryLocalWhisperModel = (customModelId: string, wav: Blob, language?: string) => {
+  const form = new FormData()
+  form.append('file', new File([wav], 'sample.wav', { type: 'audio/wav' }))
+  form.append('customModelId', customModelId)
+  if (language) form.append('language', language)
+  return apiFetch<LocalWhisperTryResult>('/admin/voice/dictation/try', { method: 'POST', body: form })
+}
 
 export const previewVoice = (providerId: string, voiceId: string, text: string, language: string) =>
   apiFetch<VoicePreview>(`/admin/voice/providers/${providerId}/preview`, {

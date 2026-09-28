@@ -185,7 +185,12 @@ export function CustomModelsSection() {
             )}
             {models.map((model) => (
               <TableRow key={model.id}>
-                <TableCell>{model.name}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <span>{model.name}</span>
+                    {model.selectedForLocalWhisper && <Chip size="small" color="primary" label="Local Whisper" />}
+                  </Stack>
+                </TableCell>
                 <TableCell>
                   {model.repositoryId}@{model.revision}
                 </TableCell>
@@ -224,7 +229,11 @@ export function CustomModelsSection() {
                 <TableCell>
                   {canManage ? <CustomModelAvailabilitySwitch model={model} /> : model.availability}
                 </TableCell>
-                <TableCell>{canManage && model.canRemove && <RemoveCustomModelButton model={model} />}</TableCell>
+                <TableCell>
+                  {canManage && (model.canRemove || model.selectedForLocalWhisper) && (
+                    <RemoveCustomModelButton model={model} />
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

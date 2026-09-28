@@ -128,6 +128,9 @@ public static class DependencyInjection
         // path; the summary builder resolves submitter display names for REST and hub payloads.
         services.AddScoped<ICustomModelDeploymentJob, CustomModelDeploymentJob>();
         services.AddScoped<CustomModelSummaryBuilder>();
+
+        // specs/078 — whether a dictation engine's vendor is switched on under AI providers.
+        services.AddScoped<AskLucy.Application.Ai.Dictation.DictationVendorGate>();
         services.AddSingleton<CustomModelDeploymentRecovery>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's

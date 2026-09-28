@@ -6,6 +6,7 @@ import { setupServer } from 'msw/node'
 import { MemoryRouter } from 'react-router'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { AdminVoiceProvider, VoiceOption } from '../api/adminVoiceApi'
+import { dictationSettings } from '../components/dictationFixtures'
 import { AdminVoicePage } from './AdminVoicePage'
 
 expect.extend(toHaveNoViolations)
@@ -49,6 +50,7 @@ const server = setupServer(
   ),
   http.get('*/api/v1/admin/voice/providers', () => HttpResponse.json(providers)),
   http.get('*/api/v1/admin/voice/providers/:id/voices', () => HttpResponse.json(voices)),
+  http.get('*/api/v1/admin/voice/dictation', () => HttpResponse.json(dictationSettings())),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))

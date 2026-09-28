@@ -179,7 +179,7 @@ public sealed class CancelCustomModelDeploymentCommandHandlerTests
             _jobs,
             _cancellations,
             _notifier,
-            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), []),
+            new CustomModelSummaryBuilder(Substitute.For<IUserAdminRepository>(), [], Substitute.For<IDictationEngineSettingRepository>()),
             currentUser,
             TimeProvider.System,
             _logger);

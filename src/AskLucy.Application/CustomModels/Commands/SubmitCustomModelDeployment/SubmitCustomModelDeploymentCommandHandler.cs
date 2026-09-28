@@ -113,7 +113,7 @@ public sealed class SubmitCustomModelDeploymentCommandHandler(
         var summary = await summaries.BuildAsync(saved, cancellationToken);
         await notifier.NotifyStateChangedAsync(summary, cancellationToken: cancellationToken);
 
-        return new SubmittedCustomModelDto(summary, source.IgnoredFilePath);
+        return new SubmittedCustomModelDto(summary, source.FilePath);
     }
 
     private static ValidationException Invalid(string field, string message) =>

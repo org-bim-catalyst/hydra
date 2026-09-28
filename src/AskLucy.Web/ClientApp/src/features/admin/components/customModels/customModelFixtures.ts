@@ -31,6 +31,8 @@ export function customModel(overrides: Partial<CustomModelSummary> = {}): Custom
     startedAtUtc: '2026-09-23T10:00:05Z',
     finishedAtUtc: '2026-09-23T10:04:00Z',
     backsEngine: null,
+    sourceFilePath: null,
+    selectedForLocalWhisper: false,
     ...overrides,
   }
 }
