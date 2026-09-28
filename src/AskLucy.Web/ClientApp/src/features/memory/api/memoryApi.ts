@@ -129,27 +129,6 @@ export const getMemoryPreferences = () => apiFetch<MemoryPreferences>('/memories
 export const updateMemoryPreferences = (input: UpdateMemoryPreferencesInput) =>
   apiFetch<void>('/memories/preferences', { method: 'PUT', body: JSON.stringify(input) })
 
-/** contracts/memory-privacy-api.md — `GET /api/v1/memories/notifications` (FR-006a). */
-export interface MemoryNotification {
-  id: string
-  memoryId: string | null
-  eventType: 'AutoCreated' | 'AutoApproved' | 'ConflictNeedsConfirmation'
-  message: string
-  createdAtUtc: string
-  readAtUtc: string | null
-}
-
-export interface MemoryNotificationsResult {
-  items: MemoryNotification[]
-  nextCursor: string | null
-}
-
-export const listMemoryNotifications = (cursor?: string, pageSize = 20) =>
-  apiFetch<MemoryNotificationsResult>(`/memories/notifications${toQueryString({ cursor, pageSize })}`)
-
-export const markNotificationRead = (id: string) =>
-  apiFetch<void>(`/memories/notifications/${id}/actions/mark-read`, { method: 'POST' })
-
 /** contracts/memory-privacy-api.md — `POST /api/v1/memories/actions/clear-all` (FR-023). Irreversible; requires explicit confirmation. */
 export const clearAllMemories = () => apiFetch<void>('/memories/actions/clear-all', { method: 'POST', body: JSON.stringify({ confirm: true }) })
 

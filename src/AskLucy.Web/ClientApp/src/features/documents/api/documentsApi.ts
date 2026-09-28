@@ -417,38 +417,6 @@ export function getOrganizationDashboard(): Promise<DocumentDashboardSummary> {
   return apiFetch('/documents/dashboard/organization')
 }
 
-export type DocumentNotificationEventType =
-  | 'UploadCompleted'
-  | 'ProcessingCompleted'
-  | 'ProcessingFailed'
-  | 'OcrFailed'
-  | 'VersionCreated'
-  | 'StorageLimitReached'
-
-export interface DocumentNotificationDto {
-  id: string
-  documentId: string | null
-  eventType: DocumentNotificationEventType
-  message: string
-  isRead: boolean
-  createdAtUtc: string
-}
-
-export interface DocumentNotificationPage {
-  items: DocumentNotificationDto[]
-  nextCursor: string | null
-}
-
-export function getNotifications(unreadOnly = false, cursor: string | null = null, pageSize = 50): Promise<DocumentNotificationPage> {
-  const params = new URLSearchParams({ unreadOnly: String(unreadOnly), pageSize: String(pageSize) })
-  if (cursor) params.set('cursor', cursor)
-  return apiFetch(`/documents/notifications?${params.toString()}`)
-}
-
-export function markNotificationRead(id: string): Promise<void> {
-  return apiFetch(`/documents/notifications/${id}/actions/mark-read`, { method: 'POST' })
-}
-
 export type DocumentPreviewKind = 'PageImage' | 'Thumbnail' | 'StructuredContent' | 'Unavailable'
 
 export interface DocumentPreview {

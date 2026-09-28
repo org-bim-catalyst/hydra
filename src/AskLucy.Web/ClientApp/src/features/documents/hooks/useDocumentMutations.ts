@@ -137,11 +137,3 @@ export function useRestoreDocumentVersion() {
     onSuccess: invalidate,
   })
 }
-
-export function useMarkNotificationRead() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => documentsApi.markNotificationRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, 'notifications'] }),
-  })
-}

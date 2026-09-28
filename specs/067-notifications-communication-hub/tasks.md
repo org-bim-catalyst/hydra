@@ -561,14 +561,16 @@ These apply to every task below, and each one assumes them:
   - Keep the entities, configurations and tables. Two-step drop, §5: the drop happens in the follow-up release. The actual `DropLegacyDocumentAndMemoryNotifications` migration was not created this slice, per plan.
 - [X] T099 [US9] Update `src/AskLucy.Application/Users/Commands/DeleteMyAccount/DeleteMyAccountCommandHandler.cs` to delete the user's hub notifications (a new `INotificationRepository.DeleteAllForUserAsync`, set-based) as well as the legacy rows.
   - Note: also required adding `DeleteAllForUserAsync` to the `FakeUnitOfWork` test double in `tests/AskLucy.Application.Tests/Notifications/OutboxDispatchServiceTests.cs`, a third `INotificationRepository` implementer not touched by the primary edit — CS0535 surfaced only when running the full `Application.Tests` suite, not a targeted build.
-- [ ] T100 [P] [US9] Remove the legacy document inbox from the frontend:
+- [X] T100 [P] [US9] Remove the legacy document inbox from the frontend:
   - delete `ClientApp/src/features/documents/components/NotificationInbox.tsx` and `ClientApp/src/features/documents/hooks/useNotificationHub.ts`;
   - strip the notification parts from `documentsApi.ts`, `useDocuments.ts`, `useDocumentMutations.ts` and `DocumentWorkspacePage.tsx`;
   - update their tests and MSW handlers.
-- [ ] T101 [P] [US9] Remove the legacy memory inbox from the frontend:
+  - Note: also deleted `useNotificationHub.test.tsx` (test for the deleted hook) and the `latestNotification` snackbar/`isNotificationHubLive` connection Chip in `DocumentWorkspacePage.tsx` — both depended on the deleted hook, whose backend push (`notificationCreated` on `DocumentProcessingHub`) was already retired in T082; the global `AppShell` → `NotificationBell` (`features/notifications`) already covers this page. No MSW handler mocked the legacy `/documents/notifications` endpoint, and `DocumentWorkspacePage.test.tsx` didn't reference it, so neither needed updating.
+- [X] T101 [P] [US9] Remove the legacy memory inbox from the frontend:
   - delete `ClientApp/src/features/memory/components/MemoryNotificationList.tsx` and `ClientApp/src/features/memory/hooks/useMemoryNotificationsHub.ts`;
   - strip the notification parts from `memoryApi.ts`, `useMemories.ts`, `useMemoryMutations.ts` and `MemoryCenterPage.tsx`;
   - update their tests and MSW handlers.
+  - Note: also deleted `useMemoryNotificationsHub.test.tsx` and removed the whole "Notifications" tab (`MemoryCenterTab` union, `Tab`, and content branch) plus the `isMemoryHubLive` connection Chip from `MemoryCenterPage.tsx`, since its only content was the now-deleted `MemoryNotificationList`. Same backend precedent as T100 (`memoryNotificationCreated` push already retired). No MSW handler or test referenced the legacy endpoints.
 - [ ] T102 [US9] Slice 1 gate: run the full backend suite and the full frontend suite (`tsc -b`, lint, `npm test`), then walk through quickstart S1, S2 and S10.
 
 **Checkpoint**: Slice 1 (US1 + US2 + US9-A) is deployable. Commit and push to main, then run quickstart S10 against production.

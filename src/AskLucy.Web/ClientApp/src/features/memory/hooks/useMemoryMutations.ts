@@ -52,14 +52,6 @@ export function useUpdateMemoryPreferences() {
   })
 }
 
-export function useMarkNotificationRead() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => memoryApi.markNotificationRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...MEMORIES_QUERY_KEY, 'notifications'] }),
-  })
-}
-
 /** spec.md FR-023, User Story 4 AC2 — irreversible; the caller is expected to have already gated this behind an explicit confirmation dialog. */
 export function useClearAllMemories() {
   const queryClient = useQueryClient()

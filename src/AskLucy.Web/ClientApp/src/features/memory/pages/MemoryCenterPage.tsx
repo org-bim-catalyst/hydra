@@ -1,5 +1,5 @@
 import SearchIcon from '@mui/icons-material/Search'
-import { Alert, Chip, InputAdornment, MenuItem, Snackbar, Stack, Tab, Tabs, TextField } from '@mui/material'
+import { Alert, InputAdornment, MenuItem, Snackbar, Stack, Tab, Tabs, TextField } from '@mui/material'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
@@ -8,12 +8,10 @@ import type { MemoryCategory, MemoryDetail, MemoryLifecycleState, MemoryListItem
 import { MemoryApprovalQueue } from '../components/MemoryApprovalQueue'
 import { MemoryEditDialog } from '../components/MemoryEditDialog'
 import { MemoryList } from '../components/MemoryList'
-import { MemoryNotificationList } from '../components/MemoryNotificationList'
 import { MemoryPreferencesPanel } from '../components/MemoryPreferencesPanel'
 import { ProjectManagementPanel } from '../components/ProjectManagementPanel'
 import { useMemories, useMemory } from '../hooks/useMemories'
 import { useDeleteMemory, useEditMemory } from '../hooks/useMemoryMutations'
-import { useMemoryNotificationsHub } from '../hooks/useMemoryNotificationsHub'
 import { useMemoryCenterStore } from '../store/memoryCenterStore'
 
 /** `MemoryEditDialog` only reads `.content` off its `memory` prop, but its prop type is the list-shaped `MemoryListItem`; `MemoryDetail` (from `useMemory`) lacks `projectName`/`sourceType`/`sourceConversationId`/`createdAtUtc`/`lastReinforcedAtUtc`, none of which the dialog renders, so this adapter fills them with placeholders. */
@@ -41,23 +39,20 @@ const STATE_OPTIONS: { value: MemoryLifecycleState; label: string }[] = [
   { value: 'Archived', label: 'Archived' },
 ]
 
-type MemoryCenterTab = 'all' | 'approvals' | 'preferences' | 'notifications' | 'projects'
+type MemoryCenterTab = 'all' | 'approvals' | 'preferences' | 'projects'
 
 /**
  * The Memory Center (spec.md FR-017–FR-025, User Stories 2/3) — every memory Lucy has stored,
  * searchable/filterable, editable (with history), and deletable (quickstart.md Scenario 2),
- * plus the approval queue, per-category preferences, and notification feed (User Story 3).
+ * plus the approval queue and per-category preferences. The legacy in-page notification feed
+ * (User Story 3) was retired in favor of the global notification hub (specs/067 US9-A) —
+ * `AppShell`'s `NotificationBell` now covers memory events too.
  * Uses the shared `ConfirmDialog` for delete confirmation rather than a bespoke dialog
  * (constitution §7 — a delete confirmation is exactly this component's existing purpose).
  */
 export function MemoryCenterPage() {
   const { query, category, state, setQuery, setCategory, setState } = useMemoryCenterStore()
   const [tab, setTab] = useState<MemoryCenterTab>('all')
-
-  // Established once per page visit (mirrors DocumentWorkspacePage's useNotificationHub usage) —
-  // the poll fallback (useMemoryNotifications inside MemoryNotificationList) covers anything
-  // missed while this connection was down or the tab wasn't mounted at all.
-  const { isLive: isMemoryHubLive } = useMemoryNotificationsHub()
 
   // specs/067 T092 — a notification's deep link (?memoryId=) opens that memory's edit dialog
   // directly, without requiring it to be present in the current filtered/paged list.
@@ -114,23 +109,11 @@ export function MemoryCenterPage() {
     <AppShell
       title="Memory Center"
       subtitle="Everything Lucy remembers about you — review, edit, or delete any of it."
-      actions={
-        // specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
-        // ExecutionMonitor already uses for useWorkflowExecutionHub's isLive.
-        <Chip
-          label={isMemoryHubLive ? 'Live' : 'Reconnecting…'}
-          size="small"
-          variant="outlined"
-          color={isMemoryHubLive ? 'success' : 'default'}
-          data-testid="memory-hub-connection-status"
-        />
-      }
     >
       <Tabs value={tab} onChange={(_e, value: MemoryCenterTab) => setTab(value)} sx={{ mb: 3 }}>
         <Tab value="all" label="All memories" />
         <Tab value="approvals" label="Approval queue" />
         <Tab value="preferences" label="Preferences" />
-        <Tab value="notifications" label="Notifications" />
         <Tab value="projects" label="Projects" />
       </Tabs>
 
@@ -212,7 +195,6 @@ export function MemoryCenterPage() {
 
       {tab === 'approvals' && <MemoryApprovalQueue />}
       {tab === 'preferences' && <MemoryPreferencesPanel />}
-      {tab === 'notifications' && <MemoryNotificationList />}
       {tab === 'projects' && <ProjectManagementPanel />}
 
       <MemoryEditDialog

@@ -42,15 +42,6 @@ export function useMemoryPreferences() {
   })
 }
 
-/** FR-006a — the poll fallback for anything missed while `useMemoryNotificationsHub`'s SignalR connection was down (same reconciliation principle as the document-processing notification hub). */
-export function useMemoryNotifications() {
-  return useQuery({
-    queryKey: [...MEMORIES_QUERY_KEY, 'notifications'],
-    queryFn: () => memoryApi.listMemoryNotifications(),
-    refetchInterval: 30_000,
-  })
-}
-
 /** spec.md FR-024, User Story 4 AC3 — polls until the background export job leaves `Processing` (a signed `downloadUrl` accompanies `Ready`). */
 export function useMemoryExportStatus(exportJobId: string | null) {
   return useQuery({

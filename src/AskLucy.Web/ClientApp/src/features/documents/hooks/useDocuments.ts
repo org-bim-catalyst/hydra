@@ -86,13 +86,6 @@ export function useOrganizationDashboard(enabled: boolean) {
   })
 }
 
-export function useNotifications(unreadOnly = false) {
-  return useQuery({
-    queryKey: [...DOCUMENTS_QUERY_KEY, 'notifications', unreadOnly],
-    queryFn: () => documentsApi.getNotifications(unreadOnly),
-  })
-}
-
 /** FR-043, FR-044 — the query handler itself returns `Unavailable` (never an error) for a document that hasn't reached the preview-generation stage yet. */
 export function useDocumentPreview(documentId: string | null) {
   return useQuery({

@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, Container, Snackbar, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Container, Snackbar, Tab, Tabs, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
@@ -7,12 +7,10 @@ import { DocumentCard } from '../components/DocumentCard'
 import { DocumentDetailPanel } from '../components/DocumentDetailPanel'
 import { DocumentFilterBar } from '../components/DocumentFilterBar'
 import { DocumentFolderTree } from '../components/DocumentFolderTree'
-import { NotificationInbox } from '../components/NotificationInbox'
 import { OrganizationDashboard } from '../components/OrganizationDashboard'
 import { ProcessingDashboard } from '../components/ProcessingDashboard'
 import { UploadPanel } from '../components/UploadPanel'
 import { useDashboard, useDocument, useDocuments, useOrganizationDashboard } from '../hooks/useDocuments'
-import { useNotificationHub } from '../hooks/useNotificationHub'
 import type { DocumentListView, DocumentSearchFilters, DocumentSummary } from '../api/documentsApi'
 
 /** The Document Intelligence Pipeline workspace (US1 upload/manage; US2 live processing status; US4 folders/search; US6 dashboard and notifications). */
@@ -26,7 +24,6 @@ export function DocumentWorkspacePage() {
   const isAdmin = useIsAdmin()
   const dashboard = useDashboard()
   const organizationDashboard = useOrganizationDashboard(isAdmin)
-  const { latest: latestNotification, dismiss: dismissNotification, isLive: isNotificationHubLive } = useNotificationHub()
 
   // specs/067 T092 — a notification's deep link (?documentId=) opens that document's detail
   // panel directly, without requiring it to be present in the current filtered/paged list.
@@ -44,20 +41,6 @@ export function DocumentWorkspacePage() {
     <AppShell
       title="Documents"
       subtitle="Upload, process, and manage your documents"
-      actions={
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          {/* specs/029-fix-chat-widget-bugs FR-010/analysis finding C1 — same Chip treatment
-              ExecutionMonitor already uses for useWorkflowExecutionHub's isLive. */}
-          <Chip
-            label={isNotificationHubLive ? 'Live' : 'Reconnecting…'}
-            size="small"
-            variant="outlined"
-            color={isNotificationHubLive ? 'success' : 'default'}
-            data-testid="notification-hub-connection-status"
-          />
-          <NotificationInbox />
-        </Stack>
-      }
     >
       <Container maxWidth="lg" disableGutters>
         <Box sx={{ mb: 3 }}>
@@ -156,16 +139,6 @@ export function DocumentWorkspacePage() {
         >
           <Alert severity="warning" variant="filled">
             This document is no longer available.
-          </Alert>
-        </Snackbar>
-
-        <Snackbar
-          open={Boolean(latestNotification)}
-          autoHideDuration={6000}
-          onClose={dismissNotification}
-        >
-          <Alert severity="info" variant="filled" onClose={dismissNotification}>
-            {latestNotification?.message}
           </Alert>
         </Snackbar>
       </Container>
