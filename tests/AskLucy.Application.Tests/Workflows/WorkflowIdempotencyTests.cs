@@ -9,6 +9,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -54,7 +55,7 @@ public sealed class WorkflowIdempotencyTests
     private WorkflowExecutionOrchestrator CreateOrchestrator(WorkflowNodeExecutorRegistry registry, AgentToolCatalog toolCatalog) => new(
         _executionRepository, _workflowRepository, registry, _expressionEvaluator, _budgetGuard,
         new WorkflowPolicyEvaluator(_policyRepository), toolCatalog, WorkflowOrchestratorTestHelpers.NoOpNotifier(),
-        WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     /// <summary>Start → loopBody (NativeTool, mutating) → [loop-back / end], bounded at 2 iterations.</summary>
     private (WorkflowExecution Execution, WorkflowVersion Version, AgentToolCatalog ToolCatalog) SetUpMutatingLoopWorkflow(string? idempotencyKeyExpression)

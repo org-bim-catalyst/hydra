@@ -7,6 +7,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -37,7 +38,7 @@ public sealed class WorkflowExecutionRunnerJobTests
         _executionRepository, _workflowRepository, registry, _expressionEvaluator,
         new WorkflowBudgetGuard(Microsoft.Extensions.Options.Options.Create(new WorkflowRuntimeOptions())),
         new WorkflowPolicyEvaluator(_policyRepository), new AgentToolCatalog([], EmptyMcpToolRegistry()),
-        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     private static WorkflowNodeSpec Node(string key, WorkflowNodeType type, string configurationJson = "{}") => new(
         key, type, key, null, "{}", "{}", configurationJson, "[]", null, null, WorkflowNodeApprovalPolicy.NeverRequire, null, null, 0, 0);

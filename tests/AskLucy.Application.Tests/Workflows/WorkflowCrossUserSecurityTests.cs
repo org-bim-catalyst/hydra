@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Workflows.Commands.CancelWorkflowExecution;
 using AskLucy.Application.Workflows.Commands.PauseWorkflowExecution;
 using AskLucy.Application.Workflows.Queries.GetWorkflowExecution;
@@ -106,7 +107,7 @@ public sealed class WorkflowCrossUserSecurityTests
         var currentUser = Substitute.For<ICurrentUserAccessor>();
         currentUser.UserId.Returns(AttackerId);
 
-        var handler = new PauseWorkflowExecutionCommandHandler(executionRepository, notifier, unitOfWork, currentUser);
+        var handler = new PauseWorkflowExecutionCommandHandler(executionRepository, Substitute.For<IWorkflowRepository>(), notifier, Substitute.For<INotificationPublisher>(), unitOfWork, currentUser);
         var act = () => handler.Handle(new PauseWorkflowExecutionCommand(executionId), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();

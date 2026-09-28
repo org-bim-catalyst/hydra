@@ -6,6 +6,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -25,7 +26,7 @@ public sealed class WorkflowExecutionOrchestratorTests
         key, type, key, null, "{}", "{}", configurationJson, "[]", null, null, WorkflowNodeApprovalPolicy.NeverRequire, null, null, 0, 0);
 
     private WorkflowExecutionOrchestrator CreateOrchestrator(WorkflowNodeExecutorRegistry registry) =>
-        new(_executionRepository, _workflowRepository, registry, _expressionEvaluator, _budgetGuard, _policyEvaluator, _toolCatalog, WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        new(_executionRepository, _workflowRepository, registry, _expressionEvaluator, _budgetGuard, _policyEvaluator, _toolCatalog, WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     private static WorkflowNodeExecutorRegistry RegistryWithTransform(IWorkflowExpressionEvaluator evaluator) =>
         new([new TransformNodeExecutor(evaluator)]);

@@ -9,6 +9,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -49,7 +50,7 @@ public sealed class WorkflowRetryPolicyTests
     private WorkflowExecutionOrchestrator CreateOrchestrator(WorkflowNodeExecutorRegistry registry, AgentToolCatalog? toolCatalog = null) => new(
         _executionRepository, _workflowRepository, registry, _expressionEvaluator, _budgetGuard,
         new WorkflowPolicyEvaluator(_policyRepository), toolCatalog ?? new AgentToolCatalog([], WorkflowOrchestratorTestHelpers.EmptyMcpToolRegistry()),
-        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     private static WorkflowNodeSpec Node(string key, WorkflowNodeType type, string configurationJson = "{}", string? retryPolicyJson = null, string? idempotencyKeyExpression = null) => new(
         key, type, key, null, "{}", "{}", configurationJson, "[]", null, retryPolicyJson, WorkflowNodeApprovalPolicy.NeverRequire, idempotencyKeyExpression, null, 0, 0);

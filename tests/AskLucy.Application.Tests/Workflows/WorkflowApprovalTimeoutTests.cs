@@ -7,6 +7,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -39,7 +40,7 @@ public sealed class WorkflowApprovalTimeoutTests
     private WorkflowExecutionOrchestrator CreateOrchestrator() => new(
         _executionRepository, _workflowRepository, new WorkflowNodeExecutorRegistry([]), _expressionEvaluator, _budgetGuard,
         new WorkflowPolicyEvaluator(_policyRepository), new AgentToolCatalog([], EmptyMcpToolRegistry()),
-        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     /// <summary>Start → HumanApproval (with the given timeout) → End.</summary>
     private (WorkflowExecution Execution, WorkflowVersion Version) SetUpWorkflow(int? timeoutSeconds)

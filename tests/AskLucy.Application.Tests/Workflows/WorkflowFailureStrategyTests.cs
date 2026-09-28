@@ -8,6 +8,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -64,7 +65,7 @@ public sealed class WorkflowFailureStrategyTests
     private WorkflowExecutionOrchestrator CreateOrchestrator(WorkflowNodeExecutorRegistry registry) => new(
         _executionRepository, _workflowRepository, registry, _expressionEvaluator, _budgetGuard,
         new WorkflowPolicyEvaluator(_policyRepository), new AgentToolCatalog([], WorkflowOrchestratorTestHelpers.EmptyMcpToolRegistry()),
-        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     private static WorkflowNodeSpec Node(string key, WorkflowNodeType type, string? retryPolicyJson = null, string? compensatingNodeKey = null) => new(
         key, type, key, null, "{}", "{}", "{}", "[]", null, retryPolicyJson, WorkflowNodeApprovalPolicy.NeverRequire, null, compensatingNodeKey, 0, 0);

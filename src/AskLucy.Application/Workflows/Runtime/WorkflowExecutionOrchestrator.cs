@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Notifications;
 using AskLucy.Domain.Workflows;
 
 namespace AskLucy.Application.Workflows.Runtime;
@@ -110,6 +113,7 @@ public sealed class WorkflowExecutionOrchestrator(
     AgentToolCatalog toolCatalog,
     IWorkflowExecutionNotifier notifier,
     IWorkflowAuditLogRepository auditLogRepository,
+    INotificationPublisher notificationPublisher,
     IUnitOfWork unitOfWork)
 {
     private sealed record ParallelExecutionOutcome(bool Succeeded, WorkflowNode? MergeNode, string? FailureReason);
@@ -124,10 +128,35 @@ public sealed class WorkflowExecutionOrchestrator(
             return; // Already terminal — a defensive guard against a duplicate/racing enqueue.
         }
 
+        // T087 — the parent Workflow isn't otherwise needed by this runtime (only its published
+        // WorkflowVersion is), so it's fetched solely to name workflow.execution.* notifications.
+        // Declared/defaulted here so a failure notification published before the lookup below runs
+        // (or from the catch block) still has a usable value, mirroring
+        // AgentExecutionOrchestrator's identical fallback.
+        var workflowName = "your workflow";
+
+        // Captures `execution`/`workflowName` by closure — safe because this local function is only
+        // ever invoked synchronously from within this same RunAsync call, never from inside
+        // ExecuteParallelAsync's concurrent branch dispatch (constitution: never publish from
+        // Parallel-branch code, which shares one DbContext).
+        void PublishWorkflowFailed() => notificationPublisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.WorkflowExecutionFailed,
+            new NotificationRecipient.User(execution.RunByUserId),
+            new Dictionary<string, string?>
+            {
+                ["workflowName"] = workflowName,
+                ["failureSummary"] = execution.TerminationReason ?? "The execution failed.",
+            },
+            new RelatedItem("WorkflowExecution", execution.Id.ToString(), execution.WorkflowId.ToString()),
+            EventKey: $"workflow-execution:{execution.Id}:failed"));
+
         try
         {
             var version = await workflowRepository.GetVersionByIdAsync(execution.WorkflowVersionId, cancellationToken)
                 ?? throw new InvalidOperationException("The workflow version this execution ran under no longer exists.");
+
+            var workflow = await workflowRepository.GetByIdAsync(execution.WorkflowId, cancellationToken);
+            workflowName = workflow?.Name ?? "your workflow";
 
             var isResuming = execution.Nodes.Count > 0;
 
@@ -190,6 +219,7 @@ public sealed class WorkflowExecutionOrchestrator(
                             var timeoutError = execution.RecordError(
                                 WorkflowErrorCategory.Timeout, $"Node '{timedOutNode.NodeKey}' timed out waiting for approval after {timeoutSeconds}s.", waitingNode.Id, retryCount: 0);
                             execution.Fail(timeoutError.Message);
+                            PublishWorkflowFailed();
                             execution.RecordEvent(WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null);
                             await unitOfWork.SaveChangesAsync(cancellationToken);
                         }
@@ -232,6 +262,16 @@ public sealed class WorkflowExecutionOrchestrator(
             // invocation turns out to just be re-observing a still-Pending, not-yet-timed-out
             // approval and returns without doing anything, leaving the execution stuck showing
             // Running instead of its true WaitingForApproval state.
+            if (!isResuming)
+            {
+                notificationPublisher.Publish(new NotificationRequest(
+                    NotificationTypeKeys.WorkflowExecutionStarted,
+                    new NotificationRecipient.User(execution.RunByUserId),
+                    new Dictionary<string, string?> { ["workflowName"] = workflowName },
+                    new RelatedItem("WorkflowExecution", execution.Id.ToString(), execution.WorkflowId.ToString()),
+                    EventKey: $"workflow-execution:{execution.Id}:started"));
+            }
+
             execution.Start();
             await unitOfWork.SaveChangesAsync(cancellationToken);
             if (!isResuming)
@@ -283,6 +323,7 @@ public sealed class WorkflowExecutionOrchestrator(
                 {
                     execution.RecordError(WorkflowErrorCategory.BudgetExceeded, budgetCheck.Reason!, workflowExecutionNodeId: null, retryCount: 0);
                     execution.Fail(budgetCheck.Reason!);
+                    PublishWorkflowFailed();
                     await RecordAndNotifyAsync(
                         execution, WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null,
                         () => notifier.NotifyWorkflowFailedAsync(execution.RunByUserId, execution.Id, execution.TerminationReason ?? "The execution failed.", DateTime.UtcNow, cancellationToken),
@@ -303,6 +344,7 @@ public sealed class WorkflowExecutionOrchestrator(
                         {
                             var error = execution.RecordError(WorkflowErrorCategory.BudgetExceeded, loopCheck.Reason!, workflowExecutionNodeId: null, retryCount: 0);
                             execution.Fail(error.Message);
+                            PublishWorkflowFailed();
                             await RecordAndNotifyAsync(
                                 execution, WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null,
                                 () => notifier.NotifyWorkflowFailedAsync(execution.RunByUserId, execution.Id, execution.TerminationReason ?? "The execution failed.", DateTime.UtcNow, cancellationToken),
@@ -336,6 +378,7 @@ public sealed class WorkflowExecutionOrchestrator(
                     {
                         var error = execution.RecordError(WorkflowErrorCategory.NodeExecutionFailure, parallelOutcome.FailureReason ?? "The Parallel node did not complete successfully.", workflowExecutionNodeId: null, retryCount: 0);
                         execution.Fail(error.Message);
+                        PublishWorkflowFailed();
                         await RecordAndNotifyAsync(
                             execution, WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null,
                             () => notifier.NotifyWorkflowFailedAsync(execution.RunByUserId, execution.Id, execution.TerminationReason ?? "The execution failed.", DateTime.UtcNow, cancellationToken),
@@ -356,6 +399,7 @@ public sealed class WorkflowExecutionOrchestrator(
                     {
                         await RunCompensationsAsync(execution, nodesById, resolvedValues, cancellationToken);
                         execution.Fail($"Node '{current.NodeKey}' failed: {error.Message}");
+                        PublishWorkflowFailed();
                         await RecordAndNotifyAsync(
                             execution, WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null,
                             () => notifier.NotifyWorkflowFailedAsync(execution.RunByUserId, execution.Id, execution.TerminationReason ?? "The execution failed.", DateTime.UtcNow, cancellationToken),
@@ -388,6 +432,7 @@ public sealed class WorkflowExecutionOrchestrator(
 
                     // Stop (default) and any unrecognized strategy.
                     execution.Fail($"Node '{current.NodeKey}' failed: {error.Message}");
+                    PublishWorkflowFailed();
                     await RecordAndNotifyAsync(
                         execution, WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null,
                         () => notifier.NotifyWorkflowFailedAsync(execution.RunByUserId, execution.Id, execution.TerminationReason ?? "The execution failed.", DateTime.UtcNow, cancellationToken),
@@ -415,6 +460,7 @@ public sealed class WorkflowExecutionOrchestrator(
                     {
                         var error = execution.RecordError(WorkflowErrorCategory.NodeExecutionFailure, $"Condition node '{current.NodeKey}' has no outgoing connection labeled '{chosenLabel}'.", workflowExecutionNodeId: null, retryCount: 0);
                         execution.Fail(error.Message);
+                        PublishWorkflowFailed();
                         await RecordAndNotifyAsync(
                             execution, WorkflowExecutionEventType.WorkflowFailed, workflowNodeId: null, "Failed", null,
                             () => notifier.NotifyWorkflowFailedAsync(execution.RunByUserId, execution.Id, execution.TerminationReason ?? "The execution failed.", DateTime.UtcNow, cancellationToken),
@@ -456,6 +502,17 @@ public sealed class WorkflowExecutionOrchestrator(
             execution.SetVariables(WorkflowResolvedValues.ToInputDocument(resolvedValues).RootElement.GetRawText());
             execution.Complete(finalOutputJson);
             auditLogRepository.Add(WorkflowAuditLog.Create(execution.WorkflowId, execution.Id, execution.RunByUserId, WorkflowAuditAction.ExecutionCompleted, "{}"));
+            var duration = execution.StartedAtUtc is { } startedAt ? (DateTime.UtcNow - startedAt) : (TimeSpan?)null;
+            notificationPublisher.Publish(new NotificationRequest(
+                NotificationTypeKeys.WorkflowExecutionCompleted,
+                new NotificationRecipient.User(execution.RunByUserId),
+                new Dictionary<string, string?>
+                {
+                    ["workflowName"] = workflowName,
+                    ["duration"] = duration is { } d ? FormatDuration(d) : "—",
+                },
+                new RelatedItem("WorkflowExecution", execution.Id.ToString(), execution.WorkflowId.ToString()),
+                EventKey: $"workflow-execution:{execution.Id}:completed"));
             await RecordAndNotifyAsync(
                 execution, WorkflowExecutionEventType.WorkflowCompleted, workflowNodeId: null, "Completed", null,
                 () => notifier.NotifyWorkflowCompletedAsync(execution.RunByUserId, execution.Id, DateTime.UtcNow, cancellationToken),
@@ -465,6 +522,7 @@ public sealed class WorkflowExecutionOrchestrator(
         {
             execution.RecordError(CategorizeFailure(ex), SafeFailureMessage(ex), workflowExecutionNodeId: null, retryCount: 0);
             execution.Fail(SafeFailureMessage(ex));
+            PublishWorkflowFailed();
             auditLogRepository.Add(WorkflowAuditLog.Create(execution.WorkflowId, execution.Id, execution.RunByUserId, WorkflowAuditAction.ExecutionFailed, "{}"));
             if (ex is KeyNotFoundException)
             {
@@ -1079,6 +1137,11 @@ public sealed class WorkflowExecutionOrchestrator(
 
         return WorkflowNodeExecutionResult.Success(WorkflowResolvedValues.ToInputDocument(outputs));
     }
+
+    /// <summary>T087 — human-readable duration for the <c>workflow.execution.completed</c> notification's <c>duration</c> variable.</summary>
+    private static string FormatDuration(TimeSpan duration) => duration.TotalMinutes >= 1
+        ? $"{(int)duration.TotalMinutes}m {duration.Seconds}s"
+        : $"{duration.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s";
 
     private static WorkflowErrorCategory CategorizeFailure(Exception ex) => ex switch
     {

@@ -8,6 +8,7 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
+using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 
@@ -38,7 +39,7 @@ public sealed class ParallelExecutionTests
         _executionRepository, _workflowRepository, registry, _expressionEvaluator,
         new WorkflowBudgetGuard(Microsoft.Extensions.Options.Options.Create(new WorkflowRuntimeOptions { DefaultMaxParallelNodes = maxParallelNodesDefault ?? 10 })),
         _policyEvaluator, _toolCatalog,
-        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), _unitOfWork);
+        WorkflowOrchestratorTestHelpers.NoOpNotifier(), WorkflowOrchestratorTestHelpers.NoOpAuditLogRepository(), WorkflowOrchestratorTestHelpers.NoOpNotificationPublisher(), _unitOfWork);
 
     /// <summary>Start → Parallel → [rag, memory, doc] → Merge → End. Branch node types stand in for the real capability nodes — behavior is entirely config/executor-driven, never type-instance-specific.</summary>
     private (WorkflowExecution Execution, WorkflowVersion Version) SetUpParallelWorkflow(string mergeConfigurationJson, string executionPolicyJson = "{}")

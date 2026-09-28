@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Notifications.Abstractions;
 using NSubstitute;
 
 namespace AskLucy.Application.Tests.Workflows;
@@ -19,4 +20,7 @@ internal static class WorkflowOrchestratorTestHelpers
 
     /// <summary>A no-op <see cref="IWorkflowAuditLogRepository"/> for tests that don't assert on audit-log writes.</summary>
     public static IWorkflowAuditLogRepository NoOpAuditLogRepository() => Substitute.For<IWorkflowAuditLogRepository>();
+
+    /// <summary>T087 — a no-op <see cref="INotificationPublisher"/> for tests that don't assert on notification emission.</summary>
+    public static INotificationPublisher NoOpNotificationPublisher() => Substitute.For<INotificationPublisher>();
 }

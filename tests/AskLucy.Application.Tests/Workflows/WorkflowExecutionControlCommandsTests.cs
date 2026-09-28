@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Workflows.Commands.CancelWorkflowExecution;
 using AskLucy.Application.Workflows.Commands.PauseWorkflowExecution;
 using AskLucy.Application.Workflows.Commands.ResumeWorkflowExecution;
@@ -35,7 +36,7 @@ public sealed class WorkflowExecutionControlCommandsTests
         var currentUser = Substitute.For<ICurrentUserAccessor>();
         currentUser.UserId.Returns(OwnerId);
 
-        var handler = new PauseWorkflowExecutionCommandHandler(executionRepository, notifier, unitOfWork, currentUser);
+        var handler = new PauseWorkflowExecutionCommandHandler(executionRepository, Substitute.For<IWorkflowRepository>(), notifier, Substitute.For<INotificationPublisher>(), unitOfWork, currentUser);
         await handler.Handle(new PauseWorkflowExecutionCommand(execution.Id), CancellationToken.None);
 
         execution.Status.Should().Be(WorkflowExecutionStatus.Paused);
@@ -55,7 +56,7 @@ public sealed class WorkflowExecutionControlCommandsTests
         var currentUser = Substitute.For<ICurrentUserAccessor>();
         currentUser.UserId.Returns(OwnerId);
 
-        var handler = new PauseWorkflowExecutionCommandHandler(executionRepository, notifier, unitOfWork, currentUser);
+        var handler = new PauseWorkflowExecutionCommandHandler(executionRepository, Substitute.For<IWorkflowRepository>(), notifier, Substitute.For<INotificationPublisher>(), unitOfWork, currentUser);
         await handler.Handle(new PauseWorkflowExecutionCommand(execution.Id), CancellationToken.None);
 
         execution.Status.Should().Be(WorkflowExecutionStatus.Completed);
