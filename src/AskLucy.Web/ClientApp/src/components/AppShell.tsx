@@ -5,11 +5,23 @@ import { BrandMark } from './BrandMark'
 import { UserMenu } from './UserMenu'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
+import { NotificationBell } from '../features/notifications/components/NotificationBell'
+import { useNotificationHub } from '../features/notifications/hooks/useNotificationHub'
 import { isFromLanding, VIEW_LANDING_STATE } from '../routes/viewLandingState'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { createGlassTokens } from '../theme/tokens/glass'
 import { zIndex } from '../theme/tokens/zIndex'
+
+/**
+ * T073 — mounts the hub connection only once the header is actually showing an authenticated
+ * user, so pre-login-reachable pages (e.g. `PrivacyPage`) never open a SignalR connection that
+ * would just hit a 401.
+ */
+function AuthenticatedNotifications() {
+  useNotificationHub()
+  return <NotificationBell />
+}
 
 interface AppShellProps {
   children: ReactNode
@@ -98,7 +110,10 @@ export function AppShell({ children, title, subtitle, actions, fillViewport = fa
             {isDark ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
           </IconButton>
           {isAuthenticated ? (
-            <UserMenu />
+            <>
+              <AuthenticatedNotifications />
+              <UserMenu />
+            </>
           ) : (
             <Button component={RouterLink} to="/login" size="small">
               Sign in

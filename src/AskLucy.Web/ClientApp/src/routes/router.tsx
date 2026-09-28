@@ -122,6 +122,9 @@ const WorkflowExecutionPage = lazy(() =>
 const WorkflowPoliciesAdminPage = lazy(() =>
   import('../features/workflows/pages/WorkflowPoliciesAdminPage').then((m) => ({ default: m.WorkflowPoliciesAdminPage })),
 )
+const NotificationsPage = lazy(() =>
+  import('../features/notifications/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+)
 
 // Each route mounts a fresh <Lazy> instance, so Fade's default `in`-from-mount behavior
 // gives every route a consistent, theme-timed fade-in (FR-010/SC-007) — no per-route
@@ -401,6 +404,28 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <Lazy>
           <WorkflowExecutionPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/notifications',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <NotificationsPage />
+        </Lazy>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/notifications/:id',
+    element: (
+      <ProtectedRoute>
+        <Lazy>
+          <NotificationsPage />
         </Lazy>
       </ProtectedRoute>
     ),
