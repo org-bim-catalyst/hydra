@@ -17,7 +17,8 @@ public sealed class TranscribeDictationClipCommandHandler(
     ILocalWhisperModelCatalog catalog,
     IEnumerable<IDictationClipTranscriber> transcribers,
     IVoiceFailureReporter failureReporter,
-    DictationFailurePolicy failurePolicy) : IRequestHandler<TranscribeDictationClipCommand, DictationTranscriptionResult>
+    DictationFailurePolicy failurePolicy,
+    IUnitOfWork unitOfWork) : IRequestHandler<TranscribeDictationClipCommand, DictationTranscriptionResult>
 {
     private readonly record struct ResolvedClipEngine(DictationClipEngine Engine, string? ModelPath, string? ModelLabel);
 
@@ -26,11 +27,18 @@ public sealed class TranscribeDictationClipCommandHandler(
         var setting = await settings.GetOrCreateAsync(cancellationToken);
         var turnEngine = setting.ResolveEngine(request.Mode);
 
+        if (setting.IsSuspendedFor(turnEngine))
+        {
+            // The client shouldn't have recorded (the stt-session call already answered `Browser`);
+            // nothing is reported, since the suspension itself was already reported.
+            return DictationTranscriptionResult.Unavailable.Instance;
+        }
+
         var resolved = await ResolveClipEngineAsync(turnEngine, setting.LocalWhisperModelId, cancellationToken);
         if (resolved is not { } clipEngine)
         {
-            // The browser built-in, no model selected, an Unavailable model, or (later, US3) a
-            // Suspended engine: the client shouldn't have recorded, so nothing is reported.
+            // The browser built-in, no model selected, or an Unavailable model: the client
+            // shouldn't have recorded, so nothing is reported.
             return DictationTranscriptionResult.Unavailable.Instance;
         }
 
@@ -56,10 +64,23 @@ public sealed class TranscribeDictationClipCommandHandler(
         catch (Exception ex)
         {
             // No second transcriber to try for this turn (research D4): the client's own next
-            // attempt is the browser built-in, so there is nothing left to serve this one. Whether
-            // to suspend a cloud engine's future turns is US3 (T066); Local Whisper never suspends.
-            var isCloudEngine = clipEngine.Engine == DictationClipEngine.OpenAiWhisper;
-            failurePolicy.ReportEngineFailure(VoiceOperations.Transcription, identity, isCloudEngine, ex, cancellationToken);
+            // attempt is the browser built-in, so there is nothing left to serve this one. A
+            // Critical failure from OpenAI Whisper (the only cloud clip engine) suspends it for
+            // every future turn until an admin reverts it (FR-016); Local Whisper never suspends.
+            if (clipEngine.Engine == DictationClipEngine.OpenAiWhisper)
+            {
+                var suspended = failurePolicy.ReportAndMaybeSuspend(
+                    VoiceOperations.Transcription, identity, setting, DictationPrimaryEngine.OpenAiWhisper, ex, cancellationToken);
+                if (suspended)
+                {
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                failurePolicy.ReportEngineFailure(VoiceOperations.Transcription, identity, isCloudEngine: false, ex, cancellationToken);
+            }
+
             return DictationTranscriptionResult.Unavailable.Instance;
         }
 

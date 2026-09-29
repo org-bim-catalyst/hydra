@@ -4,7 +4,9 @@ using AskLucy.Application.Ai.Dictation;
 using AskLucy.Application.Ai.Dictation.Commands.TranscribeDictationClip;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Domain.Ai.Dictation;
+using AskLucy.Domain.OperationalFailures;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Xunit;
@@ -23,6 +25,7 @@ public sealed class TranscribeDictationClipCommandHandlerTests
     private readonly IDictationClipTranscriber _localWhisper = Substitute.For<IDictationClipTranscriber>();
     private readonly IVoiceFailureReporter _reporter = Substitute.For<IVoiceFailureReporter>();
     private readonly IFailureClassifier _classifier = Substitute.For<IFailureClassifier>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     public TranscribeDictationClipCommandHandlerTests()
     {
@@ -30,7 +33,9 @@ public sealed class TranscribeDictationClipCommandHandlerTests
     }
 
     private TranscribeDictationClipCommandHandler CreateHandler(params IDictationClipTranscriber[] transcribers) =>
-        new(_settings, _catalog, transcribers, _reporter, new DictationFailurePolicy(_classifier, _reporter));
+        new(_settings, _catalog, transcribers, _reporter,
+            new DictationFailurePolicy(_classifier, _reporter, TimeProvider.System, NullLogger<DictationFailurePolicy>.Instance),
+            _unitOfWork);
 
     /// <summary>A minimal 16 kHz mono 16-bit PCM WAV clip; only the header the handler reads matters here.</summary>
     private static MemoryStream ValidWav()
@@ -65,6 +70,25 @@ public sealed class TranscribeDictationClipCommandHandlerTests
         }
 
         return setting;
+    }
+
+    private static DictationEngineSetting SettingWithPrimary(DictationPrimaryEngine engine, DictationClipEngine? pushToTalk = null)
+    {
+        var setting = DictationEngineSetting.CreateDefault(DateTime.UtcNow);
+        setting.SetPrimary(engine, "admin", DateTime.UtcNow);
+        if (pushToTalk is { } ptt)
+        {
+            setting.SetPushToTalkEngine(ptt, "admin", DateTime.UtcNow);
+        }
+
+        return setting;
+    }
+
+    private static IDictationClipTranscriber OpenAiWhisperTranscriber()
+    {
+        var transcriber = Substitute.For<IDictationClipTranscriber>();
+        transcriber.Engine.Returns(DictationClipEngine.OpenAiWhisper);
+        return transcriber;
     }
 
     [Fact]
@@ -185,5 +209,101 @@ public sealed class TranscribeDictationClipCommandHandlerTests
             VoiceOperations.Transcription, Arg.Any<VoiceEngineIdentity>(), Arg.Any<DictationAudioInvalidException>(), CancellationToken.None);
         _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, TestContext.Current.CancellationToken);
         await _localWhisper.DidNotReceiveWithAnyArgs().TranscribeAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task OpenAiWhisperPrimary_CriticalTranscriberFailure_ShouldSuspendAndCommit()
+    {
+        var setting = SettingWithPrimary(DictationPrimaryEngine.OpenAiWhisper);
+        _settings.GetOrCreateAsync(Arg.Any<CancellationToken>()).Returns(setting);
+        var openAiWhisper = OpenAiWhisperTranscriber();
+        var failure = new AiProviderQuotaExhaustedException("Quota exhausted.");
+        openAiWhisper.TranscribeAsync(Arg.Any<DictationClip>(), Arg.Any<CancellationToken>()).ThrowsAsync(failure);
+        _classifier.Classify(Arg.Any<Exception>(), Arg.Any<CancellationToken>()).Returns(OperationalFailureKind.QuotaExhausted);
+
+        var result = await CreateHandler(openAiWhisper).Handle(
+            new TranscribeDictationClipCommand(ValidWav(), "en"), CancellationToken.None);
+
+        result.Should().Be(DictationTranscriptionResult.Unavailable.Instance);
+        setting.State.Should().Be(DictationEngineState.Suspended);
+        setting.SuspendedEngine.Should().Be(DictationPrimaryEngine.OpenAiWhisper);
+        await _unitOfWork.Received(1).SaveChangesAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task OpenAiWhisperPrimary_TransientTranscriberFailure_ShouldNotSuspend()
+    {
+        var setting = SettingWithPrimary(DictationPrimaryEngine.OpenAiWhisper);
+        _settings.GetOrCreateAsync(Arg.Any<CancellationToken>()).Returns(setting);
+        var openAiWhisper = OpenAiWhisperTranscriber();
+        var failure = new AiProviderUnavailableException("Temporarily unavailable.");
+        openAiWhisper.TranscribeAsync(Arg.Any<DictationClip>(), Arg.Any<CancellationToken>()).ThrowsAsync(failure);
+        _classifier.Classify(Arg.Any<Exception>(), Arg.Any<CancellationToken>()).Returns(OperationalFailureKind.DependencyUnreachable);
+
+        var result = await CreateHandler(openAiWhisper).Handle(
+            new TranscribeDictationClipCommand(ValidWav(), "en"), CancellationToken.None);
+
+        result.Should().Be(DictationTranscriptionResult.Unavailable.Instance);
+        setting.State.Should().Be(DictationEngineState.Active);
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task OpenAiWhisperPrimary_StaleFailureAfterAnAdminSwitchedItAway_ShouldNotSuspend()
+    {
+        // An admin switched the primary engine away from OpenAI Whisper while this request's
+        // transcription call was still in flight (the race Suspend's IsInUse guards against): the
+        // request was resolved against OpenAI Whisper, but by the time it fails, the setting no
+        // longer uses that engine anywhere, so Suspend must no-op.
+        var setting = SettingWithPrimary(DictationPrimaryEngine.OpenAiWhisper);
+        _settings.GetOrCreateAsync(Arg.Any<CancellationToken>()).Returns(setting);
+        var openAiWhisper = OpenAiWhisperTranscriber();
+        var failure = new AiProviderQuotaExhaustedException("Quota exhausted.");
+        openAiWhisper.TranscribeAsync(Arg.Any<DictationClip>(), Arg.Any<CancellationToken>()).Returns<DictationTranscript>(_ =>
+        {
+            setting.SetPrimary(DictationPrimaryEngine.LocalWhisper, "admin", DateTime.UtcNow);
+            throw failure;
+        });
+        _classifier.Classify(Arg.Any<Exception>(), Arg.Any<CancellationToken>()).Returns(OperationalFailureKind.QuotaExhausted);
+
+        await CreateHandler(openAiWhisper).Handle(new TranscribeDictationClipCommand(ValidWav(), "en"), CancellationToken.None);
+
+        setting.State.Should().Be(DictationEngineState.Active);
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task SuspendedForElevenLabs_PushToTalkOnLocalWhisper_ShouldStillServe()
+    {
+        var modelId = Guid.NewGuid();
+        var setting = SettingWithPrimary(DictationPrimaryEngine.ElevenLabsRealtime, DictationClipEngine.LocalWhisper);
+        setting.Suspend(DictationPrimaryEngine.ElevenLabsRealtime, "Quota exhausted.", DateTime.UtcNow);
+        setting.SelectLocalWhisperModel(modelId, "admin", DateTime.UtcNow);
+        _settings.GetOrCreateAsync(Arg.Any<CancellationToken>()).Returns(setting);
+        _catalog.ResolveSelectedAsync(modelId, Arg.Any<CancellationToken>())
+            .Returns(new LocalWhisperModelResolution.Ready("/models/ggml-base.bin", "whisper.cpp (ggml-base.bin)", "ggml-base.bin"));
+        _localWhisper.TranscribeAsync(Arg.Any<DictationClip>(), Arg.Any<CancellationToken>())
+            .Returns(new DictationTranscript("hello lucy", "en", TimeSpan.FromMilliseconds(400)));
+
+        var result = await CreateHandler(_localWhisper).Handle(
+            new TranscribeDictationClipCommand(ValidWav(), "en", DictationCaptureMode.PushToTalk), CancellationToken.None);
+
+        result.Should().BeOfType<DictationTranscriptionResult.Transcribed>();
+    }
+
+    [Fact]
+    public async Task SuspendedForOpenAiWhisper_ShouldReturnUnavailable_WithNoTranscriberCalled()
+    {
+        var setting = SettingWithPrimary(DictationPrimaryEngine.OpenAiWhisper);
+        setting.Suspend(DictationPrimaryEngine.OpenAiWhisper, "Quota exhausted.", DateTime.UtcNow);
+        _settings.GetOrCreateAsync(Arg.Any<CancellationToken>()).Returns(setting);
+        var openAiWhisper = OpenAiWhisperTranscriber();
+
+        var result = await CreateHandler(openAiWhisper).Handle(
+            new TranscribeDictationClipCommand(ValidWav(), "en"), CancellationToken.None);
+
+        result.Should().Be(DictationTranscriptionResult.Unavailable.Instance);
+        await openAiWhisper.DidNotReceiveWithAnyArgs().TranscribeAsync(default!, TestContext.Current.CancellationToken);
+        _reporter.DidNotReceiveWithAnyArgs().ReportFailover(default!, default!, default!, default, TestContext.Current.CancellationToken);
     }
 }

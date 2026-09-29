@@ -300,13 +300,13 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Tests for User Story 3
 
-- [ ] T058 [P] [US3] Extend `tests/AskLucy.Application.Tests/Ai/CreateSpeechToTextSessionCommandHandlerTests.cs` for the remaining research D6 rows:
+- [X] T058 [P] [US3] Extend `tests/AskLucy.Application.Tests/Ai/CreateSpeechToTextSessionCommandHandlerTests.cs` for the remaining research D6 rows:
   - OpenAI Whisper healthy → `Clip`; switched off or credential unresolvable → `Browser`, `degraded: true`, with a failover.
   - ElevenLabs realtime Continuous → `Realtime` + token.
   - ElevenLabs realtime Push-to-Talk → the Push-to-Talk engine (`Clip` for LocalWhisper/OpenAiWhisper; `Browser`, not degraded, for Browser). No token is minted.
   - Suspended for that vendor → `Browser`, `degraded: true`, no vendor call.
   - A Critical mint failure suspends and returns `200 Browser`; a transient one returns 503.
-- [ ] T059 [P] [US3] Extend `tests/AskLucy.Application.Tests/Ai/Dictation/TranscribeDictationClipCommandHandlerTests.cs`:
+- [X] T059 [P] [US3] Extend `tests/AskLucy.Application.Tests/Ai/Dictation/TranscribeDictationClipCommandHandlerTests.cs`:
   - A Critical OpenAI Whisper failure suspends and commits.
   - A transient one doesn't suspend.
   - A stale failure from an engine no longer selected doesn't suspend.
@@ -325,24 +325,24 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 ### Implementation for User Story 3
 
-- [ ] T064 [P] [US3] Create `src/AskLucy.Infrastructure/Ai/OpenAiWhisperClipTranscriber.cs` (`IDictationClipTranscriber`, Engine = `OpenAiWhisper`, an adapter over `IAIProvider.TranscribeAudioAsync` of the OpenAI provider, preferring the DB credential per the existing credential resolution). Register it in `src/AskLucy.Infrastructure/DependencyInjection.cs`. Make T061 pass.
-- [ ] T065 [US3] Complete the research D6 table in `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs`:
+- [X] T064 [P] [US3] Create `src/AskLucy.Infrastructure/Ai/OpenAiWhisperClipTranscriber.cs` (`IDictationClipTranscriber`, Engine = `OpenAiWhisper`, an adapter over `IAIProvider.TranscribeAudioAsync` of the OpenAI provider, preferring the DB credential per the existing credential resolution). Register it in `src/AskLucy.Infrastructure/DependencyInjection.cs`. Make T061 pass.
+- [X] T065 [US3] Complete the research D6 table in `src/AskLucy.Application/Ai/Commands/CreateSpeechToTextSession/CreateSpeechToTextSessionCommandHandler.cs`:
   - OpenAI Whisper local health check.
   - ElevenLabs realtime mint for Continuous only.
   - The Push-to-Talk engine under ElevenLabs realtime.
   - `IsSuspendedFor` short-circuits.
   - Make T058 pass.
-- [ ] T066 [US3] Extend `src/AskLucy.Application/Ai/Dictation/DictationFailurePolicy.cs`: a Critical kind (`OperationalFailureSeverityPolicy.IsCritical`) from a selected cloud engine → `setting.Suspend(engine, sanitizedReason, now)`, committed by the calling handler; log the first suspension with `[LoggerMessage]`. Make T059 pass.
-- [ ] T067 [US3] Create `src/AskLucy.Application/Ai/Dictation/Commands/SetDictationPrimaryEngine/` and `src/AskLucy.Application/Ai/Dictation/Commands/SetPushToTalkEngine/` (command, validator, handler; vendor switched-on check, then the domain method, then commit with `rowVersion`).
-- [ ] T068 [US3] Add `IAiProviderSwitchedOffObserver` notification on the enabled→disabled edge, before `SaveChangesAsync`, in `src/AskLucy.Application/Ai/Commands/UpdateAiProvider/UpdateAiProviderCommandHandler.cs`. Create `src/AskLucy.Application/Ai/Dictation/DictationEngineSettingSwitchOffObserver.cs`, and register it in the Application DI (`src/AskLucy.Application/DependencyInjection.cs`). Make T060 pass.
-- [ ] T069 [US3] Add `PUT dictation/primary` and `PUT dictation/push-to-talk` to `src/AskLucy.Web/Controllers/v1/AdminVoiceProvidersController.cs`. Make T062 pass.
-- [ ] T070 [P] [US3] Add `setDictationPrimaryEngine` and `setPushToTalkEngine` to `src/AskLucy.Web/ClientApp/src/features/admin/api/adminVoiceApi.ts`.
-- [ ] T071 [US3] Extend `src/AskLucy.Web/ClientApp/src/features/admin/components/DictationSettingsSection.tsx`:
+- [X] T066 [US3] Extend `src/AskLucy.Application/Ai/Dictation/DictationFailurePolicy.cs`: a Critical kind (`OperationalFailureSeverityPolicy.IsCritical`) from a selected cloud engine → `setting.Suspend(engine, sanitizedReason, now)`, committed by the calling handler; log the first suspension with `[LoggerMessage]`. Make T059 pass.
+- [X] T067 [US3] Create `src/AskLucy.Application/Ai/Dictation/Commands/SetDictationPrimaryEngine/` and `src/AskLucy.Application/Ai/Dictation/Commands/SetPushToTalkEngine/` (command, validator, handler; vendor switched-on check, then the domain method, then commit with `rowVersion`).
+- [X] T068 [US3] Add `IAiProviderSwitchedOffObserver` notification on the enabled→disabled edge, before `SaveChangesAsync`, in `src/AskLucy.Application/Ai/Commands/UpdateAiProvider/UpdateAiProviderCommandHandler.cs`. Create `src/AskLucy.Application/Ai/Dictation/DictationEngineSettingSwitchOffObserver.cs`, and register it in the Application DI (`src/AskLucy.Application/DependencyInjection.cs`). Make T060 pass.
+- [X] T069 [US3] Add `PUT dictation/primary` and `PUT dictation/push-to-talk` to `src/AskLucy.Web/Controllers/v1/AdminVoiceProvidersController.cs`. Make T062 pass.
+- [X] T070 [P] [US3] Add `setDictationPrimaryEngine` and `setPushToTalkEngine` to `src/AskLucy.Web/ClientApp/src/features/admin/api/adminVoiceApi.ts`.
+- [X] T071 [US3] Extend `src/AskLucy.Web/ClientApp/src/features/admin/components/DictationSettingsSection.tsx`:
   - The primary engine picker (disabled options show `unavailableReason`).
   - The Push-to-Talk engine picker, shown only while the primary is ElevenLabs realtime.
   - The "Suspended — browser built-in in use" banner (engine, reason, time) and the `lastRevert` notice.
   - A 409 prompts a reload.
-- [ ] T072 [US3] Add a Suspended badge on the Voice entry in `src/AskLucy.Web/ClientApp/src/features/admin/adminNav.tsx` (line ~85), driven by the dictation settings query. Make T063 pass.
+- [X] T072 [US3] Add a Suspended badge on the Voice entry in `src/AskLucy.Web/ClientApp/src/features/admin/adminNav.tsx` (line ~85), driven by the dictation settings query. Make T063 pass.
 
 **Checkpoint**: All four stories work independently. The whole engine policy is admin-controlled.
 
