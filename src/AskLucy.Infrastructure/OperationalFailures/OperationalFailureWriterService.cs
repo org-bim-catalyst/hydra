@@ -44,7 +44,19 @@ internal sealed class OperationalFailureWriterService(
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        _abandon.CancelAfter(DrainTimeout);
+        // The host can invoke StopAsync more than once during teardown (observed under
+        // WebApplicationFactory.DisposeAsync in tests that build extra per-test hosts); once our own
+        // Dispose has already run there is nothing left to drain, so treat that as a no-op rather than
+        // letting CancelAfter throw on the disposed CancellationTokenSource.
+        try
+        {
+            _abandon.CancelAfter(DrainTimeout);
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
         await base.StopAsync(cancellationToken);
 
         // The drain lives here, not at the end of ExecuteAsync: a host that stops before the
