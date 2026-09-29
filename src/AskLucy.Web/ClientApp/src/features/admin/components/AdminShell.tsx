@@ -30,6 +30,7 @@ import { useIsAdmin } from '../../../hooks/useIsAdmin'
 import { usePermissions } from '../../auth/hooks/usePermissions'
 import { useOpenHangfireDashboard } from '../hooks/useOpenHangfireDashboard'
 import { useOperationalFailureBadge } from '../hooks/useOperationalFailureBadge'
+import { useDictationSuspendedBadge } from '../hooks/useDictationSuspendedBadge'
 
 const EXPANDED_WIDTH = 232
 const COLLAPSED_WIDTH = 60
@@ -65,6 +66,20 @@ function NavCountBadge({ count, isError, children }: { count: number; isError: b
   )
 }
 
+/** specs/078 FR-016 — a plain warning dot on Voice while dictation is Suspended; no count to show. */
+function NavSuspendedBadge({ suspended, children }: { suspended: boolean; children: ReactNode }) {
+  return (
+    <Badge variant="dot" color="warning" invisible={!suspended} slotProps={{ badge: { 'aria-hidden': true } }}>
+      {children}
+      {suspended && (
+        <Box component="span" sx={visuallyHidden}>
+          (dictation is suspended)
+        </Box>
+      )}
+    </Badge>
+  )
+}
+
 interface AdminShellProps {
   title: string
   subtitle?: string
@@ -91,14 +106,20 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
   const permissions = usePermissions()
   const hangfireDashboard = useOpenHangfireDashboard()
   const operationalFailureBadge = useOperationalFailureBadge()
-  const navIcon = (item: (typeof ADMIN_NAV)[number]) =>
-    item.badgeKey === 'operationalFailures' ? (
-      <NavCountBadge count={operationalFailureBadge.count} isError={operationalFailureBadge.isError}>
-        {item.icon}
-      </NavCountBadge>
-    ) : (
-      item.icon
-    )
+  const dictationSuspendedBadge = useDictationSuspendedBadge()
+  const navIcon = (item: (typeof ADMIN_NAV)[number]) => {
+    if (item.badgeKey === 'operationalFailures') {
+      return (
+        <NavCountBadge count={operationalFailureBadge.count} isError={operationalFailureBadge.isError}>
+          {item.icon}
+        </NavCountBadge>
+      )
+    }
+    if (item.badgeKey === 'dictationSuspended') {
+      return <NavSuspendedBadge suspended={dictationSuspendedBadge.suspended}>{item.icon}</NavSuspendedBadge>
+    }
+    return item.icon
+  }
   const visibleNav = ADMIN_NAV.filter((item) => {
     if (isBuiltInAdmin) return true
     if (item.builtInOnly) return false

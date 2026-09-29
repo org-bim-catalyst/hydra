@@ -13,14 +13,14 @@ namespace AskLucy.Application.Ai.Commands.CreateSpeechToTextSession;
 /// owns the bounded reconnect/retry policy (research.md Decision 8) and calls this command again
 /// on failure, rather than this handler retrying internally.
 ///
-/// This story (specs/078 US1) implements the Local Whisper and Browser rows of the table. The
-/// OpenAI Whisper and ElevenLabs realtime rows keep today's behavior until US3 adds their health
-/// checks and suspension.
-///
 /// specs/074 US2 — an ElevenLabs mint failure is also a failover on the operational failure trail
 /// (the browser's own recogniser serves the user), and the next session this provider mints for
 /// the same user is the recovery that pairs with it. A provider an administrator has switched off
 /// is not a failure: the browser built-in serves, and nothing is recorded.
+///
+/// specs/078 US3 — a Critical mint failure also suspends ElevenLabs realtime (FR-016), and a
+/// Suspended engine's future turns short-circuit straight to the browser built-in with no vendor
+/// call at all.
 /// </summary>
 public sealed class CreateSpeechToTextSessionCommandHandler(
     ISpeechToTextSessionProvider sessionProvider,
@@ -30,13 +30,20 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
     ICurrentUserAccessor currentUser,
     IDictationEngineSettingRepository settings,
     ILocalWhisperModelCatalog catalog,
-    DictationFailurePolicy failurePolicy) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
+    DictationVendorGate vendorGate,
+    DictationFailurePolicy failurePolicy,
+    IUnitOfWork unitOfWork) : IRequestHandler<CreateSpeechToTextSessionCommand, DictationSession>
 {
     public async Task<DictationSession> Handle(CreateSpeechToTextSessionCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var setting = await settings.GetOrCreateAsync(cancellationToken);
         var turnEngine = setting.ResolveEngine(request.Mode);
+
+        if (setting.IsSuspendedFor(turnEngine))
+        {
+            return DictationSession.Browser(degraded: true);
+        }
 
         return turnEngine switch
         {
@@ -46,12 +53,29 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
             // not a failure.
             DictationTurnEngine.Browser => DictationSession.Browser(degraded: false),
 
-            DictationTurnEngine.ElevenLabsRealtime => await MintRealtimeSessionAsync(request.Language, userId, cancellationToken),
+            DictationTurnEngine.ElevenLabsRealtime => await MintRealtimeSessionAsync(setting, request.Language, userId, cancellationToken),
 
-            // OpenAI Whisper's local health check (switched off / credential unresolvable) arrives
-            // with US3 (T065); until then a clip is always routed to it.
-            _ => DictationSession.Clip,
+            _ => await ResolveOpenAiWhisperAsync(cancellationToken),
         };
+    }
+
+    /// <summary>
+    /// specs/078 research D6 — OpenAI Whisper's local health check: switched on and its DB
+    /// credential (when stored) decrypts. No network call is made, so a problem here is reported as
+    /// a failover but never suspends the engine (US3/T066 suspends only a real transcription
+    /// failure, which the caller's own next clip attempt would surface).
+    /// </summary>
+    private async Task<DictationSession> ResolveOpenAiWhisperAsync(CancellationToken cancellationToken)
+    {
+        var problem = await vendorGate.OpenAiWhisperHealthProblemAsync(cancellationToken);
+        if (problem is null)
+        {
+            return DictationSession.Clip;
+        }
+
+        var engine = new VoiceEngineIdentity("OpenAI Whisper");
+        failureReporter.ReportFailover(VoiceOperations.Transcription, engine, new InvalidOperationException(problem), fallbackServed: true, cancellationToken);
+        return DictationSession.Browser(degraded: true);
     }
 
     private async Task<DictationSession> ResolveLocalWhisperAsync(Guid? modelId, CancellationToken cancellationToken)
@@ -82,7 +106,8 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
         return DictationSession.Browser(degraded: true);
     }
 
-    private async Task<DictationSession> MintRealtimeSessionAsync(string language, string userId, CancellationToken cancellationToken)
+    private async Task<DictationSession> MintRealtimeSessionAsync(
+        DictationEngineSetting setting, string language, string userId, CancellationToken cancellationToken)
     {
         if (!await sessionProvider.IsSwitchedOnAsync(cancellationToken))
         {
@@ -109,7 +134,13 @@ public sealed class CreateSpeechToTextSessionCommandHandler(
         }
         catch (AiProviderException ex)
         {
-            failureReporter.ReportFailover(VoiceOperations.Transcription, engine, ex, fallbackServed: true, cancellationToken);
+            var suspended = failurePolicy.ReportAndMaybeSuspend(
+                VoiceOperations.Transcription, engine, setting, DictationPrimaryEngine.ElevenLabsRealtime, ex, cancellationToken);
+            if (suspended)
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
             await healthRecorder.RecordFailoverAsync(userId, FailureReasonSanitizer.Sanitize(ex.Message), cancellationToken);
             throw;
         }

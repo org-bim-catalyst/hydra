@@ -41,8 +41,8 @@ export interface AdminNavItem {
    * navigating within the SPA. Mutually exclusive with `path`.
    */
   onSelect?: () => void
-  /** specs/074 FR-026 — a live count `AdminShell` resolves and renders on this entry's icon. */
-  badgeKey?: 'operationalFailures'
+  /** specs/074 FR-026 / specs/078 FR-016 — a live count or state `AdminShell` resolves and renders on this entry's icon. */
+  badgeKey?: 'operationalFailures' | 'dictationSuspended'
 }
 
 /**
@@ -82,7 +82,13 @@ export const ADMIN_NAV: AdminNavItem[] = [
   },
   { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
   { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
-  { path: '/admin/voice', label: 'Voice', icon: <RecordVoiceOverOutlinedIcon fontSize="small" />, permission: 'admin.ai-providers.view' },
+  {
+    path: '/admin/voice',
+    label: 'Voice',
+    icon: <RecordVoiceOverOutlinedIcon fontSize="small" />,
+    permission: 'admin.ai-providers.view',
+    badgeKey: 'dictationSuspended',
+  },
   { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
   { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
   { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },

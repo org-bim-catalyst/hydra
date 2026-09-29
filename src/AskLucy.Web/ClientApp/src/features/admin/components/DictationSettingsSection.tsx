@@ -21,11 +21,26 @@ import { ApiError } from '../../../api/httpClient'
 import { useCan } from '../../auth/hooks/usePermissions'
 import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
 import * as adminVoiceApi from '../api/adminVoiceApi'
-import type { LocalWhisperTryResult } from '../api/adminVoiceApi'
+import type { DictationPrimaryEngine, LocalWhisperTryResult, PushToTalkEngine } from '../api/adminVoiceApi'
 import { MAX_SAMPLE_SECONDS, useWavSampleRecorder } from '../hooks/useWavSampleRecorder'
 
 /** The Select's value for "no model"; a real id is never empty. */
 const NO_MODEL = ''
+
+const PRIMARY_ENGINE_LABELS: Record<DictationPrimaryEngine, string> = {
+  LocalWhisper: 'Local Whisper',
+  OpenAiWhisper: 'OpenAI Whisper',
+  ElevenLabsRealtime: 'ElevenLabs realtime',
+}
+
+const PUSH_TO_TALK_ENGINE_LABELS: Record<PushToTalkEngine, string> = {
+  LocalWhisper: 'Local Whisper',
+  OpenAiWhisper: 'OpenAI Whisper',
+  Browser: 'Browser built-in',
+}
+
+/** `suspension.engine`/`lastRevert.from` are plain strings on the wire; fall back to the raw value for an unknown one. */
+const engineLabel = (engine: string) => PRIMARY_ENGINE_LABELS[engine as DictationPrimaryEngine] ?? engine
 
 const errorMessage = (err: unknown) =>
   err instanceof ApiError
@@ -87,6 +102,34 @@ export function DictationSettingsSection() {
     onError: showError,
   })
 
+  const primaryEngineMutation = useMutation({
+    mutationFn: (engine: DictationPrimaryEngine) => adminVoiceApi.setDictationPrimaryEngine(engine, settings!.rowVersion),
+    onSuccess: async (_data, engine) => {
+      setFeedback({ severity: 'success', message: `Primary dictation engine is now ${PRIMARY_ENGINE_LABELS[engine]}.` })
+      await queryClient.invalidateQueries({ queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation })
+    },
+    onError: (err: unknown) => {
+      showError(err)
+      if (err instanceof ApiError && err.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation })
+      }
+    },
+  })
+
+  const pushToTalkEngineMutation = useMutation({
+    mutationFn: (engine: PushToTalkEngine) => adminVoiceApi.setPushToTalkEngine(engine, settings!.rowVersion),
+    onSuccess: async () => {
+      setFeedback({ severity: 'success', message: 'Push-to-Talk engine updated.' })
+      await queryClient.invalidateQueries({ queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation })
+    },
+    onError: (err: unknown) => {
+      showError(err)
+      if (err instanceof ApiError && err.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: adminVoiceApi.VOICE_QUERY_KEYS.dictation })
+      }
+    },
+  })
+
   const toggleRecording = async () => {
     try {
       if (recorder.isRecording) {
@@ -127,6 +170,72 @@ export function DictationSettingsSection() {
 
       {settings && localWhisper && (
         <Stack spacing={2}>
+          {settings.state === 'Suspended' && settings.suspension && (
+            <Alert severity="warning">
+              {engineLabel(settings.suspension.engine)} is suspended: {settings.suspension.reason}. Dictation uses the
+              browser built-in until it&apos;s renewed.
+            </Alert>
+          )}
+
+          {settings.lastRevert && (
+            <Alert severity="info">
+              {engineLabel(settings.lastRevert.from)} was reverted to Local Whisper on{' '}
+              {new Date(settings.lastRevert.atUtc).toLocaleString()} because its vendor was switched off.
+            </Alert>
+          )}
+
+          <Typography variant="subtitle1" component="h3">
+            Primary dictation engine
+          </Typography>
+
+          <FormControl size="small" disabled={!canManage || primaryEngineMutation.isPending}>
+            <InputLabel id="dictation-primary-engine-label">Primary engine</InputLabel>
+            <Select
+              labelId="dictation-primary-engine-label"
+              label="Primary engine"
+              value={settings.primaryEngine}
+              onChange={(event) => primaryEngineMutation.mutate(event.target.value as DictationPrimaryEngine)}
+            >
+              {settings.engines.map((choice) => (
+                <MenuItem key={choice.engine} value={choice.engine} disabled={!choice.selectable}>
+                  {PRIMARY_ENGINE_LABELS[choice.engine]}
+                </MenuItem>
+              ))}
+            </Select>
+            {settings.engines
+              .filter((choice) => !choice.selectable && choice.unavailableReason)
+              .map((choice) => (
+                <FormHelperText key={choice.engine}>
+                  {PRIMARY_ENGINE_LABELS[choice.engine]}: {choice.unavailableReason}
+                </FormHelperText>
+              ))}
+          </FormControl>
+
+          {settings.primaryEngine === 'ElevenLabsRealtime' && (
+            <FormControl size="small" disabled={!canManage || pushToTalkEngineMutation.isPending}>
+              <InputLabel id="dictation-ptt-engine-label">Push-to-Talk engine</InputLabel>
+              <Select
+                labelId="dictation-ptt-engine-label"
+                label="Push-to-Talk engine"
+                value={settings.pushToTalkEngine}
+                onChange={(event) => pushToTalkEngineMutation.mutate(event.target.value as PushToTalkEngine)}
+              >
+                {settings.pushToTalkEngines.map((choice) => (
+                  <MenuItem key={choice.engine} value={choice.engine} disabled={!choice.selectable}>
+                    {PUSH_TO_TALK_ENGINE_LABELS[choice.engine]}
+                  </MenuItem>
+                ))}
+              </Select>
+              {settings.pushToTalkEngines
+                .filter((choice) => !choice.selectable && choice.unavailableReason)
+                .map((choice) => (
+                  <FormHelperText key={choice.engine}>
+                    {PUSH_TO_TALK_ENGINE_LABELS[choice.engine]}: {choice.unavailableReason}
+                  </FormHelperText>
+                ))}
+            </FormControl>
+          )}
+
           <Typography variant="subtitle1" component="h3">
             Local Whisper model
           </Typography>

@@ -135,6 +135,20 @@ export const selectLocalWhisperModel = (customModelId: string | null, rowVersion
     body: JSON.stringify({ customModelId, rowVersion }),
   })
 
+/** specs/078 FR-004 — OpenAI/ElevenLabs are only selectable while their vendor is switched on (409/422 on refusal). */
+export const setDictationPrimaryEngine = (engine: DictationPrimaryEngine, rowVersion: string) =>
+  apiFetch<void>('/admin/voice/dictation/primary', {
+    method: 'PUT',
+    body: JSON.stringify({ engine, rowVersion }),
+  })
+
+/** specs/078 FR-017 — the Push-to-Talk engine used under ElevenLabs realtime. */
+export const setPushToTalkEngine = (engine: PushToTalkEngine, rowVersion: string) =>
+  apiFetch<void>('/admin/voice/dictation/push-to-talk', {
+    method: 'PUT',
+    body: JSON.stringify({ engine, rowVersion }),
+  })
+
 /** Transcribes a 16 kHz mono WAV sample on a deployment without selecting it (FR-009c). */
 export const tryLocalWhisperModel = (customModelId: string, wav: Blob, language?: string) => {
   const form = new FormData()

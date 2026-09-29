@@ -1,11 +1,11 @@
 namespace AskLucy.Application.Abstractions;
 
 /// <summary>
-/// specs/078 research D10 — told when an administrator switches a vendor off under Admin → AI
-/// providers, before that change is saved, so anything depending on the vendor changes in the
-/// same transaction.
+/// specs/078 research D10 — notified on the enabled→disabled edge of an AI provider, before
+/// <c>UpdateAiProviderCommandHandler</c>'s own <c>SaveChangesAsync</c>, so the provider row and any
+/// dependent setting commit in the same unit of work and can never disagree.
 /// </summary>
 public interface IAiProviderSwitchedOffObserver
 {
-    Task OnSwitchedOffAsync(string providerKey, CancellationToken cancellationToken = default);
+    Task OnSwitchedOffAsync(string providerKey, DateTime utcNow, CancellationToken cancellationToken);
 }

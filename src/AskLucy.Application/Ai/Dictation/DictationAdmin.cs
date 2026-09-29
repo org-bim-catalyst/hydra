@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Ai.Dictation;
 using AskLucy.Domain.Common;
@@ -9,7 +10,8 @@ namespace AskLucy.Application.Ai.Dictation;
 /// specs/078 FR-004 — whether a dictation engine's vendor is switched on under Admin → AI
 /// providers. Local Whisper and the browser built-in have no vendor, so they always are.
 /// </summary>
-public sealed class DictationVendorGate(IAIProviderRepository aiProviders, ISpeechToTextSessionProvider elevenLabs)
+public sealed class DictationVendorGate(
+    IAIProviderRepository aiProviders, ISpeechToTextSessionProvider elevenLabs, IAiCredentialProtector credentialProtector)
 {
     public const string OpenAiSwitchedOff = "OpenAI is switched off under AI providers.";
     public const string ElevenLabsSwitchedOff = "ElevenLabs is switched off under AI providers.";
@@ -26,6 +28,35 @@ public sealed class DictationVendorGate(IAIProviderRepository aiProviders, ISpee
 
         _ => null,
     };
+
+    /// <summary>
+    /// specs/078 research D6 — the stt-session's local health check for OpenAI Whisper: switched on,
+    /// and its DB credential (when one is stored) decrypts. No network call is made here; a config
+    /// fallback key is assumed fine, and a real failure surfaces on first actual use.
+    /// </summary>
+    public async Task<string?> OpenAiWhisperHealthProblemAsync(CancellationToken cancellationToken = default)
+    {
+        var provider = await aiProviders.GetByKeyAsync(DictationEngineSetting.OpenAiVendorKey, cancellationToken);
+        if (provider is not { IsEnabled: true })
+        {
+            return OpenAiSwitchedOff;
+        }
+
+        if (provider.CredentialCiphertext is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            credentialProtector.Unprotect(provider.CredentialCiphertext);
+            return null;
+        }
+        catch (CryptographicException)
+        {
+            return "The OpenAI credential can't be read.";
+        }
+    }
 }
 
 /// <summary>specs/078 — a stale <c>rowVersion</c> on any dictation-setting write is a 409.</summary>

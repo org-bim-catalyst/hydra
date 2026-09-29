@@ -5,6 +5,8 @@ using AskLucy.Application.Ai.Commands.PreviewVoice;
 using AskLucy.Application.Ai.Commands.SetPrimaryVoiceProvider;
 using AskLucy.Application.Ai.Commands.SetVoiceProviderCredential;
 using AskLucy.Application.Ai.Dictation.Commands.SelectLocalWhisperModel;
+using AskLucy.Application.Ai.Dictation.Commands.SetDictationPrimaryEngine;
+using AskLucy.Application.Ai.Dictation.Commands.SetPushToTalkEngine;
 using AskLucy.Application.Ai.Dictation.Commands.TryLocalWhisperModel;
 using AskLucy.Application.Ai.Dictation.Queries.GetDictationSettings;
 using AskLucy.Application.Ai.Queries.GetAdminVoiceProviders;
@@ -89,6 +91,30 @@ public sealed class AdminVoiceProvidersController(ISender mediator) : Controller
     public async Task<IActionResult> SelectLocalWhisperModel(SelectLocalWhisperModelRequest request, CancellationToken cancellationToken)
     {
         await mediator.Send(new SelectLocalWhisperModelCommand(request.CustomModelId, request.RowVersion), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>specs/078 FR-004 — sets the primary dictation engine; OpenAI/ElevenLabs are only selectable while their vendor is switched on.</summary>
+    [HttpPut("dictation/primary")]
+    [RequirePermission("admin.ai-providers.manage")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SetDictationPrimaryEngine(SetDictationPrimaryEngineRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new SetDictationPrimaryEngineCommand(request.Engine, request.RowVersion), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>specs/078 FR-017 — sets the Push-to-Talk engine used under ElevenLabs realtime.</summary>
+    [HttpPut("dictation/push-to-talk")]
+    [RequirePermission("admin.ai-providers.manage")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SetPushToTalkEngine(SetPushToTalkEngineRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new SetPushToTalkEngineCommand(request.Engine, request.RowVersion), cancellationToken);
         return NoContent();
     }
 

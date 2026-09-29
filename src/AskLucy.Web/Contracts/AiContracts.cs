@@ -112,5 +112,11 @@ public sealed record SetPrimaryVoiceProviderRequest(Guid ProviderId, string Voic
 /// <summary>specs/078 contracts/admin-dictation.md; a null <see cref="CustomModelId"/> selects no model.</summary>
 public sealed record SelectLocalWhisperModelRequest(Guid? CustomModelId, string RowVersion);
 
+/// <summary>specs/078 FR-004 — sets the primary dictation engine.</summary>
+public sealed record SetDictationPrimaryEngineRequest(DictationPrimaryEngine Engine, string RowVersion);
+
+/// <summary>specs/078 FR-017 — sets the Push-to-Talk engine used under ElevenLabs realtime.</summary>
+public sealed record SetPushToTalkEngineRequest(DictationClipEngine Engine, string RowVersion);
+
 /// <summary>specs/070 — speaks <c>Text</c> in <c>Language</c> with one of the provider's voices, for the administrator to audition.</summary>
 public sealed record PreviewVoiceRequest(string VoiceId, string Text, string Language);

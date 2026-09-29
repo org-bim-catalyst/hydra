@@ -8,6 +8,8 @@ public sealed class UpdateAiProviderCommandHandler(
     IAIProviderRepository providers,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
+    IEnumerable<IAiProviderSwitchedOffObserver> switchedOffObservers,
+    TimeProvider timeProvider,
     ILogger<UpdateAiProviderCommandHandler> logger) : IRequestHandler<UpdateAiProviderCommand>
 {
     public async Task Handle(UpdateAiProviderCommand request, CancellationToken cancellationToken)
@@ -40,6 +42,18 @@ public sealed class UpdateAiProviderCommandHandler(
         else if (request.DefaultModelId.HasValue)
         {
             provider.SetDefaultModel(request.DefaultModelId, actorUserId);
+        }
+
+        // specs/078 research D10 — the enabled→disabled edge, notified before the single
+        // SaveChangesAsync below so the provider row and any dependent setting (e.g. dictation's
+        // primary/Push-to-Talk engine reverting to Local Whisper) commit together.
+        if (wasEnabled && !provider.IsEnabled)
+        {
+            var utcNow = timeProvider.GetUtcNow().UtcDateTime;
+            foreach (var observer in switchedOffObservers)
+            {
+                await observer.OnSwitchedOffAsync(provider.ProviderKey, utcNow, cancellationToken);
+            }
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

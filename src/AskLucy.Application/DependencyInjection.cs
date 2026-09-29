@@ -149,6 +149,10 @@ public static class DependencyInjection
 
         // specs/078 US2 — classifies and reports a dictation engine failure on the operational failure trail.
         services.AddScoped<AskLucy.Application.Ai.Dictation.DictationFailurePolicy>();
+
+        // specs/078 research D10 — switching an AI provider off reverts a dependent dictation choice
+        // back to Local Whisper.
+        services.AddScoped<IAiProviderSwitchedOffObserver, AskLucy.Application.Ai.Dictation.DictationEngineSettingSwitchOffObserver>();
         services.AddSingleton<CustomModelDeploymentRecovery>();
 
         // IMemoryCache's concrete registration (AddMemoryCache()) lives in Infrastructure's

@@ -604,6 +604,11 @@ public static class DependencyInjection
         services.AddSingleton<IWhisperModelLoader, WhisperNetModelLoader>();
         services.AddSingleton<LocalWhisperRuntime>();
         services.AddScoped<IDictationClipTranscriber, LocalWhisperTranscriber>();
+
+        // specs/078 research D4/T064: Push-to-Talk under ElevenLabs realtime (or OpenAI Whisper as
+        // primary) can route a clip here too — same OpenAI transcription call the file-attach
+        // upload uses, over the unkeyed IAIProvider (wired to OpenAI directly).
+        services.AddScoped<IDictationClipTranscriber, OpenAiWhisperClipTranscriber>();
         services.AddScoped<ILocalWhisperModelTrial, LocalWhisperModelTrial>();
         services.AddScoped<ILocalWhisperModelCatalog, LocalWhisperModelCatalog>();
 
