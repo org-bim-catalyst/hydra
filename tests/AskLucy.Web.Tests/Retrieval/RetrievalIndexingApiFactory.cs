@@ -1,9 +1,11 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Infrastructure.Notifications.Workers;
 using Hangfire;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 
@@ -57,6 +59,20 @@ public sealed class RetrievalIndexingApiFactory : CustomWebApplicationFactory
             services.AddSingleton(Jobs);
             services.RemoveAll<IRetrievalIndexingNotifier>();
             services.AddSingleton(IndexingNotifier);
+
+            // The real NotificationOutboxDispatcher BackgroundService is woken by
+            // NotificationWakeInterceptor on every commit that adds an outbox event, and races this
+            // suite's own manual FlushOutboxAsync pass on its own detached loop, which this suite
+            // never awaits: whichever worker's ClaimBatchAsync wins can leave the notification
+            // un-materialized by the time FlushOutboxAsync (and the count assertions after it)
+            // return, producing an intermittent "found 0" failure. Removed here only, so this
+            // suite's own flush is the sole outbox worker and stays deterministic.
+            var dispatcherDescriptor = services.SingleOrDefault(d =>
+                d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(NotificationOutboxDispatcher));
+            if (dispatcherDescriptor is not null)
+            {
+                services.Remove(dispatcherDescriptor);
+            }
         });
     }
 }

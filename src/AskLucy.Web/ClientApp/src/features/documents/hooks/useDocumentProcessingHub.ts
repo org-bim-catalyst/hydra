@@ -26,11 +26,22 @@ export function useDocumentProcessingHub(documentId: string | null): { isLive: b
 
     const hubUrl = `${API_BASE_URL.replace(/\/api\/v1$/, '')}/hubs/document-processing`
 
-    const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl)
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Warning)
-      .build()
+    let connection: HubConnection
+    try {
+      connection = new HubConnectionBuilder()
+        .withUrl(hubUrl)
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.Warning)
+        .build()
+    } catch (error) {
+      // A relative hubUrl can't always be resolved to an absolute one (SignalR's
+      // HttpConnection._resolveUrl throws synchronously here, not via connection.start()'s own
+      // failure path that keepHubConnected retries) — same "surface, don't crash" outcome as
+      // keepHubConnected's runtime failures, so this falls back to polling instead of crashing
+      // the whole document workspace render.
+      console.warn('A live-update connection could not be built; falling back to polling.', error)
+      return
+    }
 
     const invalidate = (eventDocumentId: string) => {
       if (eventDocumentId !== documentId) {
