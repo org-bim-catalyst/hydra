@@ -106,19 +106,10 @@ public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory fac
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    [Fact]
-    public async Task ListNotifications_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
-    {
-        var response = await _client.GetAsync("/api/v1/memories/notifications", TestContext.Current.CancellationToken);
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task MarkNotificationRead_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
-    {
-        var response = await _client.PostAsync($"/api/v1/memories/notifications/{Guid.NewGuid()}/actions/mark-read", content: null, TestContext.Current.CancellationToken);
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
+    // ListNotifications/MarkNotificationRead security coverage removed along with the legacy
+    // per-feature memory notification endpoints (specs/067 T093-T099) — the global notification
+    // hub (features/notifications, NotificationsController) now owns this surface and has its
+    // own auth-boundary tests.
 
     [Fact]
     public async Task DownloadExportContent_ShouldReturn403_WhenSignatureIsMissing()
