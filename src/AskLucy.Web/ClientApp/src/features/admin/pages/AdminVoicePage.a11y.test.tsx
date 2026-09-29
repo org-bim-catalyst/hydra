@@ -108,4 +108,34 @@ describe('AdminVoicePage accessibility', () => {
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
+
+  it('has no violations with the Dictation section suspended (specs/078)', async () => {
+    server.use(
+      http.get('*/api/v1/admin/voice/dictation', () =>
+        HttpResponse.json(
+          dictationSettings({
+            state: 'Suspended',
+            suspension: { engine: 'OpenAiWhisper', atUtc: '2026-09-28T00:00:00Z', reason: 'Quota exhausted.', browserInUse: true },
+            lastRevert: { atUtc: '2026-09-28T00:00:00Z', reason: 'VendorSwitchedOff', from: 'OpenAiWhisper' },
+          }),
+        ),
+      ),
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdminVoicePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await screen.findByText(/is suspended: Quota exhausted\./)
+    await waitFor(() =>
+      expect(screen.getByLabelText('Voice', { selector: '[role="combobox"]' })).toHaveTextContent('Rachel'),
+    )
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
 })

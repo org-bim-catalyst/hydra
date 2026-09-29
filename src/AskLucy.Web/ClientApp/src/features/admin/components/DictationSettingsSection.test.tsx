@@ -221,4 +221,71 @@ describe('DictationSettingsSection', () => {
     expect(screen.queryByRole('button', { name: 'Use this model' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try it' })).not.toBeInTheDocument()
   })
+
+  it('disables an unselectable primary engine option and explains why', async () => {
+    renderSection()
+
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Primary engine' }))
+    const listbox = screen.getByRole('listbox', { hidden: true })
+    expect(within(listbox).getByText('Local Whisper').closest('li')).not.toHaveAttribute('aria-disabled')
+    expect(within(listbox).getByText('OpenAI Whisper').closest('li')).toHaveAttribute('aria-disabled', 'true')
+    expect(within(listbox).getByText('ElevenLabs realtime').closest('li')).not.toHaveAttribute('aria-disabled')
+    fireEvent.keyDown(listbox, { key: 'Escape' })
+
+    expect(
+      screen.getByText('OpenAI Whisper: OpenAI is switched off under AI providers.'),
+    ).toBeInTheDocument()
+  })
+
+  it('hides the Push-to-Talk engine picker when Local Whisper is primary', async () => {
+    renderSection()
+
+    await screen.findByRole('combobox', { name: 'Primary engine' })
+    expect(screen.queryByLabelText('Push-to-Talk engine')).not.toBeInTheDocument()
+  })
+
+  it('shows the Push-to-Talk engine picker when ElevenLabs realtime is primary', async () => {
+    server.use(
+      http.get('*/api/v1/admin/voice/dictation', () =>
+        HttpResponse.json(dictationSettings({ primaryEngine: 'ElevenLabsRealtime' })),
+      ),
+    )
+    renderSection()
+
+    expect(await screen.findByRole('combobox', { name: 'Push-to-Talk engine' })).toBeInTheDocument()
+  })
+
+  it('shows the Suspended banner and falls back to the browser built-in', async () => {
+    server.use(
+      http.get('*/api/v1/admin/voice/dictation', () =>
+        HttpResponse.json(
+          dictationSettings({
+            state: 'Suspended',
+            suspension: { engine: 'OpenAiWhisper', atUtc: '2026-09-28T00:00:00Z', reason: 'Quota exhausted.', browserInUse: true },
+          }),
+        ),
+      ),
+    )
+    renderSection()
+
+    const alert = (await screen.findByText(/is suspended: Quota exhausted\./)).closest('[role="alert"]')!
+    expect(alert).toHaveTextContent("OpenAI Whisper is suspended: Quota exhausted.. Dictation uses the browser built-in until it's renewed.")
+  })
+
+  it('shows the revert notice when a vendor switch-off reverted an engine choice', async () => {
+    server.use(
+      http.get('*/api/v1/admin/voice/dictation', () =>
+        HttpResponse.json(
+          dictationSettings({
+            lastRevert: { atUtc: '2026-09-28T00:00:00Z', reason: 'VendorSwitchedOff', from: 'OpenAiWhisper' },
+          }),
+        ),
+      ),
+    )
+    renderSection()
+
+    expect(
+      await screen.findByText(/OpenAI Whisper was reverted to Local Whisper on/),
+    ).toBeInTheDocument()
+  })
 })

@@ -44,7 +44,7 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 **Purpose**: Restore the Local Whisper runtime dependency and its configuration.
 
-- [ ] T001 Restore `Whisper.net` and `Whisper.net.Runtime` 1.9.1 (the exact versions removed in `2c1717be`; see `git show 2c1717be -- src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`) in `src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`. Then confirm no other package ships `whisper.dll` or `ggml*.dll` (memory: PDFium native DLL collision) by listing `src/AskLucy.Web/bin/**/runtimes/**` after a build.
+- [X] T001 Restore `Whisper.net` and `Whisper.net.Runtime` 1.9.1 (the exact versions removed in `2c1717be`; see `git show 2c1717be -- src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`) in `src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj`. Then confirm no other package ships `whisper.dll` or `ggml*.dll` (memory: PDFium native DLL collision) by listing `src/AskLucy.Web/bin/**/runtimes/**` after a build.
 - [X] T002 [P] Create `src/AskLucy.Infrastructure/Ai/LocalWhisper/LocalWhisperOptions.cs` (section `LocalWhisper`) with `MaxConcurrentTranscriptions` (default 2) and `QueueTimeoutSeconds` (default 10). No `DefaultModelFile`; no `ValidateOnStart`; defaults in code so a missing section never fails the host (memory: required IOptions crash).
 - [X] T003 [P] Add a `LocalWhisper` section with the two defaults to `src/AskLucy.Web/appsettings.json`. Edit only that section; the user's uncommitted Smtp change in the same file must stay uncommitted (stage with `git add -p`).
 
@@ -311,14 +311,14 @@ All four stories are P1. They are ordered by dependency rather than by number:
   - A transient one doesn't suspend.
   - A stale failure from an engine no longer selected doesn't suspend.
   - Under an ElevenLabs suspension, a Push-to-Talk clip on Local Whisper is still served.
-- [ ] T060 [P] [US3] Application tests in `tests/AskLucy.Application.Tests/Ai/Dictation/DictationEngineAdminCommandTests.cs`:
+- [X] T060 [P] [US3] Application tests in `tests/AskLucy.Application.Tests/Ai/Dictation/DictationEngineAdminCommandTests.cs`:
   - `SetDictationPrimaryEngineCommand` refuses a switched-off vendor (FR-004) and clears a suspension.
   - `SetPushToTalkEngineCommand` refuses OpenAI Whisper while OpenAI is off.
   - `DictationEngineSettingSwitchOffObserver` reverts the primary and/or Push-to-Talk engine.
   - Create `tests/AskLucy.Application.Tests/Ai/UpdateAiProviderCommandHandlerTests.cs` (none exists today) to check that observers are called only on the enabled→disabled edge and before the single `SaveChangesAsync`.
-- [ ] T061 [P] [US3] Infrastructure test in `tests/AskLucy.Infrastructure.Tests/Ai/OpenAiWhisperClipTranscriberTests.cs`: it delegates to the OpenAI transcription call with `whisper-1` and the WAV stream, and surfaces provider exceptions unchanged for classification.
-- [ ] T062 [P] [US3] Extend the Web tests in `tests/AskLucy.Web.Tests/Ai/AdminDictationControllerTests.cs` for `PUT …/dictation/primary` and `PUT …/dictation/push-to-talk`: 204, 422 `dictation-engine-not-selectable`, 409 stale `rowVersion`, Administrator only. Extend `tests/AskLucy.Web.Tests/Ai/AdminVoiceProvidersControllerTests.cs` if the route table assertions live there.
-- [ ] T063 [P] [US3] Frontend tests:
+- [X] T061 [P] [US3] Infrastructure test in `tests/AskLucy.Infrastructure.Tests/Ai/OpenAiWhisperClipTranscriberTests.cs`: it delegates to the OpenAI transcription call with `whisper-1` and the WAV stream, and surfaces provider exceptions unchanged for classification.
+- [X] T062 [P] [US3] Extend the Web tests in `tests/AskLucy.Web.Tests/Ai/AdminDictationControllerTests.cs` for `PUT …/dictation/primary` and `PUT …/dictation/push-to-talk`: 204, 422 `dictation-engine-not-selectable`, 409 stale `rowVersion`, Administrator only. Extend `tests/AskLucy.Web.Tests/Ai/AdminVoiceProvidersControllerTests.cs` if the route table assertions live there.
+- [X] T063 [P] [US3] Frontend tests:
   - `src/AskLucy.Web/ClientApp/src/features/admin/components/DictationSettingsSection.test.tsx`: the primary picker with disabled vendor options and their reasons; the Push-to-Talk engine shown only under ElevenLabs realtime; the Suspended banner; the revert notice.
   - `src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminVoicePage.a11y.test.tsx`: axe on the new section.
   - The admin nav badge test next to `src/AskLucy.Web/ClientApp/src/features/admin/adminNav.tsx`.

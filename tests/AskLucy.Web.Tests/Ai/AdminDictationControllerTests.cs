@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Dictation;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Ai.Dictation;
 using AskLucy.Web.Contracts;
 using FluentAssertions;
@@ -30,12 +31,18 @@ public sealed class DictationApiFactory : CustomWebApplicationFactory
 
     public ILocalWhisperModelTrial Trial { get; } = Substitute.For<ILocalWhisperModelTrial>();
 
+    public IAIProviderRepository AiProviders { get; } = Substitute.For<IAIProviderRepository>();
+
+    public ISpeechToTextSessionProvider ElevenLabs { get; } = Substitute.For<ISpeechToTextSessionProvider>();
+
     /// <summary>Forgets every stub and received call left by the previous test.</summary>
     public void Reset()
     {
         Settings.ClearSubstitute(ClearOptions.All);
         Catalog.ClearSubstitute(ClearOptions.All);
         Trial.ClearSubstitute(ClearOptions.All);
+        AiProviders.ClearSubstitute(ClearOptions.All);
+        ElevenLabs.ClearSubstitute(ClearOptions.All);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -50,6 +57,10 @@ public sealed class DictationApiFactory : CustomWebApplicationFactory
             services.AddSingleton(Catalog);
             services.RemoveAll<ILocalWhisperModelTrial>();
             services.AddSingleton(Trial);
+            services.RemoveAll<IAIProviderRepository>();
+            services.AddSingleton(AiProviders);
+            services.RemoveAll<ISpeechToTextSessionProvider>();
+            services.AddSingleton(ElevenLabs);
         });
     }
 }
@@ -74,6 +85,9 @@ public sealed class AdminDictationControllerTests : IClassFixture<DictationApiFa
         factory.Catalog.ResolveSelectedAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(LocalWhisperModelResolution.None.Instance);
         factory.Catalog.ResolveForTrialAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new LocalWhisperModelResolution.Unavailable("Only a completed deployment can be tried.", null));
+        factory.AiProviders.GetByKeyAsync(DictationEngineSetting.OpenAiVendorKey, Arg.Any<CancellationToken>())
+            .Returns((AIProvider?)null);
+        factory.ElevenLabs.IsSwitchedOnAsync(Arg.Any<CancellationToken>()).Returns(false);
         _client = factory.CreateClient();
     }
 
@@ -82,6 +96,8 @@ public sealed class AdminDictationControllerTests : IClassFixture<DictationApiFa
         { "GET", "/api/v1/admin/voice/dictation" },
         { "PUT", "/api/v1/admin/voice/dictation/local-whisper-model" },
         { "POST", "/api/v1/admin/voice/dictation/try" },
+        { "PUT", "/api/v1/admin/voice/dictation/primary" },
+        { "PUT", "/api/v1/admin/voice/dictation/push-to-talk" },
     };
 
     [Theory]
@@ -258,11 +274,126 @@ public sealed class AdminDictationControllerTests : IClassFixture<DictationApiFa
     private void AuthorizeWith(params string[] permissions) =>
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwtFactory.Create("custom-role-user", [], permissions));
 
-    private Task<HttpResponseMessage> SendAsync(string method, string path) => method switch
+    private Task<HttpResponseMessage> SendAsync(string method, string path) => (method, path) switch
     {
-        "GET" => _client.GetAsync(path, TestContext.Current.CancellationToken),
-        "PUT" => _client.PutAsync(path, JsonContent.Create(new SelectLocalWhisperModelRequest(null, Convert.ToBase64String(RowVersion))), TestContext.Current.CancellationToken),
-        "POST" => _client.PostAsync(path, TryForm(Wav(), SomeModelId, null), TestContext.Current.CancellationToken),
+        ("GET", _) => _client.GetAsync(path, TestContext.Current.CancellationToken),
+        ("PUT", var p) when p.EndsWith("primary", StringComparison.Ordinal) =>
+            _client.PutAsync(path, JsonContent.Create(new SetDictationPrimaryEngineRequest(DictationPrimaryEngine.LocalWhisper, Convert.ToBase64String(RowVersion))), TestContext.Current.CancellationToken),
+        ("PUT", var p) when p.EndsWith("push-to-talk", StringComparison.Ordinal) =>
+            _client.PutAsync(path, JsonContent.Create(new SetPushToTalkEngineRequest(DictationClipEngine.LocalWhisper, Convert.ToBase64String(RowVersion))), TestContext.Current.CancellationToken),
+        ("PUT", _) => _client.PutAsync(path, JsonContent.Create(new SelectLocalWhisperModelRequest(null, Convert.ToBase64String(RowVersion))), TestContext.Current.CancellationToken),
+        ("POST", _) => _client.PostAsync(path, TryForm(Wav(), SomeModelId, null), TestContext.Current.CancellationToken),
         _ => throw new ArgumentOutOfRangeException(nameof(method)),
     };
+
+    [Fact]
+    public async Task SetPrimary_ShouldReturn204_ForLocalWhisper()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/primary",
+            JsonContent.Create(new SetDictationPrimaryEngineRequest(DictationPrimaryEngine.LocalWhisper, Convert.ToBase64String(RowVersion))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        _setting.PrimaryEngine.Should().Be(DictationPrimaryEngine.LocalWhisper);
+    }
+
+    [Fact]
+    public async Task SetPrimary_ShouldReturn422_WhenOpenAiIsSwitchedOff()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/primary",
+            JsonContent.Create(new SetDictationPrimaryEngineRequest(DictationPrimaryEngine.OpenAiWhisper, Convert.ToBase64String(RowVersion))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.Should().Contain("dictation-engine-not-selectable");
+        _setting.PrimaryEngine.Should().Be(DictationPrimaryEngine.LocalWhisper);
+    }
+
+    [Fact]
+    public async Task SetPrimary_ShouldReturn409_ForAStaleRowVersion()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/primary",
+            JsonContent.Create(new SetDictationPrimaryEngineRequest(DictationPrimaryEngine.LocalWhisper, Convert.ToBase64String([0, 0, 0, 0, 0, 0, 0, 1]))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task SetPrimary_ShouldReturn403_ForAViewOnlyCaller()
+    {
+        AuthorizeWith("admin.ai-providers.view");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/primary",
+            JsonContent.Create(new SetDictationPrimaryEngineRequest(DictationPrimaryEngine.LocalWhisper, Convert.ToBase64String(RowVersion))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task SetPushToTalkEngine_ShouldReturn204_ForLocalWhisper()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/push-to-talk",
+            JsonContent.Create(new SetPushToTalkEngineRequest(DictationClipEngine.LocalWhisper, Convert.ToBase64String(RowVersion))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        _setting.PushToTalkEngine.Should().Be(DictationClipEngine.LocalWhisper);
+    }
+
+    [Fact]
+    public async Task SetPushToTalkEngine_ShouldReturn422_WhenOpenAiIsSwitchedOff()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/push-to-talk",
+            JsonContent.Create(new SetPushToTalkEngineRequest(DictationClipEngine.OpenAiWhisper, Convert.ToBase64String(RowVersion))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.Should().Contain("dictation-engine-not-selectable");
+    }
+
+    [Fact]
+    public async Task SetPushToTalkEngine_ShouldReturn409_ForAStaleRowVersion()
+    {
+        Authorize("admin-1", "Administrator");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/push-to-talk",
+            JsonContent.Create(new SetPushToTalkEngineRequest(DictationClipEngine.LocalWhisper, Convert.ToBase64String([0, 0, 0, 0, 0, 0, 0, 1]))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task SetPushToTalkEngine_ShouldReturn403_ForAViewOnlyCaller()
+    {
+        AuthorizeWith("admin.ai-providers.view");
+
+        var response = await _client.PutAsync(
+            "/api/v1/admin/voice/dictation/push-to-talk",
+            JsonContent.Create(new SetPushToTalkEngineRequest(DictationClipEngine.LocalWhisper, Convert.ToBase64String(RowVersion))),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
 }
