@@ -39,7 +39,10 @@ public sealed class NotificationCenterQueryTests(PersistenceTestFixture fixture)
         var (secondPage, _) = await repository.ListAsync(
             userId, categories: null, NotificationReadState.All, cursor, limit: 10, TestContext.Current.CancellationToken);
 
-        secondPage.Select(n => n.Id).Should().BeEquivalentTo(seeded.Skip(2).Select(n => n.Id), options => options.WithStrictOrdering());
+        // Newest-first: firstPage took the 2 newest (seeded[4], seeded[3]); secondPage must be the
+        // remaining 3, oldest-to-newest reversed (i.e. still newest-first among themselves).
+        var expected = seeded.AsEnumerable().Reverse().Skip(2);
+        secondPage.Select(n => n.Id).Should().BeEquivalentTo(expected.Select(n => n.Id), options => options.WithStrictOrdering());
     }
 
     [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
