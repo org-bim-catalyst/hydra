@@ -47,6 +47,8 @@ interface CustomModelSummary {
   submittedBy: { id: string; displayName: string }
   createdAtUtc: string; startedAtUtc: string | null; finishedAtUtc: string | null
   backsEngine: string | null           // e.g. "Supertonic" when repositoryId matches a hosted engine; not shown in the UI since 2026-09-24
+  sourceFilePath: string | null        // specs/078 — set when the source URL named a single file; that file alone was deployed
+  selectedForLocalWhisper: boolean     // specs/078 — Custom Models shows a "Local Whisper" chip and disables Remove (FR-009b)
 }
 
 interface CustomModelDetail extends CustomModelSummary {
@@ -63,7 +65,9 @@ interface DeploymentStatus {
 interface SourcePreview {
   isValid: boolean; error: string | null
   repositoryId: string | null; revision: string | null
-  ignoredFilePath: string | null       // "Only whole repositories are deployed; onnx/x.onnx is ignored"
+  filePath: string | null              // specs/078 — renamed from `ignoredFilePath`: named in a `/resolve/<rev>/<file>` or
+                                        // `/blob/<rev>/<file>` URL, this is now the *only* file that will be deployed,
+                                        // not an ignored one (see "Single-file deployment" below)
   derivedName: string | null
   nameAvailable: boolean               // false → the dialog shows the required Name field
 }
@@ -81,6 +85,24 @@ interface Paged<T> { items: T[]; page: number; pageSize: number; totalCount: num
   It is required when the derived name is null or already taken (the handler checks, and returns a
   409 naming the model).
 - The submit command re-checks `isConfigured`, so a race with a config edit still gets a clear 400.
+
+## Single-file deployment (specs/078)
+
+The submit request is unchanged — the source URL carries the file. `SubmittedCustomModelDto` and
+`CustomModelSummary` rename `ignoredFilePath` → `filePath`, and `CustomModelSummary` gains
+`sourceFilePath`.
+
+| Source URL | Deployed |
+|---|---|
+| `https://huggingface.co/owner/repo` or `…/tree/<rev>` | Every file in the repository (unchanged). |
+| `…/resolve/<rev>/<path>` or `…/blob/<rev>/<path>` | Only `<path>`, placed at `<destination>/<path>`. Size cap, reserved-name check and overwrite report cover that one file. |
+| The named path is not in the repository at that revision | The deployment ends **Failed** with "The file `<path>` is not in `<repo>` at `<revision>`." |
+
+This exists because Whisper ggml repositories (e.g. `ggerganov/whisper.cpp`) bundle every model
+size — tens of GB total — in one repository, and only one file is ever wanted.
+
+`AddCustomModelDialog`'s notice changes from "the whole repository is deployed" to "Only
+`<filePath>` will be deployed" whenever `filePath` is present.
 
 ## Guarantees
 

@@ -12,6 +12,11 @@ Custom Models (specs/072) downloads a Hugging Face repository on the server and 
 production host over FTPS. That needs a deployment target: a host, port, credentials and a root
 path.
 
+**Update (2026-09-29, specs/078):** a source URL naming a specific file (a `/resolve/<rev>/<file>`
+or `/blob/<rev>/<file>` Hugging Face URL) now deploys only that file instead of the whole
+repository — needed because Whisper ggml repositories bundle every model size in one repository.
+This doesn't change the deployment target model described below.
+
 The long-term design is a Connectors feature (spec 071): administrator-managed, encrypted
 connections to external systems, chosen per use. That feature doesn't exist yet. Building a general
 connector abstraction first would have delayed Custom Models by a whole feature, and designing it

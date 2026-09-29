@@ -87,13 +87,14 @@ records a WAV via `useWavRecorder.ts` and posts it to the existing
 no change to the never-a-silent-outage-source in `IUserVoicePreferenceRepository`'s existing
 credential handling.
 
-> **Superseded (2026-09-27).** This fallback never shipped as described. SPEC-013 (2026-08-04)
-> removed `useWavRecorder.ts`, and the dictation fallback became OpenAI's hosted `whisper-1`
-> via `/api/v1/ai/transcriptions`, which covers every supported language (the local Whisper.net
-> model was English-only). The unused `/api/v1/ai/transcriptions/microphone` endpoint, the local
-> Whisper.net provider, its startup warm-up and the `Whisper.net` packages were removed on
-> 2026-09-27. Since then, while an administrator has ElevenLabs switched off, Whisper is the
-> normal dictation engine, not a fallback (`specs/012-elevenlabs-voice-engine/contracts/voice-stt-session.md`).
+> **Corrected (2026-09-29).** The 2026-09-27 note above was itself wrong: on 2026-09-27 (commit
+> `2c1717be`) the local, self-hosted Whisper.net pipeline was removed in the mistaken belief that
+> OpenAI's hosted `whisper-1` already covered its role — the two are different engines. specs/078
+> restored self-hosted Whisper.net (whisper.cpp-based) as the default/primary dictation engine
+> platform-wide, with OpenAI Whisper and ElevenLabs realtime as admin-selectable alternatives
+> (selectable only while their vendor is switched on). Whichever engine is primary, a failure of
+> any kind falls back to the browser's built-in `SpeechRecognition` only — never to a paid cloud
+> engine as an automatic failover. See `specs/078-restore-local-whisper/contracts/dictation-session.md`.
 
 See `specs/012-elevenlabs-voice-engine/research.md` Decisions 1–2 for the full alternatives
 analysis this ADR summarizes.

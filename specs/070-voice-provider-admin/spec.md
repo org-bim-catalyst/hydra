@@ -102,11 +102,18 @@ Lawyer review of `/terms` is still outstanding.
   1.2 s pause). If Whisper can't record in this browser or fails server-side, it uses the
   browser's `SpeechRecognition`. A caption names the engine in use, and every failure is shown to
   the user (`features/chat/voice/dictationFallback.ts`).
-- **Switched off is not a failure (2026-09-27).** While ElevenLabs is switched off under Admin →
-  AI providers, `POST /ai/voice/stt-session` answers `"engine": "Whisper"`, so Whisper is the
-  normal dictation engine: no caption, no failover event, no operational failure. The browser's
-  `SpeechRecognition` still backs Whisper up. Every Whisper request names the user's language
-  (`language` form field, ISO 639-1), so Whisper doesn't have to detect it.
+- **Switched off is not a failure (updated 2026-09-29, specs/078).** For voice generation, an
+  administrator switching a TTS engine off is still not a failure: the voice-order fallback is
+  the normal path and records nothing. For dictation, the rule is now different: `POST
+  /ai/voice/stt-session` answers `"engine": "Clip"` (not `"Whisper"`) while ElevenLabs realtime
+  is switched off or isn't primary, so a clip-based engine (Local Whisper or OpenAI Whisper,
+  per the admin's primary choice) is the normal path — still no caption, no failover event, no
+  operational failure. But an administrator switching **off** the vendor behind the
+  currently-selected primary or Push-to-Talk dictation engine *does* revert that choice to Local
+  Whisper (FR-015) and is recorded as a revert, not silently absorbed; and a Critical-kind
+  dictation failure suspends that engine to the browser built-in with an admin banner (FR-016).
+  See `specs/078-restore-local-whisper/contracts/dictation-session.md` and
+  `specs/078-restore-local-whisper/contracts/admin-dictation.md`.
 - **Voice order.** Supertonic is Lucy's voice unless an administrator reorders Admin → Voice.
   Other configured engines (ElevenLabs) are tried next; when every engine fails, the client
   speaks with the browser's own voice.

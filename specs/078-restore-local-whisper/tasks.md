@@ -352,19 +352,19 @@ All four stories are P1. They are ordered by dependency rather than by number:
 
 **Purpose**: Docs, cleanup, full verification.
 
-- [ ] T073 [P] Correct the "Superseded" note in `specs/012-elevenlabs-voice-engine/research.md` (~line 86): Local Whisper returns as the default. Point `specs/012-elevenlabs-voice-engine/contracts/voice-stt-session.md` at `specs/078-restore-local-whisper/contracts/dictation-session.md`.
-- [ ] T074 [P] Correct the same superseded note in `docs/adr/0006-elevenlabs-voice-engine-integration.md` (~line 90).
-- [ ] T075 [P] Update the "Switched off is not a failure" note in `specs/070-voice-provider-admin/spec.md` (~line 105): it still holds for voice generation, and dictation now reverts (FR-015) or suspends (FR-016).
-- [ ] T076 [P] Update `specs/072-custom-model-deploy/contracts/admin-custom-models.md`, `specs/072-custom-model-deploy/contracts/custom-model-deployment-hub.md` and `docs/adr/0016-custom-model-deployment-temporary-ftp-target.md` for single-file deploys (`filePath`, `sourceFilePath`, the selected-model removal guard).
-- [ ] T077 [P] Write `docs/adr/0018-dictation-engine-policy.md`:
+- [X] T073 [P] Correct the "Superseded" note in `specs/012-elevenlabs-voice-engine/research.md` (~line 86): Local Whisper returns as the default. Point `specs/012-elevenlabs-voice-engine/contracts/voice-stt-session.md` at `specs/078-restore-local-whisper/contracts/dictation-session.md`.
+- [X] T074 [P] Correct the same superseded note in `docs/adr/0006-elevenlabs-voice-engine-integration.md` (~line 90).
+- [X] T075 [P] Update the "Switched off is not a failure" note in `specs/070-voice-provider-admin/spec.md` (~line 105): it still holds for voice generation, and dictation now reverts (FR-015) or suspends (FR-016).
+- [X] T076 [P] Update `specs/072-custom-model-deploy/contracts/admin-custom-models.md`, `specs/072-custom-model-deploy/contracts/custom-model-deployment-hub.md` and `docs/adr/0016-custom-model-deployment-temporary-ftp-target.md` for single-file deploys (`filePath`, `sourceFilePath`, the selected-model removal guard).
+- [X] T077 [P] Write `docs/adr/0019-dictation-engine-policy.md` (renumbered from 0018 — 0018 was already taken by `docs/adr/0018-transactional-notification-outbox.md`, created by a concurrent session):
   - Local Whisper as default; nothing auto-downloaded, so a fresh deployment uses the browser built-in.
   - The browser built-in as the only fallback.
   - The Push-to-Talk engine under ElevenLabs realtime.
   - Suspend vs revert.
   - The observer instead of a domain event.
   - Browser-side WAV conversion.
-  - Update the ADR index if one exists in `docs/adr/`.
-- [ ] T078 Search `src/` and `tests/` for leftover references to the old dictation route and engine value (`DictationEngine.Whisper`, `'Whisper'` engine string, dictation calls to `/ai/transcriptions`) and fix them. Use the Grep tool, not a recursive shell grep over `src` (it times out).
+  - No ADR index file exists in `docs/adr/` to update.
+- [X] T078 Search `src/` and `tests/` for leftover references to the old dictation route and engine value (`DictationEngine.Whisper`, `'Whisper'` engine string, dictation calls to `/ai/transcriptions`) and fix them. Use the Grep tool, not a recursive shell grep over `src` (it times out). No leftovers found: `DictationTurnEngine` enum has no `Whisper` member (renamed `Clip`→engine split into `LocalWhisper`/`OpenAiWhisper`/`ElevenLabsRealtime`/`Browser`); the two `/ai/transcriptions` hits (`aiApi.ts` `transcribeAudio`, `ProblemDetailsMiddleware.cs`) are the intentionally-unchanged file-attach upload path (D5), and `useVoiceRecorder.ts`'s hit is a comment explaining dictation no longer uses that route.
 - [ ] T079 Backend verification:
   - `dotnet build "Ask Lucy.sln" -v q -nologo -m:1` (background).
   - `dotnet test` for Domain, Application, Infrastructure and Web (with the webenv).

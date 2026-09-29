@@ -3,6 +3,13 @@
 **Feature**: [../spec.md](../spec.md) | **Data model**: [../data-model.md](../data-model.md) |
 **Research**: [../research.md](../research.md) Decisions 2, 8, 9
 
+> **Superseded (2026-09-29).** The response shape below (`"engine": "Realtime" | "Whisper"`) is
+> replaced by [specs/078-restore-local-whisper/contracts/dictation-session.md](../../078-restore-local-whisper/contracts/dictation-session.md),
+> which adds a `Browser` engine value, renames `"Whisper"` to `"Clip"` (since a clip may be
+> transcribed by Local Whisper or OpenAI Whisper), and adds a `mode`/`degraded` field. The rest of
+> this document — the mint call itself, the retry/fallback timing, and the transient-vs-failover
+> distinction — is unchanged.
+
 New action on the existing `AiController`, under its existing `[Authorize]` +
 `[EnableRateLimiting("ai-endpoints")]` policy (research.md Decision 7).
 
