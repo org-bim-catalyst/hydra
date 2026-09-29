@@ -27,6 +27,7 @@ public sealed class LocalWhisperModelAdminTests
     private readonly ISpeechToTextSessionProvider _elevenLabs = Substitute.For<ISpeechToTextSessionProvider>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly IAiCredentialProtector _credentialProtector = Substitute.For<IAiCredentialProtector>();
 
     public LocalWhisperModelAdminTests()
     {
@@ -225,7 +226,7 @@ public sealed class LocalWhisperModelAdminTests
     }
 
     private GetDictationSettingsQueryHandler QueryHandler() =>
-        new(_settings, _catalog, new DictationVendorGate(_aiProviders, _elevenLabs));
+        new(_settings, _catalog, new DictationVendorGate(_aiProviders, _elevenLabs, _credentialProtector));
 
     private SelectLocalWhisperModelCommandHandler SelectHandler() =>
         new(_settings, _catalog, _unitOfWork, _currentUser, TimeProvider.System, NullLogger<SelectLocalWhisperModelCommandHandler>.Instance);
