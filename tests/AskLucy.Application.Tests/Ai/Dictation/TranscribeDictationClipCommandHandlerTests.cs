@@ -167,7 +167,7 @@ public sealed class TranscribeDictationClipCommandHandlerTests
         // runner's TestContext token — asserting against the latter mismatched arguments here.
         _reporter.Received(1).ReportFailover(
             VoiceOperations.Transcription,
-            Arg.Is<VoiceEngineIdentity>(e => e.ProviderName == "Local Whisper" && e.Model == "ggml-base.bin"),
+            Arg.Is<VoiceEngineIdentity>(e => e!.ProviderName == "Local Whisper" && e.Model == "ggml-base.bin"),
             Arg.Any<Exception>(),
             true,
             CancellationToken.None);

@@ -52,7 +52,7 @@ public sealed class KnowledgeBaseDocumentUploadedIndexingHandlerTests
 
         knowledgeBase.IndexStatus.Should().Be(KnowledgeBaseIndexStatus.Indexing);
         _indexingJobRepository.Received(1).Add(Arg.Is<IndexingJob>(j =>
-            j.KnowledgeBaseId == knowledgeBase.Id && j.KnowledgeBaseDocumentId == document.Id && j.Status == IndexingJobStatus.Queued));
+            j!.KnowledgeBaseId == knowledgeBase.Id && j.KnowledgeBaseDocumentId == document.Id && j.Status == IndexingJobStatus.Queued));
         _backgroundJobClient.Received(1).Create(Arg.Any<Hangfire.Common.Job>(), Arg.Any<IState>());
     }
 
@@ -77,7 +77,7 @@ public sealed class KnowledgeBaseDocumentUploadedIndexingHandlerTests
         var act = () => CreateSut().Handle(new DocumentUploadedNotification(document.Id, knowledgeBase.Id, "user-1", document.FileName), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
-        _indexingJobRepository.Received(1).Add(Arg.Is<IndexingJob>(j => j.Status == IndexingJobStatus.Failed));
+        _indexingJobRepository.Received(1).Add(Arg.Is<IndexingJob>(j => j!.Status == IndexingJobStatus.Failed));
         _operationalFailureRecorder.Received(1).Record(Arg.Any<OperationalFailureReport>());
     }
 }
