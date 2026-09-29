@@ -1,5 +1,5 @@
 import { Alert, Box, Container, Snackbar, Tab, Tabs, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
@@ -30,11 +30,14 @@ export function DocumentWorkspacePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkDocumentId = searchParams.get('documentId')
   const deepLinkDocument = useDocument(deepLinkDocumentId)
-  useEffect(() => {
-    if (deepLinkDocumentId && deepLinkDocument.data) {
-      setDetailDocument(deepLinkDocument.data.summary)
-    }
-  }, [deepLinkDocumentId, deepLinkDocument.data])
+  // Adjust state during render (React-endorsed pattern for "derive state from a prop/query
+  // change") rather than in a useEffect, guarded by openedDeepLinkId so it runs at most once
+  // per deep link instead of looping.
+  const [openedDeepLinkId, setOpenedDeepLinkId] = useState<string | null>(null)
+  if (deepLinkDocumentId && deepLinkDocument.data && openedDeepLinkId !== deepLinkDocumentId) {
+    setOpenedDeepLinkId(deepLinkDocumentId)
+    setDetailDocument(deepLinkDocument.data.summary)
+  }
   const deepLinkUnavailable = Boolean(deepLinkDocumentId) && deepLinkDocument.isError
 
   return (

@@ -1,4 +1,3 @@
-using Hangfire.States;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Retrieval.Indexing;
@@ -7,6 +6,7 @@ using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Retrieval;
 using FluentAssertions;
 using Hangfire;
+using Hangfire.States;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;

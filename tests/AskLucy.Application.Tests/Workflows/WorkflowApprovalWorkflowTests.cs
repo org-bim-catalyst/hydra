@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Workflows.Commands.ApproveWorkflowNode;
 using AskLucy.Application.Workflows.Commands.RejectWorkflowNode;
@@ -14,7 +15,6 @@ using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
-using AskLucy.Application.Notifications.Abstractions;
 
 namespace AskLucy.Application.Tests.Workflows;
 

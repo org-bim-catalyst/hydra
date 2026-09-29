@@ -1,6 +1,6 @@
 import SearchIcon from '@mui/icons-material/Search'
 import { Alert, InputAdornment, MenuItem, Snackbar, Stack, Tab, Tabs, TextField } from '@mui/material'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
@@ -54,6 +54,11 @@ export function MemoryCenterPage() {
   const { query, category, state, setQuery, setCategory, setState } = useMemoryCenterStore()
   const [tab, setTab] = useState<MemoryCenterTab>('all')
 
+  const [editTarget, setEditTarget] = useState<MemoryListItem | null>(null)
+  const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MemoryListItem | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
   // specs/067 T092 — a notification's deep link (?memoryId=) opens that memory's edit dialog
   // directly, without requiring it to be present in the current filtered/paged list.
   const [urlParams, setUrlParams] = useSearchParams()
@@ -63,12 +68,14 @@ export function MemoryCenterPage() {
     urlParams.delete('memoryId')
     setUrlParams(urlParams, { replace: true })
   }
-  useEffect(() => {
-    if (deepLinkMemoryId && deepLinkMemory.data) {
-      setEditTarget(toListItem(deepLinkMemory.data))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLinkMemoryId, deepLinkMemory.data])
+  // Adjust state during render (React-endorsed pattern for "derive state from a prop/query
+  // change") rather than in a useEffect, guarded by openedDeepLinkId so it runs at most once
+  // per deep link instead of looping.
+  const [openedDeepLinkId, setOpenedDeepLinkId] = useState<string | null>(null)
+  if (deepLinkMemoryId && deepLinkMemory.data && openedDeepLinkId !== deepLinkMemoryId) {
+    setOpenedDeepLinkId(deepLinkMemoryId)
+    setEditTarget(toListItem(deepLinkMemory.data))
+  }
   const deepLinkUnavailable = Boolean(deepLinkMemoryId) && deepLinkMemory.isError
 
   const isFiltered = query.trim() !== '' || Boolean(category) || Boolean(state)
@@ -82,11 +89,6 @@ export function MemoryCenterPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useMemories(searchParams)
   const editMemory = useEditMemory()
   const deleteMemory = useDeleteMemory()
-
-  const [editTarget, setEditTarget] = useState<MemoryListItem | null>(null)
-  const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<MemoryListItem | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const memories = useMemo(() => data?.pages.flatMap((page) => page.results) ?? [], [data])
   const totalCount = data?.pages[0]?.totalCount
