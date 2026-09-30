@@ -4,6 +4,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Chats;
 using AskLucy.Application.Chats.Commands.ArchiveUserChat;
 using AskLucy.Application.Chats.Commands.ClearUserChatMessages;
+using AskLucy.Application.Chats.Commands.CombineSiteBoundaryShape;
 using AskLucy.Application.Chats.Commands.CreateUserChat;
 using AskLucy.Application.Chats.Commands.DeleteUserChat;
 using AskLucy.Application.Chats.Commands.DuplicateUserChat;
@@ -98,6 +99,21 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     public async Task<ActionResult<SaveSiteBoundaryEditResult>> SaveSiteBoundaryEdit(
         Guid id, SaveSiteBoundaryEditRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new SaveSiteBoundaryEditCommand(id, request.ExpectedRevision, request.Rings), cancellationToken));
+
+    /// <summary>
+    /// specs/079 - adds a circle to the outline being edited, or cuts one out of it. A calculation only:
+    /// nothing is saved; the editor shows the result and saves it with the ordinary Done. 422 (with
+    /// <c>reason</c>) when the result can't be an outline: a hole, or nothing left.
+    /// </summary>
+    [HttpPost("{id:guid}/site-boundary/actions/combine")]
+    [ProducesResponseType<CombineSiteBoundaryShapeResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<CombineSiteBoundaryShapeResult>> CombineSiteBoundaryShape(
+        Guid id, CombineSiteBoundaryShapeRequest request, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(
+            new CombineSiteBoundaryShapeCommand(id, request.Rings, request.Operation, request.Centre, request.RadiusMeters), cancellationToken));
 
     [HttpGet("{id:guid}/messages")]
     public async Task<ActionResult<PagedResult<MessageDto>>> GetMessages(

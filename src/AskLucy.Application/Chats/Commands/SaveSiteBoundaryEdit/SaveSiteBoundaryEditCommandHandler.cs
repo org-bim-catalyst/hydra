@@ -49,15 +49,9 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
                 "The outline changed since you started editing.", effective.Revision.ToString());
         }
 
-        // The client never adds or removes rings (spec Assumptions): a different count means it is
-        // editing something other than the outline in force.
-        var ringCount = 1 + effective.AdditionalPolygons.Count;
-        if (request.Rings.Count != ringCount)
-        {
-            throw new DomainRuleViolationException(
-                $"The outline has {ringCount} ring(s), but {request.Rings.Count} were sent.");
-        }
-
+        // The number of rings may change: the editor can add a circle as a ring of its own, merge rings
+        // that now overlap, or split one by cutting across it. The validator bounds the count (1-20), and
+        // every ring must still overlap what Lucy found, below.
         var rings = request.Rings.Select(Closed).ToList();
         EnsureAcceptable(rings, found);
 

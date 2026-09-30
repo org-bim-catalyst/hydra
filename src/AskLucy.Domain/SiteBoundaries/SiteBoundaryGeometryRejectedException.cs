@@ -17,6 +17,15 @@ public sealed class SiteBoundaryGeometryRejectedException(int ringIndex, string 
 
     public const string TooLarge = "tooLarge";
 
+    /// <summary>Cutting a shape out of the middle of an outline would leave a hole, which an outline cannot have.</summary>
+    public const string HoleNotSupported = "holeNotSupported";
+
+    /// <summary>The cut took away the whole outline.</summary>
+    public const string NothingLeft = "nothingLeft";
+
+    /// <summary>The result would be more separate rings than an outline may have.</summary>
+    public const string TooManyRings = "tooManyRings";
+
     public int RingIndex { get; } = ringIndex;
 
     /// <summary>One of the constants on this type.</summary>

@@ -21,5 +21,12 @@ public sealed record ConversationKnowledgeBasesResponse(IReadOnlyList<Guid> Know
 /// <summary>specs/019-prompt-library-workspace contracts/prompt-conversation-integration-api.md `POST /api/v1/chats/{chatId}/prompt-messages`.</summary>
 public sealed record InsertPromptMessageRequest(Guid PromptId, IReadOnlyDictionary<string, string?>? VariableValues);
 
+/// <summary>specs/079 - `POST /api/v1/chats/{chatId}/site-boundary/actions/combine`: add a circle to the outline being edited or cut one out of it.</summary>
+public sealed record CombineSiteBoundaryShapeRequest(
+    IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings,
+    AskLucy.Application.SiteBoundaries.CombineOperation Operation,
+    AskLucy.Domain.SiteBoundaries.GeoPoint Centre,
+    double RadiusMeters);
+
 /// <summary>specs/079 contracts/site-boundary-edit-api.md `PUT /api/v1/chats/{chatId}/site-boundary` - the rings the user edited, and the revision they started from.</summary>
 public sealed record SaveSiteBoundaryEditRequest(string ExpectedRevision, IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings);

@@ -226,16 +226,20 @@ public sealed class SaveSiteBoundaryEditCommandTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>The editor can add a circle as a ring of its own or split a ring, so the ring count may differ from what was stored.</summary>
     [Fact]
-    public async Task Handle_ShouldRefuse_WhenTheRingCountDiffersFromTheOutlineInForce()
+    public async Task Handle_ShouldAccept_ADifferentNumberOfRingsThanTheOutlineInForce()
     {
         var chat = ChatWithOutline();
+        SiteBoundaryCorrection? added = null;
+        _corrections.When(r => r.Add(Arg.Any<SiteBoundaryCorrection>())).Do(call => added = call.Arg<SiteBoundaryCorrection>());
 
-        var act = () => CreateHandler().Handle(
+        var result = await CreateHandler().Handle(
             new SaveSiteBoundaryEditCommand(chat.Id, chat.ActiveBoundary!.Revision.ToString(), [EditedRing, EditedRing]),
             TestContext.Current.CancellationToken);
 
-        await act.Should().ThrowAsync<DomainRuleViolationException>();
+        added!.EditedRings.Should().HaveCount(2);
+        result.ActiveBoundary.AdditionalPolygons.Should().HaveCount(1);
     }
 
     [Theory]

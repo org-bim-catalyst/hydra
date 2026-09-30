@@ -15,6 +15,7 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
 {
     private const double MinimumAreaSquareMeters = 1.0;
     private const double DuplicateCornerMeters = 0.05;
+    private const double MetersPerDegreeLatitude = 111_320.0;
 
     private static readonly GeometryFactory Factory = new();
 
@@ -84,6 +85,67 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
         var grown = growMeters > 0 ? found.Buffer(growMeters) : found;
         return rings.Any(r => grown.Intersects(ToPolygon(r, reference)));
     }
+
+    public CombineResult Combine(
+        IReadOnlyList<IReadOnlyList<GeoPoint>> rings, IReadOnlyList<GeoPoint> shape, CombineOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(rings);
+        ArgumentNullException.ThrowIfNull(shape);
+        if (rings.Count == 0)
+        {
+            return new CombineResult(CombineFailure.NothingLeft, []);
+        }
+
+        var reference = rings[0][0];
+        var current = UnaryUnionOp.Union(rings.Select(r => ToPolygon(r, reference)).Cast<Geometry>().ToList());
+        var shapePolygon = ToPolygon(shape, reference);
+        var combined = operation == CombineOperation.Add ? current.Union(shapePolygon) : current.Difference(shapePolygon);
+
+        // Slivers left over by a cut are not outlines; anything under a square metre is dropped.
+        var polygons = Polygons(combined).Where(p => p.Area >= MinimumAreaSquareMeters).ToList();
+        if (polygons.Count == 0)
+        {
+            return new CombineResult(CombineFailure.NothingLeft, []);
+        }
+
+        if (polygons.Any(p => p.NumInteriorRings > 0))
+        {
+            return new CombineResult(CombineFailure.HoleNotSupported, []);
+        }
+
+        // The ring holding the original first ring stays first; the rest follow, largest first.
+        var anchor = ToPolygon(rings[0], reference).InteriorPoint;
+        var ordered = polygons
+            .OrderByDescending(p => p.Contains(anchor) || p.Intersects(anchor))
+            .ThenByDescending(p => p.Area)
+            .ToList();
+
+        IReadOnlyList<IReadOnlyList<GeoPoint>> result =
+        [
+            .. ordered.Select(p => (IReadOnlyList<GeoPoint>)fromShell(p, reference)),
+        ];
+        return new CombineResult(CombineFailure.None, result);
+
+        static List<GeoPoint> fromShell(Polygon polygon, GeoPoint reference)
+        {
+            // The shell repeats its first coordinate at the end; rings here are open. Local metres back to degrees.
+            var metersPerDegreeLongitude = MetersPerDegreeLatitude * Math.Cos(reference.Latitude * Math.PI / 180);
+            var coordinates = polygon.ExteriorRing.Coordinates;
+            return
+            [
+                .. coordinates.Take(coordinates.Length - 1).Select(c => new GeoPoint(
+                    reference.Latitude + (c.Y / MetersPerDegreeLatitude),
+                    reference.Longitude + (c.X / metersPerDegreeLongitude))),
+            ];
+        }
+    }
+
+    private static IEnumerable<Polygon> Polygons(Geometry geometry) => geometry switch
+    {
+        Polygon polygon => [polygon],
+        GeometryCollection collection => collection.Geometries.SelectMany(Polygons),
+        _ => [],
+    };
 
     public IReadOnlyList<GeoPoint> Join(IReadOnlyList<GeoPoint> editedRing, IReadOnlyList<GeoPoint> footprint) =>
         throw new NotImplementedException("Joining a footprint onto a hand-edited ring is built with specs/079 User Story 4.");

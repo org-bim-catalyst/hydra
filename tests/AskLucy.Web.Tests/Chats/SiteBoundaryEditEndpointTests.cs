@@ -31,6 +31,29 @@ public sealed class SiteBoundaryEditEndpointTests(CustomWebApplicationFactory fa
     }
 
     [Fact]
+    public async Task PostCombine_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
+    {
+        var response = await _client.PostAsync(
+            $"/api/v1/chats/{Guid.NewGuid()}/site-boundary/actions/combine",
+            JsonContent.Create(new { rings = Array.Empty<object>(), operation = "Add", centre = new { latitude = 1, longitude = 1 }, radiusMeters = 10 }),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task OpenApiDocument_ShouldListTheCombineEndpoint_WithItsErrorResponses()
+    {
+        var provider = factory.Services.GetRequiredKeyedService<IOpenApiDocumentProvider>("v1");
+
+        var document = await provider.GetOpenApiDocumentAsync(TestContext.Current.CancellationToken);
+
+        document.Paths.Keys.Should().Contain("/api/v1/chats/{id}/site-boundary/actions/combine");
+        var post = document.Paths["/api/v1/chats/{id}/site-boundary/actions/combine"].Operations!.Single(o => o.Key == System.Net.Http.HttpMethod.Post).Value;
+        post.Responses!.Keys.Should().Contain(["200", "400", "404", "422"]);
+    }
+
+    [Fact]
     public async Task OpenApiDocument_ShouldListTheSiteBoundaryEditEndpoint_WithItsErrorResponses()
     {
         var provider = factory.Services.GetRequiredKeyedService<IOpenApiDocumentProvider>("v1");
