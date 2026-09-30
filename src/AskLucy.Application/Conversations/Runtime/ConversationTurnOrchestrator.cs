@@ -735,9 +735,8 @@ public sealed class ConversationTurnOrchestrator(
         // specs/077 — a site just outlined with buildings of the same development asks which of
         // them it includes, ahead of (and instead of) any generic "what next": the answer decides
         // what every later analysis covers, so it is the question worth the user's attention now.
-        if (outcome.WasInvokedThisTurn(ResolveSiteBoundaryCapability.CapabilityKey) &&
-            confirmedBoundary is not null &&
-            SiteBoundaryMembershipOffer.Build(confirmedBoundary) is { } membershipOffer)
+        if (BuildingQuestionDue(outcome, confirmedBoundary) &&
+            SiteBoundaryMembershipOffer.Build(confirmedBoundary!) is { } membershipOffer)
         {
             yield return new ChatStreamChunk(null, null, SuggestedActions: membershipOffer.Actions, SuggestedActionsQuestion: membershipOffer.Question);
             yield break;
@@ -792,6 +791,14 @@ public sealed class ConversationTurnOrchestrator(
             yield return new ChatStreamChunk(null, null, SuggestedActions: offer.Actions, SuggestedActionsQuestion: offer.Question);
         }
     }
+
+    /// <summary>
+    /// Whether this turn asks which related buildings the site includes: it just outlined a site.
+    /// specs/079 FR-023 - never for the user's own corrected outline, which was settled when they saved it.
+    /// </summary>
+    internal static bool BuildingQuestionDue(TurnOutcome outcome, ConfirmedSiteBoundaryData? confirmedBoundary) =>
+        outcome.WasInvokedThisTurn(ResolveSiteBoundaryCapability.CapabilityKey) &&
+        confirmedBoundary is { Source: not SiteBoundarySource.UserCorrected };
 
     /// <summary>
     /// specs/079 - the confidence to word the edit offer's question with, or null when no edit offer
@@ -892,13 +899,14 @@ public sealed class ConversationTurnOrchestrator(
         // follow-up ("how sure are you about that?") from context alone, with no new capability
         // call. Unaffected by the decide step retiring the automatic boundary trigger: this is
         // about ANSWERING about an already-drawn boundary, not drawing a new one.
+        // specs/079 FR-021 - the note describes the outline IN FORCE, so a hand edit's area is what
+        // Lucy reports, never the one she originally found.
         var activeBoundary = await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken);
         if (activeBoundary is not null)
         {
+            var note = ActiveSiteNote.Describe(activeBoundary);
             messages.Insert(0, new ChatMessage(ChatRole.System,
-                $"An active site boundary is already shown for '{activeBoundary.SiteName}' " +
-                $"(confidence: {activeBoundary.ConfidenceLevel}, source: {activeBoundary.Source}). " +
-                "If the user asks about its confidence or source, answer using this information " +
+                $"{note} If the user asks about its confidence or source, answer using this information " +
                 $"directly — do not claim you cannot access it. {BoundaryConfirmationTemplates.CorrectionGuidance}"));
         }
 

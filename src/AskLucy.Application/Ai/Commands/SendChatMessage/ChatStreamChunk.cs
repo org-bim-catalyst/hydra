@@ -124,4 +124,11 @@ public sealed record ConfirmedSiteBoundaryData(
 
     /// <summary>specs/077 — buildings carrying the site's name, and which ones the highlight includes.</summary>
     public IReadOnlyList<SiteBoundaryMember> Members { get; init; } = [];
+
+    /// <summary>
+    /// specs/079 - set when this is the user's own hand-edited outline, reused rather than found
+    /// afresh. The post-stream recorder then links the chat to it instead of storing these rings as
+    /// if Lucy had found them, which would make a later reset impossible.
+    /// </summary>
+    public Guid? CorrectionId { get; init; }
 }

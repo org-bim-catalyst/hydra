@@ -52,6 +52,8 @@ export function SiteBoundaryConfidenceBadge() {
   const locationLevel = useActiveLocationStore((s) => s.confidenceLevel)
   const locationReason = useActiveLocationStore((s) => s.confidenceReason)
   const boundarySourceDetail = useActiveSiteBoundaryStore((s) => s.sourceDetail)
+  // specs/079: the outline is the user's own edit - said in words, and shown as the high-confidence state it is.
+  const isHandEdited = useActiveSiteBoundaryStore((s) => s.isHandEdited)
 
   const hasBoundary = Boolean(boundarySiteName && boundaryLevel)
   const siteName = hasBoundary ? boundarySiteName : locationSource === 'agent' ? locationName : null
@@ -60,7 +62,7 @@ export function SiteBoundaryConfidenceBadge() {
 
   if (!siteName || !confidenceLevel) return null
 
-  const label = CONFIDENCE_LABEL[confidenceLevel]
+  const label = hasBoundary && isHandEdited ? 'Hand-edited by you' : CONFIDENCE_LABEL[confidenceLevel]
   const { Icon, tone } = CONFIDENCE_VISUAL[confidenceLevel]
   const iconColour = theme.palette[tone][theme.palette.mode === 'dark' ? 'light' : 'main']
 

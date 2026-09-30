@@ -58,6 +58,25 @@ describe('SiteBoundaryConfidenceBadge', () => {
     useActiveLocationStore.getState().clear()
   })
 
+  // specs/079: the user's own edit is said in words on the card, not only implied by a colour.
+  describe('a hand-edited outline', () => {
+    it('is named in the accessible name of the card', () => {
+      act(() => useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, source: 'UserCorrected', isHandEdited: true, revision: 'rev-1' }))
+
+      renderBadge()
+
+      expect(screen.getByRole('status', { hidden: true })).toHaveAccessibleName('Al Safa Park 2 boundary: Hand-edited by you')
+    })
+
+    it('reads as before for an outline Lucy found', () => {
+      act(() => useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary))
+
+      renderBadge()
+
+      expect(screen.getByRole('status', { hidden: true })).toHaveAccessibleName('Al Safa Park 2 boundary: High confidence')
+    })
+  })
+
   // Found live 2026-09-25: Lucy said "confirmed ... with a high confidence level. Now highlighting
   // the boundary." and the card stayed away until the outline — which a deploy restart then cut
   // short, so it never came at all.

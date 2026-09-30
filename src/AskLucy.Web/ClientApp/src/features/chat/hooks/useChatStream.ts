@@ -358,6 +358,7 @@ export function useChatStream(
               source: event.source as SiteBoundarySource,
               sourceDetail: event.sourceDetail,
               alternativeCandidateNames: event.alternativeCandidateNames,
+              isHandEdited: event.source === 'UserCorrected',
             })
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
@@ -587,6 +588,7 @@ export function useChatStream(
               source: event.source as SiteBoundarySource,
               sourceDetail: event.sourceDetail,
               alternativeCandidateNames: event.alternativeCandidateNames,
+              isHandEdited: event.source === 'UserCorrected',
             })
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the

@@ -48,11 +48,13 @@ public static class BoundaryConfirmationTemplates
     /// <summary>
     /// FR-010 — appended to the "same site still active" context message (see
     /// <c>SendChatMessageCommandHandler</c>) so a correction request is acknowledged rather than
-    /// silently repeating the same result, without implying manual polygon editing exists yet.
+    /// silently repeating the same result. Since specs/079 the user can also adjust the corners by
+    /// hand, which is the more useful answer when they can see exactly where it is wrong.
     /// </summary>
     public const string CorrectionGuidance =
         "If the user says this boundary looks wrong, acknowledge it, ask for more specific " +
         "details that could help (e.g. a more exact address or landmark), and if none are given, " +
-        "state plainly that you cannot make it more precise with the information available — " +
-        "never simply repeat the same boundary as if nothing was said.";
+        "say they can also drag the outline's corners themselves (\"Edit the outline\") — and if " +
+        "none are given, state plainly that you cannot make it more precise with the information " +
+        "available — never simply repeat the same boundary as if nothing was said.";
 }

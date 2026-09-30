@@ -5,6 +5,7 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Panels;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.SiteBoundaries;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
@@ -44,7 +45,7 @@ public sealed class CapabilityContractTests
     private static IReadOnlyList<IConversationCapability> Build() =>
     [
         new ResolveLocationCapability(Substitute.For<ILocationResolutionService>()),
-        new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>()),
+        new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None()),
         new AdjustViewerFocusCapability(),
         new SearchKnowledgeBaseCapability(Substitute.For<IRagService>(), Substitute.For<IConversationKnowledgeBaseRepository>()),
         new SearchMemoryCapability(Substitute.For<IMemoryService>()),

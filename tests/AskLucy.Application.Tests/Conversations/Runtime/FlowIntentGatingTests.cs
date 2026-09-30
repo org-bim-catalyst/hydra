@@ -67,7 +67,7 @@ public sealed class FlowIntentGatingTests
     private ConversationTurnOrchestrator BuildOrchestrator(params IAgentTool[] additionalCapabilities)
     {
         var toolCatalog = new AgentToolCatalog(
-            [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(Substitute.For<AskLucy.Application.SiteBoundaries.IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>()), .. additionalCapabilities],
+            [new ResolveLocationCapability(_locationService), new AdjustViewerFocusCapability(), new ResolveSiteBoundaryCapability(Substitute.For<AskLucy.Application.SiteBoundaries.IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None()), .. additionalCapabilities],
             new EmptyMcpToolRegistry());
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions());
         var indexRetriever = new CapabilityIndexRetriever(

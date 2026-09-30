@@ -10,6 +10,7 @@ using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Retrieval;
 using AskLucy.Domain.SiteBoundaries;
@@ -69,7 +70,7 @@ public sealed class SubAgentDelegatorTests
         var toolCatalog = new AgentToolCatalog(
             [
                 new ResolveLocationCapability(_locationService),
-                new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>()),
+                new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None()),
                 new SearchKnowledgeBaseCapability(_ragService, _knowledgeBaseRepository),
                 new SearchMemoryCapability(_memoryService),
                 new AdjustViewerFocusCapability(),

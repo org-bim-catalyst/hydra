@@ -11,6 +11,7 @@ using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
@@ -40,7 +41,7 @@ public sealed class LocateAPlaceFlowTests
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions());
         var capabilityCatalog = new ConversationCapabilityCatalog(
             new AgentToolCatalog(
-                [new ResolveLocationCapability(_locationService), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
+                [new ResolveLocationCapability(_locationService), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None())],
                 new EmptyMcpToolRegistry()),
             new CapabilityIndexRetriever(Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance),
             runtimeOptions);
@@ -223,7 +224,7 @@ public sealed class LocateAPlaceFlowTests
         var runtimeOptions = Microsoft.Extensions.Options.Options.Create(new ConversationRuntimeOptions { MaxTurnDurationSeconds = 5 });
         var capabilityCatalog = new ConversationCapabilityCatalog(
             new AgentToolCatalog(
-                [new ResolveLocationCapability(_locationService), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>())],
+                [new ResolveLocationCapability(_locationService), new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None())],
                 new EmptyMcpToolRegistry()),
             new CapabilityIndexRetriever(Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance),
             runtimeOptions);
@@ -263,7 +264,7 @@ public sealed class LocateAPlaceFlowTests
 
         new ResolveLocationCapability(_locationService).IsOfferable(context, outcome).Should().BeFalse();
         new AdjustViewerFocusCapability().IsOfferable(context, outcome).Should().BeFalse();
-        new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>()).IsOfferable(context, outcome).Should().BeFalse();
+        new ResolveSiteBoundaryCapability(_boundaryService, Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None()).IsOfferable(context, outcome).Should().BeFalse();
     }
 
     private sealed class EmptyMcpToolRegistry : IMcpToolRegistry

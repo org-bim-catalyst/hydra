@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Conversations.Capabilities;
 
@@ -39,7 +40,9 @@ namespace AskLucy.Application.Conversations.Capabilities;
 /// </para>
 /// </summary>
 public sealed class ResolveSiteBoundaryCapability(
-    IBoundaryResolutionService boundaryResolutionService, IUserChatRepository userChatRepository) : IConversationCapability
+    IBoundaryResolutionService boundaryResolutionService,
+    IUserChatRepository userChatRepository,
+    SiteBoundaryCorrectionMatcher correctionMatcher) : IConversationCapability
 {
     public const string CapabilityKey = "resolve_site_boundary";
 
@@ -62,7 +65,9 @@ public sealed class ResolveSiteBoundaryCapability(
         "slow, so it must never be started without the user having asked for it or accepted it. " +
         "When the result lists excludedBuildings, say the outline covers what outlineCovers lists " +
         "and name every building in excludedBuildings as found but left out — the user is about " +
-        "to be asked which to keep.";
+        "to be asked which to keep. " +
+        "When userCorrected is true, say you are showing the user's own corrected outline of this " +
+        "site, from an earlier edit, and that it can be reset to the one you found.";
 
     public string Label => "Highlight the site boundary";
 
@@ -96,6 +101,27 @@ public sealed class ResolveSiteBoundaryCapability(
     public bool IsAvailable(TurnContext context) =>
         context.HasActiveLocation && !context.IsBoundaryCurrentForActiveLocation;
 
+    /// <summary>
+    /// The narrating model reads only this JSON, and a guidance sentence alone did not steer it in
+    /// specs/077, so the fact leads the result in plain words (specs/079 C3).
+    /// </summary>
+    private static JsonDocument WithOrigin(JsonDocument payload)
+    {
+        using (payload)
+        {
+            var result = new System.Text.Json.Nodes.JsonObject
+            {
+                ["outlineOrigin"] = "This is the user's own hand-edited outline of this site, saved from an earlier edit - not a fresh lookup.",
+            };
+            foreach (var property in payload.RootElement.EnumerateObject())
+            {
+                result[property.Name] = System.Text.Json.Nodes.JsonNode.Parse(property.Value.GetRawText());
+            }
+
+            return JsonSerializer.SerializeToDocument(result);
+        }
+    }
+
     /// <summary>Never offered on its own; reached through the flow (FR-060).</summary>
     public bool IsOfferable(TurnContext context, TurnOutcome justCompleted) => false;
 
@@ -124,6 +150,15 @@ public sealed class ResolveSiteBoundaryCapability(
 
             confirmedLocation = new ConfirmedLocationData(
                 activeLocation.Latitude, activeLocation.Longitude, activeLocation.LocationName, activeLocation.Confidence);
+        }
+
+        // specs/079 (FR-023) - a site the user already corrected is shown as they left it: no lookup,
+        // no building question, no edit offer. Only the user's own correction can match.
+        var reused = await correctionMatcher.FindAsync(
+            context.UserId, confirmedLocation.LocationName, new GeoPoint(confirmedLocation.Latitude, confirmedLocation.Longitude), cancellationToken);
+        if (reused is not null)
+        {
+            return AgentToolResult.Success(WithOrigin(SiteBoundaryPayload.Write(CorrectionOutline.ToConfirmed(reused))));
         }
 
         try

@@ -33,6 +33,10 @@ public static class SiteBoundaryPayload
             // includes no buildings" of a mall it had just outlined, and "only Phase 2" once one
             // was added. Empty for a site with no related buildings, which asks nothing.
             outlineCovers = OutlineCovers(boundary),
+
+            // specs/079 - present only for a reused hand-edited outline.
+            correctionId = boundary.CorrectionId,
+            userCorrected = boundary.CorrectionId is not null,
             excludedBuildings = boundary.Members.Where(m => !m.Included).Select(m => m.Name),
             members = boundary.Members.Select(m => new
             {
@@ -73,6 +77,9 @@ public static class SiteBoundaryPayload
             AdditionalPolygons = root.TryGetProperty("additionalPolygons", out var additional)
                 ? [.. additional.EnumerateArray().Select(ReadPoints)]
                 : [],
+            CorrectionId = root.TryGetProperty("correctionId", out var correctionId) && correctionId.ValueKind == JsonValueKind.String
+                ? correctionId.GetGuid()
+                : null,
             Members = root.TryGetProperty("members", out var members)
                 ? [.. members.EnumerateArray().Select(m => new SiteBoundaryMember(
                     m.GetProperty("id").GetString() ?? string.Empty,

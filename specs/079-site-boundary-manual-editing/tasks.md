@@ -226,24 +226,24 @@ without resolving, drives analyses, and Lucy reports the edited area.
 
 **Independent Test**: quickstart steps 6, 7 and 11, and step 8 without its Reset-offer check (that offer arrives with US5).
 
-- [ ] T062 [P] [US3] Create `tests/AskLucy.Application.Tests/SiteBoundaries/SiteBoundaryCorrectionMatcherTests.cs`:
+- [x] T062 [P] [US3] Create `tests/AskLucy.Application.Tests/SiteBoundaries/SiteBoundaryCorrectionMatcherTests.cs`:
   - the same name and point inside the found rings grown by 100 m matches;
   - within 250 m of the centroid matches;
   - the same name 5 km away doesn't match;
   - a different user never matches;
   - normalised name variants match.
-- [ ] T063 [P] [US3] Extend `tests/AskLucy.Application.Tests/Conversations/Capabilities/ResolveSiteBoundaryCapabilityTests.cs`: Assert that the first field of the result data is that plain sentence.
+- [x] T063 [P] [US3] Extend `tests/AskLucy.Application.Tests/Conversations/Capabilities/ResolveSiteBoundaryCapabilityTests.cs`: Assert that the first field of the result data is that plain sentence.
   - a match links the correction, copies the found snapshot and returns `userCorrected: true`;
   - no Overpass, vision or membership calls are made (the substitutes receive nothing);
   - no match falls through to normal resolution.
-- [ ] T064 [P] [US3] Create `tests/AskLucy.Application.Tests/Conversations/Runtime/ActiveSiteNoteTests.cs`: the line for a found outline and the line for a hand-edited one (with "outline hand-edited by the user" and the area); no line without an outline.
-- [ ] T065 [P] [US3] Create `tests/AskLucy.Application.Tests/Conversations/Runtime/HandEditedOutlineFollowUpTurnsTests.cs`: run 10 turns through the orchestrator on a linked correction (3 area questions, 2 "show me the same site", 1 building choice, 2 analyses, 2 unrelated). Assert the edited area is in every turn's context and `ActiveSiteNote`, the found area is never current, no edit or membership offer is emitted, and the correction is never unlinked (SC-006).
-- [ ] T066 [US3] Create `SiteBoundaryCorrectionMatcher` in `src/AskLucy.Application/SiteBoundaries/SiteBoundaryCorrectionMatcher.cs` (research D5).
-- [ ] T067 [US3] In `src/AskLucy.Application/Conversations/Capabilities/ResolveSiteBoundaryCapability.cs`, look up a correction before resolving. On a match: `RecordActiveSiteBoundary` from the found snapshot, `LinkSiteBoundaryCorrection`, and return the effective payload plus `userCorrected: true`, with the `UsageGuidance` sentence. Make sure the membership offer and the edit offer both skip a hand-edited outline (FR-001, FR-023). Put `"outlineOrigin": "The user's own corrected outline, saved earlier"` FIRST in the result data; `UsageGuidance` is only a backup (the narrator sees only the result data).
-- [ ] T068 [US3] Create `ActiveSiteNote.Describe(TurnContext)` in `src/AskLucy.Application/Conversations/Runtime/ActiveSiteNote.cs`, and add its line to the fast-path reply prompt and the `TurnDecider` prompt (research D8, FR-021).
-- [ ] T069 [US3] Add the conflict UI to `SiteBoundaryEditToolbar.tsx` and `useSiteBoundaryEditMode.ts`: on a 409, show the "The outline changed in another tab." `Alert` with **Load latest** (refetch detail and re-enter from it, keeping the captured view state) and **Cancel** (FR-019). Extend the toolbar tests.
-- [ ] T070 [US3] Show a "Hand-edited" state in `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryConfidenceBadge.tsx` when `isHandEdited`, with the high-confidence style (spec Assumptions). Extend its test and a11y test.
-- [ ] T071 [P] [US3] Extend `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs`: after a PUT, `GET /chats/{id}` returns the edited rings with `isHandEdited: true`; a second chat of the same user linked to the same correction sees the latest edit; another user's chat never does (FR-026).
+- [x] T064 [P] [US3] Create `tests/AskLucy.Application.Tests/Conversations/Runtime/ActiveSiteNoteTests.cs`: the line for a found outline and the line for a hand-edited one (with "outline hand-edited by the user" and the area); no line without an outline.
+- [x] T065 [P] [US3] Create `tests/AskLucy.Application.Tests/Conversations/Runtime/HandEditedOutlineFollowUpTurnsTests.cs`: run 10 turns through the orchestrator on a linked correction (3 area questions, 2 "show me the same site", 1 building choice, 2 analyses, 2 unrelated). Assert the edited area is in every turn's context and `ActiveSiteNote`, the found area is never current, no edit or membership offer is emitted, and the correction is never unlinked (SC-006).
+- [x] T066 [US3] Create `SiteBoundaryCorrectionMatcher` in `src/AskLucy.Application/SiteBoundaries/SiteBoundaryCorrectionMatcher.cs` (research D5).
+- [x] T067 [US3] In `src/AskLucy.Application/Conversations/Capabilities/ResolveSiteBoundaryCapability.cs`, look up a correction before resolving. On a match: `RecordActiveSiteBoundary` from the found snapshot, `LinkSiteBoundaryCorrection`, and return the effective payload plus `userCorrected: true`, with the `UsageGuidance` sentence. Make sure the membership offer and the edit offer both skip a hand-edited outline (FR-001, FR-023). Put `"outlineOrigin": "The user's own corrected outline, saved earlier"` FIRST in the result data; `UsageGuidance` is only a backup (the narrator sees only the result data).
+- [x] T068 [US3] Create `ActiveSiteNote.Describe(TurnContext)` in `src/AskLucy.Application/Conversations/Runtime/ActiveSiteNote.cs`, and add its line to the fast-path reply prompt and the `TurnDecider` prompt (research D8, FR-021).
+- [x] T069 [US3] Add the conflict UI to `SiteBoundaryEditToolbar.tsx` and `useSiteBoundaryEditMode.ts`: on a 409, show the "The outline changed in another tab." `Alert` with **Load latest** (refetch detail and re-enter from it, keeping the captured view state) and **Cancel** (FR-019). Extend the toolbar tests.
+- [x] T070 [US3] Show a "Hand-edited" state in `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryConfidenceBadge.tsx` when `isHandEdited`, with the high-confidence style (spec Assumptions). Extend its test and a11y test.
+- [x] T071 [P] [US3] Extend `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs`: after a PUT, `GET /chats/{id}` returns the edited rings with `isHandEdited: true`; a second chat of the same user linked to the same correction sees the latest edit; another user's chat never does (FR-026). (Done at the layer that can run without a second signed-in user, as `OwnershipTests` documents: the save/GET/reuse rules are asserted in `SaveSiteBoundaryEditCommandTests`, `EffectiveSiteBoundaryTests`, `GetChatByIdQueryHandlerTests` and `ResolveSiteBoundaryReuseTests`; the endpoint tests cover the 401 gate and the OpenAPI contract. A two-user HTTP test needs seeded accounts the test host does not have.)
 
 **Checkpoint**: P1 is complete. Walk through quickstart steps 6, 7, 8 and 11.
 

@@ -4,6 +4,7 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Panels;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
@@ -55,7 +56,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeUnavailable_WhenNoLocationIsActive()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None());
 
         capability.IsAvailable(Base()).Should().BeFalse(
             "there is nothing to outline without a confirmed place");
@@ -64,7 +65,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeAvailable_WhenALocationIsActiveAndUnoutlined()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None());
         var context = Base() with { ActiveLocation = AlSafaPark };
 
         capability.IsAvailable(context).Should().BeTrue();
@@ -73,7 +74,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeUnavailable_WhenThatSiteIsAlreadyOutlined()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None());
         var context = Base() with
         {
             ActiveLocation = AlSafaPark,
@@ -88,7 +89,7 @@ public sealed class CapabilityAvailabilityTests
     [Fact]
     public void ResolveSiteBoundary_ShouldBeAvailable_WhenTheOutlinedSiteIsADifferentOne()
     {
-        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>());
+        var capability = new ResolveSiteBoundaryCapability(Substitute.For<IBoundaryResolutionService>(), Substitute.For<IUserChatRepository>(), TestCorrectionMatcher.None());
         var context = Base() with
         {
             ActiveLocation = AlSafaPark,

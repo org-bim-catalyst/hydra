@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
@@ -24,7 +25,7 @@ public sealed class ResolveSiteBoundaryCapabilityTests
     private readonly IUserChatRepository _userChatRepository = Substitute.For<IUserChatRepository>();
     private readonly Guid _chatId = Guid.NewGuid();
 
-    private ResolveSiteBoundaryCapability BuildCapability() => new(_boundaryService, _userChatRepository);
+    private ResolveSiteBoundaryCapability BuildCapability() => new(_boundaryService, _userChatRepository, TestCorrectionMatcher.None());
 
     private AgentToolExecutionContext Context() =>
         new(Guid.NewGuid(), Guid.NewGuid(), "user-1", Guid.NewGuid(), Guid.NewGuid(), _chatId);
