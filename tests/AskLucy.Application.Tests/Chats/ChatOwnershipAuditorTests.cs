@@ -37,7 +37,7 @@ public sealed class ChatOwnershipAuditorTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
         _auditLog.Received(1).Add(Arg.Is<RoleAuditLog>(e =>
-            e.Action == RoleAuditAction.AuthorizationDenied && e.ActorUserId == "intruder"));
+            e!.Action == RoleAuditAction.AuthorizationDenied && e.ActorUserId == "intruder"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

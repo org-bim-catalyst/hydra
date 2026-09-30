@@ -107,7 +107,7 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
         return Factory.CreateLinearRing(coordinates.ToArray());
     }
 
-    private static double ShoelaceArea(IReadOnlyList<(double X, double Y)> ring)
+    private static double ShoelaceArea(List<(double X, double Y)> ring)
     {
         var sum = 0.0;
         for (var i = 0; i < ring.Count; i++)

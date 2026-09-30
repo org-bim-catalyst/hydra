@@ -53,7 +53,7 @@ public sealed class EffectiveSiteBoundaryTests
         var result = await Create().ResolveAsync(chat, TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(chat.ActiveBoundary);
-        await _corrections.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default!, default);
+        await _corrections.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<string>(), TestContext.Current.CancellationToken);
     }
 
     [Fact]
