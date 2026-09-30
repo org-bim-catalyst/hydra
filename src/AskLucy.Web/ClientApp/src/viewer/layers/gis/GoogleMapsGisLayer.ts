@@ -104,6 +104,14 @@ export interface GoogleMapsGisLayerHandle {
    * subscription, not automatically every draw — the animation only ticks while that extension
    * is started and keeps requesting a redraw (FR-022). A no-op while no boundary is shown. */
   advanceSiteBoundaryAnimation(deltaSeconds: number): void
+
+  /**
+   * specs/079 — hides (or shows again) the drawn site outline, both the animated rings and the
+   * fallback polygon, without clearing it. Outline edit mode shows its own editable polygons in
+   * their place, and on Done or Cancel this brings the outline back. The animation clock keeps
+   * running, so the border resumes mid-orbit rather than restarting.
+   */
+  setOutlineVisible(visible: boolean): void
   dispose(): void
 }
 
@@ -274,6 +282,8 @@ export async function createGoogleMapsGisLayer(
   // (siteBoundaryRenderer above) still layers on top when the bridge is working; if it isn't, the
   // user still sees a clearly recognizable boundary via this polygon alone (FR-002).
   let boundaryPolygon: google.maps.Polygon | undefined
+  /** specs/079 — false while outline edit mode shows its own editable polygons instead; a boundary set meanwhile stays hidden too. */
+  let outlineVisible = true
   const BOUNDARY_STYLE: Record<BorderConfidenceLevel, { color: string; fillOpacity: number; strokeOpacity: number; strokeWeight: number }> = {
     // medium/high: a native vector overlay like this Polygon composites above the
     // WebGLOverlayView canvas the rotating border ring draws into, so a bold native stroke here
@@ -574,6 +584,8 @@ export async function createGoogleMapsGisLayer(
         })
         boundaryPolygon.setMap(map)
       }
+      if (!outlineVisible) boundaryPolygon.setMap(null)
+      siteBoundaryRenderer.object3D.visible = outlineVisible
       nudgeMapRepaint()
 
       // The bonus path — best-effort animated highlight via the Three.js bridge. Wrapped so a
@@ -594,6 +606,12 @@ export async function createGoogleMapsGisLayer(
       } catch (error) {
         console.error('[GoogleMapsGisLayer] Failed to build the Three.js site-boundary highlight (native polygon above still shows the boundary):', error)
       }
+    },
+    setOutlineVisible: (visible) => {
+      outlineVisible = visible
+      boundaryPolygon?.setMap(visible ? map : null)
+      siteBoundaryRenderer.object3D.visible = visible
+      nudgeMapRepaint()
     },
     advanceSiteBoundaryAnimation: (deltaSeconds) => {
       // Same metersPerPixel formula onDraw itself used before T051's migration — kept here since

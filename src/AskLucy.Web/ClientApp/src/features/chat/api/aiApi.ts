@@ -174,6 +174,14 @@ export type ChatStreamEvent =
       date: string
       timeOfDay: string
     }
+  /** specs/079 contracts/site-boundary-edit-sse-event.md — Lucy opening the outline editor for a
+   * chat's site, carried on the trailing `__SITE_BOUNDARY_EDIT__` event. `revision` is the outline
+   * revision the editor must start from. */
+  | {
+      type: 'siteBoundaryEdit'
+      chatId: string
+      revision: string
+    }
   /**
    * The server finished one assistant message and started another. Deltas that follow belong to
    * the new one; the text so far is complete and already persisted server-side.
@@ -213,6 +221,7 @@ const LOCATION_EVENT_PREFIX = '__LOCATION__'
 const ZOOM_EVENT_PREFIX = '__ZOOM__'
 const VIEWER_CONTENT_EVENT_PREFIX = '__VIEWER_CONTENT__'
 const SOLAR_ANALYSIS_EVENT_PREFIX = '__SOLAR_ANALYSIS__'
+const SITE_BOUNDARY_EDIT_EVENT_PREFIX = '__SITE_BOUNDARY_EDIT__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const TURN_OUTCOME_EVENT_PREFIX = '__TURN_OUTCOME__'
@@ -489,6 +498,13 @@ export async function* streamChat(
       if (data.startsWith(SOLAR_ANALYSIS_EVENT_PREFIX)) {
         const payload = JSON.parse(data.slice(SOLAR_ANALYSIS_EVENT_PREFIX.length)) as { date: string; timeOfDay: string }
         yield { type: 'solarAnalysis', ...payload }
+        continue
+      }
+
+      // specs/079: Lucy opening the outline editor — `data: __SITE_BOUNDARY_EDIT__{"chatId","revision"}`.
+      if (data.startsWith(SITE_BOUNDARY_EDIT_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(SITE_BOUNDARY_EDIT_EVENT_PREFIX.length)) as { chatId: string; revision: string }
+        yield { type: 'siteBoundaryEdit', chatId: payload.chatId, revision: payload.revision }
         continue
       }
 

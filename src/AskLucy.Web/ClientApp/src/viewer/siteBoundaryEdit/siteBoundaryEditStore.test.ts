@@ -31,7 +31,10 @@ const session = () => {
 const enter = (rings: GeoPoint[][] = [closeRing(square())]) =>
   store().enter({ chatId: 'chat-1', siteName: 'Muscat Grand Mall', revision: 'rev-1', rings, viewState })
 
-afterEach(() => store().end())
+afterEach(() => {
+  store().end()
+  store().consumeRequest()
+})
 
 describe('siteBoundaryEditStore', () => {
   describe('enter', () => {
@@ -207,6 +210,22 @@ describe('siteBoundaryEditStore', () => {
       enter()
       store().end()
       expect(store().session).toBeNull()
+    })
+  })
+
+  describe('edit requests (the siteBoundaryEdit stream event)', () => {
+    it('holds a request until the viewer consumes it, once', () => {
+      store().requestEdit({ chatId: 'chat-1', revision: 'rev-1' })
+      expect(store().pendingRequest).toEqual({ chatId: 'chat-1', revision: 'rev-1' })
+      expect(store().consumeRequest()).toEqual({ chatId: 'chat-1', revision: 'rev-1' })
+      expect(store().pendingRequest).toBeNull()
+      expect(store().consumeRequest()).toBeNull()
+    })
+
+    it('keeps only the latest request', () => {
+      store().requestEdit({ chatId: 'chat-1', revision: 'rev-1' })
+      store().requestEdit({ chatId: 'chat-1', revision: 'rev-2' })
+      expect(store().consumeRequest()).toEqual({ chatId: 'chat-1', revision: 'rev-2' })
     })
   })
 

@@ -61,11 +61,24 @@ export interface EnterParams {
   viewState: ViewState
 }
 
+/** Lucy asked for the editor (the `siteBoundaryEdit` stream event); the viewer picks this up and enters. */
+export interface EditRequest {
+  chatId: string
+  revision: string
+}
+
 interface State {
   session: SiteBoundaryEditSession | null
+  /**
+   * A request to open the editor that no viewer has acted on yet. The chat stream cannot enter edit
+   * mode itself (it has no map), so it leaves the request here and the viewer-side hook consumes it.
+   */
+  pendingRequest: EditRequest | null
 }
 
 interface Actions {
+  requestEdit(request: EditRequest): void
+  consumeRequest(): EditRequest | null
   enter(params: EnterParams): void
   /** A local change that passed validation: records it for undo and clears redo. */
   applyChange(change: RingChange): void
@@ -126,6 +139,17 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
 
   return {
     session: null,
+    pendingRequest: null,
+
+    requestEdit(request) {
+      set({ pendingRequest: request })
+    },
+
+    consumeRequest() {
+      const { pendingRequest } = get()
+      if (pendingRequest) set({ pendingRequest: null })
+      return pendingRequest
+    },
 
     enter({ chatId, siteName, revision, rings, viewState }) {
       const start = cloneRings(rings)

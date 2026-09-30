@@ -111,6 +111,19 @@ export interface ChatActiveBoundary {
   isHandEdited: boolean
 }
 
+/** specs/079 contracts/site-boundary-edit-api.md — `PUT /chats/{id}/site-boundary`. */
+export interface SaveSiteBoundaryEditRequest {
+  expectedRevision: string
+  /** Open rings: the first corner is not repeated at the end. */
+  rings: { latitude: number; longitude: number }[][]
+}
+
+export interface SaveSiteBoundaryEditResponse {
+  activeBoundary: ChatActiveBoundary
+  /** The chat line recording the edit; the same shape a persisted message list carries. */
+  message: PersistedMessage
+}
+
 export interface SearchChatsParams {
   view?: ConversationView
   pinned?: boolean
@@ -204,3 +217,10 @@ export async function exportChat(id: string): Promise<Blob> {
 
   return response.blob()
 }
+
+/**
+ * specs/079 — saves the hand-edited outline. A stale revision is a 409 carrying `currentRevision`; a
+ * refused shape is a 422 carrying `ringIndex` and `reason`; both arrive as an `ApiError`.
+ */
+export const saveSiteBoundaryEdit = (id: string, request: SaveSiteBoundaryEditRequest) =>
+  apiFetch<SaveSiteBoundaryEditResponse>(`/chats/${id}/site-boundary`, { method: 'PUT', body: JSON.stringify(request) })

@@ -244,6 +244,30 @@ describe('streamChat', () => {
     expect(events).toContainEqual({ type: 'solarAnalysis', ...solarPayload })
   })
 
+  // specs/079 contracts/site-boundary-edit-sse-event.md: __SITE_BOUNDARY_EDIT__ trailing SSE event
+  it('parses a __SITE_BOUNDARY_EDIT__ trailing event and yields a siteBoundaryEdit event', async () => {
+    const editPayload = { chatId: 'chat-1', revision: '0199a0c4-0000-7000-8000-000000000001' }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: The outline editor is open.\n\n',
+          `data: __SITE_BOUNDARY_EDIT__${JSON.stringify(editPayload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events).toContainEqual({ type: 'siteBoundaryEdit', ...editPayload })
+    // The marker is never rendered as prose.
+    expect(events.filter((e) => e.type === 'content').some((e) => JSON.stringify(e).includes('SITE_BOUNDARY_EDIT'))).toBe(false)
+  })
+
   // specs/060: streamChat bypasses apiFetch (raw fetch, for SSE), so a revoked session used to
   // surface only a generic "chat request failed" error instead of the sign-out/login flow.
   it('retries once after a silent refresh when the chat request itself 401s', async () => {

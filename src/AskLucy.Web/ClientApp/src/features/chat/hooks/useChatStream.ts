@@ -11,6 +11,7 @@ import {
   type SuggestedAction,
 } from '../api/aiApi'
 import { requestSolarAnalysisMoment } from '../../solar/components/SolarAnalysisOverlay'
+import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
@@ -336,6 +337,12 @@ export function useChatStream(
             // here or on the server; the browser computes the figures once the extension opens.
             requestSolarAnalysisMoment(event.date, event.timeOfDay)
             viewerExtensionLoader.activate('viewer.solar-analysis')
+          } else if (event.type === 'siteBoundaryEdit') {
+            // specs/079: Lucy opened the outline editor. The stream has no map, so it leaves the
+            // request for the viewer to act on; a request for some other chat is not this one's.
+            if (event.chatId === activeChatId) {
+              useSiteBoundaryEditStore.getState().requestEdit({ chatId: event.chatId, revision: event.revision })
+            }
           } else if (event.type === 'siteBoundary') {
             // specs/042-site-boundary-resolution: resolved site boundary — replaces the
             // previously active one wholesale (a new site fully supersedes the previous one).
@@ -561,6 +568,12 @@ export function useChatStream(
           } else if (event.type === 'solarAnalysis') {
             requestSolarAnalysisMoment(event.date, event.timeOfDay)
             viewerExtensionLoader.activate('viewer.solar-analysis')
+          } else if (event.type === 'siteBoundaryEdit') {
+            // specs/079: Lucy opened the outline editor. The stream has no map, so it leaves the
+            // request for the viewer to act on; a request for some other chat is not this one's.
+            if (event.chatId === activeChatId) {
+              useSiteBoundaryEditStore.getState().requestEdit({ chatId: event.chatId, revision: event.revision })
+            }
           } else if (event.type === 'siteBoundary') {
             useActiveSiteBoundaryStore.getState().setBoundary({
               siteName: event.siteName,

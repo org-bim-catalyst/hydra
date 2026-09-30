@@ -34,6 +34,11 @@ export class ApiError extends Error {
   providerFailure?: ProviderFailure
   /** specs/074 — on an `incident-conflict` (409) reopen, the newer incident already open for the same cause. */
   newerIncidentId?: string
+  /** specs/079 — on a stale-revision 409, the site-outline revision now in force. */
+  currentRevision?: string
+  /** specs/079 — on a refused-shape 422, which ring was refused and why (`selfCrossing`, `degenerate`, ...). */
+  ringIndex?: number
+  reason?: string
 
   constructor(
     status: number,
@@ -42,6 +47,7 @@ export class ApiError extends Error {
     errors?: Record<string, string[]>,
     providerFailure?: ProviderFailure,
     newerIncidentId?: string,
+    outline?: { currentRevision?: string; ringIndex?: number; reason?: string },
   ) {
     super(message)
     this.status = status
@@ -49,6 +55,9 @@ export class ApiError extends Error {
     this.errors = errors
     this.providerFailure = providerFailure
     this.newerIncidentId = newerIncidentId
+    this.currentRevision = outline?.currentRevision
+    this.ringIndex = outline?.ringIndex
+    this.reason = outline?.reason
   }
 }
 
@@ -71,6 +80,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
       problem?.errors,
       problem?.providerFailure,
       problem?.newerIncidentId,
+      { currentRevision: problem?.currentRevision, ringIndex: problem?.ringIndex, reason: problem?.reason },
     )
   }
 
