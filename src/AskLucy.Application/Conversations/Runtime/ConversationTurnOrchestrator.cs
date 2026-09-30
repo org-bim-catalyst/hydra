@@ -109,6 +109,20 @@ public sealed class ConversationTurnOrchestrator(
         var effectiveBoundary = await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken);
         var turnContext = TurnContextFactory.Build(userId, request.ChatId, chat?.ActiveLocation, effectiveBoundary, knowledgeBaseIds);
 
+        // English typed on the Arabic keyboard layout arrives as Arabic letters that mean nothing. Acting
+        // on a guess would be wrong (it opened the outline editor once), so the turn is answered in
+        // words: Lucy says what she read and asks the user to confirm or retype.
+        if (request.SelectedAction is null && request.Retry is null &&
+            KeyboardLayoutMisread.TryDecode(latestUserMessage) is { } decodedMessage)
+        {
+            await foreach (var chunk in RunLayoutMisreadReplyAsync(request, decodedMessage, cancellationToken))
+            {
+                yield return chunk;
+            }
+
+            yield break;
+        }
+
         // specs/045 US3 (FR-027) — a selection was already resolved and grounded by
         // ISelectedActionResolver before this command was even dispatched (AiController runs that
         // ahead of persisting the user message, since the message's own Content is the resolved
@@ -696,6 +710,26 @@ public sealed class ConversationTurnOrchestrator(
             $"The user selected a suggested follow-up: \"{followUpText}\". Respond to it directly and " +
             "naturally, as your next message in the conversation — do not mention that this was a " +
             "suggested option, and do not repeat the option's wording verbatim."));
+
+        await foreach (var chunk in request.Provider.StreamChatAsync(messages, request.ModelKey, request.GenerationParameters, cancellationToken))
+        {
+            yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
+        }
+    }
+
+    /// <summary>
+    /// A message that looks like English typed on the Arabic keyboard layout: no capability runs, and the
+    /// reply says what it was decoded to so the user can confirm it or retype.
+    /// </summary>
+    private static async IAsyncEnumerable<ChatStreamChunk> RunLayoutMisreadReplyAsync(
+        ConversationTurnRequest request,
+        string decoded,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var messages = request.Messages
+            .Select(m => new ChatMessage(ParseRole(m.Role), m.Content))
+            .ToList();
+        messages.Insert(0, new ChatMessage(ChatRole.System, KeyboardLayoutMisread.ClarificationInstruction(decoded)));
 
         await foreach (var chunk in request.Provider.StreamChatAsync(messages, request.ModelKey, request.GenerationParameters, cancellationToken))
         {
