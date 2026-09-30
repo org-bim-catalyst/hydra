@@ -42,6 +42,8 @@ import { WorkspaceOverlay } from '../../../components/workspace-shell/WorkspaceO
 import { ThemeToggleButton } from '../../../components/workspace-shell/ThemeToggleButton'
 import { StudioAccountMenuButton } from '../../../components/workspace-shell/StudioAccountMenuButton'
 import { ComingSoonDialog } from '../../../components/workspace-shell/ComingSoonDialog'
+import { SiteBoundaryChatSwitchDialog } from '../../viewer/components/SiteBoundaryChatSwitchDialog'
+import { guardChatSwitch } from '../../../viewer/siteBoundaryEdit/chatSwitchGuard'
 import {
   analysisControl,
   layersControl,
@@ -175,11 +177,13 @@ export function ChatPage() {
   // specs/026-floating-chat-assistant FR-014: starts a fresh conversation on demand, from
   // the minimal icon in ExpandedChatPanel's header — the same reset `AssistantPanel`'s old
   // "+ New chat" button performed (FR-012's removed control), now reached differently.
-  const handleNewChat = () => {
-    setSelectedChatId(null)
-    setActiveChatId(null)
-    setViewKey((k) => k + 1)
-  }
+  const handleNewChat = () =>
+    // specs/079 FR-029: a new chat with unsaved outline changes asks first.
+    guardChatSwitch(null, () => {
+      setSelectedChatId(null)
+      setActiveChatId(null)
+      setViewKey((k) => k + 1)
+    })
 
   const workspaceControls = [
     viewModeControl,
@@ -255,6 +259,7 @@ export function ChatPage() {
         </ChatAssistantWidget>
       </WorkspaceOverlay>
       <ComingSoonDialog />
+      <SiteBoundaryChatSwitchDialog />
     </Box>
   )
 }

@@ -46,6 +46,9 @@ export function registerSiteBoundaryEditRuntime(next: SiteBoundaryEditRuntime): 
   }
 }
 
+/** Whether the outline editor is running (the viewer is showing a map), so its actions will do something. */
+export const hasSiteBoundaryEditRuntime = () => runtime !== null
+
 const NOT_READY = "The outline editor isn't ready yet — the map is still loading."
 
 /** The action, or - when nothing has registered (the viewer is not showing a map) - a visible explanation, never a silent no-op. */

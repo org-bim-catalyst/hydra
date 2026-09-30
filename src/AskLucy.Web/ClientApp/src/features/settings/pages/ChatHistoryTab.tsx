@@ -1,5 +1,7 @@
 import { Box } from '@mui/material'
 import { useNavigate } from 'react-router'
+import { guardChatSwitch } from '../../../viewer/siteBoundaryEdit/chatSwitchGuard'
+import { SiteBoundaryChatSwitchDialog } from '../../viewer/components/SiteBoundaryChatSwitchDialog'
 import { useActiveConversationStore } from '../../chat/activeConversationStore'
 import { ConversationList } from '../../chat/components/ChatSidebar'
 
@@ -14,15 +16,18 @@ export function ChatHistoryTab() {
   const activeChatId = useActiveConversationStore((s) => s.activeChatId)
   const setActiveChatId = useActiveConversationStore((s) => s.setActiveChatId)
 
-  const handleSelectChat = (id: string) => {
-    setActiveChatId(id)
-    navigate('/studio')
-  }
+  // specs/079 FR-029: leaving for another chat with unsaved outline changes asks first.
+  const handleSelectChat = (id: string) =>
+    guardChatSwitch(id, () => {
+      setActiveChatId(id)
+      navigate('/studio')
+    })
 
-  const handleNewChat = () => {
-    setActiveChatId(null)
-    navigate('/studio')
-  }
+  const handleNewChat = () =>
+    guardChatSwitch(null, () => {
+      setActiveChatId(null)
+      navigate('/studio')
+    })
 
   return (
     <Box sx={{ height: 480 }}>
@@ -32,6 +37,7 @@ export function ChatHistoryTab() {
         onNewChat={handleNewChat}
         showNewChatButton={false}
       />
+      <SiteBoundaryChatSwitchDialog onReturnToEditor={() => navigate('/studio')} />
     </Box>
   )
 }

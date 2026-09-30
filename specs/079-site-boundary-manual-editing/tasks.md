@@ -317,7 +317,7 @@ found outline is redrawn with effects.
 ## Phase 9: Polish and cross-cutting concerns
 
 - [x] T086 Lifecycle, FR-030: in `useSiteBoundaryEditMode.ts`, when a `siteBoundary` event or chat detail brings a **different** site for the session's chat, call `forceExit`: restore the view and show the snackbar "Your unsaved outline changes were dropped because a new site was shown." Test it in `useSiteBoundaryEditMode.test.ts`. Also force the exit when the outline is cleared (`RecordActiveLocationCommandHandler` clears it when a different location is confirmed), and test that case.
-- [ ] T087 Lifecycle, FR-029: selecting another chat while the session has changes opens an MUI dialog with Save, Discard and Stay. It is wired where chat selection navigates (the chat list or sidebar) through the store. Returning to `/studio` re-mounts the editable polygons from the store. Test both.
+- [x] T087 Lifecycle, FR-029: selecting another chat while the session has changes opens an MUI dialog with Save, Discard and Stay. It is wired where chat selection navigates (the chat list or sidebar) through the store. Returning to `/studio` re-mounts the editable polygons from the store. Test both.
 - [ ] T088 [P] Performance, SC-005: extend `ringGeometry.test.ts` and `editablePolygonController.test.ts` with a 500-corner ring, where a change is validated and applied in under 4 ms. Then check the drag on the RTX 4060 machine (quickstart step 15).
 - [ ] T089 [P] Security review of the new endpoints and capabilities:
   - every correction query is filtered by `UserId`;
