@@ -30,6 +30,39 @@ describe('activeSiteBoundaryStore', () => {
     expect(s.alternativeCandidateNames).toEqual([])
   })
 
+  describe('specs/079 revision and hand-edit flag', () => {
+    it('defaults to no revision and not hand-edited', () => {
+      useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary)
+      const s = useActiveSiteBoundaryStore.getState()
+      expect(s.revision).toBeNull()
+      expect(s.isHandEdited).toBe(false)
+    })
+
+    it('stores the revision and the hand-edited flag when given', () => {
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, revision: 'rev-1', isHandEdited: true, source: 'UserCorrected' })
+      const s = useActiveSiteBoundaryStore.getState()
+      expect(s.revision).toBe('rev-1')
+      expect(s.isHandEdited).toBe(true)
+      expect(s.source).toBe('UserCorrected')
+    })
+
+    it('replaces the revision wholesale with the next boundary, never keeping the old one', () => {
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, revision: 'rev-1', isHandEdited: true })
+      useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary)
+      const s = useActiveSiteBoundaryStore.getState()
+      expect(s.revision).toBeNull()
+      expect(s.isHandEdited).toBe(false)
+    })
+
+    it('clears both on clearBoundary', () => {
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, revision: 'rev-1', isHandEdited: true })
+      useActiveSiteBoundaryStore.getState().clearBoundary()
+      const s = useActiveSiteBoundaryStore.getState()
+      expect(s.revision).toBeNull()
+      expect(s.isHandEdited).toBe(false)
+    })
+  })
+
   describe('setBoundary', () => {
     it('populates all fields', () => {
       useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary)

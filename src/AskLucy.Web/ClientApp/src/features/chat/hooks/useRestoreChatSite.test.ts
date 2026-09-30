@@ -19,6 +19,8 @@ const boundary: ChatActiveBoundary = {
   confidenceLevel: 'high',
   source: 'OsmBoundary',
   sourceDetail: 'OpenStreetMap (leisure=park)',
+  revision: 'rev-1',
+  isHandEdited: false,
 }
 
 function chatWithSite(overrides: Partial<ChatDetail> = {}): ChatDetail {
@@ -63,6 +65,18 @@ describe('useRestoreChatSite', () => {
       source: 'OsmBoundary',
       polygon: boundary.polygon,
       alternativeCandidateNames: [],
+    })
+  })
+
+  it('restores the outline revision and the hand-edited flag with the outline (specs/079)', () => {
+    renderHook(() =>
+      useRestoreChatSite(chatWithSite({ activeBoundary: { ...boundary, revision: 'rev-9', isHandEdited: true, source: 'UserCorrected' } })),
+    )
+
+    expect(useActiveSiteBoundaryStore.getState()).toMatchObject({
+      revision: 'rev-9',
+      isHandEdited: true,
+      source: 'UserCorrected',
     })
   })
 

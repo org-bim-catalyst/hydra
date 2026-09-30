@@ -50,6 +50,8 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
         sourceDetail: boundary.sourceDetail,
         // Not persisted with the boundary — only the live resolution knows them.
         alternativeCandidateNames: [],
+        revision: boundary.revision,
+        isHandEdited: boundary.isHandEdited,
       })
     } else {
       // Same rule as a live 'location' event: an outline of some other site must not stay overlaid.

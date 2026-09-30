@@ -105,6 +105,10 @@ export interface ChatActiveBoundary {
   confidenceLevel: 'low' | 'medium' | 'high'
   source: string
   sourceDetail: string
+  /** specs/079 — the token to send back as `expectedRevision` when saving an edit. */
+  revision: string
+  /** specs/079 — true when the outline is the user's own hand-edited one. */
+  isHandEdited: boolean
 }
 
 export interface SearchChatsParams {

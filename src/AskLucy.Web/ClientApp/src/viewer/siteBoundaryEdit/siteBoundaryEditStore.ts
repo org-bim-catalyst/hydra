@@ -1,0 +1,249 @@
+import { create } from 'zustand'
+import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
+import type { CameraViewMode } from '../api/commands'
+import { openRing, ringAreaSquareMeters } from './ringGeometry'
+
+/**
+ * specs/079 data-model.md "siteBoundaryEditStore": one outline-edit session. Module-level, so the
+ * session and its unsaved changes survive leaving and returning to /studio (FR-029, memory: keep
+ * workspace state). No map dependency — the polygons, the save request and the view restore are
+ * driven from hooks that read and write this store; it only holds state and applies transitions.
+ */
+
+/** The camera condition captured on entry and restored on exit (research D2). */
+export interface ViewState {
+  mode: CameraViewMode
+  rotationEnabled: boolean
+  center: GeoPoint
+  zoom: number
+  heading: number
+  tilt: number
+}
+
+export type RingChange =
+  | { op: 'move'; ring: number; index: number; before: GeoPoint; after: GeoPoint }
+  | { op: 'insert'; ring: number; index: number; after: GeoPoint }
+  | { op: 'delete'; ring: number; index: number; before: GeoPoint }
+
+export type EditStatus =
+  | { kind: 'editing' }
+  | { kind: 'saving' }
+  /** FR-018: the session stays open with the user's changes; Retry saves again. */
+  | { kind: 'error'; message: string }
+  /** FR-019: the outline changed elsewhere; "Load latest" rebases on it. */
+  | { kind: 'conflict'; currentRevision: string }
+
+export interface SiteBoundaryEditSession {
+  chatId: string
+  siteName: string
+  /** Sent as `expectedRevision` on Done. */
+  baseRevision: string
+  /** Cancel's target (FR-013). Open rings — no repeated closing corner. */
+  startRings: GeoPoint[][]
+  rings: GeoPoint[][]
+  undo: RingChange[]
+  redo: RingChange[]
+  activeRing: number
+  selectedCorner: number | null
+  viewState: ViewState
+  approxAreaSquareMeters: number
+  status: EditStatus
+  /** The last refused local change, shown then cleared. */
+  refusal: string | null
+}
+
+export interface EnterParams {
+  chatId: string
+  siteName: string
+  revision: string
+  /** The rings as the API carries them (closed or open). */
+  rings: readonly (readonly GeoPoint[])[]
+  viewState: ViewState
+}
+
+interface State {
+  session: SiteBoundaryEditSession | null
+}
+
+interface Actions {
+  enter(params: EnterParams): void
+  /** A local change that passed validation: records it for undo and clears redo. */
+  applyChange(change: RingChange): void
+  /** A local change that was refused: nothing changes but the message. */
+  refuse(message: string): void
+  clearRefusal(): void
+  undo(): RingChange | null
+  redo(): RingChange | null
+  setActiveRing(ring: number): void
+  selectCorner(index: number | null): void
+  /** Cancel and forced exit both end the session; the caller restores the view state it gets from `session`. */
+  end(): void
+  beginSave(): void
+  saveFailed(message: string): void
+  conflict(currentRevision: string): void
+  /** "Load latest": keep the session and view state, rebase on the freshly fetched outline. */
+  rebase(revision: string, rings: readonly (readonly GeoPoint[])[]): void
+  /** Whether the shape differs from what edit mode started with. */
+  isDirty(): boolean
+}
+
+const cloneRings = (rings: readonly (readonly GeoPoint[])[]): GeoPoint[][] =>
+  rings.map((ring) => openRing(ring).map((p) => ({ ...p })))
+
+const totalArea = (rings: readonly (readonly GeoPoint[])[]): number =>
+  rings.reduce((sum, ring) => sum + ringAreaSquareMeters(ring), 0)
+
+/** Applies one change to a copy of the rings, in the forward direction. */
+function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
+  const next = rings.map((r) => [...r])
+  const ring = next[change.ring]
+  if (change.op === 'move') ring[change.index] = { ...change.after }
+  else if (change.op === 'insert') ring.splice(change.index, 0, { ...change.after })
+  else ring.splice(change.index, 1)
+  return next
+}
+
+/** Applies one change to a copy of the rings, in the reverse direction. */
+function applyBackward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
+  const next = rings.map((r) => [...r])
+  const ring = next[change.ring]
+  if (change.op === 'move') ring[change.index] = { ...change.before }
+  else if (change.op === 'insert') ring.splice(change.index, 1)
+  else ring.splice(change.index, 0, { ...change.before })
+  return next
+}
+
+const sameRings = (a: readonly (readonly GeoPoint[])[], b: readonly (readonly GeoPoint[])[]): boolean =>
+  a.length === b.length &&
+  a.every((ring, r) => ring.length === b[r].length && ring.every((p, i) => p.latitude === b[r][i].latitude && p.longitude === b[r][i].longitude))
+
+export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => {
+  /** Replaces part of the session; a no-op when no session is open. */
+  const update = (patch: (session: SiteBoundaryEditSession) => Partial<SiteBoundaryEditSession>) => {
+    const { session } = get()
+    if (session) set({ session: { ...session, ...patch(session) } })
+  }
+
+  return {
+    session: null,
+
+    enter({ chatId, siteName, revision, rings, viewState }) {
+      const start = cloneRings(rings)
+      set({
+        session: {
+          chatId,
+          siteName,
+          baseRevision: revision,
+          startRings: start,
+          rings: cloneRings(start),
+          undo: [],
+          redo: [],
+          activeRing: 0,
+          selectedCorner: null,
+          viewState,
+          approxAreaSquareMeters: totalArea(start),
+          status: { kind: 'editing' },
+          refusal: null,
+        },
+      })
+    },
+
+    applyChange(change) {
+      update((s) => {
+        const rings = applyForward(s.rings, change)
+        return { rings, undo: [...s.undo, change], redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null }
+      })
+    },
+
+    refuse(message) {
+      update(() => ({ refusal: message }))
+    },
+
+    clearRefusal() {
+      update(() => ({ refusal: null }))
+    },
+
+    undo() {
+      const { session } = get()
+      const change = session?.undo.at(-1) ?? null
+      if (!session || !change) return null
+      const rings = applyBackward(session.rings, change)
+      set({
+        session: {
+          ...session,
+          rings,
+          undo: session.undo.slice(0, -1),
+          redo: [...session.redo, change],
+          approxAreaSquareMeters: totalArea(rings),
+          refusal: null,
+        },
+      })
+      return change
+    },
+
+    redo() {
+      const { session } = get()
+      const change = session?.redo.at(-1) ?? null
+      if (!session || !change) return null
+      const rings = applyForward(session.rings, change)
+      set({
+        session: {
+          ...session,
+          rings,
+          undo: [...session.undo, change],
+          redo: session.redo.slice(0, -1),
+          approxAreaSquareMeters: totalArea(rings),
+          refusal: null,
+        },
+      })
+      return change
+    },
+
+    setActiveRing(ring) {
+      update((s) => (ring >= 0 && ring < s.rings.length ? { activeRing: ring, selectedCorner: null } : {}))
+    },
+
+    selectCorner(index) {
+      update(() => ({ selectedCorner: index }))
+    },
+
+    end() {
+      set({ session: null })
+    },
+
+    beginSave() {
+      update(() => ({ status: { kind: 'saving' }, refusal: null }))
+    },
+
+    saveFailed(message) {
+      update(() => ({ status: { kind: 'error', message } }))
+    },
+
+    conflict(currentRevision) {
+      update(() => ({ status: { kind: 'conflict', currentRevision } }))
+    },
+
+    rebase(revision, rings) {
+      update(() => {
+        const start = cloneRings(rings)
+        return {
+          baseRevision: revision,
+          startRings: start,
+          rings: cloneRings(start),
+          undo: [],
+          redo: [],
+          activeRing: 0,
+          selectedCorner: null,
+          approxAreaSquareMeters: totalArea(start),
+          status: { kind: 'editing' },
+          refusal: null,
+        }
+      })
+    },
+
+    isDirty() {
+      const { session } = get()
+      return session ? !sameRings(session.rings, session.startRings) : false
+    },
+  }
+})

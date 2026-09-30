@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type SiteBoundaryConfidenceLevel = 'low' | 'medium' | 'high'
-export type SiteBoundarySource = 'OsmBoundary' | 'GovernmentCadastral' | 'AiInterpretation' | 'UploadedBoundary' | 'ManualFallback'
+export type SiteBoundarySource = 'OsmBoundary' | 'GovernmentCadastral' | 'AiInterpretation' | 'UploadedBoundary' | 'ManualFallback' | 'RenderedMapExtraction' | 'UserCorrected'
 
 export interface GeoPoint {
   latitude: number
@@ -31,14 +31,23 @@ interface ActiveSiteBoundaryState {
   sourceDetail: string | null
   /** FR-008 — other similarly-plausible candidates named alongside the rendered one. */
   alternativeCandidateNames: string[]
+  /**
+   * specs/079 — the token sent back as `expectedRevision` when saving an edit. Null until the chat
+   * detail supplies it: a live `siteBoundary` event does not carry one, so the editor refetches first.
+   */
+  revision: string | null
+  /** specs/079 — the outline is the user's own hand-edited one. */
+  isHandEdited: boolean
 }
 
 interface ActiveSiteBoundaryActions {
   /** Replaces the active boundary wholesale — never a partial merge (a new site fully supersedes the previous one). */
   setBoundary(
-    boundary: Omit<ActiveSiteBoundaryState, 'additionalPolygons' | 'chatId'> & {
+    boundary: Omit<ActiveSiteBoundaryState, 'additionalPolygons' | 'chatId' | 'revision' | 'isHandEdited'> & {
       additionalPolygons?: GeoPoint[][]
       chatId?: string | null
+      revision?: string | null
+      isHandEdited?: boolean
     },
   ): void
   /** Edge case: the conversation switches to an entirely new, unrelated site — the previous boundary must disappear, not stay overlaid. */
@@ -65,6 +74,8 @@ const emptyState: ActiveSiteBoundaryState = {
   source: null,
   sourceDetail: null,
   alternativeCandidateNames: [],
+  revision: null,
+  isHandEdited: false,
 }
 
 /** Every ring of the active site — the main outline first — or none when there is no boundary. */
@@ -76,7 +87,13 @@ export const useActiveSiteBoundaryStore = create<ActiveSiteBoundaryState & Activ
 
   setBoundary(boundary) {
     // Absent means one outline: never let a previous site's extra rings stay behind.
-    set({ ...boundary, additionalPolygons: boundary.additionalPolygons ?? [], chatId: boundary.chatId ?? null })
+    set({
+      ...boundary,
+      additionalPolygons: boundary.additionalPolygons ?? [],
+      chatId: boundary.chatId ?? null,
+      revision: boundary.revision ?? null,
+      isHandEdited: boundary.isHandEdited ?? false,
+    })
   },
 
   clearBoundary() {
