@@ -153,7 +153,7 @@ corner, the area changes, and the view is 3D, rotating, at the same zoom and hea
   - a valid `set_at` goes to `applyChange`;
   - an invalid `set_at` is reverted without re-entering, and `refuse` is called;
   - `unmount` removes every listener and polygon.
-- [ ] T040 [P] [US1] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryEditToolbar.test.tsx` and `SiteBoundaryEditToolbar.a11y.test.tsx`:
+- [x] T040 [P] [US1] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryEditToolbar.test.tsx` and `SiteBoundaryEditToolbar.a11y.test.tsx`:
   - the area text;
   - Undo and Redo disabled on empty stacks;
   - Done disabled while unchanged or saving;
@@ -190,7 +190,7 @@ corner, the area changes, and the view is 3D, rotating, at the same zoom and hea
 - [x] T055 [US1] Create `src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts`, wiring store, map and mutation. It covers the enter sequence, Done (save, then on success `setOutlineVisible(true)`, `setSiteBoundary(new)` for the animated redraw, and restore), Cancel (show the outline and restore), and save failure (keep the session open with an error, FR-018).
 - [x] T056 [US1] Add an "Edit outline" control to `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryOverlay.tsx`, shown only when there is an outline, the viewer owns the chat and no session is open (FR-002). Mount the toolbar while a session exists. Extend `SiteBoundaryOverlay.test.tsx`.
 - [x] T057 [US1] Disable the 3D/plan control in `src/AskLucy.Web/ClientApp/src/viewer/engine/MapRenderTarget.tsx` and `features/viewer/components/RotationToggleButton.tsx` while a session exists, with the tooltip "Finish editing the outline first" (FR-005). Extend their tests.
-- [ ] T058 [US1] Run the full frontend suite (ChatPage tests assert offers independently, memory) and fix `ChatPage.test.tsx` for the new offer rows and the keep row.
+- [x] T058 [US1] Run the full frontend suite (ChatPage tests assert offers independently, memory) and fix `ChatPage.test.tsx` for the new offer rows and the keep row.
 
 **Checkpoint**: US1 works alone: offer, enter, move, Done or Cancel, and the view restored. Walk
 through quickstart steps 1, 2, 5 and 10.
