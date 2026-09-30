@@ -99,4 +99,44 @@ public sealed class NtsSiteRingGeometryTests
     [Fact]
     public void Intersects_ShouldBeTrueForOverlappingRings() =>
         _geometry.Intersects([Rectangle(50, 50, 100, 100)], [Rectangle(0, 0, 100, 100)], growMeters: 0).Should().BeTrue();
+
+    // ---- Join / Cut (specs/079 US4) ---------------------------------------
+
+    /// <summary>The smallest distance from a point to any of the ring's corners, in metres.</summary>
+    private static double NearestCornerMeters(IReadOnlyList<GeoPoint> ring, GeoPoint point) =>
+        ring.Min(c => Math.Sqrt(
+            Math.Pow((c.Latitude - point.Latitude) * MetersPerDegreeLatitude, 2) +
+            Math.Pow((c.Longitude - point.Longitude) * MetersPerDegreeLongitude, 2)));
+
+    [Fact]
+    public void Join_ShouldGiveOneRing_AndKeepEveryCornerFarFromTheSeamWhereItWas()
+    {
+        // A 100 x 100 m ring, edited so one corner is at an odd spot; a footprint 1 m off its east side.
+        var edited = new List<GeoPoint> { Point(0, 0), Point(100, 0), Point(100, 100), Point(0, 100), Point(-7.3, 52.1) };
+        var footprint = Rectangle(101, 20, 40, 40);
+
+        var joined = _geometry.Join(edited, footprint);
+
+        _geometry.Validate(joined).Should().Be(RingValidationResult.Ok);
+        NearestCornerMeters(joined, Point(-7.3, 52.1)).Should().BeLessThan(1e-3, "a hand-placed corner far from the seam is untouched");
+        NearestCornerMeters(joined, Point(0, 0)).Should().BeLessThan(1e-3);
+        NearestCornerMeters(joined, Point(141, 60)).Should().BeLessThan(1e-3, "the footprint's far corners come along");
+        _geometry.UnionArea([joined]).Should().BeGreaterThan(_geometry.UnionArea([edited]) + 1_600 - 1);
+    }
+
+    [Fact]
+    public void Cut_ShouldRestoreTheOriginalCornersAwayFromTheSeam_AndLeaveNoSliver()
+    {
+        var edited = new List<GeoPoint> { Point(0, 0), Point(100, 0), Point(100, 100), Point(0, 100), Point(-7.3, 52.1) };
+        var footprint = Rectangle(101, 20, 40, 40);
+        var joined = _geometry.Join(edited, footprint);
+
+        var cut = _geometry.Cut(joined, footprint);
+
+        _geometry.Validate(cut).Should().Be(RingValidationResult.Ok);
+        NearestCornerMeters(cut, Point(-7.3, 52.1)).Should().BeLessThan(1e-3);
+        NearestCornerMeters(cut, Point(0, 0)).Should().BeLessThan(1e-3);
+        cut.Any(c => NearestCornerMeters(new List<GeoPoint> { c }, Point(141, 60)) < 1).Should().BeFalse("the footprint is gone");
+        _geometry.UnionArea([cut]).Should().BeApproximately(_geometry.UnionArea([edited]), 120, "only the seam ground differs");
+    }
 }

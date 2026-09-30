@@ -23,7 +23,13 @@ namespace AskLucy.Application.Conversations.Capabilities;
 /// </para>
 /// </summary>
 public sealed class SetSiteBoundaryMembersCapability(
-    IUserChatRepository userChatRepository, SiteBoundaryMembershipService membershipService) : IConversationCapability
+    IUserChatRepository userChatRepository,
+    SiteBoundaryMembershipService membershipService,
+    ISiteBoundaryCorrectionRepository correctionRepository,
+    EffectiveSiteBoundary effectiveSiteBoundary,
+    HandEditedMembershipComposer handEditedComposer,
+    ISiteRingGeometry ringGeometry,
+    IUnitOfWork unitOfWork) : IConversationCapability
 {
     public const string CapabilityKey = "set_site_boundary_members";
 
@@ -47,7 +53,9 @@ public sealed class SetSiteBoundaryMembersCapability(
         "the site first — and its new area. " +
         "Name a building as added or taken out only when addedBuildings or removedBuildings lists " +
         "it; say nothing of buildings in neither list. " +
-        "When kept is true, say the outline stays as it is, in one sentence.";
+        "When kept is true, say the outline stays as it is, in one sentence. " +
+        "When handEdited is true, the user's own hand edits were kept and the buildings were joined or cut " +
+        "around them; say so in one sentence, and do not say the outline was redrawn from scratch.";
 
     public string Label => "Choose the site buildings";
 
@@ -145,6 +153,40 @@ public sealed class SetSiteBoundaryMembersCapability(
         var members = active.Members.Select(m => m with { Included = chosen.Contains(m.Id) }).ToList();
         var redrawn = membershipService.Compose(ToConfirmed(active), members);
 
+        // specs/079 (US4, FR-022) - a hand-edited outline keeps its corners: buildings are joined or cut
+        // around them, never re-traced. The chat's found outline is recomposed in the same save, so a
+        // later reset restores the building choice in force.
+        var effective = await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken);
+        var correction = effective?.CorrectionId is { } correctionId
+            ? await correctionRepository.GetByIdAsync(correctionId, context.UserId, cancellationToken)
+            : null;
+        if (correction is not null)
+        {
+            var edited = handEditedComposer.Apply(correction.EditedRings, correction.Members, members);
+            if (!edited.Succeeded)
+            {
+                return AgentToolResult.Failure(edited.Failure!);
+            }
+
+            var snapshot = new FoundSiteBoundarySnapshot(
+                redrawn.Polygon, redrawn.AdditionalPolygons, redrawn.CorePolygon, redrawn.AreaSquareMeters,
+                redrawn.Confidence, redrawn.ConfidenceLevel, redrawn.Source, redrawn.SourceDetail, members);
+            correction.ApplyMembership(edited.Rings, ringGeometry.UnionArea(edited.Rings), members, snapshot, context.UserId);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            redrawn = redrawn with
+            {
+                Polygon = edited.Rings[0],
+                AdditionalPolygons = [.. edited.Rings.Skip(1)],
+                AreaSquareMeters = correction.AreaSquareMeters,
+                Source = SiteBoundarySource.UserCorrected,
+                SourceDetail = "Hand-edited by the user",
+                ConfidenceLevel = BoundaryConfidenceLevel.High,
+                Members = members,
+                CorrectionId = correction.Id,
+            };
+        }
+
         // The narrating model reads this JSON and nothing else — not the chat. Given
         // excludedBuildings, it called a building it had only been offered "previously included"
         // even when told not to, so it gets the change against what was on screen instead, ahead
@@ -157,6 +199,19 @@ public sealed class SetSiteBoundaryMembersCapability(
             ["addedBuildings"] = Names(active.Members.Where(m => !m.Included && chosen.Contains(m.Id))),
             ["removedBuildings"] = Names(active.Members.Where(m => m.Included && !chosen.Contains(m.Id))),
         };
+        if (correction is not null)
+        {
+            // A plain sentence first: the narrating model reads the first field before anything else.
+            var withNote = new JsonObject { ["note"] = "The building choice was applied and the user's hand edits were kept.", ["handEdited"] = true };
+            foreach (var (key, value) in output.ToList())
+            {
+                output.Remove(key);
+                withNote[key] = value;
+            }
+
+            output = withNote;
+        }
+
         foreach (var (key, value) in payload.Where(p => !output.ContainsKey(p.Key)).ToList())
         {
             payload.Remove(key);

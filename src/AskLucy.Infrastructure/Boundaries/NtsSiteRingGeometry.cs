@@ -147,11 +147,62 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
         _ => [],
     };
 
-    public IReadOnlyList<GeoPoint> Join(IReadOnlyList<GeoPoint> editedRing, IReadOnlyList<GeoPoint> footprint) =>
-        throw new NotImplementedException("Joining a footprint onto a hand-edited ring is built with specs/079 User Story 4.");
+    /// <summary>A gap this small between the ring and a footprint is closed by a join (OSM leaves BurJuman's hotel 0.5 m off the mall).</summary>
+    private const double SeamMeters = 1.25;
 
-    public IReadOnlyList<GeoPoint> Cut(IReadOnlyList<GeoPoint> editedRing, IReadOnlyList<GeoPoint> footprint) =>
-        throw new NotImplementedException("Cutting a footprint out of a hand-edited ring is built with specs/079 User Story 4.");
+    /// <summary>A cut leaves no sliver thinner than this near the seam.</summary>
+    private const double SliverMeters = 0.5;
+
+    public IReadOnlyList<GeoPoint> Join(IReadOnlyList<GeoPoint> editedRing, IReadOnlyList<GeoPoint> footprint)
+    {
+        ArgumentNullException.ThrowIfNull(editedRing);
+        ArgumentNullException.ThrowIfNull(footprint);
+
+        var reference = editedRing[0];
+        var edited = ToPolygon(editedRing, reference);
+        var added = ToPolygon(footprint, reference);
+
+        // edited + footprint + the ground between them: only the seam is new, so every other corner stays where it was.
+        var seam = edited.Buffer(SeamMeters).Intersection(added.Buffer(SeamMeters));
+        var joined = UnaryUnionOp.Union(new List<Geometry> { edited, added, seam });
+
+        return LargestShell(joined, reference);
+    }
+
+    public IReadOnlyList<GeoPoint> Cut(IReadOnlyList<GeoPoint> editedRing, IReadOnlyList<GeoPoint> footprint)
+    {
+        ArgumentNullException.ThrowIfNull(editedRing);
+        ArgumentNullException.ThrowIfNull(footprint);
+
+        var reference = editedRing[0];
+        var edited = ToPolygon(editedRing, reference);
+        var removed = ToPolygon(footprint, reference);
+
+        var remaining = edited.Difference(removed);
+
+        // Whatever thin strip the seam left beside the footprint is smoothed away, and only there.
+        var near = removed.Buffer(SeamMeters + SliverMeters);
+        var opened = remaining.Buffer(-SliverMeters / 2).Buffer(SliverMeters / 2);
+        var result = remaining.Difference(near).Union(opened.Intersection(near));
+
+        return LargestShell(result, reference);
+    }
+
+    private static List<GeoPoint> LargestShell(Geometry geometry, GeoPoint reference)
+    {
+        // Buffering leaves clusters of corners a few millimetres apart; 6 cm folds them into one without moving a placed corner.
+        var polygon = Polygons(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(geometry, DuplicateCornerMeters * 1.2))
+            .OrderByDescending(p => p.Area).FirstOrDefault()
+            ?? throw new InvalidOperationException("The result has no area.");
+        var metersPerDegreeLongitude = MetersPerDegreeLatitude * Math.Cos(reference.Latitude * Math.PI / 180);
+        var coordinates = polygon.ExteriorRing.Coordinates;
+        return
+        [
+            .. coordinates.Take(coordinates.Length - 1).Select(c => new GeoPoint(
+                reference.Latitude + (c.Y / MetersPerDegreeLatitude),
+                reference.Longitude + (c.X / metersPerDegreeLongitude))),
+        ];
+    }
 
     private static IReadOnlyList<GeoPoint> WithoutClosingCorner(IReadOnlyList<GeoPoint> ring) =>
         ring.Count > 1 && ring[0] == ring[^1] ? ring.Take(ring.Count - 1).ToList() : ring;

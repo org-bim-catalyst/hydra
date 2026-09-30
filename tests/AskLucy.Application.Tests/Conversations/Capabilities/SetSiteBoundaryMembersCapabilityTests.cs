@@ -19,6 +19,9 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
 {
     private readonly IUserChatRepository _chats = Substitute.For<IUserChatRepository>();
     private readonly ISiteFootprintUnion _union = Substitute.For<ISiteFootprintUnion>();
+    private readonly ISiteBoundaryCorrectionRepository _corrections = Substitute.For<ISiteBoundaryCorrectionRepository>();
+    private readonly ISiteRingGeometry _geometry = Substitute.For<ISiteRingGeometry>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly SetSiteBoundaryMembersCapability _capability;
     private readonly UserChat _chat = UserChat.Create("BurJuman", "user-1", null, "user-1");
 
@@ -26,7 +29,9 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
     {
         _capability = new SetSiteBoundaryMembersCapability(_chats, new SiteBoundaryMembershipService(
             Substitute.For<IRelatedSiteBuildingProvider>(), _union, Substitute.For<ICapabilitySettingsReader>(),
-            Substitute.For<ILogger<SiteBoundaryMembershipService>>()));
+            Substitute.For<ILogger<SiteBoundaryMembershipService>>()),
+            _corrections, new EffectiveSiteBoundary(_corrections), new HandEditedMembershipComposer(_geometry), _geometry,
+            _unitOfWork);
 
         // The union is what the real one would trace: one ring per included footprint, as mapped.
         _union.Union(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<double>())
@@ -150,6 +155,34 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
             SiteBoundarySource.OsmBoundary, "osm_way_100", "user-1");
 
         (await RunAsync("""{"memberIds":[]}""")).Succeeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OnAHandEditedOutline_CutsTheBuildingOffAndKeepsTheUsersCorners_InOneSave()
+    {
+        var snapshot = new FoundSiteBoundarySnapshot(
+            _chat.ActiveBoundary!.Polygon, [], Mall, _chat.ActiveBoundary.AreaSquareMeters, 0.7, BoundaryConfidenceLevel.Medium,
+            SiteBoundarySource.OsmBoundary, "x", Members);
+        var correction = SiteBoundaryCorrection.Create(
+            "user-1", "BurJuman Mall", 0, 0, snapshot, [[.. Mall, Mall[0]]], 9_000, Members, "user-1");
+        _chat.LinkSiteBoundaryCorrection(correction.Id, "user-1");
+        _corrections.GetByIdAsync(correction.Id, "user-1", Arg.Any<CancellationToken>()).Returns(correction);
+        _geometry.Intersects(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<double>())
+            .Returns(true);
+        _geometry.Cut(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<GeoPoint>>()).Returns(Mall);
+        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>()).Returns(9_999);
+
+        // On screen: the mall with both connected buildings. Kept: the tower only, so the hotel is cut off.
+        var result = await RunAsync("""{"memberIds":["osm_way_1"]}""");
+
+        result.Succeeded.Should().BeTrue(result.FailureReason);
+        result.Output!.RootElement.EnumerateObject().First().Name.Should().Be("note");
+        result.Output.RootElement.GetProperty("handEdited").GetBoolean().Should().BeTrue();
+        result.Output.RootElement.GetProperty("correctionId").GetGuid().Should().Be(correction.Id);
+        correction.AreaSquareMeters.Should().Be(9_999);
+        correction.Members.Single(m => m.Id == "osm_way_2").Included.Should().BeFalse();
+        _geometry.Received(1).Cut(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<GeoPoint>>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     private async Task<AgentToolResult> RunAsync(string input)

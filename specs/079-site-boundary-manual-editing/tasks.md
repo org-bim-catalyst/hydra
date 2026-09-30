@@ -256,19 +256,19 @@ and keeps the hand-placed corners.
 
 **Independent Test**: quickstart step 9.
 
-- [ ] T072 [P] [US4] Extend `NtsSiteRingGeometryTests.cs` with join and cut cases:
+- [x] T072 [P] [US4] Extend `NtsSiteRingGeometryTests.cs` with join and cut cases:
   - `Join` of a square and a neighbour 1 m away gives one ring, with every corner more than 3 m from the seam unchanged (within 1e-6 m);
   - `Cut` of that footprint restores the original corners away from the seam, with no sliver thinner than 0.5 m;
   - a separate footprint stays a separate ring.
-- [ ] T073 [US4] Implement `Join` and `Cut` in `src/AskLucy.Infrastructure/Boundaries/NtsSiteRingGeometry.cs`, using the seam-confined buffer from research D9.
-- [ ] T074 [P] [US4] Extend `tests/AskLucy.Application.Tests/SiteBoundaries/SiteBoundaryMembershipServiceTests.cs` and `SetSiteBoundaryMembersCapabilityTests.cs` for hand-edited outlines: Assert that the first field of the result data is that plain sentence.
+- [x] T073 [US4] Implement `Join` and `Cut` in `src/AskLucy.Infrastructure/Boundaries/NtsSiteRingGeometry.cs`, using the seam-confined buffer from research D9.
+- [x] T074 [P] [US4] Extend `tests/AskLucy.Application.Tests/SiteBoundaries/SiteBoundaryMembershipServiceTests.cs` and `SetSiteBoundaryMembersCapabilityTests.cs` for hand-edited outlines: Assert that the first field of the result data is that plain sentence.
   - adding a separate member adds a ring;
   - adding a connected member joins it;
   - removing a member drops its ring or cuts it out;
   - the correction's rings, members and revision update, and its found snapshot is re-based;
   - the result has `handEdited: true`.
-- [ ] T075 [US4] Add a hand-edited path to `src/AskLucy.Application/SiteBoundaries/SiteBoundaryMembershipService.cs`: diff the members against the correction, then join, cut, or add or remove rings. Keep the existing raster `Compose` for the found outline.
-- [ ] T076 [US4] Use the effective outline in `src/AskLucy.Application/Conversations/Capabilities/SetSiteBoundaryMembersCapability.cs`. When it is hand-edited, apply the hand-edited path, then `correction.ApplyMembership` and recompose the chat's found outline. Return `handEdited: true` and add the `UsageGuidance` sentence (FR-022). Persist both in one `SaveChanges`. Put a plain sentence field FIRST in the result data (for example "The building choice was applied and the user's hand edits were kept"); `UsageGuidance` is only a backup.
+- [x] T075 [US4] Add a hand-edited path to `src/AskLucy.Application/SiteBoundaries/SiteBoundaryMembershipService.cs`: diff the members against the correction, then join, cut, or add or remove rings. Keep the existing raster `Compose` for the found outline.
+- [x] T076 [US4] Use the effective outline in `src/AskLucy.Application/Conversations/Capabilities/SetSiteBoundaryMembersCapability.cs`. When it is hand-edited, apply the hand-edited path, then `correction.ApplyMembership` and recompose the chat's found outline. Return `handEdited: true` and add the `UsageGuidance` sentence (FR-022). Persist both in one `SaveChanges`. Put a plain sentence field FIRST in the result data (for example "The building choice was applied and the user's hand edits were kept"); `UsageGuidance` is only a backup.
 
 **Checkpoint**: Walk through quickstart step 9.
 
