@@ -295,6 +295,67 @@ describe('useSiteBoundaryEditMode', () => {
     })
   })
 
+  describe('a dense outline', () => {
+    /** A 600-corner circle, like a raster-traced outline. */
+    const denseRing = (): GeoPoint[] => {
+      const points = Array.from({ length: 600 }, (_, i) => ({
+        latitude: 23.586 + (0.0018 * Math.sin((2 * Math.PI * i) / 600)),
+        longitude: 58.393 + (0.002 * Math.cos((2 * Math.PI * i) / 600)),
+      }))
+      return [...points, points[0]]
+    }
+
+    const showDense = () =>
+      act(() => {
+        useActiveSiteBoundaryStore.getState().setBoundary({
+          siteName: 'Muscat Grand Mall',
+          chatId: 'chat-1',
+          centroid: { latitude: 23.586, longitude: 58.393 },
+          polygon: denseRing(),
+          areaSquareMeters: 40_000,
+          confidence: 0.7,
+          confidenceLevel: 'medium',
+          source: 'OsmBoundary',
+          sourceDetail: 'x',
+          alternativeCandidateNames: [],
+          revision: 'rev-1',
+          isHandEdited: false,
+        })
+      })
+
+    it('is simplified for the session, and the user is told how much', async () => {
+      showDense()
+      mountHook()
+
+      await act(() => siteBoundaryEditActions.start())
+
+      const corners = session()!.rings[0].length
+      expect(corners).toBeLessThan(150)
+      expect(corners).toBeGreaterThanOrEqual(3)
+      expect(store().notice).toMatch(/^Simplified the outline from 600 to \d+ corners/)
+    })
+
+    it('leaves the saved outline untouched when the edit is cancelled', async () => {
+      showDense()
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+
+      act(() => siteBoundaryEditActions.cancel())
+
+      expect(useActiveSiteBoundaryStore.getState().polygon).toHaveLength(601)
+      expect(chatsApi.saveSiteBoundaryEdit).not.toHaveBeenCalled()
+    })
+
+    it('does not touch or announce anything for an ordinary outline', async () => {
+      mountHook()
+
+      await act(() => siteBoundaryEditActions.start())
+
+      expect(session()?.rings[0]).toHaveLength(3)
+      expect(store().notice).toBeNull()
+    })
+  })
+
   describe('a small window', () => {
     const setWidth = (width: number) => Object.defineProperty(window, 'innerWidth', { value: width, configurable: true, writable: true })
 

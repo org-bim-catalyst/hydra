@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
-import { closeRing, openRing, ringAreaSquareMeters, validateChange, validateRing } from './ringGeometry'
+import {
+  DENSE_RING_CORNERS,
+  SIMPLIFY_TOLERANCE_METERS,
+  closeRing,
+  openRing,
+  ringAreaSquareMeters,
+  simplifyRing,
+  validateChange,
+  validateRing,
+} from './ringGeometry'
 
 // Muscat. Same frame as the backend's NtsSiteRingGeometryTests, so the two agree.
 const LAT = 23.59
@@ -127,5 +136,106 @@ describe('validateChange', () => {
     const perChange = (performance.now() - start) / 20
     expect(validateChange(ring, 250)).toBeNull()
     expect(perChange).toBeLessThan(4)
+  })
+})
+
+describe('simplifyRing (dense outlines, when editing starts)', () => {
+  /** A circle of `n` corners and radius `r` metres. */
+  const circle = (n: number, r: number): GeoPoint[] =>
+    Array.from({ length: n }, (_, i) => point(r * Math.cos((2 * Math.PI * i) / n), r * Math.sin((2 * Math.PI * i) / n)))
+
+  /** Distance in metres from a point to the nearest edge of a ring. */
+  const toRing = (p: GeoPoint, ring: GeoPoint[]): number => {
+    const mx = 111_320 * Math.cos((LAT * Math.PI) / 180)
+    const at = (g: GeoPoint) => ({ x: (g.longitude - LON) * mx, y: (g.latitude - LAT) * 111_320 })
+    const q = at(p)
+    let best = Infinity
+    for (let i = 0; i < ring.length; i++) {
+      const a = at(ring[i])
+      const b = at(ring[(i + 1) % ring.length])
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const t = dx === 0 && dy === 0 ? 0 : Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / (dx * dx + dy * dy)))
+      best = Math.min(best, Math.hypot(q.x - (a.x + t * dx), q.y - (a.y + t * dy)))
+    }
+    return best
+  }
+
+  it('leaves a ring at or under the dense threshold exactly as it is', () => {
+    const ring = circle(DENSE_RING_CORNERS, 200)
+    const result = simplifyRing(ring)
+
+    expect(result.removed).toBe(0)
+    expect(result.ring).toEqual(ring)
+  })
+
+  it('drops the corners that do not change the shape of a dense ring', () => {
+    const dense = circle(600, 200)
+    const { ring, removed } = simplifyRing(dense)
+
+    expect(ring.length).toBeLessThan(dense.length / 3)
+    expect(removed).toBe(dense.length - ring.length)
+    expect(ring.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('keeps every original corner within the tolerance of the simplified outline', () => {
+    const dense = circle(600, 200)
+    const { ring } = simplifyRing(dense)
+
+    const worst = Math.max(...dense.map((p) => toRing(p, ring)))
+    expect(worst).toBeLessThanOrEqual(SIMPLIFY_TOLERANCE_METERS + 1e-6)
+  })
+
+  it('keeps the area within half a percent', () => {
+    const dense = circle(600, 200)
+    const { ring } = simplifyRing(dense)
+
+    expect(Math.abs(ringAreaSquareMeters(ring) - ringAreaSquareMeters(dense)) / ringAreaSquareMeters(dense)).toBeLessThan(0.005)
+  })
+
+  it('returns a valid outline that only uses corners the ring already had', () => {
+    const dense = circle(600, 200)
+    const { ring } = simplifyRing(dense)
+
+    expect(validateRing(ring)).toBeNull()
+    expect(ring.every((p) => dense.some((d) => d.latitude === p.latitude && d.longitude === p.longitude))).toBe(true)
+  })
+
+  it('keeps the sharp corners of a dense rectangle and drops the points along its edges', () => {
+    const edge = (from: GeoPoint, to: GeoPoint, steps: number) =>
+      Array.from({ length: steps }, (_, i) => ({
+        latitude: from.latitude + ((to.latitude - from.latitude) * i) / steps,
+        longitude: from.longitude + ((to.longitude - from.longitude) * i) / steps,
+      }))
+    const c = [point(0, 0), point(300, 0), point(300, 100), point(0, 100)]
+    const dense = [...edge(c[0], c[1], 50), ...edge(c[1], c[2], 50), ...edge(c[2], c[3], 50), ...edge(c[3], c[0], 50)]
+
+    const { ring, removed } = simplifyRing(dense)
+
+    expect(ring).toHaveLength(4)
+    expect(removed).toBe(196)
+    for (const corner of c) expect(ring.some((p) => p.latitude === corner.latitude && p.longitude === corner.longitude)).toBe(true)
+  })
+
+  it('accepts a ring that repeats its first corner, as the API carries it', () => {
+    const { ring } = simplifyRing(closeRing(circle(600, 200)))
+
+    expect(ring[0]).not.toEqual(ring[ring.length - 1])
+    expect(ring.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('never returns fewer than 3 corners, however loose the tolerance', () => {
+    const { ring } = simplifyRing(circle(600, 200), 10_000)
+
+    expect(ring.length).toBeGreaterThanOrEqual(3)
+    expect(validateRing(ring)).toBeNull()
+  })
+
+  it('handles a 2,000-corner ring quickly', () => {
+    const start = performance.now()
+    const { ring } = simplifyRing(circle(2_000, 300))
+
+    expect(performance.now() - start).toBeLessThan(1_000)
+    expect(ring.length).toBeLessThan(200)
   })
 })

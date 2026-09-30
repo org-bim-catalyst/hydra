@@ -147,6 +147,89 @@ export function validateChange(ring: readonly GeoPoint[], index: number): Refusa
   return null
 }
 
+/** A ring with more corners than this is simplified when editing starts: too many tiny handles to work with. */
+export const DENSE_RING_CORNERS = 120
+
+/** How far, in metres, the simplified outline may stray from the original at any point. */
+export const SIMPLIFY_TOLERANCE_METERS = 0.5
+
+export interface SimplifiedRing {
+  /** Open ring. The original, untouched, when nothing was removed. */
+  ring: GeoPoint[]
+  removed: number
+}
+
+/** Distance in metres from `p` to the segment `a`-`b`. */
+function distanceToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared === 0) return distance(p, a)
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSquared))
+  return distance(p, { x: a.x + t * dx, y: a.y + t * dy })
+}
+
+/** Ramer-Douglas-Peucker over `points[from..to]` (inclusive), returning the indices kept. Iterative, so a 2,000-corner ring cannot overflow the stack. */
+function keptIndices(points: readonly Point[], from: number, to: number, tolerance: number): Set<number> {
+  const kept = new Set<number>([from, to])
+  const stack: [number, number][] = [[from, to]]
+
+  while (stack.length > 0) {
+    const [start, end] = stack.pop()!
+    let farthest = -1
+    let farthestDistance = tolerance
+    for (let i = start + 1; i < end; i++) {
+      const d = distanceToSegment(points[i], points[start], points[end])
+      if (d > farthestDistance) {
+        farthest = i
+        farthestDistance = d
+      }
+    }
+    if (farthest !== -1) {
+      kept.add(farthest)
+      stack.push([start, farthest], [farthest, end])
+    }
+  }
+
+  return kept
+}
+
+/**
+ * Drops corners that do not change the shape by more than `toleranceMeters` (Ramer-Douglas-Peucker on
+ * the closed ring, split at corner 0 and the corner farthest from it so no corner is privileged). The
+ * result must still be a valid outline - simple, not collapsed - or the tolerance is halved and it is
+ * tried again, and the original is returned if no attempt is valid. Never returns fewer than 3
+ * corners, and a ring already at or under `DENSE_RING_CORNERS` is left exactly as it is.
+ */
+export function simplifyRing(ring: readonly GeoPoint[], toleranceMeters = SIMPLIFY_TOLERANCE_METERS): SimplifiedRing {
+  const open = openRing(ring)
+  if (open.length <= DENSE_RING_CORNERS) return { ring: open, removed: 0 }
+
+  const points = project(open, open[0])
+
+  let far = 0
+  for (let i = 1; i < points.length; i++) {
+    if (distance(points[i], points[0]) > distance(points[far], points[0])) far = i
+  }
+
+  let tolerance = toleranceMeters
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const first = keptIndices(points, 0, far, tolerance)
+    // The second half wraps from `far` back round to corner 0, so it is indexed on a ring closed by repeating corner 0.
+    const wrapped = [...points, points[0]]
+    const second = keptIndices(wrapped, far, points.length, tolerance)
+    const kept = [...new Set([...first, ...[...second].map((i) => i % points.length)])].sort((a, b) => a - b)
+
+    if (kept.length >= 3 && kept.length < open.length) {
+      const candidate = kept.map((i) => open[i])
+      if (validateRing(candidate) === null) return { ring: candidate, removed: open.length - kept.length }
+    }
+    tolerance /= 2
+  }
+
+  return { ring: open, removed: 0 }
+}
+
 /** Checks a whole ring from scratch. O(n²) — for entry and save, not for every drag step. */
 export function validateRing(ring: readonly GeoPoint[]): Refusal | null {
   const open = openRing(ring)

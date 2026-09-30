@@ -12,7 +12,7 @@ import {
 } from './editablePolygonController'
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
-import { openRing } from './ringGeometry'
+import { SIMPLIFY_TOLERANCE_METERS, openRing, simplifyRing } from './ringGeometry'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
 
@@ -133,11 +133,24 @@ export function useSiteBoundaryEditMode() {
         }
 
         if (store().session) return
+
+        // A traced outline can carry hundreds of tiny corners, too many handles to work with. Corners
+        // that do not change the shape are dropped for the editing session only: Cancel leaves the
+        // saved outline exactly as it was, and the user is told what was done.
+        const before = rings.reduce((sum, ring) => sum + openRing(ring).length, 0)
+        rings = rings.map((ring) => simplifyRing(ring).ring)
+        const after = rings.reduce((sum, ring) => sum + ring.length, 0)
+
         const deps = viewDeps()
         const viewState = captureViewState(deps)
         enterPlanForEditing(deps, rings)
         handle.setOutlineVisible(false)
         store().enter({ chatId, siteName, revision, rings, viewState })
+        if (after < before) {
+          store().setNotice(
+            `Simplified the outline from ${before} to ${after} corners so it's easier to edit (the shape moved by less than ${SIMPLIFY_TOLERANCE_METERS} m).`,
+          )
+        }
         // A small window has no room for the floating bar over the top cards; every action is in the Outline menu.
         if (window.innerWidth < SMALL_SCREEN_PX) store().setToolbarHidden(true)
       } catch (error) {
