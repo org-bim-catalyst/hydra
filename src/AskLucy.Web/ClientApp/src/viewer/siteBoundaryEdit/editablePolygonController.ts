@@ -29,6 +29,10 @@ export interface EditableRing {
   setEditable(editable: boolean): void
   /** The ring became the one being edited (the user clicked it). */
   onSelect(listener: () => void): () => void
+  /** A plain click or tap on a corner handle (not a drag). */
+  onVertexClick(listener: (vertexIndex: number) => void): () => void
+  /** Marks one corner as the selected one, or clears the mark with null. */
+  setHighlight(index: number | null): void
   /** Right-click or long-press on a corner. `clientX`/`clientY` place a menu. */
   onVertexMenu(listener: (vertexIndex: number, clientX: number, clientY: number) => void): () => void
   remove(): void
@@ -82,6 +86,7 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
   }
 
   let mounted: Mounted[] = []
+  let unsubscribeStore: (() => void) | null = null
   /** True while this controller is writing to a path itself; the path's own events are then not user edits. */
   let writing = false
 
@@ -154,6 +159,11 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         if (store().session?.activeRing !== ringIndex) store().setActiveRing(ringIndex)
       }),
 
+      entry.ring.onVertexClick((index) => {
+        if (store().session?.activeRing !== ringIndex) store().setActiveRing(ringIndex)
+        store().selectCorner(index)
+      }),
+
       entry.ring.onVertexMenu((index, clientX, clientY) => {
         store().selectCorner(index)
         options.onVertexMenu?.({ ring: ringIndex, index, clientX, clientY })
@@ -172,9 +182,27 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       listen(ringIndex, entry)
       return entry
     })
+
+    unsubscribeStore = useSiteBoundaryEditStore.subscribe((state, previous) => {
+      if (state.session?.selectedCorner !== previous.session?.selectedCorner || state.session?.activeRing !== previous.session?.activeRing) {
+        syncHighlight()
+      }
+    })
+    syncHighlight()
+  }
+
+  /** Shows the store's selected corner on the active ring only; every other ring shows none. */
+  function syncHighlight() {
+    const session = store().session
+    mounted.forEach((entry, ringIndex) => {
+      const selected = session && session.activeRing === ringIndex ? session.selectedCorner : null
+      entry.ring.setHighlight(selected !== null && selected < entry.known.length ? selected : null)
+    })
   }
 
   function clear() {
+    unsubscribeStore?.()
+    unsubscribeStore = null
     for (const entry of mounted) {
       entry.unsubscribe.forEach((off) => off())
       entry.ring.remove()
@@ -213,6 +241,7 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
 
     setActiveRing(activeRing) {
       mounted.forEach((entry, ringIndex) => entry.ring.setEditable(ringIndex === activeRing))
+      syncHighlight()
     },
 
     insertCornerAfter(ringIndex, index) {

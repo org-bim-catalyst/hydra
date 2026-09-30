@@ -81,6 +81,8 @@ class FakeRing implements EditableRing {
   removed = false
   selectListeners: (() => void)[] = []
   menuListeners: ((i: number, x: number, y: number) => void)[] = []
+  clickListeners: ((i: number) => void)[] = []
+  highlighted: number | null = null
   path: FakePath
 
   constructor(corners: GeoPoint[], editable: boolean) {
@@ -95,6 +97,15 @@ class FakeRing implements EditableRing {
   onSelect = (l: () => void) => {
     this.selectListeners.push(l)
     return () => (this.selectListeners = this.selectListeners.filter((x) => x !== l))
+  }
+
+  onVertexClick = (l: (i: number) => void) => {
+    this.clickListeners.push(l)
+    return () => (this.clickListeners = this.clickListeners.filter((x) => x !== l))
+  }
+
+  setHighlight = (index: number | null) => {
+    this.highlighted = index
   }
 
   onVertexMenu = (l: (i: number, x: number, y: number) => void) => {
@@ -337,6 +348,46 @@ describe('rings', () => {
   })
 })
 
+describe('selecting a corner', () => {
+  it('a click on a corner selects it and highlights it', () => {
+    const { host } = setup()
+
+    host.rings[0].clickListeners.forEach((l) => l(2))
+
+    expect(session().selectedCorner).toBe(2)
+    expect(host.rings[0].highlighted).toBe(2)
+  })
+
+  it('a click on a corner of another ring makes that ring active and selects the corner', () => {
+    const { host } = setup([square(), triangle()])
+
+    host.rings[1].clickListeners.forEach((l) => l(1))
+
+    expect(session().activeRing).toBe(1)
+    expect(session().selectedCorner).toBe(1)
+    expect(host.rings[1].highlighted).toBe(1)
+    expect(host.rings[0].highlighted).toBeNull()
+  })
+
+  it('clearing the selection removes the highlight', () => {
+    const { host } = setup()
+    host.rings[0].clickListeners.forEach((l) => l(2))
+
+    store().selectCorner(null)
+
+    expect(host.rings[0].highlighted).toBeNull()
+  })
+
+  it('stops following the store after unmount', () => {
+    const { host, controller } = setup()
+    controller.unmount()
+
+    store().selectCorner(1)
+
+    expect(host.rings[0].highlighted).toBeNull()
+  })
+})
+
 describe('vertex menu', () => {
   it('selects the corner and asks for the menu where the pointer is', () => {
     const onVertexMenu = vi.fn()
@@ -389,7 +440,7 @@ describe('unmount', () => {
     controller.unmount()
 
     expect(host.rings.every((r) => r.removed)).toBe(true)
-    expect(host.rings.every((r) => r.path.listenerCount === 0 && r.selectListeners.length === 0 && r.menuListeners.length === 0)).toBe(true)
+    expect(host.rings.every((r) => r.path.listenerCount === 0 && r.selectListeners.length === 0 && r.menuListeners.length === 0 && r.clickListeners.length === 0)).toBe(true)
 
     host.rings[0].path.setAt(2, P(120, 120))
     expect(session().undo).toHaveLength(0)

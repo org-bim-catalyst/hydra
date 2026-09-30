@@ -220,6 +220,25 @@ export function useSiteBoundaryEditMode() {
     void siteBoundaryEditActions.start(request.revision)
   }, [handle, pendingRequest])
 
+  // Delete or Backspace removes the selected corner. Ignored while typing in a field, so it can never
+  // eat the chat box's own Backspace.
+  useEffect(() => {
+    if (!inSession) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return
+      const target = event.target as HTMLElement | null
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      if (store().session?.selectedCorner == null) return
+
+      event.preventDefault()
+      siteBoundaryEditActions.deleteCorner()
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [inSession])
+
   // The polygons exist exactly while a session does, and are rebuilt when the session comes back
   // after leaving and returning to /studio (FR-029).
   useEffect(() => {

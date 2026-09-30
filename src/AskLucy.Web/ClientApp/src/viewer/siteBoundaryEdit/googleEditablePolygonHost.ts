@@ -55,6 +55,9 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
         zIndex: 20,
       })
 
+      /** The ring of light around the selected corner. */
+      let marker: google.maps.Marker | null = null
+
       return {
         path: adaptPath(polygon.getPath()),
 
@@ -73,6 +76,35 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
           return () => handle.remove()
         },
 
+        onVertexClick(listener) {
+          // On an editable polygon Google sets `vertex` on a click that lands on a corner handle.
+          const handle = polygon.addListener('click', (event: google.maps.PolyMouseEvent) => {
+            if (event.vertex !== undefined && event.vertex !== null) listener(event.vertex)
+          })
+          return () => handle.remove()
+        },
+
+        setHighlight(index) {
+          if (index === null || index >= polygon.getPath().getLength()) {
+            marker?.setMap(null)
+            marker = null
+            return
+          }
+          const position = polygon.getPath().getAt(index)
+          if (!marker) {
+            marker = new google.maps.Marker({
+              map,
+              position,
+              clickable: false,
+              zIndex: 30,
+              icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#FFFFFF', fillOpacity: 0.35, strokeColor: '#FFC107', strokeWeight: 3 },
+            })
+          } else {
+            marker.setPosition(position)
+            marker.setMap(map)
+          }
+        },
+
         onVertexMenu(listener) {
           // Google reports `vertex` only for a polygon that is editable, and only when the pointer
           // is on a corner handle; a touch long-press arrives as the same 'contextmenu'.
@@ -85,6 +117,8 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
         },
 
         remove() {
+          marker?.setMap(null)
+          marker = null
           google.maps.event.clearInstanceListeners(polygon)
           polygon.setMap(null)
         },
