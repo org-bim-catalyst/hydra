@@ -114,6 +114,15 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
             owned.Property(a => a.Source).HasColumnName("ActiveBoundarySource").HasConversion<string>().HasMaxLength(30);
             owned.Property(a => a.SourceDetail).HasColumnName("ActiveBoundarySourceDetail").HasMaxLength(1000);
 
+            // specs/079 — the revision token clients echo back when saving an edit, and the link to
+            // the user's hand-edited correction. No database foreign key: a deleted correction is a
+            // dead link that readers ignore (data-model.md).
+            owned.Property(a => a.Revision).HasColumnName("ActiveBoundaryRevision");
+            owned.Property(a => a.CorrectionId).HasColumnName("ActiveBoundaryCorrectionId");
+            owned.HasIndex(a => a.CorrectionId)
+                .HasDatabaseName("IX_UserChats_ActiveBoundaryCorrectionId")
+                .HasFilter("[ActiveBoundaryCorrectionId] IS NOT NULL");
+
             owned.Property(a => a.Polygon)
                 .HasColumnName("ActiveBoundaryPolygonJson")
                 .HasConversion(

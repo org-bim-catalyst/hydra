@@ -25,4 +25,11 @@ public enum SiteBoundarySource
     /// repeated calls. See docs/LOCATION_TO_BOUNDARY_END_TO_END.md §9.8.
     /// </summary>
     RenderedMapExtraction,
+
+    /// <summary>
+    /// specs/079 — the user moved, added or deleted corners by hand. Only ever the source of an
+    /// <em>effective</em> (outline-in-force) boundary built from a <c>SiteBoundaryCorrection</c>; a
+    /// chat's own stored boundary keeps the source it was found with, so a reset can restore it.
+    /// </summary>
+    UserCorrected,
 }

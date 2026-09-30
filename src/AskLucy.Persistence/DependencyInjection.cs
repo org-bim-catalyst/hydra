@@ -68,6 +68,7 @@ public static class DependencyInjection
         // system-account creation race rather than merely catching its consequence.
         services.AddHostedService<SystemAccountProvisioningHostedService>();
         services.AddScoped<IUserChatRepository, UserChatRepository>();
+        services.AddScoped<AskLucy.Application.SiteBoundaries.ISiteBoundaryCorrectionRepository, SiteBoundaryCorrectionRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();

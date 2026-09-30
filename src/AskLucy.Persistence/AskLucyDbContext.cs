@@ -17,6 +17,7 @@ using AskLucy.Domain.Panels;
 using AskLucy.Domain.Projects;
 using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Retrieval;
+using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Domain.Workflows;
 using AskLucy.Persistence.Identity;
 using AskLucy.Persistence.Memory;
@@ -247,6 +248,9 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     /// <summary>specs/057-site-analysis-agent — no DbSet&lt;SiteAnalysisResult&gt;; children are reachable only through this aggregate (constitution &#167;5).</summary>
     public DbSet<SiteAnalysisAggregate> SiteAnalyses => Set<SiteAnalysisAggregate>();
+
+    /// <summary>specs/079 — a user's hand-edited outline for one site.</summary>
+    public DbSet<SiteBoundaryCorrection> SiteBoundaryCorrections => Set<SiteBoundaryCorrection>();
 
     public DbSet<WorkflowVersion> WorkflowVersions => Set<WorkflowVersion>();
 

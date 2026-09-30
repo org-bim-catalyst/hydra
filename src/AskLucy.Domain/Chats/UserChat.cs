@@ -273,6 +273,7 @@ public sealed class UserChat : BaseEntity
             CorePolygon = corePolygon,
             AdditionalPolygons = additionalPolygons ?? [],
             Members = members ?? [],
+            Revision = Guid.NewGuid(),
         };
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
@@ -295,6 +296,35 @@ public sealed class UserChat : BaseEntity
     public void ClearActiveBoundary(string actor)
     {
         ActiveBoundary = null;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>
+    /// specs/079 — links this chat to the user's hand-edited outline for the site. The chat's own
+    /// boundary stays as found; readers apply the correction through <c>EffectiveSiteBoundary</c>.
+    /// </summary>
+    public void LinkSiteBoundaryCorrection(Guid correctionId, string actor)
+    {
+        if (ActiveBoundary is null)
+        {
+            throw new DomainRuleViolationException("A chat needs an outline before it can be linked to a correction.");
+        }
+
+        ActiveBoundary = ActiveBoundary with { CorrectionId = correctionId, Revision = Guid.NewGuid() };
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>specs/079 — drops the link (reset), so the chat shows its outline as found again.</summary>
+    public void UnlinkSiteBoundaryCorrection(string actor)
+    {
+        if (ActiveBoundary?.CorrectionId is null)
+        {
+            return;
+        }
+
+        ActiveBoundary = ActiveBoundary with { CorrectionId = null, Revision = Guid.NewGuid() };
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }
