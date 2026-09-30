@@ -743,9 +743,22 @@ public sealed class ConversationTurnOrchestrator(
             yield break;
         }
 
+        // specs/079 (research D6) - once the outline is final (just resolved with no building
+        // question to ask, or that question just answered or kept) and is not already the user's own
+        // hand-edited one, ask whether they want to adjust its corners. The generic analysis rows
+        // for this turn ride along under the edit row, so the edit offer never costs the user the
+        // "what next" they would otherwise have been given.
+        var editOfferLevel = EditOfferLevel(outcome, confirmedBoundary, turnContext);
+
         var suppression = OfferSuppressionRules.Evaluate(intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled, flowVariantCandidates);
         if (suppression != OfferSuppressionReason.None)
         {
+            if (editOfferLevel is { } suppressedLevel)
+            {
+                var editOnly = SiteBoundaryEditOffer.Build(suppressedLevel, []);
+                yield return new ChatStreamChunk(null, null, SuggestedActions: editOnly.Actions, SuggestedActionsQuestion: editOnly.Question);
+            }
+
             yield break;
         }
 
@@ -767,10 +780,41 @@ public sealed class ConversationTurnOrchestrator(
 
         var offer = await offerGenerator.GenerateAsync(turnContext, outcome, justHappened, memoryContext, flowVariantCandidates, cancellationToken);
 
+        if (editOfferLevel is { } level)
+        {
+            var editOffer = SiteBoundaryEditOffer.Build(level, offer?.Actions ?? []);
+            yield return new ChatStreamChunk(null, null, SuggestedActions: editOffer.Actions, SuggestedActionsQuestion: editOffer.Question);
+            yield break;
+        }
+
         if (offer is not null)
         {
             yield return new ChatStreamChunk(null, null, SuggestedActions: offer.Actions, SuggestedActionsQuestion: offer.Question);
         }
+    }
+
+    /// <summary>
+    /// specs/079 - the confidence to word the edit offer's question with, or null when no edit offer
+    /// is due this turn: the outline did not just become final, or it is already the user's own
+    /// hand-edited one (FR-001). A boundary from this turn's own payload wins over the one the turn
+    /// started with, which a fresh resolution has just replaced.
+    /// </summary>
+    internal static BoundaryConfidenceLevel? EditOfferLevel(
+        TurnOutcome outcome, ConfirmedSiteBoundaryData? confirmedBoundary, TurnContext turnContext)
+    {
+        var outlineBecameFinal = outcome.WasInvokedThisTurn(ResolveSiteBoundaryCapability.CapabilityKey) ||
+            outcome.WasInvokedThisTurn(SetSiteBoundaryMembersCapability.CapabilityKey);
+        if (!outlineBecameFinal)
+        {
+            return null;
+        }
+
+        if (confirmedBoundary is not null)
+        {
+            return confirmedBoundary.Source == SiteBoundarySource.UserCorrected ? null : confirmedBoundary.ConfidenceLevel;
+        }
+
+        return turnContext.ActiveBoundary is { IsHandEdited: false } active ? active.ConfidenceLevel : null;
     }
 
     /// <summary>

@@ -58,6 +58,9 @@ public sealed record ChatStreamChunk(
     /// site, carried the same way <see cref="ViewerContent"/> is. Carries no solar figures: the
     /// browser computes them once.</summary>
     SolarAnalysisCommand? SolarAnalysis = null,
+
+    /// <summary>specs/079 - Lucy opening the outline editor, carried the same way <see cref="SolarAnalysis"/> is.</summary>
+    SiteBoundaryEditCommand? SiteBoundaryEdit = null,
     bool StartsNewMessage = false,
 
     /// <summary>

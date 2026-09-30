@@ -195,6 +195,7 @@ public sealed partial class AiController(
         ViewerZoomCommand? viewerZoom = null;
         ViewerContentCommand? viewerContent = null;
         SolarAnalysisCommand? solarAnalysis = null;
+        SiteBoundaryEditCommand? siteBoundaryEdit = null;
         IReadOnlyList<SuggestedAction>? suggestedActions = null;
         string? suggestedActionsQuestion = null;
 
@@ -315,6 +316,11 @@ public sealed partial class AiController(
                 if (chunk.SolarAnalysis is not null)
                 {
                     solarAnalysis = chunk.SolarAnalysis;
+                }
+
+                if (chunk.SiteBoundaryEdit is not null)
+                {
+                    siteBoundaryEdit = chunk.SiteBoundaryEdit;
                 }
 
                 // specs/045-conversational-agent-runtime FR-021 — rides its own chunk, with no
@@ -594,6 +600,16 @@ public sealed partial class AiController(
                     timeOfDay = solarAnalysis.TimeOfDay,
                 };
                 await Response.WriteAsync($"data: __SOLAR_ANALYSIS__{JsonSerializer.Serialize(solarAnalysisPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/079 contracts/site-boundary-edit-sse-event.md - Lucy opening the outline editor,
+            // in the same trailing-event shape as __SOLAR_ANALYSIS__. Not persisted: edit mode is a
+            // client state, re-entered from the map control after a reload.
+            if (siteBoundaryEdit is not null)
+            {
+                var siteBoundaryEditPayload = new { chatId = siteBoundaryEdit.ChatId, revision = siteBoundaryEdit.Revision };
+                await Response.WriteAsync($"data: __SITE_BOUNDARY_EDIT__{JsonSerializer.Serialize(siteBoundaryEditPayload)}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
 

@@ -46,20 +46,21 @@ public sealed class SetSiteBoundaryMembersCapability(
         "does not add to it. Then say what the outline now covers — everything outlineCovers lists, " +
         "the site first — and its new area. " +
         "Name a building as added or taken out only when addedBuildings or removedBuildings lists " +
-        "it; say nothing of buildings in neither list.";
+        "it; say nothing of buildings in neither list. " +
+        "When kept is true, say the outline stays as it is, in one sentence.";
 
     public string Label => "Choose the site buildings";
 
     public string OfferDescription => "Include or leave out buildings of the same development.";
 
-    public string AcknowledgementTemplate => "Now redrawing the site outline.";
+    public string AcknowledgementTemplate => "Now updating the site outline.";
 
     public AgentToolRiskLevel RiskLevel => AgentToolRiskLevel.Low;
 
     public IReadOnlyList<AgentToolPermission> RequiredPermissions => [];
 
     public string InputSchemaJson =>
-        """{"type":"object","properties":{"memberIds":{"type":"array","items":{"type":"string"}},"memberNames":{"type":"array","items":{"type":"string"}}}}""";
+        """{"type":"object","properties":{"memberIds":{"type":"array","items":{"type":"string"}},"keep":{"type":"boolean"},"memberNames":{"type":"array","items":{"type":"string"}}}}""";
 
     public string OutputSchemaJson =>
         """{"type":"object","properties":{"siteName":{"type":"string"},"areaSquareMeters":{"type":"number"},"outlineCovers":{"type":"array"},"addedBuildings":{"type":"array"},"removedBuildings":{"type":"array"}}}""";
@@ -121,6 +122,24 @@ public sealed class SetSiteBoundaryMembersCapability(
         else
         {
             return AgentToolResult.Failure("Say which buildings to include (memberIds or memberNames); an empty list means the site alone.");
+        }
+
+        // specs/079 - "Keep the outline as it is": the same buildings are included, so nothing is
+        // recomposed or redrawn and no boundary event follows. It still runs as a turn, so the edit
+        // offer can follow it.
+        var currentlyIncluded = active.Members.Where(m => m.Included).Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        if (root.TryGetProperty("keep", out var keepElement) && keepElement.ValueKind == JsonValueKind.True &&
+            chosen.SetEquals(currentlyIncluded))
+        {
+            return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new
+            {
+                kept = true,
+                siteName = active.SiteName,
+                areaSquareMeters = active.AreaSquareMeters,
+                outlineCovers = new[] { active.SiteName }
+                    .Concat(active.Members.Where(m => m.Included).Select(m => m.Name))
+                    .ToArray(),
+            }));
         }
 
         var members = active.Members.Select(m => m with { Included = chosen.Contains(m.Id) }).ToList();

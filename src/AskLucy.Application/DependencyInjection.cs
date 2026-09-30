@@ -303,6 +303,7 @@ public static class DependencyInjection
         services.AddScoped<IAgentTool, ResolveLocationCapability>();
         services.AddScoped<IAgentTool, ResolveSiteBoundaryCapability>();
         services.AddScoped<IAgentTool, SetSiteBoundaryMembersCapability>();
+        services.AddScoped<IAgentTool, EditSiteBoundaryCapability>();
         services.AddScoped<IAgentTool, AdjustViewerFocusCapability>();
         services.AddScoped<IAgentTool, SearchKnowledgeBaseCapability>();
         services.AddScoped<IAgentTool, SearchMemoryCapability>();

@@ -88,7 +88,15 @@ public static class SiteBoundaryMembershipOffer
             $"{Letter(options.Count)}. Other — I'll name the buildings",
             "Pick any combination yourself.",
             ArgumentsJson: null));
-        rows.Add(SuggestedAction.Decline("Keep the outline as it is"));
+        // specs/079 - a real row rather than a decline: keeping the outline as drawn is still an
+        // answer to the question, and it is what lets the edit offer follow (a decline ends the turn).
+        rows.Add(new SuggestedAction(
+            SuggestedActionKind.Capability,
+            SetSiteBoundaryMembersCapability.CapabilityKey,
+            Text: null,
+            "Keep the outline as it is",
+            "No change to which buildings are included.",
+            JsonSerializer.Serialize(new { memberIds = shown.ToList(), keep = true })));
 
         return new SuggestedActionOffer(Fit($"Which buildings should the {site} site include?", 200), rows);
     }

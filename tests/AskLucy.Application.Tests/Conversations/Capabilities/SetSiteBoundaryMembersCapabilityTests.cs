@@ -99,6 +99,36 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
         result.FailureReason.Should().Contain("\"Dubai Frame\"").And.Contain("BurJuman Business Tower");
     }
 
+    /// <summary>specs/079 - "Keep the outline as it is": the same buildings, so nothing is redrawn.</summary>
+    [Fact]
+    public async Task Keep_WithTheBuildingsAlreadyIncluded_ReturnsKeptAndNoGeometry()
+    {
+        var included = string.Join(",", Members.Where(m => m.Included).Select(m => $"\"{m.Id}\""));
+
+        var result = await RunAsync($$"""{"memberIds":[{{included}}],"keep":true}""");
+
+        result.Succeeded.Should().BeTrue(result.FailureReason);
+        var root = result.Output!.RootElement;
+        root.GetProperty("kept").GetBoolean().Should().BeTrue();
+        root.TryGetProperty("polygon", out _).Should().BeFalse("no geometry means no redraw event");
+        Covered(result).Should().StartWith("BurJuman Mall");
+        _union.DidNotReceiveWithAnyArgs().Union(default!, default);
+    }
+
+    [Fact]
+    public async Task Keep_WithADifferentSetOfBuildings_StillRecomposes()
+    {
+        var result = await RunAsync("""{"memberIds":["osm_way_3"],"keep":true}""");
+
+        result.Succeeded.Should().BeTrue(result.FailureReason);
+        result.Output!.RootElement.TryGetProperty("kept", out _).Should().BeFalse();
+        result.Output.RootElement.TryGetProperty("polygon", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Acknowledgement_SaysTheOutlineIsBeingUpdated() =>
+        _capability.AcknowledgementTemplate.Should().Be("Now updating the site outline.");
+
     [Fact]
     public async Task AnUnknownId_Fails()
     {

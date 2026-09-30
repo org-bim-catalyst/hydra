@@ -13,7 +13,7 @@ namespace AskLucy.Application.Tests.Conversations.Runtime;
 public sealed class SiteBoundaryMembershipOfferTests
 {
     [Fact]
-    public void Build_OffersEachGroupInTurnThenOtherThenDecline()
+    public void Build_OffersEachGroupInTurnThenOtherThenKeep()
     {
         var offer = SiteBoundaryMembershipOffer.Build(Boundary(Members))!;
 
@@ -25,10 +25,25 @@ public sealed class SiteBoundaryMembershipOfferTests
             "D. Everything, including the station",
             "E. Other — I'll name the buildings",
             "Keep the outline as it is");
-        offer.Actions[^1].Kind.Should().Be(SuggestedActionKind.Decline);
         offer.Actions[^2].Kind.Should().Be(SuggestedActionKind.FollowUp);
         offer.Actions.Take(4).Should().OnlyContain(a =>
             a.Kind == SuggestedActionKind.Capability && a.Key == SetSiteBoundaryMembersCapability.CapabilityKey);
+    }
+
+    /// <summary>specs/079 - keeping the outline is a real row (so the edit offer can follow it), carrying the buildings shown now.</summary>
+    [Fact]
+    public void Build_LastRowIsARealKeepRowCarryingTheBuildingsShownNow()
+    {
+        var offer = SiteBoundaryMembershipOffer.Build(Boundary(Members))!;
+        var keep = offer.Actions[^1];
+
+        keep.Kind.Should().Be(SuggestedActionKind.Capability);
+        keep.Key.Should().Be(SetSiteBoundaryMembersCapability.CapabilityKey);
+        keep.Label.Should().Be("Keep the outline as it is");
+        using var arguments = JsonDocument.Parse(keep.ArgumentsJson!);
+        arguments.RootElement.GetProperty("keep").GetBoolean().Should().BeTrue();
+        arguments.RootElement.GetProperty("memberIds").EnumerateArray().Select(e => e.GetString()).Should()
+            .BeEquivalentTo(Members.Where(m => m.Included).Select(m => m.Id));
     }
 
     [Fact]

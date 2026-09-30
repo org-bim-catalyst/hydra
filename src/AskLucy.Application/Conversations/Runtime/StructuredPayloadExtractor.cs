@@ -77,6 +77,13 @@ public static class StructuredPayloadExtractor
                         root.TryGetProperty("date", out var solarDateEl) ? solarDateEl.GetString() ?? string.Empty : string.Empty,
                         root.TryGetProperty("timeOfDay", out var solarTimeEl) ? solarTimeEl.GetString() ?? string.Empty : string.Empty));
 
+                // specs/079 - only an opened editor produces a client command; a refusal carries none.
+                case EditSiteBoundaryCapability.CapabilityKey
+                    when root.TryGetProperty("openEditor", out var openEditorEl) && openEditorEl.GetBoolean():
+                    return new ChatStreamChunk(null, null, SiteBoundaryEdit: new SiteBoundaryEditCommand(
+                        Guid.Parse(root.GetProperty("chatId").GetString()!),
+                        Guid.Parse(root.GetProperty("revision").GetString()!)));
+
                 default:
                     return null;
             }
@@ -95,6 +102,12 @@ public static class StructuredPayloadExtractor
         catch (ArgumentException)
         {
             // Enum.Parse on a value that doesn't match BoundaryConfidenceLevel/SiteBoundarySource.
+            return null;
+        }
+        catch (FormatException)
+        {
+            // A malformed identifier (a chat or revision that is not a Guid) - degraded like any other
+            // unreadable field: no client command, and the narration already told the user what happened.
             return null;
         }
         catch (InvalidOperationException)
