@@ -46,6 +46,7 @@ import {
   analysisControl,
   layersControl,
   navigationControl,
+  outlineControl,
   selectionControl,
   useMapStyleControl,
   useViewModeControl,
@@ -186,6 +187,7 @@ export function ChatPage() {
     layersControl,
     navigationControl,
     selectionControl,
+    outlineControl,
     analysisControl,
   ]
 

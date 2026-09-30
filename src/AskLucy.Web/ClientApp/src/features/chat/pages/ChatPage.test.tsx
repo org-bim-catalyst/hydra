@@ -575,6 +575,8 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Layers',
       'Navigation',
       'Selection',
+      // specs/079: the outline editor's action group, straight after Selection.
+      'Outline',
       'Analysis',
     ]) {
       await user.tab()

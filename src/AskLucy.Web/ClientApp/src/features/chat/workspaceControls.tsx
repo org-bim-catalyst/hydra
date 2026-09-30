@@ -1,12 +1,19 @@
 import {
   RiArrowLeftRightLine,
+  RiAddCircleLine,
+  RiArrowGoBackLine,
+  RiArrowGoForwardLine,
   RiBankLine,
   RiBox3Line,
   RiBrush2Line,
   RiBuilding2Line,
+  RiCheckLine,
+  RiCloseLine,
   RiCompassLine,
   RiCursorLine,
+  RiDeleteBinLine,
   RiDropLine,
+  RiEdit2Line,
   RiFilterLine,
   RiFingerprintLine,
   RiFlashlightLine,
@@ -19,8 +26,10 @@ import {
   RiMapLine,
   RiNavigationLine,
   RiPlanetLine,
+  RiRestartLine,
   RiRoadMapLine,
   RiRouteLine,
+  RiShape2Line,
   RiShoppingCartLine,
   RiStackLine,
   RiStackedView,
@@ -276,6 +285,73 @@ export const selectionControl: ControlDefinition = {
   ),
 }
 
+/** specs/079-site-boundary-manual-editing: the outline editor's actions in one place. The buttons
+ * are placeholders until the editor lands (tasks.md Phase 3); each is then linked to the real
+ * action (enter/undo/redo/done/cancel/reset, add and delete corner) as it is built. */
+export const outlineControl: ControlDefinition = {
+  id: 'outline',
+  label: 'Outline',
+  icon: <RiShape2Line />,
+  status: 'functional',
+  kind: 'action-group',
+  placement: 'right-stack',
+  content: (
+    <ExpandableActionGroup
+      actions={[
+        {
+          id: 'edit-outline',
+          label: 'Edit outline',
+          icon: <RiEdit2Line size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'add-corner',
+          label: 'Add corner',
+          icon: <RiAddCircleLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'delete-corner',
+          label: 'Delete corner',
+          icon: <RiDeleteBinLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'undo',
+          label: 'Undo',
+          icon: <RiArrowGoBackLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'redo',
+          label: 'Redo',
+          icon: <RiArrowGoForwardLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'cancel',
+          label: 'Cancel',
+          icon: <RiCloseLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'reset',
+          label: "Reset to Lucy's outline",
+          icon: <RiRestartLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+        },
+        {
+          id: 'done',
+          label: 'Done',
+          icon: <RiCheckLine size={20} />,
+          onSelect: () => comingSoon('Outline editing'),
+          highlighted: true,
+        },
+      ]}
+    />
+  ),
+}
+
 export const analysisControl: ControlDefinition = {
   id: 'analysis',
   label: 'Analysis',
