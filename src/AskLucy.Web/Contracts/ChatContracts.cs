@@ -30,3 +30,6 @@ public sealed record CombineSiteBoundaryShapeRequest(
 
 /// <summary>specs/079 contracts/site-boundary-edit-api.md `PUT /api/v1/chats/{chatId}/site-boundary` - the rings the user edited, and the revision they started from.</summary>
 public sealed record SaveSiteBoundaryEditRequest(string ExpectedRevision, IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings);
+
+/// <summary>specs/079 - the revision the user was looking at when they chose to reset.</summary>
+public sealed record ResetSiteBoundaryRequest(string ExpectedRevision);

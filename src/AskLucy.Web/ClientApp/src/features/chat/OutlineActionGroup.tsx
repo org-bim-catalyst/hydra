@@ -12,7 +12,7 @@ import {
   type ExpandableActionGroupAction,
 } from '../../components/workspace-shell/ExpandableActionGroup'
 import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
-import { useComingSoonStore } from '../../store/comingSoonStore'
+import { useOutlineResetStore } from '../../viewer/siteBoundaryEdit/outlineResetStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { AddCircleShapeIcon, AddCornerIcon, DeleteCornerIcon, RingToCircleIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
@@ -148,8 +148,7 @@ export function OutlineActionGroup() {
       id: 'reset',
       label: "Reset to Lucy's outline",
       icon: <RiRestartLine size={20} />,
-      // Reset arrives with a later part of this feature (tasks.md Phase 7).
-      onSelect: () => useComingSoonStore.getState().show('Outline reset'),
+      onSelect: () => useOutlineResetStore.getState().show(),
       disabled: !isHandEdited || editing,
       disabledReason: editing ? 'Finish editing first' : "This outline hasn't been edited",
     },

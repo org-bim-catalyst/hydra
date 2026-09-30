@@ -26,7 +26,7 @@ const messageOf = (error: unknown, fallback: string) =>
   error instanceof ApiError ? (error.detail ?? error.message) : error instanceof Error ? error.message : fallback
 
 /** The chat's outline as the API carries it, put where the viewer draws it from. */
-function applyBoundaryToViewer(chatId: string, boundary: ChatActiveBoundary) {
+export function applyBoundaryToViewer(chatId: string, boundary: ChatActiveBoundary) {
   useActiveSiteBoundaryStore.getState().setBoundary({
     siteName: boundary.siteName,
     chatId,

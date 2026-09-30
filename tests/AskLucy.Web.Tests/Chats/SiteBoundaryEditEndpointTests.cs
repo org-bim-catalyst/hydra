@@ -42,6 +42,28 @@ public sealed class SiteBoundaryEditEndpointTests(CustomWebApplicationFactory fa
     }
 
     [Fact]
+    public async Task PostReset_ShouldReturn401_WhenNoAuthorizationHeaderIsPresent()
+    {
+        var response = await _client.PostAsync(
+            $"/api/v1/chats/{Guid.NewGuid()}/site-boundary/actions/reset",
+            JsonContent.Create(new { expectedRevision = Guid.NewGuid().ToString() }),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task OpenApiDocument_ShouldListTheResetEndpoint_WithItsErrorResponses()
+    {
+        var provider = factory.Services.GetRequiredKeyedService<IOpenApiDocumentProvider>("v1");
+
+        var document = await provider.GetOpenApiDocumentAsync(TestContext.Current.CancellationToken);
+
+        var post = document.Paths["/api/v1/chats/{id}/site-boundary/actions/reset"].Operations!.Single(o => o.Key == System.Net.Http.HttpMethod.Post).Value;
+        post.Responses!.Keys.Should().Contain(["200", "400", "404", "409"]);
+    }
+
+    [Fact]
     public async Task OpenApiDocument_ShouldListTheCombineEndpoint_WithItsErrorResponses()
     {
         var provider = factory.Services.GetRequiredKeyedService<IOpenApiDocumentProvider>("v1");

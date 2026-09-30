@@ -12,6 +12,7 @@ using AskLucy.Application.Chats.Commands.FavoriteUserChat;
 using AskLucy.Application.Chats.Commands.PinUserChat;
 using AskLucy.Application.Chats.Commands.PurgeUserChat;
 using AskLucy.Application.Chats.Commands.RenameUserChat;
+using AskLucy.Application.Chats.Commands.ResetSiteBoundary;
 using AskLucy.Application.Chats.Commands.RestoreUserChat;
 using AskLucy.Application.Chats.Commands.SaveSiteBoundaryEdit;
 using AskLucy.Application.Chats.Commands.UnfavoriteUserChat;
@@ -114,6 +115,19 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
         Guid id, CombineSiteBoundaryShapeRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(
             new CombineSiteBoundaryShapeCommand(id, request.Rings, request.Operation, request.Centre, request.RadiusMeters), cancellationToken));
+
+    /// <summary>
+    /// specs/079 (FR-025 to FR-028) - gives up the hand edits, so the chat shows the outline Lucy found. 404 when
+    /// the outline was never edited, 409 (with <c>currentRevision</c>) when it changed since the caller saw it.
+    /// </summary>
+    [HttpPost("{id:guid}/site-boundary/actions/reset")]
+    [ProducesResponseType<ResetSiteBoundaryResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ResetSiteBoundaryResult>> ResetSiteBoundary(
+        Guid id, ResetSiteBoundaryRequest request, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new ResetSiteBoundaryCommand(id, request.ExpectedRevision), cancellationToken));
 
     [HttpGet("{id:guid}/messages")]
     public async Task<ActionResult<PagedResult<MessageDto>>> GetMessages(

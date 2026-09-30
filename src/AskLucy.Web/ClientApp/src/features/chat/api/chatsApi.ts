@@ -218,6 +218,16 @@ export async function exportChat(id: string): Promise<Blob> {
   return response.blob()
 }
 
+/** specs/079 (US5) - `POST /chats/{id}/site-boundary/actions/reset`: back to the outline Lucy found. */
+export interface ResetSiteBoundaryRequest {
+  /** The revision the user is looking at; a newer one in force is a 409. */
+  expectedRevision: string
+}
+
+/** A 404 means the outline was never edited; a 409 carries `currentRevision`. */
+export const resetSiteBoundary = (id: string, request: ResetSiteBoundaryRequest) =>
+  apiFetch<SaveSiteBoundaryEditResponse>(`/chats/${id}/site-boundary/actions/reset`, { method: 'POST', body: JSON.stringify(request) })
+
 /** specs/079 - `POST /chats/{id}/site-boundary/actions/combine`: add a circle to the outline being edited, or cut one out. */
 export interface CombineSiteBoundaryShapeRequest {
   /** The rings as they stand in the editor, unsaved changes included. Open rings. */
