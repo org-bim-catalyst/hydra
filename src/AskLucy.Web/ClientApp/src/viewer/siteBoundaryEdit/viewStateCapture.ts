@@ -82,13 +82,17 @@ export function enterPlanForEditing(deps: ViewStateDeps, rings: readonly (readon
  * map holds), then the exact camera, and rotation last, so the rotation driver picks up from the
  * restored heading instead of fighting it (research D2).
  */
-export function restoreViewState(deps: ViewStateDeps, state: ViewState): void {
+export function restoreViewState(deps: ViewStateDeps, state: ViewState, options: { keepCamera?: boolean } = {}): void {
   deps.engine.setViewMode(state.mode)
-  deps.map.moveCamera({
-    center: { lat: state.center.latitude, lng: state.center.longitude },
-    zoom: state.zoom,
-    heading: state.heading,
-    tilt: state.tilt,
-  })
+  // keepCamera: a different site has been shown while editing, so the camera is already on its way
+  // to that site and must not be pulled back to where the old one was. Mode and rotation still return.
+  if (!options.keepCamera) {
+    deps.map.moveCamera({
+      center: { lat: state.center.latitude, lng: state.center.longitude },
+      zoom: state.zoom,
+      heading: state.heading,
+      tilt: state.tilt,
+    })
+  }
   deps.engine.setRotationEnabled(state.rotationEnabled)
 }

@@ -144,6 +144,21 @@ describe('restoreViewState', () => {
     expect(state.rotationEnabled).toBe(rotationEnabled)
   })
 
+  it('keepCamera puts the mode and rotation back but leaves the camera where it is (a different site is being shown)', () => {
+    const { deps, calls, state } = fakeWorld({ mode: 'isometric', rotationEnabled: true, zoom: 17, heading: 42, tilt: 45, lat: 23.59, lng: 58.4 })
+    const before = captureViewState(deps)
+    enterPlanForEditing(deps, RINGS)
+    state.lat = 25.25
+    state.lng = 55.3
+    calls.length = 0
+
+    restoreViewState(deps, before, { keepCamera: true })
+
+    expect(calls).toEqual(['mode:isometric', 'rotation:true'])
+    expect(state.lat).toBe(25.25)
+    expect(state.lng).toBe(55.3)
+  })
+
   it('does not start rotation when it was not rotating', () => {
     const { deps, state } = fakeWorld({ mode: 'isometric', rotationEnabled: false, zoom: 17, heading: 10, tilt: 45, lat: 1, lng: 2 })
     const before = captureViewState(deps)

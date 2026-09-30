@@ -204,6 +204,121 @@ describe('useSiteBoundaryEditMode', () => {
     })
   })
 
+  describe('a different site is shown while editing (FR-030)', () => {
+    const otherSite = () =>
+      act(() => {
+        useActiveSiteBoundaryStore.getState().setBoundary({
+          siteName: 'Burjuman mall',
+          chatId: 'chat-1',
+          centroid: { latitude: 25.25, longitude: 55.3 },
+          polygon: RING,
+          areaSquareMeters: 40_000,
+          confidence: 0.7,
+          confidenceLevel: 'medium',
+          source: 'OsmBoundary',
+          sourceDetail: 'x',
+          alternativeCandidateNames: [],
+          revision: 'rev-b',
+          isHandEdited: false,
+        })
+      })
+
+    it('ends edit mode, says the unsaved changes were dropped, and does not save', async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+      makeDirty()
+
+      otherSite()
+
+      expect(session()).toBeNull()
+      expect(store().notice).toBe('Your unsaved outline changes were dropped because a new site was shown.')
+      expect(chatsApi.saveSiteBoundaryEdit).not.toHaveBeenCalled()
+      expect(handle.setOutlineVisible).toHaveBeenLastCalledWith(true)
+    })
+
+    it('does not pull the camera back to the old site, but restores the mode and rotation', async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+      map.moveCamera.mockClear()
+      engine.setViewMode.mockClear()
+      engine.setRotationEnabled.mockClear()
+
+      otherSite()
+
+      expect(map.moveCamera).not.toHaveBeenCalled()
+      expect(engine.setViewMode).toHaveBeenLastCalledWith('isometric')
+      expect(engine.setRotationEnabled).toHaveBeenLastCalledWith(true)
+    })
+
+    it('uses a plainer notice when nothing had been changed', async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+
+      otherSite()
+
+      expect(store().notice).toBe('Outline editing ended because a new site was shown.')
+    })
+
+    it('ends edit mode when the outline is cleared altogether', async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+
+      act(() => useActiveSiteBoundaryStore.getState().clearBoundary())
+
+      expect(session()).toBeNull()
+      expect(store().notice).not.toBeNull()
+    })
+
+    it('lets the next edit start cleanly on the new site', async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+      otherSite()
+      hostMock.createRing.mockClear()
+
+      await act(() => siteBoundaryEditActions.start())
+
+      expect(session()?.siteName).toBe('Burjuman mall')
+      expect(session()?.baseRevision).toBe('rev-b')
+      expect(hostMock.createRing).toHaveBeenCalledTimes(1)
+    })
+
+    it('is not triggered by the save that is redrawing the same site', async () => {
+      chatsApi.saveSiteBoundaryEdit.mockResolvedValue({ activeBoundary: boundaryDto(), message: { id: 'm1' } })
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+      makeDirty()
+
+      await act(() => siteBoundaryEditActions.done())
+
+      expect(store().notice).toBeNull()
+      expect(useActiveSiteBoundaryStore.getState().isHandEdited).toBe(true)
+    })
+  })
+
+  describe('a small window', () => {
+    const setWidth = (width: number) => Object.defineProperty(window, 'innerWidth', { value: width, configurable: true, writable: true })
+
+    afterEach(() => setWidth(1024))
+
+    it('starts with the floating bar hidden, since the Outline menu has every action', async () => {
+      setWidth(500)
+      mountHook()
+
+      await act(() => siteBoundaryEditActions.start())
+
+      expect(session()?.toolbarHidden).toBe(true)
+    })
+
+    it('starts with the bar shown on a normal window', async () => {
+      setWidth(1400)
+      mountHook()
+
+      await act(() => siteBoundaryEditActions.start())
+
+      expect(session()?.toolbarHidden).toBe(false)
+    })
+  })
+
   describe('Cancel', () => {
     it('drops the changes, shows the outline again and restores the view exactly', async () => {
       mountHook()

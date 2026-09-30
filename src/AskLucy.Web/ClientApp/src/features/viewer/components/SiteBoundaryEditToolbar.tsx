@@ -107,7 +107,7 @@ export function SiteBoundaryEditToolbar() {
 
           <Box sx={{ width: '1px', alignSelf: 'stretch', my: 1, bgcolor: 'divider' }} />
 
-          <Button size="small" onClick={siteBoundaryEditActions.cancel} disabled={saving} sx={{ minHeight: BAR_HEIGHT_PX - 8, px: 1.25 }}>
+          <Button size="small" color="inherit" onClick={siteBoundaryEditActions.cancel} disabled={saving} sx={{ minHeight: BAR_HEIGHT_PX - 8, px: 1.25 }}>
             Cancel
           </Button>
           <Button

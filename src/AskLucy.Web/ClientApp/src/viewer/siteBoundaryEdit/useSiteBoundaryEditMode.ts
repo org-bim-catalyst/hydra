@@ -18,6 +18,9 @@ import { captureViewState, enterPlanForEditing, restoreViewState, type ViewState
 
 const store = () => useSiteBoundaryEditStore.getState()
 
+/** Below this window width the edit bar starts hidden (the Outline menu has every action). */
+const SMALL_SCREEN_PX = 720
+
 const messageOf = (error: unknown, fallback: string) =>
   error instanceof ApiError ? (error.detail ?? error.message) : error instanceof Error ? error.message : fallback
 
@@ -54,6 +57,9 @@ export function useSiteBoundaryEditMode() {
   const queryClient = useQueryClient()
   const handle = useGoogleMapsStore((s) => s.handle)
   const inSession = useSiteBoundaryEditStore((s) => s.session !== null)
+  // Identifies WHICH session is open, so a new one (another site, or Load latest) rebuilds the
+  // editable polygons instead of leaving the previous session's rings on the map.
+  const sessionKey = useSiteBoundaryEditStore((s) => (s.session ? `${s.session.chatId}|${s.session.siteName}|${s.session.baseRevision}` : ''))
   const pendingRequest = useSiteBoundaryEditStore((s) => s.pendingRequest)
   const controllerRef = useRef<EditablePolygonController | null>(null)
 
@@ -67,14 +73,33 @@ export function useSiteBoundaryEditMode() {
     })
 
     /** Leaves edit mode: polygons off, outline back, view exactly as it was found. */
-    const exit = () => {
+    const exit = (options: { keepCamera?: boolean } = {}) => {
       const session = store().session
       controllerRef.current?.unmount()
       controllerRef.current = null
       handle.setOutlineVisible(true)
-      if (session) restoreViewState(viewDeps(), session.viewState)
+      if (session) restoreViewState(viewDeps(), session.viewState, options)
       store().end()
     }
+
+    // FR-030: a different site replacing the one being edited (Lucy moved to another place, or the
+    // outline was cleared) ends edit mode without saving. The old site's corners must never stay
+    // editable over the new site, and the user is told why their edit is gone.
+    const unsubscribeBoundary = useActiveSiteBoundaryStore.subscribe((state) => {
+      const session = store().session
+      if (!session || session.status.kind === 'saving') return
+
+      const sameSite = state.polygon !== null && state.siteName === session.siteName && state.chatId === session.chatId
+      if (sameSite) return
+
+      const hadChanges = store().isDirty()
+      exit({ keepCamera: true })
+      store().setNotice(
+        hadChanges
+          ? 'Your unsaved outline changes were dropped because a new site was shown.'
+          : 'Outline editing ended because a new site was shown.',
+      )
+    })
 
     /** Fetches the chat's outline in force, so an editor never starts from a stale shape. */
     const fetchOutline = async (chatId: string) => {
@@ -113,6 +138,8 @@ export function useSiteBoundaryEditMode() {
         enterPlanForEditing(deps, rings)
         handle.setOutlineVisible(false)
         store().enter({ chatId, siteName, revision, rings, viewState })
+        // A small window has no room for the floating bar over the top cards; every action is in the Outline menu.
+        if (window.innerWidth < SMALL_SCREEN_PX) store().setToolbarHidden(true)
       } catch (error) {
         // Entry failed part-way: whatever was hidden or moved is put back before saying so.
         handle.setOutlineVisible(true)
@@ -178,7 +205,7 @@ export function useSiteBoundaryEditMode() {
     const runtime: SiteBoundaryEditRuntime = {
       start,
       done,
-      cancel: exit,
+      cancel: () => exit(),
       undo() {
         if (store().undo()) resync()
       },
@@ -208,6 +235,7 @@ export function useSiteBoundaryEditMode() {
 
     const unregister = registerSiteBoundaryEditRuntime(runtime)
     return () => {
+      unsubscribeBoundary()
       unregister()
     }
   }, [handle, queryClient])
@@ -263,5 +291,5 @@ export function useSiteBoundaryEditMode() {
       controller.unmount()
       if (controllerRef.current === controller) controllerRef.current = null
     }
-  }, [handle, inSession])
+  }, [handle, inSession, sessionKey])
 }
