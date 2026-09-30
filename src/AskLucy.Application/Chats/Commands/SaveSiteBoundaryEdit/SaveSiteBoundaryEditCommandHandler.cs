@@ -92,7 +92,7 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
     }
 
     /// <summary>Validity per ring, then the drift rules against the outline Lucy found (research D11).</summary>
-    private void EnsureAcceptable(IReadOnlyList<IReadOnlyList<GeoPoint>> rings, ActiveSiteBoundary found)
+    private void EnsureAcceptable(List<IReadOnlyList<GeoPoint>> rings, ActiveSiteBoundary found)
     {
         for (var i = 0; i < rings.Count; i++)
         {
