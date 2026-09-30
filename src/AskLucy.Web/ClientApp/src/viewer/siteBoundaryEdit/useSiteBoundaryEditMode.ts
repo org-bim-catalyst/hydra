@@ -243,6 +243,15 @@ export function useSiteBoundaryEditMode() {
         }
         controllerRef.current?.insertCornerAfter(session.activeRing, session.selectedCorner)
       },
+      nudgeCorner(eastMeters, northMeters) {
+        const session = store().session
+        if (!session) return
+        if (session.selectedCorner === null) {
+          store().refuse('Select a corner first, then move it with the arrow keys.')
+          return
+        }
+        controllerRef.current?.moveCorner(session.activeRing, session.selectedCorner, eastMeters, northMeters)
+      },
       deleteCorner() {
         const session = store().session
         if (!session) return

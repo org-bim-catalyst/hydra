@@ -298,7 +298,7 @@ found outline is redrawn with effects.
 
 **Independent Test**: quickstart step 13, plus the same edits on a touch screen.
 
-- [ ] T083 [P] [US6] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.test.tsx` and `.a11y.test.tsx`:
+- [x] T083 [P] [US6] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.test.tsx` and `.a11y.test.tsx`:
   - Tab and Shift+Tab roving, with Tab past the last corner leaving the region;
   - `[` and `]` switch rings;
   - the arrow keys move 0.5 m, and 5 m with Shift;
@@ -307,7 +307,7 @@ found outline is redrawn with effects.
   - Escape asks to confirm when there are unsaved changes;
   - the live-region text "Corner 3 of 12, …" is announced;
   - jest-axe passes.
-- [ ] T084 [US6] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx` (`role="application"`, `aria-roledescription="outline editor"`, a polite live region). It moves corners by offsetting in ENU metres via `ringGeometry.ts`, and routes every change through the store and controller so the same validation applies.
+- [x] T084 [US6] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx` (`role="application"`, `aria-roledescription="outline editor"`, a polite live region). It moves corners by offsetting in ENU metres via `ringGeometry.ts`, and routes every change through the store and controller so the same validation applies.
 - [ ] T085 [US6] Draw the selected-corner highlight: one marker, not one per corner, updated from `selectedCorner` in `editablePolygonController.ts`. Keep `gestureHandling: 'greedy'` during edit mode, and check touch dragging on a real device (quickstart step 13).
 
 **Checkpoint**: Every story works. Walk through quickstart steps 1–13.

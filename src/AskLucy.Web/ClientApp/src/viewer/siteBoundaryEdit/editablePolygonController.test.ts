@@ -420,6 +420,35 @@ describe('selecting corners', () => {
   })
 })
 
+describe('moving a corner with the keyboard', () => {
+  it('moves it by the given metres, as one undo step, and updates the map', () => {
+    const { host, controller } = setup([square()])
+
+    expect(controller.moveCorner(0, 1, 5, 0)).toBe(true)
+
+    expect(session().rings[0][1].longitude).toBeGreaterThan(P(100, 0).longitude)
+    expect(host.rings[0].path.getAt(1)).toEqual(session().rings[0][1])
+    expect(session().undo).toHaveLength(1)
+    expect(session().undo[0].op).toBe('move')
+  })
+
+  it('refuses a move that would make the outline cross itself, changing nothing', () => {
+    const { controller } = setup([square()])
+
+    expect(controller.moveCorner(0, 1, -200, 0)).toBe(false)
+
+    expect(session().rings[0][1]).toEqual(P(100, 0))
+    expect(session().undo).toHaveLength(0)
+    expect(session().refusal).not.toBeNull()
+  })
+
+  it('ignores a corner that does not exist', () => {
+    const { controller } = setup([square()])
+    expect(controller.moveCorner(0, 9, 1, 1)).toBe(false)
+    expect(controller.moveCorner(4, 0, 1, 1)).toBe(false)
+  })
+})
+
 describe('replacing every ring at once', () => {
   const separate = (): GeoPoint[] => [P(300, 0), P(320, 0), P(320, 20)]
 

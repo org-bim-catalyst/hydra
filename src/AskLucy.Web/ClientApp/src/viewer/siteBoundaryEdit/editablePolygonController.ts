@@ -1,5 +1,5 @@
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
-import { openRing, validateChange, validateRing } from './ringGeometry'
+import { fromLocalMeters, openRing, validateChange, validateRing } from './ringGeometry'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 
 /**
@@ -65,6 +65,8 @@ export interface EditablePolygonController {
    * outline, as one undo step. The map is redrawn from them. Returns false when refused.
    */
   replaceAllRings(rings: readonly (readonly GeoPoint[])[]): boolean
+  /** Moves a corner by this many metres east and north (the arrow keys), after checking the result. Returns false when refused. */
+  moveCorner(ring: number, index: number, eastMeters: number, northMeters: number): boolean
   /** Deletes several corners at once, as one undo step. Refused if fewer than 3 would remain or the outline would cross itself. */
   deleteCorners(ring: number, indices: readonly number[]): boolean
   /** Deletes a corner after checking it (the menu, the Delete key). Returns false when refused. */
@@ -269,6 +271,27 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     setActiveRing(activeRing) {
       mounted.forEach((entry, ringIndex) => entry.ring.setEditable(ringIndex === activeRing))
       syncHighlight()
+    },
+
+    moveCorner(ringIndex, index, eastMeters, northMeters) {
+      const entry = mounted[ringIndex]
+      if (!entry || index < 0 || index >= entry.known.length) return false
+
+      const before = entry.known[index]
+      const [after] = fromLocalMeters([{ x: eastMeters, y: northMeters }], before)
+      const candidate = [...entry.known]
+      candidate[index] = after
+
+      const refusal = validateChange(candidate, index)
+      if (refusal) {
+        refuse(refusal.message)
+        return false
+      }
+
+      withWriting(() => entry.ring.path.setAt(index, after))
+      entry.known[index] = after
+      store().applyChange({ op: 'move', ring: ringIndex, index, before, after })
+      return true
     },
 
     insertCornerAfter(ringIndex, index) {
