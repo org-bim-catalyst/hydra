@@ -420,6 +420,39 @@ describe('selecting corners', () => {
   })
 })
 
+describe('replacing every ring at once', () => {
+  const separate = (): GeoPoint[] => [P(300, 0), P(320, 0), P(320, 20)]
+
+  it('takes a different number of rings as one undo step, and redraws the map', () => {
+    const { host, controller } = setup([square()])
+
+    expect(controller.replaceAllRings([square(), separate()])).toBe(true)
+
+    expect(host.rings.filter((r) => !r.removed)).toHaveLength(2)
+    expect(session().rings).toHaveLength(2)
+    expect(session().undo).toHaveLength(1)
+    expect(session().undo[0].op).toBe('replaceAll')
+  })
+
+  it('refuses, changing nothing, when one of the rings is not a valid outline', () => {
+    const { controller } = setup([square()])
+    const bowtie = [P(0, 0), P(100, 100), P(100, 0), P(0, 100)]
+
+    expect(controller.replaceAllRings([square(), bowtie])).toBe(false)
+
+    expect(session().rings).toHaveLength(1)
+    expect(session().undo).toHaveLength(0)
+    expect(session().refusal).toContain('Ring 2')
+  })
+
+  it('refuses an empty result', () => {
+    const { controller } = setup([square()])
+
+    expect(controller.replaceAllRings([])).toBe(false)
+    expect(session().rings).toHaveLength(1)
+  })
+})
+
 describe('deleting several corners at once', () => {
   /** A square with two extra corners on the bottom edge, which are safe to remove. */
   const withMidpoints = (): GeoPoint[] => [P(0, 0), P(30, 0), P(60, 0), P(100, 0), P(100, 100), P(0, 100)]

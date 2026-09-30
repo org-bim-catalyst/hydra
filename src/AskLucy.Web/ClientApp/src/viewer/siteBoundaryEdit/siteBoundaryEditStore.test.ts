@@ -248,6 +248,49 @@ describe('siteBoundaryEditStore', () => {
     })
   })
 
+  describe('the circle tool', () => {
+    it('remembers whether the circle is added or cut, and forgets it on any other tool', () => {
+      enter()
+
+      store().beginCircle('cut')
+      expect(session().tool).toBe('circle')
+      expect(session().circleOperation).toBe('cut')
+
+      store().setTool('edit')
+      expect(session().circleOperation).toBeNull()
+    })
+  })
+
+  describe('replacing every ring at once', () => {
+    const separate = () => [P(300, 0), P(320, 0), P(320, 20)]
+
+    it('swaps in a different number of rings, and undo and redo swap them back', () => {
+      enter()
+      const before = session().rings
+
+      store().applyChange({ op: 'replaceAll', before, after: [square(), separate()] })
+      expect(session().rings).toHaveLength(2)
+      expect(store().isDirty()).toBe(true)
+
+      store().undo()
+      expect(session().rings).toHaveLength(1)
+
+      store().redo()
+      expect(session().rings).toHaveLength(2)
+    })
+
+    it('clears the selection and returns to the first ring, since the old indices mean nothing now', () => {
+      enter([square(), separate()])
+      store().setActiveRing(1)
+      store().selectCorners([0, 1])
+
+      store().applyChange({ op: 'replaceAll', before: session().rings, after: [square()] })
+
+      expect(session().activeRing).toBe(0)
+      expect(session().selectedCorners).toEqual([])
+    })
+  })
+
   describe('tools', () => {
     it('starts on edit and can switch to select and back', () => {
       enter()

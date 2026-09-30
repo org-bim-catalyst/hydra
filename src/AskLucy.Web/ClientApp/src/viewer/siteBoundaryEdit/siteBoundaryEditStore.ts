@@ -26,6 +26,8 @@ export type RingChange =
   | { op: 'delete'; ring: number; index: number; before: GeoPoint }
   /** The whole ring swapped for another: deleting several corners at once, rounding a corner, curving an edge, a circle. One undo step. */
   | { op: 'replace'; ring: number; before: GeoPoint[]; after: GeoPoint[] }
+  /** Every ring swapped at once, possibly a different number of them: a circle added as a ring of its own, rings merged, a ring split by a cut. */
+  | { op: 'replaceAll'; before: GeoPoint[][]; after: GeoPoint[][] }
 
 /** The shape tools that ask for a number (a radius, a bulge) before they act. */
 export type ShapeTool = 'round' | 'curve' | 'circle'
@@ -34,7 +36,10 @@ export type ShapeTool = 'round' | 'curve' | 'circle'
  * What the map does with the pointer: `edit` moves and adds corners (Google's own handles); `select`
  * draws a box that picks corners; `arc` waits for a third point to be dropped and draws an arc through it.
  */
-export type EditTool = 'edit' | 'select' | 'arc'
+export type EditTool = 'edit' | 'select' | 'arc' | 'circle'
+
+/** What a circle drawn on the map does to the outline. */
+export type CircleOperation = 'add' | 'cut'
 
 export type EditStatus =
   | { kind: 'editing' }
@@ -62,6 +67,8 @@ export interface SiteBoundaryEditSession {
   tool: EditTool
   /** The two corners (of the active ring) the arc being drawn joins; set while `tool` is `arc`. */
   arcAnchors: [number, number] | null
+  /** Whether the circle being drawn is added to the outline or cut out of it; set while `tool` is `circle`. */
+  circleOperation: CircleOperation | null
   viewState: ViewState
   approxAreaSquareMeters: number
   status: EditStatus
@@ -126,6 +133,8 @@ interface Actions {
   setTool(tool: EditTool): void
   /** Starts drawing an arc between two corners: switches to the arc tool and remembers which corners. */
   beginArc(anchors: [number, number]): void
+  /** Starts drawing a circle that will be added to, or cut out of, the outline. */
+  beginCircle(operation: CircleOperation): void
   /** Cancel and forced exit both end the session; the caller restores the view state it gets from `session`. */
   end(): void
   beginSave(): void
@@ -145,6 +154,7 @@ const totalArea = (rings: readonly (readonly GeoPoint[])[]): number =>
 
 /** Applies one change to a copy of the rings, in the forward direction. */
 function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
+  if (change.op === 'replaceAll') return change.after.map((ring) => ring.map((p) => ({ ...p })))
   const next = rings.map((r) => [...r])
   const ring = next[change.ring]
   if (change.op === 'replace') next[change.ring] = change.after.map((p) => ({ ...p }))
@@ -156,6 +166,7 @@ function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
 
 /** Applies one change to a copy of the rings, in the reverse direction. */
 function applyBackward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
+  if (change.op === 'replaceAll') return change.before.map((ring) => ring.map((p) => ({ ...p })))
   const next = rings.map((r) => [...r])
   const ring = next[change.ring]
   if (change.op === 'replace') next[change.ring] = change.before.map((p) => ({ ...p }))
@@ -224,6 +235,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           selectedCorners: [],
           tool: 'edit',
           arcAnchors: null,
+          circleOperation: null,
           viewState,
           approxAreaSquareMeters: totalArea(start),
           status: { kind: 'editing' },
@@ -244,8 +256,14 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
         const undo = continuesDrag && change.op === 'move' && last?.op === 'move'
           ? [...s.undo.slice(0, -1), { ...change, before: last.before }]
           : [...s.undo, change]
-        // A whole-ring change renumbers every corner, so an old selection no longer points at anything.
-        const selection = change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}
+        // A whole-ring change renumbers every corner, so an old selection no longer points at anything;
+        // and after every ring was swapped the ring being edited may not exist any more.
+        const selection =
+          change.op === 'replaceAll'
+            ? { selectedCorner: null, selectedCorners: [], activeRing: 0 }
+            : change.op === 'replace'
+              ? { selectedCorner: null, selectedCorners: [] }
+              : {}
         return { rings, undo, redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null, ...selection }
       })
       lastChangeAt = now
@@ -273,6 +291,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           approxAreaSquareMeters: totalArea(rings),
           refusal: null,
           ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
+          ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0 } : {}),
         },
       })
       return change
@@ -292,6 +311,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           approxAreaSquareMeters: totalArea(rings),
           refusal: null,
           ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
+          ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0 } : {}),
         },
       })
       return change
@@ -320,11 +340,15 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     },
 
     beginArc(anchors) {
-      update(() => ({ tool: 'arc', arcAnchors: anchors }))
+      update(() => ({ tool: 'arc', arcAnchors: anchors, circleOperation: null }))
+    },
+
+    beginCircle(operation) {
+      update(() => ({ tool: 'circle', circleOperation: operation, arcAnchors: null }))
     },
 
     setTool(tool) {
-      update(() => ({ tool, arcAnchors: null }))
+      update(() => ({ tool, arcAnchors: null, circleOperation: null }))
     },
 
     end() {

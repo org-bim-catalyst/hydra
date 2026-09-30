@@ -19,6 +19,26 @@ export function SelectCornersIcon({ size = 24 }: IconProps) {
   )
 }
 
+/** A circle with a plus: "add a circle to the outline". */
+export function AddCircleShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  )
+}
+
+/** A circle with a minus: "cut a circle out of the outline". */
+export function CutCircleShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12h8" />
+    </svg>
+  )
+}
+
 /** An arc through three dropped points: "draw an arc". */
 export function DrawArcIcon({ size = 24 }: IconProps) {
   return (

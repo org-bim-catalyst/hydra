@@ -18,7 +18,7 @@ import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
-import { CurveEdgeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
+import { AddCircleShapeIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
 
 /**
  * specs/079-site-boundary-manual-editing: the outline editor's actions in one place. Each button is
@@ -96,6 +96,24 @@ export function OutlineActionGroup() {
       highlighted: session?.tool === 'arc',
       disabled: !editing || session.selectedCorners.length !== 2 || saving,
       disabledReason: editing ? 'Select exactly two corners first (Ctrl-click each)' : notEditing,
+    },
+    {
+      id: 'add-circle',
+      label: 'Add circle',
+      icon: <AddCircleShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startCircle('add'),
+      highlighted: session?.tool === 'circle' && session.circleOperation === 'add',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'cut-circle',
+      label: 'Cut circle',
+      icon: <CutCircleShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startCircle('cut'),
+      highlighted: session?.tool === 'circle' && session.circleOperation === 'cut',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
     },
     {
       id: 'make-circle',

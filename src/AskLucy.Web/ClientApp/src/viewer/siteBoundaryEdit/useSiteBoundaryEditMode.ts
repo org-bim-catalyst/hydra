@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { ApiError } from '../../api/httpClient'
-import { getChatById, saveSiteBoundaryEdit, type ChatActiveBoundary } from '../../features/chat/api/chatsApi'
+import { combineSiteBoundaryShape, getChatById, saveSiteBoundaryEdit, type ChatActiveBoundary } from '../../features/chat/api/chatsApi'
 import { useActiveSiteBoundaryStore, siteRingsOf, type GeoPoint, type SiteBoundarySource } from '../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../engine/viewerEngineInstance'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
@@ -258,6 +258,34 @@ export function useSiteBoundaryEditMode() {
       toggleSelectTool() {
         const session = store().session
         if (session) store().setTool(session.tool === 'select' ? 'edit' : 'select')
+      },
+      startCircle(operation) {
+        if (store().session) store().beginCircle(operation)
+      },
+      async applyCircle(centre, radiusMeters) {
+        const session = store().session
+        const controller = controllerRef.current
+        if (!session || !controller || !session.circleOperation) return false
+
+        try {
+          const result = await combineSiteBoundaryShape(session.chatId, {
+            rings: session.rings.map((ring) => openRing(ring)),
+            operation: session.circleOperation === 'add' ? 'Add' : 'Cut',
+            centre,
+            radiusMeters,
+          })
+
+          // The session may have ended (or moved to another site) while the server was working.
+          if (store().session?.chatId !== session.chatId) return false
+          if (!controller.replaceAllRings(result.rings)) return false
+
+          store().setTool('edit')
+          return true
+        } catch (error) {
+          // A refusal the user can act on (a hole, nothing left) arrives as the server's own message.
+          store().refuse(messageOf(error, 'The circle could not be applied.'))
+          return false
+        }
       },
       startArc() {
         const session = store().session

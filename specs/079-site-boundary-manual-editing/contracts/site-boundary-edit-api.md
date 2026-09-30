@@ -33,12 +33,12 @@ site correction, links the chat, and appends the chat line.
 ```
 
 - `rings[0]` is the ring holding the site. Its order must match the outline in force: the
-  client never adds or removes rings (spec Assumptions).
+  the ring count may change (amended: circle Add/Cut, see `actions/combine`).
 - The validator (400) checks:
   - 1–20 rings;
   - 3–2,000 corners per ring and at most 5,000 in total;
   - finite coordinates within range;
-  - the ring count equals the outline in force's ring count.
+  - (amended) the ring count is NOT required to match the outline in force: adding or cutting a circle may add a ring or split one.
 
 ### 200 OK
 
@@ -59,8 +59,33 @@ directly and draws it with `SiteBoundaryRenderer`, which gives the animated bord
 | 400 | Validator failures | `errors` (field → messages) |
 | 404 | Chat missing or not owned, or the chat has no outline | |
 | 409 | `expectedRevision` ≠ the effective revision, or a row-version race | `currentRevision` |
-| 422 | Geometry refused: self-crossing, area ≤ 1 m², duplicate corners, a ring not intersecting the found outline grown by 25 m, or union area > 3× the found area | `ringIndex`, `reason` (`selfCrossing` \| `degenerate` \| `duplicateCorner` \| `driftedAway` \| `tooLarge`) |
+| 422 | Geometry refused: self-crossing, area ≤ 1 m², duplicate corners, a ring not intersecting the found outline grown by 25 m, or union area > 3× the found area | `ringIndex`, `reason` (`selfCrossing` \| `degenerate` \| `duplicateCorner` \| `driftedAway` \| `tooLarge` \| `holeNotSupported` \| `nothingLeft` \| `tooManyRings`) |
 | 429 | Rate limit | |
+
+---
+
+## `POST /api/v1/chats/{chatId}/site-boundary/actions/combine` (amendment)
+
+A calculation only; nothing is saved. Adds a circle to the rings being edited (union) or cuts it out
+(difference). A circle touching nothing becomes a new ring of its own; a cut that splits a ring
+yields two rings.
+
+### Request
+
+```json
+{ "rings": [[{ "latitude": 0, "longitude": 0 }]], "operation": "Add", "centre": { "latitude": 0, "longitude": 0 }, "radiusMeters": 40 }
+```
+
+`operation` is `Add` or `Cut`; `radiusMeters` is 1-5000.
+
+### 200 OK
+
+`{ "rings": [[…]] }` - open rings, the one holding the original first ring first. Slivers under 1 m² are dropped.
+
+### Errors
+
+400 validator; 404 chat missing or not owned; 422 with `reason` `holeNotSupported` (the result would contain a hole),
+`nothingLeft` (the cut removes everything), `tooManyRings`, or any geometry reason of the save endpoint.
 
 ---
 

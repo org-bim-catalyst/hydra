@@ -218,6 +218,27 @@ export async function exportChat(id: string): Promise<Blob> {
   return response.blob()
 }
 
+/** specs/079 - `POST /chats/{id}/site-boundary/actions/combine`: add a circle to the outline being edited, or cut one out. */
+export interface CombineSiteBoundaryShapeRequest {
+  /** The rings as they stand in the editor, unsaved changes included. Open rings. */
+  rings: { latitude: number; longitude: number }[][]
+  operation: 'Add' | 'Cut'
+  centre: { latitude: number; longitude: number }
+  radiusMeters: number
+}
+
+export interface CombineSiteBoundaryShapeResponse {
+  /** The outline's rings after the circle was added or cut; open rings, the ring holding the site first. */
+  rings: { latitude: number; longitude: number }[][]
+}
+
+/**
+ * specs/079 - a calculation only; nothing is saved. A result that cannot be an outline (a cut that would
+ * leave a hole, or take everything) is a 422 carrying `reason` and a message the user can act on.
+ */
+export const combineSiteBoundaryShape = (id: string, request: CombineSiteBoundaryShapeRequest) =>
+  apiFetch<CombineSiteBoundaryShapeResponse>(`/chats/${id}/site-boundary/actions/combine`, { method: 'POST', body: JSON.stringify(request) })
+
 /**
  * specs/079 — saves the hand-edited outline. A stale revision is a 409 carrying `currentRevision`; a
  * refused shape is a 422 carrying `ringIndex` and `reason`; both arrive as an `ApiError`.

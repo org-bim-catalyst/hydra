@@ -135,7 +135,7 @@ corner, the area changes, and the view is 3D, rotating, at the same zoom and hea
 - [x] T034 [P] [US1] Extend `tests/AskLucy.Application.Tests/Conversations/Capabilities/SetSiteBoundaryMembersCapabilityTests.cs`: `keep: true` with the unchanged ids returns `kept: true` and no geometry change. Assert that the first field of the result data is that plain sentence.
 - [x] T035 [P] [US1] Create `tests/AskLucy.Application.Tests/Conversations/Runtime/StructuredPayloadExtractorSiteBoundaryEditTests.cs`: an `edit_site_boundary` result gives `ChatStreamChunk.SiteBoundaryEdit` with the chat id and revision.
 - [x] T036 [P] [US1] Create `tests/AskLucy.Application.Tests/Chats/SaveSiteBoundaryEditCommandTests.cs`, covering the validator and handler: A non-owner attempt writes one `AuthorizationDenied` audit row.
-  - validation: ring and corner bounds, coordinate ranges, a repeated closing corner being dropped, and a ring count different from the outline in force;
+  - validation: ring and corner bounds, coordinate ranges, a repeated closing corner being dropped, (amended: the ring count may differ from the outline in force - circle Add/Cut, see contracts);
   - ownership: a non-owner gets `KeyNotFoundException`;
   - a revision mismatch throws `ConcurrencyConflictException` with the current revision;
   - `ISiteRingGeometry` refusals map to a 422-type result with `ringIndex` and `reason`;

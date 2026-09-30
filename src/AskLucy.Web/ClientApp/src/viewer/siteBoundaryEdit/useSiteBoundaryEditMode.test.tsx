@@ -13,6 +13,7 @@ import { useSiteBoundaryEditMode } from './useSiteBoundaryEditMode'
 const chatsApi = vi.hoisted(() => ({
   getChatById: vi.fn(),
   saveSiteBoundaryEdit: vi.fn(),
+  combineSiteBoundaryShape: vi.fn(),
 }))
 vi.mock('../../features/chat/api/chatsApi', () => chatsApi)
 
@@ -844,6 +845,91 @@ describe('useSiteBoundaryEditMode', () => {
 
       expect(done).toBe(false)
       expect(session()?.refusal).toBe('Select a corner first.')
+    })
+  })
+
+  describe('drawing a circle to add or cut', () => {
+    const begin = async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+    }
+
+    const CENTRE = { latitude: 23.5862, longitude: 58.3935 }
+    /** A small square well away from RING: what the server returns for a circle that touches nothing. */
+    const SEPARATE: GeoPoint[] = [
+      { latitude: 23.59, longitude: 58.4 },
+      { latitude: 23.59, longitude: 58.4004 },
+      { latitude: 23.5904, longitude: 58.4004 },
+      { latitude: 23.5904, longitude: 58.4 },
+    ]
+
+    it('starts the circle tool with the chosen operation', async () => {
+      await begin()
+
+      act(() => siteBoundaryEditActions.startCircle('cut'))
+
+      expect(session()?.tool).toBe('circle')
+      expect(session()?.circleOperation).toBe('cut')
+    })
+
+    it('sends the open rings as they stand and swaps in what the server returns, as one undo step', async () => {
+      await begin()
+      chatsApi.combineSiteBoundaryShape.mockResolvedValue({ rings: [RING, SEPARATE] })
+      act(() => siteBoundaryEditActions.startCircle('add'))
+
+      let done = false
+      await act(async () => {
+        done = await siteBoundaryEditActions.applyCircle(CENTRE, 40)
+      })
+
+      expect(done).toBe(true)
+      expect(chatsApi.combineSiteBoundaryShape).toHaveBeenCalledWith('chat-1', expect.objectContaining({ operation: 'Add', centre: CENTRE, radiusMeters: 40 }))
+      expect(session()?.rings).toHaveLength(2)
+      expect(session()?.undo).toHaveLength(1)
+      expect(session()?.undo[0].op).toBe('replaceAll')
+      expect(session()?.tool).toBe('edit')
+    })
+
+    it('one undo brings back the single ring', async () => {
+      await begin()
+      chatsApi.combineSiteBoundaryShape.mockResolvedValue({ rings: [RING, SEPARATE] })
+      act(() => siteBoundaryEditActions.startCircle('add'))
+      await act(async () => {
+        await siteBoundaryEditActions.applyCircle(CENTRE, 40)
+      })
+
+      act(() => {
+        store().undo()
+      })
+
+      expect(session()?.rings).toHaveLength(1)
+    })
+
+    it("shows the server's reason, and stays in the circle tool, when the cut is refused", async () => {
+      await begin()
+      chatsApi.combineSiteBoundaryShape.mockRejectedValue(new ApiError(422, 'Site outline rejected', 'That cut would leave a hole in the outline.'))
+      act(() => siteBoundaryEditActions.startCircle('cut'))
+
+      let done = true
+      await act(async () => {
+        done = await siteBoundaryEditActions.applyCircle(CENTRE, 40)
+      })
+
+      expect(done).toBe(false)
+      expect(session()?.refusal).toContain('hole')
+      expect(session()?.tool).toBe('circle')
+      expect(session()?.undo).toHaveLength(0)
+    })
+
+    it('Escape cancels the circle tool', async () => {
+      await begin()
+      act(() => siteBoundaryEditActions.startCircle('add'))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      expect(session()?.tool).toBe('edit')
     })
   })
 

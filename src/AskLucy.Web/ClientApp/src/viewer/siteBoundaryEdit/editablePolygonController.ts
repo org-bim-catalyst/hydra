@@ -60,6 +60,11 @@ export interface EditablePolygonController {
   insertCornerAfter(ring: number, index: number): boolean
   /** Swaps a ring's corners for these ones after checking the result is a valid outline, as one undo step. Returns false when refused. */
   replaceRing(ring: number, corners: readonly GeoPoint[]): boolean
+  /**
+   * Swaps every ring for these, which may be a different number of them, after checking each is a valid
+   * outline, as one undo step. The map is redrawn from them. Returns false when refused.
+   */
+  replaceAllRings(rings: readonly (readonly GeoPoint[])[]): boolean
   /** Deletes several corners at once, as one undo step. Refused if fewer than 3 would remain or the outline would cross itself. */
   deleteCorners(ring: number, indices: readonly number[]): boolean
   /** Deletes a corner after checking it (the menu, the Delete key). Returns false when refused. */
@@ -303,6 +308,25 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       const before = [...entry.known]
       writePath(entry, next)
       store().applyChange({ op: 'replace', ring: ringIndex, before, after: next })
+      return true
+    },
+
+    replaceAllRings(rings) {
+      if (rings.length === 0) return false
+
+      const next = rings.map((ring) => openRing(ring))
+      for (let i = 0; i < next.length; i++) {
+        const refusal = next[i].length < 3 ? { message: 'An outline needs at least 3 corners.' } : validateRing(next[i])
+        if (refusal) {
+          refuse(rings.length > 1 ? `Ring ${i + 1}: ${refusal.message}` : refusal.message)
+          return false
+        }
+      }
+
+      const before = mounted.map((entry) => [...entry.known])
+      store().applyChange({ op: 'replaceAll', before, after: next })
+      // The store now holds the new rings and has made ring 0 the one being edited; redraw the map from it.
+      this.setRings(next, 0)
       return true
     },
 

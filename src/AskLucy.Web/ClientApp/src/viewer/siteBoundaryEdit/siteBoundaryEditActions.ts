@@ -1,5 +1,5 @@
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
-import { useSiteBoundaryEditStore, type ShapeTool } from './siteBoundaryEditStore'
+import { useSiteBoundaryEditStore, type CircleOperation, type ShapeTool } from './siteBoundaryEditStore'
 
 /**
  * specs/079: what the outline menu, the toolbar and the keyboard can ask edit mode to do. The
@@ -23,6 +23,10 @@ export interface SiteBoundaryEditRuntime {
   openShapeDialog(tool: ShapeTool): void
   /** Starts drawing an arc between the two selected corners: the next click on the map drops its third point. */
   startArc(): void
+  /** Starts drawing a circle on the map that will be added to the outline, or cut out of it. */
+  startCircle(operation: CircleOperation): void
+  /** Adds (or cuts) the circle the user drew. Resolves true on success; false with the reason shown. */
+  applyCircle(centre: GeoPoint, radiusMeters: number): Promise<boolean>
   /** Draws the arc through the dropped point. True on success; false with the reason shown. */
   applyArc(through: GeoPoint): boolean
   /** Applies the shape tool with the number from its dialog. True on success; false with the reason shown. */
@@ -64,6 +68,8 @@ export const siteBoundaryEditActions = {
   deleteCorner: () => call('deleteCorner'),
   toggleSelectTool: () => call('toggleSelectTool'),
   openShapeDialog: (tool: ShapeTool) => call('openShapeDialog', tool),
+  startCircle: (operation: CircleOperation) => call('startCircle', operation),
+  applyCircle: (centre: GeoPoint, radiusMeters: number) => call('applyCircle', centre, radiusMeters) ?? Promise.resolve(false),
   startArc: () => call('startArc'),
   applyArc: (through: GeoPoint) => call('applyArc', through) ?? false,
   applyShape: (tool: ShapeTool, value: number) => call('applyShape', tool, value) ?? false,
