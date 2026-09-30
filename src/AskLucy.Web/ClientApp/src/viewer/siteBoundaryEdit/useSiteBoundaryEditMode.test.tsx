@@ -335,6 +335,35 @@ describe('useSiteBoundaryEditMode', () => {
       expect(store().notice).toMatch(/^Simplified the outline from 600 to \d+ corners/)
     })
 
+    it('keeps raising the tolerance for a traced outline, and says the real figure', async () => {
+      // A long thin strip whose edges zig-zag by a metre: half a metre alone cannot remove that.
+      const zigzag: GeoPoint[] = []
+      for (let i = 0; i <= 300; i++) zigzag.push({ latitude: 23.586 + (i % 2 === 0 ? 0 : 0.000009), longitude: 58.392 + i * 0.000009 })
+      for (let i = 300; i >= 0; i--) zigzag.push({ latitude: 23.5862 + (i % 2 === 0 ? 0 : 0.000009), longitude: 58.392 + i * 0.000009 })
+      act(() => {
+        useActiveSiteBoundaryStore.getState().setBoundary({
+          siteName: 'Muscat Grand Mall',
+          chatId: 'chat-1',
+          centroid: { latitude: 23.586, longitude: 58.393 },
+          polygon: [...zigzag, zigzag[0]],
+          areaSquareMeters: 40_000,
+          confidence: 0.7,
+          confidenceLevel: 'medium',
+          source: 'OsmBoundary',
+          sourceDetail: 'x',
+          alternativeCandidateNames: [],
+          revision: 'rev-1',
+          isHandEdited: false,
+        })
+      })
+      mountHook()
+
+      await act(() => siteBoundaryEditActions.start())
+
+      expect(session()!.rings[0].length).toBeLessThan(40)
+      expect(store().notice).toMatch(/moved by less than 1 m/)
+    })
+
     it('leaves the saved outline untouched when the edit is cancelled', async () => {
       showDense()
       mountHook()

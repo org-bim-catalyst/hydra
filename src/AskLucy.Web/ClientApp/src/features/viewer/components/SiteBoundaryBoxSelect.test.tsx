@@ -63,6 +63,14 @@ describe('SiteBoundaryBoxSelect', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('takes the pointer back from the viewer, so a drag draws a box instead of panning the map', () => {
+    enter()
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+
+    // The viewer's overlay container ignores the pointer; without this the drag reaches the map and pans it.
+    expect(layer()).toHaveStyle({ pointerEvents: 'auto' })
+  })
+
   it('tells the user how it works', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)

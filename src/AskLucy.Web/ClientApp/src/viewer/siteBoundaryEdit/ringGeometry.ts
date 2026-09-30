@@ -173,10 +173,22 @@ export const DENSE_RING_CORNERS = 120
 /** How far, in metres, the simplified outline may stray from the original at any point. */
 export const SIMPLIFY_TOLERANCE_METERS = 0.5
 
+/**
+ * Tolerances tried in turn by {@link simplifyDenseRing}, tightest first. 1 m is the ceiling: a traced
+ * outline is built from pixel steps about a metre across, so anything tighter leaves most of the
+ * staircase in place, and anything looser starts to cut real corners.
+ */
+export const SIMPLIFY_TOLERANCE_LADDER_METERS = [SIMPLIFY_TOLERANCE_METERS, 1]
+
+/** The corner count a dense ring is simplified down to, if the tolerance ladder can reach it. */
+export const SIMPLIFY_TARGET_CORNERS = 100
+
 export interface SimplifiedRing {
   /** Open ring. The original, untouched, when nothing was removed. */
   ring: GeoPoint[]
   removed: number
+  /** The tolerance that produced `ring`; 0 when nothing was removed. */
+  toleranceMeters: number
 }
 
 /** Distance in metres from `p` to the segment `a`-`b`. */
@@ -223,7 +235,7 @@ function keptIndices(points: readonly Point[], from: number, to: number, toleran
  */
 export function simplifyRing(ring: readonly GeoPoint[], toleranceMeters = SIMPLIFY_TOLERANCE_METERS): SimplifiedRing {
   const open = openRing(ring)
-  if (open.length <= DENSE_RING_CORNERS) return { ring: open, removed: 0 }
+  if (open.length <= DENSE_RING_CORNERS) return { ring: open, removed: 0, toleranceMeters: 0 }
 
   const points = project(open, open[0])
 
@@ -242,12 +254,27 @@ export function simplifyRing(ring: readonly GeoPoint[], toleranceMeters = SIMPLI
 
     if (kept.length >= 3 && kept.length < open.length) {
       const candidate = kept.map((i) => open[i])
-      if (validateRing(candidate) === null) return { ring: candidate, removed: open.length - kept.length }
+      if (validateRing(candidate) === null) return { ring: candidate, removed: open.length - kept.length, toleranceMeters: tolerance }
     }
     tolerance /= 2
   }
 
-  return { ring: open, removed: 0 }
+  return { ring: open, removed: 0, toleranceMeters: 0 }
+}
+
+/**
+ * {@link simplifyRing} with the tolerance raised step by step (see {@link SIMPLIFY_TOLERANCE_LADDER_METERS})
+ * until the ring is down to {@link SIMPLIFY_TARGET_CORNERS}, stopping early once it is. The fewest-corner
+ * valid result is kept if the target is never reached.
+ */
+export function simplifyDenseRing(ring: readonly GeoPoint[]): SimplifiedRing {
+  let best = simplifyRing(ring, SIMPLIFY_TOLERANCE_LADDER_METERS[0])
+  for (const tolerance of SIMPLIFY_TOLERANCE_LADDER_METERS.slice(1)) {
+    if (best.ring.length <= SIMPLIFY_TARGET_CORNERS) break
+    const next = simplifyRing(ring, tolerance)
+    if (next.removed > best.removed) best = next
+  }
+  return best
 }
 
 /** Checks a whole ring from scratch. O(n²) — for entry and save, not for every drag step. */

@@ -129,7 +129,9 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onPointerUp={finish}
       onPointerCancel={() => setDrag(null)}
       onWheel={zoom}
-      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: 'crosshair', touchAction: 'none' }}
+      // The viewer's overlay container lets pointer events through to the map; this layer must take them
+      // back, or a drag pans the map instead of drawing the box.
+      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
     >
       {box && (
         <Box

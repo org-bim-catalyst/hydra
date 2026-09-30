@@ -6,6 +6,7 @@ import {
   closeRing,
   openRing,
   ringAreaSquareMeters,
+  simplifyDenseRing,
   simplifyRing,
   validateChange,
   validateRing,
@@ -237,5 +238,85 @@ describe('simplifyRing (dense outlines, when editing starts)', () => {
 
     expect(performance.now() - start).toBeLessThan(1_000)
     expect(ring.length).toBeLessThan(200)
+  })
+})
+
+describe('simplifyDenseRing (an outline traced from pixels)', () => {
+  /** A long rotated rectangle traced on a 1 m pixel grid: every corner is one step of a staircase. */
+  function traced(): GeoPoint[] {
+    const angle = (-20 * Math.PI) / 180
+    const inside = (x: number, y: number) => {
+      const u = x * Math.cos(angle) + y * Math.sin(angle)
+      const v = -x * Math.sin(angle) + y * Math.cos(angle)
+      return u >= 0 && u <= 300 && v >= 0 && v <= 60
+    }
+    const cells = new Set<string>()
+    for (let x = -40; x < 340; x++) for (let y = -40; y < 340; y++) if (inside(x + 0.5, y + 0.5)) cells.add(`${x},${y}`)
+
+    const key = (x: number, y: number) => `${x},${y}`
+    const next = new Map<string, [number, number]>()
+    for (const c of cells) {
+      const [x, y] = c.split(',').map(Number)
+      if (!cells.has(key(x, y - 1))) next.set(key(x, y), [x + 1, y])
+      if (!cells.has(key(x + 1, y))) next.set(key(x + 1, y), [x + 1, y + 1])
+      if (!cells.has(key(x, y + 1))) next.set(key(x + 1, y + 1), [x, y + 1])
+      if (!cells.has(key(x - 1, y))) next.set(key(x, y + 1), [x, y])
+    }
+    const start = [...next.keys()][0]
+    const ring: GeoPoint[] = []
+    let k = start
+    do {
+      const [x, y] = k.split(',').map(Number)
+      ring.push(point(x, y))
+      const n = next.get(k)!
+      k = key(n[0], n[1])
+    } while (k !== start)
+    return ring
+  }
+
+  it('is a genuinely dense, valid starting point', () => {
+    const ring = traced()
+
+    expect(ring.length).toBeGreaterThan(500)
+    expect(validateRing(ring)).toBeNull()
+  })
+
+  it('a half-metre tolerance alone leaves most of the staircase in place', () => {
+    const ring = traced()
+
+    expect(simplifyRing(ring, 0.5).ring.length).toBeGreaterThan(200)
+  })
+
+  it('raises the tolerance until the ring is down to a workable number of corners', () => {
+    const ring = traced()
+    const result = simplifyDenseRing(ring)
+
+    expect(result.ring.length).toBeLessThanOrEqual(100)
+    expect(result.toleranceMeters).toBe(1)
+    expect(validateRing(result.ring)).toBeNull()
+  })
+
+  it('never lets the shape move by more than a metre', () => {
+    const ring = traced()
+    const { ring: simplified, toleranceMeters } = simplifyDenseRing(ring)
+
+    expect(toleranceMeters).toBeLessThanOrEqual(1)
+    expect(Math.abs(ringAreaSquareMeters(simplified) - ringAreaSquareMeters(ring)) / ringAreaSquareMeters(ring)).toBeLessThan(0.03)
+  })
+
+  it('stops at the tight tolerance when that already gets the ring down far enough', () => {
+    const result = simplifyDenseRing(Array.from({ length: 600 }, (_, i) => point(200 * Math.cos((2 * Math.PI * i) / 600), 200 * Math.sin((2 * Math.PI * i) / 600))))
+
+    expect(result.toleranceMeters).toBe(SIMPLIFY_TOLERANCE_METERS)
+    expect(result.ring.length).toBeLessThanOrEqual(100)
+  })
+
+  it('leaves an ordinary ring exactly as it is, reporting no tolerance', () => {
+    const ring = [point(0, 0), point(100, 0), point(100, 100), point(0, 100)]
+    const result = simplifyDenseRing(ring)
+
+    expect(result.ring).toEqual(ring)
+    expect(result.removed).toBe(0)
+    expect(result.toleranceMeters).toBe(0)
   })
 })

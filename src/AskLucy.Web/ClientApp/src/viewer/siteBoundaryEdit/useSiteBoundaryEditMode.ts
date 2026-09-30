@@ -12,7 +12,7 @@ import {
 } from './editablePolygonController'
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
-import { SIMPLIFY_TOLERANCE_METERS, openRing, simplifyRing } from './ringGeometry'
+import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
 import { circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
@@ -139,8 +139,11 @@ export function useSiteBoundaryEditMode() {
         // that do not change the shape are dropped for the editing session only: Cancel leaves the
         // saved outline exactly as it was, and the user is told what was done.
         const before = rings.reduce((sum, ring) => sum + openRing(ring).length, 0)
-        rings = rings.map((ring) => simplifyRing(ring).ring)
+        const simplified = rings.map((ring) => simplifyDenseRing(ring))
+        rings = simplified.map((result) => result.ring)
         const after = rings.reduce((sum, ring) => sum + ring.length, 0)
+        const tolerance = Math.max(0, ...simplified.map((result) => result.toleranceMeters))
+        const stillDense = rings.some((ring) => ring.length > DENSE_RING_CORNERS)
 
         const deps = viewDeps()
         const viewState = captureViewState(deps)
@@ -149,8 +152,12 @@ export function useSiteBoundaryEditMode() {
         store().enter({ chatId, siteName, revision, rings, viewState })
         if (after < before) {
           store().setNotice(
-            `Simplified the outline from ${before} to ${after} corners so it's easier to edit (the shape moved by less than ${SIMPLIFY_TOLERANCE_METERS} m).`,
+            `Simplified the outline from ${before} to ${after} corners so it's easier to edit (the shape moved by less than ${tolerance} m).` +
+              (stillDense ? ' It still has many corners - use the Select tool to delete several at once.' : ''),
           )
+        } else if (stillDense) {
+          // Said aloud rather than left to look like nothing happened: the user will otherwise face hundreds of handles with no explanation.
+          store().setNotice("This outline has a very large number of corners and couldn't be simplified without changing its shape. Use the Select tool to delete several at once.")
         }
         // A small window has no room for the floating bar over the top cards; every action is in the Outline menu.
         if (window.innerWidth < SMALL_SCREEN_PX) store().setToolbarHidden(true)
