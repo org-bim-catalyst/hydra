@@ -11,6 +11,7 @@ using AskLucy.Application.Chats.Commands.FavoriteUserChat;
 using AskLucy.Application.Chats.Commands.PinUserChat;
 using AskLucy.Application.Chats.Commands.PurgeUserChat;
 using AskLucy.Application.Chats.Commands.RenameUserChat;
+using AskLucy.Application.Chats.Commands.SaveSiteBoundaryEdit;
 using AskLucy.Application.Chats.Commands.RestoreUserChat;
 using AskLucy.Application.Chats.Commands.UnfavoriteUserChat;
 using AskLucy.Application.Chats.Commands.UnpinUserChat;
@@ -82,6 +83,21 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
             new UpdateChatModelSelectionCommand(id, request.ProviderId, request.ModelId, request.GenerationParameters), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>
+    /// specs/079 (FR-015 to FR-020) - saves the outline the user edited by hand. A non-owner gets 404, a stale
+    /// revision 409 (with <c>currentRevision</c>) and a refused shape 422 (with <c>ringIndex</c> and <c>reason</c>);
+    /// all three come from the global Problem Details handler.
+    /// </summary>
+    [HttpPut("{id:guid}/site-boundary")]
+    [ProducesResponseType<SaveSiteBoundaryEditResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<SaveSiteBoundaryEditResult>> SaveSiteBoundaryEdit(
+        Guid id, SaveSiteBoundaryEditRequest request, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new SaveSiteBoundaryEditCommand(id, request.ExpectedRevision, request.Rings), cancellationToken));
 
     [HttpGet("{id:guid}/messages")]
     public async Task<ActionResult<PagedResult<MessageDto>>> GetMessages(

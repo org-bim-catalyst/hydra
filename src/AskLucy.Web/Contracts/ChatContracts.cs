@@ -20,3 +20,6 @@ public sealed record ConversationKnowledgeBasesResponse(IReadOnlyList<Guid> Know
 
 /// <summary>specs/019-prompt-library-workspace contracts/prompt-conversation-integration-api.md `POST /api/v1/chats/{chatId}/prompt-messages`.</summary>
 public sealed record InsertPromptMessageRequest(Guid PromptId, IReadOnlyDictionary<string, string?>? VariableValues);
+
+/// <summary>specs/079 contracts/site-boundary-edit-api.md `PUT /api/v1/chats/{chatId}/site-boundary` - the rings the user edited, and the revision they started from.</summary>
+public sealed record SaveSiteBoundaryEditRequest(string ExpectedRevision, IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings);

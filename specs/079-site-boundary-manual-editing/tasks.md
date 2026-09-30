@@ -142,7 +142,7 @@ corner, the area changes, and the view is 3D, rotating, at the same zoom and hea
   - drift: no intersection within 25 m, and a union area over 3× the found area;
   - the first save creates a correction, links the chat and appends one Assistant message "You edited the outline of {site} — now {area:N0} m²";
   - all of it in one `SaveChanges`.
-- [ ] T037 [P] [US1] Create `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs` for `PUT /api/v1/chats/{id}/site-boundary`: 200 with the contract shape, 400, 404 for a non-owner, 409 with `currentRevision`, and 422 with `ringIndex`. The endpoint appears in the OpenAPI document. Use a derived factory fixture, not `WithWebHostBuilder` per test (memory).
+- [x] T037 [P] [US1] Create `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs` for `PUT /api/v1/chats/{id}/site-boundary`: 200 with the contract shape, 400, 404 for a non-owner, 409 with `currentRevision`, and 422 with `ringIndex`. The endpoint appears in the OpenAPI document. Use a derived factory fixture, not `WithWebHostBuilder` per test (memory).
 - [ ] T038 [P] [US1] Create `src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/viewStateCapture.test.ts`, against a fake map and camera store:
   - entry disables rotation, then sets plan, heading 0 and `fitBounds`;
   - exit restores the mode, `moveCamera`, and rotation last;
@@ -168,7 +168,7 @@ corner, the area changes, and the view is 3D, rotating, at the same zoom and hea
 - [ ] T044 [US1] Create `EditSiteBoundaryCapability` in `src/AskLucy.Application/Conversations/Capabilities/EditSiteBoundaryCapability.cs` with the properties and result JSON from contracts/edit-and-reset-capabilities.md. Register it in `src/AskLucy.Application/DependencyInjection.cs` next to `SetSiteBoundaryMembersCapability`. Owner check goes through `ChatOwnershipAuditor`.
 - [ ] T045 [US1] Add `SiteBoundaryEditCommand(Guid ChatId, Guid Revision)` and `ChatStreamChunk.SiteBoundaryEdit` in `src/AskLucy.Application/Ai/Commands/SendChatMessage/ChatStreamChunk.cs`. Map it in `src/AskLucy.Application/Conversations/Runtime/StructuredPayloadExtractor.cs`, and write the `siteBoundaryEdit` SSE frame in `src/AskLucy.Web/Controllers/v1/AiController.cs`, next to `solarAnalysis` (contracts/site-boundary-edit-sse-event.md).
 - [ ] T046 [US1] In `EmitOfferIfDueAsync` in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs`, implement precedence rows 2–4. After the membership check, when the outline became final and isn't hand-edited, build the analysis rows with `offerGenerator.GenerateAsync` (after suppression, dropping its question) and yield `SiteBoundaryEditOffer`. The edit row is never suppressed.
-- [ ] T047 [US1] Create `SaveSiteBoundaryEditCommand`, `SaveSiteBoundaryEditCommandValidator` and `SaveSiteBoundaryEditCommandHandler` in `src/AskLucy.Application/Chats/Commands/SaveSiteBoundaryEdit/`. The handler: Owner check goes through `ChatOwnershipAuditor`. A stale revision throws `new ConcurrencyConflictException(message, currentRevision)`; geometry refusals throw `SiteBoundaryGeometryRejectedException`.
+- [x] T047 [US1] Create `SaveSiteBoundaryEditCommand`, `SaveSiteBoundaryEditCommandValidator` and `SaveSiteBoundaryEditCommandHandler` in `src/AskLucy.Application/Chats/Commands/SaveSiteBoundaryEdit/`. The handler: Owner check goes through `ChatOwnershipAuditor`. A stale revision throws `new ConcurrencyConflictException(message, currentRevision)`; geometry refusals throw `SiteBoundaryGeometryRejectedException`.
   - checks ownership via `ChatOwnershipGuard`;
   - reads the effective revision;
   - validates with `ISiteRingGeometry` (validity plus the drift rules from research D11);
@@ -177,7 +177,7 @@ corner, the area changes, and the view is 3D, rotating, at the same zoom and hea
   - appends the templated Assistant `Text` message;
   - commits in one `SaveChanges`;
   - returns the effective `ChatActiveBoundaryDto` and the message DTO.
-- [ ] T048 [US1] Add `PUT api/v1/chats/{chatId}/site-boundary` to `src/AskLucy.Web/Controllers/v1/ChatsController.cs`, under the `chat-endpoints` rate policy. Map `ConcurrencyConflictException` to a 409 with a `currentRevision` extension, and geometry refusals to a 422 with `ringIndex` and `reason`, via the global handler (`SiteBoundaryGeometryRejectedException` → 422, `ConcurrencyConflictException` → 409), with no try/catch in the controller. Document each status with `[ProducesResponseType]`.
+- [x] T048 [US1] Add `PUT api/v1/chats/{chatId}/site-boundary` to `src/AskLucy.Web/Controllers/v1/ChatsController.cs`, under the `chat-endpoints` rate policy. Map `ConcurrencyConflictException` to a 409 with a `currentRevision` extension, and geometry refusals to a 422 with `ringIndex` and `reason`, via the global handler (`SiteBoundaryGeometryRejectedException` → 422, `ConcurrencyConflictException` → 409), with no try/catch in the controller. Document each status with `[ProducesResponseType]`.
 
 ### Implementation for User Story 1: frontend
 
