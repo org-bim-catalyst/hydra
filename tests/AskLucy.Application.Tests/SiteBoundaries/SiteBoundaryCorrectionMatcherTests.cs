@@ -117,6 +117,6 @@ public sealed class SiteBoundaryCorrectionMatcherTests
     {
         (await Create().FindAsync(blank, "Muscat Grand Mall", At(0, 0), TestContext.Current.CancellationToken)).Should().BeNull();
         (await Create().FindAsync("user-1", blank, At(0, 0), TestContext.Current.CancellationToken)).Should().BeNull();
-        await _repository.DidNotReceiveWithAnyArgs().FindCandidatesAsync(default!, default!, default);
+        await _repository.DidNotReceive().FindCandidatesAsync(Arg.Any<string>(), Arg.Any<string>(), TestContext.Current.CancellationToken);
     }
 }

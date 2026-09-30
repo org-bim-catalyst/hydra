@@ -113,7 +113,7 @@ public sealed class RecordActiveSiteBoundaryCorrectionTests
 
         _chat.ActiveBoundary!.Polygon.Should().BeEquivalentTo(Found);
         _chat.ActiveBoundary.CorrectionId.Should().BeNull();
-        await _corrections.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default!, default);
+        await _corrections.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<string>(), TestContext.Current.CancellationToken);
     }
 
     [Fact]

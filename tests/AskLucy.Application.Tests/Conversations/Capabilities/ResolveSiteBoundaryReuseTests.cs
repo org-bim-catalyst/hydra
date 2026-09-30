@@ -54,7 +54,7 @@ public sealed class ResolveSiteBoundaryReuseTests
         var result = await RunAsync();
 
         result.Succeeded.Should().BeTrue(result.FailureReason);
-        await _boundaryService.DidNotReceiveWithAnyArgs().ResolveAsync(default!, default, default);
+        await _boundaryService.DidNotReceive().ResolveAsync(Arg.Any<ConfirmedLocationData>(), Arg.Any<Guid>(), TestContext.Current.CancellationToken);
         var root = result.Output!.RootElement;
         root.GetProperty("userCorrected").GetBoolean().Should().BeTrue();
         root.GetProperty("correctionId").GetGuid().Should().Be(correction.Id);
