@@ -24,5 +24,5 @@ public sealed class NotificationTemplateRepository(AskLucyDbContext dbContext) :
         return keys.Select(k => new NotificationTemplateKey(k.Type, k.Channel, k.Language)).ToHashSet();
     }
 
-    public void Add(NotificationTemplate template) => dbContext.NotificationTemplates.Add(template);
+    public void Add(NotificationTemplate notificationTemplate) => dbContext.NotificationTemplates.Add(notificationTemplate);
 }

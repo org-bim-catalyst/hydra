@@ -139,9 +139,9 @@ public sealed class KnowledgeBaseIndexingJobTests
         var (knowledgeBase, document, job) = SetUpJob();
         job.Fail("already failed", "user-1");
 
-        await CreateSut().RunAsync(job.Id, CancellationToken.None);
+        await CreateSut().RunAsync(job.Id, TestContext.Current.CancellationToken);
 
-        await _orchestrator.DidNotReceiveWithAnyArgs().IndexKnowledgeBaseDocumentAsync(default, default, default);
+        await _orchestrator.DidNotReceiveWithAnyArgs().IndexKnowledgeBaseDocumentAsync(default, default, TestContext.Current.CancellationToken);
         _notificationPublisher.DidNotReceiveWithAnyArgs().Publish(default!);
     }
 }

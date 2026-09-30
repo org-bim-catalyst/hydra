@@ -81,8 +81,8 @@ public sealed class KnowledgeBaseIndexingEndToEndTests(RetrievalIndexingApiFacto
                 ownerId, knowledgeBaseId, "Indexed", Arg.Any<CancellationToken>());
 
             await FlushOutboxAsync();
-            (await CountNotificationsAsync(ownerId, "document.indexing.completed")).Should().Be(1);
-            (await CountNotificationsAsync(ownerId, "knowledge-base.indexing.completed")).Should().Be(1);
+            (await PollForNotificationCountAsync(ownerId, "document.indexing.completed")).Should().Be(1);
+            (await PollForNotificationCountAsync(ownerId, "knowledge-base.indexing.completed")).Should().Be(1);
         }
         finally
         {
@@ -120,8 +120,8 @@ public sealed class KnowledgeBaseIndexingEndToEndTests(RetrievalIndexingApiFacto
             indexStatus.Should().Be(KnowledgeBaseIndexStatus.Failed);
 
             await FlushOutboxAsync();
-            (await CountNotificationsAsync(ownerId, "document.indexing.failed")).Should().Be(1);
-            (await CountNotificationsAsync(ownerId, "knowledge-base.indexing.failed")).Should().Be(1);
+            (await PollForNotificationCountAsync(ownerId, "document.indexing.failed")).Should().Be(1);
+            (await PollForNotificationCountAsync(ownerId, "knowledge-base.indexing.failed")).Should().Be(1);
 
             var incident = await PollForIncidentAsync(knowledgeBaseId);
             incident.Should().NotBeNull();
@@ -231,6 +231,33 @@ public sealed class KnowledgeBaseIndexingEndToEndTests(RetrievalIndexingApiFacto
 
     private async Task<int> CountNotificationsAsync(string ownerId, string type) => await QueryAsync(db =>
         db.Notifications.CountAsync(n => n.RecipientUserId == ownerId && n.Type == type, TestContext.Current.CancellationToken));
+
+    /// <summary>
+    /// The shared CI database backs every Web.Tests host, each running its own real
+    /// <see cref="AskLucy.Infrastructure.Notifications.Workers.NotificationOutboxDispatcher"/>
+    /// BackgroundService; one of those unrelated hosts can win the claim on this test's outbox row
+    /// before <see cref="FlushOutboxAsync"/>'s own drain gets to it, leaving the row briefly claimed
+    /// but not yet materialized into a <c>Notifications</c> row. Polling (rather than a single count
+    /// check right after the flush) gives that other host's dispatch pass time to finish.
+    /// </summary>
+    private async Task<int> PollForNotificationCountAsync(string ownerId, string type)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        int count;
+        do
+        {
+            count = await CountNotificationsAsync(ownerId, type);
+            if (count > 0)
+            {
+                return count;
+            }
+
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+        while (DateTime.UtcNow < deadline);
+
+        return count;
+    }
 
     private async Task<OperationalFailureIncident?> PollForIncidentAsync(Guid knowledgeBaseId)
     {

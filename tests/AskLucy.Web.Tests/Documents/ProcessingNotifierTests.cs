@@ -65,10 +65,12 @@ public sealed class ProcessingNotifierTests
         var sut = CreateSut("user-3");
         var documentId = Guid.CreateVersion7();
 
-        await sut.NotifyAsync("user-3", DocumentNotificationEventType.ProcessingCompleted, documentId, "dedupe-1", documentName: "Report.pdf");
+        await sut.NotifyAsync(
+            "user-3", DocumentNotificationEventType.ProcessingCompleted, documentId, "dedupe-1",
+            documentName: "Report.pdf", cancellationToken: TestContext.Current.CancellationToken);
 
         _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
-            ((NotificationRecipient.User)r.Recipient).UserId == "user-3" &&
+            ((NotificationRecipient.User)r!.Recipient).UserId == "user-3" &&
             r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
             r.EventKey == $"document:{documentId}:{DocumentNotificationEventType.ProcessingCompleted}:dedupe-1"));
     }
@@ -79,10 +81,10 @@ public sealed class ProcessingNotifierTests
         var sut = CreateSut("user-4");
         var documentId = Guid.CreateVersion7();
 
-        await sut.NotifyOcrCompletedAsync("user-4", documentId, "Report.pdf", "dedupe-2");
+        await sut.NotifyOcrCompletedAsync("user-4", documentId, "Report.pdf", "dedupe-2", TestContext.Current.CancellationToken);
 
         _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
-            ((NotificationRecipient.User)r.Recipient).UserId == "user-4" &&
+            ((NotificationRecipient.User)r!.Recipient).UserId == "user-4" &&
             r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
             r.EventKey == $"document:{documentId}:ocr-completed:dedupe-2"));
     }
