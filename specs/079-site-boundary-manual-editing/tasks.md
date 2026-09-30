@@ -212,7 +212,7 @@ The saved ring has one corner added and one removed.
   - an insert or delete that makes the ring cross itself is reverted;
   - undo reverts inserts and deletes in order.
 - [x] T060 [US2] Handle `insert_at` and `remove_at` in `editablePolygonController.ts`, with the same validate, revert and apply path as moves. Add a `deleteCorner(ring, index)` that validates before removing.
-- [ ] T061 [US2] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerMenu.tsx`: an MUI `Menu` anchored at the vertex's screen point, opened by the polygon's `contextmenu` event or a long-press (the `PolyMouseEvent.vertex` from T002). It has one item, "Delete corner", disabled with the explanation when the ring has 3 corners. Test it in `SiteBoundaryCornerMenu.test.tsx`.
+- [x] T061 [US2] Create `src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerMenu.tsx`: an MUI `Menu` anchored at the vertex's screen point, opened by the polygon's `contextmenu` event or a long-press (the `PolyMouseEvent.vertex` from T002). It has one item, "Delete corner", disabled with the explanation when the ring has 3 corners. Test it in `SiteBoundaryCornerMenu.test.tsx`.
 
 **Checkpoint**: US1 and US2 together cover every pointer edit. Walk through quickstart steps
 3 and 4.

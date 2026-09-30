@@ -10,6 +10,7 @@ import {
   createEditablePolygonController,
   type EditablePolygonController,
 } from './editablePolygonController'
+import { useCornerMenuStore } from './cornerMenuStore'
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
 import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
@@ -394,7 +395,9 @@ export function useSiteBoundaryEditMode() {
     const session = store().session
     if (!session) return
 
-    const controller = createEditablePolygonController(createGoogleEditablePolygonHost(handle.map))
+    const controller = createEditablePolygonController(createGoogleEditablePolygonHost(handle.map), {
+      onVertexMenu: ({ clientX, clientY }) => useCornerMenuStore.getState().open(clientX, clientY),
+    })
     controller.mount(session.rings, session.activeRing)
     controllerRef.current = controller
 

@@ -4,6 +4,7 @@ import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteB
 import { SiteBoundaryArcDraw } from './SiteBoundaryArcDraw'
 import { SiteBoundaryBoxSelect } from './SiteBoundaryBoxSelect'
 import { SiteBoundaryCircleDraw } from './SiteBoundaryCircleDraw'
+import { SiteBoundaryCornerMenu } from './SiteBoundaryCornerMenu'
 import { SiteBoundaryEditToolbar } from './SiteBoundaryEditToolbar'
 import { SiteBoundaryResetDialog } from './SiteBoundaryResetDialog'
 import { SiteBoundaryShapeDialog } from './SiteBoundaryShapeDialog'
@@ -27,6 +28,7 @@ export function SiteBoundaryEditHost() {
       <SiteBoundaryEditToolbar />
       <SiteBoundaryShapeDialog />
       <SiteBoundaryResetDialog />
+      <SiteBoundaryCornerMenu />
       <Snackbar open={notice !== null} autoHideDuration={8000} onClose={() => setNotice(null)}>
         <Alert severity="warning" onClose={() => setNotice(null)} sx={{ width: '100%' }}>
           {notice}
