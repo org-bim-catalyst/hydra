@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
 
@@ -52,7 +53,8 @@ public sealed class RetryTargetResolver(
     IUserChatRepository userChatRepository,
     IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository,
     ICurrentUserAccessor currentUser,
-    ConversationCapabilityCatalog capabilityCatalog) : IRetryTargetResolver
+    ConversationCapabilityCatalog capabilityCatalog,
+    EffectiveSiteBoundary effectiveSiteBoundary) : IRetryTargetResolver
 {
     public async Task<RetryTarget> ResolveAsync(Guid userChatId, Guid? failedMessageId, CancellationToken cancellationToken)
     {
@@ -81,7 +83,8 @@ public sealed class RetryTargetResolver(
         var knowledgeBaseIds = (await conversationKnowledgeBaseRepository.GetByConversationAsync(userChatId, cancellationToken))
             .Select(l => l.KnowledgeBaseId)
             .ToList();
-        var context = TurnContextFactory.Build(currentUser.UserId, userChatId, chat.ActiveLocation, chat.ActiveBoundary, knowledgeBaseIds);
+        var context = TurnContextFactory.Build(
+            currentUser.UserId, userChatId, chat.ActiveLocation, await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken), knowledgeBaseIds);
 
         if (capabilityCatalog.Find(capabilityKey) is null)
         {

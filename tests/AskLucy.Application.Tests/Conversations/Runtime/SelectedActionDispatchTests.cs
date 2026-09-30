@@ -9,6 +9,7 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Options;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
@@ -47,7 +48,7 @@ public sealed class SelectedActionResolverTests
             Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance);
         var catalog = new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions);
 
-        _resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]));
+        _resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]), TestEffectiveSiteBoundary.None());
     }
 
     /// <summary>
@@ -153,7 +154,7 @@ public sealed class SelectedActionResolverTests
         var indexRetriever = new CapabilityIndexRetriever(
             Substitute.For<IEmbeddingService>(), runtimeOptions, NullLogger<CapabilityIndexRetriever>.Instance);
         var catalog = new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions);
-        var resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]));
+        var resolver = new SelectedActionResolver(_messages, _userChatRepository, _knowledgeBases, _currentUser, catalog, new ConversationFlowCatalog([]), TestEffectiveSiteBoundary.None());
 
         var act = () => resolver.ResolveAsync(_chatId, offering.Id, "capability", "unavailable_now", null, "{}", CancellationToken.None);
 
@@ -385,7 +386,7 @@ public sealed class SelectedActionDispatchOrchestratorTests
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
-            narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
+            narrator, turnRecorder, TestEffectiveSiteBoundary.None(), NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private ConversationTurnRequest Request(SelectedActionInput selection) =>

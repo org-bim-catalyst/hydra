@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Queries.GetChatById;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
@@ -28,7 +29,7 @@ public sealed class GetChatByIdQueryHandlerTests
         chat.SetModelSelection(providerId, modelId, generationParametersJson: null, "owner-1");
         _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
         _currentUser.UserId.Returns("owner-1");
-        var handler = new GetChatByIdQueryHandler(_repository, _currentUser);
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
 
         var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
@@ -44,7 +45,7 @@ public sealed class GetChatByIdQueryHandlerTests
         var chat = UserChat.Create("Brand-new chat", "owner-1", null, "owner-1");
         _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
         _currentUser.UserId.Returns("owner-1");
-        var handler = new GetChatByIdQueryHandler(_repository, _currentUser);
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
 
         var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
@@ -67,7 +68,7 @@ public sealed class GetChatByIdQueryHandlerTests
             "OpenStreetMap (leisure=park)", "owner-1");
         _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
         _currentUser.UserId.Returns("owner-1");
-        var handler = new GetChatByIdQueryHandler(_repository, _currentUser);
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
 
         var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
@@ -91,7 +92,7 @@ public sealed class GetChatByIdQueryHandlerTests
         var chat = UserChat.Create("No site yet", "owner-1", null, "owner-1");
         _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
         _currentUser.UserId.Returns("owner-1");
-        var handler = new GetChatByIdQueryHandler(_repository, _currentUser);
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
 
         var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
@@ -105,7 +106,7 @@ public sealed class GetChatByIdQueryHandlerTests
         var chat = UserChat.Create("Someone else's chat", "owner-1", null, "owner-1");
         _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
         _currentUser.UserId.Returns("attacker-2");
-        var handler = new GetChatByIdQueryHandler(_repository, _currentUser);
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
 
         var act = () => handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
 
@@ -117,10 +118,59 @@ public sealed class GetChatByIdQueryHandlerTests
     {
         _repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((UserChat?)null);
         _currentUser.UserId.Returns("owner-1");
-        var handler = new GetChatByIdQueryHandler(_repository, _currentUser);
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
 
         var act = () => handler.Handle(new GetChatByIdQuery(Guid.NewGuid()), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnRevisionAndNotHandEdited_ForAnOutlineAsFound()
+    {
+        var chat = UserChat.Create("Park survey", "owner-1", null, "owner-1");
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.1560, 55.2220,
+            [new GeoPoint(25.15, 55.22), new GeoPoint(25.16, 55.22), new GeoPoint(25.16, 55.23)],
+            15146.14, 0.92, BoundaryConfidenceLevel.High, SiteBoundarySource.OsmBoundary, "OpenStreetMap", "owner-1");
+        _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
+        _currentUser.UserId.Returns("owner-1");
+        var handler = new GetChatByIdQueryHandler(_repository, _currentUser, TestEffectiveSiteBoundary.None());
+
+        var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
+
+        result.ActiveBoundary!.Revision.Should().Be(chat.ActiveBoundary!.Revision.ToString());
+        result.ActiveBoundary.IsHandEdited.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnTheEffectiveOutline_WhenTheChatIsLinkedToACorrection()
+    {
+        var chat = UserChat.Create("Park survey", "owner-1", null, "owner-1");
+        IReadOnlyList<GeoPoint> found = [new(25.15, 55.22), new(25.16, 55.22), new(25.16, 55.23)];
+        IReadOnlyList<GeoPoint> edited = [new(25.151, 55.221), new(25.161, 55.221), new(25.161, 55.231), new(25.151, 55.231)];
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.1560, 55.2220, found, 15146.14, 0.92, BoundaryConfidenceLevel.High,
+            SiteBoundarySource.OsmBoundary, "OpenStreetMap", "owner-1");
+        var correction = SiteBoundaryCorrection.Create(
+            "owner-1", "Al Safa Park 2", 25.156, 55.222,
+            new FoundSiteBoundarySnapshot(found, [], null, 15146.14, 0.92, BoundaryConfidenceLevel.High,
+                SiteBoundarySource.OsmBoundary, "OpenStreetMap", []),
+            [edited], 9_999, [], "owner-1");
+        chat.LinkSiteBoundaryCorrection(correction.Id, "owner-1");
+        var corrections = Substitute.For<AskLucy.Application.SiteBoundaries.ISiteBoundaryCorrectionRepository>();
+        corrections.GetByIdAsync(correction.Id, "owner-1", Arg.Any<CancellationToken>()).Returns(correction);
+        _repository.GetByIdAsync(chat.Id, Arg.Any<CancellationToken>()).Returns(chat);
+        _currentUser.UserId.Returns("owner-1");
+        var handler = new GetChatByIdQueryHandler(
+            _repository, _currentUser, new AskLucy.Application.SiteBoundaries.EffectiveSiteBoundary(corrections));
+
+        var result = await handler.Handle(new GetChatByIdQuery(chat.Id), CancellationToken.None);
+
+        result.ActiveBoundary!.IsHandEdited.Should().BeTrue();
+        result.ActiveBoundary.Revision.Should().Be(correction.Revision.ToString());
+        result.ActiveBoundary.AreaSquareMeters.Should().Be(9_999);
+        result.ActiveBoundary.Polygon.Should().HaveCount(4);
+        result.ActiveBoundary.Source.Should().Be("UserCorrected");
     }
 }

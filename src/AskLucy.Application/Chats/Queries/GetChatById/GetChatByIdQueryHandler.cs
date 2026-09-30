@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Chats.Authorization;
+using AskLucy.Application.SiteBoundaries;
 using MediatR;
 
 namespace AskLucy.Application.Chats.Queries.GetChatById;
@@ -10,7 +11,8 @@ namespace AskLucy.Application.Chats.Queries.GetChatById;
 /// </summary>
 public sealed class GetChatByIdQueryHandler(
     IUserChatRepository repository,
-    ICurrentUserAccessor currentUser) : IRequestHandler<GetChatByIdQuery, ChatDetailDto>
+    ICurrentUserAccessor currentUser,
+    EffectiveSiteBoundary effectiveSiteBoundary) : IRequestHandler<GetChatByIdQuery, ChatDetailDto>
 {
     public async Task<ChatDetailDto> Handle(GetChatByIdQuery request, CancellationToken cancellationToken)
     {
@@ -18,6 +20,6 @@ public sealed class GetChatByIdQueryHandler(
         var chat = ChatOwnershipGuard.EnsureOwnedBy(
             await repository.GetByIdAsync(request.ChatId, cancellationToken), userId);
 
-        return ChatDetailDto.FromEntity(chat);
+        return ChatDetailDto.FromEntity(chat, await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken));
     }
 }

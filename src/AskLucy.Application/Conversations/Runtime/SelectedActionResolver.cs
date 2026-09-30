@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
 
@@ -51,7 +52,8 @@ public sealed class SelectedActionResolver(
     IConversationKnowledgeBaseRepository conversationKnowledgeBaseRepository,
     ICurrentUserAccessor currentUser,
     ConversationCapabilityCatalog capabilityCatalog,
-    ConversationFlowCatalog flowCatalog) : ISelectedActionResolver
+    ConversationFlowCatalog flowCatalog,
+    EffectiveSiteBoundary effectiveSiteBoundary) : ISelectedActionResolver
 {
     public async Task<ResolvedSelectedAction> ResolveAsync(
         Guid userChatId, Guid offeredByMessageId, string kind, string? key, string? text, string argumentsJson,
@@ -102,7 +104,8 @@ public sealed class SelectedActionResolver(
                 .Select(l => l.KnowledgeBaseId)
                 .ToList();
             var chat = await userChatRepository.GetByIdAsync(userChatId, cancellationToken);
-            var context = TurnContextFactory.Build(currentUser.UserId, userChatId, chat?.ActiveLocation, chat?.ActiveBoundary, knowledgeBaseIds);
+            var context = TurnContextFactory.Build(
+                currentUser.UserId, userChatId, chat?.ActiveLocation, await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken), knowledgeBaseIds);
 
             if (row.Kind == SuggestedActionKind.FlowVariant)
             {

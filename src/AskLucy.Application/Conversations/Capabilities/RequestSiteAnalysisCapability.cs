@@ -22,7 +22,8 @@ public sealed class RequestSiteAnalysisCapability(
     IGeocodingProvider geocodingProvider,
     IBoundaryResolutionService boundaryResolutionService,
     ISiteAnalysisDispatcher dispatcher,
-    IUnitOfWork unitOfWork) : IConversationCapability
+    IUnitOfWork unitOfWork,
+    EffectiveSiteBoundary effectiveSiteBoundary) : IConversationCapability
 {
     public const string CapabilityKey = "request_site_analysis";
     private const string Actor = "system:request-site-analysis";
@@ -143,7 +144,7 @@ public sealed class RequestSiteAnalysisCapability(
 
         // No argument — fall back to the conversation's already-active site, exactly as OpenSolarAnalysisCapability does.
         var chat = await userChatRepository.GetByIdAsync(userChatId, cancellationToken);
-        if (chat?.ActiveBoundary is { } boundary)
+        if (await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken) is { } boundary)
         {
             return (boundary.SiteName, boundary.SiteName, boundary.CentroidLatitude, boundary.CentroidLongitude, JsonSerializer.Serialize(boundary.Polygon));
         }

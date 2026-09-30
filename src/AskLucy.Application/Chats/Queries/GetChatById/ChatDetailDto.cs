@@ -24,13 +24,14 @@ public sealed record ChatDetailDto(
     ChatActiveLocationDto? ActiveLocation,
     ChatActiveBoundaryDto? ActiveBoundary)
 {
-    public static ChatDetailDto FromEntity(UserChat chat) => new(
+    /// <param name="effectiveBoundary">The outline in force (specs/079): the chat's own found outline, or the user's hand-edited one when the chat links to it.</param>
+    public static ChatDetailDto FromEntity(UserChat chat, ActiveSiteBoundary? effectiveBoundary) => new(
         chat.Id,
         chat.Title,
         chat.ProviderId,
         chat.ModelId,
         chat.ActiveLocation is { } location ? ChatActiveLocationDto.FromEntity(location) : null,
-        chat.ActiveBoundary is { } boundary ? ChatActiveBoundaryDto.FromEntity(boundary) : null);
+        effectiveBoundary is { } boundary ? ChatActiveBoundaryDto.FromEntity(boundary) : null);
 }
 
 /// <summary>
@@ -67,6 +68,12 @@ public sealed record ChatActiveBoundaryDto(
     /// <summary>specs/077 — outlines of included buildings standing apart from <see cref="Polygon"/>.</summary>
     public IReadOnlyList<IReadOnlyList<ChatGeoPointDto>> AdditionalPolygons { get; init; } = [];
 
+    /// <summary>specs/079 — the token a client sends back as <c>expectedRevision</c> when saving an edit.</summary>
+    public string Revision { get; init; } = string.Empty;
+
+    /// <summary>specs/079 — true when the outline is the user's hand-edited one.</summary>
+    public bool IsHandEdited { get; init; }
+
     public static ChatActiveBoundaryDto FromEntity(ActiveSiteBoundary boundary) => new(
         boundary.SiteName,
         new ChatGeoPointDto(boundary.CentroidLatitude, boundary.CentroidLongitude),
@@ -78,6 +85,8 @@ public sealed record ChatActiveBoundaryDto(
         boundary.SourceDetail)
     {
         AdditionalPolygons = [.. boundary.AdditionalPolygons.Select(r => (IReadOnlyList<ChatGeoPointDto>)[.. r.Select(p => new ChatGeoPointDto(p.Latitude, p.Longitude))])],
+        Revision = boundary.Revision.ToString(),
+        IsHandEdited = boundary.IsHandEdited,
     };
 }
 

@@ -73,6 +73,7 @@ public sealed class ConversationTurnOrchestrator(
     ISuggestedActionOfferGenerator offerGenerator,
     CapabilityNarrator narrator,
     TurnRecorder turnRecorder,
+    EffectiveSiteBoundary effectiveSiteBoundary,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
@@ -104,7 +105,9 @@ public sealed class ConversationTurnOrchestrator(
         var chat = await userChatRepository.GetByIdAsync(request.ChatId, cancellationToken);
         var latestUserMessage = request.Messages.Count > 0 ? request.Messages[^1].Content : string.Empty;
 
-        var turnContext = TurnContextFactory.Build(userId, request.ChatId, chat?.ActiveLocation, chat?.ActiveBoundary, knowledgeBaseIds);
+        // specs/079 - the outline in force (a hand edit applies here), not the chat's stored found outline.
+        var effectiveBoundary = await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken);
+        var turnContext = TurnContextFactory.Build(userId, request.ChatId, chat?.ActiveLocation, effectiveBoundary, knowledgeBaseIds);
 
         // specs/045 US3 (FR-027) — a selection was already resolved and grounded by
         // ISelectedActionResolver before this command was even dispatched (AiController runs that
@@ -845,7 +848,7 @@ public sealed class ConversationTurnOrchestrator(
         // follow-up ("how sure are you about that?") from context alone, with no new capability
         // call. Unaffected by the decide step retiring the automatic boundary trigger: this is
         // about ANSWERING about an already-drawn boundary, not drawing a new one.
-        var activeBoundary = chat?.ActiveBoundary;
+        var activeBoundary = await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken);
         if (activeBoundary is not null)
         {
             messages.Insert(0, new ChatMessage(ChatRole.System,

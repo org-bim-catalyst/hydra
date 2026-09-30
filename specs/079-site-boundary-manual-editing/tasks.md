@@ -86,17 +86,17 @@ story depends on these.
 
 ### Outline in force
 
-- [ ] T020 Create `EffectiveSiteBoundary` in `src/AskLucy.Application/SiteBoundaries/EffectiveSiteBoundary.cs`. `ResolveAsync(UserChat)` returns `ActiveBoundary.WithCorrection(c)` when `CorrectionId` points at a live correction owned by the chat's `UserId`; otherwise the found `ActiveBoundary`, treating a dead link as none. Register it scoped.
-- [ ] T021 Route every outline reader through `EffectiveSiteBoundary`: The other readers: `TurnDecider` (via `TurnContext`); `LocateAPlaceFlow` and `RecordActiveLocationCommandHandler` only compare site names and need no change; `SetSiteBoundaryMembersCapability` waits for US4. The solar dome and surrounding-building fetch read `activeSiteBoundaryStore`, which gets the edited rings via T025 and T049; assert that in the T025 test.
+- [x] T020 Create `EffectiveSiteBoundary` in `src/AskLucy.Application/SiteBoundaries/EffectiveSiteBoundary.cs`. `ResolveAsync(UserChat)` returns `ActiveBoundary.WithCorrection(c)` when `CorrectionId` points at a live correction owned by the chat's `UserId`; otherwise the found `ActiveBoundary`, treating a dead link as none. Register it scoped.
+- [x] T021 Route every outline reader through `EffectiveSiteBoundary`: The other readers: `TurnDecider` (via `TurnContext`); `LocateAPlaceFlow` and `RecordActiveLocationCommandHandler` only compare site names and need no change; `SetSiteBoundaryMembersCapability` waits for US4. The solar dome and surrounding-building fetch read `activeSiteBoundaryStore`, which gets the edited rings via T025 and T049; assert that in the T025 test.
   - `TurnContextFactory` (callers in `src/AskLucy.Application/Conversations/Runtime/ConversationTurnOrchestrator.cs`, `RetryTargetResolver.cs` and `SelectedActionResolver.cs`);
   - `src/AskLucy.Application/Conversations/Capabilities/RequestSiteAnalysisCapability.cs`;
   - `OpenSolarAnalysisCapability.cs`;
   - any other `chat.ActiveBoundary` reader found by grep.
 
   This covers FR-025. Leave `SetSiteBoundaryMembersCapability` to US4.
-- [ ] T022 Extend `src/AskLucy.Application/Chats/Queries/GetChatById/ChatDetailDto.cs` with `ChatActiveBoundaryDto.Revision` and `IsHandEdited`, built from the effective outline. The handler resolves it through `EffectiveSiteBoundary` (contracts/site-boundary-edit-api.md).
-- [ ] T023 [P] Application tests in `tests/AskLucy.Application.Tests/SiteBoundaries/EffectiveSiteBoundaryTests.cs`: no link gives the found outline; a live link gives the corrected one; a deleted correction gives the found outline; another user's correction id gives the found outline (FR-026).
-- [ ] T024 [P] Extend `tests/AskLucy.Application.Tests/Chats/GetChatByIdQueryHandlerTests.cs`: `revision` and `isHandEdited` are present, and the effective outline is returned when linked.
+- [x] T022 Extend `src/AskLucy.Application/Chats/Queries/GetChatById/ChatDetailDto.cs` with `ChatActiveBoundaryDto.Revision` and `IsHandEdited`, built from the effective outline. The handler resolves it through `EffectiveSiteBoundary` (contracts/site-boundary-edit-api.md).
+- [x] T023 [P] Application tests in `tests/AskLucy.Application.Tests/SiteBoundaries/EffectiveSiteBoundaryTests.cs`: no link gives the found outline; a live link gives the corrected one; a deleted correction gives the found outline; another user's correction id gives the found outline (FR-026).
+- [x] T024 [P] Extend `tests/AskLucy.Application.Tests/Chats/GetChatByIdQueryHandlerTests.cs`: `revision` and `isHandEdited` are present, and the effective outline is returned when linked.
 
 ### Client state and local geometry
 

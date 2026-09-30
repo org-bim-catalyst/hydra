@@ -26,7 +26,7 @@ public sealed class RequestSiteAnalysisCapabilityTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private RequestSiteAnalysisCapability BuildCapability() =>
-        new(_userChatRepository, _siteAnalysisRepository, _geocodingProvider, _boundaryResolutionService, _dispatcher, _unitOfWork);
+        new(_userChatRepository, _siteAnalysisRepository, _geocodingProvider, _boundaryResolutionService, _dispatcher, _unitOfWork, new EffectiveSiteBoundary(Substitute.For<ISiteBoundaryCorrectionRepository>()));
 
     private static AgentToolExecutionContext ContextFor(Guid? userChatId) =>
         new(Guid.NewGuid(), Guid.NewGuid(), UserId, Guid.NewGuid(), Guid.NewGuid(), userChatId);

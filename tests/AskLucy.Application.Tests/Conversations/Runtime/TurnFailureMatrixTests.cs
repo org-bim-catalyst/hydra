@@ -8,6 +8,7 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Options;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Chats;
 using FluentAssertions;
@@ -81,7 +82,7 @@ public sealed class TurnFailureMatrixTests
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
-            narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
+            narrator, turnRecorder, TestEffectiveSiteBoundary.None(), NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private ConversationTurnRequest Request(string message) => new(_chatId, [new ChatMessageDto("user", message)], _provider, "test-model", GenerationParameters: null);
@@ -224,7 +225,7 @@ public sealed class TurnFailureMatrixTests
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
-            narrator, turnRecorder, NullLogger<ConversationTurnOrchestrator>.Instance);
+            narrator, turnRecorder, TestEffectiveSiteBoundary.None(), NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private static async IAsyncEnumerable<StreamChunk> ToAsyncEnumerable(IEnumerable<StreamChunk> chunks)

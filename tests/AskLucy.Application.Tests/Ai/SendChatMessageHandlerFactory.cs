@@ -9,6 +9,7 @@ using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Application.Tests.Conversations.Runtime;
 using Hangfire;
 using Microsoft.Extensions.Logging;
@@ -150,6 +151,7 @@ internal static class SendChatMessageHandlerFactory
             offerGenerator,
             narrator,
             turnRecorder,
+            TestEffectiveSiteBoundary.None(),
             orchestratorLogger);
 
         return new SendChatMessageCommandHandler(resolver, providers, models, orchestrator, validator);

@@ -6,6 +6,7 @@ using AskLucy.Application.Conversations;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Options;
+using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Chats;
 using AskLucy.Domain.Conversations;
@@ -74,7 +75,8 @@ public sealed class RetryTargetResolverTests
 
         return new RetryTargetResolver(
             _messages, _chats, _knowledgeBases, _currentUser,
-            new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions));
+            new ConversationCapabilityCatalog(toolCatalog, indexRetriever, runtimeOptions),
+            TestEffectiveSiteBoundary.None());
     }
 
     private Task<RetryTarget> ResolveAsync(RetryTargetResolver resolver, Guid? failedMessageId = null) =>
