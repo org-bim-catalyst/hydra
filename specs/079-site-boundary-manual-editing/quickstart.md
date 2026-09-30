@@ -88,3 +88,17 @@ Each step says what to screenshot and the expected value.
     Mosque, Mutrah Souq, Al Alam Palace.
 15. **Large ring** (SC-005). On a traced park with hundreds of corners, drag a corner on the RTX
     4060 machine. The outline keeps up with the pointer.
+
+## Added after the first release
+
+16. **Circle Add/Cut.** Open the Outline menu, choose **Add circle**, press on the map beside the
+    outline and drag out a radius.
+    - Expect a dashed preview with the radius in metres, and on release a separate ring (circle not
+      touching) or a merged outline (circle overlapping). One Undo removes it.
+    - **Cut circle** across the outline gives a notch, or two rings if it divides it. A cut that
+      would leave a hole is refused with a message.
+17. **Reset.** With a hand-edited outline and no edit open, choose **Reset to Lucy's outline** in the
+    Outline menu and confirm.
+    - Expect the found outline redrawn, and the chat line "The outline of ... is back to the one I
+      found".
+18. **Leaving with changes.** Make a change, then start a new chat. Expect Save, Discard, Stay.

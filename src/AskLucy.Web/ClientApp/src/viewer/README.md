@@ -260,3 +260,11 @@ window.__askLucyViewerEngine.select('gis-current-location', 'current-location')
 ```
 
 See `specs/027-immersive-viewer-platform/quickstart.md` Scenario 5 for the full walkthrough.
+
+## siteBoundaryEdit/ (specs/079)
+
+Hand-editing the site outline: `siteBoundaryEditStore` (session, undo), `editablePolygonController`
+(keeps the map polygons and the store in step), `useSiteBoundaryEditMode` (registers the actions the
+Outline menu and toolbar call), `ringGeometry`/`ringShapes` (client-side checks and shape maths),
+`chatSwitchGuard` (asks before leaving with unsaved changes). Geometry that changes the number of
+rings (circle Add/Cut) is computed by the server.

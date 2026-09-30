@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-27
 
-**Status**: Draft (clarified 2026-09-27)
+**Status**: Implemented 2026-09-30 (manual walkthrough T092 and the T002 browser spike still open)
 
 **Input**: User description: "Letting you edit the outline's corner points by hand". Manual site
 boundary editing: the user corrects the site outline drawn in the Studio map by hand. They can
@@ -428,8 +428,10 @@ corner, delete a corner, undo, and press Done. Repeat on a touch screen.
   distance between the found outlines' centres), so two different places sharing a name never
   share a correction.
 - **No snapping** to buildings, roads or other rings in this release. Corners are placed freely.
-- **No adding or removing whole rings by hand.** Which buildings belong to the site stays a
-  building choice (specs/077). Hand editing changes the shape of existing rings only.
+- **Rings can be added or split only by drawing a circle.** (Amended 2026-09-30.) Which buildings
+  belong to the site stays a building choice (specs/077), but the Outline menu's Add circle and Cut
+  circle may add a ring of its own, merge rings, or split one in two, so a save no longer requires the
+  same number of rings as before. Every ring must still overlap what Lucy found.
 - **No drawing a site from scratch** and no uploaded outline files. Editing needs a found outline
   to start from.
 - **Editing by words** ("move the north corner 5 m east") is out of scope. Lucy can start edit
@@ -442,3 +444,54 @@ corner, delete a corner, undo, and press Done. Repeat on a touch screen.
   specs/077-site-boundary-membership (multiple rings, building choices and the offer pattern),
   specs/076 (the building fetch that follows the outline's extent), and the Studio map's camera
   modes and rotation (3D/plan, rotate).
+
+## Decisions and Behaviour Changes (added at implementation)
+
+- **Circle Add/Cut (amendment).** A circle drawn by pressing on its centre and dragging out a radius
+  is added to the outline (union) or cut out of it (difference). A circle touching nothing becomes a
+  separate ring; a cut that splits the outline gives two rings; a cut that would leave a hole, or
+  take everything, is refused with a message. The geometry is worked out on the server, so the map
+  shows exactly what Done will save. Shape tools (round a corner, curve an edge, draw an arc, make a
+  ring a circle) and box selection with multi-delete were added alongside.
+- **Simplify on entry.** A traced outline with more than 120 corners is simplified (0.5 m, then 1 m
+  tolerance) when editing starts, and the user is told.
+- **Corner menu and keyboard.** Right-click or long-press a corner for Delete corner. One hidden
+  "outline editor" region supports Tab through corners, arrows (0.5 m, 5 m with Shift), `[` `]` to
+  switch rings, Insert/+ and Delete, and undo/redo, with a live-region announcement.
+- **Leaving with unsaved changes (FR-029).** Opening another chat, or a new one, asks Save, Discard or
+  Stay. On the Settings page, where the map isn't showing, Save becomes "Go back and save".
+- **Building choices on an edited outline (US4).** Connected buildings are joined or cut around the
+  user's corners instead of re-tracing them; separate ones become or leave a ring. The chat's found
+  outline is recomposed in the same save so a reset keeps the building choice.
+
+## API
+
+- `PUT /api/v1/chats/{id}/site-boundary` (save; ring count may change).
+- `POST /api/v1/chats/{id}/site-boundary/actions/combine` (circle Add/Cut; a calculation only).
+- `POST /api/v1/chats/{id}/site-boundary/actions/reset` (back to the outline Lucy found; 404 when
+  never edited, 409 on a stale revision).
+- Details: `contracts/site-boundary-edit-api.md`. New 422 reasons: `holeNotSupported`, `nothingLeft`,
+  `tooManyRings`.
+
+## Database
+
+Migration `20260930035310_AddSiteBoundaryCorrections` adds the per-user `SiteBoundaryCorrections`
+table. Apply it to the shared test2 database by hand before pushing (Persistence.Tests uses test2).
+Reset soft-deletes the row; nothing else changes.
+
+## Verification
+
+Security review, 2026-09-30:
+
+- Every correction query filters by `UserId` (`SiteBoundaryCorrectionRepository`); the capability path
+  passes the caller's id too.
+- Save, combine and reset all go through `ChatOwnershipAuditor`: a non-owner gets 404, never 403, and
+  the denial is written to the role audit log (tests: save and reset handler tests, plus the 401 gate
+  tests in `SiteBoundaryEditEndpointTests`).
+- Request size is bounded by validators: 1-20 rings, 3-2,000 corners per ring, 5,000 in total, finite
+  in-range coordinates, circle radius 1-5,000 m. The chat endpoints sit behind the `chat-endpoints`
+  rate limit.
+- No hand-edited geometry is logged: the new handlers and geometry code contain no logging at all.
+- Automated: Application 2,390, Infrastructure 760, and the viewer, site-boundary and chat frontend
+  suites pass. Not yet done: the manual quickstart walkthrough, the touch-drag check on a real
+  device, and the 500-corner performance check on the RTX 4060 machine.
