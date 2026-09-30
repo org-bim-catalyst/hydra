@@ -766,6 +766,74 @@ describe('useSiteBoundaryEditMode', () => {
       expect(session()?.rings[0]).toHaveLength(72)
     })
 
+    it('will not start an arc without exactly two corners selected', async () => {
+      await begin()
+
+      act(() => siteBoundaryEditActions.startArc())
+      expect(session()?.tool).toBe('edit')
+      expect(session()?.refusal).toContain('Select exactly two corners')
+
+      act(() => store().selectCorners([0, 1, 2]))
+      act(() => siteBoundaryEditActions.startArc())
+      expect(session()?.tool).toBe('edit')
+    })
+
+    it('starts an arc between two selected corners', async () => {
+      await begin()
+      act(() => store().selectCorners([0, 1]))
+
+      act(() => siteBoundaryEditActions.startArc())
+
+      expect(session()?.tool).toBe('arc')
+      expect(session()?.arcAnchors).toEqual([0, 1])
+    })
+
+    it('draws the arc through the dropped point, as one undo step, and goes back to editing', async () => {
+      await begin()
+      act(() => store().selectCorners([0, 1]))
+      act(() => siteBoundaryEditActions.startArc())
+      const before = session()!.rings[0].length
+
+      let done = false
+      act(() => {
+        // Below the bottom edge (latitude 23.586), halfway between its ends.
+        done = siteBoundaryEditActions.applyArc({ latitude: 23.5858, longitude: 58.39365 })
+      })
+
+      expect(done).toBe(true)
+      expect(session()!.rings[0].length).toBeGreaterThan(before)
+      expect(session()?.undo).toHaveLength(1)
+      expect(session()?.undo[0].op).toBe('replace')
+      expect(session()?.tool).toBe('edit')
+    })
+
+    it('says why, and stays in the arc tool, when the dropped point is in line with the corners', async () => {
+      await begin()
+      act(() => store().selectCorners([0, 1]))
+      act(() => siteBoundaryEditActions.startArc())
+
+      let done = true
+      act(() => {
+        done = siteBoundaryEditActions.applyArc({ latitude: 23.586, longitude: 58.39365 })
+      })
+
+      expect(done).toBe(false)
+      expect(session()?.tool).toBe('arc')
+      expect(session()?.refusal).toMatch(/straight line/)
+    })
+
+    it('Escape cancels the arc tool', async () => {
+      await begin()
+      act(() => store().selectCorners([0, 1]))
+      act(() => siteBoundaryEditActions.startArc())
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      expect(session()?.tool).toBe('edit')
+    })
+
     it('reports a shape tool asked to act with nothing selected', async () => {
       await begin()
 

@@ -1,6 +1,7 @@
 import { Alert, Snackbar } from '@mui/material'
 import { useSiteBoundaryEditMode } from '../../../viewer/siteBoundaryEdit/useSiteBoundaryEditMode'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { SiteBoundaryArcDraw } from './SiteBoundaryArcDraw'
 import { SiteBoundaryBoxSelect } from './SiteBoundaryBoxSelect'
 import { SiteBoundaryEditToolbar } from './SiteBoundaryEditToolbar'
 import { SiteBoundaryShapeDialog } from './SiteBoundaryShapeDialog'
@@ -19,6 +20,7 @@ export function SiteBoundaryEditHost() {
   return (
     <>
       <SiteBoundaryBoxSelect />
+      <SiteBoundaryArcDraw />
       <SiteBoundaryEditToolbar />
       <SiteBoundaryShapeDialog />
       <Snackbar open={notice !== null} autoHideDuration={8000} onClose={() => setNotice(null)}>

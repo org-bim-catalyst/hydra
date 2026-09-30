@@ -140,6 +140,71 @@ export function curveEdge(ring: readonly GeoPoint[], index: number, bulgeMeters:
   return { ring: fromLocalMeters(result, open[0]) }
 }
 
+export type ArcResult = { ring: GeoPoint[]; arc: GeoPoint[] } | { refusal: string }
+
+/** An arc whose circle would be wider than this is, to the eye, a straight line. */
+const MAX_ARC_RADIUS_METERS = 5_000
+
+/**
+ * The arc that starts at corner `indexA`, passes through the point the user dropped, and ends at corner
+ * `indexB` - the circle through those three points. It replaces the run of corners between A and B on
+ * the shorter side of the ring (the run with fewer corners in it), so nothing else about the outline
+ * moves. `arc` is the whole curve from A to B, for drawing a preview; `ring` is the outline with the
+ * curve in place of that run.
+ */
+export function arcThroughPoint(ring: readonly GeoPoint[], indexA: number, indexB: number, through: GeoPoint): ArcResult {
+  const open = openRing(ring)
+  const n = open.length
+  if (indexA === indexB || indexA < 0 || indexB < 0 || indexA >= n || indexB >= n) {
+    return { refusal: 'Select two different corners first.' }
+  }
+
+  const points = toLocalMeters(open, open[0])
+  const [p] = toLocalMeters([through], open[0])
+  const a = points[indexA]
+  const b = points[indexB]
+
+  const d = 2 * (a.x * (p.y - b.y) + p.x * (b.y - a.y) + b.x * (a.y - p.y))
+  if (Math.abs(d) < 1e-6) return { refusal: 'Those three points are in a straight line, so there is no arc through them. Drop the third point off the line.' }
+
+  const aa = a.x * a.x + a.y * a.y
+  const pp = p.x * p.x + p.y * p.y
+  const bb = b.x * b.x + b.y * b.y
+  const centre: Vec = {
+    x: (aa * (p.y - b.y) + pp * (b.y - a.y) + bb * (a.y - p.y)) / d,
+    y: (aa * (b.x - p.x) + pp * (a.x - b.x) + bb * (p.x - a.x)) / d,
+  }
+  const radius = length(sub(a, centre))
+  if (radius > MAX_ARC_RADIUS_METERS) return { refusal: 'That arc is almost straight. Drop the third point further from the line between the two corners.' }
+
+  // Sweep from A to B whichever way passes through the dropped point.
+  const fromA = Math.atan2(a.y - centre.y, a.x - centre.x)
+  const counterClockwise = (angle: number) => ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+  const toB = counterClockwise(Math.atan2(b.y - centre.y, b.x - centre.x) - fromA)
+  const toP = counterClockwise(Math.atan2(p.y - centre.y, p.x - centre.x) - fromA)
+  const sweep = toP < toB ? toB : toB - 2 * Math.PI
+
+  const curve = arcPoints(centre, radius, fromA, sweep)
+  curve[0] = a
+  curve[curve.length - 1] = b
+
+  // The run to replace: fewer corners between the ends. A to B going forward, or B to A going forward.
+  const between = (from: number, to: number) => (to - from - 1 + n) % n
+  const forward = between(indexA, indexB) <= between(indexB, indexA)
+  const start = forward ? indexA : indexB
+  const end = forward ? indexB : indexA
+  const curveFromStart = forward ? curve : [...curve].reverse()
+
+  const order = Array.from({ length: n }, (_, i) => points[(start + i) % n])
+  const endPosition = (end - start + n) % n
+  const rebuilt = [order[0], ...curveFromStart.slice(1, -1), ...order.slice(endPosition)]
+
+  return {
+    ring: fromLocalMeters(rebuilt, open[0]),
+    arc: fromLocalMeters(curve, open[0]),
+  }
+}
+
 /** Corners in a circle of the given radius (metres) around `centre`, counter-clockwise. */
 export function circleRing(centre: GeoPoint, radiusMeters: number, corners = 72): ShapeResult {
   if (!(radiusMeters > 0)) return { refusal: 'Enter a radius greater than zero.' }

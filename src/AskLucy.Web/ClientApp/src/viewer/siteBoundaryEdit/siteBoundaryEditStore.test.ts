@@ -229,6 +229,25 @@ describe('siteBoundaryEditStore', () => {
     })
   })
 
+  describe('the arc tool', () => {
+    it('remembers which two corners the arc joins, and forgets them on any other tool', () => {
+      enter()
+
+      store().beginArc([0, 2])
+      expect(session().tool).toBe('arc')
+      expect(session().arcAnchors).toEqual([0, 2])
+
+      store().setTool('edit')
+      expect(session().tool).toBe('edit')
+      expect(session().arcAnchors).toBeNull()
+    })
+
+    it('starts a session with no arc in progress', () => {
+      enter()
+      expect(session().arcAnchors).toBeNull()
+    })
+  })
+
   describe('tools', () => {
     it('starts on edit and can switch to select and back', () => {
       enter()

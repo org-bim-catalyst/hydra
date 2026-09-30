@@ -13,7 +13,7 @@ import {
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
 import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
-import { circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
+import { arcThroughPoint, circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
 
@@ -259,6 +259,30 @@ export function useSiteBoundaryEditMode() {
         const session = store().session
         if (session) store().setTool(session.tool === 'select' ? 'edit' : 'select')
       },
+      startArc() {
+        const session = store().session
+        if (!session) return
+        if (session.selectedCorners.length !== 2) {
+          store().refuse('Select exactly two corners first — Ctrl-click each one, or drag a box around them with the Select tool.')
+          return
+        }
+        store().beginArc([session.selectedCorners[0], session.selectedCorners[1]])
+      },
+      applyArc(through) {
+        const session = store().session
+        const controller = controllerRef.current
+        if (!session || !controller || !session.arcAnchors) return false
+
+        const result = arcThroughPoint(session.rings[session.activeRing] ?? [], session.arcAnchors[0], session.arcAnchors[1], through)
+        if ('refusal' in result) {
+          store().refuse(result.refusal)
+          return false
+        }
+        if (!controller.replaceRing(session.activeRing, result.ring)) return false
+
+        store().setTool('edit')
+        return true
+      },
       openShapeDialog(tool) {
         const session = store().session
         if (!session) return
@@ -317,8 +341,8 @@ export function useSiteBoundaryEditMode() {
       const target = event.target as HTMLElement | null
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
 
-      // Escape hands the map back from the Select tool.
-      if (event.key === 'Escape' && store().session?.tool === 'select') {
+      // Escape hands the map back from the Select and Draw arc tools.
+      if (event.key === 'Escape' && store().session && store().session?.tool !== 'edit') {
         store().setTool('edit')
         return
       }

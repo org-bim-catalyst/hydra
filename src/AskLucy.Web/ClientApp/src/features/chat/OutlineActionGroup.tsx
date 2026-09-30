@@ -18,7 +18,7 @@ import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
-import { CurveEdgeIcon, SelectCornersIcon } from './outlineToolIcons'
+import { CurveEdgeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
 
 /**
  * specs/079-site-boundary-manual-editing: the outline editor's actions in one place. Each button is
@@ -87,6 +87,15 @@ export function OutlineActionGroup() {
       onSelect: () => siteBoundaryEditActions.openShapeDialog('curve'),
       disabled: !editing || !hasCorner || saving,
       disabledReason: editing ? 'Select the corner at the start of the edge first' : notEditing,
+    },
+    {
+      id: 'draw-arc',
+      label: 'Draw arc',
+      icon: <DrawArcIcon size={20} />,
+      onSelect: siteBoundaryEditActions.startArc,
+      highlighted: session?.tool === 'arc',
+      disabled: !editing || session.selectedCorners.length !== 2 || saving,
+      disabledReason: editing ? 'Select exactly two corners first (Ctrl-click each)' : notEditing,
     },
     {
       id: 'make-circle',

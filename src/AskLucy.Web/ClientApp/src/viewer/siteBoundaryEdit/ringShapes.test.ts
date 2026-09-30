@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import { ringAreaSquareMeters, toLocalMeters, validateRing } from './ringGeometry'
-import { circleRing, cornersInBox, curveEdge, equivalentRadius, ringCentre, roundCorner } from './ringShapes'
+import { arcThroughPoint, circleRing, cornersInBox, curveEdge, equivalentRadius, ringCentre, roundCorner } from './ringShapes'
 
 const LAT = 23.59
 const LON = 58.4
@@ -204,5 +204,104 @@ describe('cornersInBox', () => {
   it('skips corners the map cannot place', () => {
     const partial = (p: GeoPoint) => (p === corners[1] ? null : toPixel(p))
     expect(cornersInBox(corners, partial, { left: -10, top: 0, right: 400, bottom: 200 })).toEqual([0, 2, 3])
+  })
+})
+
+describe('arcThroughPoint (draw an arc by dropping a third point)', () => {
+  type ArcOk = { ring: GeoPoint[]; arc: GeoPoint[] }
+  const arcOf = (result: ReturnType<typeof arcThroughPoint>): ArcOk => {
+    if (!('arc' in result)) throw new Error(result.refusal)
+    return result
+  }
+
+  it('draws an arc that starts and ends on the two corners and passes through the dropped point', () => {
+    const { arc } = arcOf(arcThroughPoint(square(), 0, 1, P(50, -20)))
+
+    expect(metres(arc[0], P(0, 0))).toBeLessThan(0.01)
+    expect(metres(arc[arc.length - 1], P(100, 0))).toBeLessThan(0.01)
+    // Every arc corner lies on one circle, and the dropped point is within a step of the curve.
+    const nearest = Math.min(...arc.map((p) => metres(p, P(50, -20))))
+    expect(nearest).toBeLessThan(6)
+  })
+
+  it('puts every corner of the curve the same distance from one centre', () => {
+    const { arc } = arcOf(arcThroughPoint(square(), 0, 1, P(50, -20)))
+    const local = toLocalMeters(arc, square()[0])
+    // Circle through (0,0), (50,-20), (100,0): centre (50, 52.5), radius 72.5.
+    for (const point of local) expect(Math.hypot(point.x - 50, point.y - 52.5)).toBeCloseTo(72.5, 0)
+  })
+
+  it('swaps the edge for the curve, keeping every other corner', () => {
+    const { ring } = arcOf(arcThroughPoint(square(), 0, 1, P(50, -20)))
+
+    expect(ring.length).toBeGreaterThan(square().length)
+    expect(ring[0]).toEqual(square()[0])
+    expect(ring).toContainEqual(square()[2])
+    expect(ring).toContainEqual(square()[3])
+    expect(validateRing(ring)).toBeNull()
+  })
+
+  it('bulges the way the point was dropped: outward adds area, inward takes it away', () => {
+    const outward = arcOf(arcThroughPoint(square(), 0, 1, P(50, -20))).ring
+    const inward = arcOf(arcThroughPoint(square(), 0, 1, P(50, 20))).ring
+
+    expect(ringAreaSquareMeters(outward)).toBeGreaterThan(ringAreaSquareMeters(square()))
+    expect(ringAreaSquareMeters(inward)).toBeLessThan(ringAreaSquareMeters(square()))
+  })
+
+  it('the order the two corners were picked does not change the result', () => {
+    const forward = arcOf(arcThroughPoint(square(), 0, 1, P(50, -20))).ring
+    const backward = arcOf(arcThroughPoint(square(), 1, 0, P(50, -20))).ring
+
+    expect(ringAreaSquareMeters(backward)).toBeCloseTo(ringAreaSquareMeters(forward), 1)
+  })
+
+  it('replaces the corners in between when the two chosen corners are not neighbours', () => {
+    // Corners 0 and 2 of a 6-corner ring; the run 0-1-2 holds one corner, the other run holds three.
+    const ring6 = [P(0, 0), P(50, -10), P(100, 0), P(100, 100), P(50, 110), P(0, 100)]
+
+    const { ring } = arcOf(arcThroughPoint(ring6, 0, 2, P(50, -30)))
+
+    expect(ring).not.toContainEqual(ring6[1])
+    expect(ring).toContainEqual(ring6[3])
+    expect(ring).toContainEqual(ring6[4])
+    expect(ring).toContainEqual(ring6[5])
+    expect(validateRing(ring)).toBeNull()
+  })
+
+  it('takes the shorter run even when it wraps across the start of the ring', () => {
+    const ring6 = [P(0, 0), P(50, -10), P(100, 0), P(100, 100), P(50, 110), P(0, 100)]
+
+    // Corners 5 and 1: the short run is 5-0-1, through the start of the list.
+    const { ring } = arcOf(arcThroughPoint(ring6, 5, 1, P(-30, 40)))
+
+    expect(ring).not.toContainEqual(ring6[0])
+    expect(ring).toContainEqual(ring6[2])
+    expect(ring).toContainEqual(ring6[3])
+    expect(ring).toContainEqual(ring6[4])
+  })
+
+  it('refuses three points in a straight line, and says how to fix it', () => {
+    const result = arcThroughPoint(square(), 0, 1, P(50, 0))
+
+    expect('refusal' in result && result.refusal).toMatch(/straight line/)
+  })
+
+  it('refuses an arc that is almost straight', () => {
+    const result = arcThroughPoint(square(), 0, 1, P(50, -0.0001))
+
+    expect('refusal' in result).toBe(true)
+  })
+
+  it('refuses the same corner twice and a corner that does not exist', () => {
+    expect('refusal' in arcThroughPoint(square(), 1, 1, P(50, -20))).toBe(true)
+    expect('refusal' in arcThroughPoint(square(), 0, 9, P(50, -20))).toBe(true)
+  })
+
+  it('works on a clockwise ring too', () => {
+    const ring = arcOf(arcThroughPoint(squareClockwise(), 2, 3, P(50, -20))).ring
+
+    expect(validateRing(ring)).toBeNull()
+    expect(ringAreaSquareMeters(ring)).toBeGreaterThan(ringAreaSquareMeters(square()))
   })
 })

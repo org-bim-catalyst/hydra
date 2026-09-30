@@ -9,6 +9,8 @@ import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 export interface PixelProjector {
   /** The corner's pixel position, or null while the map cannot place it (not ready, off the map). */
   toPixel(point: GeoPoint): { x: number; y: number } | null
+  /** The point on the map under a pixel, or null while the map cannot say. */
+  toLatLng(pixel: { x: number; y: number }): GeoPoint | null
   /** The map element's position on the page, to turn pointer coordinates into map pixels. */
   origin(): { left: number; top: number }
   dispose(): void
@@ -27,6 +29,13 @@ export function createGooglePixelProjector(map: google.maps.Map): PixelProjector
       if (!projection) return null
       const pixel = projection.fromLatLngToContainerPixel(new google.maps.LatLng(point.latitude, point.longitude))
       return pixel ? { x: pixel.x, y: pixel.y } : null
+    },
+
+    toLatLng(pixel) {
+      const projection = overlay.getProjection()
+      if (!projection) return null
+      const latLng = projection.fromContainerPixelToLatLng(new google.maps.Point(pixel.x, pixel.y))
+      return latLng ? { latitude: latLng.lat(), longitude: latLng.lng() } : null
     },
 
     origin() {

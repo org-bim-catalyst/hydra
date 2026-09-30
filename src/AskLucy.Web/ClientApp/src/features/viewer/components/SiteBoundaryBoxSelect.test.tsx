@@ -23,6 +23,7 @@ const projector: PixelProjector = {
     const east = (point.longitude - LON) * 111_320 * Math.cos((LAT * Math.PI) / 180)
     return { x: 20 + east, y: 50 }
   },
+  toLatLng: (pixel) => ({ latitude: LAT, longitude: LON + (pixel.x - 20) / (111_320 * Math.cos((LAT * Math.PI) / 180)) }),
   origin: () => ({ left: 0, top: 0 }),
   dispose: () => {},
 }

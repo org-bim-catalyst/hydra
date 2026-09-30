@@ -30,8 +30,11 @@ export type RingChange =
 /** The shape tools that ask for a number (a radius, a bulge) before they act. */
 export type ShapeTool = 'round' | 'curve' | 'circle'
 
-/** What a drag on the map does: `edit` moves and adds corners (Google's own handles); `select` draws a box that picks corners. */
-export type EditTool = 'edit' | 'select'
+/**
+ * What the map does with the pointer: `edit` moves and adds corners (Google's own handles); `select`
+ * draws a box that picks corners; `arc` waits for a third point to be dropped and draws an arc through it.
+ */
+export type EditTool = 'edit' | 'select' | 'arc'
 
 export type EditStatus =
   | { kind: 'editing' }
@@ -57,6 +60,8 @@ export interface SiteBoundaryEditSession {
   /** Every selected corner of the active ring (a box select picks several); `selectedCorner` is always one of them. */
   selectedCorners: number[]
   tool: EditTool
+  /** The two corners (of the active ring) the arc being drawn joins; set while `tool` is `arc`. */
+  arcAnchors: [number, number] | null
   viewState: ViewState
   approxAreaSquareMeters: number
   status: EditStatus
@@ -119,6 +124,8 @@ interface Actions {
   /** Adds the corner to the selection, or removes it when it is already in. */
   toggleCorner(index: number): void
   setTool(tool: EditTool): void
+  /** Starts drawing an arc between two corners: switches to the arc tool and remembers which corners. */
+  beginArc(anchors: [number, number]): void
   /** Cancel and forced exit both end the session; the caller restores the view state it gets from `session`. */
   end(): void
   beginSave(): void
@@ -216,6 +223,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           selectedCorner: null,
           selectedCorners: [],
           tool: 'edit',
+          arcAnchors: null,
           viewState,
           approxAreaSquareMeters: totalArea(start),
           status: { kind: 'editing' },
@@ -311,8 +319,12 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
       })
     },
 
+    beginArc(anchors) {
+      update(() => ({ tool: 'arc', arcAnchors: anchors }))
+    },
+
     setTool(tool) {
-      update(() => ({ tool }))
+      update(() => ({ tool, arcAnchors: null }))
     },
 
     end() {

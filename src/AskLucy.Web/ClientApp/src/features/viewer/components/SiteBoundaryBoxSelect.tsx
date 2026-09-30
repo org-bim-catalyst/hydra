@@ -1,8 +1,9 @@
 import { alpha, Box, Typography } from '@mui/material'
-import { useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
+import { useState, type PointerEvent, type WheelEvent } from 'react'
 import { cornersInBox } from '../../../viewer/siteBoundaryEdit/ringShapes'
-import { createGooglePixelProjector, type PixelProjector } from '../../../viewer/siteBoundaryEdit/googlePixelProjector'
+import type { PixelProjector } from '../../../viewer/siteBoundaryEdit/googlePixelProjector'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { usePixelProjector } from '../../../viewer/siteBoundaryEdit/usePixelProjector'
 import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 
 /** A drag shorter than this is a click, which clears the selection instead of picking anything. */
@@ -29,21 +30,8 @@ interface Props {
 export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
   const map = useGoogleMapsStore((s) => s.map)
   const active = useSiteBoundaryEditStore((s) => s.session?.tool === 'select')
-  const projectorRef = useRef<PixelProjector | null>(null)
+  const getProjector = usePixelProjector(active, injected)
   const [drag, setDrag] = useState<Drag | null>(null)
-
-  // The projector is an external resource (an invisible OverlayView on the map), so it lives in a ref
-  // that the effect owns: made when the Select tool turns on, released when it turns off.
-  useEffect(() => {
-    if (injected !== undefined || !active || !map) return
-
-    const created = createGooglePixelProjector(map)
-    projectorRef.current = created
-    return () => {
-      created.dispose()
-      projectorRef.current = null
-    }
-  }, [active, map, injected])
 
   if (!active) return null
 
@@ -80,7 +68,7 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       return
     }
 
-    const use = injected ?? projectorRef.current
+    const use = getProjector()
     if (!use) {
       store.refuse("The map isn't ready to select corners yet - try again in a moment.")
       return

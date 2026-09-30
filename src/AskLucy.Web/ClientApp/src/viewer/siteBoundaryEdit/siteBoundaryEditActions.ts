@@ -1,3 +1,4 @@
+import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import { useSiteBoundaryEditStore, type ShapeTool } from './siteBoundaryEditStore'
 
 /**
@@ -20,6 +21,10 @@ export interface SiteBoundaryEditRuntime {
   toggleSelectTool(): void
   /** Opens the dialog for a shape tool, unless the tool cannot act yet (no corner selected). */
   openShapeDialog(tool: ShapeTool): void
+  /** Starts drawing an arc between the two selected corners: the next click on the map drops its third point. */
+  startArc(): void
+  /** Draws the arc through the dropped point. True on success; false with the reason shown. */
+  applyArc(through: GeoPoint): boolean
   /** Applies the shape tool with the number from its dialog. True on success; false with the reason shown. */
   applyShape(tool: ShapeTool, value: number): boolean
   loadLatest(): Promise<void>
@@ -59,6 +64,8 @@ export const siteBoundaryEditActions = {
   deleteCorner: () => call('deleteCorner'),
   toggleSelectTool: () => call('toggleSelectTool'),
   openShapeDialog: (tool: ShapeTool) => call('openShapeDialog', tool),
+  startArc: () => call('startArc'),
+  applyArc: (through: GeoPoint) => call('applyArc', through) ?? false,
   applyShape: (tool: ShapeTool, value: number) => call('applyShape', tool, value) ?? false,
   loadLatest: () => call('loadLatest'),
 }

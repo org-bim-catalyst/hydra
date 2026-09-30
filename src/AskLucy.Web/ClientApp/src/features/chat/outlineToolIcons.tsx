@@ -19,6 +19,18 @@ export function SelectCornersIcon({ size = 24 }: IconProps) {
   )
 }
 
+/** An arc through three dropped points: "draw an arc". */
+export function DrawArcIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <path d="M3 19 A 11 11 0 0 1 21 19" />
+      <circle cx="3" cy="19" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="7.5" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="21" cy="19" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 /** A straight edge bent into an arc between two end points: "curve this edge". */
 export function CurveEdgeIcon({ size = 24 }: IconProps) {
   return (
