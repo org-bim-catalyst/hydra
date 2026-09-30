@@ -320,3 +320,20 @@ describe('simplifyDenseRing (an outline traced from pixels)', () => {
     expect(result.toleranceMeters).toBe(0)
   })
 })
+
+describe('a 500-corner ring (SC-005)', () => {
+  /** A circle of 500 corners, 200 m across: what a finely traced outline looks like. */
+  const big = Array.from({ length: 500 }, (_, i) => {
+    const angle = (i / 500) * Math.PI * 2
+    return point(100 * Math.cos(angle), 100 * Math.sin(angle))
+  })
+
+  it('validates a moved corner in under 4 ms', () => {
+    validateChange(big, 10)
+    const started = performance.now()
+    for (let i = 0; i < 20; i++) validateChange(big, (i * 25) % 500)
+    const perChange = (performance.now() - started) / 20
+
+    expect(perChange).toBeLessThan(4)
+  })
+})

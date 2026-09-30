@@ -656,3 +656,20 @@ describe('unmount', () => {
     expect(session().undo).toHaveLength(0)
   })
 })
+
+describe('a 500-corner ring (SC-005)', () => {
+  it('applies a keyboard move in under 4 ms', () => {
+    const big = Array.from({ length: 500 }, (_, i) => {
+      const angle = (i / 500) * Math.PI * 2
+      return P(100 * Math.cos(angle), 100 * Math.sin(angle))
+    })
+    const { controller } = setup([big])
+    controller.moveCorner(0, 1, 0.1, 0)
+
+    const started = performance.now()
+    for (let i = 0; i < 20; i++) controller.moveCorner(0, (i * 25) % 500, 0.05, 0)
+    const perChange = (performance.now() - started) / 20
+
+    expect(perChange).toBeLessThan(4)
+  })
+})
