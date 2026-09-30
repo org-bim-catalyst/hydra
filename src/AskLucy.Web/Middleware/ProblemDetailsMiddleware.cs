@@ -170,6 +170,19 @@ public sealed class ProblemDetailsMiddleware(
                 .ToArray();
         }
 
+        // specs/079: the editor reloads from the revision now in force.
+        if (exception is AskLucy.Domain.Common.ConcurrencyConflictException { CurrentRevision: { } currentRevision })
+        {
+            problemDetails.Extensions["currentRevision"] = currentRevision;
+        }
+
+        // specs/079: which ring was refused, and why.
+        if (exception is AskLucy.Domain.SiteBoundaries.SiteBoundaryGeometryRejectedException geometryRejected)
+        {
+            problemDetails.Extensions["ringIndex"] = geometryRejected.RingIndex;
+            problemDetails.Extensions["reason"] = geometryRejected.Reason;
+        }
+
         // spec.md FR-016/SC-009 (specs/022-workflow-orchestration-engine): every validation
         // violation, so the Designer's validation panel can render them all without re-requesting.
         if (exception is AskLucy.Domain.Workflows.WorkflowValidationFailedException workflowValidationFailedException)
@@ -227,6 +240,13 @@ public sealed class ProblemDetailsMiddleware(
             "https://hydra.bimcatalyst.com/problems/concurrency-conflict",
             "Concurrency conflict",
             concurrencyEx.Message),
+
+        // specs/079: the request is well-formed, the hand-edited shape is not acceptable.
+        AskLucy.Domain.SiteBoundaries.SiteBoundaryGeometryRejectedException geometryRejectedEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/site-boundary-rejected",
+            "Site outline rejected",
+            geometryRejectedEx.Message),
 
         // specs/074 FR-024: a triage transition someone else got to first, or a reopen blocked by a newer incident.
         IncidentConflictException incidentConflictEx => (

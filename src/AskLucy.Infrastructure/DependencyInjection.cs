@@ -414,6 +414,7 @@ public static class DependencyInjection
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
         services.AddScoped<IRelatedSiteBuildingProvider, OverpassRelatedSiteBuildingProvider>();
         services.AddSingleton<ISiteFootprintUnion, RasterSiteFootprintUnion>();
+        services.AddSingleton<AskLucy.Application.SiteBoundaries.ISiteRingGeometry, NtsSiteRingGeometry>();
         // specs/053-rendered-building-footprints T025 — IBuildingFootprintProvider now resolves to
         // the composite (rendered primary, Overpass fallback — contracts/footprint-source-
         // arbitration.md), not directly to Overpass. Both inner providers are registered as KEYED

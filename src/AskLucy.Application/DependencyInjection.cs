@@ -115,6 +115,7 @@ public static class DependencyInjection
         services.AddScoped<BoundaryCandidateScorer>();
         services.AddScoped<IBoundaryResolutionService, BoundaryResolutionService>();
         services.AddScoped<SiteBoundaryMembershipService>();
+        services.AddScoped<AskLucy.Application.Chats.Authorization.ChatOwnershipAuditor>();
         services.AddOptions<BoundaryScoringOptions>()
             .BindConfiguration(BoundaryScoringOptions.SectionName)
             .ValidateDataAnnotations()
