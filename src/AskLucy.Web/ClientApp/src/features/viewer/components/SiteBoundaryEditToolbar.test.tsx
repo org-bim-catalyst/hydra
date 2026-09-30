@@ -146,8 +146,9 @@ describe('SiteBoundaryEditToolbar', () => {
     })
     render(<SiteBoundaryEditToolbar />)
 
-    expect(screen.getByText(/Saving/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Done', hidden: true })).toBeDisabled()
+    expect(screen.getByText(/Saving…/)).toBeInTheDocument()
+    // The button itself shows the save is under way (a spinner and "Saving"), so a slow save never looks like nothing happened.
+    expect(screen.getByRole('button', { name: 'Saving', hidden: true })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancel', hidden: true })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Undo', hidden: true })).toBeDisabled()
   })
@@ -167,6 +168,48 @@ describe('SiteBoundaryEditToolbar', () => {
 
     expect(runtime.done).toHaveBeenCalledTimes(1)
     expect(store().session).not.toBeNull()
+  })
+
+  it('hides the bar on dismiss while the session carries on, and the menu can bring it back', async () => {
+    const user = userEvent.setup()
+    enter()
+    act(() => edit())
+    render(<SiteBoundaryEditToolbar />)
+
+    await user.click(screen.getByRole('button', { name: 'Hide edit bar', hidden: true }))
+
+    expect(screen.queryByRole('toolbar', { hidden: true })).not.toBeInTheDocument()
+    expect(store().session).not.toBeNull()
+    expect(store().session?.undo).toHaveLength(1)
+
+    act(() => store().setToolbarHidden(false))
+    expect(screen.getByRole('toolbar', { name: 'Outline editor', hidden: true })).toBeInTheDocument()
+  })
+
+  it('still shows a refusal while the bar is hidden, so a message is never missed', () => {
+    enter()
+    act(() => {
+      store().setToolbarHidden(true)
+      store().refuse('That would make the outline cross itself.')
+    })
+    render(<SiteBoundaryEditToolbar />)
+
+    expect(screen.queryByRole('toolbar', { hidden: true })).not.toBeInTheDocument()
+    expect(screen.getByText('That would make the outline cross itself.')).toBeInTheDocument()
+  })
+
+  it('brings the bar back by itself when a save fails or conflicts', () => {
+    enter()
+    act(() => {
+      edit()
+      store().setToolbarHidden(true)
+      store().beginSave()
+      store().saveFailed('The outline could not be saved.')
+    })
+    render(<SiteBoundaryEditToolbar />)
+
+    expect(screen.getByRole('toolbar', { name: 'Outline editor', hidden: true })).toBeInTheDocument()
+    expect(screen.getByRole('alert', { hidden: true })).toHaveTextContent('The outline could not be saved.')
   })
 
   it('offers Load latest and Cancel on a conflict (FR-019)', async () => {

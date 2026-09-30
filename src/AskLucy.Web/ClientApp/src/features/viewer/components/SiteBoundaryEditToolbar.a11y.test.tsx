@@ -32,6 +32,7 @@ describe('SiteBoundaryEditToolbar accessibility', () => {
       ['saving', () => { edit(); store().beginSave() }],
       ['after a failed save', () => { edit(); store().beginSave(); store().saveFailed('The outline could not be saved.') }],
       ['after a conflict', () => { edit(); store().beginSave(); store().conflict('rev-9') }],
+      ['with the bar dismissed and a message showing', () => { store().setToolbarHidden(true); store().refuse('That would make the outline cross itself.') }],
     ]
 
     it.each(states)('has no automatically detectable a11y violations (%s)', async (_name, arrange) => {

@@ -1,118 +1,173 @@
-import { Alert, Box, Button, IconButton, Paper, Stack, Typography } from '@mui/material'
-import { RiArrowGoBackLine, RiArrowGoForwardLine, RiCheckLine, RiCloseLine } from '@remixicon/react'
+import { alpha, Box, Button, IconButton, Paper, Typography, type Theme } from '@mui/material'
+import { RiArrowGoBackLine, RiArrowGoForwardLine, RiCheckLine, RiCloseLine, RiLoader4Line } from '@remixicon/react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 
-const TOUCH_TARGET_PX = 44
+/** The height of the HUD cards along the top edge (`HudCard`), so this bar shares their centreline. */
+const BAR_HEIGHT_PX = 40
 
-const formatArea = (squareMeters: number) => `about ${Math.round(squareMeters).toLocaleString('en-US')} m\u00b2`
+/** The workspace overlay's own margin from the top edge: 16 px on a phone, 24 px above it. */
+const TOP_OFFSET = { xs: '16px', sm: '24px' }
+
+/** A tinted surface distinct from the neutral HUD cards, so the editor reads as a temporary mode; follows the light/dark theme. */
+const surface = {
+  bgcolor: (t: Theme) => (t.palette.mode === 'dark' ? alpha('#2A2245', 0.96) : alpha('#EFE9FF', 0.97)),
+  border: (t: Theme) => `1px solid ${alpha('#7C4DFF', t.palette.mode === 'dark' ? 0.55 : 0.4)}`,
+  color: 'text.primary',
+  backdropFilter: 'blur(12px)',
+  boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
+}
+
+const formatArea = (squareMeters: number) => `about ${Math.round(squareMeters).toLocaleString('en-US')} m²`
+
+const iconButtonSx = { width: BAR_HEIGHT_PX - 8, height: BAR_HEIGHT_PX - 8 }
 
 /**
- * specs/079 contracts/edit-mode-viewer.md: the bar shown while the outline is being edited - what
- * is being edited, the area as it changes, Undo/Redo, Cancel and Done, and the one status line that
- * explains a refusal, a save in progress, a failed save, or a conflict. Every button is at least
- * 44 px so it can be pressed on a touch screen.
+ * specs/079 contracts/edit-mode-viewer.md: the slim floating bar shown while the outline is being
+ * edited - "Editing: <site>", the area, Undo/Redo, Cancel and Done, side by side on one 40 px row
+ * that sits on the HUD cards' centreline, horizontally centred. It can be dismissed (the session
+ * carries on; the Outline menu has every action and brings it back). A refusal, a save in progress,
+ * a failed save or a conflict is explained in a small strip under the bar - and that strip shows
+ * even while the bar is hidden, because those messages must never be missed.
  */
 export function SiteBoundaryEditToolbar() {
   const session = useSiteBoundaryEditStore((s) => s.session)
   const dirty = useSiteBoundaryEditStore((s) => s.isDirty())
+  const setToolbarHidden = useSiteBoundaryEditStore((s) => s.setToolbarHidden)
   if (!session) return null
 
   const { status } = session
   const saving = status.kind === 'saving'
+  const message = session.refusal !== null || saving || status.kind === 'error' || status.kind === 'conflict'
 
   return (
-    <Paper
-      role="toolbar"
-      aria-label="Outline editor"
-      elevation={6}
+    <Box
       sx={{
         position: 'absolute',
-        top: 72,
+        top: TOP_OFFSET,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 5,
-        px: 2,
-        py: 1,
-        maxWidth: 'min(640px, calc(100% - 32px))',
-        borderRadius: 3,
-        backdropFilter: 'blur(12px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 0.75,
+        maxWidth: 'calc(100% - 32px)',
+        pointerEvents: 'none',
       }}
     >
-      <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
-        <Box sx={{ minWidth: 0, flex: '1 1 180px' }}>
-          <Typography variant="subtitle2" noWrap>
+      {!session.toolbarHidden && (
+        <Paper
+          role="toolbar"
+          aria-label="Outline editor"
+          elevation={0}
+          sx={[
+            {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              boxSizing: 'border-box',
+              height: BAR_HEIGHT_PX,
+              maxWidth: '100%',
+              pl: 1.5,
+              pr: 0.5,
+              borderRadius: 2,
+              pointerEvents: 'auto',
+            },
+            surface,
+          ]}
+        >
+          <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0, maxWidth: 220 }}>
             Editing: {session.siteName}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: { xs: 'none', sm: 'block' } }}>
             {formatArea(session.approxAreaSquareMeters)}
           </Typography>
-        </Box>
 
-        <IconButton
-          aria-label="Undo"
-          onClick={siteBoundaryEditActions.undo}
-          disabled={session.undo.length === 0 || saving}
-          sx={{ width: TOUCH_TARGET_PX, height: TOUCH_TARGET_PX }}
-        >
-          <RiArrowGoBackLine />
-        </IconButton>
-        <IconButton
-          aria-label="Redo"
-          onClick={siteBoundaryEditActions.redo}
-          disabled={session.redo.length === 0 || saving}
-          sx={{ width: TOUCH_TARGET_PX, height: TOUCH_TARGET_PX }}
-        >
-          <RiArrowGoForwardLine />
-        </IconButton>
-        <Button
-          onClick={siteBoundaryEditActions.cancel}
-          disabled={saving}
-          startIcon={<RiCloseLine />}
-          sx={{ minHeight: TOUCH_TARGET_PX }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={() => void siteBoundaryEditActions.done()}
-          disabled={!dirty || saving}
-          startIcon={<RiCheckLine />}
-          sx={{ minHeight: TOUCH_TARGET_PX }}
-        >
-          Done
-        </Button>
-      </Stack>
+          <Box sx={{ width: '1px', alignSelf: 'stretch', my: 1, bgcolor: 'divider' }} />
 
-      {session.refusal && (
-        <Typography role="status" variant="body2" color="warning.main" sx={{ mt: 1 }}>
-          {session.refusal}
-        </Typography>
+          <IconButton
+            size="small"
+            aria-label="Undo"
+            onClick={siteBoundaryEditActions.undo}
+            disabled={session.undo.length === 0 || saving}
+            sx={iconButtonSx}
+          >
+            <RiArrowGoBackLine size={18} />
+          </IconButton>
+          <IconButton
+            size="small"
+            aria-label="Redo"
+            onClick={siteBoundaryEditActions.redo}
+            disabled={session.redo.length === 0 || saving}
+            sx={iconButtonSx}
+          >
+            <RiArrowGoForwardLine size={18} />
+          </IconButton>
+
+          <Box sx={{ width: '1px', alignSelf: 'stretch', my: 1, bgcolor: 'divider' }} />
+
+          <Button size="small" onClick={siteBoundaryEditActions.cancel} disabled={saving} sx={{ minHeight: BAR_HEIGHT_PX - 8, px: 1.25 }}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => void siteBoundaryEditActions.done()}
+            disabled={!dirty || saving}
+            startIcon={saving ? <RiLoader4Line size={16} className="spin" /> : <RiCheckLine size={16} />}
+            sx={{
+              minHeight: BAR_HEIGHT_PX - 8,
+              px: 1.5,
+              '& .spin': { animation: 'edit-bar-spin 1s linear infinite' },
+              '@keyframes edit-bar-spin': { to: { transform: 'rotate(360deg)' } },
+            }}
+          >
+            {saving ? 'Saving' : 'Done'}
+          </Button>
+
+          <IconButton size="small" aria-label="Hide edit bar" title="Hide this bar - the Outline menu still has every action" onClick={() => setToolbarHidden(true)} sx={iconButtonSx}>
+            <RiCloseLine size={18} />
+          </IconButton>
+        </Paper>
       )}
-      {saving && (
-        <Typography role="status" variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Saving&hellip;
-        </Typography>
-      )}
-      {status.kind === 'error' && (
-        <Alert
-          severity="error"
-          sx={{ mt: 1 }}
-          action={
-            <Button color="inherit" size="small" onClick={() => void siteBoundaryEditActions.done()}>
-              Retry
-            </Button>
-          }
+
+      {message && (
+        <Paper
+          elevation={0}
+          sx={[
+            { display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.5, borderRadius: 2, pointerEvents: 'auto', maxWidth: '100%' },
+            surface,
+          ]}
         >
-          {status.message}
-        </Alert>
-      )}
-      {status.kind === 'conflict' && (
-        <Alert
-          severity="warning"
-          sx={{ mt: 1 }}
-          action={
+          {session.refusal !== null && (
+            <Typography role="status" variant="body2" color="warning.main">
+              {session.refusal}
+            </Typography>
+          )}
+          {saving && (
+            <Typography role="status" variant="body2" color="text.secondary">
+              Saving&hellip;
+            </Typography>
+          )}
+          {status.kind === 'error' && (
             <>
+              <Typography role="alert" variant="body2" color="error.main">
+                {status.message}
+              </Typography>
+              <Button color="inherit" size="small" onClick={() => void siteBoundaryEditActions.done()}>
+                Retry
+              </Button>
+              <Button color="inherit" size="small" onClick={siteBoundaryEditActions.cancel}>
+                Cancel
+              </Button>
+            </>
+          )}
+          {status.kind === 'conflict' && (
+            <>
+              <Typography role="alert" variant="body2" color="warning.main">
+                The outline changed in another tab.
+              </Typography>
               <Button color="inherit" size="small" onClick={() => void siteBoundaryEditActions.loadLatest()}>
                 Load latest
               </Button>
@@ -120,11 +175,9 @@ export function SiteBoundaryEditToolbar() {
                 Cancel
               </Button>
             </>
-          }
-        >
-          The outline changed in another tab.
-        </Alert>
+          )}
+        </Paper>
       )}
-    </Paper>
+    </Box>
   )
 }

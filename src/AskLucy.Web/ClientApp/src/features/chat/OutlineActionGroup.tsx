@@ -36,11 +36,12 @@ export function OutlineActionGroup() {
   const actions: ExpandableActionGroupAction[] = [
     {
       id: 'edit-outline',
-      label: 'Edit outline',
+      label: editing && session.toolbarHidden ? 'Show edit bar' : 'Edit outline',
       icon: <RiEdit2Line size={20} />,
-      onSelect: () => void siteBoundaryEditActions.start(),
-      disabled: editing || !hasOutline,
-      disabledReason: editing ? 'Already editing' : 'Ask Lucy to outline a site first',
+      // While editing with the floating bar dismissed, this brings the bar back.
+      onSelect: () => (editing ? useSiteBoundaryEditStore.getState().setToolbarHidden(false) : void siteBoundaryEditActions.start()),
+      disabled: editing ? !session.toolbarHidden : !hasOutline,
+      disabledReason: editing ? 'The edit bar is already showing' : 'Ask Lucy to outline a site first',
     },
     {
       id: 'add-corner',

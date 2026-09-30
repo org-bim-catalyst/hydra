@@ -136,6 +136,40 @@ describe('siteBoundaryEditStore', () => {
     })
   })
 
+  describe('the floating bar', () => {
+    it('starts shown, can be dismissed and restored, and never affects the edit itself', () => {
+      enter()
+      expect(session().toolbarHidden).toBe(false)
+      store().applyChange({ op: 'move', ring: 0, index: 0, before: P(0, 0), after: P(-5, -5) })
+
+      store().setToolbarHidden(true)
+      expect(session().toolbarHidden).toBe(true)
+      expect(session().undo).toHaveLength(1)
+
+      store().setToolbarHidden(false)
+      expect(session().toolbarHidden).toBe(false)
+    })
+
+    it('comes back on its own when a save fails or conflicts', () => {
+      enter()
+      store().setToolbarHidden(true)
+      store().saveFailed('The outline could not be saved.')
+      expect(session().toolbarHidden).toBe(false)
+
+      store().setToolbarHidden(true)
+      store().conflict('rev-9')
+      expect(session().toolbarHidden).toBe(false)
+    })
+
+    it('starts shown again for the next session', () => {
+      enter()
+      store().setToolbarHidden(true)
+      store().end()
+      enter()
+      expect(session().toolbarHidden).toBe(false)
+    })
+  })
+
   describe('refuse', () => {
     it('sets only the message and leaves the shape and undo stack alone', () => {
       enter()

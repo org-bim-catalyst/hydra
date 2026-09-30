@@ -50,6 +50,8 @@ export interface SiteBoundaryEditSession {
   status: EditStatus
   /** The last refused local change, shown then cleared. */
   refusal: string | null
+  /** The user dismissed the floating bar; the session goes on and the Outline menu has every action. */
+  toolbarHidden: boolean
 }
 
 export interface EnterParams {
@@ -85,6 +87,7 @@ interface State {
 interface Actions {
   requestEdit(request: EditRequest): void
   setNotice(notice: string | null): void
+  setToolbarHidden(hidden: boolean): void
   consumeRequest(): EditRequest | null
   enter(params: EnterParams): void
   /** A local change that passed validation: records it for undo and clears redo. */
@@ -188,6 +191,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           approxAreaSquareMeters: totalArea(start),
           status: { kind: 'editing' },
           refusal: null,
+          toolbarHidden: false,
         },
       })
     },
@@ -269,11 +273,16 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     },
 
     saveFailed(message) {
-      update(() => ({ status: { kind: 'error', message } }))
+      // A failure brings the bar back: the user must see what went wrong and how to retry.
+      update(() => ({ status: { kind: 'error', message }, toolbarHidden: false }))
     },
 
     conflict(currentRevision) {
-      update(() => ({ status: { kind: 'conflict', currentRevision } }))
+      update(() => ({ status: { kind: 'conflict', currentRevision }, toolbarHidden: false }))
+    },
+
+    setToolbarHidden(hidden) {
+      update(() => ({ toolbarHidden: hidden }))
     },
 
     rebase(revision, rings) {
