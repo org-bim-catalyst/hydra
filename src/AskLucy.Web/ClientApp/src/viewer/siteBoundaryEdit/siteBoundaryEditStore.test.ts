@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import { closeRing } from './ringGeometry'
 import { useSiteBoundaryEditStore, type ViewState } from './siteBoundaryEditStore'
@@ -92,6 +92,47 @@ describe('siteBoundaryEditStore', () => {
       store().refuse('That would make the outline cross itself.')
       store().applyChange({ op: 'move', ring: 0, index: 0, before: P(0, 0), after: P(-5, -5) })
       expect(session().refusal).toBeNull()
+    })
+  })
+
+  describe('drag coalescing', () => {
+    it('merges the many moves of one drag into a single undo step that returns to where the corner started', () => {
+      vi.useFakeTimers()
+      try {
+        enter()
+        store().applyChange({ op: 'move', ring: 0, index: 2, before: P(100, 100), after: P(101, 101) })
+        vi.advanceTimersByTime(50)
+        store().applyChange({ op: 'move', ring: 0, index: 2, before: P(101, 101), after: P(105, 105) })
+        vi.advanceTimersByTime(50)
+        store().applyChange({ op: 'move', ring: 0, index: 2, before: P(105, 105), after: P(110, 110) })
+
+        expect(session().undo).toHaveLength(1)
+        expect(session().rings[0][2]).toEqual(P(110, 110))
+        store().undo()
+        expect(session().rings[0][2]).toEqual(P(100, 100))
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('keeps a later move of the same corner, after a pause, as its own step', () => {
+      vi.useFakeTimers()
+      try {
+        enter()
+        store().applyChange({ op: 'move', ring: 0, index: 2, before: P(100, 100), after: P(110, 110) })
+        vi.advanceTimersByTime(2_000)
+        store().applyChange({ op: 'move', ring: 0, index: 2, before: P(110, 110), after: P(120, 120) })
+        expect(session().undo).toHaveLength(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('never merges moves of different corners', () => {
+      enter()
+      store().applyChange({ op: 'move', ring: 0, index: 1, before: P(100, 0), after: P(105, 0) })
+      store().applyChange({ op: 'move', ring: 0, index: 2, before: P(100, 100), after: P(105, 105) })
+      expect(session().undo).toHaveLength(2)
     })
   })
 

@@ -74,10 +74,17 @@ interface State {
    * mode itself (it has no map), so it leaves the request here and the viewer-side hook consumes it.
    */
   pendingRequest: EditRequest | null
+  /**
+   * A message the editor owes the user that outlives the session that produced it - a forced exit, a
+   * save that could not be started. Lives here, not in the session, because ending the session must
+   * not swallow the explanation (constitution section 2 VIII: no silent failures).
+   */
+  notice: string | null
 }
 
 interface Actions {
   requestEdit(request: EditRequest): void
+  setNotice(notice: string | null): void
   consumeRequest(): EditRequest | null
   enter(params: EnterParams): void
   /** A local change that passed validation: records it for undo and clears redo. */
@@ -130,6 +137,14 @@ const sameRings = (a: readonly (readonly GeoPoint[])[], b: readonly (readonly Ge
   a.length === b.length &&
   a.every((ring, r) => ring.length === b[r].length && ring.every((p, i) => p.latitude === b[r][i].latitude && p.longitude === b[r][i].longitude))
 
+/**
+ * A drag reports many small moves of one corner; they are one undo step, not dozens. Moves of the
+ * same corner closer together than this merge, keeping the corner's original position as `before`.
+ */
+export const COALESCE_MOVES_WITHIN_MS = 600
+
+let lastChangeAt = 0
+
 export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => {
   /** Replaces part of the session; a no-op when no session is open. */
   const update = (patch: (session: SiteBoundaryEditSession) => Partial<SiteBoundaryEditSession>) => {
@@ -140,6 +155,11 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
   return {
     session: null,
     pendingRequest: null,
+    notice: null,
+
+    setNotice(notice) {
+      set({ notice })
+    },
 
     requestEdit(request) {
       set({ pendingRequest: request })
@@ -173,10 +193,19 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     },
 
     applyChange(change) {
+      const now = Date.now()
       update((s) => {
         const rings = applyForward(s.rings, change)
-        return { rings, undo: [...s.undo, change], redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null }
+        const last = s.undo.at(-1)
+        const continuesDrag =
+          change.op === 'move' && last?.op === 'move' && last.ring === change.ring && last.index === change.index &&
+          now - lastChangeAt < COALESCE_MOVES_WITHIN_MS
+        const undo = continuesDrag && change.op === 'move' && last?.op === 'move'
+          ? [...s.undo.slice(0, -1), { ...change, before: last.before }]
+          : [...s.undo, change]
+        return { rings, undo, redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null }
       })
+      lastChangeAt = now
     },
 
     refuse(message) {

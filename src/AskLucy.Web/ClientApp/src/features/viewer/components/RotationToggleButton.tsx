@@ -3,12 +3,15 @@ import { Fab } from '@mui/material'
 import { useViewerEngineStore } from '../../../viewer/store/viewerEngineStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
 import { CIRCULAR_ACTION_CHROME } from '../../../components/workspace-shell/circularActionChrome'
+import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 
 /** FR-014: an instant on/off toggle for the viewer's automatic rotation, independent of the
  * view-mode control. Styled like `ThemeToggleButton.tsx` (research.md Decision 5) — a direct
  * action with no expand/collapse state, not a `CircularAction` disclosure widget. */
 export function RotationToggleButton() {
   const rotationEnabled = useViewerEngineStore((s) => s.camera.rotationEnabled)
+  // specs/079 FR-005: edit mode holds the map still; rotation resumes where it was when editing ends.
+  const editingOutline = useSiteBoundaryEditStore((s) => s.session !== null)
 
   const toggle = () => {
     viewerEngine.setRotationEnabled(!rotationEnabled)
@@ -20,6 +23,8 @@ export function RotationToggleButton() {
       aria-label={rotationEnabled ? 'Stop rotation' : 'Start rotation'}
       aria-pressed={rotationEnabled}
       onClick={toggle}
+      disabled={editingOutline}
+      title={editingOutline ? 'Finish editing the outline first' : undefined}
       sx={{
         // 40 px, matching CircularAction's trigger Fab (FAB_PX). MUI's `medium` Fab is 48 px,
         // which left the account button visibly smaller than the two buttons beside it.

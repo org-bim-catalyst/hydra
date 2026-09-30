@@ -9,6 +9,9 @@ export interface ExpandableActionGroupAction {
   /** Row layout only — visually distinguishes a primary action (readdy.ai reference:
    * Analysis's row ends in a highlighted amber "run" action) from the rest of the row. */
   highlighted?: boolean
+  /** Not usable right now. `disabledReason` (shown as the tooltip) says why, so a greyed-out button is never a mystery. */
+  disabled?: boolean
+  disabledReason?: string
 }
 
 export interface ExpandableActionGroupProps {
@@ -55,8 +58,9 @@ export function ExpandableActionGroup({ actions, layout = 'row' }: ExpandableAct
         <IconButton
           key={action.id}
           onClick={action.onSelect}
+          disabled={action.disabled}
           aria-label={action.label}
-          title={action.label}
+          title={action.disabled && action.disabledReason ? `${action.label} — ${action.disabledReason}` : action.label}
           size="small"
           sx={{
             width: 40,

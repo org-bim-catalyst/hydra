@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { SiteBoundaryEditHost } from '../../../features/viewer/components/SiteBoundaryEditHost'
 import { SiteBoundaryOverlay } from '../../../features/viewer/components/SiteBoundaryOverlay'
 import { useGoogleMapsStore } from '../../store/googleMapsStore'
 import type { DrawingSpaceHandle } from '../../scene/DrawingSpaceRegistry'
@@ -19,7 +20,12 @@ function makeSiteBoundaryOverlayWithAnimation(drawingSpace: DrawingSpaceHandle) 
       })
     }, [])
 
-    return <SiteBoundaryOverlay />
+    return (
+      <>
+        <SiteBoundaryOverlay />
+        <SiteBoundaryEditHost />
+      </>
+    )
   }
 }
 

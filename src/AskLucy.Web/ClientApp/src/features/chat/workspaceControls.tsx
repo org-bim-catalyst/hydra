@@ -1,19 +1,12 @@
 import {
   RiArrowLeftRightLine,
-  RiAddCircleLine,
-  RiArrowGoBackLine,
-  RiArrowGoForwardLine,
   RiBankLine,
   RiBox3Line,
   RiBrush2Line,
   RiBuilding2Line,
-  RiCheckLine,
-  RiCloseLine,
   RiCompassLine,
   RiCursorLine,
-  RiDeleteBinLine,
   RiDropLine,
-  RiEdit2Line,
   RiFilterLine,
   RiFingerprintLine,
   RiFlashlightLine,
@@ -26,7 +19,6 @@ import {
   RiMapLine,
   RiNavigationLine,
   RiPlanetLine,
-  RiRestartLine,
   RiRoadMapLine,
   RiRouteLine,
   RiShape2Line,
@@ -42,10 +34,15 @@ import {
 } from '../../components/workspace-shell/ExpandableActionGroup'
 import type { ControlDefinition } from '../../components/workspace-shell/types'
 import { useComingSoonStore } from '../../store/comingSoonStore'
+import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { OutlineActionGroup } from './OutlineActionGroup'
 import { useWorkspaceOverlayStore, type ViewMode } from '../../store/workspaceOverlayStore'
 import { viewerEngine } from '../../viewer/engine/viewerEngineInstance'
 import { useViewerEngineStore } from '../../viewer/store/viewerEngineStore'
 import { isBuildingsOnlyStyleSupported, type MapStyleId } from '../../viewer/api/commands'
+
+/** Why the camera controls are greyed out while the outline is being edited. */
+const EDITING_LOCK_REASON = 'Finish editing the outline first'
 
 function comingSoon(label: string) {
   useComingSoonStore.getState().show(label)
@@ -60,6 +57,10 @@ export function useViewModeControl(): ControlDefinition {
   const viewMode = useWorkspaceOverlayStore((s) => s.viewMode)
   const setViewMode = useWorkspaceOverlayStore((s) => s.setViewMode)
 
+  // specs/079 FR-005: edit mode owns the camera (top-down, north-up); the view mode is put back on exit.
+  const editingOutline = useSiteBoundaryEditStore((s) => s.session !== null)
+  const lockedReason = editingOutline ? EDITING_LOCK_REASON : undefined
+
   const selectMode = (mode: ViewMode) => {
     setViewMode(mode)
     viewerEngine.setViewMode(mode)
@@ -72,6 +73,8 @@ export function useViewModeControl(): ControlDefinition {
       icon: <RiBox3Line size={20} />,
       onSelect: () => selectMode('isometric'),
       highlighted: viewMode === 'isometric',
+      disabled: editingOutline,
+      disabledReason: lockedReason,
     },
     {
       id: 'plan',
@@ -79,6 +82,8 @@ export function useViewModeControl(): ControlDefinition {
       icon: <RiMapLine size={20} />,
       onSelect: () => selectMode('plan'),
       highlighted: viewMode === 'plan',
+      disabled: editingOutline,
+      disabledReason: lockedReason,
     },
   ]
 
@@ -285,9 +290,7 @@ export const selectionControl: ControlDefinition = {
   ),
 }
 
-/** specs/079-site-boundary-manual-editing: the outline editor's actions in one place. The buttons
- * are placeholders until the editor lands (tasks.md Phase 3); each is then linked to the real
- * action (enter/undo/redo/done/cancel/reset, add and delete corner) as it is built. */
+/** specs/079-site-boundary-manual-editing: the outline editor's actions; the buttons live in OutlineActionGroup. */
 export const outlineControl: ControlDefinition = {
   id: 'outline',
   label: 'Outline',
@@ -295,61 +298,7 @@ export const outlineControl: ControlDefinition = {
   status: 'functional',
   kind: 'action-group',
   placement: 'right-stack',
-  content: (
-    <ExpandableActionGroup
-      actions={[
-        {
-          id: 'edit-outline',
-          label: 'Edit outline',
-          icon: <RiEdit2Line size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'add-corner',
-          label: 'Add corner',
-          icon: <RiAddCircleLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'delete-corner',
-          label: 'Delete corner',
-          icon: <RiDeleteBinLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'undo',
-          label: 'Undo',
-          icon: <RiArrowGoBackLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'redo',
-          label: 'Redo',
-          icon: <RiArrowGoForwardLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'cancel',
-          label: 'Cancel',
-          icon: <RiCloseLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'reset',
-          label: "Reset to Lucy's outline",
-          icon: <RiRestartLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-        },
-        {
-          id: 'done',
-          label: 'Done',
-          icon: <RiCheckLine size={20} />,
-          onSelect: () => comingSoon('Outline editing'),
-          highlighted: true,
-        },
-      ]}
-    />
-  ),
+  content: <OutlineActionGroup />,
 }
 
 export const analysisControl: ControlDefinition = {
