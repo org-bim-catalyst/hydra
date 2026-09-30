@@ -19,22 +19,56 @@ export function SelectCornersIcon({ size = 24 }: IconProps) {
   )
 }
 
-/** A circle with a plus: "add a circle to the outline". */
-export function AddCircleShapeIcon({ size = 24 }: IconProps) {
+/** A corner outline with a new point on its edge and a plus: "add a corner". */
+export function AddCornerIcon({ size = 24 }: IconProps) {
   return (
     <svg {...common} width={size} height={size}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v8M8 12h8" />
+      <path d="M3 20 V4 H21" />
+      <circle cx="12" cy="4" r="2" fill="currentColor" stroke="none" />
+      <path d="M12 12v6M9 15h6" />
     </svg>
   )
 }
 
-/** A circle with a minus: "cut a circle out of the outline". */
+/** A corner outline with a cross: "delete the selected corner(s)". */
+export function DeleteCornerIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <path d="M3 20 V4 H21" />
+      <circle cx="12" cy="4" r="2" fill="currentColor" stroke="none" />
+      <path d="M9.5 12.5l5 5M14.5 12.5l-5 5" />
+    </svg>
+  )
+}
+
+/** A square outline with a shaded circle overlapping it and a plus: "add a circle to the outline". */
+export function AddCircleShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <rect x="3" y="3" width="12" height="12" rx="1" />
+      <circle cx="15" cy="15" r="6.5" fill="currentColor" fillOpacity="0.25" />
+      <path d="M15 12v6M12 15h6" />
+    </svg>
+  )
+}
+
+/** A square outline with a dashed circle overlapping it and a minus: "cut a circle out of the outline". */
 export function CutCircleShapeIcon({ size = 24 }: IconProps) {
   return (
     <svg {...common} width={size} height={size}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8 12h8" />
+      <rect x="3" y="3" width="12" height="12" rx="1" />
+      <circle cx="15" cy="15" r="6.5" strokeDasharray="3 2.5" />
+      <path d="M12 15h6" />
+    </svg>
+  )
+}
+
+/** A square outline turning into a circle: "make the whole ring a circle". */
+export function RingToCircleIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <rect x="3" y="3" width="18" height="18" rx="1" strokeDasharray="3 3" />
+      <circle cx="12" cy="12" r="6.5" />
     </svg>
   )
 }

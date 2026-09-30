@@ -1,15 +1,12 @@
 import {
-  RiAddCircleLine,
   RiArrowGoBackLine,
   RiArrowGoForwardLine,
   RiCheckLine,
   RiCloseLine,
-  RiDeleteBinLine,
   RiEdit2Line,
   RiRestartLine,
   RiRoundedCorner,
-  RiCircleLine,
-} from '@remixicon/react'
+  } from '@remixicon/react'
 import {
   ExpandableActionGroup,
   type ExpandableActionGroupAction,
@@ -18,7 +15,7 @@ import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
-import { AddCircleShapeIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
+import { AddCircleShapeIcon, AddCornerIcon, DeleteCornerIcon, RingToCircleIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
 
 /**
  * specs/079-site-boundary-manual-editing: the outline editor's actions in one place. Each button is
@@ -59,7 +56,7 @@ export function OutlineActionGroup() {
     {
       id: 'add-corner',
       label: 'Add corner',
-      icon: <RiAddCircleLine size={20} />,
+      icon: <AddCornerIcon size={20} />,
       onSelect: siteBoundaryEditActions.addCorner,
       disabled: !editing || !hasCorner || saving,
       disabledReason: editing ? 'Select a corner first' : notEditing,
@@ -67,7 +64,7 @@ export function OutlineActionGroup() {
     {
       id: 'delete-corner',
       label: session && session.selectedCorners.length > 1 ? `Delete ${session.selectedCorners.length} corners` : 'Delete corner',
-      icon: <RiDeleteBinLine size={20} />,
+      icon: <DeleteCornerIcon size={20} />,
       onSelect: siteBoundaryEditActions.deleteCorner,
       disabled: !editing || !hasCorner || saving,
       disabledReason: editing ? 'Select a corner first' : notEditing,
@@ -118,7 +115,7 @@ export function OutlineActionGroup() {
     {
       id: 'make-circle',
       label: 'Make ring a circle',
-      icon: <RiCircleLine size={20} />,
+      icon: <RingToCircleIcon size={20} />,
       onSelect: () => siteBoundaryEditActions.openShapeDialog('circle'),
       disabled: !editing || saving,
       disabledReason: notEditing,
