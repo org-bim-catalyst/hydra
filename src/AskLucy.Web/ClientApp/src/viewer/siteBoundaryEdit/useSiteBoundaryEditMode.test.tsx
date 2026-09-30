@@ -33,7 +33,7 @@ const hostMock = vi.hoisted(() => ({
       onRemoveAt: () => () => {},
     },
     setEditable: vi.fn(),
-    setHighlight: vi.fn(),
+    setHighlights: vi.fn(),
     onSelect: () => () => {},
     onVertexClick: () => () => {},
     onVertexMenu: () => () => {},
@@ -560,6 +560,193 @@ describe('useSiteBoundaryEditMode', () => {
 
       expect(session()?.refusal).toBeNull()
       input.remove()
+    })
+  })
+
+  describe('the Select tool, deleting several corners and the shape tools', () => {
+    /** A 200 x 100 m rectangle with a spare corner on the bottom edge. */
+    const RECT: GeoPoint[] = [
+      { latitude: 23.586, longitude: 58.392 },
+      { latitude: 23.586, longitude: 58.3931 },
+      { latitude: 23.586, longitude: 58.3942 },
+      { latitude: 23.5869, longitude: 58.3942 },
+      { latitude: 23.5869, longitude: 58.392 },
+    ]
+
+    const showRect = () =>
+      act(() => {
+        useActiveSiteBoundaryStore.getState().setBoundary({
+          siteName: 'Muscat Grand Mall',
+          chatId: 'chat-1',
+          centroid: { latitude: 23.5865, longitude: 58.393 },
+          polygon: [...RECT, RECT[0]],
+          areaSquareMeters: 20_000,
+          confidence: 0.7,
+          confidenceLevel: 'medium',
+          source: 'OsmBoundary',
+          sourceDetail: 'x',
+          alternativeCandidateNames: [],
+          revision: 'rev-1',
+          isHandEdited: false,
+        })
+      })
+
+    const begin = async () => {
+      showRect()
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+    }
+
+    it('toggles the Select tool on and off', async () => {
+      await begin()
+
+      act(() => siteBoundaryEditActions.toggleSelectTool())
+      expect(session()?.tool).toBe('select')
+
+      act(() => siteBoundaryEditActions.toggleSelectTool())
+      expect(session()?.tool).toBe('edit')
+    })
+
+    it('Escape hands the map back from the Select tool', async () => {
+      await begin()
+      act(() => siteBoundaryEditActions.toggleSelectTool())
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      expect(session()?.tool).toBe('edit')
+    })
+
+    it('deletes every selected corner at once, as one undo step', async () => {
+      await begin()
+      act(() => store().selectCorners([1, 2]))
+
+      act(() => siteBoundaryEditActions.deleteCorner())
+
+      expect(session()?.rings[0]).toHaveLength(3)
+      expect(session()?.undo).toHaveLength(1)
+      expect(session()?.selectedCorners).toEqual([])
+    })
+
+    it('one undo brings all the deleted corners back', async () => {
+      await begin()
+      act(() => store().selectCorners([1, 2]))
+      act(() => siteBoundaryEditActions.deleteCorner())
+
+      act(() => siteBoundaryEditActions.undo())
+
+      expect(session()?.rings[0]).toHaveLength(5)
+    })
+
+    it('refuses to delete every corner, leaving the outline as it was', async () => {
+      await begin()
+      act(() => store().selectCorners([0, 1, 2, 3]))
+
+      act(() => siteBoundaryEditActions.deleteCorner())
+
+      expect(session()?.rings[0]).toHaveLength(5)
+      expect(session()?.refusal).toBe('An outline needs at least 3 corners.')
+      expect(session()?.selectedCorners).toEqual([0, 1, 2, 3])
+    })
+
+    it('deletes the whole selection with the Delete key', async () => {
+      await begin()
+      act(() => store().selectCorners([1, 2]))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+      })
+
+      expect(session()?.rings[0]).toHaveLength(3)
+    })
+
+    it('asks for a corner first before opening the round or curve dialog', async () => {
+      await begin()
+
+      act(() => siteBoundaryEditActions.openShapeDialog('round'))
+      expect(store().shapeDialog).toBeNull()
+      expect(session()?.refusal).toBe('Select the corner to round first.')
+
+      act(() => siteBoundaryEditActions.openShapeDialog('curve'))
+      expect(store().shapeDialog).toBeNull()
+      expect(session()?.refusal).toContain('Select the corner at the start of the edge')
+    })
+
+    it('opens the circle dialog without any corner selected', async () => {
+      await begin()
+
+      act(() => siteBoundaryEditActions.openShapeDialog('circle'))
+
+      expect(store().shapeDialog).toBe('circle')
+    })
+
+    it('rounds the selected corner: more corners, one undo step, and the dialog is free to close', async () => {
+      await begin()
+      act(() => store().selectCorner(3))
+      const before = session()!.rings[0].length
+
+      let done = false
+      act(() => {
+        done = siteBoundaryEditActions.applyShape('round', 15)
+      })
+
+      expect(done).toBe(true)
+      expect(session()!.rings[0].length).toBeGreaterThan(before + 3)
+      expect(session()?.undo).toHaveLength(1)
+      expect(session()?.undo[0].op).toBe('replace')
+    })
+
+    it('says how big a radius fits, and changes nothing, when it is too big', async () => {
+      await begin()
+      act(() => store().selectCorner(3))
+
+      let done = true
+      act(() => {
+        done = siteBoundaryEditActions.applyShape('round', 500)
+      })
+
+      expect(done).toBe(false)
+      expect(session()?.refusal).toMatch(/too big for this corner/)
+      expect(session()?.rings[0]).toHaveLength(5)
+      expect(session()?.undo).toHaveLength(0)
+    })
+
+    it('curves the edge after the selected corner', async () => {
+      await begin()
+      act(() => store().selectCorner(0))
+
+      let done = false
+      act(() => {
+        done = siteBoundaryEditActions.applyShape('curve', 6)
+      })
+
+      expect(done).toBe(true)
+      expect(session()!.rings[0].length).toBeGreaterThan(5)
+    })
+
+    it('replaces the ring with a circle', async () => {
+      await begin()
+
+      let done = false
+      act(() => {
+        done = siteBoundaryEditActions.applyShape('circle', 60)
+      })
+
+      expect(done).toBe(true)
+      expect(session()?.rings[0]).toHaveLength(72)
+    })
+
+    it('reports a shape tool asked to act with nothing selected', async () => {
+      await begin()
+
+      let done = true
+      act(() => {
+        done = siteBoundaryEditActions.applyShape('round', 10)
+      })
+
+      expect(done).toBe(false)
+      expect(session()?.refusal).toBe('Select a corner first.')
     })
   })
 

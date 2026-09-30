@@ -7,6 +7,8 @@ import {
   RiDeleteBinLine,
   RiEdit2Line,
   RiRestartLine,
+  RiRoundedCorner,
+  RiCircleLine,
 } from '@remixicon/react'
 import {
   ExpandableActionGroup,
@@ -16,6 +18,7 @@ import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
 import { useComingSoonStore } from '../../store/comingSoonStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { CurveEdgeIcon, SelectCornersIcon } from './outlineToolIcons'
 
 /**
  * specs/079-site-boundary-manual-editing: the outline editor's actions in one place. Each button is
@@ -31,6 +34,7 @@ export function OutlineActionGroup() {
   const editing = session !== null
   const saving = session?.status.kind === 'saving'
   const hasCorner = session?.selectedCorner != null
+  const selecting = session?.tool === 'select'
   const notEditing = 'Start editing the outline first'
 
   const actions: ExpandableActionGroupAction[] = [
@@ -44,6 +48,15 @@ export function OutlineActionGroup() {
       disabledReason: editing ? 'The edit bar is already showing' : 'Ask Lucy to outline a site first',
     },
     {
+      id: 'select-corners',
+      label: selecting ? 'Stop selecting corners' : 'Select corners',
+      icon: <SelectCornersIcon size={20} />,
+      onSelect: siteBoundaryEditActions.toggleSelectTool,
+      highlighted: selecting,
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
       id: 'add-corner',
       label: 'Add corner',
       icon: <RiAddCircleLine size={20} />,
@@ -53,11 +66,35 @@ export function OutlineActionGroup() {
     },
     {
       id: 'delete-corner',
-      label: 'Delete corner',
+      label: session && session.selectedCorners.length > 1 ? `Delete ${session.selectedCorners.length} corners` : 'Delete corner',
       icon: <RiDeleteBinLine size={20} />,
       onSelect: siteBoundaryEditActions.deleteCorner,
       disabled: !editing || !hasCorner || saving,
       disabledReason: editing ? 'Select a corner first' : notEditing,
+    },
+    {
+      id: 'round-corner',
+      label: 'Round corner',
+      icon: <RiRoundedCorner size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('round'),
+      disabled: !editing || !hasCorner || saving,
+      disabledReason: editing ? 'Select a corner first' : notEditing,
+    },
+    {
+      id: 'curve-edge',
+      label: 'Curve edge',
+      icon: <CurveEdgeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('curve'),
+      disabled: !editing || !hasCorner || saving,
+      disabledReason: editing ? 'Select the corner at the start of the edge first' : notEditing,
+    },
+    {
+      id: 'make-circle',
+      label: 'Make ring a circle',
+      icon: <RiCircleLine size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('circle'),
+      disabled: !editing || saving,
+      disabledReason: notEditing,
     },
     {
       id: 'undo',

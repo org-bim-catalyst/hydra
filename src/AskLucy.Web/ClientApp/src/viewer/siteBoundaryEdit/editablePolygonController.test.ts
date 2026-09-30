@@ -81,8 +81,8 @@ class FakeRing implements EditableRing {
   removed = false
   selectListeners: (() => void)[] = []
   menuListeners: ((i: number, x: number, y: number) => void)[] = []
-  clickListeners: ((i: number) => void)[] = []
-  highlighted: number | null = null
+  clickListeners: ((i: number, additive: boolean) => void)[] = []
+  highlights: number[] = []
   path: FakePath
 
   constructor(corners: GeoPoint[], editable: boolean) {
@@ -99,13 +99,13 @@ class FakeRing implements EditableRing {
     return () => (this.selectListeners = this.selectListeners.filter((x) => x !== l))
   }
 
-  onVertexClick = (l: (i: number) => void) => {
+  onVertexClick = (l: (i: number, additive: boolean) => void) => {
     this.clickListeners.push(l)
     return () => (this.clickListeners = this.clickListeners.filter((x) => x !== l))
   }
 
-  setHighlight = (index: number | null) => {
-    this.highlighted = index
+  setHighlights = (indices: readonly number[]) => {
+    this.highlights = [...indices]
   }
 
   onVertexMenu = (l: (i: number, x: number, y: number) => void) => {
@@ -348,34 +348,66 @@ describe('rings', () => {
   })
 })
 
-describe('selecting a corner', () => {
+describe('selecting corners', () => {
+  const click = (ring: FakeRing, index: number, additive = false) => ring.clickListeners.forEach((l) => l(index, additive))
+
   it('a click on a corner selects it and highlights it', () => {
     const { host } = setup()
 
-    host.rings[0].clickListeners.forEach((l) => l(2))
+    click(host.rings[0], 2)
 
     expect(session().selectedCorner).toBe(2)
-    expect(host.rings[0].highlighted).toBe(2)
+    expect(host.rings[0].highlights).toEqual([2])
+  })
+
+  it('a Shift-click adds to the selection and a second Shift-click on the same corner removes it', () => {
+    const { host } = setup()
+
+    click(host.rings[0], 1)
+    click(host.rings[0], 3, true)
+    expect(session().selectedCorners).toEqual([1, 3])
+    expect(host.rings[0].highlights).toEqual([1, 3])
+
+    click(host.rings[0], 1, true)
+    expect(session().selectedCorners).toEqual([3])
+    expect(host.rings[0].highlights).toEqual([3])
+  })
+
+  it('a plain click replaces a multiple selection with the one corner', () => {
+    const { host } = setup()
+    store().selectCorners([0, 1, 2])
+
+    click(host.rings[0], 3)
+
+    expect(session().selectedCorners).toEqual([3])
   })
 
   it('a click on a corner of another ring makes that ring active and selects the corner', () => {
     const { host } = setup([square(), triangle()])
 
-    host.rings[1].clickListeners.forEach((l) => l(1))
+    click(host.rings[1], 1)
 
     expect(session().activeRing).toBe(1)
     expect(session().selectedCorner).toBe(1)
-    expect(host.rings[1].highlighted).toBe(1)
-    expect(host.rings[0].highlighted).toBeNull()
+    expect(host.rings[1].highlights).toEqual([1])
+    expect(host.rings[0].highlights).toEqual([])
   })
 
-  it('clearing the selection removes the highlight', () => {
+  it('highlights every corner a box select picked', () => {
     const { host } = setup()
-    host.rings[0].clickListeners.forEach((l) => l(2))
+
+    store().selectCorners([0, 2, 3])
+
+    expect(host.rings[0].highlights).toEqual([0, 2, 3])
+  })
+
+  it('clearing the selection removes the highlights', () => {
+    const { host } = setup()
+    click(host.rings[0], 2)
 
     store().selectCorner(null)
 
-    expect(host.rings[0].highlighted).toBeNull()
+    expect(host.rings[0].highlights).toEqual([])
   })
 
   it('stops following the store after unmount', () => {
@@ -384,7 +416,123 @@ describe('selecting a corner', () => {
 
     store().selectCorner(1)
 
-    expect(host.rings[0].highlighted).toBeNull()
+    expect(host.rings[0].highlights).toEqual([])
+  })
+})
+
+describe('deleting several corners at once', () => {
+  /** A square with two extra corners on the bottom edge, which are safe to remove. */
+  const withMidpoints = (): GeoPoint[] => [P(0, 0), P(30, 0), P(60, 0), P(100, 0), P(100, 100), P(0, 100)]
+
+  it('removes them all as one undo step', () => {
+    const { host, controller } = setup([withMidpoints()])
+
+    expect(controller.deleteCorners(0, [1, 2])).toBe(true)
+
+    expect(host.rings[0].path.getLength()).toBe(4)
+    expect(session().rings[0]).toEqual(square())
+    expect(session().undo).toHaveLength(1)
+    expect(session().undo[0].op).toBe('replace')
+  })
+
+  it('one undo puts all of them back', () => {
+    const { controller } = setup([withMidpoints()])
+    controller.deleteCorners(0, [1, 2])
+
+    store().undo()
+    controller.setRings(session().rings, session().activeRing)
+
+    expect(session().rings[0]).toHaveLength(6)
+    expect(session().rings[0][1]).toEqual(P(30, 0))
+  })
+
+  it('deleting a single corner this way is the ordinary delete', () => {
+    const { controller } = setup([withMidpoints()])
+
+    expect(controller.deleteCorners(0, [1])).toBe(true)
+
+    expect(session().undo[0].op).toBe('delete')
+  })
+
+  it('refuses when fewer than 3 corners would remain, changing nothing', () => {
+    const { host, controller } = setup()
+
+    expect(controller.deleteCorners(0, [0, 1])).toBe(false)
+
+    expect(host.rings[0].path.getLength()).toBe(4)
+    expect(session().refusal).toBe('An outline needs at least 3 corners.')
+    expect(session().undo).toHaveLength(0)
+  })
+
+  it('refuses when what is left would cross itself, changing nothing', () => {
+    // A "U" with a notch cut from the top. Removing the bottom-right corner (1) and the notch's
+    // bottom-right corner (4) leaves a diagonal edge that cuts through the notch's left wall.
+    const notched: GeoPoint[] = [P(0, 0), P(100, 0), P(100, 100), P(70, 100), P(70, 20), P(30, 20), P(30, 100), P(0, 100)]
+    const { host, controller } = setup([notched])
+
+    expect(controller.deleteCorners(0, [1, 4])).toBe(false)
+
+    expect(host.rings[0].path.getLength()).toBe(8)
+    expect(session().refusal).toBe('That would make the outline cross itself.')
+    expect(session().undo).toHaveLength(0)
+  })
+
+  it('accepts removing the notch corners when what is left is still a clean outline', () => {
+    const notched: GeoPoint[] = [P(0, 0), P(100, 0), P(100, 100), P(70, 100), P(70, 20), P(30, 20), P(30, 100), P(0, 100)]
+    const { controller } = setup([notched])
+
+    expect(controller.deleteCorners(0, [4, 5])).toBe(true)
+    expect(session().rings[0]).toHaveLength(6)
+  })
+
+  it('ignores indices that do not exist, and does nothing when none do', () => {
+    const { controller } = setup([withMidpoints()])
+
+    expect(controller.deleteCorners(0, [40, 41])).toBe(false)
+    expect(controller.deleteCorners(9, [0, 1])).toBe(false)
+  })
+})
+
+describe('replaceRing (round a corner, curve an edge, circle)', () => {
+  it('swaps the corners in one undo step after checking them', () => {
+    const { host, controller } = setup()
+    const rounded = [P(0, 0), P(100, 0), P(100, 80), P(80, 100), P(0, 100)]
+
+    expect(controller.replaceRing(0, rounded)).toBe(true)
+
+    expect(host.rings[0].path.getLength()).toBe(5)
+    expect(session().rings[0]).toEqual(rounded)
+    expect(session().undo).toHaveLength(1)
+  })
+
+  it('refuses a ring that crosses itself, changing nothing', () => {
+    const { host, controller } = setup()
+
+    expect(controller.replaceRing(0, [P(0, 0), P(100, 100), P(100, 0), P(0, 100)])).toBe(false)
+
+    expect(host.rings[0].path.getLength()).toBe(4)
+    expect(session().refusal).toBe('That would make the outline cross itself.')
+    expect(session().undo).toHaveLength(0)
+  })
+
+  it('refuses fewer than 3 corners', () => {
+    const { controller } = setup()
+
+    expect(controller.replaceRing(0, [P(0, 0), P(100, 0)])).toBe(false)
+    expect(session().refusal).toBe('An outline needs at least 3 corners.')
+  })
+
+  it('does not report its own writes as user edits', () => {
+    const { controller } = setup()
+
+    controller.replaceRing(0, [P(0, 0), P(100, 0), P(100, 80), P(80, 100), P(0, 100)])
+
+    expect(session().undo).toHaveLength(1)
+  })
+
+  it('ignores a ring that does not exist', () => {
+    const { controller } = setup()
+    expect(controller.replaceRing(7, [P(0, 0), P(1, 0), P(1, 1)])).toBe(false)
   })
 })
 

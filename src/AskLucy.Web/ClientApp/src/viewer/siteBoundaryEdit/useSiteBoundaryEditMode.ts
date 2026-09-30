@@ -13,6 +13,7 @@ import {
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
 import { SIMPLIFY_TOLERANCE_METERS, openRing, simplifyRing } from './ringGeometry'
+import { circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
 
@@ -237,11 +238,50 @@ export function useSiteBoundaryEditMode() {
       deleteCorner() {
         const session = store().session
         if (!session) return
-        if (session.selectedCorner === null) {
-          store().refuse('Select a corner first — right-click it, then choose Delete corner.')
+        if (session.selectedCorners.length === 0) {
+          store().refuse('Select a corner first \u2014 click it, or use the Select tool to draw a box around several.')
           return
         }
-        if (controllerRef.current?.deleteCorner(session.activeRing, session.selectedCorner)) store().selectCorner(null)
+        const controller = controllerRef.current
+        const deleted = session.selectedCorners.length > 1
+          ? controller?.deleteCorners(session.activeRing, session.selectedCorners)
+          : controller?.deleteCorner(session.activeRing, session.selectedCorners[0])
+        if (deleted) store().selectCorner(null)
+      },
+      toggleSelectTool() {
+        const session = store().session
+        if (session) store().setTool(session.tool === 'select' ? 'edit' : 'select')
+      },
+      openShapeDialog(tool) {
+        const session = store().session
+        if (!session) return
+        if (tool !== 'circle' && session.selectedCorner === null) {
+          store().refuse(tool === 'round' ? 'Select the corner to round first.' : 'Select the corner at the start of the edge to curve first.')
+          return
+        }
+        store().setShapeDialog(tool)
+      },
+      applyShape(tool, value) {
+        const session = store().session
+        const controller = controllerRef.current
+        if (!session || !controller) return false
+
+        const ring = session.rings[session.activeRing] ?? []
+        const corner = session.selectedCorner
+        const result =
+          tool === 'circle'
+            ? circleRing(ringCentre(ring), value)
+            : corner === null
+              ? { refusal: 'Select a corner first.' }
+              : tool === 'round'
+                ? roundCorner(ring, corner, value)
+                : curveEdge(ring, corner, value)
+
+        if ('refusal' in result) {
+          store().refuse(result.refusal)
+          return false
+        }
+        return controller.replaceRing(session.activeRing, result.ring)
       },
       loadLatest,
     }
@@ -267,10 +307,17 @@ export function useSiteBoundaryEditMode() {
     if (!inSession) return
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return
       const target = event.target as HTMLElement | null
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
-      if (store().session?.selectedCorner == null) return
+
+      // Escape hands the map back from the Select tool.
+      if (event.key === 'Escape' && store().session?.tool === 'select') {
+        store().setTool('edit')
+        return
+      }
+
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return
+      if ((store().session?.selectedCorners.length ?? 0) === 0) return
 
       event.preventDefault()
       siteBoundaryEditActions.deleteCorner()

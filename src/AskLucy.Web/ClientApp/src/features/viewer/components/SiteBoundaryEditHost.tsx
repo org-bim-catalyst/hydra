@@ -1,7 +1,9 @@
 import { Alert, Snackbar } from '@mui/material'
 import { useSiteBoundaryEditMode } from '../../../viewer/siteBoundaryEdit/useSiteBoundaryEditMode'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { SiteBoundaryBoxSelect } from './SiteBoundaryBoxSelect'
 import { SiteBoundaryEditToolbar } from './SiteBoundaryEditToolbar'
+import { SiteBoundaryShapeDialog } from './SiteBoundaryShapeDialog'
 
 /**
  * specs/079: mounts outline edit mode inside the viewer, where the live map is. Renders the toolbar
@@ -16,7 +18,9 @@ export function SiteBoundaryEditHost() {
 
   return (
     <>
+      <SiteBoundaryBoxSelect />
       <SiteBoundaryEditToolbar />
+      <SiteBoundaryShapeDialog />
       <Snackbar open={notice !== null} autoHideDuration={8000} onClose={() => setNotice(null)}>
         <Alert severity="warning" onClose={() => setNotice(null)} sx={{ width: '100%' }}>
           {notice}

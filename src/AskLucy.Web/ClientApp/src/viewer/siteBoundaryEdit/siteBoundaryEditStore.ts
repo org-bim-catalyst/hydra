@@ -24,6 +24,14 @@ export type RingChange =
   | { op: 'move'; ring: number; index: number; before: GeoPoint; after: GeoPoint }
   | { op: 'insert'; ring: number; index: number; after: GeoPoint }
   | { op: 'delete'; ring: number; index: number; before: GeoPoint }
+  /** The whole ring swapped for another: deleting several corners at once, rounding a corner, curving an edge, a circle. One undo step. */
+  | { op: 'replace'; ring: number; before: GeoPoint[]; after: GeoPoint[] }
+
+/** The shape tools that ask for a number (a radius, a bulge) before they act. */
+export type ShapeTool = 'round' | 'curve' | 'circle'
+
+/** What a drag on the map does: `edit` moves and adds corners (Google's own handles); `select` draws a box that picks corners. */
+export type EditTool = 'edit' | 'select'
 
 export type EditStatus =
   | { kind: 'editing' }
@@ -44,7 +52,11 @@ export interface SiteBoundaryEditSession {
   undo: RingChange[]
   redo: RingChange[]
   activeRing: number
+  /** The most recently selected corner: what Add corner, curve and round act on. */
   selectedCorner: number | null
+  /** Every selected corner of the active ring (a box select picks several); `selectedCorner` is always one of them. */
+  selectedCorners: number[]
+  tool: EditTool
   viewState: ViewState
   approxAreaSquareMeters: number
   status: EditStatus
@@ -82,12 +94,15 @@ interface State {
    * not swallow the explanation (constitution section 2 VIII: no silent failures).
    */
   notice: string | null
+  /** Which shape tool is asking for its number, or null when none is. Cleared when the session ends. */
+  shapeDialog: ShapeTool | null
 }
 
 interface Actions {
   requestEdit(request: EditRequest): void
   setNotice(notice: string | null): void
   setToolbarHidden(hidden: boolean): void
+  setShapeDialog(tool: ShapeTool | null): void
   consumeRequest(): EditRequest | null
   enter(params: EnterParams): void
   /** A local change that passed validation: records it for undo and clears redo. */
@@ -99,6 +114,11 @@ interface Actions {
   redo(): RingChange | null
   setActiveRing(ring: number): void
   selectCorner(index: number | null): void
+  /** Replaces the selection with these corners of the active ring. */
+  selectCorners(indices: readonly number[]): void
+  /** Adds the corner to the selection, or removes it when it is already in. */
+  toggleCorner(index: number): void
+  setTool(tool: EditTool): void
   /** Cancel and forced exit both end the session; the caller restores the view state it gets from `session`. */
   end(): void
   beginSave(): void
@@ -120,7 +140,8 @@ const totalArea = (rings: readonly (readonly GeoPoint[])[]): number =>
 function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
   const next = rings.map((r) => [...r])
   const ring = next[change.ring]
-  if (change.op === 'move') ring[change.index] = { ...change.after }
+  if (change.op === 'replace') next[change.ring] = change.after.map((p) => ({ ...p }))
+  else if (change.op === 'move') ring[change.index] = { ...change.after }
   else if (change.op === 'insert') ring.splice(change.index, 0, { ...change.after })
   else ring.splice(change.index, 1)
   return next
@@ -130,7 +151,8 @@ function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
 function applyBackward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
   const next = rings.map((r) => [...r])
   const ring = next[change.ring]
-  if (change.op === 'move') ring[change.index] = { ...change.before }
+  if (change.op === 'replace') next[change.ring] = change.before.map((p) => ({ ...p }))
+  else if (change.op === 'move') ring[change.index] = { ...change.before }
   else if (change.op === 'insert') ring.splice(change.index, 1)
   else ring.splice(change.index, 0, { ...change.before })
   return next
@@ -159,6 +181,11 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     session: null,
     pendingRequest: null,
     notice: null,
+    shapeDialog: null,
+
+    setShapeDialog(tool) {
+      set({ shapeDialog: tool })
+    },
 
     setNotice(notice) {
       set({ notice })
@@ -187,6 +214,8 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           redo: [],
           activeRing: 0,
           selectedCorner: null,
+          selectedCorners: [],
+          tool: 'edit',
           viewState,
           approxAreaSquareMeters: totalArea(start),
           status: { kind: 'editing' },
@@ -207,7 +236,9 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
         const undo = continuesDrag && change.op === 'move' && last?.op === 'move'
           ? [...s.undo.slice(0, -1), { ...change, before: last.before }]
           : [...s.undo, change]
-        return { rings, undo, redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null }
+        // A whole-ring change renumbers every corner, so an old selection no longer points at anything.
+        const selection = change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}
+        return { rings, undo, redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null, ...selection }
       })
       lastChangeAt = now
     },
@@ -233,6 +264,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           redo: [...session.redo, change],
           approxAreaSquareMeters: totalArea(rings),
           refusal: null,
+          ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
         },
       })
       return change
@@ -251,21 +283,40 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           redo: session.redo.slice(0, -1),
           approxAreaSquareMeters: totalArea(rings),
           refusal: null,
+          ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
         },
       })
       return change
     },
 
     setActiveRing(ring) {
-      update((s) => (ring >= 0 && ring < s.rings.length ? { activeRing: ring, selectedCorner: null } : {}))
+      update((s) => (ring >= 0 && ring < s.rings.length ? { activeRing: ring, selectedCorner: null, selectedCorners: [] } : {}))
     },
 
     selectCorner(index) {
-      update(() => ({ selectedCorner: index }))
+      update(() => ({ selectedCorner: index, selectedCorners: index === null ? [] : [index] }))
+    },
+
+    selectCorners(indices) {
+      const unique = [...new Set(indices)].sort((a, b) => a - b)
+      update(() => ({ selectedCorners: unique, selectedCorner: unique.at(-1) ?? null }))
+    },
+
+    toggleCorner(index) {
+      update((s) => {
+        const selectedCorners = s.selectedCorners.includes(index)
+          ? s.selectedCorners.filter((i) => i !== index)
+          : [...s.selectedCorners, index].sort((a, b) => a - b)
+        return { selectedCorners, selectedCorner: selectedCorners.includes(index) ? index : (selectedCorners.at(-1) ?? null) }
+      })
+    },
+
+    setTool(tool) {
+      update(() => ({ tool }))
     },
 
     end() {
-      set({ session: null })
+      set({ session: null, shapeDialog: null })
     },
 
     beginSave() {
@@ -296,6 +347,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           redo: [],
           activeRing: 0,
           selectedCorner: null,
+          selectedCorners: [],
           approxAreaSquareMeters: totalArea(start),
           status: { kind: 'editing' },
           refusal: null,

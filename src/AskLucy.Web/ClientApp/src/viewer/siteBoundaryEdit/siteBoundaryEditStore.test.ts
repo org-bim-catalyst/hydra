@@ -136,6 +136,110 @@ describe('siteBoundaryEditStore', () => {
     })
   })
 
+  describe('whole-ring changes (delete several corners, round, curve, circle)', () => {
+    const shrunk = (): GeoPoint[] => [P(0, 0), P(100, 0), P(50, 100)]
+
+    it('swaps the ring in one undo step and updates the area', () => {
+      enter()
+      const before = session().rings[0]
+
+      store().applyChange({ op: 'replace', ring: 0, before, after: shrunk() })
+
+      expect(session().rings[0]).toEqual(shrunk())
+      expect(session().undo).toHaveLength(1)
+      expect(session().approxAreaSquareMeters).toBeCloseTo(5_000, -1)
+    })
+
+    it('undo puts every corner back, and redo re-applies the swap', () => {
+      enter()
+      const before = session().rings[0]
+      store().applyChange({ op: 'replace', ring: 0, before, after: shrunk() })
+
+      store().undo()
+      expect(session().rings[0]).toEqual(before)
+      expect(store().isDirty()).toBe(false)
+
+      store().redo()
+      expect(session().rings[0]).toEqual(shrunk())
+    })
+
+    it('never merges with a move, and clears a selection that no longer points at anything', () => {
+      enter()
+      store().selectCorners([1, 2])
+      store().applyChange({ op: 'move', ring: 0, index: 0, before: P(0, 0), after: P(-5, -5) })
+      store().applyChange({ op: 'replace', ring: 0, before: session().rings[0], after: shrunk() })
+
+      expect(session().undo).toHaveLength(2)
+      expect(session().selectedCorners).toEqual([])
+      expect(session().selectedCorner).toBeNull()
+    })
+
+    it('clears the selection again when the swap is undone', () => {
+      enter()
+      store().applyChange({ op: 'replace', ring: 0, before: session().rings[0], after: shrunk() })
+      store().selectCorners([0])
+
+      store().undo()
+
+      expect(session().selectedCorners).toEqual([])
+    })
+  })
+
+  describe('selecting corners', () => {
+    it('selectCorner selects exactly one', () => {
+      enter()
+      store().selectCorners([0, 1, 2])
+      store().selectCorner(3)
+      expect(session().selectedCorners).toEqual([3])
+      expect(session().selectedCorner).toBe(3)
+    })
+
+    it('selectCorner(null) clears the selection', () => {
+      enter()
+      store().selectCorners([1, 2])
+      store().selectCorner(null)
+      expect(session().selectedCorners).toEqual([])
+      expect(session().selectedCorner).toBeNull()
+    })
+
+    it('selectCorners replaces the selection, sorted and without duplicates, with the last as the main one', () => {
+      enter()
+      store().selectCorners([3, 1, 3, 2])
+      expect(session().selectedCorners).toEqual([1, 2, 3])
+      expect(session().selectedCorner).toBe(3)
+    })
+
+    it('toggleCorner adds and removes a corner', () => {
+      enter()
+      store().selectCorner(1)
+
+      store().toggleCorner(3)
+      expect(session().selectedCorners).toEqual([1, 3])
+      expect(session().selectedCorner).toBe(3)
+
+      store().toggleCorner(1)
+      expect(session().selectedCorners).toEqual([3])
+    })
+
+    it('changing the active ring clears the selection', () => {
+      enter([square(), [P(300, 0), P(320, 0), P(320, 20)]])
+      store().selectCorners([0, 1])
+      store().setActiveRing(1)
+      expect(session().selectedCorners).toEqual([])
+    })
+  })
+
+  describe('tools', () => {
+    it('starts on edit and can switch to select and back', () => {
+      enter()
+      expect(session().tool).toBe('edit')
+      store().setTool('select')
+      expect(session().tool).toBe('select')
+      store().setTool('edit')
+      expect(session().tool).toBe('edit')
+    })
+  })
+
   describe('the floating bar', () => {
     it('starts shown, can be dismissed and restored, and never affects the edit itself', () => {
       enter()

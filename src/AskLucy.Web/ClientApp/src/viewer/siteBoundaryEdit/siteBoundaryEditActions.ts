@@ -1,4 +1,4 @@
-import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
+import { useSiteBoundaryEditStore, type ShapeTool } from './siteBoundaryEditStore'
 
 /**
  * specs/079: what the outline menu, the toolbar and the keyboard can ask edit mode to do. The
@@ -14,7 +14,14 @@ export interface SiteBoundaryEditRuntime {
   undo(): void
   redo(): void
   addCorner(): void
+  /** Deletes the selected corner, or every selected corner at once. */
   deleteCorner(): void
+  /** Switches between moving corners (Google's handles) and drawing a box that selects them. */
+  toggleSelectTool(): void
+  /** Opens the dialog for a shape tool, unless the tool cannot act yet (no corner selected). */
+  openShapeDialog(tool: ShapeTool): void
+  /** Applies the shape tool with the number from its dialog. True on success; false with the reason shown. */
+  applyShape(tool: ShapeTool, value: number): boolean
   loadLatest(): Promise<void>
 }
 
@@ -50,5 +57,8 @@ export const siteBoundaryEditActions = {
   redo: () => call('redo'),
   addCorner: () => call('addCorner'),
   deleteCorner: () => call('deleteCorner'),
+  toggleSelectTool: () => call('toggleSelectTool'),
+  openShapeDialog: (tool: ShapeTool) => call('openShapeDialog', tool),
+  applyShape: (tool: ShapeTool, value: number) => call('applyShape', tool, value) ?? false,
   loadLatest: () => call('loadLatest'),
 }

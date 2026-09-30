@@ -147,6 +147,26 @@ export function validateChange(ring: readonly GeoPoint[], index: number): Refusa
   return null
 }
 
+/** Metres east/north of `reference` for each corner - the frame the shape tools work in. */
+export function toLocalMeters(ring: readonly GeoPoint[], reference: GeoPoint): { x: number; y: number }[] {
+  return project(ring, reference)
+}
+
+/** The inverse of {@link toLocalMeters}. */
+export function fromLocalMeters(points: readonly { x: number; y: number }[], reference: GeoPoint): GeoPoint[] {
+  const metersPerDegreeLongitude = METERS_PER_DEGREE_LATITUDE * Math.cos((reference.latitude * Math.PI) / 180)
+  return points.map((p) => ({
+    latitude: reference.latitude + p.y / METERS_PER_DEGREE_LATITUDE,
+    longitude: reference.longitude + p.x / metersPerDegreeLongitude,
+  }))
+}
+
+/** Whether the ring runs counter-clockwise (east/north frame), which decides which side of an edge is "outward". */
+export function isCounterClockwise(ring: readonly GeoPoint[]): boolean {
+  const open = openRing(ring)
+  return open.length >= 3 && signedArea(project(open, open[0])) > 0
+}
+
 /** A ring with more corners than this is simplified when editing starts: too many tiny handles to work with. */
 export const DENSE_RING_CORNERS = 120
 

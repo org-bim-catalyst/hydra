@@ -29,10 +29,10 @@ export interface EditableRing {
   setEditable(editable: boolean): void
   /** The ring became the one being edited (the user clicked it). */
   onSelect(listener: () => void): () => void
-  /** A plain click or tap on a corner handle (not a drag). */
-  onVertexClick(listener: (vertexIndex: number) => void): () => void
-  /** Marks one corner as the selected one, or clears the mark with null. */
-  setHighlight(index: number | null): void
+  /** A plain click or tap on a corner handle (not a drag). `additive` is true with Shift or Ctrl/Cmd held. */
+  onVertexClick(listener: (vertexIndex: number, additive: boolean) => void): () => void
+  /** Marks these corners as selected (an empty list clears the marks). */
+  setHighlights(indices: readonly number[]): void
   /** Right-click or long-press on a corner. `clientX`/`clientY` place a menu. */
   onVertexMenu(listener: (vertexIndex: number, clientX: number, clientY: number) => void): () => void
   remove(): void
@@ -58,6 +58,10 @@ export interface EditablePolygonController {
   setActiveRing(activeRing: number): void
   /** Adds a corner midway between corner `index` and the next one, and selects it. Returns false when refused. */
   insertCornerAfter(ring: number, index: number): boolean
+  /** Swaps a ring's corners for these ones after checking the result is a valid outline, as one undo step. Returns false when refused. */
+  replaceRing(ring: number, corners: readonly GeoPoint[]): boolean
+  /** Deletes several corners at once, as one undo step. Refused if fewer than 3 would remain or the outline would cross itself. */
+  deleteCorners(ring: number, indices: readonly number[]): boolean
   /** Deletes a corner after checking it (the menu, the Delete key). Returns false when refused. */
   deleteCorner(ring: number, index: number): boolean
   unmount(): void
@@ -159,9 +163,11 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         if (store().session?.activeRing !== ringIndex) store().setActiveRing(ringIndex)
       }),
 
-      entry.ring.onVertexClick((index) => {
-        if (store().session?.activeRing !== ringIndex) store().setActiveRing(ringIndex)
-        store().selectCorner(index)
+      entry.ring.onVertexClick((index, additive) => {
+        const changedRing = store().session?.activeRing !== ringIndex
+        if (changedRing) store().setActiveRing(ringIndex)
+        if (additive && !changedRing) store().toggleCorner(index)
+        else store().selectCorner(index)
       }),
 
       entry.ring.onVertexMenu((index, clientX, clientY) => {
@@ -184,20 +190,36 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     })
 
     unsubscribeStore = useSiteBoundaryEditStore.subscribe((state, previous) => {
-      if (state.session?.selectedCorner !== previous.session?.selectedCorner || state.session?.activeRing !== previous.session?.activeRing) {
+      if (
+        state.session?.selectedCorners.join(',') !== previous.session?.selectedCorners.join(',') ||
+        state.session?.activeRing !== previous.session?.activeRing
+      ) {
         syncHighlight()
       }
     })
     syncHighlight()
   }
 
-  /** Shows the store's selected corner on the active ring only; every other ring shows none. */
+  /** Shows the store's selected corners on the active ring only; every other ring shows none. */
   function syncHighlight() {
     const session = store().session
     mounted.forEach((entry, ringIndex) => {
-      const selected = session && session.activeRing === ringIndex ? session.selectedCorner : null
-      entry.ring.setHighlight(selected !== null && selected < entry.known.length ? selected : null)
+      const selected = session && session.activeRing === ringIndex ? session.selectedCorners : []
+      entry.ring.setHighlights(selected.filter((i) => i < entry.known.length))
     })
+  }
+
+  /** Rewrites a ring's path in place to `corners`, without reporting it as a user edit. */
+  function writePath(entry: Mounted, corners: readonly GeoPoint[]) {
+    withWriting(() => {
+      const { path } = entry.ring
+      while (path.getLength() > corners.length) path.removeAt(path.getLength() - 1)
+      corners.forEach((corner, i) => {
+        if (i < path.getLength()) path.setAt(i, corner)
+        else path.insertAt(i, corner)
+      })
+    })
+    entry.known = [...corners]
   }
 
   function clear() {
@@ -265,6 +287,34 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       store().applyChange({ op: 'insert', ring: ringIndex, index: index + 1, after: midpoint })
       store().selectCorner(index + 1)
       return true
+    },
+
+    replaceRing(ringIndex, corners) {
+      const entry = mounted[ringIndex]
+      if (!entry) return false
+
+      const next = openRing(corners)
+      const refusal = next.length < 3 ? { message: 'An outline needs at least 3 corners.' } : validateRing(next)
+      if (refusal) {
+        refuse(refusal.message)
+        return false
+      }
+
+      const before = [...entry.known]
+      writePath(entry, next)
+      store().applyChange({ op: 'replace', ring: ringIndex, before, after: next })
+      return true
+    },
+
+    deleteCorners(ringIndex, indices) {
+      const entry = mounted[ringIndex]
+      if (!entry) return false
+
+      const doomed = new Set(indices.filter((i) => i >= 0 && i < entry.known.length))
+      if (doomed.size === 0) return false
+      if (doomed.size === 1) return this.deleteCorner(ringIndex, [...doomed][0])
+
+      return this.replaceRing(ringIndex, entry.known.filter((_, i) => !doomed.has(i)))
     },
 
     deleteCorner(ringIndex, index) {
