@@ -31,6 +31,13 @@ Every `CircularAction` control that uses `ExpandableActionGroup` (i.e., all cont
 | `bottom-end` (bottom edge) | Up (vertical) |
 | Left edge (future) | Right (horizontal) |
 
+### Trigger Overlap and Pin (amendment, 2026-10-01)
+
+- The pill's trigger-side edge sits 10 px inside the trigger Fab's outer edge, so the rounded cap tucks under the Fab in every direction.
+- A `pill` ribbon shows a 24 px pin badge on its far tip, hanging 8 px outside it. While pinned, the ribbon ignores outside clicks and stays open when another control is expanded; the trigger or Escape unpins and closes it.
+- Pin colours: unpinned = surface background (`#fefefe` / `#11121c`), ribbon border, red pin (`red` / `#c34e4e`); pinned = colours swapped. Session-only state (`workspaceOverlayStore.pinnedControlIds`).
+- `card` shapes (Account menu) have no pin.
+
 ### Exceptions
 
 - The **Account menu** (`layout="list"`) is excluded — it retains its existing icon+label list layout and dropdown-down expansion. No changes required.
@@ -41,6 +48,8 @@ Every `CircularAction` control that uses `ExpandableActionGroup` (i.e., all cont
 - `src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx`
 - `src/AskLucy.Web/ClientApp/src/components/workspace-shell/WorkspaceOverlay.tsx`
 - `src/AskLucy.Web/ClientApp/src/components/workspace-shell/types.ts`
+- `src/AskLucy.Web/ClientApp/src/components/workspace-shell/FloatingPanel.tsx` (reads `selectIsControlExpanded`)
+- `src/AskLucy.Web/ClientApp/src/store/workspaceOverlayStore.ts`
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -79,3 +88,14 @@ The Account button (top-cluster, `layout="list"`) continues to work exactly as b
 **Acceptance Scenarios**:
 
 1. **Given** the Account button is clicked, **Then** the existing list-style panel appears below it, unchanged.
+
+### User Story 5 — Pin a ribbon open (Priority: P2)
+
+A user pins a ribbon so it stays open while they work with the map.
+
+**Acceptance Scenarios**:
+
+1. **Given** an open ribbon, **When** the user clicks its pin, **Then** the badge turns solid red and the ribbon stays open on outside clicks and when another control is expanded.
+2. **Given** a pinned ribbon, **When** the user presses Escape or clicks its trigger, **Then** it unpins and closes.
+3. **Given** a pinned ribbon, **When** the user clicks the pin again, **Then** it unpins and stays open as the normal (click-away) ribbon.
+4. **Given** the Account menu (card shape), **Then** no pin is rendered.

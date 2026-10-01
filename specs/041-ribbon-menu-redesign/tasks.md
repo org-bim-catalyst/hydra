@@ -103,6 +103,18 @@ This feature modifies three existing files. No project initialization, new depen
 
 ---
 
+## Phase 8: Trigger Overlap and Pin (2026-10-01)
+
+- [x] T020 [US1] `CircularAction.tsx`: tuck the pill's trigger-side edge 10 px under the Fab in all four directions (`TRIGGER_OVERLAP_PX`), reducing trigger-side padding by 10 px
+- [x] T021 [US5] `workspaceOverlayStore.ts`: add `pinnedControlIds`, `togglePin`, and `selectIsControlExpanded`; `toggle` on a pinned control unpins it; `collapse()` leaves pins alone
+- [x] T022 [US5] `CircularAction.tsx`: `pinned` / `onTogglePin` props, 24 px pin badge on the far tip (sibling of the clipped box), skip click-away while pinned; last in tab order
+- [x] T023 [US5] `WorkspaceOverlay.tsx` wires pin state; `FloatingPanel.tsx` reads `selectIsControlExpanded`
+- [x] T024 [US5] Tests: store pin semantics (4), `CircularAction` pin rendering / click-away / tab order (4)
+- [x] T025 Docs: `data-model.md` amendment, `spec.md` (US5), `docs/RIBBON_MENU.md`
+- [x] T026 Verified in production by the owner
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
