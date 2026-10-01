@@ -78,7 +78,7 @@ public sealed class ResetSiteBoundaryCapabilityTests
 
         result.Succeeded.Should().BeTrue(result.FailureReason);
         await _sender.Received(1).Send(
-            Arg.Is<ResetSiteBoundaryCommand>(c => c.ChatId == chat.Id && c.ExpectedRevision == revisionInForce.ToString()), Arg.Any<CancellationToken>());
+            Arg.Is<ResetSiteBoundaryCommand>(c => c!.ChatId == chat.Id && c.ExpectedRevision == revisionInForce.ToString()), Arg.Any<CancellationToken>());
         var root = result.Output!.RootElement;
         root.EnumerateObject().First().Name.Should().Be("note");
         root.GetProperty("resetFromHandEdit").GetBoolean().Should().BeTrue();
