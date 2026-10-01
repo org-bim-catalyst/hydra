@@ -108,6 +108,7 @@ export function VirtualizedMessageList({
                   voiceControlsProps.isSpeaking ||
                   (message.id === playingMessageId && !isManualReplay)
                 }
+                isBeingRead={Boolean(message.id) && message.id === playingMessageId}
                 onReplay={handleReplay}
                 onStopReplay={handleStopReplay}
                 isLiveOffer={Boolean(message.id) && message.id === liveOfferMessageId}

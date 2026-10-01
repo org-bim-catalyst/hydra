@@ -426,8 +426,23 @@ export function ConversationView({
   // auto-triggered (this effect, below) or user-initiated (`handleReplay`). The distinction
   // drives MessageBubble's replay control: an auto-spoken reply's own control stays
   // disabled+play (FR-021), never becoming an interactive stop the user never clicked.
-  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
-  const [isManualReplay, setIsManualReplay] = useState(false)
+  // The reply the user asked to hear again. Known the instant they click, so its Stop control
+  // appears at once instead of after the voice engine has produced its first audio.
+  const [manualReplayId, setManualReplayId] = useState<string | null>(null)
+  const isManualReplay = manualReplayId !== null
+  // The bubble being read aloud right now. An auto-spoken one is found from the text the voice
+  // output reports rather than remembered when the reply was queued: replies are voiced one
+  // after another, so the one being heard is not the one most recently queued. The newest match
+  // wins, since the reply being spoken is always the latest with that wording.
+  const playingMessageId = useMemo(() => {
+    if (manualReplayId !== null) return manualReplayId
+    const spoken = tts.speakingText ?? null
+    if (spoken === null) return null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant' && messages[i].content === spoken) return messages[i].id ?? null
+    }
+    return null
+  }, [manualReplayId, messages, tts.speakingText])
 
   /**
    * Assistant messages already spoken this turn, so each is voiced exactly once.
@@ -492,8 +507,7 @@ export function ConversationView({
           .catch((err: unknown) => console.error('Voice output: the offer cue was not spoken.', err))
       }
 
-      setPlayingMessageId(reply.id ?? null)
-      setIsManualReplay(false) // F1 — auto-spoken; this reply's own control stays disabled+play
+      setManualReplayId(null) // F1 — auto-spoken; this reply's own control stays disabled+play
       // FR-016: the toggle needs to indicate new activity when the panel is collapsed.
       // specs/026-floating-chat-assistant: `expanded` (a prop, defaulting to `true`) is now
       // this component's single source of truth for "is the panel open," replacing the
@@ -507,14 +521,12 @@ export function ConversationView({
   const handleReplay = (message: ChatMessage) => {
     if (tts.isSpeaking) tts.stop() // defensive: buttons are disabled while speaking, but stop any TTS that leaked through
     tts.speak(message.content, language)
-    setPlayingMessageId(message.id ?? null)
-    setIsManualReplay(true) // F1 — this click is what earns the interactive Stop control
+    setManualReplayId(message.id ?? null) // F1 — this click is what earns the interactive Stop control
   }
 
   const handleStopReplay = () => {
     tts.stop()
-    setPlayingMessageId(null)
-    setIsManualReplay(false)
+    setManualReplayId(null)
   }
 
   // Clears playback-target state whenever playback ends — natural completion, an explicit
@@ -526,8 +538,7 @@ export function ConversationView({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!tts.isSpeaking) {
-      setPlayingMessageId(null)
-      setIsManualReplay(false)
+      setManualReplayId(null)
     }
   }, [tts.isSpeaking])
   /* eslint-enable react-hooks/set-state-in-effect */

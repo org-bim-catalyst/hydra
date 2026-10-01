@@ -63,6 +63,24 @@ describe('MessageBubble', () => {
 // replay/stop control in the reply's lower-right corner. showStopIcon/isReplayDisabled are
 // always supplied by the caller (ChatPage.tsx) in real usage; these tests exercise the
 // component's own rendering/click-dispatch logic in isolation.
+describe('MessageBubble — being read aloud', () => {
+  const reading = (el: HTMLElement) => el.closest('[data-reading="true"]')
+
+  it('outlines the bubble only while it is the one being read', () => {
+    const message = { role: 'assistant' as const, content: 'The boundary is highlighted.' }
+    const { rerender } = render(<MessageBubble message={message} isBeingRead />)
+    expect(reading(screen.getByText(message.content))).not.toBeNull()
+
+    rerender(<MessageBubble message={message} isBeingRead={false} />)
+    expect(reading(screen.getByText(message.content))).toBeNull()
+  })
+
+  it('is not outlined by default', () => {
+    render(<MessageBubble message={{ role: 'assistant', content: 'Hello' }} />)
+    expect(reading(screen.getByText('Hello'))).toBeNull()
+  })
+})
+
 describe('MessageBubble — replay control (US5, FR-020–FR-025)', () => {
   it('renders no replay control on a user message, even with replay props supplied', () => {
     render(

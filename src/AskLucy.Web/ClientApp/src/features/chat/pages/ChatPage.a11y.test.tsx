@@ -29,6 +29,7 @@ const mockTts: ReturnType<typeof useVoiceOutput> = {
   speak: async () => {},
   stop: () => {},
   isSpeaking: false,
+  speakingText: null,
   getIntensity: () => 0,
   getFrequencyBands: () => ({ low: 0, mid: 0, high: 0 }),
   error: null,

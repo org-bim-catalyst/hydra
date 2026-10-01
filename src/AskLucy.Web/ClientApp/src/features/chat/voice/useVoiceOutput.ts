@@ -23,6 +23,10 @@ export function useVoiceOutput() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isMuted, setIsMutedState] = useState(false)
+  // The text being heard right now — set when its audio actually starts, cleared when it ends —
+  // so the chat can highlight the bubble Lucy is reading. Text, not a message id: ids change
+  // while a turn streams (the first message is re-keyed when its server id arrives).
+  const [speakingText, setSpeakingText] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   // Replies are voiced one at a time. ChatPage speaks each reply the moment it completes, and a
   // turn can complete several within a few seconds, so without a queue the second started over
@@ -55,6 +59,7 @@ export function useVoiceOutput() {
       await probeRecoveryIfDegraded(language)
       if (!isCurrent()) return
       if (useVoiceProviderStatus.getState().provider === 'fallback') {
+        setSpeakingText(text)
         await fallback.speak(text, language)
         return
       }
@@ -68,6 +73,7 @@ export function useVoiceOutput() {
         for await (const event of synthesizeSpeech(text, language, controller.signal)) {
           switch (event.type) {
             case 'audio-chunk':
+              if (!sawAudio && isCurrent()) setSpeakingText(text)
               sawAudio = true
               analyzer.playAudioChunk(event.audio)
               break
@@ -109,6 +115,7 @@ export function useVoiceOutput() {
         await analyzer.waitForPlaybackToEnd()
       } else if (useVoiceProviderStatus.getState().provider === 'fallback') {
         // Nothing played and we just failed over — the reply still deserves to be heard.
+        if (isCurrent()) setSpeakingText(text)
         await fallback.speak(text, language)
       }
     },
@@ -134,6 +141,7 @@ export function useVoiceOutput() {
           if (!isCurrent()) return
           pendingRef.current -= 1
           setIsSpeaking(pendingRef.current > 0)
+          setSpeakingText(null)
         })
       // The caller owns this promise's rejection; the queue itself must keep moving regardless.
       queueRef.current = run.then(
@@ -153,6 +161,7 @@ export function useVoiceOutput() {
     abortControllerRef.current = null
     analyzer.reset()
     setIsSpeaking(false)
+    setSpeakingText(null)
     fallback.stop()
   }, [analyzer, fallback])
 
@@ -179,6 +188,7 @@ export function useVoiceOutput() {
     speak,
     stop,
     isSpeaking: combinedIsSpeaking,
+    speakingText,
     getIntensity: provider === 'fallback' ? fallback.getIntensity : analyzer.getReactiveIntensity,
     getFrequencyBands:
       provider === 'fallback' ? fallback.getFrequencyBands : analyzer.getFrequencyBands,

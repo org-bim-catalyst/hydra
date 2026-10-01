@@ -6,7 +6,7 @@ import {
   RiRefreshLine,
   RiStopFill,
 } from '@remixicon/react'
-import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Tooltip, Typography, alpha } from '@mui/material'
 import 'katex/dist/katex.min.css'
 import { useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -37,6 +37,7 @@ export function MessageBubble({
   chatId,
   showStopIcon,
   isReplayDisabled,
+  isBeingRead,
   onReplay,
   onStopReplay,
   isLiveOffer,
@@ -54,6 +55,10 @@ export function MessageBubble({
    * tests that only care about message content. */
   showStopIcon?: boolean
   isReplayDisabled?: boolean
+  /** True while Lucy is reading THIS message aloud: the bubble is outlined for exactly as long as
+   * its audio plays, so a listener can tell which of several replies they are hearing. Visual
+   * only — the replay control's own state already carries it for assistive technology. */
+  isBeingRead?: boolean
   onReplay?: (message: ChatMessage) => void
   onStopReplay?: () => void
   /**
@@ -149,6 +154,7 @@ export function MessageBubble({
       <Box sx={{ display: 'flex', flexDirection: 'column', maxWidth: carriesOffer ? '100%' : '75%', width: carriesOffer ? '100%' : 'auto' }}>
         <Paper
           elevation={isUser ? 0 : 1}
+          data-reading={isBeingRead ? 'true' : undefined}
           sx={{
             px: 2.25,
             py: 1.25,
@@ -160,7 +166,11 @@ export function MessageBubble({
             bgcolor: isUser ? 'primary.main' : 'background.paper',
             color: isUser ? 'primary.contrastText' : 'text.primary',
             border: isUser ? 'none' : '1px solid',
-            borderColor: 'divider',
+            borderColor: isBeingRead ? 'primary.main' : 'divider',
+            boxShadow: isBeingRead
+              ? (theme) => `0 0 0 3px ${alpha(theme.palette.primary.main, 0.28)}`
+              : undefined,
+            transition: 'border-color 160ms ease, box-shadow 160ms ease',
             '& p:first-of-type': { mt: 0 },
             '& p:last-of-type': { mb: 0 },
             '& img': { maxWidth: '100%', borderRadius: `${radius.sm}px` },

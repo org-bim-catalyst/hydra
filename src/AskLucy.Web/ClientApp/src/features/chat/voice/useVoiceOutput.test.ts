@@ -216,4 +216,44 @@ describe('useVoiceOutput speech queue', () => {
     await act(async () => finishUtterance[0]())
     await waitFor(() => expect(fallbackStub.speak).toHaveBeenCalledTimes(2))
   })
+
+  // The chat outlines the bubble being read: the text is reported while its audio plays and
+  // withdrawn the moment it ends, then handed to the next reply in the queue.
+  it('reports the text being heard, then the next one, then nothing', async () => {
+    synthesizeSpeechMock.mockImplementation(() => completedStream())
+    const { result } = renderHook(() => useVoiceOutput())
+
+    let first!: Promise<void>
+    let second!: Promise<void>
+    await act(async () => {
+      first = result.current.speak('First reply.', 'en')
+      second = result.current.speak('Second reply.', 'en')
+    })
+    await waitFor(() => expect(result.current.speakingText).toBe('First reply.'))
+
+    await act(async () => {
+      endPlayback[0]()
+      await first
+    })
+    await waitFor(() => expect(result.current.speakingText).toBe('Second reply.'))
+
+    await act(async () => {
+      endPlayback[1]()
+      await second
+    })
+    expect(result.current.speakingText).toBeNull()
+  })
+
+  it('clears the text being heard when stopped', async () => {
+    synthesizeSpeechMock.mockImplementation(() => completedStream())
+    const { result } = renderHook(() => useVoiceOutput())
+
+    await act(async () => {
+      void result.current.speak('First reply.', 'en')
+    })
+    await waitFor(() => expect(result.current.speakingText).toBe('First reply.'))
+
+    act(() => result.current.stop())
+    expect(result.current.speakingText).toBeNull()
+  })
 })
