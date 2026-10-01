@@ -45,7 +45,7 @@ The **Account menu** is excluded from this redesign and retains its current list
 ## Trigger Overlap and Pin (amendment, 2026-10-01)
 
 - **Overlap:** the ribbon's rounded end tucks 10 px under the trigger button (the pill's trigger-side edge sits 10 px inside the button's outer edge) in every direction.
-- **Pin:** a 24 px badge hangs 8 px off the ribbon's far tip (the end away from the trigger). Clicking it keeps the ribbon open: outside clicks and expanding another control no longer collapse it. Clicking the trigger itself, or pressing Escape, unpins and closes it.
+- **Pin:** a 24 px badge hangs 8 px off the ribbon's far tip (the end away from the trigger). Clicking it keeps the ribbon open: outside clicks and expanding another control no longer collapse it. Escape is ignored while pinned; clicking the trigger itself unpins and closes it. The pin slides in and out with the ribbon (it rides the reveal from the trigger end to the far tip).
   - Unpinned: flat badge, surface background (`#fefefe` light / `#11121c` dark), ribbon border, red pin (`red` light / `#c34e4e` dark) tilted 45°.
   - Pinned: colours swapped, upright filled pin.
   - Pins are session-only. The Account menu (card shape) has no pin.

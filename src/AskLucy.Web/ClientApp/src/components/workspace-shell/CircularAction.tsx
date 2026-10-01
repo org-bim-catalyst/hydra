@@ -126,14 +126,20 @@ export function CircularAction({
                                   `inset(0 0 100% 0 round ${clipR}px)`  // 'down'
   const expandedClipPath = `inset(0 0 0 0% round ${clipR}px)`
 
-  // A red badge straddling the ribbon's far tip, deliberately unlike the grey option buttons.
-  // It is a SIBLING of the clipped content box, not a child: the box's clip-path would cut off
-  // the half that hangs outside the pill. It reveals and hides with the same timing instead.
+  // A badge straddling the ribbon's far tip. It is a SIBLING of the clipped content box, not a
+  // child: the box's clip-path would cut off the half that hangs outside the pill. So it rides the
+  // reveal itself — collapsed, it sits at the trigger end (under the Fab); expanded, at the far
+  // tip — animating the same edge offset over the same 220 ms curve as the clip-path.
+  // Collapsed: the pin's inner edge sits on the trigger-side end of the ribbon (`100%`, pulled back
+  // by its own size via a percentage translate — no calc(), which jsdom cannot parse).
+  const o = expanded
   const pinTipSx =
-    expandDirection === 'left'  ? { left: `-${PIN_OVERHANG_PX}px`,   top: '50%', transform: 'translateY(-50%)' } :
-    expandDirection === 'right' ? { right: `-${PIN_OVERHANG_PX}px`,  top: '50%', transform: 'translateY(-50%)' } :
-    expandDirection === 'up'    ? { top: `-${PIN_OVERHANG_PX}px`,    left: '50%', transform: 'translateX(-50%)' } :
-                                  { bottom: `-${PIN_OVERHANG_PX}px`, left: '50%', transform: 'translateX(-50%)' }
+    expandDirection === 'left'  ? { left: o ? `-${PIN_OVERHANG_PX}px` : '100%',   top: '50%', transform: `translate(${o ? '0' : '-100%'}, -50%)` } :
+    expandDirection === 'right' ? { right: o ? `-${PIN_OVERHANG_PX}px` : '100%',  top: '50%', transform: `translate(${o ? '0' : '100%'}, -50%)` } :
+    expandDirection === 'up'    ? { top: o ? `-${PIN_OVERHANG_PX}px` : '100%',    left: '50%', transform: `translate(-50%, ${o ? '0' : '-100%'})` } :
+                                  { bottom: o ? `-${PIN_OVERHANG_PX}px` : '100%', left: '50%', transform: `translate(-50%, ${o ? '0' : '100%'})` }
+  const pinEdgeProp =
+    expandDirection === 'left' ? 'left' : expandDirection === 'right' ? 'right' : expandDirection === 'up' ? 'top' : 'bottom'
   const pinButton = showPin && (
     <IconButton
       onClick={onTogglePin}
@@ -152,11 +158,10 @@ export function CircularAction({
         color: (t) => pinned ? pinSurface(t) : pinRed(t),
         bgcolor: (t) => pinned ? pinRed(t) : pinSurface(t),
         border: (t) => `1px solid ${t.palette.mode === 'dark' ? 'oklch(0.34 0.02 280 / 0.6)' : 'rgba(0,0,0,0.12)'}`,
-        opacity: expanded ? 1 : 0,
         visibility: expanded ? 'visible' : 'hidden',
         transition: expanded
-          ? 'opacity 220ms, background-color 120ms, visibility 0s 0ms'
-          : 'opacity 220ms, background-color 120ms, visibility 0s 220ms',
+          ? `${pinEdgeProp} 220ms cubic-bezier(0.4, 0, 0.2, 1), transform 220ms cubic-bezier(0.4, 0, 0.2, 1), background-color 120ms, visibility 0s 0ms`
+          : `${pinEdgeProp} 220ms cubic-bezier(0.4, 0, 0.2, 1), transform 220ms cubic-bezier(0.4, 0, 0.2, 1), background-color 120ms, visibility 0s 220ms`,
         '&:hover': { bgcolor: pinRed, color: pinSurface },
         // Unpinned the pin leans like a pin lying on its side; pinned it is driven in upright.
         '& svg': { transform: pinned ? 'none' : 'rotate(45deg)', transition: 'transform 120ms' },
@@ -167,7 +172,8 @@ export function CircularAction({
   )
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape' && expanded) {
+    // A pinned ribbon ignores Escape too — only its trigger or its pin close it.
+    if (event.key === 'Escape' && expanded && !pinned) {
       event.stopPropagation()
       onToggle()
       triggerRef.current?.focus()

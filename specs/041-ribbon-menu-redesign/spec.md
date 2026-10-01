@@ -34,7 +34,7 @@ Every `CircularAction` control that uses `ExpandableActionGroup` (i.e., all cont
 ### Trigger Overlap and Pin (amendment, 2026-10-01)
 
 - The pill's trigger-side edge sits 10 px inside the trigger Fab's outer edge, so the rounded cap tucks under the Fab in every direction.
-- A `pill` ribbon shows a 24 px pin badge on its far tip, hanging 8 px outside it. While pinned, the ribbon ignores outside clicks and stays open when another control is expanded; the trigger or Escape unpins and closes it.
+- A `pill` ribbon shows a 24 px pin badge on its far tip, hanging 8 px outside it. While pinned, the ribbon ignores outside clicks and stays open when another control is expanded; Escape is ignored while pinned; the trigger unpins and closes it. The pin slides with the ribbon's reveal.
 - Pin colours: unpinned = surface background (`#fefefe` / `#11121c`), ribbon border, red pin (`red` / `#c34e4e`); pinned = colours swapped. Session-only state (`workspaceOverlayStore.pinnedControlIds`).
 - `card` shapes (Account menu) have no pin.
 
@@ -96,6 +96,6 @@ A user pins a ribbon so it stays open while they work with the map.
 **Acceptance Scenarios**:
 
 1. **Given** an open ribbon, **When** the user clicks its pin, **Then** the badge turns solid red and the ribbon stays open on outside clicks and when another control is expanded.
-2. **Given** a pinned ribbon, **When** the user presses Escape or clicks its trigger, **Then** it unpins and closes.
+2. **Given** a pinned ribbon, **When** the user clicks its trigger, **Then** it unpins and closes; **When** the user presses Escape, **Then** nothing happens.
 3. **Given** a pinned ribbon, **When** the user clicks the pin again, **Then** it unpins and stays open as the normal (click-away) ribbon.
 4. **Given** the Account menu (card shape), **Then** no pin is rendered.

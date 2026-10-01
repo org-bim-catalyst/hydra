@@ -147,4 +147,17 @@ describe('CircularAction', () => {
     const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)
     expect(names).toEqual(['A', 'Option', 'Pin A'])
   })
+
+  it('Escape does not close a pinned ribbon', async () => {
+    const onToggle = vi.fn()
+    render(
+      <CircularAction id="layers" label="Layers" icon={<span>icon</span>} expanded pinned onToggle={onToggle} onTogglePin={() => {}}>
+        <button type="button">First action</button>
+      </CircularAction>,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'First action' }))
+    await user.keyboard('{Escape}')
+    expect(onToggle).not.toHaveBeenCalled()
+  })
 })
