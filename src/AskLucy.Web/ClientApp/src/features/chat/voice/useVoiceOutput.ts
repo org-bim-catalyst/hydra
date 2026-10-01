@@ -34,6 +34,9 @@ export function useVoiceOutput() {
   const queueRef = useRef<Promise<void>>(Promise.resolve())
   const generationRef = useRef(0)
   const pendingRef = useRef(0)
+  // Every queued reply's `onAudible`, so stop() can release the ones still waiting without
+  // depending on the reply in front of them winding down first.
+  const announcersRef = useRef(new Set<() => void>())
 
   // Surfaces failures from the ElevenLabs audio element itself (blocked autoplay, a
   // mid-stream decode error) — constitution §2.VIII: these must reach the user the same
@@ -55,11 +58,12 @@ export function useVoiceOutput() {
   }, [fallback])
 
   const speakNow = useCallback(
-    async (text: string, language: string, isCurrent: () => boolean) => {
+    async (text: string, language: string, isCurrent: () => boolean, announce: () => void) => {
       await probeRecoveryIfDegraded(language)
       if (!isCurrent()) return
       if (useVoiceProviderStatus.getState().provider === 'fallback') {
         setSpeakingText(text)
+        announce()
         await fallback.speak(text, language)
         return
       }
@@ -73,7 +77,10 @@ export function useVoiceOutput() {
         for await (const event of synthesizeSpeech(text, language, controller.signal)) {
           switch (event.type) {
             case 'audio-chunk':
-              if (!sawAudio && isCurrent()) setSpeakingText(text)
+              if (!sawAudio && isCurrent()) {
+                setSpeakingText(text)
+                announce()
+              }
               sawAudio = true
               analyzer.playAudioChunk(event.audio)
               break
@@ -116,27 +123,52 @@ export function useVoiceOutput() {
       } else if (useVoiceProviderStatus.getState().provider === 'fallback') {
         // Nothing played and we just failed over — the reply still deserves to be heard.
         if (isCurrent()) setSpeakingText(text)
+        announce()
         await fallback.speak(text, language)
       }
     },
     [fallback, analyzer, failOver],
   )
 
+  /**
+   * Queues `text` to be spoken after whatever is already being said.
+   *
+   * `onAudible` is how a caller that is holding something back until it can be heard (the chat
+   * keeps a reply hidden behind a thinking indicator while its voice is made) learns it can let
+   * go. It runs exactly once: when the audio starts, or - on every path where it never will, a
+   * muted or empty request, an engine that failed with nothing to fall back on, a stop - as soon
+   * as that is known. Never leaving it uncalled is what keeps a failed voice from hiding text.
+   */
   const speak = useCallback(
-    (text: string, language: string): Promise<void> => {
-      if (!text.trim()) return Promise.resolve()
+    (text: string, language: string, onAudible?: () => void): Promise<void> => {
+      let announced = false
+      const announce = () => {
+        if (announced) return
+        announced = true
+        onAudible?.()
+      }
+      if (!text.trim()) {
+        announce()
+        return Promise.resolve()
+      }
       // FR-003/Clarification Q2: a reply is never queued or started while muted, so there is
       // nothing left to become audible later — unmuting only affects the *next* speak() call.
-      if (isMuted) return Promise.resolve()
+      if (isMuted) {
+        announce()
+        return Promise.resolve()
+      }
 
       const generation = generationRef.current
       const isCurrent = () => generation === generationRef.current
       pendingRef.current += 1
+      announcersRef.current.add(announce)
       setIsSpeaking(true)
 
       const run = queueRef.current
-        .then(() => (isCurrent() ? speakNow(text, language, isCurrent) : undefined))
+        .then(() => (isCurrent() ? speakNow(text, language, isCurrent, announce) : undefined))
         .finally(() => {
+          announce()
+          announcersRef.current.delete(announce)
           // A stop() since this was queued already reset the count and the speaking state.
           if (!isCurrent()) return
           pendingRef.current -= 1
@@ -156,6 +188,8 @@ export function useVoiceOutput() {
   const stop = useCallback(() => {
     generationRef.current += 1
     pendingRef.current = 0
+    for (const announce of announcersRef.current) announce()
+    announcersRef.current.clear()
     queueRef.current = Promise.resolve()
     abortControllerRef.current?.abort()
     abortControllerRef.current = null

@@ -11,6 +11,10 @@ interface VirtualizedMessageListProps {
   messages: ChatMessage[]
   chatId: string | null
   isStreaming: boolean
+  /** Replies exist that are being kept back until their voice is ready (see ChatPage). The list
+   * shows the same thinking indicator it shows while a reply streams, so the wait looks like
+   * Lucy still working rather than a gap. */
+  isHolding?: boolean
   pendingLabel: string | null
   playingMessageId: string | null
   isManualReplay: boolean
@@ -47,6 +51,7 @@ export function VirtualizedMessageList({
   messages,
   chatId,
   isStreaming,
+  isHolding = false,
   pendingLabel,
   playingMessageId,
   isManualReplay,
@@ -62,9 +67,12 @@ export function VirtualizedMessageList({
   // TanStack Virtual's useVirtualizer() returns functions React Compiler cannot memoize
   // safely; isolating it to this leaf (rather than suppressing globally) is the point of
   // this extraction, so the notice here is expected and permanently accepted.
+  // One trailing indicator stands in for every held reply. Not shown when a streaming
+  // placeholder already is, so the two never stack.
+  const showHoldingRow = isHolding && !(isStreaming && messages.some((m) => m.role === 'assistant' && m.content === ''))
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
-    count: messages.length,
+    count: messages.length + (showHoldingRow ? 1 : 0),
     getScrollElement: () => scrollElement,
     estimateSize: () => 96,
     overscan: 8,
@@ -74,9 +82,10 @@ export function VirtualizedMessageList({
     <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
       {virtualizer.getVirtualItems().map((virtualItem) => {
         const message = messages[virtualItem.index]
+        const isHoldingRow = message === undefined
         // FR-006/FR-007: the in-flight assistant placeholder (empty content while
         // streaming) renders as the thinking indicator instead of an empty bubble.
-        const isThinking = isStreaming && message.role === 'assistant' && message.content === ''
+        const isThinking = isHoldingRow || (isStreaming && message.role === 'assistant' && message.content === '')
         return (
           <Box
             key={virtualItem.key}

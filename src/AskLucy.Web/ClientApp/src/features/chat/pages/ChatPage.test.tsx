@@ -81,7 +81,8 @@ const CHAT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
 const mockTts: ReturnType<typeof useVoiceOutput> = {
   isSupported: true,
-  speak: async () => {},
+  // Like the real hook, always tells the caller it may stop holding the reply back.
+  speak: async (_text, _language, onAudible) => onAudible?.(),
   stop: () => {},
   isSpeaking: false,
   speakingText: null,
@@ -93,6 +94,10 @@ const mockTts: ReturnType<typeof useVoiceOutput> = {
   setMuted: () => {},
   toggleMute: () => {},
 }
+
+/** A voice that is ready at once: tells the caller it may stop holding the reply back, as the real
+ * hook does the moment audio starts (or can never start). */
+const speakAndRelease: typeof mockTts.speak = async (_text, _language, onAudible) => onAudible?.()
 
 function makeMessage(overrides: Partial<PersistedMessage>): PersistedMessage {
   return {
@@ -1141,7 +1146,7 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
         HttpResponse.json({ title: 'Transcription failed' }, { status: 500 }),
       ),
     )
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
     renderConversation(CHAT_A)
     const micButton = await findMicButton()
 
@@ -1271,7 +1276,7 @@ describe('ConversationView — Push-to-Talk recording review (specs/026-floating
       ),
     )
     const stop = vi.spyOn(mockTts, 'stop')
-    vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
 
     renderConversation(CHAT_A)
     const reply = (await screen.findByText('A reply')).closest('.MuiPaper-root')
@@ -1643,7 +1648,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
   it('shows what it is waiting for while the boundary resolves, and speaks the reply without waiting', async () => {
     // Cleared because `mockTts` is shared across this file and vi.spyOn on an already-spied
     // property hands back the same accumulating mock, so counts leak between tests.
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
     speak.mockClear()
     let releaseBoundary: () => void = () => {}
     const boundaryDone = new Promise<void>((resolve) => {
@@ -1693,6 +1698,63 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
   })
 
   /**
+   * Voice-first replies: with Lucy's voice on, a reply is not shown the moment its text arrives.
+   * The thinking indicator stays up while the audio is made and the reply appears as it starts
+   * being read. A voice that cannot be made, or one that is muted, shows the text at once.
+   */
+  describe('voice-first replies', () => {
+    function replyStream() {
+      server.use(
+        http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+        http.post('*/api/v1/ai/chat', () => {
+          const stream = sseStream(['The boundary is outlined.'])
+          return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+        }),
+      )
+    }
+    async function send() {
+      const user = userEvent.setup()
+      renderConversation(CHAT_A)
+      await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+      await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
+      await user.click(screen.getByRole('button', { name: 'Send message' }))
+    }
+
+    it('keeps the reply behind the thinking indicator until its voice is ready, then shows it', async () => {
+      let ready: () => void = () => {}
+      const speak = vi
+        .spyOn(mockTts, 'speak')
+        .mockImplementation(async (_text, _language, onAudible) => {
+          ready = () => onAudible?.()
+        })
+      speak.mockClear()
+      replyStream()
+
+      await send()
+
+      await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
+      expect(screen.queryByText('The boundary is outlined.')).not.toBeInTheDocument()
+      expect(screen.getByRole('status')).toBeInTheDocument()
+
+      act(() => ready())
+
+      expect(await screen.findByText('The boundary is outlined.')).toBeInTheDocument()
+    })
+
+    it('shows the text at once when the voice is muted', async () => {
+      const speak = vi.spyOn(mockTts, 'speak').mockImplementation(async () => {})
+      speak.mockClear()
+      const muted = vi.spyOn(mockTts, 'isMuted', 'get').mockReturnValue(true)
+      replyStream()
+
+      await send()
+
+      expect(await screen.findByText('The boundary is outlined.')).toBeInTheDocument()
+      muted.mockRestore()
+    })
+  })
+
+  /**
    * Auto-speak used to read `messages[length - 1]` and require an `id` on it. Splitting the
    * boundary confirmation into its own bubble broke both halves at once: the last message became
    * the confirmation, so the reply went unspoken, and the confirmation carries no server id — only
@@ -1700,7 +1762,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
    * stopped talking on every "show me" query.
    */
   it('speaks every message of a split turn, including the one with no server id', async () => {
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
     speak.mockClear() // shared mockTts — see the note above
 
     server.use(
@@ -1744,7 +1806,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
    * control rather than at Lucy's pace.
    */
   it('speaks the reply and a cue, never the offer question, labels, descriptions or arguments', async () => {
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
     speak.mockClear()
 
     const actionsPayload = {
@@ -1820,7 +1882,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
    * reply-only case is already covered above under the default "en" render.
    */
   it('speaks the offer with the same language as the reply, regardless of which language is active', async () => {
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
     speak.mockClear()
 
     const actionsPayload = {
@@ -2521,7 +2583,7 @@ describe('ConversationView — reply replay coordination (US5, analysis remediat
         HttpResponse.json(messagesPage([makeMessage({ id: 'a1', content: 'A reply' })])),
       ),
     )
-    const speak = vi.spyOn(mockTts, 'speak').mockResolvedValue(undefined)
+    const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
     // stop spy also clears isSpeaking — mirrors real TTS behaviour where stop() ends playback
     // synchronously, so the re-render triggered by setPlayingMessageId(null) inside
     // handleStopReplay reads isSpeaking=false and re-enables the Replay button.

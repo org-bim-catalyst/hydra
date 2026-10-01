@@ -26,7 +26,8 @@ const CHAT_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
 
 const mockTts: ReturnType<typeof useVoiceOutput> = {
   isSupported: true,
-  speak: async () => {},
+  // Like the real hook, always tells the caller it may stop holding the reply back.
+  speak: async (_text, _language, onAudible) => onAudible?.(),
   stop: () => {},
   isSpeaking: false,
   speakingText: null,

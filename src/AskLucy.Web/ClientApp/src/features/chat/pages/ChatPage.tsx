@@ -1,7 +1,7 @@
 import { RiChat3Line } from '@remixicon/react'
 import { Alert, Box, Button, CircularProgress, Grow, Snackbar, Toolbar } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useActiveConversationStore } from '../activeConversationStore'
 import { useChatPanelSizeStore } from '../chatPanelSizeStore'
 import { offerVoiceCue } from '../languageOptions'
@@ -403,9 +403,36 @@ export function ConversationView({
   // State, not a ref — VirtualizedMessageList needs a re-render once the container attaches.
   const [messageListElement, setMessageListElement] = useState<HTMLDivElement | null>(null)
 
+  // Voice-first replies. While Lucy's voice is on, a reply of the live turn is not shown the
+  // moment its text arrives: the thinking indicator stays up while the audio is made, and the
+  // reply appears as it starts being read, outlined, with the next one waiting its turn behind
+  // the same indicator. Muted, or a voice that cannot be made, shows the text at once - the
+  // voice output reports that through `speak`'s onAudible, so a failed voice can never keep a
+  // reply hidden. A reply is released by its text, since its id changes while the turn streams.
+  const [liveTurnSeen, setLiveTurnSeen] = useState(false)
+  // Adjusted during render, not in an effect: the flag must already be true on the render that
+  // first shows a streaming reply, or that reply would flash on screen before being held.
+  if (isStreaming && !liveTurnSeen) setLiveTurnSeen(true)
+  const [releasedReplies, setReleasedReplies] = useState<ReadonlySet<string>>(() => new Set())
+  const releaseReply = useCallback((content: string) => {
+    setReleasedReplies((current) => (current.has(content) ? current : new Set(current).add(content)))
+  }, [])
+  const { visibleMessages, isHolding } = useMemo(() => {
+    // Never on a conversation restored from history: only a turn streamed live in this mount.
+    if (!liveTurnSeen || tts.isMuted) return { visibleMessages: messages, isHolding: false }
+    let turnStart = messages.length - 1
+    while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
+    if (turnStart < 0) return { visibleMessages: messages, isHolding: false }
+    const visible = messages.filter(
+      (m, index) =>
+        !(index > turnStart && m.role === 'assistant' && m.content !== '' && !releasedReplies.has(m.content)),
+    )
+    return { visibleMessages: visible, isHolding: visible.length < messages.length }
+  }, [messages, liveTurnSeen, tts.isMuted, releasedReplies])
+
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [visibleMessages, isHolding])
 
   // Restores the legacy app's behavior of speaking every AI reply aloud as soon as it
   // finishes streaming (FR-006) — the React migration had only kept the Translate button's
@@ -496,7 +523,8 @@ export function ConversationView({
       // on by ear. The cue says an offer is waiting; the card itself stays on screen, and in
       // the accessibility tree, for whoever needs its contents (FR-025).
       const isLastReply = index === replies.length - 1
-      const speech = tts.speak(reply.content, language)
+      const replyText = reply.content
+      const speech = tts.speak(replyText, language, () => releaseReply(replyText))
       if (isLastReply && reply.question && reply.suggestedActions) {
         const cue = offerVoiceCue(language)
         speech
@@ -514,7 +542,7 @@ export function ConversationView({
       // separate `isPanelOpen` store read this effect used to compute independently.
       if (!expanded) markUnread('chat')
     })
-  }, [isStreaming, messages, language, tts, expanded, markUnread])
+  }, [isStreaming, messages, language, tts, expanded, markUnread, releaseReply])
 
   // T030 (analysis remediation F1) — a user-initiated replay of a specific reply. Always
   // restarts from the beginning (FR-025) since useVoiceOutput has no resume/seek capability.
@@ -957,9 +985,10 @@ export function ConversationView({
               ) : (
                 <VirtualizedMessageList
                   scrollElement={messageListElement}
-                  messages={messages}
+                  messages={visibleMessages}
                   chatId={chatId}
                   isStreaming={isStreaming}
+                  isHolding={isHolding}
                   pendingLabel={pendingLabel}
                   playingMessageId={playingMessageId}
                   isManualReplay={isManualReplay}

@@ -257,3 +257,86 @@ describe('useVoiceOutput speech queue', () => {
     expect(result.current.speakingText).toBeNull()
   })
 })
+
+// The chat keeps a reply hidden behind its thinking indicator until `onAudible` runs, so it must
+// run on EVERY path - or a voice that fails would leave the reply hidden for good.
+describe('useVoiceOutput onAudible', () => {
+  beforeEach(() => {
+    useVoiceProviderStatus.setState({ provider: 'primary', degradedNoticeVisible: false })
+    synthesizeSpeechMock.mockReset()
+    analyzerStub.waitForPlaybackToEnd.mockReset().mockResolvedValue(undefined)
+    fallbackStub.speak.mockReset().mockResolvedValue(undefined)
+  })
+
+  it('runs once the first audio arrives, not before', async () => {
+    let releaseChunk!: () => void
+    const gate = new Promise<void>((resolve) => (releaseChunk = resolve))
+    synthesizeSpeechMock.mockImplementation(async function* () {
+      await gate
+      yield { type: 'audio-chunk', sequence: 0, audio: 'AAAA' }
+      yield { type: 'audio-chunk', sequence: 1, audio: 'BBBB' }
+      yield { type: 'done' }
+    })
+    const onAudible = vi.fn()
+    const { result } = renderHook(() => useVoiceOutput())
+
+    let spoken!: Promise<void>
+    await act(async () => {
+      spoken = result.current.speak('Hello.', 'en', onAudible)
+    })
+    expect(onAudible).not.toHaveBeenCalled()
+
+    await act(async () => {
+      releaseChunk()
+      await spoken
+    })
+    expect(onAudible).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs straight away when muted, and for empty text', async () => {
+    const onAudible = vi.fn()
+    const { result } = renderHook(() => useVoiceOutput())
+
+    await act(async () => {
+      await result.current.speak('   ', 'en', onAudible)
+    })
+    expect(onAudible).toHaveBeenCalledTimes(1)
+
+    act(() => result.current.setMuted(true))
+    await act(async () => {
+      await result.current.speak('Hello.', 'en', onAudible)
+    })
+    expect(onAudible).toHaveBeenCalledTimes(2)
+    expect(synthesizeSpeechMock).not.toHaveBeenCalled()
+  })
+
+  it('runs when the voice fails and there is nothing to play', async () => {
+    synthesizeSpeechMock.mockImplementation(async function* () {
+      yield { type: 'error', errorType: 'Unavailable', detail: 'The voice is unavailable.' }
+    })
+    const onAudible = vi.fn()
+    const { result } = renderHook(() => useVoiceOutput())
+
+    await act(async () => {
+      await result.current.speak('Hello.', 'en', onAudible)
+    })
+
+    expect(onAudible).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs for a reply still waiting its turn when stopped', async () => {
+    synthesizeSpeechMock.mockImplementation(() => neverEndingStream([{ type: 'audio-chunk', sequence: 0, audio: 'AAAA' }]))
+    const second = vi.fn()
+    const { result } = renderHook(() => useVoiceOutput())
+
+    await act(async () => {
+      void result.current.speak('First.', 'en')
+      void result.current.speak('Second.', 'en', second)
+    })
+    expect(second).not.toHaveBeenCalled()
+
+    await act(async () => result.current.stop())
+    await waitFor(() => expect(second).toHaveBeenCalledTimes(1))
+  })
+})
+
