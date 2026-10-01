@@ -1,7 +1,7 @@
 import { RiCloseLine } from '@remixicon/react'
 import { Box, IconButton } from '@mui/material'
 import { useEffect, useRef, type ReactNode } from 'react'
-import { useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
+import { selectIsControlExpanded, useWorkspaceOverlayStore } from '../../store/workspaceOverlayStore'
 
 export interface FloatingPanelProps {
   /** Which `ControlDefinition.id` this panel belongs to — read against
@@ -29,7 +29,7 @@ export function FloatingPanel({
   onRequestClose,
   children,
 }: FloatingPanelProps) {
-  const open = useWorkspaceOverlayStore((s) => s.expandedControlId === controlId)
+  const open = useWorkspaceOverlayStore(selectIsControlExpanded(controlId))
   // Scoped to `children` only — a container ref covering the whole panel (including our
   // own Close button, rendered first in DOM order) would focus Close instead of the
   // first *content* element.

@@ -55,6 +55,8 @@ function groupByPlacement(controls: ControlDefinition[]): Record<ControlPlacemen
  * `topStart`, the cluster stays anchored on its own exactly as before. */
 export function WorkspaceOverlay({ controls, topClusterLeading, topStart, children }: WorkspaceOverlayProps) {
   const expandedControlId = useWorkspaceOverlayStore((s) => s.expandedControlId)
+  const pinnedControlIds = useWorkspaceOverlayStore((s) => s.pinnedControlIds)
+  const togglePin = useWorkspaceOverlayStore((s) => s.togglePin)
   const unreadControlIds = useWorkspaceOverlayStore((s) => s.unreadControlIds)
   const toggle = useWorkspaceOverlayStore((s) => s.toggle)
   const groups = groupByPlacement(controls)
@@ -65,8 +67,10 @@ export function WorkspaceOverlay({ controls, topClusterLeading, topStart, childr
       id={control.id}
       label={control.label}
       icon={control.icon}
-      expanded={expandedControlId === control.id}
+      expanded={expandedControlId === control.id || pinnedControlIds.has(control.id)}
       onToggle={() => toggle(control.id)}
+      pinned={pinnedControlIds.has(control.id)}
+      onTogglePin={() => togglePin(control.id)}
       badge={unreadControlIds.has(control.id)}
       expandDirection={PLACEMENT_DIRECTION[control.placement]}
       noTriggerAccent={control.noTriggerAccent}

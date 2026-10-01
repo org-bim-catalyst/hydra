@@ -102,4 +102,49 @@ describe('CircularAction', () => {
     const badgeDot = document.querySelector('.MuiBadge-dot')
     expect(badgeDot).not.toHaveClass('MuiBadge-invisible')
   })
+
+  it('does not render a pin button unless onTogglePin is supplied', () => {
+    render(<Controlled initialExpanded />)
+    expect(screen.queryByRole('button', { name: /pin/i })).not.toBeInTheDocument()
+  })
+
+  it('renders a pin button that reports its state and calls onTogglePin', async () => {
+    const onTogglePin = vi.fn()
+    render(
+      <CircularAction id="layers" label="Layers" icon={<span>icon</span>} expanded onToggle={() => {}} onTogglePin={onTogglePin}>
+        <button type="button">First action</button>
+      </CircularAction>,
+    )
+    const user = userEvent.setup()
+    const pin = screen.getByRole('button', { name: 'Pin Layers' })
+    expect(pin).toHaveAttribute('aria-pressed', 'false')
+    await user.click(pin)
+    expect(onTogglePin).toHaveBeenCalledTimes(1)
+  })
+
+  it('a pinned ribbon ignores clicks outside it', async () => {
+    const onToggle = vi.fn()
+    render(
+      <div>
+        <CircularAction id="layers" label="Layers" icon={<span>icon</span>} expanded pinned onToggle={onToggle} onTogglePin={() => {}}>
+          <button type="button">First action</button>
+        </CircularAction>
+        <button type="button">Outside</button>
+      </div>,
+    )
+    const user = userEvent.setup()
+    expect(screen.getByRole('button', { name: 'Unpin Layers' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Outside' }))
+    expect(onToggle).not.toHaveBeenCalled()
+  })
+
+  it('keeps the pin last in tab order, after the options', () => {
+    render(
+      <CircularAction id="a" label="A" icon={<span>icon</span>} expanded expandDirection="left" onToggle={() => {}} onTogglePin={() => {}}>
+        <button type="button">Option</button>
+      </CircularAction>,
+    )
+    const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)
+    expect(names).toEqual(['A', 'Option', 'Pin A'])
+  })
 })
