@@ -429,18 +429,21 @@ export function ConversationView({
     let turnStart = messages.length - 1
     while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
     if (turnStart < 0) return { visibleMessages: messages, isHolding: false }
-    // Status lines ("Looking for it.") are never held: they are what the user reads while the
-    // dots beneath them say work is under way. Everything else of the turn waits for its voice.
-    const visible = messages.filter(
-      (m, index) =>
-        !(
-          index > turnStart &&
-          m.role === 'assistant' &&
-          m.content !== '' &&
-          !m.isProgress &&
-          !releasedReplies.has(spokenKey(turnStart, m.content))
-        ),
-    )
+    // Status lines ("Looking for it.") are never held for their own voice: they are what the user
+    // reads while the dots beneath them say work is under way. Every other reply of the turn waits
+    // until its voice is ready.
+    //
+    // Order is kept: once a reply is being held, nothing after it is shown either. Otherwise the
+    // next step's status line ("Now highlighting the boundary.") would appear above the report of
+    // the step before it, which is still waiting for its voice.
+    let blocked = false
+    const visible = messages.filter((m, index) => {
+      if (index <= turnStart || m.role !== 'assistant' || m.content === '') return true
+      if (blocked) return false
+      if (m.isProgress || releasedReplies.has(spokenKey(turnStart, m.content))) return true
+      blocked = true
+      return false
+    })
     return { visibleMessages: visible, isHolding: visible.length < messages.length }
   }, [messages, liveTurnSeen, tts.isMuted, releasedReplies])
 
@@ -539,9 +542,9 @@ export function ConversationView({
       // the accessibility tree, for whoever needs its contents (FR-025).
       const isLastReply = index === replies.length - 1
       const replyText = reply.content
-      // A status line is read, not heard: it is on screen already, and speaking it would only
-      // queue the real answer's voice behind a sentence about work that is still going on.
-      const speech = reply.isProgress ? Promise.resolve() : tts.speak(replyText, language, () => releaseReply(key))
+      // A status line is spoken like any reply, though it was never held for its voice: it is on
+      // screen already, and the release callback has nothing left to release.
+      const speech = tts.speak(replyText, language, () => releaseReply(key))
       if (isLastReply && reply.question && reply.suggestedActions) {
         const cue = offerVoiceCue(language)
         speech

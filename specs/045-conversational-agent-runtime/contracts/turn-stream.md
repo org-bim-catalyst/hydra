@@ -132,6 +132,8 @@ public sealed record ChatStreamChunk(
 
 **Navigational intent.** "Show me Al Safa Park 2" selects the `locate_a_place` flow, which runs all three steps in **one** turn ([capability-flow.md](./capability-flow.md)):
 
+> **Amended 2026-10-01:** the combined "step done + next step announced" lines in the example below are now two messages - the report, an unlabelled `__MESSAGE_BREAK__`, then the announcement, which the next labelled break closes.
+
 ```text
   __MESSAGE_BREAK__{"pendingLabel":"Looking for Al Safa Park 2"}
   data: Looking for Al Safa Park 2.                     ← step 1 announced (FR-052)

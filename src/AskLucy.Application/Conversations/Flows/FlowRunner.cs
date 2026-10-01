@@ -115,10 +115,17 @@ public sealed class FlowRunner(
                 completed.Add(new FlowStepResult(step.CapabilityKey, false, true, true, null, "already satisfied"));
 
                 var skipText = step.SkipTemplate ?? "This step was already done, so I've left it as it is.";
-                var combined = nextAnnouncement is null ? skipText : $"{skipText} {nextAnnouncement}";
 
-                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: nextAnnouncement);
-                yield return new ChatStreamChunk(combined, null);
+                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+                yield return new ChatStreamChunk(skipText, null);
+
+                // The announcement of the step after this one is its own message, like any other
+                // (see below), unless that step is skipped too.
+                if (nextAnnouncement is not null && !steps[i + 1].IsAlreadySatisfied(new FlowStepContext(turnContext, flowInputDocument, completed)))
+                {
+                    yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+                    yield return new ChatStreamChunk(nextAnnouncement, null);
+                }
                 continue;
             }
 
@@ -161,7 +168,12 @@ public sealed class FlowRunner(
                 result.Succeeded ? null : result.ResultJson));
 
             var stepFailed = !result.Succeeded && step.IsRequired;
-            var narration = await narrator.NarrateAsync(request, capability, result, stepFailed ? null : nextAnnouncement, cancellationToken);
+            // The report says only what this step did. What comes next is announced in a message of
+            // its own just below, so the user sees the result as one card and the next step's
+            // "now doing X" as another, with the thinking dots under it while it runs - the same
+            // shape as the first step's "Looking for it.". Bundling them into one message (FR-053)
+            // read as a single run-on sentence that never said one step had finished.
+            var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);
             yield return new ChatStreamChunk(narration, null);
 
             if (result.Succeeded)
@@ -171,6 +183,17 @@ public sealed class FlowRunner(
                 {
                     yield return structured;
                 }
+            }
+
+            // Only when there is a next step and it will actually run: announcing a step that is
+            // about to be skipped would be followed at once by "already done".
+            if (!stepFailed && result.Succeeded && nextAnnouncement is not null
+                && !steps[i + 1].IsAlreadySatisfied(new FlowStepContext(turnContext, flowInputDocument, completed)))
+            {
+                // Unlabelled: the break closes the REPORT, which is an answer, not a status line.
+                // The announcement below is the one the next iteration closes with a named label.
+                yield return new ChatStreamChunk(null, null, StartsNewMessage: true, PendingLabel: null);
+                yield return new ChatStreamChunk(nextAnnouncement, null);
             }
 
             if (stepFailed)

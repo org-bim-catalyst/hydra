@@ -1645,7 +1645,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
    * full 45s budget. Before this, the reply sat on screen looking finished, silent, with nothing
    * to say anything was still happening.
    */
-  it('shows the status line and what it is waiting for at once, and speaks only the answer when it lands', async () => {
+  it('shows the status line and what it is waiting for at once, then speaks each message in order', async () => {
     // Cleared because `mockTts` is shared across this file and vi.spyOn on an already-spied
     // property hands back the same accumulating mock, so counts leak between tests.
     const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
@@ -1684,19 +1684,19 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
     // Still mid-stream: the status line is on screen with the pending work named beneath it, and
-    // it is not spoken - it is a sentence about work that has not finished.
+    // it is spoken too - Lucy says what she is doing as well as showing it.
     expect(await screen.findByText('Centred the viewer on it.')).toBeInTheDocument()
     expect(
       await screen.findByRole('status', { name: 'Finding the site boundary' }),
     ).toBeInTheDocument()
-    expect(speak).not.toHaveBeenCalled()
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
+    expect(speak.mock.calls[0][0]).toContain('Centred the viewer on it.')
 
     act(() => releaseBoundary())
 
-    // The answer is the one that is voiced.
     expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
-    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
-    expect(speak.mock.calls[0][0]).toContain("I've outlined the site boundary.")
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+    expect(speak.mock.calls[1][0]).toContain("I've outlined the site boundary.")
   })
 
   /**
@@ -1787,6 +1787,55 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
       // Two typed turns: the suite's 5 s default is tight when the whole suite runs in parallel.
+    }, 20_000)
+
+    // Live-testing report, 2026-10-01: each step is its own card - the report of the step that
+    // finished, then the next step's "Now ..." line with the dots under it. The status line must
+    // not jump above a report that is still waiting for its voice.
+    it('never shows a status line above an earlier report that is still waiting for its voice', async () => {
+      const ready: Record<string, () => void> = {}
+      vi.spyOn(mockTts, 'speak')
+        .mockImplementation(async (text, _language, onAudible) => {
+          ready[text] = () => onAudible?.()
+        })
+        .mockClear()
+      server.use(
+        http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+        http.post('*/api/v1/ai/chat', () => {
+          const encoder = new TextEncoder()
+          const stream = new ReadableStream({
+            start(controller) {
+              const send = (text: string) => controller.enqueue(encoder.encode(`data: ${text}
+
+`))
+              send('Looking for it.')
+              send('__MESSAGE_BREAK__{"pendingLabel":"Finding the place"}')
+              send('The place was confirmed.')
+              send('__MESSAGE_BREAK__')
+              send('Now highlighting the boundary.')
+              send('__MESSAGE_BREAK__{"pendingLabel":"Finding the site boundary"}')
+              // Left open: the final answer never arrives in this test.
+            },
+          })
+          return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+        }),
+      )
+
+      await send()
+
+      // The first status line is up at once; the report waits for its voice, and the next status
+      // line waits behind the report.
+      expect(await screen.findByText('Looking for it.')).toBeInTheDocument()
+      await waitFor(() => expect(ready['The place was confirmed.']).toBeDefined())
+      expect(screen.queryByText('The place was confirmed.')).not.toBeInTheDocument()
+      expect(screen.queryByText('Now highlighting the boundary.')).not.toBeInTheDocument()
+
+      act(() => ready['The place was confirmed.']())
+
+      expect(await screen.findByText('The place was confirmed.')).toBeInTheDocument()
+      expect(await screen.findByText('Now highlighting the boundary.')).toBeInTheDocument()
+      const shown = screen.getAllByText(/Looking for it|The place was confirmed|Now highlighting/).map((e) => e.textContent)
+      expect(shown).toEqual(['Looking for it.', 'The place was confirmed.', 'Now highlighting the boundary.'])
     }, 20_000)
 
     it('shows the text at once when the voice is muted', async () => {

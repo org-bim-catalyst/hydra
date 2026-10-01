@@ -109,7 +109,7 @@ public sealed class LocateAPlaceFlowTests
     }
 
     [Fact]
-    public async Task RunAsync_ShouldRunBothSteps_WithThreeMessages_AndNeverReGeocode()
+    public async Task RunAsync_ShouldRunBothSteps_WithAnAnnouncementOfItsOwnBetween_AndNeverReGeocode()
     {
         SucceedLocation();
         SucceedBoundary();
@@ -118,12 +118,22 @@ public sealed class LocateAPlaceFlowTests
         var chunks = await RunAsync(Context(), throughStepIndex: 1, record);
 
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
-        // 2026-09-11: the flow's former step 2 (a forced adjust_viewer_focus zoom-in) is gone —
-        // see LocateAPlaceFlow's own remarks — so an N=2 step flow now produces N+1=3 messages.
-        messages.Should().HaveCount(3, "an N=2 step flow produces N+1 messages (FR-052/FR-053)");
+        // Live-testing report, 2026-10-01: "...confirmed at latitude ... Now highlighting the boundary."
+        // was one run-on message that never said one step had finished. The report and the next
+        // step's announcement are separate messages, so each is its own card: the report, then
+        // "Now highlighting the boundary." with the thinking dots beneath it while that step runs.
+        messages.Should().HaveCount(4, "the first announcement, step 1's report, step 2's announcement, step 2's report");
         messages[0].Should().Be("Looking for it.");
-        messages[1].Should().Contain("done.").And.Contain("Now highlighting the boundary.");
-        messages[2].Should().Contain("done.");
+        messages[1].Should().Contain("done.").And.NotContain("Now highlighting");
+        messages[2].Should().Be("Now highlighting the boundary.");
+        messages[3].Should().Contain("done.");
+
+        // The break that closes the REPORT names no work (it is an answer), while the one that
+        // closes the announcement names the work under way - which is how the chat tells a status
+        // line from an answer.
+        var announcement = chunks.FindIndex(c => c.ContentDelta == "Now highlighting the boundary.");
+        chunks[announcement - 1].Should().Match<ChatStreamChunk>(c => c.StartsNewMessage && c.PendingLabel == null);
+        chunks.Skip(announcement + 1).First(c => c.StartsNewMessage).PendingLabel.Should().Be("Now highlighting the boundary.");
 
         await _locationService.Received(1).ResolveQueryAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         record.Should().HaveCount(2);
@@ -179,9 +189,9 @@ public sealed class LocateAPlaceFlowTests
         record[1].Succeeded.Should().BeFalse();
 
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
-        // Still the full N+1 = 3: step 1 succeeded and was announced/reported normally; only
-        // step 2's own failure message stands alone rather than pairing with a next announcement.
-        messages.Should().HaveCount(3);
+        // Step 1 succeeded and was announced and reported normally, and so was step 2's own
+        // announcement; step 2's failure message then names only the cause.
+        messages.Should().HaveCount(4);
         messages[^1].Should().Contain("couldn't work out the site boundary");
         messages[^1].Should().NotContain("Now ", "FR-056/research.md D19 — the final message names only the cause, never a next step that will not run");
     }
@@ -199,6 +209,7 @@ public sealed class LocateAPlaceFlowTests
         record[1].Skipped.Should().BeTrue();
         var messages = chunks.Where(c => c.ContentDelta is not null).Select(c => c.ContentDelta!).ToList();
         messages.Should().ContainSingle(m => m.Contains("already outlined", StringComparison.OrdinalIgnoreCase));
+        messages.Should().NotContain("Now highlighting the boundary.", "a step that is skipped is not announced as under way");
         await _boundaryService.DidNotReceive().ResolveAsync(Arg.Any<ConfirmedLocationData>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 

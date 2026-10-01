@@ -166,6 +166,8 @@ The third row runs no capability at all — Lucy simply answers in words. It is 
 
 **Every step is announced, uniformly** (FR-052). Each message after the first carries two things: the completion of the step that just finished, and the announcement of the step now starting (FR-053). An N-step flow produces N+1 messages.
 
+> **Amended 2026-10-01:** the step's completion and the next step's announcement are now **separate messages** (see spec.md FR-053's amendment) - report first, then the announcement with the thinking dots beneath it. An N-step flow therefore produces up to 2N messages, not N+1. The examples below show the earlier combined form.
+
 ```text
 "Looking for Al Safa Park 2."                            ← step 1 announced
    [progress: Looking for Al Safa Park 2]
