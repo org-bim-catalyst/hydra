@@ -31,6 +31,7 @@ internal static partial class ActionClaimVocabulary
     [
         (AdjustViewerFocusCapability.CapabilityKey, "Zoom the viewer"),
         (EditSiteBoundaryCapability.CapabilityKey, "Edit the outline"),
+        (ResetSiteBoundaryCapability.CapabilityKey, "Reset the outline"),
         (LoadViewerContentCapability.CapabilityKey, "Load into the viewer"),
         (OpenLivePanelCapability.CapabilityKey, "Open panel"),
         (OpenSolarAnalysisCapability.CapabilityKey, "Show sun & shadows"),

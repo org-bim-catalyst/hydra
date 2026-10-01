@@ -48,7 +48,7 @@ public static class StructuredPayloadExtractor
 
                 // specs/077 — choosing which buildings the site includes redraws it exactly as
                 // resolving it did, so both results share SiteBoundaryPayload's one shape.
-                case ResolveSiteBoundaryCapability.CapabilityKey or SetSiteBoundaryMembersCapability.CapabilityKey
+                case ResolveSiteBoundaryCapability.CapabilityKey or SetSiteBoundaryMembersCapability.CapabilityKey or ResetSiteBoundaryCapability.CapabilityKey
                     when root.TryGetProperty("siteName", out _) && root.TryGetProperty("polygon", out _):
                     return new ChatStreamChunk(null, null, ConfirmedBoundary: SiteBoundaryPayload.Read(root));
 

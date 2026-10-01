@@ -766,6 +766,10 @@ public sealed class ConversationTurnOrchestrator(
         // to have turned off.
         const bool suggestedActionsEnabled = true;
 
+        // specs/079 (precedence row 1) - Lucy reused the user's own hand-edited outline: say so, and offer
+        // to put back the one she found. The generic analysis rows ride along under the reset row.
+        var resetOfferDue = ResetOfferDue(outcome, confirmedBoundary);
+
         // specs/077 — a site just outlined with buildings of the same development asks which of
         // them it includes, ahead of (and instead of) any generic "what next": the answer decides
         // what every later analysis covers, so it is the question worth the user's attention now.
@@ -786,7 +790,12 @@ public sealed class ConversationTurnOrchestrator(
         var suppression = OfferSuppressionRules.Evaluate(intent, turnContext, outcome, capabilityCatalog, suggestedActionsEnabled, flowVariantCandidates);
         if (suppression != OfferSuppressionReason.None)
         {
-            if (editOfferLevel is { } suppressedLevel)
+            if (resetOfferDue)
+            {
+                var resetOnly = SiteBoundaryResetOffer.Build([]);
+                yield return new ChatStreamChunk(null, null, SuggestedActions: resetOnly.Actions, SuggestedActionsQuestion: resetOnly.Question);
+            }
+            else if (editOfferLevel is { } suppressedLevel)
             {
                 var editOnly = SiteBoundaryEditOffer.Build(suppressedLevel, []);
                 yield return new ChatStreamChunk(null, null, SuggestedActions: editOnly.Actions, SuggestedActionsQuestion: editOnly.Question);
@@ -813,6 +822,13 @@ public sealed class ConversationTurnOrchestrator(
 
         var offer = await offerGenerator.GenerateAsync(turnContext, outcome, justHappened, memoryContext, flowVariantCandidates, cancellationToken);
 
+        if (resetOfferDue)
+        {
+            var resetOffer = SiteBoundaryResetOffer.Build(offer?.Actions ?? []);
+            yield return new ChatStreamChunk(null, null, SuggestedActions: resetOffer.Actions, SuggestedActionsQuestion: resetOffer.Question);
+            yield break;
+        }
+
         if (editOfferLevel is { } level)
         {
             var editOffer = SiteBoundaryEditOffer.Build(level, offer?.Actions ?? []);
@@ -825,6 +841,14 @@ public sealed class ConversationTurnOrchestrator(
             yield return new ChatStreamChunk(null, null, SuggestedActions: offer.Actions, SuggestedActionsQuestion: offer.Question);
         }
     }
+
+    /// <summary>
+    /// specs/079 (US5) - whether this turn showed the user's own hand-edited outline, reused rather than found
+    /// afresh: a resolution ran and what it confirmed is linked to a correction.
+    /// </summary>
+    internal static bool ResetOfferDue(TurnOutcome outcome, ConfirmedSiteBoundaryData? confirmedBoundary) =>
+        outcome.WasInvokedThisTurn(ResolveSiteBoundaryCapability.CapabilityKey) &&
+        confirmedBoundary is { CorrectionId: not null };
 
     /// <summary>
     /// Whether this turn asks which related buildings the site includes: it just outlined a site.
