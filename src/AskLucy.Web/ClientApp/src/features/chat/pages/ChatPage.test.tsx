@@ -1645,7 +1645,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
    * full 45s budget. Before this, the reply sat on screen looking finished, silent, with nothing
    * to say anything was still happening.
    */
-  it('shows what it is waiting for while the boundary resolves, and speaks the reply without waiting', async () => {
+  it('shows the status line and what it is waiting for at once, and speaks only the answer when it lands', async () => {
     // Cleared because `mockTts` is shared across this file and vi.spyOn on an already-spied
     // property hands back the same accumulating mock, so counts leak between tests.
     const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
@@ -1683,18 +1683,20 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
     await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), 'Show me Al Safa Park 2')
     await user.click(screen.getByRole('button', { name: 'Send message' }))
 
-    // Still mid-stream: the reply is complete and voiced, and the pending work is named.
+    // Still mid-stream: the status line is on screen with the pending work named beneath it, and
+    // it is not spoken - it is a sentence about work that has not finished.
     expect(await screen.findByText('Centred the viewer on it.')).toBeInTheDocument()
     expect(
       await screen.findByRole('status', { name: 'Finding the site boundary' }),
     ).toBeInTheDocument()
-    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
-    expect(speak.mock.calls[0][0]).toContain('Centred the viewer on it.')
+    expect(speak).not.toHaveBeenCalled()
 
     act(() => releaseBoundary())
 
+    // The answer is the one that is voiced.
     expect(await screen.findByText("I've outlined the site boundary.")).toBeInTheDocument()
-    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1))
+    expect(speak.mock.calls[0][0]).toContain("I've outlined the site boundary.")
   })
 
   /**
@@ -1740,6 +1742,52 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 
       expect(await screen.findByText('The boundary is outlined.')).toBeInTheDocument()
     })
+
+    it('keeps a status line on screen with the dots beneath it while the answer is pending', async () => {
+      server.use(
+        http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
+        http.post('*/api/v1/ai/chat', () => {
+          const encoder = new TextEncoder()
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode('data: Looking for it.\n\n'))
+              controller.enqueue(encoder.encode('data: __MESSAGE_BREAK__{"pendingLabel":"Finding the place"}\n\n'))
+              // Left open: the answer never arrives in this test.
+            },
+          })
+          return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+        }),
+      )
+      vi.spyOn(mockTts, 'speak').mockImplementation(async () => {}).mockClear()
+
+      await send()
+
+      expect(await screen.findByText('Looking for it.')).toBeInTheDocument()
+      expect(await screen.findByRole('status', { name: 'Finding the place' })).toBeInTheDocument()
+    })
+
+    // Reported 2026-10-01: after muting and unmuting, the thinking dots came back on their own. The
+    // reply "Got it - let me know if there's anything else." had been said in an earlier turn, so
+    // the page believed this turn's copy was already spoken, never voiced it and never released
+    // it. Muted it showed; unmuted it was hidden again, behind dots that never went away.
+    it('shows and speaks a reply that repeats one from an earlier turn', async () => {
+      const speak = vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease)
+      speak.mockClear()
+      replyStream()
+      const user = userEvent.setup()
+      renderConversation(CHAT_A)
+      await waitFor(() => expect(screen.getByPlaceholderText('Message Ask Lucy...')).toBeEnabled())
+
+      for (const turn of [1, 2]) {
+        await user.type(screen.getByPlaceholderText('Message Ask Lucy...'), `Hi ${turn}`)
+        await user.click(screen.getByRole('button', { name: 'Send message' }))
+        await waitFor(() => expect(speak).toHaveBeenCalledTimes(turn))
+        await waitFor(() => expect(screen.getAllByText('The boundary is outlined.')).toHaveLength(turn))
+      }
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      // Two typed turns: the suite's 5 s default is tight when the whole suite runs in parallel.
+    }, 20_000)
 
     it('shows the text at once when the voice is muted', async () => {
       const speak = vi.spyOn(mockTts, 'speak').mockImplementation(async () => {})

@@ -104,6 +104,13 @@ export interface ChatMessage {
    * `null` specifically for a decline, so the card can say so distinctly from "not yet answered."
    */
   selectedActionLabel?: string | null
+  /**
+   * Set on a message of the live turn that the server closed with a break naming work still to do -
+   * a status line ("Looking for it.") rather than a result. The chat shows it at once with the
+   * thinking dots beneath it and does not speak it. Never persisted: a reloaded conversation has
+   * only results to show.
+   */
+  isProgress?: boolean
   /** specs/068 FR-004a — what this assistant turn actually did. Undefined for user messages, and for assistant messages persisted before outcomes were recorded; never read as a success. */
   turnOutcome?: TurnOutcome
 }

@@ -284,6 +284,9 @@ interface ConversationViewProps {
   expanded?: boolean
 }
 
+/** One reply of one turn: the same words from an earlier turn are a different reply. */
+const spokenKey = (turnStart: number, content: string) => `${turnStart}|${content}`
+
 export function ConversationView({
   chatId,
   language,
@@ -408,14 +411,17 @@ export function ConversationView({
   // reply appears as it starts being read, outlined, with the next one waiting its turn behind
   // the same indicator. Muted, or a voice that cannot be made, shows the text at once - the
   // voice output reports that through `speak`'s onAudible, so a failed voice can never keep a
-  // reply hidden. A reply is released by its text, since its id changes while the turn streams.
+  // reply hidden. A reply is released by its text, since its id changes while the turn streams -
+  // and by its turn too (`spokenKey`), because Lucy repeats herself ("Got it - let me know if
+  // there's anything else.") and an identical line from an earlier turn must not count as this
+  // one's having been spoken.
   const [liveTurnSeen, setLiveTurnSeen] = useState(false)
   // Adjusted during render, not in an effect: the flag must already be true on the render that
   // first shows a streaming reply, or that reply would flash on screen before being held.
   if (isStreaming && !liveTurnSeen) setLiveTurnSeen(true)
   const [releasedReplies, setReleasedReplies] = useState<ReadonlySet<string>>(() => new Set())
-  const releaseReply = useCallback((content: string) => {
-    setReleasedReplies((current) => (current.has(content) ? current : new Set(current).add(content)))
+  const releaseReply = useCallback((key: string) => {
+    setReleasedReplies((current) => (current.has(key) ? current : new Set(current).add(key)))
   }, [])
   const { visibleMessages, isHolding } = useMemo(() => {
     // Never on a conversation restored from history: only a turn streamed live in this mount.
@@ -423,9 +429,17 @@ export function ConversationView({
     let turnStart = messages.length - 1
     while (turnStart >= 0 && messages[turnStart].role !== 'user') turnStart--
     if (turnStart < 0) return { visibleMessages: messages, isHolding: false }
+    // Status lines ("Looking for it.") are never held: they are what the user reads while the
+    // dots beneath them say work is under way. Everything else of the turn waits for its voice.
     const visible = messages.filter(
       (m, index) =>
-        !(index > turnStart && m.role === 'assistant' && m.content !== '' && !releasedReplies.has(m.content)),
+        !(
+          index > turnStart &&
+          m.role === 'assistant' &&
+          m.content !== '' &&
+          !m.isProgress &&
+          !releasedReplies.has(spokenKey(turnStart, m.content))
+        ),
     )
     return { visibleMessages: visible, isHolding: visible.length < messages.length }
   }, [messages, liveTurnSeen, tts.isMuted, releasedReplies])
@@ -505,9 +519,10 @@ export function ConversationView({
 
     replies.forEach((reply, index) => {
       const isComplete = index < replies.length - 1 || !isStreaming
-      if (!reply.content || !isComplete || spokenRepliesRef.current.has(reply.content)) return
+      const key = spokenKey(turnStart, reply.content)
+      if (!reply.content || !isComplete || spokenRepliesRef.current.has(key)) return
 
-      spokenRepliesRef.current.add(reply.content)
+      spokenRepliesRef.current.add(key)
       // Never speak conversation history restored on mount/reload — only replies from a turn
       // streamed live in this session.
       if (!hasStreamedThisSessionRef.current) return
@@ -524,7 +539,9 @@ export function ConversationView({
       // the accessibility tree, for whoever needs its contents (FR-025).
       const isLastReply = index === replies.length - 1
       const replyText = reply.content
-      const speech = tts.speak(replyText, language, () => releaseReply(replyText))
+      // A status line is read, not heard: it is on screen already, and speaking it would only
+      // queue the real answer's voice behind a sentence about work that is still going on.
+      const speech = reply.isProgress ? Promise.resolve() : tts.speak(replyText, language, () => releaseReply(key))
       if (isLastReply && reply.question && reply.suggestedActions) {
         const cue = offerVoiceCue(language)
         speech

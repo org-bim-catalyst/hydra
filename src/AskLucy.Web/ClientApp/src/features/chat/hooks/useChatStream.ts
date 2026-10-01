@@ -237,9 +237,17 @@ export function useChatStream(
       // control on `message.id`, so without one the second bubble rendered with no way to play
       // it back. Only the first message's id is later replaced by the server's, via __MEMORY__ —
       // that is the one the memory trace is fetched against.
-      let assistantParts = [{ id: newMessageId(), content: '' }]
-      const renderParts = (parts: { id: string; content: string }[]): ChatMessage[] =>
-        parts.map((part) => ({ id: part.id, role: 'assistant' as const, content: part.content }))
+      // `isProgress` marks a part the server closed with a break that NAMED the work still to do
+      // ("Looking for it.", "Now highlighting the boundary."): a status line the chat shows at once,
+      // with the thinking dots beneath it, rather than a reply it holds back until its voice is ready.
+      let assistantParts: { id: string; content: string; isProgress?: boolean }[] = [{ id: newMessageId(), content: '' }]
+      const renderParts = (parts: { id: string; content: string; isProgress?: boolean }[]): ChatMessage[] =>
+        parts.map((part) => ({
+          id: part.id,
+          role: 'assistant' as const,
+          content: part.content,
+          ...(part.isProgress ? { isProgress: true } : {}),
+        }))
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
       let retrievalError: ChatMessage['retrievalError']
@@ -271,7 +279,11 @@ export function useChatStream(
             // the same reasoning as in runDispatchedTurn below).
             setPendingLabel(event.pendingLabel)
             if (assistantParts[assistantParts.length - 1].content !== '') {
-              assistantParts = [...assistantParts, { id: newMessageId(), content: '' }]
+              assistantParts = [
+                ...assistantParts.slice(0, -1),
+                { ...assistantParts[assistantParts.length - 1], isProgress: event.pendingLabel != null },
+                { id: newMessageId(), content: '' },
+              ]
               if (isActiveRef.current) {
                 setMessages([...history, ...renderParts(assistantParts)])
               }
@@ -412,6 +424,7 @@ export function useChatStream(
               retrievalOutcome,
               retrievalError,
               memoryOutcome,
+              ...(reply.isProgress ? { isProgress: true } : {}),
               ...(suggestedActions && restRendered.length === 0 ? { suggestedActions, question: offerQuestion } : {}),
             },
             ...restRendered,
@@ -495,9 +508,17 @@ export function useChatStream(
       const controller = new AbortController()
       abortRef.current = controller
 
-      let assistantParts = [{ id: newMessageId(), content: '' }]
-      const renderParts = (parts: { id: string; content: string }[]): ChatMessage[] =>
-        parts.map((part) => ({ id: part.id, role: 'assistant' as const, content: part.content }))
+      // `isProgress` marks a part the server closed with a break that NAMED the work still to do
+      // ("Looking for it.", "Now highlighting the boundary."): a status line the chat shows at once,
+      // with the thinking dots beneath it, rather than a reply it holds back until its voice is ready.
+      let assistantParts: { id: string; content: string; isProgress?: boolean }[] = [{ id: newMessageId(), content: '' }]
+      const renderParts = (parts: { id: string; content: string; isProgress?: boolean }[]): ChatMessage[] =>
+        parts.map((part) => ({
+          id: part.id,
+          role: 'assistant' as const,
+          content: part.content,
+          ...(part.isProgress ? { isProgress: true } : {}),
+        }))
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
       let retrievalError: ChatMessage['retrievalError']
@@ -527,7 +548,11 @@ export function useChatStream(
             // a blank bubble for the whole execution.
             setPendingLabel(event.pendingLabel)
             if (assistantParts[assistantParts.length - 1].content !== '') {
-              assistantParts = [...assistantParts, { id: newMessageId(), content: '' }]
+              assistantParts = [
+                ...assistantParts.slice(0, -1),
+                { ...assistantParts[assistantParts.length - 1], isProgress: event.pendingLabel != null },
+                { id: newMessageId(), content: '' },
+              ]
               if (isActiveRef.current) {
                 setMessages([...history, ...renderParts(assistantParts)])
               }
@@ -633,6 +658,7 @@ export function useChatStream(
               retrievalOutcome,
               retrievalError,
               memoryOutcome,
+              ...(reply.isProgress ? { isProgress: true } : {}),
               ...(suggestedActions && restRendered.length === 0 ? { suggestedActions, question: offerQuestion } : {}),
             },
             ...restRendered,
