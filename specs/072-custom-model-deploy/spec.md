@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Add a \"Custom Models\" capability to the Admin panel that downloads a
 model directly on the server (not through the admin's browser) and pushes it to production over

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Two defects observed in production (hydra.bimcatalyst.com/studio): 1. Lucy falsely claims success after a failed tool call. Sequence: user asked 'Show me Al Safa Park 2'; an AI provider API-key failure produced 'Something went wrong partway through and I couldn't finish. Please try again.'; user replied 'try again'; Lucy answered 'I've shown you Al Safa Park 2.' — but nothing was shown. The assistant treated the previous (failed) turn as if it had completed, producing a false/misleading success claim. Retry must re-execute the action, and the assistant must never assert an action succeeded unless the tool actually reported success. 2. Suggestion/offer card styling in the chat panel: the 'Suggested' choice card renders in a narrow column inside the assistant bubble, so its text wraps awkwardly on nearly every word and the Choose button is cramped. The card should expand to occupy the full width of the chat window when its text needs more space."
 

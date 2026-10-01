@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-21
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "A correctness-and-performance pass over the existing specs/052-solar-analysis capability, with no new user-facing features: refraction correction so the altitude figure agrees with the module's own sunrise/sunset times; merged footprint geometry; a shadow camera fitted to actual content rather than a fixed radius ratio; no shadow-map re-render when the sun has barely moved; and static dome furniture separated from the date-dependent day arc."
 

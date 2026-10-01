@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-21
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "We need to add fine tuning for the timings slider in the solar analysis Time of Day as it was difficult for me to select the minutes, and if you can show ticks with 15 minutes steps on the slider it will be wonderful."
 

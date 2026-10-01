@@ -181,7 +181,7 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 - [X] T067 [P] [US3] Component-test width behaviour in `SuggestedActionCard.test.tsx`: full width with an offer, ordinary width without, both in one transcript (SC-006a); assert via `getByText` inside the card, since `getByRole` crashes jsdom once a dialog portal is open
 - [X] T068 [P] [US3] Component-test that voice receives the reply plus the cue and **not** the question, labels, descriptions or confirm action (SC-011), in `ChatPage.test.tsx`
 - [X] T069 [P] [US3] Accessibility-test the card at both rendered widths with no regression against the baseline from T002 (FR-022, SC-008)
-- [ ] T070 [US3] Screenshot-verify the quickstart §US3 steps at the default docked width (400px, the `sm` value in `ExpandedChatPanel.tsx:77`), counting words per line on option labels and the Choose button against the 4-word threshold (SC-006)
+- [x] T070 [US3] Screenshot-verify the quickstart §US3 steps at the default docked width (400px, the `sm` value in `ExpandedChatPanel.tsx:77`), counting words per line on option labels and the Choose button against the 4-word threshold (SC-006) **Verified 2026-10-01** from a screenshot at the docked width: option labels are 2–4 words (longest "Reset to Lucy's outline", 4) and the Choose button is one word.
 
 **Checkpoint**: All three stories complete.
 

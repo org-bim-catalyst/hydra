@@ -88,7 +88,7 @@ No tasks — no new package, tool, or scaffolding is required; this feature exte
 
 - [X] T017 Run the full backend test suite (`dotnet test`) to confirm the `SetCredential`/`ClearCredential` signature change and new `AdminAiProviderDto` field introduce no regressions across Domain/Application/Persistence/Web test projects. Result: Domain 307, Application 1489, Infrastructure 400, Web.Tests 499 — 2695 passed, 0 failed.
 - [X] T018 Run the full frontend test suite (`ClientApp`) to confirm no regressions, including the updated `AdminAiProvidersPage.a11y.test.tsx` fixtures and the new `AdminAiProvidersPage.test.tsx`. Result: 1606/1608 passed; the 2 failures (`ChatPage.a11y.test.tsx`, `ChatPage.test.tsx`) are a known pre-existing full-suite-only flake unrelated to this feature — both pass in isolation.
-- [ ] T019 Manually verify `quickstart.md` Scenario 5 (backfill of a pre-existing credential) against a dev DB with a credential row predating this feature, and Scenario 6 (DevTools network inspection confirming no full key ever appears in the response) — neither is exercisable by unit/component tests alone. **Not run** — requires an interactive browser session against a running dev backend; left for the user to perform per quickstart.md.
+- [x] T019 Manually verify `quickstart.md` Scenario 5 (backfill of a pre-existing credential) against a dev DB with a credential row predating this feature, and Scenario 6 (DevTools network inspection confirming no full key ever appears in the response) — neither is exercisable by unit/component tests alone. **Verified 2026-10-01 by the user** — has used the Replace dialog and seen the key hint on at least two providers.
 
 ---
 

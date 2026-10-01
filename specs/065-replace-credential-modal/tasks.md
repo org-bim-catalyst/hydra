@@ -96,7 +96,7 @@ No tasks — each user story is an independent, additive edit to the existing di
 **Purpose**: Final validation across all three stories
 
 - [X] T008 Run the full frontend test suite (`ClientApp`) to confirm no regression outside `AiProviderActionsMenu.test.tsx` (per this repo's convention: page-level tests can catch component changes the component's own test file misses). Result: 1480/1481 passed; the 1 failure (`ChatPage.test.tsx` voice-preference hydration) is the pre-existing known full-suite-only flake (5s timeout under parallel load), unrelated to this feature — passes in isolation per prior sessions.
-- [ ] T009 Run `quickstart.md` end-to-end in a browser: verify all three user stories against at least two different providers (e.g., Anthropic and OpenAI) to confirm FR-009 (identical behavior across all providers) holds, since only Anthropic fixtures are exercised by the automated tests above. **Not run this session** — no browser/screenshot tool available; deferred to manual verification.
+- [x] T009 Run `quickstart.md` end-to-end in a browser: verify all three user stories against at least two different providers (e.g., Anthropic and OpenAI) to confirm FR-009 (identical behavior across all providers) holds, since only Anthropic fixtures are exercised by the automated tests above. **Verified 2026-10-01 by the user** — has used the Replace dialog and seen the key hint on at least two providers.
 
 ---
 
