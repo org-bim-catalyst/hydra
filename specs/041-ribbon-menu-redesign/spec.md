@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-26
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: Replace the current two-row box-style expandable menu with a single-row ribbon-style layout for all circular workspace-shell controls (except Account). See `docs/RIBBON_MENU.md` for visual reference.
 

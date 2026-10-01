@@ -96,9 +96,9 @@ This feature modifies three existing files. No project initialization, new depen
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [x] T015 [P] Check Badge alignment in horizontal ribbon layout — `alignSelf: 'flex-start'` on the Badge may need to be `'center'` for horizontal directions; adjust in `CircularAction.tsx` if the badge dot renders off the trigger circle (applied: `alignSelf: isHorizontal ? 'center' : 'flex-start'`)
-- [ ] T016 [P] Verify `border-radius` transition looks clean in horizontal directions (the circle stays `radius.pill` both collapsed and expanded — just different sizes); if the transition looks odd, suppress `border-radius` from the transition list for horizontal directions
+- [x] T016 [P] Verify `border-radius` transition looks clean in horizontal directions (the circle stays `radius.pill` both collapsed and expanded — just different sizes); if the transition looks odd, suppress `border-radius` from the transition list for horizontal directions
 - [x] T017 [P] Run `tsc -b --noEmit` in `src/AskLucy.Web/ClientApp` to confirm no TypeScript errors
-- [ ] T018 Run quickstart.md validation scenarios manually in the browser (collapsed color, horizontal ribbon, purple highlight, collapse on click-away/Escape, one-at-a-time, Account unchanged)
+- [x] T018 Run quickstart.md validation scenarios manually in the browser (collapsed color, horizontal ribbon, purple highlight, collapse on click-away/Escape, one-at-a-time, Account unchanged)
 - [x] T019 Update `docs/RIBBON_MENU.md` status from design doc to implemented — add a one-line note confirming implementation complete
 
 ---
