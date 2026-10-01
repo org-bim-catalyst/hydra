@@ -1,6 +1,8 @@
 import { useCallback, useRef } from 'react'
 
 const FFT_SIZE = 256
+/** How long a reply may take to start playing before the next one is let through. */
+const PLAYBACK_START_GRACE_MS = 5000
 
 export interface FrequencyBands {
   low: number
@@ -258,6 +260,33 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     })
   }, [])
 
+  /** Resolves once everything already buffered has been heard — what a caller needs before
+   * starting the NEXT reply so the two never play over each other.
+   *
+   * Not `waitForPlaybackComplete`: that resolves at once for an element that is `paused` with no
+   * data yet, which is exactly how a short reply looks the instant its last chunk arrives (the
+   * element has been handed the data but autoplay has not started it). Waiting on that let the
+   * next reply begin underneath it. A reply that never starts (autoplay blocked) is released after
+   * a grace period so one silent reply cannot hold every later one back. */
+  const waitForPlaybackToEnd = useCallback((): Promise<void> => {
+    const el = audioElementRef.current
+    if (!el || el.ended) return Promise.resolve()
+    return new Promise((resolve) => {
+      const events = ['ended', 'pause', 'error'] as const
+      const finish = () => {
+        clearTimeout(startTimer)
+        for (const name of events) el.removeEventListener(name, finish)
+        el.removeEventListener('playing', onPlaying)
+        resolve()
+      }
+      const onPlaying = () => clearTimeout(startTimer)
+      const startTimer = setTimeout(finish, PLAYBACK_START_GRACE_MS)
+      for (const name of events) el.addEventListener(name, finish)
+      el.addEventListener('playing', onPlaying, { once: true })
+      if (!el.paused && el.readyState > 0) clearTimeout(startTimer)
+    })
+  }, [])
+
   /** Ref-based getter (not React state) — read every animation frame by `ReactiveSphere.tsx`
    * via `ChatPage.tsx`, matching `useTextToSpeech.getIntensity()`'s existing signature
    * (research.md Decision 6). Computed from the *analyser*, upstream of the mute gain node,
@@ -330,6 +359,7 @@ export function useVoiceAnalyzer(onPlaybackError?: (message: string) => void) {
     playAudioChunk,
     endStream,
     waitForPlaybackComplete,
+    waitForPlaybackToEnd,
     getReactiveIntensity,
     getFrequencyBands,
     setMuted,

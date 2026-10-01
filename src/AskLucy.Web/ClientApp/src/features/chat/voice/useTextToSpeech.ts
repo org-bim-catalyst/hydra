@@ -105,11 +105,13 @@ export function useTextToSpeech() {
 
   const clearError = useCallback(() => setError(null), [])
 
+  /** Resolves when the utterance has ended (or failed — the failure is surfaced through `error`),
+   * so a caller can wait its turn instead of speaking over it. */
   const speak = useCallback(
-    (text: string, lang: string) => {
+    (text: string, lang: string): Promise<void> => {
       if (!isSupported) {
         setError('Voice output is not supported in this browser.')
-        return
+        return Promise.resolve()
       }
 
       // FR-001–005/contracts/voice-persona-mapping.md: a curated or heuristically-scored
@@ -126,7 +128,7 @@ export function useTextToSpeech() {
           `Voice output: no voice matched language "${lang}" among ${voices.length} available voices.`,
         )
         setError('Voice output failed. Please try again.')
-        return
+        return Promise.resolve()
       }
 
       const utterance = new SpeechSynthesisUtterance(text)
@@ -141,9 +143,14 @@ export function useTextToSpeech() {
         intensityRef.current = 1
         startDecayLoop()
       }
+      let finish!: () => void
+      const finished = new Promise<void>((resolve) => {
+        finish = resolve
+      })
       utterance.onend = () => {
         isSpeakingRef.current = false
         setIsSpeaking(false)
+        finish()
       }
       // constitution §2.VIII: a failed utterance must reach the user, not just fail silently.
       utterance.onerror = (event) => {
@@ -152,9 +159,11 @@ export function useTextToSpeech() {
         setIsSpeaking(false)
         intensityRef.current = 0
         setError('Voice output failed. Please try again.')
+        finish()
       }
 
       window.speechSynthesis.speak(utterance)
+      return finished
     },
     [isSupported, startDecayLoop],
   )

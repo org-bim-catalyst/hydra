@@ -24,6 +24,12 @@ export function useVoiceOutput() {
   const [error, setError] = useState<string | null>(null)
   const [isMuted, setIsMutedState] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  // Replies are voiced one at a time. ChatPage speaks each reply the moment it completes, and a
+  // turn can complete several within a few seconds, so without a queue the second started over
+  // the first (reported 2026-10-01). `generation` lets stop() and mute drop whatever is waiting.
+  const queueRef = useRef<Promise<void>>(Promise.resolve())
+  const generationRef = useRef(0)
+  const pendingRef = useRef(0)
 
   // Surfaces failures from the ElevenLabs audio element itself (blocked autoplay, a
   // mid-stream decode error) — constitution §2.VIII: these must reach the user the same
@@ -44,22 +50,17 @@ export function useVoiceOutput() {
     fallback.clearError()
   }, [fallback])
 
-  const speak = useCallback(
-    async (text: string, language: string) => {
-      if (!text.trim()) return
-      // FR-003/Clarification Q2: a reply is never queued or started while muted, so there is
-      // nothing left to become audible later — unmuting only affects the *next* speak() call.
-      if (isMuted) return
-
+  const speakNow = useCallback(
+    async (text: string, language: string, isCurrent: () => boolean) => {
       await probeRecoveryIfDegraded(language)
+      if (!isCurrent()) return
       if (useVoiceProviderStatus.getState().provider === 'fallback') {
-        fallback.speak(text, language)
+        await fallback.speak(text, language)
         return
       }
 
       const controller = new AbortController()
       abortControllerRef.current = controller
-      setIsSpeaking(true)
       setError(null)
       let sawAudio = false
 
@@ -97,19 +98,57 @@ export function useVoiceOutput() {
           failOver()
         }
       } finally {
-        setIsSpeaking(false)
         abortControllerRef.current = null
       }
 
-      if (!sawAudio && useVoiceProviderStatus.getState().provider === 'fallback') {
+      if (!isCurrent()) return
+      if (sawAudio) {
+        // The stream has finished ARRIVING; the audio is still playing. Hold the queue until it
+        // has been heard. Sealing first covers a stream that ended without `done`.
+        analyzer.endStream()
+        await analyzer.waitForPlaybackToEnd()
+      } else if (useVoiceProviderStatus.getState().provider === 'fallback') {
         // Nothing played and we just failed over — the reply still deserves to be heard.
-        fallback.speak(text, language)
+        await fallback.speak(text, language)
       }
     },
-    [fallback, analyzer, failOver, isMuted],
+    [fallback, analyzer, failOver],
+  )
+
+  const speak = useCallback(
+    (text: string, language: string): Promise<void> => {
+      if (!text.trim()) return Promise.resolve()
+      // FR-003/Clarification Q2: a reply is never queued or started while muted, so there is
+      // nothing left to become audible later — unmuting only affects the *next* speak() call.
+      if (isMuted) return Promise.resolve()
+
+      const generation = generationRef.current
+      const isCurrent = () => generation === generationRef.current
+      pendingRef.current += 1
+      setIsSpeaking(true)
+
+      const run = queueRef.current
+        .then(() => (isCurrent() ? speakNow(text, language, isCurrent) : undefined))
+        .finally(() => {
+          // A stop() since this was queued already reset the count and the speaking state.
+          if (!isCurrent()) return
+          pendingRef.current -= 1
+          setIsSpeaking(pendingRef.current > 0)
+        })
+      // The caller owns this promise's rejection; the queue itself must keep moving regardless.
+      queueRef.current = run.then(
+        () => undefined,
+        () => undefined,
+      )
+      return run
+    },
+    [isMuted, speakNow],
   )
 
   const stop = useCallback(() => {
+    generationRef.current += 1
+    pendingRef.current = 0
+    queueRef.current = Promise.resolve()
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
     analyzer.reset()

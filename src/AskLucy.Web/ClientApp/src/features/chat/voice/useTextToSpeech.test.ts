@@ -92,7 +92,9 @@ describe('useTextToSpeech', () => {
   it('surfaces a caller-visible error and skips speaking when unsupported (constitution §2.VIII)', () => {
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
 
     expect(result.current.error).toBe('Voice output is not supported in this browser.')
   })
@@ -101,7 +103,9 @@ describe('useTextToSpeech', () => {
     const { instances, speak: speakSpy } = installSpeechSynthesis()
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
 
     expect(instances[0].voice).toEqual(expect.objectContaining({ name: 'Microsoft Zira Desktop' }))
     expect(speakSpy).toHaveBeenCalledTimes(1)
@@ -111,7 +115,9 @@ describe('useTextToSpeech', () => {
     const { instances, speak: speakSpy } = installSpeechSynthesis([])
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
 
     expect(instances).toHaveLength(0)
     expect(speakSpy).not.toHaveBeenCalled()
@@ -129,7 +135,9 @@ describe('useTextToSpeech', () => {
     )?.[1]
     act(() => voiceschangedHandler?.())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
 
     expect(instances[0].voice).toEqual(expect.objectContaining({ name: 'Microsoft Zira Desktop' }))
     expect(speakSpy).toHaveBeenCalledTimes(1)
@@ -149,7 +157,9 @@ describe('useTextToSpeech', () => {
         vi.advanceTimersByTime(200)
       })
 
-      act(() => result.current.speak('hello', 'en'))
+      act(() => {
+      void result.current.speak('hello', 'en')
+    })
 
       expect(instances[0].voice).toEqual(
         expect.objectContaining({ name: 'Microsoft Zira Desktop' }),
@@ -165,7 +175,9 @@ describe('useTextToSpeech', () => {
     const { instances } = installSpeechSynthesis()
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
     expect(result.current.isSpeaking).toBe(false)
 
     act(() => instances[0].onstart?.())
@@ -175,11 +187,42 @@ describe('useTextToSpeech', () => {
     expect(result.current.isSpeaking).toBe(false)
   })
 
+  // useVoiceOutput queues replies behind this promise so a browser-voice reply is never spoken
+  // over by the next one.
+  it('speak() resolves when the utterance ends, and when it fails', async () => {
+    const { instances } = installSpeechSynthesis()
+    const { result } = renderHook(() => useTextToSpeech())
+
+    let first: Promise<void> | undefined
+    let second: Promise<void> | undefined
+    act(() => {
+      first = result.current.speak('one', 'en')
+      second = result.current.speak('two', 'en')
+    })
+    let firstDone = false
+    void first!.then(() => (firstDone = true))
+    await Promise.resolve()
+    expect(firstDone).toBe(false)
+
+    await act(async () => {
+      instances[0].onend?.()
+      await first
+    })
+    expect(firstDone).toBe(true)
+
+    await act(async () => {
+      instances[1].onerror?.({ error: 'synthesis-failed' })
+      await second
+    })
+  })
+
   it('pulses getIntensity to 1 on a boundary event and decays it back toward 0 (FR-018)', async () => {
     const { instances } = installSpeechSynthesis()
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello there', 'en'))
+    act(() => {
+      void result.current.speak('hello there', 'en')
+    })
     expect(result.current.getIntensity()).toBe(0)
 
     act(() => instances[0].onboundary?.())
@@ -196,7 +239,9 @@ describe('useTextToSpeech', () => {
     const { instances } = installSpeechSynthesis()
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
     act(() => instances[0].onstart?.())
     act(() => instances[0].onerror?.({ error: 'synthesis-failed' }))
 
@@ -207,7 +252,9 @@ describe('useTextToSpeech', () => {
 
   it('clearError resets the error state', () => {
     const { result } = renderHook(() => useTextToSpeech())
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
     expect(result.current.error).not.toBeNull()
 
     act(() => result.current.clearError())
@@ -218,7 +265,9 @@ describe('useTextToSpeech', () => {
     const { instances, cancel } = installSpeechSynthesis()
     const { result } = renderHook(() => useTextToSpeech())
 
-    act(() => result.current.speak('hello', 'en'))
+    act(() => {
+      void result.current.speak('hello', 'en')
+    })
     act(() => instances[0].onstart?.())
     act(() => instances[0].onboundary?.())
 

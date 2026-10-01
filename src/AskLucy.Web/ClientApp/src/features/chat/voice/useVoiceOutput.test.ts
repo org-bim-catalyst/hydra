@@ -25,6 +25,7 @@ vi.mock('./useTextToSpeech', () => ({
 const analyzerStub = {
   playAudioChunk: vi.fn(),
   endStream: vi.fn(),
+  waitForPlaybackToEnd: vi.fn((): Promise<void> => Promise.resolve()),
   getReactiveIntensity: vi.fn(() => 0),
   setMuted: vi.fn(),
   reset: vi.fn(),
@@ -117,5 +118,102 @@ describe('useVoiceOutput mute (US1, FR-002/FR-003, research.md Decision 3)', () 
 
     act(() => result.current.toggleMute())
     expect(result.current.isMuted).toBe(false)
+  })
+})
+
+
+/** A stream that delivers one chunk and completes — the audio has fully ARRIVED, which is not
+ * the same as it having been heard. */
+function completedStream(): AsyncGenerator<VoiceReplyEvent> {
+  async function* gen() {
+    yield { type: 'audio-chunk', sequence: 0, audio: 'AAAA' } as VoiceReplyEvent
+    yield { type: 'done' } as VoiceReplyEvent
+  }
+  return gen()
+}
+
+// Reported 2026-10-01: "The location ... was successfully confirmed" was still being spoken when
+// "The site boundary has been successfully highlighted" started over it, in what sounded like a
+// different voice. ChatPage speaks each reply the moment it completes, and `speak()` resolved as
+// soon as the audio finished arriving, so nothing made the second reply wait for the first.
+describe('useVoiceOutput speech queue', () => {
+  let endPlayback: (() => void)[] = []
+
+  beforeEach(() => {
+    useVoiceProviderStatus.setState({ provider: 'primary', degradedNoticeVisible: false })
+    synthesizeSpeechMock.mockReset()
+    analyzerStub.reset.mockClear()
+    analyzerStub.waitForPlaybackToEnd.mockReset()
+    endPlayback = []
+    analyzerStub.waitForPlaybackToEnd.mockImplementation(
+      () => new Promise<void>((resolve) => endPlayback.push(resolve)),
+    )
+    fallbackStub.speak.mockReset()
+    fallbackStub.stop.mockClear()
+  })
+
+  it('does not start a second reply until the first has finished playing', async () => {
+    synthesizeSpeechMock.mockImplementation(() => completedStream())
+    const { result } = renderHook(() => useVoiceOutput())
+
+    let first!: Promise<void>
+    let second!: Promise<void>
+    await act(async () => {
+      first = result.current.speak('The location was confirmed.', 'en')
+      second = result.current.speak('The boundary has been highlighted.', 'en')
+    })
+
+    // The first reply's audio has fully arrived but is still playing.
+    await waitFor(() => expect(analyzerStub.waitForPlaybackToEnd).toHaveBeenCalledTimes(1))
+    expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1)
+    expect(result.current.isSpeaking).toBe(true)
+
+    await act(async () => {
+      endPlayback[0]()
+      await first
+    })
+    await waitFor(() => expect(synthesizeSpeechMock).toHaveBeenCalledTimes(2))
+    expect(synthesizeSpeechMock.mock.calls[1][0]).toBe('The boundary has been highlighted.')
+
+    await act(async () => {
+      endPlayback[1]()
+      await second
+    })
+    expect(result.current.isSpeaking).toBe(false)
+  })
+
+  it('stop() drops replies still waiting their turn', async () => {
+    synthesizeSpeechMock.mockImplementation(() => completedStream())
+    const { result } = renderHook(() => useVoiceOutput())
+
+    await act(async () => {
+      void result.current.speak('First.', 'en')
+      void result.current.speak('Second.', 'en')
+    })
+    await waitFor(() => expect(analyzerStub.waitForPlaybackToEnd).toHaveBeenCalledTimes(1))
+
+    await act(async () => {
+      result.current.stop()
+      endPlayback[0]()
+    })
+
+    expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1)
+    expect(result.current.isSpeaking).toBe(false)
+  })
+
+  it('waits for a browser-voice reply to finish before the next one', async () => {
+    useVoiceProviderStatus.setState({ provider: 'fallback', degradedNoticeVisible: true })
+    const finishUtterance: (() => void)[] = []
+    fallbackStub.speak.mockImplementation(() => new Promise<void>((resolve) => finishUtterance.push(resolve)))
+    const { result } = renderHook(() => useVoiceOutput())
+
+    await act(async () => {
+      void result.current.speak('First.', 'en')
+      void result.current.speak('Second.', 'en')
+    })
+    await waitFor(() => expect(fallbackStub.speak).toHaveBeenCalledTimes(1))
+
+    await act(async () => finishUtterance[0]())
+    await waitFor(() => expect(fallbackStub.speak).toHaveBeenCalledTimes(2))
   })
 })
