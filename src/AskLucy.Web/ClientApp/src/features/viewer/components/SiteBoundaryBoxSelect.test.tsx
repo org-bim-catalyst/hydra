@@ -72,6 +72,31 @@ describe('SiteBoundaryBoxSelect', () => {
     expect(layer()).toHaveStyle({ pointerEvents: 'auto' })
   })
 
+  it('swallows the right-click, so the browser menu never opens, and the next left drag still selects', () => {
+    enter()
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+
+    const notCancelled = fireEvent.contextMenu(layer())
+    expect(notCancelled).toBe(false)
+
+    fireEvent.pointerDown(layer(), { clientX: 10, clientY: 10, button: 0 })
+    fireEvent.pointerMove(layer(), { clientX: 120, clientY: 120 })
+    expect(screen.getByTestId('corner-select-box')).toBeInTheDocument()
+  })
+
+  it('a right-button release does not end a left drag', () => {
+    enter()
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+    fireEvent.pointerDown(layer(), { clientX: 10, clientY: 10, button: 0 })
+    fireEvent.pointerMove(layer(), { clientX: 120, clientY: 120 })
+
+    fireEvent.pointerUp(layer(), { clientX: 120, clientY: 120, button: 2 })
+
+    expect(screen.getByTestId('corner-select-box')).toBeInTheDocument()
+  })
+
   it('tells the user how it works', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)

@@ -54,7 +54,8 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
   }
 
   const finish = (event: PointerEvent<HTMLDivElement>) => {
-    if (!drag) return
+    // Only the primary button ends a drag; a right-click release is not a selection.
+    if (!drag || event.button !== 0) return
     const box = { left: drag.startX, top: drag.startY, right: drag.x, bottom: drag.y }
     setDrag(null)
 
@@ -116,6 +117,11 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onPointerMove={move}
       onPointerUp={finish}
       onPointerCancel={() => setDrag(null)}
+      // The browser's own menu has no use here and would swallow the pointer-up that ends a drag; drop it.
+      onContextMenu={(event) => {
+        event.preventDefault()
+        setDrag(null)
+      }}
       onWheel={zoom}
       // The viewer's overlay container lets pointer events through to the map; this layer must take them
       // back, or a drag pans the map instead of drawing the box.

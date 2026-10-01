@@ -86,6 +86,8 @@ export function SiteBoundaryArcDraw({ projector: injected }: Props) {
       onPointerMove={move}
       onPointerUp={drop}
       onPointerLeave={() => setPreview({ points: null, note: null })}
+      // The browser's own menu has no use while drawing an arc; drop it.
+      onContextMenu={(event) => event.preventDefault()}
       // The viewer's overlay container lets pointer events through to the map; this layer takes them back.
       sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
     >

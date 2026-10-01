@@ -102,6 +102,12 @@ describe('SiteBoundaryCircleDraw', () => {
     expect(store().session?.refusal).toContain('drag outward')
   })
 
+  it('swallows the right-click, so the browser menu never opens', () => {
+    startCircle()
+    render(<SiteBoundaryCircleDraw projector={projector} />)
+    expect(fireEvent.contextMenu(layer())).toBe(false)
+  })
+
   it('ignores a press of a button other than the primary one', () => {
     startCircle()
     render(<SiteBoundaryCircleDraw projector={projector} />)

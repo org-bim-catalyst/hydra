@@ -109,6 +109,12 @@ describe('SiteBoundaryArcDraw', () => {
     expect(through.latitude).toBeCloseTo(P(50, -20).latitude, 7)
   })
 
+  it('swallows the right-click, so the browser menu never opens', () => {
+    startArc()
+    render(<SiteBoundaryArcDraw projector={projector} />)
+    expect(fireEvent.contextMenu(layer())).toBe(false)
+  })
+
   it('ignores a release of a button other than the primary one', () => {
     startArc()
     render(<SiteBoundaryArcDraw projector={projector} />)

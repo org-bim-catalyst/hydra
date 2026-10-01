@@ -85,8 +85,8 @@ export function SiteBoundaryCircleDraw({ projector: injected }: Props) {
     })
   }
 
-  const finish = () => {
-    if (!drag) return
+  const finish = (event: PointerEvent<HTMLDivElement>) => {
+    if (!drag || event.button !== 0) return
     const { centre, radiusMeters } = drag
     setDrag(null)
 
@@ -106,6 +106,11 @@ export function SiteBoundaryCircleDraw({ projector: injected }: Props) {
       onPointerMove={move}
       onPointerUp={finish}
       onPointerCancel={() => setDrag(null)}
+      // The browser's own menu has no use here and would swallow the pointer-up that ends a drag; drop it.
+      onContextMenu={(event) => {
+        event.preventDefault()
+        setDrag(null)
+      }}
       // The viewer's overlay container lets pointer events through to the map; this layer takes them back.
       sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
     >
