@@ -1,5 +1,5 @@
 import { Box } from '@mui/material'
-import type { KeyboardEvent } from 'react'
+import { useEffect } from 'react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 
@@ -17,6 +17,105 @@ const visuallyHidden = {
   whiteSpace: 'nowrap',
 } as const
 
+/** What the handler needs of a keyboard event, so React's and the window's both fit. */
+interface KeyLike {
+  key: string
+  shiftKey: boolean
+  ctrlKey: boolean
+  metaKey: boolean
+  preventDefault(): void
+}
+
+/**
+ * Keys that act on the selected corner while the user is not typing and no dialog or menu is open: the map
+ * has focus after a corner is clicked, not the hidden region, so the shortcuts must work from the window too.
+ * Tab stays with the region (it walks the corners only while the region itself is focused), and Delete and
+ * Backspace are handled by the edit-mode hook's own window listener.
+ */
+function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('[data-testid="corner-navigator"]')) return false
+  if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return false
+  if (target?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return false
+  if (event.key === 'Tab' || event.key === 'Delete' || event.key === 'Backspace') return false
+  return useSiteBoundaryEditStore.getState().session?.tool === 'edit'
+}
+
+function handleKey(event: KeyLike) {
+  const store = () => useSiteBoundaryEditStore.getState()
+  const session = store().session
+  if (!session) return
+  const selectCorner = (index: number) => store().selectCorner(index)
+
+  const step = event.shiftKey ? BIG_STEP_METERS : STEP_METERS
+  const key = event.key
+
+  if (key === 'Tab') {
+    const live = store().session
+    const current = live?.selectedCorner ?? null
+    const liveRing = live?.rings[live.activeRing] ?? []
+    const next = event.shiftKey ? (current ?? liveRing.length) - 1 : (current ?? -1) + 1
+    // Past either end the focus simply leaves the region.
+    if (next < 0 || next >= liveRing.length) return
+    event.preventDefault()
+    selectCorner(next)
+    return
+  }
+
+  const nudges: Record<string, [number, number]> = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, step],
+    ArrowDown: [0, -step],
+  }
+  if (nudges[key]) {
+    event.preventDefault()
+    siteBoundaryEditActions.nudgeCorner(...nudges[key])
+    return
+  }
+
+  if (key === '[' || key === ']') {
+    event.preventDefault()
+    const count = session.rings.length
+    store().setActiveRing((session.activeRing + (key === ']' ? 1 : count - 1)) % count)
+    return
+  }
+
+  if (key === 'Insert' || key === '+') {
+    event.preventDefault()
+    siteBoundaryEditActions.addCorner()
+    return
+  }
+
+  if (key === 'Delete' || key === 'Backspace') {
+    event.preventDefault()
+    siteBoundaryEditActions.deleteCorner()
+    return
+  }
+
+  if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 'z') {
+    event.preventDefault()
+    if (event.shiftKey) siteBoundaryEditActions.redo()
+    else siteBoundaryEditActions.undo()
+    return
+  }
+
+  if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 'y') {
+    event.preventDefault()
+    siteBoundaryEditActions.redo()
+    return
+  }
+
+  if (key === 'Escape') {
+    event.preventDefault()
+    if (store().isDirty()) {
+      store().refuse('You have unsaved changes - choose Done to save them, or Cancel to discard them.')
+    } else {
+      siteBoundaryEditActions.cancel()
+    }
+  }
+}
+
 /**
  * specs/079 (US6, WCAG 2.1 AA): edits the outline without a mouse. One focusable region while an
  * edit session is open. Tab and Shift+Tab walk the corners (Tab past the last one leaves the region),
@@ -26,6 +125,17 @@ const visuallyHidden = {
  */
 export function SiteBoundaryCornerNavigator() {
   const session = useSiteBoundaryEditStore((s) => s.session)
+  const inSession = session !== null
+
+  useEffect(() => {
+    if (!inSession) return
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (acceptsWindowKey(event)) handleKey(event)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [inSession])
+
   if (!session) return null
 
   const ring = session.rings[session.activeRing] ?? []
@@ -38,78 +148,6 @@ export function SiteBoundaryCornerNavigator() {
         `${ring[selected].latitude.toFixed(5)} north, ${ring[selected].longitude.toFixed(5)} east`
       : `Outline editor, ring ${session.activeRing + 1} of ${session.rings.length}, ${ring.length} corners. Press Tab to select a corner.`
 
-  const selectCorner = (index: number) => store().selectCorner(index)
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const step = event.shiftKey ? BIG_STEP_METERS : STEP_METERS
-    const key = event.key
-
-    if (key === 'Tab') {
-      const live = store().session
-      const current = live?.selectedCorner ?? null
-      const liveRing = live?.rings[live.activeRing] ?? []
-      const next = event.shiftKey ? (current ?? liveRing.length) - 1 : (current ?? -1) + 1
-      // Past either end the focus simply leaves the region.
-      if (next < 0 || next >= liveRing.length) return
-      event.preventDefault()
-      selectCorner(next)
-      return
-    }
-
-    const nudges: Record<string, [number, number]> = {
-      ArrowLeft: [-step, 0],
-      ArrowRight: [step, 0],
-      ArrowUp: [0, step],
-      ArrowDown: [0, -step],
-    }
-    if (nudges[key]) {
-      event.preventDefault()
-      siteBoundaryEditActions.nudgeCorner(...nudges[key])
-      return
-    }
-
-    if (key === '[' || key === ']') {
-      event.preventDefault()
-      const count = session.rings.length
-      store().setActiveRing((session.activeRing + (key === ']' ? 1 : count - 1)) % count)
-      return
-    }
-
-    if (key === 'Insert' || key === '+') {
-      event.preventDefault()
-      siteBoundaryEditActions.addCorner()
-      return
-    }
-
-    if (key === 'Delete' || key === 'Backspace') {
-      event.preventDefault()
-      siteBoundaryEditActions.deleteCorner()
-      return
-    }
-
-    if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 'z') {
-      event.preventDefault()
-      if (event.shiftKey) siteBoundaryEditActions.redo()
-      else siteBoundaryEditActions.undo()
-      return
-    }
-
-    if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 'y') {
-      event.preventDefault()
-      siteBoundaryEditActions.redo()
-      return
-    }
-
-    if (key === 'Escape') {
-      event.preventDefault()
-      if (store().isDirty()) {
-        store().refuse('You have unsaved changes - choose Done to save them, or Cancel to discard them.')
-      } else {
-        siteBoundaryEditActions.cancel()
-      }
-    }
-  }
-
   return (
     <Box
       data-testid="corner-navigator"
@@ -117,10 +155,10 @@ export function SiteBoundaryCornerNavigator() {
       aria-roledescription="outline editor"
       aria-label="Outline editor"
       tabIndex={0}
-      onKeyDown={onKeyDown}
+      onKeyDown={handleKey}
       onFocus={(event) => {
         // Landing on the region itself selects the first corner, so there is always one to move.
-        if (event.target === event.currentTarget && selected === null && ring.length > 0) selectCorner(0)
+        if (event.target === event.currentTarget && selected === null && ring.length > 0) store().selectCorner(0)
       }}
       sx={visuallyHidden}
     >

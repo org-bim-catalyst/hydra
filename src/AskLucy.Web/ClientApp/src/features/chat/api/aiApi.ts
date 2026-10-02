@@ -313,7 +313,9 @@ export async function* streamChat(
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done) return
+    // A reply always ends with [DONE]. A stream that just stops means the server or the connection went
+    // away mid-reply (a restart, a dropped network), so it is reported, with the chat's Try again.
+    if (done) throw new Error('The connection was interrupted before the reply finished. Try again.')
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n\n')

@@ -21,6 +21,18 @@ describe('streamChat', () => {
     vi.unstubAllGlobals()
   })
 
+  it('reports a stream that stops without [DONE], such as a server restart mid-reply', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse(['data: Now highlighting\n\n'])))
+
+    const consume = async () => {
+      for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+        void event
+      }
+    }
+
+    await expect(consume()).rejects.toThrow(/interrupted before the reply finished/)
+  })
+
   // T014 — specs/036-startup-geolocation US3: __LOCATION__ trailing SSE event
   it('parses a __LOCATION__ trailing event and yields a location event (US3, FR-013)', async () => {
     const locationPayload = {

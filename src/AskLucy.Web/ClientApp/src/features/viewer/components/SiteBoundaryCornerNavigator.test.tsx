@@ -143,6 +143,39 @@ describe('SiteBoundaryCornerNavigator', () => {
     expect(store().session?.refusal).toContain('unsaved changes')
   })
 
+  it('works when the map has focus, not the hidden region (a corner was just clicked)', () => {
+    enter()
+    act(() => store().selectCorner(1))
+
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' })
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+
+    expect(runtime.nudgeCorner).toHaveBeenCalledWith(0.5, 0)
+    expect(runtime.undo).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not move a corner while the user is typing in a field', () => {
+    enter()
+    act(() => store().selectCorner(1))
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+
+    fireEvent.keyDown(input, { key: 'ArrowRight' })
+
+    expect(runtime.nudgeCorner).not.toHaveBeenCalled()
+    input.remove()
+  })
+
+  it('does nothing from the window while a drawing tool owns the map', () => {
+    enter()
+    act(() => store().selectCorner(1))
+    act(() => store().setTool('select'))
+
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' })
+
+    expect(runtime.nudgeCorner).not.toHaveBeenCalled()
+  })
+
   it('announces the selected corner', () => {
     enter()
     act(() => store().selectCorner(2))

@@ -111,6 +111,31 @@ export function useSiteBoundaryEditMode() {
       return detail.activeBoundary
     }
 
+    /**
+     * When this tab comes back into view, shows the outline as it now stands. Another tab may have reset or
+     * edited it meanwhile, and this one would otherwise keep drawing the old shape. Never while editing: an
+     * open session has its own conflict handling when it is saved.
+     */
+    const refreshShownOutline = async () => {
+      const shown = useActiveSiteBoundaryStore.getState()
+      if (store().session || !shown.chatId || !shown.polygon) return
+
+      try {
+        const latest = (await getChatById(shown.chatId)).activeBoundary
+        const now = useActiveSiteBoundaryStore.getState()
+        if (store().session || !latest || latest.siteName !== now.siteName || latest.revision === now.revision) return
+        applyBoundaryToViewer(shown.chatId, latest)
+      } catch (error) {
+        // A background check: the outline on screen is still a valid one, and the next time the tab is focused retries.
+        console.warn('Could not check for a newer site outline', error)
+      }
+    }
+    const onTabVisible = () => {
+      if (document.visibilityState === 'visible') void refreshShownOutline()
+    }
+    document.addEventListener('visibilitychange', onTabVisible)
+    window.addEventListener('focus', onTabVisible)
+
     const start = async (requestedRevision?: string) => {
       if (store().session) return
 
@@ -358,6 +383,8 @@ export function useSiteBoundaryEditMode() {
     const unregister = registerSiteBoundaryEditRuntime(runtime)
     return () => {
       unsubscribeBoundary()
+      document.removeEventListener('visibilitychange', onTabVisible)
+      window.removeEventListener('focus', onTabVisible)
       unregister()
     }
   }, [handle, queryClient])
