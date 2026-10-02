@@ -154,6 +154,35 @@ describe('SiteBoundaryCornerNavigator', () => {
     expect(runtime.undo).toHaveBeenCalledTimes(1)
   })
 
+  it('Tab from the map walks the corners and wraps round instead of leaving', () => {
+    enter()
+    act(() => store().selectCorner(3))
+
+    fireEvent.keyDown(document.body, { key: 'Tab' })
+    expect(store().session?.selectedCorner).toBe(0)
+
+    fireEvent.keyDown(document.body, { key: 'Tab', shiftKey: true })
+    expect(store().session?.selectedCorner).toBe(3)
+  })
+
+  it('Tab on a button is left alone, so the toolbar can still be reached', () => {
+    enter()
+    act(() => store().selectCorner(1))
+    const button = document.createElement('button')
+    document.body.appendChild(button)
+
+    fireEvent.keyDown(button, { key: 'Tab' })
+
+    expect(store().session?.selectedCorner).toBe(1)
+    button.remove()
+  })
+
+  it('[ with a single ring says there is no other ring', () => {
+    enter()
+    fireEvent.keyDown(document.body, { key: '[' })
+    expect(store().session?.refusal).toContain('only one ring')
+  })
+
   it('does not move a corner while the user is typing in a field', () => {
     enter()
     act(() => store().selectCorner(1))

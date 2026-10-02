@@ -29,19 +29,21 @@ interface KeyLike {
 /**
  * Keys that act on the selected corner while the user is not typing and no dialog or menu is open: the map
  * has focus after a corner is clicked, not the hidden region, so the shortcuts must work from the window too.
- * Tab stays with the region (it walks the corners only while the region itself is focused), and Delete and
- * Backspace are handled by the edit-mode hook's own window listener.
+ * Tab walks the corners from the map or the page body (not between controls), and Delete and Backspace are
+ * handled by the edit-mode hook's own window listener.
  */
 function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
   const target = event.target as HTMLElement | null
   if (target?.closest('[data-testid="corner-navigator"]')) return false
   if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return false
   if (target?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return false
-  if (event.key === 'Tab' || event.key === 'Delete' || event.key === 'Backspace') return false
+  if (event.key === 'Delete' || event.key === 'Backspace') return false
+  // Tab walks the corners from the map itself (or the page body), never when it is moving between controls.
+  if (event.key === 'Tab' && target && target !== document.body && !target.closest('.gm-style')) return false
   return useSiteBoundaryEditStore.getState().session?.tool === 'edit'
 }
 
-function handleKey(event: KeyLike) {
+function handleKey(event: KeyLike, wrap = false) {
   const store = () => useSiteBoundaryEditStore.getState()
   const session = store().session
   if (!session) return
@@ -55,10 +57,12 @@ function handleKey(event: KeyLike) {
     const current = live?.selectedCorner ?? null
     const liveRing = live?.rings[live.activeRing] ?? []
     const next = event.shiftKey ? (current ?? liveRing.length) - 1 : (current ?? -1) + 1
-    // Past either end the focus simply leaves the region.
-    if (next < 0 || next >= liveRing.length) return
+    if (liveRing.length === 0) return
+    // In the region, past either end the focus simply leaves it. From the map there is no region to
+    // leave, so the walk wraps round; Escape ends editing.
+    if (!wrap && (next < 0 || next >= liveRing.length)) return
     event.preventDefault()
-    selectCorner(next)
+    selectCorner((next + liveRing.length) % liveRing.length)
     return
   }
 
@@ -77,6 +81,10 @@ function handleKey(event: KeyLike) {
   if (key === '[' || key === ']') {
     event.preventDefault()
     const count = session.rings.length
+    if (count < 2) {
+      store().refuse('This outline has only one ring, so there is no other ring to switch to.')
+      return
+    }
     store().setActiveRing((session.activeRing + (key === ']' ? 1 : count - 1)) % count)
     return
   }
@@ -130,7 +138,7 @@ export function SiteBoundaryCornerNavigator() {
   useEffect(() => {
     if (!inSession) return
     const onKey = (event: globalThis.KeyboardEvent) => {
-      if (acceptsWindowKey(event)) handleKey(event)
+      if (acceptsWindowKey(event)) handleKey(event, true)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
