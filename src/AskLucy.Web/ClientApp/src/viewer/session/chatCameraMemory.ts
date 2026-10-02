@@ -1,10 +1,16 @@
 import { useGoogleMapsStore } from '../store/googleMapsStore'
+import { framingKeyOf } from './framingKey'
+import { viewerSession } from './viewerSession'
 
 /**
  * Remembers where the user left the map for each chat, across page reloads. `viewerSession.camera` only
  * survives navigation inside one page load; a reload used to open every chat at the default framing of its
- * site. The camera is saved when the map settles and put back once, after the chat's site has been restored
- * (which moves the map itself), unless the user has already taken the map over.
+ * site. The camera is saved whenever the map settles, and put back when the chat's site is restored.
+ *
+ * Putting it back does not fight the default framing after the fact (that raced, and the framing's
+ * animation often won). It goes in ahead of it, through the viewer's own session: the camera a map opens at
+ * (`viewerSession.camera`) and the location already framed (`viewerSession.framedLocationKey`), so the
+ * framing sees the place as done and leaves the camera alone.
  */
 
 /** Identifies the place the camera was looking at: the chat's confirmed location, to about 10 m. */
@@ -23,11 +29,7 @@ interface RememberedCamera {
 
 const keyOf = (chatId: string) => `asklucy.camera.${chatId}`
 
-/** How long after the restore starts the saved camera keeps being re-applied: the site's own framing arrives late and would otherwise win. */
-const RESTORE_TIMEOUT_MS = 5000
-
 let currentChatId: string | null = null
-let restoring = false
 const restoredChats = new Set<string>()
 
 const isCamera = (value: unknown): value is RememberedCamera => {
@@ -51,9 +53,9 @@ export function setCameraMemoryChat(chatId: string | null) {
   currentChatId = chatId
 }
 
-/** Saves the camera for the current chat. Skipped while a saved one is still being put back. */
+/** Saves the camera for the current chat. */
 export function rememberCamera(camera: RememberedCamera) {
-  if (!currentChatId || restoring) return
+  if (!currentChatId) return
   try {
     localStorage.setItem(keyOf(currentChatId), JSON.stringify(camera))
   } catch (error) {
@@ -62,57 +64,31 @@ export function rememberCamera(camera: RememberedCamera) {
   }
 }
 
-/** Puts the chat's saved camera back, once per chat per page load. A drag or wheel zoom from the user ends it at once. */
-export function restoreRememberedCamera(chatId: string, locationKey: string | null) {
-  if (restoredChats.has(chatId)) return
+/**
+ * Puts the chat's saved camera back, once per chat per page load. Call it before the chat's location is
+ * set on `activeLocationStore`: it marks that location as framed, so the default framing then skips it.
+ * Returns whether a camera was put back.
+ */
+export function restoreRememberedCamera(chatId: string, location: { latitude: number; longitude: number }): boolean {
+  if (restoredChats.has(chatId)) return false
   restoredChats.add(chatId)
 
   const saved = load(chatId)
   // Another place was confirmed since (a turn that finished after the page was left): its framing wins.
-  if (!saved || saved.locationKey !== locationKey) return
+  if (!saved || saved.locationKey !== locationKeyOf(location.latitude, location.longitude)) return false
 
-  restoring = true
-  let current: google.maps.Map | null = null
-  let listeners: google.maps.MapsEventListener[] = []
-  let wheelTarget: HTMLElement | null = null
-  let unsubscribe: (() => void) | null = null
+  const camera = { latitude: saved.latitude, longitude: saved.longitude, zoom: saved.zoom, heading: saved.heading, tilt: saved.tilt }
 
-  const finish = () => {
-    if (!restoring) return
-    restoring = false
-    detach()
-    unsubscribe?.()
-    clearTimeout(timer)
-  }
-  const detach = () => {
-    listeners.forEach((l) => l.remove())
-    listeners = []
-    wheelTarget?.removeEventListener('wheel', finish)
-    wheelTarget = null
-  }
-  const apply = () =>
-    current?.moveCamera({
-      center: { lat: saved.latitude, lng: saved.longitude },
-      zoom: saved.zoom,
-      heading: saved.heading,
-      tilt: saved.tilt,
-    })
+  // A map created from here on opens at this camera; and the location about to be set counts as framed.
+  viewerSession.camera = camera
+  viewerSession.framedLocationKey = framingKeyOf({ source: 'agent', ...location, locationType: null, viewport: null })
 
-  /** The map can be rebuilt while the page settles (theme, map id): follow whichever one is current. */
-  const attach = (map: google.maps.Map | null) => {
-    if (!restoring || map === current) return
-    detach()
-    current = map
-    if (!map) return
-
-    apply()
-    listeners = [map.addListener('idle', apply), map.addListener('dragstart', finish)]
-    // A wheel zoom is the user taking the map over, too.
-    wheelTarget = map.getDiv?.() ?? null
-    wheelTarget?.addEventListener('wheel', finish, { passive: true })
-  }
-
-  attach(useGoogleMapsStore.getState().map)
-  unsubscribe = useGoogleMapsStore.subscribe((state) => attach(state.map))
-  const timer = setTimeout(finish, RESTORE_TIMEOUT_MS)
+  // A map already on screen (it opened at the device's location) is moved there now.
+  useGoogleMapsStore.getState().map?.moveCamera({
+    center: { lat: camera.latitude, lng: camera.longitude },
+    zoom: camera.zoom,
+    heading: camera.heading,
+    tilt: camera.tilt,
+  })
+  return true
 }

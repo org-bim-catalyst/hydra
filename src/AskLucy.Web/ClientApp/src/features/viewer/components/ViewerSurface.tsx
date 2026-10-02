@@ -15,6 +15,7 @@ import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
 import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
+import { framingKeyOf } from '../../../viewer/session/framingKey'
 import { viewerSession } from '../../../viewer/session/viewerSession'
 // Side-effect imports: the subscription that keeps the scene's reference point on the active
 // location, and the sign-out subscription that ends the viewer session.
@@ -128,20 +129,9 @@ export function ViewerSurface() {
     }
   }, [source, latitude, longitude])
 
-  // Identifies a *deliberately* established location, as opposed to passive tracking of the one
-  // already shown. The device establishes a location once and then keeps reporting it, so every
-  // geolocation fix shares one key; the agent naming a place is a deliberate act every time, so
-  // its coordinates and framing hints are all part of its key.
-  const framingKey =
-    source === null
-      ? null
-      : source === 'geolocation'
-        ? 'geolocation'
-        : `agent:${latitude},${longitude},${locationType ?? ''},${
-            viewport === null
-              ? ''
-              : `${viewport.northeastLat},${viewport.northeastLng},${viewport.southwestLat},${viewport.southwestLng}`
-          }`
+  // A deliberately established location; see framingKeyOf. Shared with the per-chat camera memory, which
+  // marks a location as framed when it puts the user's own view back.
+  const framingKey = framingKeyOf({ source, latitude, longitude, locationType, viewport })
 
   // Camera framing, deliberately separate from the content effect above: it answers "a new place
   // is being shown, put the camera where that place is visible", which is not what a fresh reading

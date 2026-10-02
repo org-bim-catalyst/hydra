@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
-import { locationKeyOf, restoreRememberedCamera, setCameraMemoryChat } from '../../../viewer/session/chatCameraMemory'
+import { restoreRememberedCamera, setCameraMemoryChat } from '../../../viewer/session/chatCameraMemory'
 import type { ChatDetail } from '../api/chatsApi'
 
 /**
@@ -25,6 +25,9 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
 
     const location = chatDetail?.activeLocation
     if (!location || locationSource === 'agent') return
+
+    // Before the location is set: the user's own view of this chat, if remembered, replaces the default framing.
+    restoreRememberedCamera(chatDetail.id, location)
 
     useActiveLocationStore
       .getState()
@@ -61,8 +64,5 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
       // Same rule as a live 'location' event: an outline of some other site must not stay overlaid.
       useActiveSiteBoundaryStore.getState().clearUnlessShowing(location.locationName, chatDetail.id)
     }
-
-    // The site moved the map to its own framing; put the user's own view of this chat back over it.
-    restoreRememberedCamera(chatDetail.id, locationKeyOf(location.latitude, location.longitude))
   }, [chatDetail, locationSource])
 }
