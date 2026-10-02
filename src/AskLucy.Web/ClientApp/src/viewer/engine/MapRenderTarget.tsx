@@ -188,18 +188,34 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         if (camera) viewerEngine.notifyCameraChanged(camera)
       }
 
+      /** The live camera, saved for the open chat so a reload of it opens here (see chatCameraMemory). */
+      const saveCameraForChat = () => {
+        const camera = getCameraStateFromHandle(handle!)
+        if (!camera || camera.zoom === undefined) return
+        const place = useActiveLocationStore.getState()
+        rememberCamera({ ...camera, zoom: camera.zoom, locationKey: locationKeyOf(place.latitude, place.longitude) })
+      }
+
       // Enforced on 'idle' alone, never on the per-property events: 'idle' is the map's own
       // "movement has settled" signal, so a correction issued here is compared against a stable
       // camera, and the correction's own movement raises exactly one more 'idle' to re-check.
       const idleListener = handle.map.addListener?.('idle', () => {
         announceCamera()
-        const settled = getCameraStateFromHandle(handle!)
-        if (settled && settled.zoom !== undefined) {
-          const place = useActiveLocationStore.getState()
-          rememberCamera({ ...settled, zoom: settled.zoom, locationKey: locationKeyOf(place.latitude, place.longitude) })
-        }
+        saveCameraForChat()
         restoreGuard?.enforce()
       })
+
+      // 'idle' never fires while auto-rotation is running: the rotation moves the heading every
+      // frame, so the map never settles. Saving on 'idle' alone left the per-chat camera at whatever
+      // it was the last time rotation was off, and a reload restored that stale view. The camera is
+      // therefore also saved as the page is left (reload, close, navigation) and when the tab is
+      // hidden, read live from the map at that moment.
+      const onPageHide = () => saveCameraForChat()
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') saveCameraForChat()
+      }
+      window.addEventListener('pagehide', onPageHide)
+      document.addEventListener('visibilitychange', onVisibilityChange)
 
       // The first deliberate gesture ends the restore — from here the camera is the user's.
       const releaseGuard = () => restoreGuard?.release()
@@ -287,6 +303,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         unregisterRenderTarget()
         unregisterSelectable()
         container.removeEventListener('wheel', releaseGuard)
+        window.removeEventListener('pagehide', onPageHide)
+        document.removeEventListener('visibilitychange', onVisibilityChange)
         for (const listener of [idleListener, headingListener, tiltListener, dragListener]) {
           if (listener) google.maps.event.removeListener(listener)
         }

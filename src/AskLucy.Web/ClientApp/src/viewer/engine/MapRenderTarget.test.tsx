@@ -1,5 +1,6 @@
 import { render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setCameraMemoryChat } from '../session/chatCameraMemory'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import { ViewerEngine } from './ViewerEngine'
 import { MapRenderTarget } from './MapRenderTarget'
@@ -244,5 +245,53 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
 
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1))
     consoleError.mockRestore()
+  })
+})
+
+describe('MapRenderTarget - the per-chat camera memory', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
+  })
+
+  afterEach(() => {
+    setCameraMemoryChat(null)
+    vi.unstubAllEnvs()
+  })
+
+  /** A map that never goes idle, as while auto-rotation turns it: no 'idle' listener ever runs. */
+  function rotatingMapHandle() {
+    return {
+      ...fakeHandle,
+      map: {
+        getCenter: () => ({ lat: () => 23.5901, lng: () => 58.4131 }),
+        getZoom: () => 17.8,
+        getHeading: () => 212,
+        getTilt: () => 45,
+      },
+    }
+  }
+
+  it('saves the live camera when the page is left (a reload), though the map never went idle', async () => {
+    createGoogleMapsGisLayerMock.mockResolvedValue(rotatingMapHandle())
+    setCameraMemoryChat('chat-1')
+    render(
+      <MapRenderTarget viewerEngine={new ViewerEngine()} layerId="gis-current-location" center={{ latitude: 23.59, longitude: 58.41 }} onError={() => {}} />,
+    )
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
+    await waitFor(() => expect(useViewerEngineStore.getState()).toBeTruthy())
+
+    await waitFor(() => {
+      window.dispatchEvent(new Event('pagehide'))
+      expect(localStorage.getItem('asklucy.camera.chat-1')).not.toBeNull()
+    })
+
+    expect(JSON.parse(localStorage.getItem('asklucy.camera.chat-1')!)).toMatchObject({
+      latitude: 23.5901,
+      longitude: 58.4131,
+      zoom: 17.8,
+      heading: 212,
+      tilt: 45,
+    })
   })
 })
