@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
+import type { CameraViewMode } from '../api/commands'
 import { viewerEngine } from '../engine/viewerEngineInstance'
 import { framingKeyOf } from './framingKey'
 import { viewerSession } from './viewerSession'
@@ -25,6 +27,9 @@ interface RememberedCamera {
   zoom: number
   heading: number
   tilt: number
+  /** 3D or plan, and whether the view was turning: part of how the user left the view. Absent in entries saved before these were kept. */
+  mode?: CameraViewMode
+  rotationEnabled?: boolean
 }
 
 const keyOf = (chatId: string) => `asklucy.camera.${chatId}`
@@ -82,6 +87,12 @@ export function restoreRememberedCamera(chatId: string, location: { latitude: nu
   // A map created from here on opens at this camera; and the location about to be set counts as framed.
   viewerSession.camera = camera
   viewerSession.framedLocationKey = framingKeyOf({ source: 'agent', ...location, locationType: null, viewport: null })
+
+  // The view mode and the rotation go first: the mode sets the tilt the camera keeps, and a paused view must
+  // not start turning. Both live in the viewer store, which a map still being created reads when it is ready.
+  // A reduced-motion preference always wins over a remembered "turning".
+  if (saved.mode) viewerEngine.setViewMode(saved.mode)
+  if (saved.rotationEnabled !== undefined) viewerEngine.setRotationEnabled(saved.rotationEnabled && !prefersReducedMotion())
 
   // The map already on screen, or - on a reload - the one still being created, is put there. Since the
   // place is now marked as framed, nothing else would move a map that opened at the device's location.

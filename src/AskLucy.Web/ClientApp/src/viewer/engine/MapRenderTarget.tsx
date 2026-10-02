@@ -193,7 +193,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         const camera = getCameraStateFromHandle(handle!)
         if (!camera || camera.zoom === undefined) return
         const place = useActiveLocationStore.getState()
-        rememberCamera({ ...camera, zoom: camera.zoom, locationKey: locationKeyOf(place.latitude, place.longitude) })
+        const { mode, rotationEnabled } = useViewerEngineStore.getState().camera
+        rememberCamera({ ...camera, zoom: camera.zoom, mode, rotationEnabled, locationKey: locationKeyOf(place.latitude, place.longitude) })
       }
 
       // Enforced on 'idle' alone, never on the per-property events: 'idle' is the map's own

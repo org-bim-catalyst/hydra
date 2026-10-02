@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { viewerEngine } from '../engine/viewerEngineInstance'
+import { useViewerEngineStore } from '../store/viewerEngineStore'
 import { rememberCamera, restoreRememberedCamera, setCameraMemoryChat } from './chatCameraMemory'
 import { framingKeyOf } from './framingKey'
 import { viewerSession } from './viewerSession'
@@ -60,6 +61,28 @@ describe('chatCameraMemory', () => {
 
     expect(restore).toHaveBeenCalledWith({ latitude: 25.253, longitude: 55.304, zoom: 18.2, heading: 30, tilt: 45 })
     restore.mockRestore()
+  })
+
+  it('keeps a paused view paused, and puts the plan or 3D mode back, before the camera', () => {
+    const chatId = freshChat()
+    setCameraMemoryChat(chatId)
+    rememberCamera({ ...CAMERA, mode: 'plan', rotationEnabled: false })
+    useViewerEngineStore.getState().setCamera({ mode: 'isometric', rotationEnabled: true })
+
+    restoreRememberedCamera(chatId, PLACE)
+
+    expect(useViewerEngineStore.getState().camera).toEqual({ mode: 'plan', rotationEnabled: false })
+  })
+
+  it('leaves the rotation alone for an entry saved before it was kept', () => {
+    const chatId = freshChat()
+    setCameraMemoryChat(chatId)
+    rememberCamera(CAMERA)
+    useViewerEngineStore.getState().setCamera({ mode: 'isometric', rotationEnabled: true })
+
+    restoreRememberedCamera(chatId, PLACE)
+
+    expect(useViewerEngineStore.getState().camera.rotationEnabled).toBe(true)
   })
 
   it('does not put a camera back over a different place, which keeps its own framing', () => {

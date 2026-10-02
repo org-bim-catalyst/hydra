@@ -295,6 +295,8 @@ describe('MapRenderTarget - the per-chat camera memory', () => {
       zoom: 17.8,
       heading: 212,
       tilt: 45,
+      mode: useViewerEngineStore.getState().camera.mode,
+      rotationEnabled: useViewerEngineStore.getState().camera.rotationEnabled,
     })
   })
 
