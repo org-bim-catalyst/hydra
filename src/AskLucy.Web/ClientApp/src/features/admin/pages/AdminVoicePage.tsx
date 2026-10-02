@@ -29,6 +29,7 @@ import * as adminVoiceApi from '../api/adminVoiceApi'
 import type { AdminVoiceProvider } from '../api/adminVoiceApi'
 import { AddVoiceProviderDialog } from '../components/AddVoiceProviderDialog'
 import { AdminShell } from '../components/AdminShell'
+import { AudioLevelMeter } from '../components/AudioLevelMeter'
 import { DictationSettingsSection } from '../components/DictationSettingsSection'
 import { VoiceProviderCredentialDialog } from '../components/VoiceProviderCredentialDialog'
 import { useSampleAudioPlayer } from '../hooks/useSampleAudioPlayer'
@@ -318,6 +319,13 @@ export function AdminVoicePage() {
                 </Button>
               )}
             </Stack>
+            <Box sx={{ mt: 1 }}>
+              <AudioLevelMeter
+                label={`Output: ${player.outputDeviceLabel ?? 'System default'}`}
+                level={player.outputLevel}
+                active={player.isPlaying}
+              />
+            </Box>
             {previewMutation.isError && (
               <Alert severity="error" sx={{ mt: 1 }}>
                 {errorMessage(previewMutation.error)}

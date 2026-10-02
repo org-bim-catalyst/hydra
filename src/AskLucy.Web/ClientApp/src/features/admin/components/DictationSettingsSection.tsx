@@ -23,6 +23,7 @@ import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
 import * as adminVoiceApi from '../api/adminVoiceApi'
 import type { DictationPrimaryEngine, LocalWhisperTryResult, PushToTalkEngine } from '../api/adminVoiceApi'
 import { MAX_SAMPLE_SECONDS, useWavSampleRecorder } from '../hooks/useWavSampleRecorder'
+import { AudioLevelMeter } from './AudioLevelMeter'
 
 /** The Select's value for "no model"; a real id is never empty. */
 const NO_MODEL = ''
@@ -323,6 +324,11 @@ export function DictationSettingsSection() {
                 </Button>
                 {tryMutation.isPending && <CircularProgress size={20} aria-label="Transcribing" />}
               </Stack>
+              <AudioLevelMeter
+                label={`Input: ${recorder.inputDeviceLabel ?? 'Not detected yet'}`}
+                level={recorder.inputLevel}
+                active={recorder.isRecording}
+              />
               {tryResult && (
                 <Alert severity="success">
                   <Typography variant="body2">&ldquo;{tryResult.text}&rdquo;</Typography>

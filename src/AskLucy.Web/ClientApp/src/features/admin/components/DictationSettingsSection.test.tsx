@@ -23,6 +23,8 @@ vi.mock('../hooks/useWavSampleRecorder', async () => {
           setIsRecording(false)
           return recorder.stop() as Promise<Blob>
         },
+        inputDeviceLabel: 'Test Microphone',
+        inputLevel: 0,
       }
     },
   }

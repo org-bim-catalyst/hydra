@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toWav16kMono } from '../../chat/voice/wavEncoder'
+import { tryCreateLevelAnalyser, type LevelAnalyser } from '../audio/audioLevelMeter'
+import { useLevelPolling } from './useLevelPolling'
 
 /** Keeps a sample well under the try route's 4 MB limit (16 kHz mono 16-bit ≈ 1.9 MB a minute). */
 export const MAX_SAMPLE_SECONDS = 30
@@ -11,13 +13,20 @@ export const MAX_SAMPLE_SECONDS = 30
  *
  * `start` rejects when the microphone can't be opened, and `stop` when nothing was recorded or
  * the clip can't be converted; the caller shows why.
+ *
+ * Also exposes which physical device the browser actually opened (`inputDeviceLabel`) and a live
+ * 0–1 `inputLevel` while recording, so the administrator can tell a silent/wrong-device recording
+ * from a working one before waiting on a transcript.
  */
 export function useWavSampleRecorder() {
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const stoppedRef = useRef<Promise<Blob> | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<LevelAnalyser | null>(null)
   const [isRecording, setIsRecording] = useState(false)
+  const [inputDeviceLabel, setInputDeviceLabel] = useState<string | null>(null)
 
   const release = useCallback(() => {
     if (timerRef.current) {
@@ -26,6 +35,10 @@ export function useWavSampleRecorder() {
     }
     recorderRef.current?.stream.getTracks().forEach((track) => track.stop())
     recorderRef.current = null
+    analyserRef.current?.dispose()
+    analyserRef.current = null
+    void audioContextRef.current?.close()
+    audioContextRef.current = null
     setIsRecording(false)
   }, [])
 
@@ -39,6 +52,14 @@ export function useWavSampleRecorder() {
 
   const start = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    setInputDeviceLabel(stream.getAudioTracks()[0]?.label || 'Default microphone')
+
+    if (typeof AudioContext !== 'undefined') {
+      const context = new AudioContext()
+      audioContextRef.current = context
+      analyserRef.current = tryCreateLevelAnalyser(context, context.createMediaStreamSource(stream))
+    }
+
     const recorder = new MediaRecorder(stream)
     chunksRef.current = []
     recorder.ondataavailable = (event) => {
@@ -55,6 +76,8 @@ export function useWavSampleRecorder() {
     }, MAX_SAMPLE_SECONDS * 1000)
   }, [])
 
+  const inputLevel = useLevelPolling(isRecording, useCallback(() => analyserRef.current?.readLevel() ?? 0, []))
+
   const stop = useCallback(async (): Promise<Blob> => {
     const recorder = recorderRef.current
     const stopped = stoppedRef.current
@@ -68,5 +91,5 @@ export function useWavSampleRecorder() {
     return wav.blob
   }, [release])
 
-  return { isRecording, start, stop }
+  return { isRecording, start, stop, inputDeviceLabel, inputLevel }
 }
