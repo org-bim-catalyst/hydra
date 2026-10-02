@@ -18,6 +18,7 @@ import type { ChatMessage, SuggestedAction } from '../api/aiApi'
 import { CitationBadge } from '../../retrieval/components/CitationBadge'
 import { MemoryTraceIndicator } from '../../memory/components/MemoryTraceIndicator'
 import { SuggestedActionCard } from './SuggestedActionCard'
+import { ThinkingIndicator } from './ThinkingIndicator'
 import { codeFontFamily } from '../../../theme/tokens/typography'
 import { radius } from '../../../theme'
 
@@ -38,6 +39,8 @@ export function MessageBubble({
   showStopIcon,
   isReplayDisabled,
   isBeingRead,
+  showPendingDots,
+  pendingLabel,
   onReplay,
   onStopReplay,
   isLiveOffer,
@@ -59,6 +62,9 @@ export function MessageBubble({
    * its audio plays, so a listener can tell which of several replies they are hearing. Visual
    * only — the replay control's own state already carries it for assistive technology. */
   isBeingRead?: boolean
+  /** Work is pending behind this status line: the thinking dots sit on a line of their own inside the card. */
+  showPendingDots?: boolean
+  pendingLabel?: string
   onReplay?: (message: ChatMessage) => void
   onStopReplay?: () => void
   /**
@@ -204,6 +210,11 @@ export function MessageBubble({
               </ReactMarkdown>
             )}
           </Typography>
+          {showPendingDots && (
+            <Box sx={{ mx: -2.25, mb: -1.25 }}>
+              <ThinkingIndicator label={pendingLabel} />
+            </Box>
+          )}
 
           {(hasAttachments || hasCitations) && (
             <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>

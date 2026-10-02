@@ -1743,7 +1743,7 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
       expect(await screen.findByText('The boundary is outlined.')).toBeInTheDocument()
     })
 
-    it('keeps a status line on screen with the dots beneath it while the answer is pending', async () => {
+    it('shows a status line once its voice is ready, with the dots on a line of its own inside the card', async () => {
       server.use(
         http.get(`*/api/v1/chats/${CHAT_A}/messages`, () => HttpResponse.json(messagesPage([]))),
         http.post('*/api/v1/ai/chat', () => {
@@ -1758,12 +1758,14 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
           return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
         }),
       )
-      vi.spyOn(mockTts, 'speak').mockImplementation(async () => {}).mockClear()
+      vi.spyOn(mockTts, 'speak').mockImplementation(speakAndRelease).mockClear()
 
       await send()
 
-      expect(await screen.findByText('Looking for it.')).toBeInTheDocument()
-      expect(await screen.findByRole('status', { name: 'Finding the place' })).toBeInTheDocument()
+      const line = await screen.findByText('Looking for it.')
+      const status = await screen.findByRole('status', { name: 'Finding the place' })
+      // Same card as the text, not a row of its own beneath it.
+      expect(line.closest('[data-reading], .MuiPaper-root')?.contains(status)).toBe(true)
     })
 
     // Reported 2026-10-01: after muting and unmuting, the thinking dots came back on their own. The
@@ -1823,8 +1825,11 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
 
       await send()
 
-      // The first status line is up at once; the report waits for its voice, and the next status
-      // line waits behind the report.
+      // Each message appears only when its own voice starts, and the next is not even voiced
+      // until the one before it has finished.
+      await waitFor(() => expect(ready['Looking for it.']).toBeDefined())
+      expect(screen.queryByText('Looking for it.')).not.toBeInTheDocument()
+      act(() => ready['Looking for it.']())
       expect(await screen.findByText('Looking for it.')).toBeInTheDocument()
       await waitFor(() => expect(ready['The place was confirmed.']).toBeDefined())
       expect(screen.queryByText('The place was confirmed.')).not.toBeInTheDocument()
@@ -1833,6 +1838,9 @@ describe('ConversationView — thinking indicator & send retry (User Story 3)', 
       act(() => ready['The place was confirmed.']())
 
       expect(await screen.findByText('The place was confirmed.')).toBeInTheDocument()
+      expect(screen.queryByText('Now highlighting the boundary.')).not.toBeInTheDocument()
+      await waitFor(() => expect(ready['Now highlighting the boundary.']).toBeDefined())
+      act(() => ready['Now highlighting the boundary.']())
       expect(await screen.findByText('Now highlighting the boundary.')).toBeInTheDocument()
       const shown = screen.getAllByText(/Looking for it|The place was confirmed|Now highlighting/).map((e) => e.textContent)
       expect(shown).toEqual(['Looking for it.', 'The place was confirmed.', 'Now highlighting the boundary.'])

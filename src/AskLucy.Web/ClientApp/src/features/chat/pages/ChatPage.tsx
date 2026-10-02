@@ -440,7 +440,7 @@ export function ConversationView({
     const visible = messages.filter((m, index) => {
       if (index <= turnStart || m.role !== 'assistant' || m.content === '') return true
       if (blocked) return false
-      if (m.isProgress || releasedReplies.has(spokenKey(turnStart, m.content))) return true
+      if (releasedReplies.has(spokenKey(turnStart, m.content))) return true
       blocked = true
       return false
     })

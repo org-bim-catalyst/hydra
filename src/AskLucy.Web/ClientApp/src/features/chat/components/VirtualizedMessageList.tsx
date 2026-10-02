@@ -69,10 +69,15 @@ export function VirtualizedMessageList({
   // this extraction, so the notice here is expected and permanently accepted.
   // One trailing indicator stands in for every held reply. Not shown when a streaming
   // placeholder already is, so the two never stack.
-  const showHoldingRow = isHolding && !(isStreaming && messages.some((m) => m.role === 'assistant' && m.content === ''))
+  // A status line ("Looking for it.") hosts the dots itself, on a line of its own inside its card,
+  // for as long as work is pending behind it; the separate indicator rows are then dropped.
+  const lastShown = [...messages].reverse().find((m) => m.content !== '')
+  const hostsDots = Boolean(lastShown?.isProgress) && (isStreaming || isHolding)
+  const rows = hostsDots ? messages.filter((m) => m.content !== '' || m.role !== 'assistant') : messages
+  const showHoldingRow = !hostsDots && isHolding && !(isStreaming && messages.some((m) => m.role === 'assistant' && m.content === ''))
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
-    count: messages.length + (showHoldingRow ? 1 : 0),
+    count: rows.length + (showHoldingRow ? 1 : 0),
     getScrollElement: () => scrollElement,
     estimateSize: () => 96,
     overscan: 8,
@@ -81,7 +86,7 @@ export function VirtualizedMessageList({
   return (
     <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
       {virtualizer.getVirtualItems().map((virtualItem) => {
-        const message = messages[virtualItem.index]
+        const message = rows[virtualItem.index]
         const isHoldingRow = message === undefined
         // FR-006/FR-007: the in-flight assistant placeholder (empty content while
         // streaming) renders as the thinking indicator instead of an empty bubble.
@@ -117,6 +122,8 @@ export function VirtualizedMessageList({
                   voiceControlsProps.isSpeaking ||
                   (message.id === playingMessageId && !isManualReplay)
                 }
+                pendingLabel={hostsDots && message === lastShown ? (pendingLabel ?? undefined) : undefined}
+                showPendingDots={hostsDots && message === lastShown}
                 isBeingRead={Boolean(message.id) && message.id === playingMessageId}
                 onReplay={handleReplay}
                 onStopReplay={handleStopReplay}
