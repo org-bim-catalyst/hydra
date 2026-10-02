@@ -1,5 +1,6 @@
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Documents;
+using AskLucy.Domain.Notifications;
 using AskLucy.Infrastructure.Documents;
 using Microsoft.AspNetCore.SignalR;
 using NSubstitute;
@@ -87,5 +88,35 @@ public sealed class ProcessingNotifierTests
             ((NotificationRecipient.User)r!.Recipient).UserId == "user-4" &&
             r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
             r.EventKey == $"document:{documentId}:ocr-completed:dedupe-2"));
+    }
+
+    [Fact]
+    public async Task NotifyAsync_ShouldPublishDocumentOcrFailed_InsteadOfDocumentProcessingFailed_ForAFailedOcrStage()
+    {
+        var sut = CreateSut("user-5");
+        var documentId = Guid.CreateVersion7();
+
+        await sut.NotifyAsync(
+            "user-5", DocumentNotificationEventType.OcrFailed, documentId, "dedupe-3",
+            documentName: "Report.pdf", failureSummary: "The scan was unreadable.",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+            r!.Type == NotificationTypeKeys.DocumentOcrFailed && r.Variables["failureSummary"] == "The scan was unreadable."));
+        _publisher.DidNotReceive().Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.DocumentProcessingFailed));
+    }
+
+    [Fact]
+    public async Task NotifyAsync_ShouldPublishDocumentProcessingFailed_ForANonOcrFailedStage()
+    {
+        var sut = CreateSut("user-6");
+        var documentId = Guid.CreateVersion7();
+
+        await sut.NotifyAsync(
+            "user-6", DocumentNotificationEventType.ProcessingFailed, documentId, "dedupe-4",
+            documentName: "Report.pdf", failureSummary: "The parser crashed.",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.DocumentProcessingFailed));
     }
 }

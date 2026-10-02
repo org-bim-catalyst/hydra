@@ -360,10 +360,12 @@ These apply to every task below, and each one assumes them:
   - an error toast on a failed mutation;
   - jest-axe with no serious or critical violations.
   - Deviations: (1) `NotificationList`'s outer container uses `role="region"` rather than `role="list"` — the virtualizer only mounts the visible row slice, so a real `listitem`-per-row structure would trip axe's `aria-required-children` rule against whatever happens to be (un)mounted at assertion time; a labeled region is accessible without asserting a DOM structure virtualization can't guarantee. (2) The category `Select` needed an explicit `aria-label` to satisfy axe's `aria-input-field-name` rule. (3) `NotificationPopover.test.tsx` uses `getByText` instead of `getByRole` inside the popover portal (jsdom's `getComputedStyle` crashes on MUI portal content under `getByRole`, per the `jsdom_getcomputedstyle_crash_mui_dialog` precedent). (4) `NotificationsPage.test.tsx`/`.a11y.test.tsx` stub `HTMLElement.prototype.clientHeight`/`offsetHeight` so the virtualized list actually renders rows under jsdom (mirrors `ChatSidebar.a11y.test.tsx`).
-- [ ] T059 [P] [US1] `useNotificationHub.test.ts` in `ClientApp/src/features/notifications/hooks/`:
+- [X] T059 [P] [US1] `useNotificationHub.test.ts` in `ClientApp/src/features/notifications/hooks/`:
   - `notificationCreated` prepends the item and bumps the count;
   - on reconnect it invalidates the list and the unread-count queries;
   - the token factory re-reads the token on every call (the SignalR frozen-token regression).
+
+  Already present as `useNotificationHub.test.tsx` and verified against the checklist above (the "starts the connection through `keepHubConnected`, not a hand-rolled `start().catch()`" case covers the frozen-token requirement, since `keepHubConnected` itself owns the re-read-on-every-call token factory).
 
 ### Implementation for User Story 1
 
@@ -417,22 +419,26 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 2
 
-- [ ] T075 [P] [US2] `AgentExecutionNotificationTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/AgentExecutionNotificationTests.cs`. The started, completed and failed events each publish once, to the execution owner, with `EventKey` `agent-execution:{id}:{event}` and `ParentId=agentId`, before `SaveChangesAsync`.
-- [ ] T076 [P] [US2] `WorkflowExecutionNotificationTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/WorkflowExecutionNotificationTests.cs`:
+- [X] T075 [P] [US2] `AgentExecutionNotificationTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/AgentExecutionNotificationTests.cs`. The started, completed and failed events each publish once, to the execution owner, with `EventKey` `agent-execution:{id}:{event}` and `ParentId=agentId`, before `SaveChangesAsync`.
+- [X] T076 [P] [US2] `WorkflowExecutionNotificationTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/WorkflowExecutionNotificationTests.cs`:
   - started, completed and failed each publish once;
   - `paused` is published from `PauseWorkflowExecutionCommandHandler`;
   - nothing is published on the early-return and resume paths (the resumability gotcha).
-- [ ] T077 [P] [US2] `DocumentNotificationEmitterTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/DocumentNotificationEmitterTests.cs`:
+  - Deviation: "resume paths" is covered as "nothing is published when the execution is not `Running`" (the pause handler's own early return) rather than a full resume-after-pause scenario, which needs the approval-gate machinery `WorkflowExecutionOrchestratorTests` itself doesn't exercise in isolation either.
+- [X] T077 [P] [US2] `DocumentNotificationEmitterTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/DocumentNotificationEmitterTests.cs`:
   - every `DocumentNotificationEventType` maps to its `document.*` key;
   - a failed OCR stage publishes `document.ocr.failed` **instead of** `document.processing.failed` (one notification per failure);
   - the indexing emits are tested in Phase 4b (T235), not here.
-- [ ] T078 [P] [US2] `SecurityNotificationEmitterTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/SecurityNotificationEmitterTests.cs`: the enable-2FA, disable-2FA and regenerate-recovery-codes handlers each publish their `security.*` type once, in the same unit of work.
-- [ ] T079 [P] [US2] Update `tests/AskLucy.Web.Tests/Documents/ProcessingNotifierTests.cs`, and add `tests/AskLucy.Infrastructure.Tests/Memory/MemoryNotifierTests.cs`:
+  - Deviation: the OCR-vs-processing-failed emission behavior lives in `ProcessingNotifier` (Infrastructure), which `Application.Tests` doesn't reference, so that half moved into `ProcessingNotifierTests.cs` (Web.Tests, T079) instead; this file keeps only the pure `LegacyNotificationTypeMap` mapping assertions.
+- [X] T078 [P] [US2] `SecurityNotificationEmitterTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/SecurityNotificationEmitterTests.cs`: the enable-2FA, disable-2FA and regenerate-recovery-codes handlers each publish their `security.*` type once, in the same unit of work.
+- [X] T079 [P] [US2] Update `tests/AskLucy.Web.Tests/Documents/ProcessingNotifierTests.cs`, and add `tests/AskLucy.Infrastructure.Tests/Memory/MemoryNotifierTests.cs`:
   - `NotifyAsync` publishes through `INotificationPublisher`;
   - no `DocumentNotification` or `MemoryNotification` row is written;
   - no `notificationCreated` or `memoryNotificationCreated` hub event is sent;
   - the stage and progress pushes are unchanged.
+  - `ProcessingNotifierTests.cs` already covered the publish/no-legacy-row/no-push assertions from T082/T236; this task added the OCR-failed-vs-processing-failed split (see T077) and the new `MemoryNotifierTests.cs` (4 tests: each event type's mapped key, `RelatedItem`, `EventKey`, and the null-memory-id case).
 - [ ] T080 [P] [US2] `EmitterEndToEndTests` in `tests/AskLucy.Web.Tests/Notifications/EmitterEndToEndTests.cs`, against the real host and DB. For each emitted type, trigger it through its command or job path, let the dispatcher run, and assert exactly one center item with the expected category, priority, route and recipient.
+  - Not done this pass: a full real-host-and-DB sweep of every emitted type is substantial new integration-test surface (distinct from the unit-level emitter tests above) and needs its own dedicated pass rather than being rushed in alongside the other T075-T079 gap-filling.
 
 ### Implementation for User Story 2
 
