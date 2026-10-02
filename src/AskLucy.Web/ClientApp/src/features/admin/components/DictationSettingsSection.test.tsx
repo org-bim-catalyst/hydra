@@ -179,7 +179,7 @@ describe('DictationSettingsSection', () => {
 
     await chooseModel('whisper.cpp (ggml-base.bin)')
     fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop and transcribe' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
 
     expect(await screen.findByText('“Hello Lucy”')).toBeInTheDocument()
     expect(screen.getByText('whisper.cpp (ggml-base.bin) · 812 ms')).toBeInTheDocument()
@@ -200,7 +200,7 @@ describe('DictationSettingsSection', () => {
 
     await chooseModel('whisper.cpp (ggml-base.bin)')
     fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop and transcribe' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
 
     expect(await screen.findByText('Local Whisper could not load this model.')).toBeInTheDocument()
   })

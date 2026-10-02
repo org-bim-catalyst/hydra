@@ -336,13 +336,16 @@ export function DictationSettingsSection() {
                     ))}
                   </Select>
                 </FormControl>
+              </Stack>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
                 <Button
                   variant="outlined"
                   startIcon={recorder.isRecording ? <StopIcon /> : <MicIcon />}
                   disabled={tryMutation.isPending}
                   onClick={() => void toggleRecording()}
+                  sx={{ minWidth: 110 }}
                 >
-                  {recorder.isRecording ? 'Stop and transcribe' : 'Try it'}
+                  {recorder.isRecording ? 'Stop' : 'Try it'}
                 </Button>
                 {tryMutation.isPending && <CircularProgress size={20} aria-label="Transcribing" />}
               </Stack>
