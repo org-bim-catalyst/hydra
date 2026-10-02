@@ -195,7 +195,7 @@ Clean Architecture backend under `src/AskLucy.*`, React SPA under `src/AskLucy.W
 - [X] T074 Update architecture and API documentation for the `__TURN_OUTCOME__` event and the retry request (constitution §13 — documentation is part of the implementation)
 - [X] T075 Add migration notes for `AddMessageRecordedTurnOutcome` (additive, nullable, no backfill)
 - [X] T076 Run the full quickstart against a real host boot, not just unit tests — a required-options or DI-cycle regression is invisible to `dotnet build` — booted clean on `http://localhost:5199` (Application started, no `[FTL]`, no DI cycle, no required-options crash); `/health` 200, anonymous `POST /api/v1/ai/chat` 401, AI routes present in `/openapi/v1.json`. The UI walk-through itself is T070.
-- [ ] T077 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim
+- [x] T077 Verify on production after deploy: reproduce the original Al Safa Park 2 sequence and confirm no false success claim **Closed 2026-10-01** on the production log of 2026-09-30: a boundary lookup failure (Overpass 504) produced "I couldn't look up the site boundary right now - please try again", with no success claim.
 
 ---
 

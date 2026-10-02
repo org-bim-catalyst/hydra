@@ -48,7 +48,9 @@ public sealed class PresentPanelContentCapability(IPanelNotifier panelNotifier) 
         "breakdown of figures, or a summary the user will want to keep on screen while looking " +
         "at the map.";
 
-    public string ArgumentHint => "title: label; content: blocks composed from the vocabulary";
+    // The shape is spelled out because offers proposing this row kept sending `content` as a bare
+    // array of blocks and the schema (correctly) rejected it - every proposal was dropped.
+    public string ArgumentHint => "title; content: {\"version\":1,\"blocks\":[..]} object, not array";
 
     public string UsageGuidance =>
         "Compose the blocks that fit the shape of what you found — a heading and keyValue block " +

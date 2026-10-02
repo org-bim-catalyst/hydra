@@ -60,6 +60,7 @@ public sealed class NotificationTemplateSeeder(
         var existing = await templates.GetExistingKeysAsync(cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var added = 0;
+        var pending = new List<(NotificationTemplate Template, Guid VersionId)>();
 
         foreach (var seed in LoadSeeds())
         {
@@ -72,8 +73,8 @@ public sealed class NotificationTemplateSeeder(
             {
                 var template = NotificationTemplate.Create(seed.Key.Type, seed.Key.Channel, seed.Key.Language, seed.Name, now);
                 var version = template.AddDraft(seed.Content, now);
-                template.Publish(version.Id, SeederUserId, now);
                 templates.Add(template);
+                pending.Add((template, version.Id));
                 added++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -85,6 +86,16 @@ public sealed class NotificationTemplateSeeder(
 
         if (added > 0)
         {
+            // Two saves: a template and its first version point at each other (the template's
+            // PublishedVersionId, the version's TemplateId), and EF cannot order two inserts that
+            // form a cycle. Inserting with the draft first and publishing afterwards is an update,
+            // which has no ordering problem. A single save failed on every start (2026-09-30 log).
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            foreach (var (template, versionId) in pending)
+            {
+                template.Publish(versionId, SeederUserId, now);
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
             TemplateSeedLog.Seeded(logger, added);
         }
