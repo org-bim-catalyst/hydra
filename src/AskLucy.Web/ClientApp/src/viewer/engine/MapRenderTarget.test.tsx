@@ -1,6 +1,7 @@
 import { render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCameraMemoryChat } from '../session/chatCameraMemory'
+import { viewerSession } from '../session/viewerSession'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import { ViewerEngine } from './ViewerEngine'
 import { MapRenderTarget } from './MapRenderTarget'
@@ -251,6 +252,8 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
 describe('MapRenderTarget - the per-chat camera memory', () => {
   beforeEach(() => {
     localStorage.clear()
+    // A previous map's teardown leaves its camera on the shared session; each test starts from none.
+    viewerSession.camera = null
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
   })
 
@@ -293,5 +296,33 @@ describe('MapRenderTarget - the per-chat camera memory', () => {
       heading: 212,
       tilt: 45,
     })
+  })
+
+  it('restores a whole camera, and auto-rotation carries on from the restored heading', async () => {
+    const setCamera = vi.fn()
+    createGoogleMapsGisLayerMock.mockResolvedValue({ ...rotatingMapHandle(), setCamera })
+    const engine = new ViewerEngine()
+    useViewerEngineStore.setState({ camera: { ...useViewerEngineStore.getState().camera, rotationEnabled: true } })
+    const frames: FrameRequestCallback[] = []
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      frames.push(cb)
+      return frames.length
+    })
+
+    // On a reload the camera is asked for before the map exists: it must not be lost.
+    engine.restoreCamera({ latitude: 23.5901, longitude: 58.4131, zoom: 17.8, heading: 212, tilt: 45 })
+    render(<MapRenderTarget viewerEngine={engine} layerId="gis-current-location" center={{ latitude: 23.59, longitude: 58.41 }} onError={() => {}} />)
+
+    await waitFor(() =>
+      expect(setCamera).toHaveBeenCalledWith({ center: { lat: 23.5901, lng: 58.4131 }, zoom: 17.8, heading: 212, tilt: 45 }),
+    )
+
+    // Two rotation frames 1 s apart: the heading continues from 212, not from where the driver started.
+    frames.splice(0).forEach((cb) => cb(1000))
+    frames.splice(0).forEach((cb) => cb(2000))
+    const heading = (fakeHandle.setHeading as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as number
+    expect(heading).toBeGreaterThan(212)
+    expect(heading).toBeLessThan(220)
+    raf.mockRestore()
   })
 })

@@ -50,6 +50,8 @@ export interface ViewerRenderTargetHandle {
   applyMapStyle?(mapStyle: MapStyleId): void
   /** specs/051 FR-025 — the render target's current camera snapshot. */
   getCameraState?(): CameraState
+  /** Puts the whole camera somewhere at once (a remembered view), keeping auto-rotation in step with it. */
+  restoreCamera?(camera: CameraState): void
 }
 
 /** The viewer's public command/event facade (FR-021–FR-024, contracts/viewer-engine-api.md,
@@ -62,6 +64,8 @@ export interface ViewerRenderTargetHandle {
 export class ViewerEngine implements IViewerEngine {
   private readonly events = new ViewerEventBus()
   private activeTarget: ViewerRenderTargetHandle | null = null
+  /** A camera asked for before any map was ready to take it; applied by the next render target to register. */
+  private pendingCamera: CameraState | null = null
   private readonly selectableElements = new Map<string, Set<string>>()
   // specs/038-viewer-poi-zoom T044: prevents visual glitches from rapid successive zoom commands.
   private _isAnimating = false
@@ -102,6 +106,10 @@ export class ViewerEngine implements IViewerEngine {
   /** Called by `MapRenderTarget` on mount/unmount (User Story 2). */
   registerRenderTarget(target: ViewerRenderTargetHandle): () => void {
     this.activeTarget = target
+    if (this.pendingCamera && target.restoreCamera) {
+      target.restoreCamera(this.pendingCamera)
+      this.pendingCamera = null
+    }
     return () => {
       if (this.activeTarget === target) this.activeTarget = null
     }
@@ -184,6 +192,20 @@ export class ViewerEngine implements IViewerEngine {
       .getState()
       .setLayers(layers.map((layer) => (layer.id === layerId ? { ...layer, visible } : layer)))
     return ok()
+  }
+
+  /**
+   * Puts the camera back where the user left it (a reload of the same chat). A map that is still being
+   * created when this is asked for - the usual case on a reload, since the map waits for Google's script -
+   * receives it the moment it registers, so the request can never be lost in between.
+   */
+  restoreCamera(camera: CameraState): void {
+    if (this.activeTarget?.restoreCamera) {
+      this.activeTarget.restoreCamera(camera)
+      this.pendingCamera = null
+    } else {
+      this.pendingCamera = camera
+    }
   }
 
   zoomToLocation(latitude: number, longitude: number, zoom?: number): ViewerCommandResult {

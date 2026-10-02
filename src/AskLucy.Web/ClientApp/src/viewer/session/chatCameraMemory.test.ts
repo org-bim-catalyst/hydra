@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useGoogleMapsStore } from '../store/googleMapsStore'
+import { viewerEngine } from '../engine/viewerEngineInstance'
 import { rememberCamera, restoreRememberedCamera, setCameraMemoryChat } from './chatCameraMemory'
 import { framingKeyOf } from './framingKey'
 import { viewerSession } from './viewerSession'
@@ -15,12 +15,10 @@ beforeEach(() => {
   localStorage.clear()
   viewerSession.camera = null
   viewerSession.framedLocationKey = null
-  useGoogleMapsStore.setState({ map: null, handle: null })
 })
 
 afterEach(() => {
   setCameraMemoryChat(null)
-  useGoogleMapsStore.setState({ map: null, handle: null })
 })
 
 describe('chatCameraMemory', () => {
@@ -52,16 +50,16 @@ describe('chatCameraMemory', () => {
     )
   })
 
-  it('moves a map that is already on screen', () => {
+  it('asks the viewer engine to put the camera back, so a map still being created receives it too', () => {
     const chatId = freshChat()
     setCameraMemoryChat(chatId)
     rememberCamera(CAMERA)
-    const map = { moveCamera: vi.fn() }
-    useGoogleMapsStore.setState({ map: map as never })
+    const restore = vi.spyOn(viewerEngine, 'restoreCamera')
 
     restoreRememberedCamera(chatId, PLACE)
 
-    expect(map.moveCamera).toHaveBeenCalledWith({ center: { lat: 25.253, lng: 55.304 }, zoom: 18.2, heading: 30, tilt: 45 })
+    expect(restore).toHaveBeenCalledWith({ latitude: 25.253, longitude: 55.304, zoom: 18.2, heading: 30, tilt: 45 })
+    restore.mockRestore()
   })
 
   it('does not put a camera back over a different place, which keeps its own framing', () => {

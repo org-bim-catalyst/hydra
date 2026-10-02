@@ -78,7 +78,7 @@ export interface GoogleMapsGisLayerHandle {
   setTilt(tilt: number): void
   /** One atomic camera write for the fields given — the form `CameraRestoreGuard` uses to put a
    * restored camera back after Maps JS's post-construction initialisation has overwritten it. */
-  setCamera(camera: { zoom?: number; heading?: number }): void
+  setCamera(camera: { center?: { lat: number; lng: number }; zoom?: number; heading?: number; tilt?: number }): void
   /** Switches the map's base rendering style — `map.setMapTypeId(google.maps.MapTypeId.*)`. */
   setMapTypeId(mapStyle: MapStyleId): void
   /** US5 (FR-018): the current-location marker's `elementId`, for `viewerEngine.registerSelectableElement`. */

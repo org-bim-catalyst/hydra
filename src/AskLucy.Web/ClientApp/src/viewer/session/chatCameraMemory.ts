@@ -1,4 +1,4 @@
-import { useGoogleMapsStore } from '../store/googleMapsStore'
+import { viewerEngine } from '../engine/viewerEngineInstance'
 import { framingKeyOf } from './framingKey'
 import { viewerSession } from './viewerSession'
 
@@ -83,12 +83,8 @@ export function restoreRememberedCamera(chatId: string, location: { latitude: nu
   viewerSession.camera = camera
   viewerSession.framedLocationKey = framingKeyOf({ source: 'agent', ...location, locationType: null, viewport: null })
 
-  // A map already on screen (it opened at the device's location) is moved there now.
-  useGoogleMapsStore.getState().map?.moveCamera({
-    center: { lat: camera.latitude, lng: camera.longitude },
-    zoom: camera.zoom,
-    heading: camera.heading,
-    tilt: camera.tilt,
-  })
+  // The map already on screen, or - on a reload - the one still being created, is put there. Since the
+  // place is now marked as framed, nothing else would move a map that opened at the device's location.
+  viewerEngine.restoreCamera(camera)
   return true
 }

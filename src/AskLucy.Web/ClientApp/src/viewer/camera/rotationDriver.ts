@@ -34,6 +34,11 @@ export class RotationDriver {
     }
   }
 
+  /** The camera was put somewhere else (a remembered view restored): continue turning from that heading. */
+  setHeading(heading: number): void {
+    this.heading = heading
+  }
+
   dispose(): void {
     if (this.frameId !== null) cancelAnimationFrame(this.frameId)
     this.frameId = null

@@ -294,6 +294,17 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           applyCameraViewMode(handle, useViewerEngineStore.getState().camera.mode)
         },
         getCameraState: () => getCameraStateFromHandle(handle!) ?? { latitude: 0, longitude: 0, heading: 0, tilt: 0, zoom: 0 },
+        restoreCamera: (camera) => {
+          // The rotation driver keeps its own heading and writes it every frame; it is told first, so
+          // turning carries on from the restored direction instead of overwriting it a frame later.
+          rotationDriver?.setHeading(camera.heading)
+          handle!.setCamera({
+            center: { lat: camera.latitude, lng: camera.longitude },
+            zoom: camera.zoom,
+            heading: camera.heading,
+            tilt: camera.tilt,
+          })
+        },
       })
 
       // Combine the teardown functions into the single `unregister` slot the outer cleanup
