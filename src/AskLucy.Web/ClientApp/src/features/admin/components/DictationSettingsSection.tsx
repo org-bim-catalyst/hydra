@@ -23,7 +23,11 @@ import { SUPPORTED_LANGUAGES } from '../../chat/languageOptions'
 import * as adminVoiceApi from '../api/adminVoiceApi'
 import type { DictationPrimaryEngine, LocalWhisperTryResult, PushToTalkEngine } from '../api/adminVoiceApi'
 import { MAX_SAMPLE_SECONDS, useWavSampleRecorder } from '../hooks/useWavSampleRecorder'
+import { useAudioInputDevices } from '../hooks/useAudioInputDevices'
 import { AudioLevelMeter } from './AudioLevelMeter'
+
+/** The Select's value for "whatever the browser/OS treats as default". */
+const DEFAULT_DEVICE = ''
 
 /** The Select's value for "no model"; a real id is never empty. */
 const NO_MODEL = ''
@@ -59,10 +63,12 @@ export function DictationSettingsSection() {
   const queryClient = useQueryClient()
   const canManage = useCan('admin.ai-providers.manage')
   const recorder = useWavSampleRecorder()
+  const inputDevices = useAudioInputDevices()
 
   // `undefined` until the administrator picks: then the saved selection shows.
   const [chosenModelId, setChosenModelId] = useState<string | undefined>(undefined)
   const [language, setLanguage] = useState('en')
+  const [inputDeviceId, setInputDeviceId] = useState(DEFAULT_DEVICE)
   const [tryResult, setTryResult] = useState<LocalWhisperTryResult | null>(null)
   const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
 
@@ -137,7 +143,7 @@ export function DictationSettingsSection() {
         tryMutation.mutate(await recorder.stop())
       } else {
         setTryResult(null)
-        await recorder.start()
+        await recorder.start(inputDeviceId || undefined)
       }
     } catch (err) {
       showError(err)
@@ -298,7 +304,7 @@ export function DictationSettingsSection() {
                 Record up to {MAX_SAMPLE_SECONDS} seconds and hear how this model transcribes it. Trying a model
                 doesn&apos;t select it.
               </Typography>
-              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                 <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel id="try-language-label">Language</InputLabel>
                   <Select
@@ -310,6 +316,22 @@ export function DictationSettingsSection() {
                     {SUPPORTED_LANGUAGES.map((option) => (
                       <MenuItem key={option.code} value={option.code}>
                         {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: 220 }} disabled={recorder.isRecording}>
+                  <InputLabel id="try-microphone-label">Microphone</InputLabel>
+                  <Select
+                    labelId="try-microphone-label"
+                    label="Microphone"
+                    value={inputDeviceId}
+                    onChange={(event) => setInputDeviceId(event.target.value)}
+                  >
+                    <MenuItem value={DEFAULT_DEVICE}>System default</MenuItem>
+                    {inputDevices.map((device) => (
+                      <MenuItem key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Microphone (${device.deviceId.slice(0, 8)})`}
                       </MenuItem>
                     ))}
                   </Select>

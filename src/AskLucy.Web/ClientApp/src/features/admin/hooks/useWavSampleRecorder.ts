@@ -50,8 +50,10 @@ export function useWavSampleRecorder() {
     [release],
   )
 
-  const start = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  const start = useCallback(async (deviceId?: string) => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+    })
     setInputDeviceLabel(stream.getAudioTracks()[0]?.label || 'Default microphone')
 
     if (typeof AudioContext !== 'undefined') {
