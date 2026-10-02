@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
-import { restoreRememberedCamera, setCameraMemoryChat } from '../../../viewer/session/chatCameraMemory'
+import { locationKeyOf, restoreRememberedCamera, setCameraMemoryChat } from '../../../viewer/session/chatCameraMemory'
 import type { ChatDetail } from '../api/chatsApi'
 
 /**
@@ -63,6 +63,6 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
     }
 
     // The site moved the map to its own framing; put the user's own view of this chat back over it.
-    restoreRememberedCamera(chatDetail.id)
+    restoreRememberedCamera(chatDetail.id, locationKeyOf(location.latitude, location.longitude))
   }, [chatDetail, locationSource])
 }

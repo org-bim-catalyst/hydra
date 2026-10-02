@@ -11,7 +11,8 @@ import { drawingSpaceRegistry } from '../scene/DrawingSpaceRegistry'
 import { rendererState } from '../scene/rendererState'
 import type { CameraState } from '../api/commands'
 import { useThemeStore } from '../../store/themeStore'
-import { rememberCamera } from '../session/chatCameraMemory'
+import { locationKeyOf, rememberCamera } from '../session/chatCameraMemory'
+import { useActiveLocationStore } from '../../store/activeLocationStore'
 import { viewerSession } from '../session/viewerSession'
 import type { ViewerEngine } from './ViewerEngine'
 
@@ -194,7 +195,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         announceCamera()
         const settled = getCameraStateFromHandle(handle!)
         if (settled && settled.zoom !== undefined) {
-          rememberCamera({ ...settled, zoom: settled.zoom })
+          const place = useActiveLocationStore.getState()
+          rememberCamera({ ...settled, zoom: settled.zoom, locationKey: locationKeyOf(place.latitude, place.longitude) })
         }
         restoreGuard?.enforce()
       })

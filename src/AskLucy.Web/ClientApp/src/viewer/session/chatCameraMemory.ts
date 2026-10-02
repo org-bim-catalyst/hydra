@@ -7,7 +7,13 @@ import { useGoogleMapsStore } from '../store/googleMapsStore'
  * (which moves the map itself), unless the user has already taken the map over.
  */
 
+/** Identifies the place the camera was looking at: the chat's confirmed location, to about 10 m. */
+export const locationKeyOf = (latitude: number | null, longitude: number | null) =>
+  latitude === null || longitude === null ? null : `${latitude.toFixed(4)},${longitude.toFixed(4)}`
+
 interface RememberedCamera {
+  /** The chat's location when this was saved; a camera for another place is never put back. */
+  locationKey: string | null
   latitude: number
   longitude: number
   zoom: number
@@ -17,9 +23,8 @@ interface RememberedCamera {
 
 const keyOf = (chatId: string) => `asklucy.camera.${chatId}`
 
-/** How many settles after the restore the saved camera is re-applied, since restoring the site moves the map too. */
-const RESTORE_SETTLES = 2
-const RESTORE_TIMEOUT_MS = 6000
+/** How long after the restore starts the saved camera keeps being re-applied: the site's own framing arrives late and would otherwise win. */
+const RESTORE_TIMEOUT_MS = 5000
 
 let currentChatId: string | null = null
 let restoring = false
@@ -58,17 +63,17 @@ export function rememberCamera(camera: RememberedCamera) {
 }
 
 /** Puts the chat's saved camera back, once per chat per page load. A drag or wheel zoom from the user ends it at once. */
-export function restoreRememberedCamera(chatId: string) {
+export function restoreRememberedCamera(chatId: string, locationKey: string | null) {
   if (restoredChats.has(chatId)) return
   restoredChats.add(chatId)
 
   const saved = load(chatId)
-  if (!saved) return
+  // Another place was confirmed since (a turn that finished after the page was left): its framing wins.
+  if (!saved || saved.locationKey !== locationKey) return
 
   const begin = (map: google.maps.Map) => {
     restoring = true
     const listeners: google.maps.MapsEventListener[] = []
-    let settles = 0
 
     // eslint-disable-next-line prefer-const -- assigned after finish() is defined, which reads it
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -88,13 +93,12 @@ export function restoreRememberedCamera(chatId: string) {
 
     apply()
     listeners.push(
-      map.addListener('idle', () => {
-        settles += 1
-        if (settles >= RESTORE_SETTLES) finish()
-        else apply()
-      }),
+      map.addListener('idle', apply),
       map.addListener('dragstart', finish),
     )
+    // A wheel zoom is the user taking the map over, too.
+    const div = map.getDiv?.()
+    div?.addEventListener('wheel', finish, { passive: true, once: true })
     timer = setTimeout(finish, RESTORE_TIMEOUT_MS)
   }
 

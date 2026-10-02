@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
 import { rememberCamera, restoreRememberedCamera, setCameraMemoryChat } from './chatCameraMemory'
 
-const CAMERA = { latitude: 23.59, longitude: 58.4, zoom: 17.5, heading: 30, tilt: 45 }
+const CAMERA = { locationKey: '23.5900,58.4000', latitude: 23.59, longitude: 58.4, zoom: 17.5, heading: 30, tilt: 45 }
 
 interface FakeMap {
   handlers: Record<string, () => void>
   moveCamera: ReturnType<typeof vi.fn>
+  getDiv(): HTMLElement
   addListener: ReturnType<typeof vi.fn>
 }
 
@@ -17,6 +18,7 @@ function fakeMap(): FakeMap {
   const map = {
     handlers,
     moveCamera: vi.fn(),
+    getDiv: () => document.createElement('div'),
     addListener: vi.fn((event: string, handler: () => void) => {
       handlers[event] = handler
       return {
@@ -30,6 +32,7 @@ function fakeMap(): FakeMap {
   return map
 }
 
+const KEY = '23.5900,58.4000'
 let counter = 0
 const freshChat = () => `chat-${++counter}-${Math.random()}`
 
@@ -54,7 +57,7 @@ describe('chatCameraMemory', () => {
 
     const map = fakeMap()
     useGoogleMapsStore.setState({ map: map as never })
-    restoreRememberedCamera(chatId)
+    restoreRememberedCamera(chatId, KEY)
 
     expect(map.moveCamera).toHaveBeenCalledWith({ center: { lat: 23.59, lng: 58.4 }, zoom: 17.5, heading: 30, tilt: 45 })
   })
@@ -64,19 +67,18 @@ describe('chatCameraMemory', () => {
     expect(localStorage.length).toBe(0)
   })
 
-  it('does not overwrite the saved camera while it is being put back, and saves again once the map settles', () => {
+  it('does not overwrite the saved camera while it is being put back, and saves again once the user takes the map over', () => {
     const chatId = freshChat()
     setCameraMemoryChat(chatId)
     rememberCamera(CAMERA)
     const map = fakeMap()
     useGoogleMapsStore.setState({ map: map as never })
-    restoreRememberedCamera(chatId)
+    restoreRememberedCamera(chatId, KEY)
 
     rememberCamera({ ...CAMERA, zoom: 12 })
     expect(JSON.parse(localStorage.getItem(`asklucy.camera.${chatId}`)!).zoom).toBe(17.5)
 
-    map.handlers.idle()
-    map.handlers.idle()
+    map.handlers.dragstart()
     rememberCamera({ ...CAMERA, zoom: 12 })
     expect(JSON.parse(localStorage.getItem(`asklucy.camera.${chatId}`)!).zoom).toBe(12)
   })
@@ -87,7 +89,7 @@ describe('chatCameraMemory', () => {
     rememberCamera(CAMERA)
     const map = fakeMap()
     useGoogleMapsStore.setState({ map: map as never })
-    restoreRememberedCamera(chatId)
+    restoreRememberedCamera(chatId, KEY)
 
     map.handlers.dragstart()
 
@@ -100,11 +102,23 @@ describe('chatCameraMemory', () => {
     const none = freshChat()
     const map = fakeMap()
     useGoogleMapsStore.setState({ map: map as never })
-    restoreRememberedCamera(none)
+    restoreRememberedCamera(none, KEY)
 
     const bad = freshChat()
     localStorage.setItem(`asklucy.camera.${bad}`, '{"zoom":"x"}')
-    restoreRememberedCamera(bad)
+    restoreRememberedCamera(bad, KEY)
+
+    expect(map.moveCamera).not.toHaveBeenCalled()
+  })
+
+  it('does not put a camera back over a different place', () => {
+    const chatId = freshChat()
+    setCameraMemoryChat(chatId)
+    rememberCamera(CAMERA)
+    const map = fakeMap()
+    useGoogleMapsStore.setState({ map: map as never })
+
+    restoreRememberedCamera(chatId, '25.1972,55.2744')
 
     expect(map.moveCamera).not.toHaveBeenCalled()
   })
@@ -116,8 +130,8 @@ describe('chatCameraMemory', () => {
     const map = fakeMap()
     useGoogleMapsStore.setState({ map: map as never })
 
-    restoreRememberedCamera(chatId)
-    restoreRememberedCamera(chatId)
+    restoreRememberedCamera(chatId, KEY)
+    restoreRememberedCamera(chatId, KEY)
 
     expect(map.moveCamera).toHaveBeenCalledTimes(1)
   })
