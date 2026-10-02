@@ -38,8 +38,8 @@ function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
   if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return false
   if (target?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return false
   if (event.key === 'Delete' || event.key === 'Backspace') return false
-  // Tab walks the corners from the map itself (or the page body), never when it is moving between controls.
-  if (event.key === 'Tab' && target && target !== document.body && !target.closest('.gm-style')) return false
+  // Tab walks the corners from the map or the page, but never takes the key from a control the user is on, so the toolbar stays reachable.
+  if (event.key === 'Tab' && target?.closest('button, a, input, select, textarea, summary, [role="button"], [role="menuitem"], [role="tab"]')) return false
   return useSiteBoundaryEditStore.getState().session?.tool === 'edit'
 }
 

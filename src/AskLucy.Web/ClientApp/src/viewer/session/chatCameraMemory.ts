@@ -71,47 +71,48 @@ export function restoreRememberedCamera(chatId: string, locationKey: string | nu
   // Another place was confirmed since (a turn that finished after the page was left): its framing wins.
   if (!saved || saved.locationKey !== locationKey) return
 
-  const begin = (map: google.maps.Map) => {
-    restoring = true
-    const listeners: google.maps.MapsEventListener[] = []
+  restoring = true
+  let current: google.maps.Map | null = null
+  let listeners: google.maps.MapsEventListener[] = []
+  let wheelTarget: HTMLElement | null = null
+  let unsubscribe: (() => void) | null = null
 
-    // eslint-disable-next-line prefer-const -- assigned after finish() is defined, which reads it
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const finish = () => {
-      if (!restoring) return
-      restoring = false
-      listeners.forEach((l) => l.remove())
-      if (timer) clearTimeout(timer)
-    }
-    const apply = () =>
-      map.moveCamera({
-        center: { lat: saved.latitude, lng: saved.longitude },
-        zoom: saved.zoom,
-        heading: saved.heading,
-        tilt: saved.tilt,
-      })
+  const finish = () => {
+    if (!restoring) return
+    restoring = false
+    detach()
+    unsubscribe?.()
+    clearTimeout(timer)
+  }
+  const detach = () => {
+    listeners.forEach((l) => l.remove())
+    listeners = []
+    wheelTarget?.removeEventListener('wheel', finish)
+    wheelTarget = null
+  }
+  const apply = () =>
+    current?.moveCamera({
+      center: { lat: saved.latitude, lng: saved.longitude },
+      zoom: saved.zoom,
+      heading: saved.heading,
+      tilt: saved.tilt,
+    })
+
+  /** The map can be rebuilt while the page settles (theme, map id): follow whichever one is current. */
+  const attach = (map: google.maps.Map | null) => {
+    if (!restoring || map === current) return
+    detach()
+    current = map
+    if (!map) return
 
     apply()
-    listeners.push(
-      map.addListener('idle', apply),
-      map.addListener('dragstart', finish),
-    )
+    listeners = [map.addListener('idle', apply), map.addListener('dragstart', finish)]
     // A wheel zoom is the user taking the map over, too.
-    const div = map.getDiv?.()
-    div?.addEventListener('wheel', finish, { passive: true, once: true })
-    timer = setTimeout(finish, RESTORE_TIMEOUT_MS)
+    wheelTarget = map.getDiv?.() ?? null
+    wheelTarget?.addEventListener('wheel', finish, { passive: true })
   }
 
-  const existing = useGoogleMapsStore.getState().map
-  if (existing) {
-    begin(existing)
-    return
-  }
-
-  // The map isn't up yet: wait for it, once.
-  const unsubscribe = useGoogleMapsStore.subscribe((state) => {
-    if (!state.map) return
-    unsubscribe()
-    begin(state.map)
-  })
+  attach(useGoogleMapsStore.getState().map)
+  unsubscribe = useGoogleMapsStore.subscribe((state) => attach(state.map))
+  const timer = setTimeout(finish, RESTORE_TIMEOUT_MS)
 }

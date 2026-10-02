@@ -165,6 +165,19 @@ describe('SiteBoundaryCornerNavigator', () => {
     expect(store().session?.selectedCorner).toBe(3)
   })
 
+  it('Tab from the map container (not just the body) walks the corners', () => {
+    enter()
+    act(() => store().selectCorner(0))
+    const mapDiv = document.createElement('div')
+    mapDiv.tabIndex = 0
+    document.body.appendChild(mapDiv)
+
+    fireEvent.keyDown(mapDiv, { key: 'Tab' })
+
+    expect(store().session?.selectedCorner).toBe(1)
+    mapDiv.remove()
+  })
+
   it('Tab on a button is left alone, so the toolbar can still be reached', () => {
     enter()
     act(() => store().selectCorner(1))
