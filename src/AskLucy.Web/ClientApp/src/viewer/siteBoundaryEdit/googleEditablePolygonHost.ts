@@ -37,19 +37,13 @@ function adaptPath(mvc: google.maps.MVCArray<google.maps.LatLng>): EditablePath 
 }
 
 export function createGoogleEditablePolygonHost(map: google.maps.Map): EditablePolygonHost {
-  const emptyListeners = new Set<() => void>()
   return {
     onEmptyClick(listener) {
       // The map's own click and right-click fire only off the polygons; a right-click on a ring away from
       // its corners is reported by the ring itself, and a left one by the ring's onSelect.
-      emptyListeners.add(listener)
+      // A right-click does not end a selection; only a left click does.
       const click = map.addListener('click', () => listener())
-      const rightClick = map.addListener('contextmenu', () => listener())
-      return () => {
-        emptyListeners.delete(listener)
-        click.remove()
-        rightClick.remove()
-      }
+      return () => click.remove()
     },
     createRing(corners, { editable }): EditableRing {
       const style = editable ? ACTIVE : DIMMED
@@ -72,10 +66,6 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
       let markers = new Map<number, google.maps.Marker>()
       // The light follows its corner while it is dragged, moved by the keyboard, or carried along with a
       // selected group: the path reports every one of those as a set_at.
-      // A right-click on the ring away from its corners counts as an empty click.
-      polygon.addListener('contextmenu', (event: google.maps.PolyMouseEvent) => {
-        if (event.vertex === undefined || event.vertex === null) emptyListeners.forEach((l) => l())
-      })
       const followCorner = google.maps.event.addListener(polygon.getPath(), 'set_at', (index: number) => {
         markers.get(index)?.setPosition(polygon.getPath().getAt(index))
       })

@@ -1,6 +1,9 @@
 import { alpha, Box, Typography } from '@mui/material'
 import { useState, type PointerEvent, type WheelEvent } from 'react'
+import type { GeoPoint } from '../../../store/activeSiteBoundaryStore'
 import { cornersInBox } from '../../../viewer/siteBoundaryEdit/ringShapes'
+import { toLocalMeters } from '../../../viewer/siteBoundaryEdit/ringGeometry'
+import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import type { PixelProjector } from '../../../viewer/siteBoundaryEdit/googlePixelProjector'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { usePixelProjector } from '../../../viewer/siteBoundaryEdit/usePixelProjector'
@@ -8,6 +11,9 @@ import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 
 /** A drag shorter than this is a click, which clears the selection instead of picking anything. */
 const MIN_DRAG_PX = 4
+
+/** A press this close to a selected corner grabs the selection instead of starting a box. */
+const GRAB_RADIUS_PX = 12
 
 interface Drag {
   startX: number
@@ -32,6 +38,8 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
   const active = useSiteBoundaryEditStore((s) => s.session?.tool === 'select')
   const getProjector = usePixelProjector(active, injected)
   const [drag, setDrag] = useState<Drag | null>(null)
+  /** While the selected corners are being dragged: where the pointer was last, on the map. */
+  const [grab, setGrab] = useState<GeoPoint | null>(null)
 
   if (!active) return null
 
@@ -40,14 +48,46 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top }
   }
 
+  /** The map position under the pointer, and whether it is on one of the selected corners. */
+  const locate = (event: PointerEvent<HTMLDivElement>) => {
+    const use = getProjector()
+    const session = useSiteBoundaryEditStore.getState().session
+    if (!use || !session) return null
+    const origin = use.origin()
+    const at = { x: event.clientX - origin.left, y: event.clientY - origin.top }
+    const point = use.toLatLng(at)
+    const ring = session.rings[session.activeRing] ?? []
+    const onSelected = session.selectedCorners.some((i) => {
+      const pixel = ring[i] ? use.toPixel(ring[i]) : null
+      return pixel !== null && Math.hypot(pixel.x - at.x, pixel.y - at.y) <= GRAB_RADIUS_PX
+    })
+    return point ? { point, onSelected } : null
+  }
+
   const start = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     event.currentTarget.setPointerCapture?.(event.pointerId)
+
+    // Pressing on a selected corner grabs the whole selection, here in the Select tool as everywhere else.
+    const hit = locate(event)
+    if (hit?.onSelected) {
+      setGrab(hit.point)
+      return
+    }
+
     const { x, y } = local(event)
     setDrag({ startX: x, startY: y, x, y })
   }
 
   const move = (event: PointerEvent<HTMLDivElement>) => {
+    if (grab) {
+      const hit = locate(event)
+      if (!hit) return
+      const [, to] = toLocalMeters([grab, hit.point], grab)
+      if (to.x !== 0 || to.y !== 0) siteBoundaryEditActions.nudgeCorner(to.x, to.y)
+      setGrab(hit.point)
+      return
+    }
     if (!drag) return
     const { x, y } = local(event)
     setDrag({ ...drag, x, y })
@@ -55,7 +95,13 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
 
   const finish = (event: PointerEvent<HTMLDivElement>) => {
     // Only the primary button ends a drag; a right-click release is not a selection.
-    if (!drag || event.button !== 0) return
+    if (event.button !== 0) return
+    if (grab) {
+      // The selection stays selected after it was moved.
+      setGrab(null)
+      return
+    }
+    if (!drag) return
     const box = { left: drag.startX, top: drag.startY, right: drag.x, bottom: drag.y }
     setDrag(null)
 
@@ -95,9 +141,6 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     }
 
     store.selectCorners(event.shiftKey ? [...session.selectedCorners, ...inside] : inside)
-    // Back to editing, so the corners just selected can be dragged together straight away. Holding Shift
-    // keeps the Select tool, for adding another box.
-    if (!event.shiftKey) store.setTool('edit')
   }
 
   // Wheel events would otherwise stop here, so zooming is forwarded to the map by hand.
@@ -119,13 +162,16 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onPointerDown={start}
       onPointerMove={move}
       onPointerUp={finish}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={() => {
+        setDrag(null)
+        setGrab(null)
+      }}
       // The browser's own menu has no use here and would swallow the pointer-up that ends a drag; drop it.
       onContextMenu={(event) => {
         event.preventDefault()
         setDrag(null)
-        // A right-click ends the selection and the Select tool, as in other drawing tools.
-        useSiteBoundaryEditStore.getState().selectCorner(null)
+        setGrab(null)
+        // A right-click leaves the Select tool for ordinary editing and keeps what is selected.
         useSiteBoundaryEditStore.getState().setTool('edit')
       }}
       onWheel={zoom}
@@ -162,7 +208,7 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
           border: (t) => `1px solid ${t.palette.divider}`,
         }}
       >
-        Drag a box around the corners to select them. Hold Shift to add. Press Esc when done.
+        Drag a box around corners to select them (Shift adds). Drag a selected corner to move them all. Right-click to go back to editing.
       </Typography>
     </Box>
   )

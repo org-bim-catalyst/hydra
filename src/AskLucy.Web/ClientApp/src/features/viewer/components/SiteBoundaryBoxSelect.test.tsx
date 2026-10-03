@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GeoPoint } from '../../../store/activeSiteBoundaryStore'
 import type { PixelProjector } from '../../../viewer/siteBoundaryEdit/googlePixelProjector'
+import { registerSiteBoundaryEditRuntime, type SiteBoundaryEditRuntime } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore, type ViewState } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { SiteBoundaryBoxSelect } from './SiteBoundaryBoxSelect'
 
@@ -46,15 +47,6 @@ function drag(from: [number, number], to: [number, number], init: { shiftKey?: b
   fireEvent.pointerUp(layer(), { clientX: to[0], clientY: to[1], pointerId: 1, ...init })
 }
 
-/** A box that selects something hands the map back for dragging; these tests then pick the Select tool again. */
-function boxAgain(from: [number, number], to: [number, number], init: { shiftKey?: boolean } = {}) {
-  if (store().session?.tool !== 'select') {
-    act(() => store().setTool('select'))
-    pinLayer()
-  }
-  drag(from, to, init)
-}
-
 afterEach(() => {
   cleanup()
   store().end()
@@ -81,7 +73,7 @@ describe('SiteBoundaryBoxSelect', () => {
     expect(layer()).toHaveStyle({ pointerEvents: 'auto' })
   })
 
-  it('swallows the right-click, so the browser menu never opens, and ends the selection and the tool', () => {
+  it('a right-click goes back to editing and keeps the selection; the browser menu never opens', () => {
     enter()
     act(() => store().selectCorners([1, 2]))
     render(<SiteBoundaryBoxSelect projector={projector} />)
@@ -89,20 +81,38 @@ describe('SiteBoundaryBoxSelect', () => {
     const notCancelled = fireEvent.contextMenu(layer())
 
     expect(notCancelled).toBe(false)
-    expect(store().session?.selectedCorners).toEqual([])
     expect(store().session?.tool).toBe('edit')
+    expect(store().session?.selectedCorners).toEqual([1, 2])
   })
 
-  it('hands the map back for dragging once a box selects corners, but Shift keeps the tool for another box', () => {
+  it('stays in the Select tool after a box, for another one', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)
     pinLayer()
 
-    drag([10, 30], [50, 70], { shiftKey: true })
-    expect(store().session?.tool).toBe('select')
+    drag([10, 30], [50, 70])
 
-    drag([90, 30], [110, 70])
-    expect(store().session?.tool).toBe('edit')
+    expect(store().session?.tool).toBe('select')
+  })
+
+  it('pressing on a selected corner drags the whole selection instead of drawing a box, and keeps it selected', () => {
+    const nudgeCorner = vi.fn()
+    const unregister = registerSiteBoundaryEditRuntime({ nudgeCorner } as unknown as SiteBoundaryEditRuntime)
+    enter()
+    act(() => store().selectCorners([1, 2]))
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+
+    // Corner 1 sits at pixel (40, 50); drag it 10 px east.
+    fireEvent.pointerDown(layer(), { clientX: 41, clientY: 50, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(layer(), { clientX: 51, clientY: 50, pointerId: 1 })
+    fireEvent.pointerUp(layer(), { clientX: 51, clientY: 50, button: 0, pointerId: 1 })
+
+    expect(screen.queryByTestId('corner-select-box')).not.toBeInTheDocument()
+    expect(nudgeCorner).toHaveBeenCalledTimes(1)
+    expect(nudgeCorner.mock.calls[0][0]).toBeCloseTo(10, 1)
+    expect(store().session?.selectedCorners).toEqual([1, 2])
+    unregister()
   })
 
   it('a right-button release does not end a left drag', () => {
@@ -120,7 +130,7 @@ describe('SiteBoundaryBoxSelect', () => {
   it('tells the user how it works', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Drag a box around the corners')
+    expect(screen.getByRole('status')).toHaveTextContent('Drag a box around corners to select them')
   })
 
   it('selects every corner inside the dragged box', () => {
@@ -153,10 +163,10 @@ describe('SiteBoundaryBoxSelect', () => {
     drag([10, 30], [50, 70])
     expect(store().session?.selectedCorners).toEqual([0, 1])
 
-    boxAgain([90, 30], [110, 70])
+    drag([90, 30], [110, 70])
     expect(store().session?.selectedCorners).toEqual([4])
 
-    boxAgain([10, 30], [50, 70], { shiftKey: true })
+    drag([10, 30], [50, 70], { shiftKey: true })
     expect(store().session?.selectedCorners).toEqual([0, 1, 4])
   })
 
@@ -166,7 +176,7 @@ describe('SiteBoundaryBoxSelect', () => {
     pinLayer()
     drag([10, 30], [50, 70])
 
-    boxAgain([200, 200], [300, 280], { shiftKey: true })
+    drag([200, 200], [300, 280], { shiftKey: true })
 
     expect(store().session?.selectedCorners).toEqual([0, 1])
     expect(store().session?.refusal).toBe('No corners inside that box. Drag a box around the corners you want.')
@@ -178,7 +188,7 @@ describe('SiteBoundaryBoxSelect', () => {
     pinLayer()
     drag([10, 30], [50, 70])
 
-    boxAgain([200, 200], [300, 280])
+    drag([200, 200], [300, 280])
 
     expect(store().session?.selectedCorners).toEqual([])
   })
@@ -189,7 +199,7 @@ describe('SiteBoundaryBoxSelect', () => {
     pinLayer()
     drag([10, 30], [50, 70])
 
-    boxAgain([200, 200], [201, 201])
+    drag([200, 200], [201, 201])
 
     expect(store().session?.selectedCorners).toEqual([])
     expect(store().session?.refusal).toBeNull()

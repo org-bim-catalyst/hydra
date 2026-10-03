@@ -379,12 +379,14 @@ describe('selecting corners', () => {
     expect(host.rings[0].highlights).toEqual([3])
   })
 
-  it('a plain click replaces a multiple selection with the one corner', () => {
+  it('a plain click on a corner ends a multiple selection (a second click selects one)', () => {
     const { host } = setup()
     store().selectCorners([0, 1, 2])
 
     click(host.rings[0], 3)
 
+    expect(session().selectedCorners).toEqual([])
+    click(host.rings[0], 3)
     expect(session().selectedCorners).toEqual([3])
   })
 
@@ -739,5 +741,25 @@ describe('a selected group', () => {
     host.emptyClickListeners.forEach((l) => l())
 
     expect(session().selectedCorners).toEqual([])
+  })
+
+  it('a click on any corner while several are selected ends the selection', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.rings[0].clickListeners.forEach((l) => l(4, false))
+
+    expect(session().selectedCorners).toEqual([])
+  })
+
+  it('the click that ends a drag does not end the selection', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.rings[0].path.setAt(1, P(30, -5))
+    host.rings[0].clickListeners.forEach((l) => l(1, false))
+    host.emptyClickListeners.forEach((l) => l())
+
+    expect(session().selectedCorners).toEqual([1, 2])
   })
 })

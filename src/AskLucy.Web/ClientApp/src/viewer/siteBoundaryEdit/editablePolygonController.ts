@@ -41,7 +41,7 @@ export interface EditableRing {
 export interface EditablePolygonHost {
   /** `editable: false` rings are drawn dimmed, above the outline they replace. */
   createRing(corners: GeoPoint[], options: { editable: boolean }): EditableRing
-  /** A click or right-click that landed on no corner: on the map itself, or on a ring away from its corners. */
+  /** A left click that landed on no corner: on the map itself, or on a ring away from its corners. */
   onEmptyClick?(listener: () => void): () => void
 }
 
@@ -78,6 +78,9 @@ export interface EditablePolygonController {
   unmount(): void
 }
 
+/** How long after a corner moved a click is treated as the end of that drag. */
+const CLICK_AFTER_DRAG_MS = 400
+
 export interface ControllerOptions {
   onVertexMenu?(request: VertexMenuRequest): void
 }
@@ -104,6 +107,9 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
   let unsubscribeStore: (() => void) | null = null
   /** True while this controller is writing to a path itself; the path's own events are then not user edits. */
   let writing = false
+  /** When a corner was last dragged: a click arriving right after is the end of that drag, not a click. */
+  let lastDragAt = 0
+  const justDragged = () => Date.now() - lastDragAt < CLICK_AFTER_DRAG_MS
 
   const withWriting = (action: () => void) => {
     writing = true
@@ -127,6 +133,7 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         const before = entry.known[index]
         const after = path.getAt(index)
         if (!before || same(before, after)) return
+        lastDragAt = Date.now()
 
         // One of several selected corners was dragged: the others go the same way, as one change.
         const session = store().session
@@ -199,14 +206,18 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
 
       // A click on the ring away from its corners makes it the one being edited, and ends a selection.
       entry.ring.onSelect(() => {
+        if (justDragged()) return
         if (store().session?.activeRing !== ringIndex) store().setActiveRing(ringIndex)
         else store().selectCorner(null)
       }),
 
       entry.ring.onVertexClick((index, additive) => {
+        if (justDragged()) return
         const changedRing = store().session?.activeRing !== ringIndex
         if (changedRing) store().setActiveRing(ringIndex)
         if (additive && !changedRing) store().toggleCorner(index)
+        // A click on any corner while several are selected ends that selection; dragging one keeps it.
+        else if ((store().session?.selectedCorners.length ?? 0) > 1) store().selectCorner(null)
         else store().selectCorner(index)
       }),
 
@@ -231,6 +242,7 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
 
     // A click or right-click anywhere but a corner ends a selection, as it does in any drawing tool.
     const offEmptyClick = host.onEmptyClick?.(() => {
+      if (justDragged()) return
       if ((store().session?.selectedCorners.length ?? 0) > 0) store().selectCorner(null)
     })
     if (offEmptyClick) mounted[0]?.unsubscribe.push(offEmptyClick)
