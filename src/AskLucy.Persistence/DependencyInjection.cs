@@ -31,7 +31,12 @@ public static class DependencyInjection
                 .GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-            options.UseSqlServer(connectionString)
+            // The database is a shared remote host that drops a connection now and then ("server not found",
+            // "network name no longer available"). Those are retried, a few times with a growing delay, rather
+            // than failing the request on the first one. Explicit transactions must run inside the execution
+            // strategy for this (see CustomModelRepository and OperationalFailureStore).
+            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure(
+                       maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null))
                    .AddInterceptors(
                        sp.GetRequiredService<AuditSaveChangesInterceptor>(),
                        sp.GetRequiredService<NotificationWakeInterceptor>());

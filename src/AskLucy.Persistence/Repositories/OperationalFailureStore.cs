@@ -394,8 +394,18 @@ public sealed class OperationalFailureStore(AskLucyDbContext dbContext, IOptions
     /// and a distinct count only moves with its participant row. The counter UPDATE takes the
     /// incident row's lock first, which serialises concurrent joins of the same incident.
     /// </summary>
-    private async Task<OperationalFailureSeverity> JoinAsync(Guid incidentId, IncidentAppendRequest request, CancellationToken cancellationToken)
+    private Task<OperationalFailureSeverity> JoinAsync(Guid incidentId, IncidentAppendRequest request, CancellationToken cancellationToken) =>
+        // Inside the execution strategy, so a dropped connection replays the whole transaction rather than half of it.
+        dbContext.Database.CreateExecutionStrategy().ExecuteAsync(() => JoinOnceAsync(incidentId, request, cancellationToken));
+
+    private async Task<OperationalFailureSeverity> JoinOnceAsync(Guid incidentId, IncidentAppendRequest request, CancellationToken cancellationToken)
     {
+        // A replayed attempt starts clean: an occurrence added by the failed one must not be saved twice.
+        foreach (var leftover in dbContext.ChangeTracker.Entries<OperationalFailureOccurrence>().Where(e => e.State == EntityState.Added).ToList())
+        {
+            leftover.State = EntityState.Detached;
+        }
+
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var at = request.OccurredAtUtc;

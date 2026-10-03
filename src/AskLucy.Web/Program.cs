@@ -766,31 +766,49 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 // counts (queue depth, in-progress, etc.) are computed directly on every request instead, so
 // this interval only governs the slower-changing totals/storage/distribution fields
 // (data-model.md, SC-011). Idempotent — safe to call on every startup.
-RecurringJob.AddOrUpdate<DocumentStatisticsRecomputeJob>(
-    "document-statistics-recompute", job => job.RecomputeAllAsync(CancellationToken.None), Cron.Minutely);
+// Registering a recurring job writes to the database. A connection the shared host drops at that moment
+// used to stop the app from starting at all, so each registration is retried a few times first.
+static void RegisterRecurringJob(Action register)
+{
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            register();
+            return;
+        }
+        catch (Microsoft.Data.SqlClient.SqlException) when (attempt < 5)
+        {
+            Thread.Sleep(TimeSpan.FromSeconds(2 * attempt));
+        }
+    }
+}
+
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<DocumentStatisticsRecomputeJob>(
+    "document-statistics-recompute", job => job.RecomputeAllAsync(CancellationToken.None), Cron.Minutely));
 
 // AI Memory System (specs/018-ai-memory-system, research.md Decision 6/18) — the sweep is the
 // safety net for the per-turn enqueue in SendChatMessageCommandHandler; cleanup purges expired/
 // stale-archived memories daily (FR-031). Both idempotent — safe to call on every startup.
-RecurringJob.AddOrUpdate<MemoryExtractionSweepJob>(
-    "memory-extraction-sweep", job => job.RunAsync(CancellationToken.None), "*/15 * * * *");
-RecurringJob.AddOrUpdate<MemoryCleanupJob>(
-    "memory-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily);
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<MemoryExtractionSweepJob>(
+    "memory-extraction-sweep", job => job.RunAsync(CancellationToken.None), "*/15 * * * *"));
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<MemoryCleanupJob>(
+    "memory-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily));
 
 // specs/058-password-recovery T054 — drops spent password reset tokens past their 90-day
 // retention. Retention housekeeping, not security: the tokens are already inert. Idempotent.
-RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob>(
-    "password-reset-token-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily);
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob>(
+    "password-reset-token-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily));
 
 // spec 021-mcp-integration User Story 6 (research.md Decision 10) — a 5-minute cadence matching
 // McpRuntimeOptions.HealthCheckIntervalMinutes's own default; each run only actually
 // checks/refreshes what's due (health check: every enabled server every cycle; capability
 // refresh: only servers past their own per-server CapabilityRefreshIntervalMinutes). Both
 // idempotent — safe to call on every startup.
-RecurringJob.AddOrUpdate<McpServerHealthCheckJob>(
-    "mcp-server-health-check", job => job.RunAsync(CancellationToken.None), "*/5 * * * *");
-RecurringJob.AddOrUpdate<McpCapabilityRefreshJob>(
-    "mcp-capability-refresh", job => job.RunAsync(CancellationToken.None), "*/5 * * * *");
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<McpServerHealthCheckJob>(
+    "mcp-server-health-check", job => job.RunAsync(CancellationToken.None), "*/5 * * * *"));
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<McpCapabilityRefreshJob>(
+    "mcp-capability-refresh", job => job.RunAsync(CancellationToken.None), "*/5 * * * *"));
 
 app.MapControllers();
 // specs/029-fix-chat-widget-bugs contracts/health-readiness-endpoint.md — /health (liveness)

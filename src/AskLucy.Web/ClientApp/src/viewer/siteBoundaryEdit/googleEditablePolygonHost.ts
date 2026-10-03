@@ -65,10 +65,10 @@ function createCornerRings(): CornerRingsSurface {
         element.setAttribute('aria-hidden', 'true')
         Object.assign(element.style, {
           position: 'absolute',
-          width: '18px',
-          height: '18px',
-          marginLeft: '-9px',
-          marginTop: '-9px',
+          width: '21px',
+          height: '21px',
+          marginLeft: '-10.5px',
+          marginTop: '-10.5px',
           borderRadius: '50%',
           border: '3px solid #FFC107',
           background: 'rgba(255,255,255,0.35)',

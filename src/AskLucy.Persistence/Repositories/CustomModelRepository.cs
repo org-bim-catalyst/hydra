@@ -128,8 +128,12 @@ public sealed class CustomModelRepository(AskLucyDbContext dbContext) : ICustomM
 
     public async Task AddOverwrittenFileAsync(CustomModelOverwrittenFile file, CancellationToken cancellationToken = default)
     {
-        await using (var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
+        // Inside the execution strategy, so a dropped connection replays the whole transaction rather than half of it.
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
             // Raw INSERT rather than Add + SaveChanges: SaveChanges would also flush whatever the
             // tracked aggregate is carrying (including the count RecordOverwrite just bumped in memory).
             await dbContext.Database.ExecuteSqlAsync(
@@ -145,7 +149,7 @@ public sealed class CustomModelRepository(AskLucyDbContext dbContext) : ICustomM
                 .ExecuteUpdateAsync(s => s.SetProperty(m => m.OverwrittenFileCount, m => m.OverwrittenFileCount + 1), cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
-        }
+        });
 
         // Keep a tracked copy consistent with the row it no longer matches (count and RowVersion).
         var tracked = dbContext.CustomModels.Local.FirstOrDefault(m => m.Id == file.CustomModelId);
