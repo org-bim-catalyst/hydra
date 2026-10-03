@@ -118,6 +118,17 @@ function handleKey(event: KeyLike, wrap = false) {
 
   if (key === 'Escape') {
     event.preventDefault()
+    // One Escape at a time: the first leaves a tool (Select back to editing), the next clears the selection.
+    if (session.tool !== 'edit') {
+      store().setTool('edit')
+      return
+    }
+    if (session.selectedCorners.length > 0 || session.selectedCorner !== null) {
+      store().selectCorner(null)
+      return
+    }
+    // From the map nothing more: leaving the editor is Cancel or Done, never a stray key.
+    if (wrap) return
     if (store().isDirty()) {
       store().refuse('You have unsaved changes - choose Done to save them, or Cancel to discard them.')
     } else {

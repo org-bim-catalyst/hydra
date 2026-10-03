@@ -115,12 +115,16 @@ describe('SiteBoundaryBoxSelect', () => {
     unregister()
   })
 
-  it('shows a grab cursor over a corner, and a crosshair elsewhere', () => {
+  it('a pointing hand over an unselected corner, a grab hand over a selected one, a crosshair elsewhere', () => {
     enter()
+    act(() => store().selectCorners([1]))
     render(<SiteBoundaryBoxSelect projector={projector} />)
     pinLayer()
 
     fireEvent.pointerMove(layer(), { clientX: 60, clientY: 50 })
+    expect(layer()).toHaveStyle({ cursor: 'pointer' })
+
+    fireEvent.pointerMove(layer(), { clientX: 40, clientY: 50 })
     expect(layer()).toHaveStyle({ cursor: 'grab' })
 
     fireEvent.pointerMove(layer(), { clientX: 200, clientY: 200 })

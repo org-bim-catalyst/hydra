@@ -124,6 +124,13 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
           )
         },
 
+        onVertexPress(listener) {
+          const handle = polygon.addListener('mousedown', (event: google.maps.PolyMouseEvent) => {
+            if (event.vertex !== undefined && event.vertex !== null) listener(event.vertex)
+          })
+          return () => handle.remove()
+        },
+
         onVertexDragMove(listener) {
           // Google says which corner was pressed ('mousedown' with `vertex`) and then reports nothing until
           // the drop, so the pointer is followed on the page until it is released.
@@ -132,10 +139,23 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
             if (event.vertex === undefined || event.vertex === null) return
             const index = event.vertex
             stop?.()
-            const move = (e: PointerEvent) => {
+            // The pointer seldom lands on the corner's exact centre, and Google keeps that offset while it drags
+            // the handle. So the corner is where it was when pressed, plus how far the pointer has moved since:
+            // the ring stays centred on the handle instead of on the pointer.
+            const corner = fromLatLng(polygon.getPath().getAt(index))
+            const dom = event.domEvent as MouseEvent | undefined
+            const pointAt = (clientX: number, clientY: number) => {
               const origin = projector.origin()
-              const point = projector.toLatLng({ x: e.clientX - origin.left, y: e.clientY - origin.top })
-              if (!point) return
+              return projector.toLatLng({ x: clientX - origin.left, y: clientY - origin.top })
+            }
+            const pressedAt = dom ? pointAt(dom.clientX, dom.clientY) : null
+            const move = (e: PointerEvent) => {
+              const now = pointAt(e.clientX, e.clientY)
+              if (!now || !pressedAt) return
+              const point = {
+                latitude: corner.latitude + (now.latitude - pressedAt.latitude),
+                longitude: corner.longitude + (now.longitude - pressedAt.longitude),
+              }
               markers.get(index)?.setPosition(toLatLng(point))
               listener(index, point)
             }

@@ -83,6 +83,12 @@ class FakeRing implements EditableRing {
   menuListeners: ((i: number, x: number, y: number) => void)[] = []
   clickListeners: ((i: number, additive: boolean) => void)[] = []
   dragMoveListeners: ((i: number, point: GeoPoint) => void)[] = []
+  pressListeners: ((i: number) => void)[] = []
+
+  onVertexPress = (l: (i: number) => void) => {
+    this.pressListeners.push(l)
+    return () => (this.pressListeners = this.pressListeners.filter((x) => x !== l))
+  }
 
   onVertexDragMove = (l: (i: number, point: GeoPoint) => void) => {
     this.dragMoveListeners.push(l)
@@ -798,5 +804,24 @@ describe('a selected group', () => {
 
     expect(ring.path.getAt(1)).toEqual(P(30, 0))
     expect(ring.path.getAt(2)).toEqual(P(60, 0))
+  })
+
+  it('pressing a corner outside the selection makes it the selection, before any drag', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.rings[0].pressListeners.forEach((l) => l(4))
+
+    expect(session().selectedCorners).toEqual([4])
+    expect(host.rings[0].highlights).toEqual([4])
+  })
+
+  it('pressing a selected corner keeps the whole selection, so it can be dragged together', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.rings[0].pressListeners.forEach((l) => l(2))
+
+    expect(session().selectedCorners).toEqual([1, 2])
   })
 })

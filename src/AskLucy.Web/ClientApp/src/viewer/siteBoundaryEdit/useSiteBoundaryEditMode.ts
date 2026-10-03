@@ -14,6 +14,7 @@ import {
 } from './editablePolygonController'
 import { useCornerMenuStore } from './cornerMenuStore'
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
+import { createGooglePixelProjector } from './googlePixelProjector'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
 import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
 import { arcThroughPoint, circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
@@ -47,6 +48,80 @@ function nextMapHandle(previous: GoogleMapsGisLayerHandle): Promise<GoogleMapsGi
       resolve(state.handle)
     })
   })
+}
+
+/** How close the pointer must be to a corner for the cursor to say it can be taken hold of. */
+const CORNER_HOVER_PX = 10
+
+const CURSOR_STYLE_ID = 'outline-editor-cursors'
+const CURSORS = { pointer: 'outline-cursor-pointer', grab: 'outline-cursor-grab', grabbing: 'outline-cursor-grabbing' } as const
+
+/**
+ * Over a corner the cursor says what can be done with it: a pointing hand for one that is not selected, an open
+ * hand for a selected one (it can be dragged with the rest of the selection), a closed hand while one is held.
+ * Google draws its corner handles with its own cursor, so this sets a class on the map that overrides it.
+ */
+function followCornerCursor(map: google.maps.Map): () => void {
+  const div = map.getDiv()
+  if (!document.getElementById(CURSOR_STYLE_ID)) {
+    const style = document.createElement('style')
+    style.id = CURSOR_STYLE_ID
+    style.textContent = Object.entries({ pointer: 'pointer', grab: 'grab', grabbing: 'grabbing' })
+      .map(([key, cursor]) => `.${CURSORS[key as keyof typeof CURSORS]}, .${CURSORS[key as keyof typeof CURSORS]} * { cursor: ${cursor} !important; }`)
+      .join('\n')
+    document.head.appendChild(style)
+  }
+  const projector = createGooglePixelProjector(map)
+  let pressed = false
+  let current: string | null = null
+
+  const show = (name: string | null) => {
+    if (name === current) return
+    if (current) div.classList.remove(current)
+    if (name) div.classList.add(name)
+    current = name
+  }
+
+  /** The corner of the ring being edited under the pointer, and whether it is selected. */
+  const cornerAt = (clientX: number, clientY: number) => {
+    const session = store().session
+    if (!session || session.tool !== 'edit') return null
+    const origin = projector.origin()
+    const at = { x: clientX - origin.left, y: clientY - origin.top }
+    const ring = session.rings[session.activeRing] ?? []
+    const index = ring.findIndex((corner) => {
+      const pixel = projector.toPixel(corner)
+      return pixel !== null && Math.hypot(pixel.x - at.x, pixel.y - at.y) <= CORNER_HOVER_PX
+    })
+    return index < 0 ? null : { selected: session.selectedCorners.includes(index) }
+  }
+
+  const onMove = (event: PointerEvent) => {
+    if (pressed) return
+    const corner = cornerAt(event.clientX, event.clientY)
+    show(corner ? (corner.selected ? CURSORS.grab : CURSORS.pointer) : null)
+  }
+  const onDown = (event: PointerEvent) => {
+    if (!cornerAt(event.clientX, event.clientY)) return
+    pressed = true
+    show(CURSORS.grabbing)
+  }
+  const onUp = (event: PointerEvent) => {
+    if (!pressed) return
+    pressed = false
+    onMove(event)
+  }
+
+  div.addEventListener('pointermove', onMove, true)
+  div.addEventListener('pointerdown', onDown, true)
+  window.addEventListener('pointerup', onUp, true)
+  return () => {
+    div.removeEventListener('pointermove', onMove, true)
+    div.removeEventListener('pointerdown', onDown, true)
+    window.removeEventListener('pointerup', onUp, true)
+    show(null)
+    projector.dispose()
+  }
 }
 
 /** Below this window width the edit bar starts hidden (the Outline menu has every action). */
@@ -500,6 +575,7 @@ export function useSiteBoundaryEditMode() {
 
     // A map rebuilt during the session (a theme change) starts with the outline showing; the editor's polygons replace it.
     handle.setOutlineVisible(false)
+    const stopCornerCursor = followCornerCursor(handle.map)
 
     const controller = createEditablePolygonController(createGoogleEditablePolygonHost(handle.map), {
       onVertexMenu: ({ clientX, clientY }) => useCornerMenuStore.getState().open(clientX, clientY),
@@ -515,6 +591,7 @@ export function useSiteBoundaryEditMode() {
     })
 
     return () => {
+      stopCornerCursor()
       unsubscribe()
       controller.unmount()
       if (controllerRef.current === controller) controllerRef.current = null

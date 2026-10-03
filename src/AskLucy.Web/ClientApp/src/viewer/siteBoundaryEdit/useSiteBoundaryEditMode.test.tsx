@@ -52,6 +52,12 @@ const RING: GeoPoint[] = [
   { latitude: 23.586, longitude: 58.392 },
 ]
 
+const mapDiv = document.createElement('div')
+
+/** Corners sit 100 px apart along a row, a stand-in for the map's projection. */
+const projectorMock = vi.hoisted(() => ({ toPixel: vi.fn(), toLatLng: vi.fn(), origin: () => ({ left: 0, top: 0 }), dispose: vi.fn() }))
+vi.mock('./googlePixelProjector', () => ({ createGooglePixelProjector: () => projectorMock }))
+
 const map = {
   getCenter: () => ({ lat: () => 23.5865, lng: () => 58.3935 }),
   getZoom: () => 17.5,
@@ -59,6 +65,7 @@ const map = {
   getTilt: () => 45,
   moveCamera: vi.fn(),
   fitBounds: vi.fn(),
+  getDiv: () => mapDiv,
 }
 
 const handle = { map, setOutlineVisible: vi.fn() }

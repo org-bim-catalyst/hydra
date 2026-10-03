@@ -127,7 +127,24 @@ describe('SiteBoundaryCornerNavigator', () => {
     expect(runtime.redo).toHaveBeenCalledTimes(2)
   })
 
-  it('Escape leaves the session when nothing changed', () => {
+  it('Escape from the map: the first leaves the Select tool, the next clears the selection, then nothing', () => {
+    enter()
+    act(() => store().selectCorners([1, 2]))
+    act(() => store().setTool('select'))
+
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(store().session?.tool).toBe('edit')
+    expect(store().session?.selectedCorners).toEqual([1, 2])
+
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(store().session?.selectedCorners).toEqual([])
+
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(runtime.cancel).not.toHaveBeenCalled()
+    expect(store().session).not.toBeNull()
+  })
+
+  it('Escape in the focused editor region with nothing selected leaves the editor when nothing changed', () => {
     enter()
     press('Escape')
     expect(runtime.cancel).toHaveBeenCalledTimes(1)

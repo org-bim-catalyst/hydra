@@ -40,8 +40,8 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
   const [drag, setDrag] = useState<Drag | null>(null)
   /** While the selected corners are being dragged: where the pointer was last, on the map, and where it went down. */
   const [grab, setGrab] = useState<{ point: GeoPoint; startX: number; startY: number; moved: boolean } | null>(null)
-  /** Whether the pointer is over a corner, so the cursor can say it can be grabbed. */
-  const [overCorner, setOverCorner] = useState(false)
+  /** What the pointer is over: a selected corner (grab), another corner (pointing hand), or neither. */
+  const [overCorner, setOverCorner] = useState<'selected' | 'corner' | null>(null)
 
   if (!active) return null
 
@@ -102,7 +102,8 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       return
     }
     if (!drag) {
-      const over = locate(event)?.onCorner ?? false
+      const hit = locate(event)
+      const over = hit?.onSelected ? 'selected' : hit?.onCorner ? 'corner' : null
       if (over !== overCorner) setOverCorner(over)
       return
     }
@@ -195,7 +196,7 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onWheel={zoom}
       // The viewer's overlay container lets pointer events through to the map; this layer must take them
       // back, or a drag pans the map instead of drawing the box.
-      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: grab ? 'grabbing' : overCorner ? 'grab' : 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
+      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: grab ? 'grabbing' : overCorner === 'selected' ? 'grab' : overCorner === 'corner' ? 'pointer' : 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
     >
       {box && (
         <Box

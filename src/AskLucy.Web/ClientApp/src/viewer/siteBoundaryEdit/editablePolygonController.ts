@@ -33,6 +33,8 @@ export interface EditableRing {
   onVertexClick(listener: (vertexIndex: number, additive: boolean) => void): () => void
   /** Marks these corners as selected (an empty list clears the marks). */
   setHighlights(indices: readonly number[]): void
+  /** A corner handle was pressed (the start of a click or a drag). */
+  onVertexPress?(listener: (vertexIndex: number) => void): () => void
   /**
    * While a corner handle is being dragged, where it is now. Google reports a vertex move only when it is
    * dropped, so without this nothing else (the selection's rings, the rest of a selected group) could follow.
@@ -225,6 +227,20 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         else if ((store().session?.selectedCorners.length ?? 0) > 1) store().selectCorner(null)
         else store().selectCorner(index)
       }),
+
+      // Pressing a corner outside the selection makes it the selection straight away: the old rings go and
+      // the corner being dragged gets its own. Pressing a selected corner keeps the selection, so it can be
+      // dragged as a group; the click that follows, if it was not a drag, ends it.
+      ...(entry.ring.onVertexPress
+        ? [
+            entry.ring.onVertexPress((index) => {
+              const session = store().session
+              if (!session) return
+              if (session.activeRing !== ringIndex) store().setActiveRing(ringIndex)
+              else if (!session.selectedCorners.includes(index)) store().selectCorner(index)
+            }),
+          ]
+        : []),
 
       // The rest of a selected group follows the dragged corner as it moves, not only when it is dropped.
       // Written without recording: the drop that follows records the whole move once, from the corners'
