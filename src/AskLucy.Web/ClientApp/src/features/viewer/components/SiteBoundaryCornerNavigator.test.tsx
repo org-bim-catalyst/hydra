@@ -196,6 +196,21 @@ describe('SiteBoundaryCornerNavigator', () => {
     expect(store().session?.refusal).toContain('only one ring')
   })
 
+  it('the editor takes an arrow key before the map can pan with it', () => {
+    enter()
+    act(() => store().selectCorner(1))
+    const mapDiv = document.createElement('div')
+    document.body.appendChild(mapDiv)
+    const mapPans = vi.fn()
+    mapDiv.addEventListener('keydown', mapPans)
+
+    fireEvent.keyDown(mapDiv, { key: 'ArrowLeft' })
+
+    expect(runtime.nudgeCorner).toHaveBeenCalledWith(-0.5, 0)
+    expect(mapPans).not.toHaveBeenCalled()
+    mapDiv.remove()
+  })
+
   it('does not move a corner while the user is typing in a field', () => {
     enter()
     act(() => store().selectCorner(1))

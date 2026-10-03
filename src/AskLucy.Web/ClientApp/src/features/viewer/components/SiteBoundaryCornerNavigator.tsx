@@ -137,11 +137,15 @@ export function SiteBoundaryCornerNavigator() {
 
   useEffect(() => {
     if (!inSession) return
+    // Capture phase: the map handles the arrow keys itself (it pans) and stops them from going further, so
+    // a listener on the way back up never heard them. A key the editor acts on goes no further either.
     const onKey = (event: globalThis.KeyboardEvent) => {
-      if (acceptsWindowKey(event)) handleKey(event, true)
+      if (!acceptsWindowKey(event)) return
+      handleKey(event, true)
+      if (event.defaultPrevented) event.stopPropagation()
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [inSession])
 
   if (!session) return null

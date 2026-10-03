@@ -120,6 +120,12 @@ class FakeRing implements EditableRing {
 
 class FakeHost implements EditablePolygonHost {
   rings: FakeRing[] = []
+  emptyClickListeners: (() => void)[] = []
+
+  onEmptyClick = (l: () => void) => {
+    this.emptyClickListeners.push(l)
+    return () => (this.emptyClickListeners = this.emptyClickListeners.filter((x) => x !== l))
+  }
 
   createRing(corners: GeoPoint[], options: { editable: boolean }) {
     const ring = new FakeRing(corners, options.editable)
@@ -671,5 +677,67 @@ describe('a 500-corner ring (SC-005)', () => {
     const perChange = (performance.now() - started) / 20
 
     expect(perChange).toBeLessThan(4)
+  })
+})
+
+describe('a selected group', () => {
+  const withMidpoints = (): GeoPoint[] => [P(0, 0), P(30, 0), P(60, 0), P(100, 0), P(100, 100), P(0, 100)]
+
+  it('dragging one selected corner carries the others the same distance, as one undo step', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    // Two pointer steps of the same drag: 5 m south, then 10 m south.
+    host.rings[0].path.setAt(1, P(30, -5))
+    host.rings[0].path.setAt(1, P(30, -10))
+
+    expect(host.rings[0].path.getAt(2).latitude).toBeCloseTo(P(60, -10).latitude, 9)
+    expect(session().rings[0][2].latitude).toBeCloseTo(P(60, -10).latitude, 9)
+    expect(session().undo).toHaveLength(1)
+    expect(session().undo[0].op).toBe('moveMany')
+
+    store().undo()
+    expect(session().rings[0][1]).toEqual(P(30, 0))
+    expect(session().rings[0][2]).toEqual(P(60, 0))
+  })
+
+  it('refuses a group drag that would make the outline cross itself, putting the dragged corner back', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.rings[0].path.setAt(1, P(30, 150))
+
+    expect(host.rings[0].path.getAt(1)).toEqual(P(30, 0))
+    expect(session().undo).toHaveLength(0)
+    expect(session().refusal).not.toBeNull()
+  })
+
+  it('a corner outside the selection still moves alone', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.rings[0].path.setAt(4, P(110, 110))
+
+    expect(host.rings[0].path.getAt(2)).toEqual(P(60, 0))
+    expect(session().undo[0].op).toBe('move')
+  })
+
+  it('the arrow keys move every selected corner together', () => {
+    const { host, controller } = setup([withMidpoints()])
+
+    expect(controller.moveCorners(0, [1, 2], 0, -5)).toBe(true)
+
+    expect(host.rings[0].path.getAt(1).latitude).toBeLessThan(P(30, 0).latitude)
+    expect(host.rings[0].path.getAt(2).latitude).toBeLessThan(P(60, 0).latitude)
+    expect(session().undo).toHaveLength(1)
+  })
+
+  it('a click away from the corners ends the selection', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+
+    host.emptyClickListeners.forEach((l) => l())
+
+    expect(session().selectedCorners).toEqual([])
   })
 })

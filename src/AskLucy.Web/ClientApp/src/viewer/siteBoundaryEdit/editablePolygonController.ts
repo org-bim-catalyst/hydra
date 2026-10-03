@@ -41,6 +41,8 @@ export interface EditableRing {
 export interface EditablePolygonHost {
   /** `editable: false` rings are drawn dimmed, above the outline they replace. */
   createRing(corners: GeoPoint[], options: { editable: boolean }): EditableRing
+  /** A click or right-click that landed on no corner: on the map itself, or on a ring away from its corners. */
+  onEmptyClick?(listener: () => void): () => void
 }
 
 export interface VertexMenuRequest {
@@ -67,6 +69,8 @@ export interface EditablePolygonController {
   replaceAllRings(rings: readonly (readonly GeoPoint[])[]): boolean
   /** Moves a corner by this many metres east and north (the arrow keys), after checking the result. Returns false when refused. */
   moveCorner(ring: number, index: number, eastMeters: number, northMeters: number): boolean
+  /** Moves several corners together by this many metres, as one undo step. Returns false when refused. */
+  moveCorners(ring: number, indices: readonly number[], eastMeters: number, northMeters: number): boolean
   /** Deletes several corners at once, as one undo step. Refused if fewer than 3 would remain or the outline would cross itself. */
   deleteCorners(ring: number, indices: readonly number[]): boolean
   /** Deletes a corner after checking it (the menu, the Delete key). Returns false when refused. */
@@ -124,6 +128,33 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         const after = path.getAt(index)
         if (!before || same(before, after)) return
 
+        // One of several selected corners was dragged: the others go the same way, as one change.
+        const session = store().session
+        const group = session && session.activeRing === ringIndex ? session.selectedCorners : []
+        if (group.length > 1 && group.includes(index)) {
+          const dLat = after.latitude - before.latitude
+          const dLng = after.longitude - before.longitude
+          const indices = group.filter((i) => i < entry.known.length)
+          const moved = indices.map((i) =>
+            i === index ? after : { latitude: entry.known[i].latitude + dLat, longitude: entry.known[i].longitude + dLng },
+          )
+          const candidate = [...entry.known]
+          indices.forEach((i, k) => (candidate[i] = moved[k]))
+
+          const refusal = validateRing(candidate)
+          if (refusal) {
+            withWriting(() => path.setAt(index, before))
+            refuse(refusal.message)
+            return
+          }
+
+          const previous = indices.map((i) => entry.known[i])
+          withWriting(() => indices.forEach((i, k) => i !== index && path.setAt(i, moved[k])))
+          entry.known = candidate
+          store().applyChange({ op: 'moveMany', ring: ringIndex, indices, before: previous, after: moved })
+          return
+        }
+
         const refusal = validateChange(pathToRing(path), index)
         if (refusal) {
           withWriting(() => path.setAt(index, before))
@@ -166,8 +197,10 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         store().applyChange({ op: 'delete', ring: ringIndex, index, before: removed })
       }),
 
+      // A click on the ring away from its corners makes it the one being edited, and ends a selection.
       entry.ring.onSelect(() => {
         if (store().session?.activeRing !== ringIndex) store().setActiveRing(ringIndex)
+        else store().selectCorner(null)
       }),
 
       entry.ring.onVertexClick((index, additive) => {
@@ -195,6 +228,12 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       listen(ringIndex, entry)
       return entry
     })
+
+    // A click or right-click anywhere but a corner ends a selection, as it does in any drawing tool.
+    const offEmptyClick = host.onEmptyClick?.(() => {
+      if ((store().session?.selectedCorners.length ?? 0) > 0) store().selectCorner(null)
+    })
+    if (offEmptyClick) mounted[0]?.unsubscribe.push(offEmptyClick)
 
     unsubscribeStore = useSiteBoundaryEditStore.subscribe((state, previous) => {
       if (
@@ -271,6 +310,28 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     setActiveRing(activeRing) {
       mounted.forEach((entry, ringIndex) => entry.ring.setEditable(ringIndex === activeRing))
       syncHighlight()
+    },
+
+    moveCorners(ringIndex, indices, eastMeters, northMeters) {
+      const entry = mounted[ringIndex]
+      const valid = [...new Set(indices)].filter((i) => i >= 0 && i < (entry?.known.length ?? 0))
+      if (!entry || valid.length === 0) return false
+      if (valid.length === 1) return this.moveCorner(ringIndex, valid[0], eastMeters, northMeters)
+
+      const moved = valid.map((i) => fromLocalMeters([{ x: eastMeters, y: northMeters }], entry.known[i])[0])
+      const candidate = [...entry.known]
+      valid.forEach((i, k) => (candidate[i] = moved[k]))
+      const refusal = validateRing(candidate)
+      if (refusal) {
+        refuse(refusal.message)
+        return false
+      }
+
+      const previous = valid.map((i) => entry.known[i])
+      withWriting(() => valid.forEach((i, k) => entry.ring.path.setAt(i, moved[k])))
+      entry.known = candidate
+      store().applyChange({ op: 'moveMany', ring: ringIndex, indices: valid, before: previous, after: moved })
+      return true
     },
 
     moveCorner(ringIndex, index, eastMeters, northMeters) {

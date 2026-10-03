@@ -334,11 +334,15 @@ export function useSiteBoundaryEditMode() {
       nudgeCorner(eastMeters, northMeters) {
         const session = store().session
         if (!session) return
-        if (session.selectedCorner === null) {
+        // A box selection has no single "selected corner": the arrows move every selected one together.
+        const corners = session.selectedCorners.length > 0
+          ? session.selectedCorners
+          : session.selectedCorner !== null ? [session.selectedCorner] : []
+        if (corners.length === 0) {
           store().refuse('Select a corner first, then move it with the arrow keys.')
           return
         }
-        controllerRef.current?.moveCorner(session.activeRing, session.selectedCorner, eastMeters, northMeters)
+        controllerRef.current?.moveCorners(session.activeRing, corners, eastMeters, northMeters)
       },
       deleteCorner() {
         const session = store().session

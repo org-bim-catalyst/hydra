@@ -22,6 +22,8 @@ export interface ViewState {
 
 export type RingChange =
   | { op: 'move'; ring: number; index: number; before: GeoPoint; after: GeoPoint }
+  /** Several selected corners moved together (one dragged, or the arrow keys): `indices[i]` went from `before[i]` to `after[i]`. */
+  | { op: 'moveMany'; ring: number; indices: number[]; before: GeoPoint[]; after: GeoPoint[] }
   | { op: 'insert'; ring: number; index: number; after: GeoPoint }
   | { op: 'delete'; ring: number; index: number; before: GeoPoint }
   /** The whole ring swapped for another: deleting several corners at once, rounding a corner, curving an edge, a circle. One undo step. */
@@ -159,6 +161,7 @@ function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
   const ring = next[change.ring]
   if (change.op === 'replace') next[change.ring] = change.after.map((p) => ({ ...p }))
   else if (change.op === 'move') ring[change.index] = { ...change.after }
+  else if (change.op === 'moveMany') change.indices.forEach((index, i) => (ring[index] = { ...change.after[i] }))
   else if (change.op === 'insert') ring.splice(change.index, 0, { ...change.after })
   else ring.splice(change.index, 1)
   return next
@@ -171,6 +174,7 @@ function applyBackward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
   const ring = next[change.ring]
   if (change.op === 'replace') next[change.ring] = change.before.map((p) => ({ ...p }))
   else if (change.op === 'move') ring[change.index] = { ...change.before }
+  else if (change.op === 'moveMany') change.indices.forEach((index, i) => (ring[index] = { ...change.before[i] }))
   else if (change.op === 'insert') ring.splice(change.index, 1)
   else ring.splice(change.index, 0, { ...change.before })
   return next
@@ -250,12 +254,19 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
       update((s) => {
         const rings = applyForward(s.rings, change)
         const last = s.undo.at(-1)
+        const recent = now - lastChangeAt < COALESCE_MOVES_WITHIN_MS
         const continuesDrag =
-          change.op === 'move' && last?.op === 'move' && last.ring === change.ring && last.index === change.index &&
-          now - lastChangeAt < COALESCE_MOVES_WITHIN_MS
-        const undo = continuesDrag && change.op === 'move' && last?.op === 'move'
-          ? [...s.undo.slice(0, -1), { ...change, before: last.before }]
-          : [...s.undo, change]
+          change.op === 'move' && last?.op === 'move' && last.ring === change.ring && last.index === change.index && recent
+        // A group being dragged reports a move per pointer step too; same corners, same ring: one undo step.
+        const continuesGroupDrag =
+          change.op === 'moveMany' && last?.op === 'moveMany' && last.ring === change.ring &&
+          last.indices.join(',') === change.indices.join(',') && recent
+        const undo =
+          continuesDrag && change.op === 'move' && last?.op === 'move'
+            ? [...s.undo.slice(0, -1), { ...change, before: last.before }]
+            : continuesGroupDrag && change.op === 'moveMany' && last?.op === 'moveMany'
+              ? [...s.undo.slice(0, -1), { ...change, before: last.before }]
+              : [...s.undo, change]
         // A whole-ring change renumbers every corner, so an old selection no longer points at anything;
         // and after every ring was swapped the ring being edited may not exist any more.
         const selection =

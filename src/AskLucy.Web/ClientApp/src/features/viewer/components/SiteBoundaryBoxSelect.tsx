@@ -95,6 +95,9 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     }
 
     store.selectCorners(event.shiftKey ? [...session.selectedCorners, ...inside] : inside)
+    // Back to editing, so the corners just selected can be dragged together straight away. Holding Shift
+    // keeps the Select tool, for adding another box.
+    if (!event.shiftKey) store.setTool('edit')
   }
 
   // Wheel events would otherwise stop here, so zooming is forwarded to the map by hand.
@@ -121,6 +124,9 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onContextMenu={(event) => {
         event.preventDefault()
         setDrag(null)
+        // A right-click ends the selection and the Select tool, as in other drawing tools.
+        useSiteBoundaryEditStore.getState().selectCorner(null)
+        useSiteBoundaryEditStore.getState().setTool('edit')
       }}
       onWheel={zoom}
       // The viewer's overlay container lets pointer events through to the map; this layer must take them
