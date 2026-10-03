@@ -6,7 +6,7 @@ import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundarySto
 import { useOutlineResetStore } from '../../../viewer/siteBoundaryEdit/outlineResetStore'
 import { SiteBoundaryResetDialog } from './SiteBoundaryResetDialog'
 
-const chatsApi = vi.hoisted(() => ({ resetSiteBoundary: vi.fn() }))
+const chatsApi = vi.hoisted(() => ({ resetSiteBoundary: vi.fn(), getChatById: vi.fn() }))
 vi.mock('../../chat/api/chatsApi', () => chatsApi)
 
 const RING = [
@@ -79,6 +79,17 @@ describe('SiteBoundaryResetDialog', () => {
     expect(chatsApi.resetSiteBoundary).toHaveBeenCalledWith('chat-1', { expectedRevision: 'rev-2' })
     expect(useActiveSiteBoundaryStore.getState().isHandEdited).toBe(false)
     expect(useActiveSiteBoundaryStore.getState().revision).toBe('rev-3')
+  })
+
+  it('reads the revision from the chat when the outline came from a live reply without one', async () => {
+    useActiveSiteBoundaryStore.setState({ revision: null })
+    chatsApi.getChatById.mockResolvedValue({ activeBoundary: { revision: 'rev-7' } })
+    chatsApi.resetSiteBoundary.mockResolvedValue({ activeBoundary: found, message: {} })
+    mount()
+
+    fireEvent.click(screen.getByText('Reset'))
+
+    await waitFor(() => expect(chatsApi.resetSiteBoundary).toHaveBeenCalledWith('chat-1', { expectedRevision: 'rev-7' }))
   })
 
   it('says the outline changed, and stays open, on a conflict', async () => {

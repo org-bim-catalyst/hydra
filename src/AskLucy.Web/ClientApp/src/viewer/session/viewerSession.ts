@@ -25,8 +25,11 @@ export const viewerSession: {
   /** Identifies the location the camera was last framed for. Framing runs when this changes, so
    * remounting the surface (returning to /studio) re-frames nothing the user has since adjusted. */
   framedLocationKey: string | null
+  /** Set just before the map is rebuilt, to open the new map at this camera instead of the old map's. */
+  nextCamera: SessionCamera | null
 } = {
   mapContentId: null,
   camera: null,
   framedLocationKey: null,
+  nextCamera: null,
 }

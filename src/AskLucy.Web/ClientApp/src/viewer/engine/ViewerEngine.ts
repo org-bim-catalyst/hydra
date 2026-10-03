@@ -277,9 +277,21 @@ export class ViewerEngine implements IViewerEngine {
    * HYBRID). Succeeds even with no active render target — the control stays operable while the
    * placeholder is showing, matching setViewMode/setRotationEnabled's convention. */
   setMapStyle(mapStyle: MapStyleId): ViewerCommandResult {
+    // Only a map on screen has anything to restyle; the placeholder changes instantly.
+    if (useViewerEngineStore.getState().mapStyle !== mapStyle && useViewerEngineStore.getState().contentMode === 'map') {
+      useViewerEngineStore.getState().beginMapTransition('Changing the map style...')
+    }
     useViewerEngineStore.getState().setMapStyle(mapStyle)
     this.activeTarget?.applyMapStyle?.(mapStyle)
     this.emit({ type: 'mapStyleChanged', mapStyle })
+    return ok()
+  }
+
+  /** Draws the map flat (raster) or in 3D (vector). Rebuilds the map; `message` is what the transition overlay says meanwhile. */
+  setFlatMap(flat: boolean, message: string): ViewerCommandResult {
+    if (useViewerEngineStore.getState().flatMap === flat) return ok()
+    if (useViewerEngineStore.getState().contentMode === 'map') useViewerEngineStore.getState().beginMapTransition(message)
+    useViewerEngineStore.getState().setFlatMap(flat)
     return ok()
   }
 

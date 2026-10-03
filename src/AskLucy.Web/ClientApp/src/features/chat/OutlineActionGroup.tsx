@@ -148,9 +148,16 @@ export function OutlineActionGroup() {
       id: 'reset',
       label: "Reset to Lucy's outline",
       icon: <RiRestartLine size={20} />,
-      onSelect: () => useOutlineResetStore.getState().show(),
-      disabled: !isHandEdited || editing,
-      disabledReason: editing ? 'Finish editing first' : "This outline hasn't been edited",
+      // While editing, the open edit is given up first: a reset discards every hand edit anyway, and the
+      // editor must not stay open on rings the reset is about to replace.
+      onSelect: () => {
+        if (editing) siteBoundaryEditActions.cancel()
+        useOutlineResetStore.getState().show()
+      },
+      disabled: !isHandEdited || saving,
+      disabledReason: saving
+        ? 'Wait for the save to finish'
+        : "This outline is the one Lucy found, so there's nothing to reset. Save an edit first.",
     },
     {
       id: 'done',

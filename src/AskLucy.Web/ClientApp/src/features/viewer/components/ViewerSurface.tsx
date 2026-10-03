@@ -15,6 +15,7 @@ import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
 import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 import { panelTypeRegistry } from '../../../viewer/panels/registry'
 import { useFloatingPanelStore } from '../../../viewer/panels/store/floatingPanelStore'
+import { MapTransitionOverlay } from './MapTransitionOverlay'
 import { framingKeyOf } from '../../../viewer/session/framingKey'
 import { viewerSession } from '../../../viewer/session/viewerSession'
 // Side-effect imports: the subscription that keeps the scene's reference point on the active
@@ -173,6 +174,7 @@ export function ViewerSurface() {
         <PlaceholderRenderTarget />
       )}
       <ExtensionOverlayHost />
+      {contentMode === 'map' && <MapTransitionOverlay />}
       {/* research D6/T036 — top-right: clear of the studio's top-left HUD row (specs/073: Home,
           title, weather, boundary confidence) and the panel-hub indicator (bottom-left). Renders nothing when no
           extension has contributed an entry (FR-023). */}

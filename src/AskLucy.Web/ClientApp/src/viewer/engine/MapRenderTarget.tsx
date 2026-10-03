@@ -32,6 +32,26 @@ function getCameraStateFromHandle(handle: GoogleMapsGisLayerHandle): CameraState
   }
 }
 
+/**
+ * Ends a map transition once the map has drawn: the first 'tilesloaded' (or 'idle', whichever comes
+ * first), with a time limit so a map that never reports either cannot leave the viewer blurred.
+ */
+function endTransitionWhenDrawn(map: google.maps.Map, end: () => void): void {
+  const listeners: google.maps.MapsEventListener[] = []
+  const finish = () => {
+    listeners.forEach((l) => l.remove())
+    clearTimeout(timer)
+    end()
+  }
+  const timer = setTimeout(finish, 8000)
+  const add = map.addListener?.bind(map)
+  if (!add) {
+    finish()
+    return
+  }
+  listeners.push(add('tilesloaded', finish), add('idle', finish))
+}
+
 export interface MapRenderTargetProps {
   viewerEngine: ViewerEngine
   layerId: string
@@ -59,6 +79,9 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
   // google.maps.Map. Reading the mode via the hook (not a one-off `getState()` inside the
   // effect) makes it part of the effect's own dependency array, below.
   const themeMode = useThemeStore((state) => state.mode)
+  const flatMap = useViewerEngineStore((state) => state.flatMap)
+  // What changed since the last build, so the overlay can say what the map is doing.
+  const builtWith = useRef<{ themeMode: string; effectiveMapId: string | undefined } | null>(null)
   // specs/048-buildings-only-map-style research.md Decision 4: on a vector deployment (a base
   // Map ID configured), "Buildings only" comes from switching to a second, cloud-styled Map ID
   // (docs/google-maps-styles/*.cloud.json) rather than a client-side `styles` array, which Google
@@ -101,6 +124,21 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       return
     }
 
+    // The map is rebuilt from scratch here, which takes a moment: the viewer is blurred with a spinner
+    // until it has drawn. A caller that knows why (the outline editor, a style change) has already said so.
+    const viewerStore = useViewerEngineStore.getState()
+    const previous = builtWith.current
+    const message =
+      viewerStore.mapTransition?.message ??
+      (previous === null
+        ? 'Loading the map...'
+        : previous.themeMode !== themeMode
+          ? 'Changing the theme...'
+          : 'Changing the map style...')
+    builtWith.current = { themeMode, effectiveMapId }
+    const transitionId = viewerStore.beginMapTransition(message)
+    const endTransition = () => useViewerEngineStore.getState().endMapTransition(transitionId)
+
     void (async () => {
       try {
         const { createGoogleMapsGisLayer, shouldReduceMapQuality } = await import(
@@ -123,6 +161,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
           zoom: viewerSession.camera?.zoom ?? zoom,
           heading: viewerSession.camera?.heading,
           tilt: viewerSession.camera?.tilt,
+          flat: flatMap,
           reducedQuality,
           colorScheme: themeMode,
           onLoaded: () => viewerEngine.notifyContentLoaded(layerId),
@@ -131,6 +170,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         // spec.md Edge Cases — never leaves an unhandled rejection, and never leaves the
         // viewer showing a blank/broken map; falls back to the placeholder instead.
         console.error('Failed to load the map/GIS content mode.', error)
+        endTransition()
         if (!cancelled) onError()
         return
       }
@@ -138,6 +178,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         handle.dispose()
         return
       }
+
+      endTransitionWhenDrawn(handle.map, endTransition)
 
       // specs/038-viewer-poi-zoom: expose the live map to POIMarkerOverlay via the shared store.
       useGoogleMapsStore.getState().setMap(handle.map)
@@ -272,6 +314,9 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         if (mapStyle !== lastAppliedMapStyle) {
           lastAppliedMapStyle = mapStyle
           handle.setMapTypeId(mapStyle)
+          // A style switch that keeps this map (roadmap, satellite, hybrid) is over once the new tiles are drawn.
+          const pending = useViewerEngineStore.getState().mapTransition
+          if (pending) endTransitionWhenDrawn(handle.map, () => useViewerEngineStore.getState().endMapTransition(pending.id))
           // Google may have just changed tilt as a side effect of the mapTypeId change —
           // reassert the active view mode's tilt so a style switch never changes the view mode.
           applyCameraViewMode(handle, camera.mode)
@@ -325,6 +370,8 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
 
     return () => {
       cancelled = true
+      // A build abandoned part-way (leaving the workspace, or a newer rebuild) must not leave the viewer blurred.
+      endTransition()
       // Remember the live pan/zoom/heading/tilt before tearing down — read here (not from the
       // closed-over `center`/`zoom` props) so a theme-toggle-triggered remount reopens where the
       // user left off rather than snapping back to this component's original mount position and
@@ -333,7 +380,12 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       const currentZoom = handle?.map.getZoom?.()
       const currentHeading = handle?.map.getHeading?.()
       const currentTilt = handle?.map.getTilt?.()
-      if (currentCenter) {
+      if (viewerSession.nextCamera) {
+        // A caller asked for the next map to open somewhere specific (leaving the outline editor puts the
+        // view back as it was): that wins over wherever this map happens to be pointing.
+        viewerSession.camera = viewerSession.nextCamera
+        viewerSession.nextCamera = null
+      } else if (currentCenter) {
         viewerSession.camera = {
           latitude: currentCenter.lat(),
           longitude: currentCenter.lng(),
@@ -350,7 +402,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       useGoogleMapsStore.getState().setHandle(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layerId, themeMode, effectiveMapId])
+  }, [layerId, themeMode, effectiveMapId, flatMap])
 
   return <Box ref={containerRef} data-testid="viewer-map" sx={{ position: 'absolute', inset: 0 }} />
 }

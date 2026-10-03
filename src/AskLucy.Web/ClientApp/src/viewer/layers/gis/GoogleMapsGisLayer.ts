@@ -57,6 +57,8 @@ export interface GoogleMapsGisLayerOptions {
    * angle the user was looking from survives instead of resetting on every toggle. */
   heading?: number
   tilt?: number
+  /** Google's raster renderer instead of vector: buildings flat at ground level, no tilt, no WebGL overlay. */
+  flat?: boolean
   onLoaded?: () => void
 }
 
@@ -211,7 +213,9 @@ export async function createGoogleMapsGisLayer(
     // dismantled in three steps as Maps JS reconciled it with those limits (heading snapped to
     // the nearest 90 degrees, then tilt forced to 0, then heading forced to 0, accompanied by
     // Google's own "45 degree imagery on raster maps is no longer available" notice).
-    ...(options.mapId ? { renderingType: google.maps.RenderingType.VECTOR } : {}),
+    ...(options.mapId
+      ? { renderingType: options.flat ? google.maps.RenderingType.RASTER : google.maps.RenderingType.VECTOR }
+      : {}),
     colorScheme:
       options.colorScheme === 'dark' ? google.maps.ColorScheme.DARK : google.maps.ColorScheme.LIGHT,
     disableDefaultUI: true,

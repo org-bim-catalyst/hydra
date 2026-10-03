@@ -4,6 +4,8 @@ import { ApiError } from '../../api/httpClient'
 import { combineSiteBoundaryShape, getChatById, saveSiteBoundaryEdit, type ChatActiveBoundary } from '../../features/chat/api/chatsApi'
 import { useActiveSiteBoundaryStore, siteRingsOf, type GeoPoint, type SiteBoundarySource } from '../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../engine/viewerEngineInstance'
+import type { GoogleMapsGisLayerHandle } from '../layers/gis/GoogleMapsGisLayer'
+import { viewerSession } from '../session/viewerSession'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
 import {
@@ -19,6 +21,33 @@ import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
 
 const store = () => useSiteBoundaryEditStore.getState()
+
+/** How long the flat map may take to appear before entry is reported as failed. */
+const MAP_REBUILD_TIMEOUT_MS = 20_000
+
+/**
+ * Resolves with the map that replaces `previous` once it is on screen. Switching between the 3D and the flat
+ * map rebuilds it, and everything the editor does next (framing, the editable polygons) belongs on the new one.
+ */
+function nextMapHandle(previous: GoogleMapsGisLayerHandle): Promise<GoogleMapsGisLayerHandle> {
+  return new Promise((resolve, reject) => {
+    const current = useGoogleMapsStore.getState().handle
+    if (current && current !== previous) {
+      resolve(current)
+      return
+    }
+    const timer = setTimeout(() => {
+      unsubscribe()
+      reject(new Error("the map didn't reload in time."))
+    }, MAP_REBUILD_TIMEOUT_MS)
+    const unsubscribe = useGoogleMapsStore.subscribe((state) => {
+      if (!state.handle || state.handle === previous) return
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(state.handle)
+    })
+  })
+}
 
 /** Below this window width the edit bar starts hidden (the Outline menu has every action). */
 const SMALL_SCREEN_PX = 720
@@ -68,8 +97,8 @@ export function useSiteBoundaryEditMode() {
   useEffect(() => {
     if (!handle) return
 
-    const viewDeps = (): ViewStateDeps => ({
-      map: handle.map as unknown as ViewStateDeps['map'],
+    const viewDeps = (on: GoogleMapsGisLayerHandle = handle): ViewStateDeps => ({
+      map: on.map as unknown as ViewStateDeps['map'],
       engine: viewerEngine,
       camera: () => useViewerEngineStore.getState().camera,
     })
@@ -80,8 +109,29 @@ export function useSiteBoundaryEditMode() {
       controllerRef.current?.unmount()
       controllerRef.current = null
       handle.setOutlineVisible(true)
-      if (session) restoreViewState(viewDeps(), session.viewState, options)
       store().end()
+      if (!session) return
+
+      if (!useViewerEngineStore.getState().flatMap) {
+        restoreViewState(viewDeps(), session.viewState, options)
+        return
+      }
+
+      // Back to the 3D map, which is rebuilt: it opens at the view the editor found (unless another site is
+      // being shown, whose own framing wins), with its mode, and rotation resumes from that heading.
+      const { viewState } = session
+      if (!options.keepCamera) {
+        viewerSession.nextCamera = {
+          latitude: viewState.center.latitude,
+          longitude: viewState.center.longitude,
+          zoom: viewState.zoom,
+          heading: viewState.heading,
+          tilt: viewState.tilt,
+        }
+      }
+      viewerEngine.setViewMode(viewState.mode)
+      viewerEngine.setFlatMap(false, 'Closing the outline editor...')
+      viewerEngine.setRotationEnabled(viewState.rotationEnabled)
     }
 
     // FR-030: a different site replacing the one being edited (Lucy moved to another place, or the
@@ -171,10 +221,23 @@ export function useSiteBoundaryEditMode() {
         const tolerance = Math.max(0, ...simplified.map((result) => result.toleranceMeters))
         const stillDense = rings.some((ring) => ring.length > DENSE_RING_CORNERS)
 
-        const deps = viewDeps()
-        const viewState = captureViewState(deps)
-        enterPlanForEditing(deps, rings)
-        handle.setOutlineVisible(false)
+        // The view is captured on the 3D map, then the editor works on a flat one: 3D buildings lean away from
+        // the screen centre as the map pans, so a ground-level outline never lines up with their roofs.
+        const viewState = captureViewState(viewDeps())
+        viewerEngine.setRotationEnabled(false)
+        viewerEngine.setFlatMap(true, 'Opening the outline editor...')
+        let editingOn = handle
+        try {
+          editingOn = await nextMapHandle(handle)
+        } catch (error) {
+          viewerEngine.setFlatMap(false, 'Closing the outline editor...')
+          viewerEngine.setRotationEnabled(viewState.rotationEnabled)
+          throw error
+        }
+        if (store().session) return
+
+        enterPlanForEditing(viewDeps(editingOn), rings)
+        editingOn.setOutlineVisible(false)
         store().enter({ chatId, siteName, revision, rings, viewState })
         if (after < before) {
           store().setNotice(
@@ -430,6 +493,9 @@ export function useSiteBoundaryEditMode() {
 
     const session = store().session
     if (!session) return
+
+    // A map rebuilt during the session (a theme change) starts with the outline showing; the editor's polygons replace it.
+    handle.setOutlineVisible(false)
 
     const controller = createEditablePolygonController(createGoogleEditablePolygonHost(handle.map), {
       onVertexMenu: ({ clientX, clientY }) => useCornerMenuStore.getState().open(clientX, clientY),

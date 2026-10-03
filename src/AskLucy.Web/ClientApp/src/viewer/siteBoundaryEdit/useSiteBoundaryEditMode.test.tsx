@@ -4,7 +4,9 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/httpClient'
 import { useActiveSiteBoundaryStore, type GeoPoint } from '../../store/activeSiteBoundaryStore'
+import { viewerSession } from '../session/viewerSession'
 import { useGoogleMapsStore } from '../store/googleMapsStore'
+import { useViewerEngineStore } from '../store/viewerEngineStore'
 import type { EditablePolygonHost } from './editablePolygonController'
 import { siteBoundaryEditActions } from './siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
@@ -17,7 +19,7 @@ const chatsApi = vi.hoisted(() => ({
 }))
 vi.mock('../../features/chat/api/chatsApi', () => chatsApi)
 
-const engine = vi.hoisted(() => ({ setViewMode: vi.fn(), setRotationEnabled: vi.fn() }))
+const engine = vi.hoisted(() => ({ setViewMode: vi.fn(), setRotationEnabled: vi.fn(), setFlatMap: vi.fn() }))
 vi.mock('../engine/viewerEngineInstance', () => ({ viewerEngine: engine }))
 
 // The real host draws google.maps.Polygon; here every ring is a do-nothing stand-in.
@@ -107,13 +109,26 @@ function makeDirty() {
   act(() => store().applyChange({ op: 'move', ring: 0, index: 1, before: RING[1], after: { latitude: 23.5875, longitude: 58.3945 } }))
 }
 
+/**
+ * Stands in for MapRenderTarget: switching between the 3D and the flat map rebuilds it, which shows up as a
+ * new handle in the store. The new handle shares the spies and the map, so assertions read the same.
+ */
+let unsubscribeRebuild: (() => void) | null = null
+
 beforeEach(() => {
   vi.clearAllMocks()
+  useViewerEngineStore.setState({ flatMap: false, mapTransition: null })
+  viewerSession.nextCamera = null
+  engine.setFlatMap.mockImplementation((flat: boolean) => useViewerEngineStore.getState().setFlatMap(flat))
+  unsubscribeRebuild = useViewerEngineStore.subscribe((state, previous) => {
+    if (state.flatMap !== previous.flatMap) useGoogleMapsStore.setState({ handle: { ...handle } as never })
+  })
   useGoogleMapsStore.setState({ handle: handle as never, map: map as never })
   showOutline()
 })
 
 afterEach(() => {
+  unsubscribeRebuild?.()
   cleanup()
   store().end()
   store().consumeRequest()
@@ -422,9 +437,51 @@ describe('useSiteBoundaryEditMode', () => {
       expect(session()).toBeNull()
       expect(handle.setOutlineVisible).toHaveBeenLastCalledWith(true)
       expect(engine.setViewMode).toHaveBeenLastCalledWith('isometric')
-      expect(map.moveCamera).toHaveBeenCalledWith({ center: { lat: 23.5865, lng: 58.3935 }, zoom: 17.5, heading: 42, tilt: 45 })
+      // The 3D map is rebuilt for the way out, and opens at exactly the view the editor found.
+      expect(engine.setFlatMap).toHaveBeenLastCalledWith(false, 'Closing the outline editor...')
+      expect(viewerSession.nextCamera).toEqual({ latitude: 23.5865, longitude: 58.3935, zoom: 17.5, heading: 42, tilt: 45 })
       expect(engine.setRotationEnabled).toHaveBeenLastCalledWith(true)
       expect(chatsApi.saveSiteBoundaryEdit).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('the flat map', () => {
+    it('switches to the flat map before framing the outline, and edits on the rebuilt map', async () => {
+      mountHook()
+      const before = useGoogleMapsStore.getState().handle
+
+      await act(() => siteBoundaryEditActions.start())
+
+      expect(engine.setFlatMap).toHaveBeenCalledWith(true, 'Opening the outline editor...')
+      expect(useViewerEngineStore.getState().flatMap).toBe(true)
+      expect(useGoogleMapsStore.getState().handle).not.toBe(before)
+      expect(map.fitBounds).toHaveBeenCalled()
+      expect(session()).not.toBeNull()
+    })
+
+    it('a site change ends editing on the 3D map without pulling the camera back', async () => {
+      mountHook()
+      await act(() => siteBoundaryEditActions.start())
+
+      act(() => useActiveSiteBoundaryStore.getState().clearBoundary())
+
+      expect(useViewerEngineStore.getState().flatMap).toBe(false)
+      expect(viewerSession.nextCamera).toBeNull()
+    })
+
+    it('says so, and goes back to the 3D map, when the flat map never appears', async () => {
+      vi.useFakeTimers()
+      unsubscribeRebuild?.()
+      mountHook()
+
+      const starting = act(() => siteBoundaryEditActions.start())
+      await vi.advanceTimersByTimeAsync(21_000)
+      await starting
+      vi.useRealTimers()
+
+      expect(session()).toBeNull()
+      expect(useViewerEngineStore.getState().flatMap).toBe(false)
+      expect(store().notice).toMatch(/didn't reload in time/)
     })
   })
 

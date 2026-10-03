@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ApiError } from '../../../api/httpClient'
 import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
-import { resetSiteBoundary } from '../../chat/api/chatsApi'
+import { getChatById, resetSiteBoundary } from '../../chat/api/chatsApi'
 import { useOutlineResetStore } from '../../../viewer/siteBoundaryEdit/outlineResetStore'
 import { applyBoundaryToViewer } from '../../../viewer/siteBoundaryEdit/useSiteBoundaryEditMode'
 
@@ -26,8 +26,8 @@ export function SiteBoundaryResetDialog() {
   }
 
   const reset = async () => {
-    const { chatId, revision } = useActiveSiteBoundaryStore.getState()
-    if (!chatId || !revision) {
+    const { chatId, revision: shownRevision } = useActiveSiteBoundaryStore.getState()
+    if (!chatId) {
       setError("This outline can't be reset right now - reload the chat and try again.")
       return
     }
@@ -35,6 +35,9 @@ export function SiteBoundaryResetDialog() {
     setBusy(true)
     setError(null)
     try {
+      // An outline Lucy just drew in a live reply carries no revision; the chat's own is the one in force.
+      const revision = shownRevision ?? (await getChatById(chatId)).activeBoundary?.revision
+      if (!revision) throw new Error("This chat has no outline to reset.")
       const result = await resetSiteBoundary(chatId, { expectedRevision: revision })
       applyBoundaryToViewer(chatId, result.activeBoundary)
       void queryClient.invalidateQueries({ queryKey: ['chats', chatId, 'messages'] })
