@@ -32,8 +32,8 @@ interface AiPresenceCardProps {
 
 /** FR-023: the existing AI particle-sphere visualization, relocated into its own
  * persistent floating rounded-square card — distinct from the `WorkspaceSurface`
- * (FR-022) and the chat conversation panel — bottom-left, dark, sized to match the
- * readdy.ai reference's own presence-preview card exactly (research.md #7). Always
+ * (FR-022) and the chat conversation panel — top-left under the studio bar, dark, half the size of the
+ * readdy.ai reference's presence-preview card (research.md #7). Always
  * rendered, independent of `workspaceOverlayStore`'s expand/collapse state machine
  * (data-model.md).
  *
@@ -48,12 +48,14 @@ export function AiPresenceCard({ getFrequencyBands }: AiPresenceCardProps) {
       data-testid="ai-presence-card"
       sx={{
         position: 'absolute',
+        // Top-left, just under the studio bar: the bottom-left corner is where notices appear, and the card
+        // used to cover them. Half its former size, so it stays out of the way of the map.
         left: { xs: 16, sm: 24 },
-        bottom: { xs: 16, sm: 24 },
-        width: 'min(25vh, 280px)',
-        height: 'min(25vh, 280px)',
-        minWidth: 180,
-        minHeight: 180,
+        top: { xs: 64, sm: 72 },
+        width: 'min(12.5vh, 140px)',
+        height: 'min(12.5vh, 140px)',
+        minWidth: 90,
+        minHeight: 90,
         borderRadius: '8px',
         overflow: 'hidden',
         pointerEvents: 'auto',

@@ -37,6 +37,89 @@ function adaptPath(mvc: google.maps.MVCArray<google.maps.LatLng>): EditablePath 
   }
 }
 
+/**
+ * The rings of light around selected corners. Drawn by an overlay of our own (plain, pointer-transparent
+ * elements in the map's float pane) rather than as map markers: adding a marker while a corner is being
+ * pressed rebuilds the layer Google keeps its corner handles in, which cancelled the press, so a corner had
+ * to be clicked once before it could be dragged.
+ */
+/** The surface the rings are drawn on. */
+interface CornerRingsSurface {
+  show(points: Map<number, google.maps.LatLngLiteral>): void
+  move(index: number, point: google.maps.LatLngLiteral): void
+  setMap(map: google.maps.Map | null): void
+}
+
+/** Built only once Google's script has loaded: the overlay class extends one of its own. */
+function createCornerRings(): CornerRingsSurface {
+  class CornerRings extends google.maps.OverlayView {
+    private readonly rings = new Map<number, { point: google.maps.LatLngLiteral; element: HTMLDivElement }>()
+
+    /** Shows a ring at each of these corners, replacing any shown before. */
+    show(points: Map<number, google.maps.LatLngLiteral>) {
+      this.rings.forEach((ring) => ring.element.remove())
+      this.rings.clear()
+      const pane = this.getPanes()?.floatPane
+      points.forEach((point, index) => {
+        const element = document.createElement('div')
+        element.setAttribute('aria-hidden', 'true')
+        Object.assign(element.style, {
+          position: 'absolute',
+          width: '18px',
+          height: '18px',
+          marginLeft: '-9px',
+          marginTop: '-9px',
+          borderRadius: '50%',
+          border: '3px solid #FFC107',
+          background: 'rgba(255,255,255,0.35)',
+          boxSizing: 'border-box',
+          pointerEvents: 'none',
+        })
+        pane?.appendChild(element)
+        this.rings.set(index, { point, element })
+      })
+      this.draw()
+    }
+
+    /** Moves one ring, if that corner has one. */
+    move(index: number, point: google.maps.LatLngLiteral) {
+      const ring = this.rings.get(index)
+      if (!ring) return
+      ring.point = point
+      this.place(ring)
+    }
+
+    override onAdd() {
+      // Rings asked for before the map was ready are attached now.
+      const pane = this.getPanes()?.floatPane
+      this.rings.forEach((ring) => pane?.appendChild(ring.element))
+    }
+
+    override draw() {
+      this.rings.forEach((ring) => this.place(ring))
+    }
+
+    override onRemove() {
+      this.rings.forEach((ring) => ring.element.remove())
+    }
+
+    private place(ring: { point: google.maps.LatLngLiteral; element: HTMLDivElement }) {
+      const pixel = this.getProjection()?.fromLatLngToDivPixel(new google.maps.LatLng(ring.point))
+      if (!pixel) return
+      ring.element.style.left = `${pixel.x}px`
+      ring.element.style.top = `${pixel.y}px`
+    }
+  }
+
+  return new CornerRings()
+}
+
+/** Where the pointer last went down: Google's own mousedown event does not always carry it. */
+let lastPointerDown: { clientX: number; clientY: number } | null = null
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', (event) => (lastPointerDown = { clientX: event.clientX, clientY: event.clientY }), true)
+}
+
 export function createGoogleEditablePolygonHost(map: google.maps.Map): EditablePolygonHost {
   // Screen position to map position, for following a handle while Google drags it.
   const projector = createGooglePixelProjector(map)
@@ -65,12 +148,13 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
         zIndex: 20,
       })
 
-      /** A ring of light around each selected corner, keyed by corner index. */
-      let markers = new Map<number, google.maps.Marker>()
-      // The light follows its corner while it is dragged, moved by the keyboard, or carried along with a
-      // selected group: the path reports every one of those as a set_at.
+      /** A ring of light around each selected corner. */
+      const rings = createCornerRings()
+      rings.setMap(map)
+      // A ring follows its corner when it is dropped, moved by the keyboard, or carried along with a selected
+      // group: the path reports every one of those as a set_at.
       const followCorner = google.maps.event.addListener(polygon.getPath(), 'set_at', (index: number) => {
-        markers.get(index)?.setPosition(polygon.getPath().getAt(index))
+        rings.move(index, toLatLng(fromLatLng(polygon.getPath().getAt(index))))
       })
 
       return {
@@ -106,21 +190,13 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
         },
 
         setHighlights(indices) {
-          markers.forEach((m) => m.setMap(null))
           const path = polygon.getPath()
-          markers = new Map(
-            indices
-              .filter((index) => index < path.getLength())
-              .map((index) => [
-                index,
-                new google.maps.Marker({
-                  map,
-                  position: path.getAt(index),
-                  clickable: false,
-                  zIndex: 30,
-                  icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#FFFFFF', fillOpacity: 0.35, strokeColor: '#FFC107', strokeWeight: 3 },
-                }),
-              ]),
+          rings.show(
+            new Map(
+              indices
+                .filter((index) => index < path.getLength())
+                .map((index) => [index, toLatLng(fromLatLng(path.getAt(index)))] as const),
+            ),
           )
         },
 
@@ -143,20 +219,24 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
             // the handle. So the corner is where it was when pressed, plus how far the pointer has moved since:
             // the ring stays centred on the handle instead of on the pointer.
             const corner = fromLatLng(polygon.getPath().getAt(index))
-            const dom = event.domEvent as MouseEvent | undefined
             const pointAt = (clientX: number, clientY: number) => {
               const origin = projector.origin()
               return projector.toLatLng({ x: clientX - origin.left, y: clientY - origin.top })
             }
-            const pressedAt = dom ? pointAt(dom.clientX, dom.clientY) : null
+            // Where the press was, from the page's own pointerdown (Google's event may carry no position);
+            // failing that, the first movement, which is at most a pixel or two later.
+            const dom = event.domEvent as MouseEvent | undefined
+            const press = typeof dom?.clientX === 'number' ? dom : lastPointerDown
+            let pressedAt = press ? pointAt(press.clientX, press.clientY) : null
             const move = (e: PointerEvent) => {
               const now = pointAt(e.clientX, e.clientY)
-              if (!now || !pressedAt) return
+              if (!now) return
+              pressedAt ??= now
               const point = {
                 latitude: corner.latitude + (now.latitude - pressedAt.latitude),
                 longitude: corner.longitude + (now.longitude - pressedAt.longitude),
               }
-              markers.get(index)?.setPosition(toLatLng(point))
+              rings.move(index, toLatLng(point))
               listener(index, point)
             }
             const up = () => stop?.()
@@ -187,8 +267,7 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
 
         remove() {
           followCorner.remove()
-          markers.forEach((m) => m.setMap(null))
-          markers = new Map()
+          rings.setMap(null)
           google.maps.event.clearInstanceListeners(polygon)
           polygon.setMap(null)
         },
