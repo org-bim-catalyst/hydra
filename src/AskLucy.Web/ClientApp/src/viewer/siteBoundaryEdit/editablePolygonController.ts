@@ -33,6 +33,11 @@ export interface EditableRing {
   onVertexClick(listener: (vertexIndex: number, additive: boolean) => void): () => void
   /** Marks these corners as selected (an empty list clears the marks). */
   setHighlights(indices: readonly number[]): void
+  /**
+   * While a corner handle is being dragged, where it is now. Google reports a vertex move only when it is
+   * dropped, so without this nothing else (the selection's rings, the rest of a selected group) could follow.
+   */
+  onVertexDragMove?(listener: (vertexIndex: number, point: GeoPoint) => void): () => void
   /** Right-click or long-press on a corner. `clientX`/`clientY` place a menu. */
   onVertexMenu(listener: (vertexIndex: number, clientX: number, clientY: number) => void): () => void
   remove(): void
@@ -150,7 +155,7 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
 
           const refusal = validateRing(candidate)
           if (refusal) {
-            withWriting(() => path.setAt(index, before))
+            withWriting(() => indices.forEach((i) => path.setAt(i, entry.known[i])))
             refuse(refusal.message)
             return
           }
@@ -220,6 +225,29 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         else if ((store().session?.selectedCorners.length ?? 0) > 1) store().selectCorner(null)
         else store().selectCorner(index)
       }),
+
+      // The rest of a selected group follows the dragged corner as it moves, not only when it is dropped.
+      // Written without recording: the drop that follows records the whole move once, from the corners'
+      // positions before the drag.
+      ...(entry.ring.onVertexDragMove
+        ? [
+            entry.ring.onVertexDragMove((index, point) => {
+              const session = store().session
+              const group = session && session.activeRing === ringIndex ? session.selectedCorners : []
+              const origin = entry.known[index]
+              if (group.length < 2 || !group.includes(index) || !origin) return
+              const dLat = point.latitude - origin.latitude
+              const dLng = point.longitude - origin.longitude
+              withWriting(() =>
+                group
+                  .filter((i) => i !== index && i < entry.known.length)
+                  .forEach((i) =>
+                    path.setAt(i, { latitude: entry.known[i].latitude + dLat, longitude: entry.known[i].longitude + dLng }),
+                  ),
+              )
+            }),
+          ]
+        : []),
 
       entry.ring.onVertexMenu((index, clientX, clientY) => {
         store().selectCorner(index)

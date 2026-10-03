@@ -82,6 +82,12 @@ class FakeRing implements EditableRing {
   selectListeners: (() => void)[] = []
   menuListeners: ((i: number, x: number, y: number) => void)[] = []
   clickListeners: ((i: number, additive: boolean) => void)[] = []
+  dragMoveListeners: ((i: number, point: GeoPoint) => void)[] = []
+
+  onVertexDragMove = (l: (i: number, point: GeoPoint) => void) => {
+    this.dragMoveListeners.push(l)
+    return () => (this.dragMoveListeners = this.dragMoveListeners.filter((x) => x !== l))
+  }
   highlights: number[] = []
   path: FakePath
 
@@ -761,5 +767,36 @@ describe('a selected group', () => {
     host.emptyClickListeners.forEach((l) => l())
 
     expect(session().selectedCorners).toEqual([1, 2])
+  })
+
+  it('while one selected corner is dragged, the rest of the group follows live; the drop records one move from the start', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+    const ring = host.rings[0]
+
+    // Google moves its own handle and reports only the pointer; nothing is recorded yet.
+    ring.dragMoveListeners.forEach((l) => l(1, P(30, -8)))
+    expect(ring.path.getAt(2).latitude).toBeCloseTo(P(60, -8).latitude, 9)
+    expect(session().undo).toHaveLength(0)
+
+    // The drop.
+    ring.path.setAt(1, P(30, -10))
+
+    expect(ring.path.getAt(2).latitude).toBeCloseTo(P(60, -10).latitude, 9)
+    expect(session().undo).toHaveLength(1)
+    store().undo()
+    expect(session().rings[0][2]).toEqual(P(60, 0))
+  })
+
+  it('a refused group drop puts back the corners carried along during the drag too', () => {
+    const { host } = setup([withMidpoints()])
+    store().selectCorners([1, 2])
+    const ring = host.rings[0]
+
+    ring.dragMoveListeners.forEach((l) => l(1, P(30, 150)))
+    ring.path.setAt(1, P(30, 150))
+
+    expect(ring.path.getAt(1)).toEqual(P(30, 0))
+    expect(ring.path.getAt(2)).toEqual(P(60, 0))
   })
 })

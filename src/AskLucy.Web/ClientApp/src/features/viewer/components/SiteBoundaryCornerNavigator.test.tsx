@@ -211,6 +211,16 @@ describe('SiteBoundaryCornerNavigator', () => {
     mapDiv.remove()
   })
 
+  it('the arrows work in the Select tool too', () => {
+    enter()
+    act(() => store().selectCorners([1, 2]))
+    act(() => store().setTool('select'))
+
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' })
+
+    expect(runtime.nudgeCorner).toHaveBeenCalledWith(0.5, 0)
+  })
+
   it('does not move a corner while the user is typing in a field', () => {
     enter()
     act(() => store().selectCorner(1))
@@ -223,10 +233,10 @@ describe('SiteBoundaryCornerNavigator', () => {
     input.remove()
   })
 
-  it('does nothing from the window while a drawing tool owns the map', () => {
+  it('does nothing from the window while the arc or circle tool owns the map', () => {
     enter()
     act(() => store().selectCorner(1))
-    act(() => store().setTool('select'))
+    act(() => store().setTool('arc'))
 
     fireEvent.keyDown(document.body, { key: 'ArrowRight' })
 

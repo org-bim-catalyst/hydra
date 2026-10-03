@@ -716,6 +716,20 @@ describe('useSiteBoundaryEditMode', () => {
       expect(session()?.selectedCorners).toEqual([])
     })
 
+    it('the arrow keys move every selected corner together', async () => {
+      await begin()
+      act(() => store().selectCorners([1, 2]))
+      const before = session()!.rings[0].map((p) => p.longitude)
+
+      act(() => siteBoundaryEditActions.nudgeCorner(5, 0))
+
+      const after = session()!.rings[0].map((p) => p.longitude)
+      expect(after[1]).toBeGreaterThan(before[1])
+      expect(after[2]).toBeGreaterThan(before[2])
+      expect(after[0]).toBe(before[0])
+      expect(session()?.selectedCorners).toEqual([1, 2])
+    })
+
     it('one undo brings all the deleted corners back', async () => {
       await begin()
       act(() => store().selectCorners([1, 2]))

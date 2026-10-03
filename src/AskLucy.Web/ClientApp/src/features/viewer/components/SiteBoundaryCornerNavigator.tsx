@@ -40,7 +40,9 @@ function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
   if (event.key === 'Delete' || event.key === 'Backspace') return false
   // Tab walks the corners from the map or the page, but never takes the key from a control the user is on, so the toolbar stays reachable.
   if (event.key === 'Tab' && target?.closest('button, a, input, select, textarea, summary, [role="button"], [role="menuitem"], [role="tab"]')) return false
-  return useSiteBoundaryEditStore.getState().session?.tool === 'edit'
+  // The Select tool too: a box selection is moved with the arrows as well as by dragging.
+  const tool = useSiteBoundaryEditStore.getState().session?.tool
+  return tool === 'edit' || tool === 'select'
 }
 
 function handleKey(event: KeyLike, wrap = false) {

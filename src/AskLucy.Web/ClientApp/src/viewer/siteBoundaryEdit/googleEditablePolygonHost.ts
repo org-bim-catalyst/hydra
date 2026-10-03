@@ -1,5 +1,6 @@
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import type { EditablePath, EditablePolygonHost, EditableRing } from './editablePolygonController'
+import { createGooglePixelProjector } from './googlePixelProjector'
 
 /**
  * specs/079 research D1: the real map behind {@link EditablePolygonHost}. Each ring is a native
@@ -37,6 +38,8 @@ function adaptPath(mvc: google.maps.MVCArray<google.maps.LatLng>): EditablePath 
 }
 
 export function createGoogleEditablePolygonHost(map: google.maps.Map): EditablePolygonHost {
+  // Screen position to map position, for following a handle while Google drags it.
+  const projector = createGooglePixelProjector(map)
   return {
     onEmptyClick(listener) {
       // The map's own click and right-click fire only off the polygons; a right-click on a ring away from
@@ -119,6 +122,36 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
                 }),
               ]),
           )
+        },
+
+        onVertexDragMove(listener) {
+          // Google says which corner was pressed ('mousedown' with `vertex`) and then reports nothing until
+          // the drop, so the pointer is followed on the page until it is released.
+          let stop: (() => void) | null = null
+          const down = polygon.addListener('mousedown', (event: google.maps.PolyMouseEvent) => {
+            if (event.vertex === undefined || event.vertex === null) return
+            const index = event.vertex
+            stop?.()
+            const move = (e: PointerEvent) => {
+              const origin = projector.origin()
+              const point = projector.toLatLng({ x: e.clientX - origin.left, y: e.clientY - origin.top })
+              if (!point) return
+              markers.get(index)?.setPosition(toLatLng(point))
+              listener(index, point)
+            }
+            const up = () => stop?.()
+            window.addEventListener('pointermove', move, true)
+            window.addEventListener('pointerup', up, true)
+            stop = () => {
+              window.removeEventListener('pointermove', move, true)
+              window.removeEventListener('pointerup', up, true)
+              stop = null
+            }
+          })
+          return () => {
+            stop?.()
+            down.remove()
+          }
         },
 
         onVertexMenu(listener) {

@@ -38,8 +38,10 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
   const active = useSiteBoundaryEditStore((s) => s.session?.tool === 'select')
   const getProjector = usePixelProjector(active, injected)
   const [drag, setDrag] = useState<Drag | null>(null)
-  /** While the selected corners are being dragged: where the pointer was last, on the map. */
-  const [grab, setGrab] = useState<GeoPoint | null>(null)
+  /** While the selected corners are being dragged: where the pointer was last, on the map, and where it went down. */
+  const [grab, setGrab] = useState<{ point: GeoPoint; startX: number; startY: number; moved: boolean } | null>(null)
+  /** Whether the pointer is over a corner, so the cursor can say it can be grabbed. */
+  const [overCorner, setOverCorner] = useState(false)
 
   if (!active) return null
 
@@ -57,11 +59,13 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     const at = { x: event.clientX - origin.left, y: event.clientY - origin.top }
     const point = use.toLatLng(at)
     const ring = session.rings[session.activeRing] ?? []
-    const onSelected = session.selectedCorners.some((i) => {
+    const near = (i: number) => {
       const pixel = ring[i] ? use.toPixel(ring[i]) : null
       return pixel !== null && Math.hypot(pixel.x - at.x, pixel.y - at.y) <= GRAB_RADIUS_PX
-    })
-    return point ? { point, onSelected } : null
+    }
+    const onSelected = session.selectedCorners.some(near)
+    const onCorner = onSelected || ring.some((_, i) => near(i))
+    return point ? { point, onSelected, onCorner } : null
   }
 
   const start = (event: PointerEvent<HTMLDivElement>) => {
@@ -71,7 +75,13 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     // Pressing on a selected corner grabs the whole selection, here in the Select tool as everywhere else.
     const hit = locate(event)
     if (hit?.onSelected) {
-      setGrab(hit.point)
+      setGrab({ point: hit.point, startX: event.clientX, startY: event.clientY, moved: false })
+      return
+    }
+    if (hit?.onCorner) {
+      // A corner outside the selection: leave the multi-selection for ordinary editing of corners.
+      useSiteBoundaryEditStore.getState().selectCorner(null)
+      useSiteBoundaryEditStore.getState().setTool('edit')
       return
     }
 
@@ -81,14 +91,21 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
 
   const move = (event: PointerEvent<HTMLDivElement>) => {
     if (grab) {
+      // Below the drag threshold it is still a click.
+      const moved = grab.moved || Math.hypot(event.clientX - grab.startX, event.clientY - grab.startY) >= MIN_DRAG_PX
+      if (!moved) return
       const hit = locate(event)
       if (!hit) return
-      const [, to] = toLocalMeters([grab, hit.point], grab)
+      const [, to] = toLocalMeters([grab.point, hit.point], grab.point)
       if (to.x !== 0 || to.y !== 0) siteBoundaryEditActions.nudgeCorner(to.x, to.y)
-      setGrab(hit.point)
+      setGrab({ ...grab, point: hit.point, moved: true })
       return
     }
-    if (!drag) return
+    if (!drag) {
+      const over = locate(event)?.onCorner ?? false
+      if (over !== overCorner) setOverCorner(over)
+      return
+    }
     const { x, y } = local(event)
     setDrag({ ...drag, x, y })
   }
@@ -97,7 +114,8 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     // Only the primary button ends a drag; a right-click release is not a selection.
     if (event.button !== 0) return
     if (grab) {
-      // The selection stays selected after it was moved.
+      // Dragged: the selection stays selected. Clicked without moving: the selection ends, as any click does.
+      if (!grab.moved) useSiteBoundaryEditStore.getState().selectCorner(null)
       setGrab(null)
       return
     }
@@ -177,7 +195,7 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onWheel={zoom}
       // The viewer's overlay container lets pointer events through to the map; this layer must take them
       // back, or a drag pans the map instead of drawing the box.
-      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
+      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: grab ? 'grabbing' : overCorner ? 'grab' : 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
     >
       {box && (
         <Box

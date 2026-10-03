@@ -115,6 +115,47 @@ describe('SiteBoundaryBoxSelect', () => {
     unregister()
   })
 
+  it('shows a grab cursor over a corner, and a crosshair elsewhere', () => {
+    enter()
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+
+    fireEvent.pointerMove(layer(), { clientX: 60, clientY: 50 })
+    expect(layer()).toHaveStyle({ cursor: 'grab' })
+
+    fireEvent.pointerMove(layer(), { clientX: 200, clientY: 200 })
+    expect(layer()).toHaveStyle({ cursor: 'crosshair' })
+  })
+
+  it('a click (no drag) on a selected corner ends the selection', () => {
+    const nudgeCorner = vi.fn()
+    const unregister = registerSiteBoundaryEditRuntime({ nudgeCorner } as unknown as SiteBoundaryEditRuntime)
+    enter()
+    act(() => store().selectCorners([1, 2]))
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+
+    fireEvent.pointerDown(layer(), { clientX: 40, clientY: 50, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(layer(), { clientX: 41, clientY: 50, pointerId: 1 })
+    fireEvent.pointerUp(layer(), { clientX: 41, clientY: 50, button: 0, pointerId: 1 })
+
+    expect(nudgeCorner).not.toHaveBeenCalled()
+    expect(store().session?.selectedCorners).toEqual([])
+    unregister()
+  })
+
+  it('pressing a corner outside the selection leaves the multi-selection for ordinary editing', () => {
+    enter()
+    act(() => store().selectCorners([1, 2]))
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+
+    fireEvent.pointerDown(layer(), { clientX: 100, clientY: 50, button: 0, pointerId: 1 })
+
+    expect(store().session?.selectedCorners).toEqual([])
+    expect(store().session?.tool).toBe('edit')
+  })
+
   it('a right-button release does not end a left drag', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)
