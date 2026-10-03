@@ -48,6 +48,14 @@ const BASE_POINT_SIZE_BY_TIER = { full: 0.09, reduced: 0.3 } as const
 // though neither piece alone regressed.
 const INTENSITY_BY_TIER = { full: 0.4, reduced: 1 } as const
 
+/**
+ * The canvas height, in CSS pixels, the point sizes above were tuned at: the presence card at its former
+ * full size (min(25vh, 280px)). Dots are drawn a fixed number of pixels wide, so on a smaller canvas the
+ * same dots crowd into less room and their additive light piles up into solid white. Sizes are scaled by
+ * the canvas height against this, so the sphere keeps the same look at any card size.
+ */
+const REFERENCE_CANVAS_HEIGHT_PX = 280
+
 interface ReactiveSphereProps {
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
    * `getFrequencyBands`) - read every frame here rather than passed as plain number props, so
@@ -116,7 +124,7 @@ export function ReactiveSphere({
       uAmplitude: { value: IDLE_AMPLITUDE },
       uFrequency: { value: IDLE_FREQUENCY },
       uBreath: { value: 0 },
-      uBasePointSize: { value: BASE_POINT_SIZE_BY_TIER[qualityTier] },
+      uBasePointSize: { value: BASE_POINT_SIZE_BY_TIER[qualityTier] as number },
       uIntensity: { value: INTENSITY_BY_TIER[qualityTier] },
       uColorIdle: { value: new THREE.Color(dotColors.idle) },
       uColorReactive: { value: new THREE.Color(dotColors.reactive) },
@@ -127,7 +135,7 @@ export function ReactiveSphere({
     [],
   )
 
-  useFrame((_, delta) => {
+  useFrame(({ size }, delta) => {
     const material = materialRef.current
     if (material) {
       const u = material.uniforms as typeof uniforms
@@ -158,7 +166,7 @@ export function ReactiveSphere({
       // Same rationale as above, for the tier-derived point size/intensity - a
       // performance-regression downgrade to 'reduced' must pick up its own, non-saturating
       // values immediately, not keep 'full's settings from before the downgrade.
-      u.uBasePointSize.value = BASE_POINT_SIZE_BY_TIER[qualityTier]
+      u.uBasePointSize.value = BASE_POINT_SIZE_BY_TIER[qualityTier] * (size.height / REFERENCE_CANVAS_HEIGHT_PX)
       u.uIntensity.value = INTENSITY_BY_TIER[qualityTier]
     }
 
