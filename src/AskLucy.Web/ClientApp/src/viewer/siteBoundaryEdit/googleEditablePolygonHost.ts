@@ -115,9 +115,24 @@ function createCornerRings(): CornerRingsSurface {
 }
 
 /** Where the pointer last went down: Google's own mousedown event does not always carry it. */
-let lastPointerDown: { clientX: number; clientY: number } | null = null
+let lastPointerDown: { clientX: number; clientY: number; target: EventTarget | null } | null = null
 if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', (event) => (lastPointerDown = { clientX: event.clientX, clientY: event.clientY }), true)
+  window.addEventListener(
+    'pointerdown',
+    (event) => (lastPointerDown = { clientX: event.clientX, clientY: event.clientY, target: event.target }),
+    true,
+  )
+}
+
+/** A corner handle is a small element; anything bigger (the map itself) is not one. */
+const HANDLE_MAX_PX = 40
+
+/** The centre of an element on the page, when it is small enough to be a corner handle. */
+function handleCentre(target: EventTarget | null): { x: number; y: number } | null {
+  if (!(target instanceof Element)) return null
+  const rect = target.getBoundingClientRect()
+  if (rect.width === 0 || rect.width > HANDLE_MAX_PX || rect.height > HANDLE_MAX_PX) return null
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
 }
 
 export function createGoogleEditablePolygonHost(map: google.maps.Map): EditablePolygonHost {
@@ -228,6 +243,22 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
             const dom = event.domEvent as MouseEvent | undefined
             const press = typeof dom?.clientX === 'number' ? dom : lastPointerDown
             let pressedAt = press ? pointAt(press.clientX, press.clientY) : null
+            // Best of all, the handle Google is actually moving: the element pressed, read after Google has
+            // moved it this frame. Then the ring sits exactly on it, whatever rule Google drags by. Used only
+            // while that element really does move with the pointer.
+            const handle = lastPointerDown?.target ?? null
+            const handleAtPress = handleCentre(handle)
+            let frame = 0
+            const followHandle = (fallback: GeoPoint) => {
+              cancelAnimationFrame(frame)
+              frame = requestAnimationFrame(() => {
+                const centre = handleCentre(handle)
+                const moved = centre && handleAtPress && Math.hypot(centre.x - handleAtPress.x, centre.y - handleAtPress.y) > 0.5
+                const point = (moved && centre ? pointAt(centre.x, centre.y) : null) ?? fallback
+                rings.move(index, toLatLng(point))
+                listener(index, point)
+              })
+            }
             const move = (e: PointerEvent) => {
               const now = pointAt(e.clientX, e.clientY)
               if (!now) return
@@ -236,10 +267,12 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
                 latitude: corner.latitude + (now.latitude - pressedAt.latitude),
                 longitude: corner.longitude + (now.longitude - pressedAt.longitude),
               }
-              rings.move(index, toLatLng(point))
-              listener(index, point)
+              followHandle(point)
             }
-            const up = () => stop?.()
+            const up = () => {
+              cancelAnimationFrame(frame)
+              stop?.()
+            }
             window.addEventListener('pointermove', move, true)
             window.addEventListener('pointerup', up, true)
             stop = () => {
