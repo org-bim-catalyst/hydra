@@ -239,10 +239,18 @@ public sealed class KnowledgeBaseIndexingEndToEndTests(RetrievalIndexingApiFacto
     /// before <see cref="FlushOutboxAsync"/>'s own drain gets to it, leaving the row briefly claimed
     /// but not yet materialized into a <c>Notifications</c> row. Polling (rather than a single count
     /// check right after the flush) gives that other host's dispatch pass time to finish.
+    /// <para>
+    /// That other host can also be torn down mid-dispatch, or hit a dropped connection and release the row
+    /// with a backoff; then the row stays claimed for the rest of its lease (at least a minute) or its
+    /// backoff (10 s and up). Found failing under the full suite: a 10-second wait did not cover either.
+    /// So this host keeps draining while it waits, and waits past the shortest lease, picking the row up
+    /// itself as soon as it is free again.
+    /// </para>
     /// </summary>
     private async Task<int> PollForNotificationCountAsync(string ownerId, string type)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var deadline = DateTime.UtcNow.AddSeconds(90);
+        var nextFlush = DateTime.UtcNow.AddSeconds(5);
         int count;
         do
         {
@@ -252,7 +260,13 @@ public sealed class KnowledgeBaseIndexingEndToEndTests(RetrievalIndexingApiFacto
                 return count;
             }
 
-            await Task.Delay(100, TestContext.Current.CancellationToken);
+            if (DateTime.UtcNow >= nextFlush)
+            {
+                await FlushOutboxAsync();
+                nextFlush = DateTime.UtcNow.AddSeconds(5);
+            }
+
+            await Task.Delay(250, TestContext.Current.CancellationToken);
         }
         while (DateTime.UtcNow < deadline);
 
