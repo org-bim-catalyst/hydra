@@ -575,6 +575,7 @@ describe('ChatPage — Studio workspace shell (SPEC-024 US1, FR-001/FR-004/FR-02
       'Home',
       'Switch to dark mode',
       'Stop rotation', // specs/027-immersive-viewer-platform: rotation defaults on (jsdom's stubbed matchMedia reports no reduced-motion preference)
+      'Notifications', // specs/067-notifications-communication-hub: the bell now wears the cluster's circular trigger too, right before the account menu.
       'Account menu',
       'View mode',
       'Map style',

@@ -1,7 +1,8 @@
-import { Alert, Box, Button, Drawer, MenuItem, Select, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
+import { Alert, Box, Button, Drawer, MenuItem, Select, Snackbar, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import type { SelectChangeEvent } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { AppShell } from '../../../components/AppShell'
 import { errorMessage } from '../api/errorMessage'
 import type { NotificationCategory, NotificationItem as NotificationItemDto, NotificationState } from '../api/notificationsApi'
 import { NotificationDetails } from '../components/NotificationDetails'
@@ -43,39 +44,40 @@ export function NotificationsPage() {
   const closeDrawer = () => navigate('/notifications')
 
   return (
-    <Stack sx={{ height: '100%', minHeight: 0 }}>
-      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', p: 2, flexWrap: 'wrap' }}>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          Notifications
-        </Typography>
-        <ToggleButtonGroup size="small" value={state} exclusive onChange={(_, next: NotificationState | null) => next && setState(next)}>
-          <ToggleButton value="all">All</ToggleButton>
-          <ToggleButton value="unread">Unread</ToggleButton>
-          <ToggleButton value="read">Read</ToggleButton>
-        </ToggleButtonGroup>
-        <Select<NotificationCategory[]>
-          multiple
-          size="small"
-          displayEmpty
-          aria-label="Filter by category"
-          value={categories}
-          onChange={(e: SelectChangeEvent<NotificationCategory[]>) =>
-            setCategories(typeof e.target.value === 'string' ? [] : e.target.value)
-          }
-          renderValue={(selected) => (selected.length === 0 ? 'All categories' : selected.join(', '))}
-          sx={{ minWidth: 200 }}
-        >
-          {CATEGORIES.map((category) => (
-            <MenuItem key={category} value={category}>
-              {category}
-            </MenuItem>
-          ))}
-        </Select>
-        <Button size="small" onClick={() => markAllRead.mutate(undefined)} disabled={markAllRead.isPending || items.length === 0}>
-          Mark all read
-        </Button>
-      </Stack>
-
+    <AppShell
+      title="Notifications"
+      fillViewport
+      actions={
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <ToggleButtonGroup size="small" value={state} exclusive onChange={(_, next: NotificationState | null) => next && setState(next)}>
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="unread">Unread</ToggleButton>
+            <ToggleButton value="read">Read</ToggleButton>
+          </ToggleButtonGroup>
+          <Select<NotificationCategory[]>
+            multiple
+            size="small"
+            displayEmpty
+            aria-label="Filter by category"
+            value={categories}
+            onChange={(e: SelectChangeEvent<NotificationCategory[]>) =>
+              setCategories(typeof e.target.value === 'string' ? [] : e.target.value)
+            }
+            renderValue={(selected) => (selected.length === 0 ? 'All categories' : selected.join(', '))}
+            sx={{ minWidth: 200 }}
+          >
+            {CATEGORIES.map((category) => (
+              <MenuItem key={category} value={category}>
+                {category}
+              </MenuItem>
+            ))}
+          </Select>
+          <Button size="small" onClick={() => markAllRead.mutate(undefined)} disabled={markAllRead.isPending || items.length === 0}>
+            Mark all read
+          </Button>
+        </Stack>
+      }
+    >
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <NotificationList
           items={items}
@@ -103,6 +105,6 @@ export function NotificationsPage() {
           {markAllRead.error ? errorMessage(markAllRead.error) : null}
         </Alert>
       </Snackbar>
-    </Stack>
+    </AppShell>
   )
 }

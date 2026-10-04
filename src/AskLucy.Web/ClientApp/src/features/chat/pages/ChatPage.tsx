@@ -40,7 +40,9 @@ import { useVoicePreferencesStore } from '../voice/voicePreferencesStore'
 import { useWorkspaceOverlayStore } from '../../../store/workspaceOverlayStore'
 import { WorkspaceOverlay } from '../../../components/workspace-shell/WorkspaceOverlay'
 import { ThemeToggleButton } from '../../../components/workspace-shell/ThemeToggleButton'
+import { StudioNotificationBellButton } from '../../../components/workspace-shell/StudioNotificationBellButton'
 import { StudioAccountMenuButton } from '../../../components/workspace-shell/StudioAccountMenuButton'
+import { useNotificationHub } from '../../notifications/hooks/useNotificationHub'
 import { ComingSoonDialog } from '../../../components/workspace-shell/ComingSoonDialog'
 import { SiteBoundaryChatSwitchDialog } from '../../viewer/components/SiteBoundaryChatSwitchDialog'
 import { guardChatSwitch } from '../../../viewer/siteBoundaryEdit/chatSwitchGuard'
@@ -88,6 +90,11 @@ function voiceStateLabel(voiceState: VoiceStateName): string {
  * `handleChatCreated`), so an in-flight stream is never interrupted by its own id arriving.
  */
 export function ChatPage() {
+  // ChatPage has no AppShell (unlike every other authenticated page), so it's the only place
+  // that must open the notification hub connection itself. Studio is reached only behind
+  // ProtectedRoute, so there's no pre-login/401 concern AppShell's own gating exists for.
+  useNotificationHub()
+
   // specs/025-chat-configuration-settings FR-007: seeds from the shared store so a
   // conversation selected in the Chat History Settings tab (which sets this, then
   // navigates here) actually opens — a fresh mount otherwise has no other way to know
@@ -239,6 +246,10 @@ export function ChatPage() {
             {locationSource === 'agent' && <MarkerStyleSelector />}
             <ThemeToggleButton />
             <RotationToggleButton />
+            {/* Wears the same circular trigger as the account menu below it, mirroring
+                AppShell's own header ordering (bell, then account) — ChatPage has no AppShell,
+                so this is the only place Studio's unread badge and popover exist. */}
+            <StudioNotificationBellButton />
             {/* The account menu is no longer a workspace ControlDefinition — it is the same
                 UserMenu the AppShell renders, wearing this cluster's circular trigger. */}
             <StudioAccountMenuButton />
