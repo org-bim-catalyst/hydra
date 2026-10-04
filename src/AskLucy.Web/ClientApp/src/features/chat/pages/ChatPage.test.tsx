@@ -76,6 +76,13 @@ vi.mock('../voice/wavEncoder', () => ({
   toWav16kMono: vi.fn(),
 }))
 
+// The notification hub opens a real SignalR connection, which these page tests have no server for. With CI's
+// relative API base URL ('/api/v1') the hub address is relative too and cannot be resolved off a page at all,
+// which failed every render. Its own behaviour is covered by useNotificationHub.test.tsx.
+vi.mock('../../notifications/hooks/useNotificationHub', () => ({
+  useNotificationHub: () => ({ isLive: false, latestAnnouncement: null, dismissAnnouncement: () => {} }),
+}))
+
 const CHAT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const CHAT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
