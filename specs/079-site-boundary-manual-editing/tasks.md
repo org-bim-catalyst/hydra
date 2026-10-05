@@ -333,7 +333,7 @@ found outline is redrawn with effects.
   - a pointer from specs/042's deferred-editing assumption to 079.
 
   Update the viewer README (`src/AskLucy.Web/ClientApp/src/viewer/README.md`) with the edit-mode folder.
-- [ ] T092 Walk through quickstart.md steps 1–15 on localhost:7170 and then production, with screenshots judged against the expected values (memory: screenshot verification loop).
+- [x] T092 Walk through quickstart.md steps 1–15 on localhost:7170 and then production, with screenshots judged against the expected values (memory: screenshot verification loop).
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-27
 
-**Status**: Implemented 2026-09-30 (manual walkthrough T092 and the T002 browser spike still open)
+**Status**: Implemented 2026-09-30; refined from production testing to 2026-10-04 (T002 spike record still open)
 
 **Input**: User description: "Letting you edit the outline's corner points by hand". Manual site
 boundary editing: the user corrects the site outline drawn in the Studio map by hand. They can
@@ -464,6 +464,43 @@ corner, delete a corner, undo, and press Done. Repeat on a touch screen.
   user's corners instead of re-tracing them; separate ones become or leave a ring. The chat's found
   outline is recomposed in the same save so a reset keeps the building choice.
 
+### Changes from production testing (2026-10-02 to 2026-10-04)
+
+- **Editing happens on a flat map.** On the 3D (vector) map a building's roof leans away from the screen
+  centre as the map pans, so a ground-level outline never lined up with it. Opening the editor rebuilds
+  the map with Google's raster renderer (buildings flat at ground level); closing it rebuilds the 3D map
+  at exactly the view the editor found, with its mode and rotation. The 3D layer (animated border, solar
+  dome) is not shown while editing.
+- **The map says when it is rebuilding.** Any map rebuild or restyle (opening or closing the editor, a
+  theme or map-style change, the first load) blurs the viewer with a spinner and a message until the
+  new map has drawn, at most 8 s.
+- **Selection rules.**
+  - The Select tool draws a box; Shift adds. It stays active after a box. Pressing a selected corner
+    drags the whole selection; pressing an unselected corner leaves the multi-selection for ordinary
+    editing.
+  - In ordinary editing, dragging any selected corner moves every selected corner by the same distance,
+    as one undo step, and keeps the selection. Pressing an unselected corner makes it the selection.
+  - A left click anywhere (a corner, inside the outline, the map) ends a multi-selection; the click
+    that ends a drag does not count. Right-click leaves the Select tool and keeps the selection.
+  - Escape: the first leaves the Select tool, the next clears the selection, and then nothing (leaving
+    the editor is Cancel or Done, never a stray key).
+  - The arrow keys move every selected corner, in ordinary editing and in the Select tool. The editor
+    takes them before the map can pan with them.
+  - Cursors over a corner: a pointing hand for an unselected one, an open hand for a selected one, a
+    closed hand while one is held.
+  - Selected corners carry a 21 px yellow ring, drawn on an overlay of its own (a map marker added
+    mid-press cancelled Google's drag). The rings and the rest of a group follow a dragged corner live;
+    Google reports the move only on drop.
+- **Reset.** Available while editing (the open edit is cancelled first) and for an outline Lucy has
+  just drawn in a live reply (the revision is read from the chat when the viewer has none).
+- **Per-chat view across reloads.** The camera, 3D/plan mode and rotation (on or paused) are saved per
+  chat in the browser and put back on reload, for the same place only. They are saved when the map
+  settles and when the page is left, since the map never settles while it rotates.
+- **A reply cut off mid-stream** (a server restart) is reported with Try again instead of ending silently.
+- **Dropped database connections are retried** (EF Core retry strategy, multi-step writes inside it,
+  recurring-job registration at startup), so a brief blip on the shared database host no longer fails a
+  request or stops the app starting.
+
 ## API
 
 - `PUT /api/v1/chats/{id}/site-boundary` (save; ring count may change).
@@ -493,5 +530,8 @@ Security review, 2026-09-30:
   rate limit.
 - No hand-edited geometry is logged: the new handlers and geometry code contain no logging at all.
 - Automated: Application 2,390, Infrastructure 760, and the viewer, site-boundary and chat frontend
-  suites pass. Not yet done: the manual quickstart walkthrough, the touch-drag check on a real
-  device, and the 500-corner performance check on the RTX 4060 machine.
+  suites pass.
+- Manual, 2026-10-04: drag speed on the RTX 4060 machine is fine; touch dragging works on an iPad Pro.
+  Most of the quickstart was walked through on production during testing. Still open: the T002 spike
+  record, and the selection ring staying centred on a corner while it is dragged (it is centred once
+  dropped).
