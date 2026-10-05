@@ -1,6 +1,7 @@
 import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography } from '@mui/material'
-import { Link as RouterLink, useNavigate } from 'react-router'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
 import { EmptyState } from '../../../components/EmptyState'
+import { fromPathState } from '../../../routes/viewLandingState'
 import { errorMessage } from '../api/errorMessage'
 import type { NotificationItem as NotificationItemDto } from '../api/notificationsApi'
 import { useMarkAllNotificationsRead } from '../hooks/useNotificationMutations'
@@ -15,6 +16,7 @@ export interface NotificationPopoverProps {
 /** T071 — the latest 10, a mark-all-read action, and a "View all" link to the full page. */
 export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverProps) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const open = anchorEl !== null
   const { data, isLoading, isError } = useNotifications({ limit: 10 })
   const markAllRead = useMarkAllNotificationsRead()
@@ -65,7 +67,7 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
 
       <Divider />
       <Box sx={{ p: 1, textAlign: 'center' }}>
-        <Button component={RouterLink} to="/notifications" size="small" onClick={onClose}>
+        <Button component={RouterLink} to="/notifications" state={fromPathState(pathname)} size="small" onClick={onClose}>
           View all
         </Button>
       </Box>

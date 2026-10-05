@@ -1,8 +1,8 @@
-import { Alert, Box, Button, Drawer, MenuItem, Select, Snackbar, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material'
-import type { SelectChangeEvent } from '@mui/material'
+import { Alert, Box, Button, Drawer, MenuItem, Snackbar, Stack, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
+import { fromPath } from '../../../routes/viewLandingState'
 import { errorMessage } from '../api/errorMessage'
 import type { NotificationCategory, NotificationItem as NotificationItemDto, NotificationState } from '../api/notificationsApi'
 import { NotificationDetails } from '../components/NotificationDetails'
@@ -23,10 +23,11 @@ const CATEGORIES: NotificationCategory[] = [
   'Conversation',
 ]
 
-/** T072 — category/state filters, infinite scroll, a details drawer driven by `/notifications/:id`, and mark-all-read. */
+/** T072 — category/state filters, infinite scroll, a details drawer driven by `/notifications/:id`, and mark-all-read. Styled to match the Memory Center (title/subtitle header, labeled filter row, item count line). */
 export function NotificationsPage() {
   const navigate = useNavigate()
   const { id: openId } = useParams<{ id: string }>()
+  const { state: locationState } = useLocation()
 
   const [state, setState] = useState<NotificationState>('all')
   const [categories, setCategories] = useState<NotificationCategory[]>([])
@@ -46,38 +47,46 @@ export function NotificationsPage() {
   return (
     <AppShell
       title="Notifications"
+      subtitle="Everything Lucy has told you — review, filter, or act on any of it."
+      homeTo={fromPath(locationState) ?? undefined}
       fillViewport
-      actions={
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-          <ToggleButtonGroup size="small" value={state} exclusive onChange={(_, next: NotificationState | null) => next && setState(next)}>
-            <ToggleButton value="all">All</ToggleButton>
-            <ToggleButton value="unread">Unread</ToggleButton>
-            <ToggleButton value="read">Read</ToggleButton>
-          </ToggleButtonGroup>
-          <Select<NotificationCategory[]>
-            multiple
-            size="small"
-            displayEmpty
-            aria-label="Filter by category"
-            value={categories}
-            onChange={(e: SelectChangeEvent<NotificationCategory[]>) =>
-              setCategories(typeof e.target.value === 'string' ? [] : e.target.value)
-            }
-            renderValue={(selected) => (selected.length === 0 ? 'All categories' : selected.join(', '))}
-            sx={{ minWidth: 200 }}
-          >
-            {CATEGORIES.map((category) => (
-              <MenuItem key={category} value={category}>
-                {category}
-              </MenuItem>
-            ))}
-          </Select>
-          <Button size="small" onClick={() => markAllRead.mutate(undefined)} disabled={markAllRead.isPending || items.length === 0}>
-            Mark all read
-          </Button>
-        </Stack>
-      }
     >
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 3, alignItems: { sm: 'center' } }}>
+        <ToggleButtonGroup size="small" value={state} exclusive onChange={(_, next: NotificationState | null) => next && setState(next)}>
+          <ToggleButton value="all">All</ToggleButton>
+          <ToggleButton value="unread">Unread</ToggleButton>
+          <ToggleButton value="read">Read</ToggleButton>
+        </ToggleButtonGroup>
+
+        <TextField
+          select
+          size="small"
+          label="Category"
+          aria-label="Filter by category"
+          value={categories}
+          onChange={(e) => setCategories(typeof e.target.value === 'string' ? [] : (e.target.value as unknown as NotificationCategory[]))}
+          slotProps={{
+            select: {
+              multiple: true,
+              renderValue: (selected) => ((selected as NotificationCategory[]).length === 0 ? 'All categories' : (selected as NotificationCategory[]).join(', ')),
+            },
+          }}
+          sx={{ minWidth: 200 }}
+        >
+          {CATEGORIES.map((category) => (
+            <MenuItem key={category} value={category}>
+              {category}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Box sx={{ flex: 1 }} />
+
+        <Button size="small" onClick={() => markAllRead.mutate(undefined)} disabled={markAllRead.isPending || items.length === 0}>
+          Mark all read
+        </Button>
+      </Stack>
+
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <NotificationList
           items={items}

@@ -38,6 +38,12 @@ interface AppShellProps {
    * page-scroll behavior it wasn't built against.
    */
   fillViewport?: boolean
+  /**
+   * Overrides the home link's destination — `NotificationsPage` passes the page it was opened
+   * from (`fromPath` in `location.state`, set by `NotificationPopover`'s "View all" link), so
+   * clicking the brand mark returns there instead of always defaulting to the Studio.
+   */
+  homeTo?: string
 }
 
 /** Persistent navigation chrome, primarily for authenticated pages (research.md #1) — a
@@ -53,7 +59,7 @@ interface AppShellProps {
  *
  * The home link returns to wherever the visitor came from: the landing page when they arrived
  * through one of its links (`FROM_LANDING_STATE`), the Studio otherwise. */
-export function AppShell({ children, title, subtitle, actions, fillViewport = false }: AppShellProps) {
+export function AppShell({ children, title, subtitle, actions, fillViewport = false, homeTo }: AppShellProps) {
   const theme = useTheme()
   const glass = createGlassTokens(theme.palette.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
@@ -83,8 +89,8 @@ export function AppShell({ children, title, subtitle, actions, fillViewport = fa
       >
         <Stack
           component={RouterLink}
-          to={fromLanding ? '/' : '/studio'}
-          state={fromLanding ? VIEW_LANDING_STATE : undefined}
+          to={homeTo ?? (fromLanding ? '/' : '/studio')}
+          state={homeTo ? undefined : fromLanding ? VIEW_LANDING_STATE : undefined}
           aria-current={isHome ? 'page' : undefined}
           aria-label="Ask Lucy home"
           direction="row"
