@@ -37,10 +37,12 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      slotProps={{ paper: { sx: { width: 380, maxHeight: 480 } } }}
+      slotProps={{ paper: { sx: { width: 400, maxHeight: 480, borderRadius: 2, overflow: 'hidden' } } }}
     >
-      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1 }}>
-        <Typography variant="subtitle1">Notifications</Typography>
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          Notifications
+        </Typography>
         <Button size="small" onClick={() => markAllRead.mutate(undefined)} disabled={markAllRead.isPending || items.length === 0}>
           Mark all read
         </Button>
@@ -58,16 +60,26 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
       ) : items.length === 0 ? (
         <EmptyState title="No notifications" description="You're all caught up." />
       ) : (
-        <List disablePadding sx={{ overflowY: 'auto', maxHeight: 340 }}>
-          {items.map((item) => (
-            <NotificationItem key={item.id} item={item} onOpen={openItem} dense />
+        <List disablePadding sx={{ overflowY: 'auto', maxHeight: 360, py: 0.5 }}>
+          {items.map((item, index) => (
+            <Box key={item.id}>
+              {index > 0 && <Divider component="li" sx={{ mx: 2 }} />}
+              <NotificationItem item={item} onOpen={openItem} dense />
+            </Box>
           ))}
         </List>
       )}
 
       <Divider />
       <Box sx={{ p: 1, textAlign: 'center' }}>
-        <Button component={RouterLink} to="/notifications" state={fromPathState(pathname)} size="small" onClick={onClose}>
+        <Button
+          component={RouterLink}
+          to="/notifications"
+          state={fromPathState(pathname)}
+          size="small"
+          onClick={onClose}
+          sx={{ fontWeight: 600 }}
+        >
           View all
         </Button>
       </Box>

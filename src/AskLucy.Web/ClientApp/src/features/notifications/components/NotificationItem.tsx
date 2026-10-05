@@ -1,4 +1,4 @@
-import { Box, Card, CardActionArea, CardContent, Chip, Stack, Typography } from '@mui/material'
+import { Box, ButtonBase, Card, CardActionArea, CardContent, Chip, Stack, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
 import type { NotificationCategory, NotificationItem as NotificationItemDto, NotificationPriority } from '../api/notificationsApi'
 import { formatRelativeTime } from '../utils/relativeTime'
@@ -45,10 +45,61 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
     }
   }
 
+  // The popover ("dense") rendering drops the page's card chrome (border, chip row) for a
+  // compact, hover-highlighted row — the standard notification-dropdown pattern — since a
+  // bordered card per row inside an already-boxed 380px popover reads as nested chrome.
+  if (dense) {
+    return (
+      <ButtonBase
+        data-testid="notification-card"
+        data-unread={isUnread}
+        onClick={handleClick}
+        sx={{
+          display: 'block',
+          width: '100%',
+          textAlign: 'left',
+          px: 2,
+          py: 1.25,
+          borderRadius: 0,
+          '&:hover': { bgcolor: 'action.hover' },
+        }}
+      >
+        <Stack direction="row" sx={{ alignItems: 'flex-start', gap: 1 }}>
+          <Box sx={{ width: 8, flexShrink: 0, mt: 0.75 }}>
+            {isUnread && (
+              <Box aria-label="Unread" role="status" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
+            )}
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Typography variant="body2" noWrap sx={{ flex: 1, fontWeight: isUnread ? 700 : 500 }}>
+                {item.title}
+              </Typography>
+              {(item.priority === 'High' || item.priority === 'Critical') && (
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: `${PRIORITY_COLOR[item.priority]}.main`, flexShrink: 0 }} />
+              )}
+            </Stack>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', mt: 0.25 }}
+            >
+              {item.message}
+            </Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
+              {formatRelativeTime(item.createdAtUtc)}
+              {item.relatedItem?.available === false && ' · No longer available'}
+            </Typography>
+          </Box>
+        </Stack>
+      </ButtonBase>
+    )
+  }
+
   return (
-    <Card data-testid="notification-card" data-unread={isUnread} variant="outlined" sx={{ mx: dense ? 0 : 2, mb: dense ? 0 : 1 }}>
+    <Card data-testid="notification-card" data-unread={isUnread} variant="outlined" sx={{ mx: 2, mb: 1 }}>
       <CardActionArea onClick={handleClick}>
-        <CardContent sx={{ py: dense ? 1 : 1.5 }}>
+        <CardContent sx={{ py: 1.5 }}>
           <Stack direction="row" sx={{ alignItems: 'flex-start', gap: 1 }}>
             {isUnread && (
               <Box
@@ -58,7 +109,7 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
               />
             )}
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant={dense ? 'body2' : 'body1'} sx={{ fontWeight: isUnread ? 700 : 400 }}>
+              <Typography variant="body1" sx={{ fontWeight: isUnread ? 700 : 400 }}>
                 {item.title}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
