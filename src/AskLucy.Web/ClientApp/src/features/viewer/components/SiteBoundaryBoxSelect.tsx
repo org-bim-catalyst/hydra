@@ -179,6 +179,13 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     <Box
       data-testid="corner-select-layer"
       onPointerDown={start}
+      // A press here is also the browser's own mouse press, which starts selecting text: as the box grew, that
+      // selection spread over every bit of text it crossed (map labels, the hint below). Cancelling the press's
+      // default stops it; the pointer events that draw the box are unaffected.
+      onMouseDown={(event) => {
+        event.preventDefault()
+        window.getSelection()?.removeAllRanges()
+      }}
       onPointerMove={move}
       onPointerUp={finish}
       onPointerCancel={() => {
@@ -196,7 +203,7 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       onWheel={zoom}
       // The viewer's overlay container lets pointer events through to the map; this layer must take them
       // back, or a drag pans the map instead of drawing the box.
-      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: grab ? 'grabbing' : overCorner === 'selected' ? 'grab' : overCorner === 'corner' ? 'pointer' : 'crosshair', touchAction: 'none', pointerEvents: 'auto' }}
+      sx={{ position: 'absolute', inset: 0, zIndex: 4, cursor: grab ? 'grabbing' : overCorner === 'selected' ? 'grab' : overCorner === 'corner' ? 'pointer' : 'crosshair', touchAction: 'none', userSelect: 'none', pointerEvents: 'auto' }}
     >
       {box && (
         <Box

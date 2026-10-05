@@ -73,6 +73,19 @@ describe('SiteBoundaryBoxSelect', () => {
     expect(layer()).toHaveStyle({ pointerEvents: 'auto' })
   })
 
+  it('a press never starts selecting page text, so a box drawn across labels does not highlight them', () => {
+    enter()
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    const removeAllRanges = vi.fn()
+    vi.spyOn(window, 'getSelection').mockReturnValue({ removeAllRanges } as unknown as Selection)
+
+    const notCancelled = fireEvent.mouseDown(layer(), { button: 0 })
+
+    expect(notCancelled).toBe(false)
+    expect(removeAllRanges).toHaveBeenCalled()
+    expect(layer()).toHaveStyle({ userSelect: 'none' })
+  })
+
   it('a right-click goes back to editing and keeps the selection; the browser menu never opens', () => {
     enter()
     act(() => store().selectCorners([1, 2]))
