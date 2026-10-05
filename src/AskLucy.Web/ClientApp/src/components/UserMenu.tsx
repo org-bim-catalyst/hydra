@@ -127,7 +127,7 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
             gap: 1.5,
             px: 2,
             py: 1.75,
-            borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
+            borderBottom: (t) => `1px solid ${t.palette.divider}`,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
@@ -166,7 +166,7 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
           ))}
         </Box>
 
-        <Box sx={{ p: 0.75, borderTop: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}` }}>
+        <Box sx={{ p: 0.75, borderTop: (t) => `1px solid ${t.palette.divider}` }}>
           <MenuItem
             onClick={handleLogout}
             sx={{
