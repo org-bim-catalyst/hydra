@@ -1,7 +1,9 @@
-import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography } from '@mui/material'
+import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography, alpha } from '@mui/material'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
 import { EmptyState } from '../../../components/EmptyState'
 import { fromPathState } from '../../../routes/viewLandingState'
+import { overlaySurface } from '../../../theme/tokens/overlaySurface'
+import { zIndex } from '../../../theme/tokens/zIndex'
 import { errorMessage } from '../api/errorMessage'
 import type { NotificationItem as NotificationItemDto } from '../api/notificationsApi'
 import { useMarkAllNotificationsRead } from '../hooks/useNotificationMutations'
@@ -37,7 +39,29 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      slotProps={{ paper: { sx: { width: 400, maxHeight: 480, borderRadius: 2, overflow: 'hidden' } } }}
+      // Matches UserMenu's own overlaySurface treatment exactly (offset, radius, border,
+      // shadow) so the two menus anchored to the same Studio cluster — and the same AppShell
+      // header — read as one family rather than two differently-chromed popups.
+      sx={{ zIndex: zIndex.dropdown }}
+      transitionDuration={overlaySurface.enterDurationMs}
+      disableScrollLock
+      slotProps={{
+        paper: {
+          elevation: 0,
+          sx: {
+            mt: `${overlaySurface.menuOffset}px`,
+            width: 400,
+            maxHeight: 480,
+            borderRadius: `${overlaySurface.panelRadius}px`,
+            overflow: 'hidden',
+            bgcolor: 'background.paper',
+            backgroundImage: 'none',
+            border: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
+            boxShadow: overlaySurface.menuShadow,
+            transformOrigin: 'top right',
+          },
+        },
+      }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
