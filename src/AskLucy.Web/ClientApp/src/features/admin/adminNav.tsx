@@ -12,6 +12,7 @@ import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined
 import WorkOutlineOutlinedIcon from '@mui/icons-material/WorkOutlineOutlined'
 import RecordVoiceOverOutlinedIcon from '@mui/icons-material/RecordVoiceOverOutlined'
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined'
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import type { ReactNode } from 'react'
 
 export interface AdminNavItem {
@@ -89,6 +90,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     permission: 'admin.ai-providers.view',
     badgeKey: 'dictationSuspended',
   },
+  { path: '/admin/appearance', label: 'Appearance', icon: <PaletteOutlinedIcon fontSize="small" />, permission: 'admin.appearance.view' },
   { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
   { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
   { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },

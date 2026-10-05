@@ -1,18 +1,26 @@
 import { OrbitControls } from '@react-three/drei'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { Box } from '@mui/material'
-import { Component, type ReactNode, useRef, useState } from 'react'
+import { Component, type ReactNode, useEffect, useRef, useState } from 'react'
 import type { Group, Points } from 'three'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { ReactiveSphere } from './ReactiveSphere'
 import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import { SphereBloom } from './SphereBloom'
-import { SPHERE_CAMERA_FOV, sphereCameraDistance } from './sphereConstants'
+import {
+  DEFAULT_SPHERE_LOOK,
+  SPHERE_CAMERA_FOV,
+  sphereCameraDistance,
+  sphereZoomDistances,
+  type PresenceSphereLook,
+} from './sphereConstants'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
 interface SceneBackgroundProps {
   /** Forwarded to the sphere unchanged (FR-018) — see ReactiveSphere's own doc comment. */
   getFrequencyBands: () => FrequencyBands
+  /** specs/080: dot size, how much of the card the sphere fills, and whether it can be zoomed. Defaults to the original look. */
+  look?: PresenceSphereLook
 }
 
 class SceneErrorBoundary extends Component<
@@ -67,7 +75,22 @@ function StaticFallback({ visible = true }: { visible?: boolean }) {
 /** FR-001/FR-003: the full-viewport 3D scene layer behind the assistant panel. Renders
  * the static fallback instead of mounting a `<Canvas>` at all when WebGL2 is unavailable
  * (useSceneQualityTier), and falls back the same way if the scene throws while rendering. */
-export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
+/**
+ * Keeps the camera at the distance that makes the sphere fill the wanted part of the card. The `camera` prop on
+ * the canvas only applies when it is created, so a change made later (the preview on the Appearance page, or
+ * settings arriving after the card first drew) has to move the live camera. Moving it also undoes any zoom.
+ */
+function CameraDistance({ distance }: { distance: number }) {
+  const camera = useThree((state) => state.camera)
+  useEffect(() => {
+    camera.position.set(0, 0, distance)
+    camera.updateProjectionMatrix()
+  }, [camera, distance])
+  return null
+}
+
+export function SceneBackground({ getFrequencyBands, look = DEFAULT_SPHERE_LOOK }: SceneBackgroundProps) {
+  const distance = sphereCameraDistance(look.cardFillPercent / 100)
   const { tier, prefersReducedMotion } = useSceneQualityTier()
   // FR-021/SC-011: the placeholder is already visible synchronously (it's what the
   // Suspense boundary in ChatPage.tsx shows while this chunk loads); this local
@@ -143,7 +166,7 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           // this one number is the actual GPU-cost lever, not point count or bloom levels.
           dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 1.5) : 1}
           // The sphere fills SPHERE_CARD_FILL of the card (sphereConstants.ts).
-          camera={{ position: [0, 0, sphereCameraDistance()], fov: SPHERE_CAMERA_FOV }}
+          camera={{ position: [0, 0, distance], fov: SPHERE_CAMERA_FOV }}
           // `alpha: true` is what lets the canvas composite over the page at all; without it
           // WebGL clears to an opaque buffer no matter what clear colour is set.
           gl={{ alpha: true }}
@@ -161,7 +184,9 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
               useSceneQualityTier.ts's own doc comment for why that one-way ratchet was removed
               outright rather than patched again. */}
           <ambientLight intensity={0.6} />
+          <CameraDistance distance={distance} />
           <ReactiveSphere
+            dotSizeMultiplier={look.dotSizeMultiplier}
             getFrequencyBands={getFrequencyBands}
             qualityTier={tier}
             reducedMotion={prefersReducedMotion}
@@ -171,8 +196,16 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           {bloomEnabled && (
             <SphereBloom sphereRef={spherePointsRef} getFrequencyBands={getFrequencyBands} />
           )}
-          {/* No zoom: the sphere keeps the size it was framed at in the card. Turning it still works. */}
-          <OrbitControls enablePan={false} enableZoom={false} enableRotate enableDamping dampingFactor={0.08} />
+          {/* Zoom is off unless an administrator turns it on, so the sphere keeps the size it was framed at in
+              the card; turning it always works. When on, it is limited to a quarter of its size and twice it. */}
+          <OrbitControls
+            enablePan={false}
+            enableZoom={look.zoomEnabled}
+            {...(look.zoomEnabled ? sphereZoomDistances(distance) : {})}
+            enableRotate
+            enableDamping
+            dampingFactor={0.08}
+          />
         </Canvas>
       </Box>
     </SceneErrorBoundary>

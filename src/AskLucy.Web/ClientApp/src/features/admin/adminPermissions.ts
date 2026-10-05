@@ -43,6 +43,9 @@ export const ADMIN_PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: 'admin.notifications.view', area: 'Notifications', areaLabel: 'Notifications', level: 'View', displayName: 'View notifications', description: 'View notification templates, delivery history, failed deliveries, channel health and localization settings.' },
 
   { key: 'admin.notifications.manage', area: 'Notifications', areaLabel: 'Notifications', level: 'Manage', displayName: 'Manage notifications', description: 'Edit and publish notification templates, retry failed deliveries, publish system announcements, and change localization settings.' },
+
+  { key: 'admin.appearance.view', area: 'Appearance', areaLabel: 'Appearance', level: 'View', displayName: 'View appearance', description: 'View the presence sphere settings and their preview.' },
+  { key: 'admin.appearance.manage', area: 'Appearance', areaLabel: 'Appearance', level: 'Manage', displayName: 'Manage appearance', description: "Change the presence sphere's dot size, size within its card, and whether it can be zoomed." },
 ]
 
 export const ADMIN_PERMISSIONS = {
@@ -69,6 +72,8 @@ export const ADMIN_PERMISSIONS = {
   operationalFailuresContentView: 'admin.operational-failures.content.view',
   notificationsView: 'admin.notifications.view',
   notificationsManage: 'admin.notifications.manage',
+  appearanceView: 'admin.appearance.view',
+  appearanceManage: 'admin.appearance.manage',
 } as const
 
 export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS]

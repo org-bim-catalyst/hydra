@@ -19,13 +19,17 @@ public static class AdminPermissionCatalog
 
     public const string NotificationsManage = "admin.notifications.manage";
 
+    public const string AppearanceView = "admin.appearance.view";
+
+    public const string AppearanceManage = "admin.appearance.manage";
+
     /// <summary>
     /// Keys only a Super User may grant or revoke, and the only keys the built-in Administrator role
     /// does not hold implicitly (specs/074 research D14).
     /// </summary>
     public static IReadOnlySet<string> SuperUserControlledKeys { get; }
 
-    private static readonly List<AdminPermission> _allList = new(23);
+    private static readonly List<AdminPermission> _allList = new(25);
 
     static AdminPermissionCatalog()
     {
@@ -76,6 +80,10 @@ public static class AdminPermissionCatalog
         // Notifications (specs/067, R18). Manage covers templates, retries, announcements and localization.
         _allList.Add(Permission(NotificationsView, AdminArea.Notifications, AdminPermissionLevel.View, "View notifications", "View notification templates, delivery history, failed deliveries, channel health and localization settings."));
         _allList.Add(Permission(NotificationsManage, AdminArea.Notifications, AdminPermissionLevel.Manage, "Manage notifications", "Edit and publish notification templates, retry failed deliveries, publish system announcements, and change localization settings."));
+
+        // Appearance (specs/080). Workspace-wide look of the presence sphere; reading it is open to every signed-in user.
+        _allList.Add(Permission(AppearanceView, AdminArea.Appearance, AdminPermissionLevel.View, "View appearance", "View the presence sphere settings and their preview."));
+        _allList.Add(Permission(AppearanceManage, AdminArea.Appearance, AdminPermissionLevel.Manage, "Manage appearance", "Change the presence sphere's dot size, size within its card, and whether it can be zoomed."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);
         SuperUserControlledKeys = new HashSet<string>(StringComparer.Ordinal) { OperationalFailuresContentView };

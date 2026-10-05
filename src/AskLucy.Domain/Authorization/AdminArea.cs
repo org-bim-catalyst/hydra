@@ -13,5 +13,6 @@ public enum AdminArea
     McpServers,
     CustomModels,
     OperationalFailures,
-    Notifications
+    Notifications,
+    Appearance
 }

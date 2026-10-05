@@ -886,6 +886,21 @@ Platform messages.
 
 ---
 
+## PresenceSphereSettings
+
+specs/080 - the workspace-wide look of the presence sphere shown in the chat. Exactly one row, keyed by a fixed id; with no row, the defaults apply, so a fresh deployment looks as it always did. The first save creates the row.
+
+Fields:
+
+* DotSizeMultiplier - `decimal(4,2)`, 0.25 to 2.00, default 1.00 (1.00 is the size the dots had before this was adjustable)
+* CardFillPercent - `int`, 40 to 95, default 75 (the sphere's diameter as a percentage of its card's height)
+* ZoomEnabled - `bit`, default off (when on, users can zoom between a quarter of the sphere's size and twice it)
+* Standard audit columns - `ModifiedBy` and `ModifiedAtUtc` are shown on the Admin Appearance page as "last changed by/at"
+
+The limits live once, on the `PresenceSphereSettings` entity, and are enforced by its `Update` method and by the command validator. Last write wins (no concurrency check): a decorative setting does not justify a retry flow. Migration `AddPresenceSphereSettings` creates the table and seeds nothing; apply it by hand to the shared test databases (CI fails without it on the dedicated persistence database).
+
+---
+
 # 16. Audit Context
 
 ## AuditLogs

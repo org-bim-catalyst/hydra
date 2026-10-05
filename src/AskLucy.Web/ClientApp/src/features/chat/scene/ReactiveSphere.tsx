@@ -63,7 +63,12 @@ const REFERENCE_CANVAS_HEIGHT_PX = 280
  */
 const PARTICLE_SIZE_SCALE = 0.45
 
+/** specs/080: the dot size an administrator can scale, against the size set above. */
+const DEFAULT_DOT_SIZE_MULTIPLIER = 1
+
 interface ReactiveSphereProps {
+  /** Multiplies the dots' size (specs/080); 1 is the size they have by default. */
+  dotSizeMultiplier?: number
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
    * `getFrequencyBands`) - read every frame here rather than passed as plain number props, so
    * the assistant's voice doesn't force a React re-render per frame. Replaces this component's
@@ -101,6 +106,7 @@ interface ReactiveSphereProps {
  * wobble/rotation plus a breathing pulse (FR-006, sphereBreath.ts); deforms further while the
  * assistant is speaking; dot colors follow the current theme (FR-008, dotMeshTheme.ts). */
 export function ReactiveSphere({
+  dotSizeMultiplier = DEFAULT_DOT_SIZE_MULTIPLIER,
   getFrequencyBands,
   qualityTier,
   reducedMotion,
@@ -174,7 +180,10 @@ export function ReactiveSphere({
       // performance-regression downgrade to 'reduced' must pick up its own, non-saturating
       // values immediately, not keep 'full's settings from before the downgrade.
       u.uBasePointSize.value =
-        BASE_POINT_SIZE_BY_TIER[qualityTier] * PARTICLE_SIZE_SCALE * (size.height / REFERENCE_CANVAS_HEIGHT_PX)
+        BASE_POINT_SIZE_BY_TIER[qualityTier] *
+        PARTICLE_SIZE_SCALE *
+        dotSizeMultiplier *
+        (size.height / REFERENCE_CANVAS_HEIGHT_PX)
       u.uIntensity.value = INTENSITY_BY_TIER[qualityTier]
     }
 

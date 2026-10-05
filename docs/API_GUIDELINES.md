@@ -414,6 +414,10 @@ Policy-based authorization.
 
 Resource ownership must always be enforced.
 
+## Reading for everyone, changing for administrators (specs/080)
+
+Some settings are read by every signed-in user but changed only by administrators. The presence sphere's look is one: `GET /api/v1/appearance/presence-sphere` needs only authentication and returns the defaults when nothing has been saved; `PUT` on the same route needs the `admin.appearance.manage` permission and replaces all three values (dot size multiplier 0.25 to 2.0, fill percent 40 to 95, zoom on/off). An out-of-range value is a 400 Problem Details naming the allowed range, and nothing is saved. Contract: `specs/080-presence-sphere-admin-controls/contracts/presence-sphere-api.md`.
+
 ---
 
 # 15. Idempotency

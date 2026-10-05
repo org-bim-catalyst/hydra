@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Ai.Dictation;
+using AskLucy.Domain.Appearance;
 using AskLucy.Domain.Authentication;
 using AskLucy.Domain.Authorization;
 using AskLucy.Domain.Chats;
@@ -76,6 +77,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     /// <summary>specs/078 — the single platform-wide dictation engine choice.</summary>
     public DbSet<DictationEngineSetting> DictationEngineSettings => Set<DictationEngineSetting>();
+
+    public DbSet<PresenceSphereSettings> PresenceSphereSettings => Set<PresenceSphereSettings>();
 
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
 

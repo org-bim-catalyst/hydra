@@ -1,6 +1,9 @@
 import { Box, alpha } from '@mui/material'
 import type { Theme } from '@mui/material'
 import { lazy, Suspense } from 'react'
+import { PRESENCE_CARD_SIZE_SX } from './presenceCardSize'
+import { usePresenceSphereSettings } from '../hooks/usePresenceSphereSettings'
+import type { PresenceSphereLook } from '../scene/sphereConstants'
 import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 
 /**
@@ -43,19 +46,28 @@ interface AiPresenceCardProps {
  * loading, this card shows Lucy's static portrait instead of an empty box (spec.md Edge
  * Cases), matching `AssistantToggleFab`'s prior collapsed-state presentation. */
 export function AiPresenceCard({ getFrequencyBands }: AiPresenceCardProps) {
+  // The administrator's settings for the sphere (specs/080); the default look until they have loaded.
+  const look = usePresenceSphereSettings()
+  return <PresenceCardFrame getFrequencyBands={getFrequencyBands} look={look} />
+}
+
+/** The card itself, drawn from the given look. The Appearance page's preview wraps its own positioning around this. */
+export function PresenceCardFrame({
+  getFrequencyBands,
+  look,
+  floating = true,
+}: AiPresenceCardProps & { look: PresenceSphereLook; floating?: boolean }) {
   return (
     <Box
       data-testid="ai-presence-card"
       sx={{
-        position: 'absolute',
         // Top-left, just under the studio bar: the bottom-left corner is where notices appear, and the card
-        // used to cover them. Half its former size, so it stays out of the way of the map.
-        left: { xs: 16, sm: 24 },
-        top: { xs: 64, sm: 72 },
-        width: 'min(12.5vh, 140px)',
-        height: 'min(12.5vh, 140px)',
-        minWidth: 90,
-        minHeight: 90,
+        // used to cover them. Half its former size, so it stays out of the way of the map. The preview on the
+        // Appearance page is not floating: it sits where the page puts it.
+        ...(floating
+          ? { position: 'absolute', left: { xs: 16, sm: 24 }, top: { xs: 64, sm: 72 } }
+          : { position: 'relative' }),
+        ...PRESENCE_CARD_SIZE_SX,
         borderRadius: '8px',
         overflow: 'hidden',
         pointerEvents: 'auto',
@@ -71,7 +83,7 @@ export function AiPresenceCard({ getFrequencyBands }: AiPresenceCardProps) {
           <Box sx={{ position: 'absolute', inset: 0, bgcolor: cardBg }} />
         }
       >
-        <SceneBackground getFrequencyBands={getFrequencyBands} />
+        <SceneBackground getFrequencyBands={getFrequencyBands} look={look} />
       </Suspense>
     </Box>
   )

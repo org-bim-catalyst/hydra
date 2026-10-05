@@ -7,16 +7,16 @@ namespace AskLucy.Domain.Tests.Authorization;
 public sealed class AdminPermissionCatalogTests
 {
     [Fact]
-    public void All_ShouldContainExactly23Permissions()
+    public void All_ShouldContainExactly25Permissions()
     {
-        AdminPermissionCatalog.All.Should().HaveCount(23);
+        AdminPermissionCatalog.All.Should().HaveCount(25);
     }
 
     [Fact]
     public void All_ShouldHaveUniqueKeys()
     {
         var keys = AdminPermissionCatalog.All.Select(p => p.Key).ToList();
-        keys.Distinct().Should().HaveCount(23, "all permission keys must be unique");
+        keys.Distinct().Should().HaveCount(25, "all permission keys must be unique");
     }
 
     [Theory]
@@ -43,12 +43,24 @@ public sealed class AdminPermissionCatalogTests
     [InlineData("admin.operational-failures.content.view")]
     [InlineData("admin.notifications.view")]
     [InlineData("admin.notifications.manage")]
+    [InlineData("admin.appearance.view")]
+    [InlineData("admin.appearance.manage")]
     public void TryGet_ShouldReturnTrueForAllCatalogueKeys(string key)
     {
         var result = AdminPermissionCatalog.TryGet(key, out var permission);
         result.Should().BeTrue($"{key} should be in the catalogue");
         permission.Should().NotBeNull();
         permission!.Key.Should().Be(key);
+    }
+
+    [Theory]
+    [InlineData("admin.appearance.view", AdminPermissionLevel.View)]
+    [InlineData("admin.appearance.manage", AdminPermissionLevel.Manage)]
+    public void AppearancePermissions_ShouldSitUnderTheirOwnArea(string key, AdminPermissionLevel level)
+    {
+        AdminPermissionCatalog.TryGet(key, out var permission).Should().BeTrue();
+        permission!.Area.Should().Be(AdminArea.Appearance);
+        permission.Level.Should().Be(level);
     }
 
     [Theory]
@@ -168,6 +180,7 @@ public sealed class AdminPermissionCatalogTests
         AdminArea.CustomModels => "custom-models",
         AdminArea.OperationalFailures => "operational-failures",
         AdminArea.Notifications => "notifications",
+        AdminArea.Appearance => "appearance",
         _ => throw new System.ArgumentOutOfRangeException(nameof(area))
     };
 }
