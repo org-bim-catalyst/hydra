@@ -111,7 +111,6 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
               overflow: 'hidden',
               bgcolor: 'background.paper',
               backgroundImage: 'none',
-              border: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
               boxShadow: overlaySurface.menuShadow,
               transformOrigin: 'top right',
             },

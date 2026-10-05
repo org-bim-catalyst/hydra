@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography, alpha } from '@mui/material'
+import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography } from '@mui/material'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
 import { EmptyState } from '../../../components/EmptyState'
 import { fromPathState } from '../../../routes/viewLandingState'
@@ -56,7 +56,6 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
             overflow: 'hidden',
             bgcolor: 'background.paper',
             backgroundImage: 'none',
-            border: (t) => `1px solid ${alpha(t.palette.divider, 0.7)}`,
             boxShadow: overlaySurface.menuShadow,
             transformOrigin: 'top right',
           },
@@ -87,7 +86,10 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
         <List disablePadding sx={{ overflowY: 'auto', maxHeight: 360, py: 0.5 }}>
           {items.map((item, index) => (
             <Box key={item.id}>
-              {index > 0 && <Divider component="li" sx={{ mx: 2 }} />}
+              {/* Full-width, matching the row's own full-bleed hover rectangle (no mx inset) —
+                  an inset divider sitting inside a full-width hover highlight is what produced
+                  the stepped corner where the two edges didn't line up. */}
+              {index > 0 && <Divider component="li" />}
               <NotificationItem item={item} onOpen={openItem} dense />
             </Box>
           ))}
