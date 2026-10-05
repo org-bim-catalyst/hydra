@@ -7,6 +7,7 @@ import type { FrequencyBands } from '../voice/useVoiceAnalyzer'
 import { ReactiveSphere } from './ReactiveSphere'
 import { getSphereRenderTechnique } from './sphereRenderTechnique'
 import { SphereBloom } from './SphereBloom'
+import { SPHERE_CAMERA_FOV, sphereCameraDistance } from './sphereConstants'
 import { useSceneQualityTier } from './useSceneQualityTier'
 
 interface SceneBackgroundProps {
@@ -141,7 +142,8 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           // 3-level mipmap bloom in SphereBloom.tsx) scales directly with total pixel count, so
           // this one number is the actual GPU-cost lever, not point count or bloom levels.
           dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 1.5) : 1}
-          camera={{ position: [0, 0, 8], fov: 45 }}
+          // The sphere fills SPHERE_CARD_FILL of the card (sphereConstants.ts).
+          camera={{ position: [0, 0, sphereCameraDistance()], fov: SPHERE_CAMERA_FOV }}
           // `alpha: true` is what lets the canvas composite over the page at all; without it
           // WebGL clears to an opaque buffer no matter what clear colour is set.
           gl={{ alpha: true }}
@@ -169,15 +171,8 @@ export function SceneBackground({ getFrequencyBands }: SceneBackgroundProps) {
           {bloomEnabled && (
             <SphereBloom sphereRef={spherePointsRef} getFrequencyBands={getFrequencyBands} />
           )}
-          <OrbitControls
-            enablePan
-            enableZoom
-            enableRotate
-            enableDamping
-            dampingFactor={0.08}
-            minDistance={5}
-            maxDistance={16}
-          />
+          {/* No zoom: the sphere keeps the size it was framed at in the card. Turning it still works. */}
+          <OrbitControls enablePan={false} enableZoom={false} enableRotate enableDamping dampingFactor={0.08} />
         </Canvas>
       </Box>
     </SceneErrorBoundary>

@@ -56,6 +56,13 @@ const INTENSITY_BY_TIER = { full: 0.4, reduced: 1 } as const
  */
 const REFERENCE_CANVAS_HEIGHT_PX = 280
 
+/**
+ * Dot size against the tuned sizes above. Those were tuned with the camera at 8 units; filling 75% of the
+ * card puts it at about 4.5, and point sprites grow with closeness (sphere.vert.glsl), so the dots would be
+ * nearly twice as wide. This brings them back down, and a little smaller than before, as asked.
+ */
+const PARTICLE_SIZE_SCALE = 0.45
+
 interface ReactiveSphereProps {
   /** Ref-based getter for real low/mid/high frequency bands (useVoiceAnalyzer's
    * `getFrequencyBands`) - read every frame here rather than passed as plain number props, so
@@ -166,7 +173,8 @@ export function ReactiveSphere({
       // Same rationale as above, for the tier-derived point size/intensity - a
       // performance-regression downgrade to 'reduced' must pick up its own, non-saturating
       // values immediately, not keep 'full's settings from before the downgrade.
-      u.uBasePointSize.value = BASE_POINT_SIZE_BY_TIER[qualityTier] * (size.height / REFERENCE_CANVAS_HEIGHT_PX)
+      u.uBasePointSize.value =
+        BASE_POINT_SIZE_BY_TIER[qualityTier] * PARTICLE_SIZE_SCALE * (size.height / REFERENCE_CANVAS_HEIGHT_PX)
       u.uIntensity.value = INTENSITY_BY_TIER[qualityTier]
     }
 
