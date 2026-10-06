@@ -34,6 +34,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
     private readonly INotificationAccessCheck _documentAccess = Substitute.For<INotificationAccessCheck>();
     private readonly IOperationalFailureRecorder _failureRecorder = Substitute.For<IOperationalFailureRecorder>();
     private readonly INotificationAuditWriter _audit = Substitute.For<INotificationAuditWriter>();
+    private readonly ISystemAnnouncementRepository _announcements = Substitute.For<ISystemAnnouncementRepository>();
     private readonly FakeLogger<OutboxDispatchService> _dispatchLogger = new();
     private readonly FakeLogger<OutboxEventProcessor> _processorLogger = new();
     private readonly FakeLogger<NotificationMaterializer> _materializerLogger = new();
@@ -76,6 +77,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
             .AddSingleton<INotificationRealtimePublisher>(_realtime)
             .AddSingleton(_failureRecorder)
             .AddSingleton(_audit)
+            .AddSingleton(_announcements)
             .AddSingleton(Substitute.For<INotificationMetrics>())
             .AddSingleton<ILogger<OutboxDispatchService>>(_dispatchLogger)
             .AddSingleton<ILogger<OutboxEventProcessor>>(_processorLogger)
@@ -133,6 +135,151 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         notification.SourceEventId.Should().Be(ev);
         notification.Deliveries.Should().ContainSingle(d => d.Channel == NotificationChannel.InApp && d.Status == DeliveryStatus.Delivered);
         notification.Deliveries.Should().ContainSingle(d => d.Channel == NotificationChannel.Email && d.Status == DeliveryStatus.Pending);
+    }
+
+    // ---- announcements: Audience fan-out in batches (T154, research R22) ----
+
+    private Guid EnqueueAnnouncement(string? endsAtUtc = null, bool allActive = true, bool critical = false)
+    {
+        var variables = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string?>
+        {
+            ["announcementTitle"] = "Maintenance",
+            ["announcementMessage"] = "Down 22:00-23:00 UTC.",
+            ["announcementKind"] = "Maintenance",
+            ["endsAt"] = null,
+            ["endsAtUtc"] = endsAtUtc,
+            ["isCritical"] = critical ? "true" : "false",
+        });
+        var ev = NotificationOutboxEvent.Create(
+            NotificationTypeKeys.SystemAnnouncementPublished,
+            NotificationRecipientJson.Serialize(new NotificationRecipient.Audience(allActive, allActive ? [] : ["role-1"])),
+            variables,
+            "corr-announcement",
+            _time.GetUtcNow().UtcDateTime,
+            "announcement:00000000-0000-0000-0000-000000000001",
+            "SystemAnnouncement",
+            "00000000-0000-0000-0000-000000000001");
+        _db.OutboxRows.Add(ev);
+        return ev.Id;
+    }
+
+    private void AddUsers(int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var id = $"bulk-{i:D5}";
+            _directory.Accounts[id] = new NotificationRecipientInfo(id, $"User {i}", $"{id}@example.com", EmailConfirmed: true, IsActive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Announcement_ToMoreThanOneBatch_IsFannedOutIn500s_UntilEveryActiveUserHasIt()
+    {
+        _directory.Accounts.Clear();
+        AddUsers(1200);
+        var ev = EnqueueAnnouncement();
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+        _db.Committed.Should().HaveCount(OutboxEventProcessor.FanOutBatchSize);
+        Row(ev).Status.Should().Be(OutboxEventStatus.Pending, "more of the audience remains");
+        Row(ev).FanOutCursor.Should().Be("bulk-00499");
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+        _db.Committed.Should().HaveCount(1000);
+        Row(ev).FanOutCursor.Should().Be("bulk-00999");
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+        _db.Committed.Should().HaveCount(1200);
+        Row(ev).Status.Should().Be(OutboxEventStatus.Completed);
+        Row(ev).Outcome.Should().Be(OutboxEventOutcome.Materialized);
+        _db.Committed.Select(n => n.RecipientUserId).Distinct().Should().HaveCount(1200, "nobody is notified twice");
+    }
+
+    [Fact]
+    public async Task Announcement_ThatCrashedAfterABatch_ResumesFromTheCursor_WithoutNotifyingAnyoneTwice()
+    {
+        _directory.Accounts.Clear();
+        AddUsers(750);
+        var ev = EnqueueAnnouncement();
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+        Row(ev).FanOutCursor.Should().Be("bulk-00499");
+
+        // The worker dies; its lease runs out, and another picks the event up where the cursor left it.
+        _time.Advance(TimeSpan.FromMinutes(10));
+        await Dispatcher.DispatchBatchAsync("worker-2", CancellationToken.None);
+
+        _db.Committed.Should().HaveCount(750);
+        _db.Committed.Select(n => n.RecipientUserId).Distinct().Should().HaveCount(750);
+        Row(ev).Status.Should().Be(OutboxEventStatus.Completed);
+    }
+
+    [Fact]
+    public async Task Announcement_SkipsDeletedAccounts_AndStaysCompleteForTheRest()
+    {
+        _directory.Accounts.Clear();
+        AddUsers(3);
+        _directory.Accounts["bulk-00001"] = _directory.Accounts["bulk-00001"] with { IsActive = false };
+        EnqueueAnnouncement();
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        _db.Committed.Select(n => n.RecipientUserId).Should().BeEquivalentTo(["bulk-00000", "bulk-00002"]);
+    }
+
+    [Fact]
+    public async Task Announcement_WithNoActiveUsers_CompletesAsNoRecipient()
+    {
+        _directory.Accounts.Clear();
+        var ev = EnqueueAnnouncement();
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        Row(ev).Outcome.Should().Be(OutboxEventOutcome.NoRecipient);
+        _db.Committed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Announcement_ThatIsNotCritical_IsInAppOnly()
+    {
+        EnqueueAnnouncement(critical: false);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        var notification = _db.Committed.Should().ContainSingle().Subject;
+        notification.Deliveries.Single(d => d.Channel == NotificationChannel.InApp).Status.Should().Be(DeliveryStatus.Delivered);
+        notification.Deliveries.Single(d => d.Channel == NotificationChannel.Email).Should().Match<NotificationDelivery>(
+            d => d.Status == DeliveryStatus.Skipped && d.SkipReason == DeliverySkipReason.NotCritical);
+    }
+
+    [Fact]
+    public async Task Announcement_ThatIsCritical_AlsoGoesByEmail_ExpiringWhenTheAnnouncementEnds()
+    {
+        var ends = _time.GetUtcNow().UtcDateTime.AddHours(2);
+        EnqueueAnnouncement(endsAtUtc: ends.ToString("O", System.Globalization.CultureInfo.InvariantCulture), critical: true);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        var notification = _db.Committed.Should().ContainSingle().Subject;
+        notification.ExpiresAtUtc.Should().Be(ends);
+        var email = notification.Deliveries.Single(d => d.Channel == NotificationChannel.Email);
+        email.Status.Should().Be(DeliveryStatus.Pending);
+        email.ExpiresAtUtc.Should().Be(ends);
+    }
+
+    [Fact]
+    public async Task Announcement_FanOutEnd_RecordsTheRecipientCountOnTheAnnouncement()
+    {
+        _directory.Accounts.Clear();
+        AddUsers(3);
+        var announcement = SystemAnnouncement.Publish(
+            AnnouncementKind.Maintenance, "Maintenance", "Down.", AnnouncementAudience.AllActiveUsers, null, isCritical: false, null, "admin-1", _time.GetUtcNow().UtcDateTime);
+        _announcements.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(announcement);
+        _announcements.CountNotificationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(0);
+        EnqueueAnnouncement();
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        announcement.RecipientCount.Should().Be(3);
     }
 
     [Fact]
@@ -584,6 +731,9 @@ public sealed class OutboxDispatchServiceTests : IDisposable
 
         public void Add(Notification notification) => _added.Add(notification);
 
+        public Task<IReadOnlyList<Notification>> GetByDeliveryIdsAsync(IReadOnlyCollection<Guid> deliveryIds, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<Notification?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(db.Committed.SingleOrDefault(n => n.Id == id));
 
@@ -695,6 +845,20 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         public Task<IReadOnlyDictionary<string, NotificationRecipientInfo>> GetAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<string, NotificationRecipientInfo>>(
                 Accounts.Where(a => userIds.Contains(a.Key)).ToDictionary(a => a.Key, a => a.Value));
+
+        public int ActiveUserCalls { get; private set; }
+
+        public Task<IReadOnlyList<string>> GetActiveUserIdsAfterAsync(
+            IReadOnlyCollection<string>? roleIds, string? afterUserId, int take, CancellationToken cancellationToken)
+        {
+            ActiveUserCalls++;
+            return Task.FromResult<IReadOnlyList<string>>(
+                [.. Accounts.Values.Where(a => a.IsActive && (afterUserId is null || string.CompareOrdinal(a.UserId, afterUserId) > 0))
+                    .Select(a => a.UserId).Order(StringComparer.Ordinal).Take(take)]);
+        }
+
+        public Task<int> CountActiveAsync(IReadOnlyCollection<string>? roleIds, bool verifiedEmailOnly, CancellationToken cancellationToken) =>
+            Task.FromResult(Accounts.Values.Count(a => a.IsActive && (!verifiedEmailOnly || a.EmailConfirmed)));
     }
 
     private sealed class FakeRenderer : INotificationTemplateRenderer
@@ -715,7 +879,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
                 throw new NotificationRenderException("The in-app template has an unclosed placeholder.");
             }
 
-            return Task.FromResult(new RenderedInApp($"{variables["documentName"]} failed", "Processing failed.", "Open document", Guid.CreateVersion7(), language));
+            return Task.FromResult(new RenderedInApp($"{(variables.GetValueOrDefault("documentName") ?? variables.GetValueOrDefault("announcementTitle"))} failed", "Processing failed.", "Open document", Guid.CreateVersion7(), language));
         }
 
         public Task<RenderedEmail> RenderEmailAsync(

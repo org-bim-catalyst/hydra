@@ -13,6 +13,9 @@ import WorkOutlineOutlinedIcon from '@mui/icons-material/WorkOutlineOutlined'
 import RecordVoiceOverOutlinedIcon from '@mui/icons-material/RecordVoiceOverOutlined'
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined'
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
+import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined'
+import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutlined'
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import type { ReactNode } from 'react'
 
 export interface AdminNavItem {
@@ -100,6 +103,25 @@ export const ADMIN_NAV: AdminNavItem[] = [
     icon: <ReportProblemOutlinedIcon fontSize="small" />,
     permission: 'admin.operational-failures.view',
     badgeKey: 'operationalFailures',
+  },
+  // specs/067 US6 — the notification hub. Templates and Localization join this group in later phases.
+  {
+    path: '/admin/notifications/dashboard',
+    label: 'Notifications',
+    icon: <NotificationsOutlinedIcon fontSize="small" />,
+    permission: 'admin.notifications.view',
+  },
+  {
+    path: '/admin/notifications/deliveries',
+    label: 'Deliveries',
+    icon: <MarkEmailUnreadOutlinedIcon fontSize="small" />,
+    permission: 'admin.notifications.view',
+  },
+  {
+    path: '/admin/notifications/announcements',
+    label: 'Announcements',
+    icon: <CampaignOutlinedIcon fontSize="small" />,
+    permission: 'admin.notifications.view',
   },
   {
     id: 'hangfire-dashboard',

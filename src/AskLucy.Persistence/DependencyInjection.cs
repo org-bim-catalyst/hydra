@@ -174,6 +174,9 @@ public static class DependencyInjection
         services.AddScoped<INotificationOutboxStore, NotificationOutboxStore>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
+        services.AddScoped<INotificationAdminRepository, NotificationAdminRepository>();
+        services.AddScoped<ISystemAnnouncementRepository, SystemAnnouncementRepository>();
+        services.AddScoped<INotificationRetentionRepository, NotificationRetentionRepository>();
         services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
         services.AddScoped<INotificationRecipientDirectory, NotificationRecipientDirectory>();
         services.AddScoped<INotificationAuditLogRepository, NotificationAuditLogRepository>();

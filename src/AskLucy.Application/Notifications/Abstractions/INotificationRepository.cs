@@ -18,6 +18,12 @@ public interface INotificationRepository
 
     Task<Notification?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The notifications (tracked, with every delivery) that own <paramref name="deliveryIds"/>, including ones their owner
+    /// deleted, for an administrator's retry. A delivery id with no notification is simply absent.
+    /// </summary>
+    Task<IReadOnlyList<Notification>> GetByDeliveryIdsAsync(IReadOnlyCollection<Guid> deliveryIds, CancellationToken cancellationToken);
+
     /// <summary>Which of <paramref name="recipientUserIds"/> already hold a notification for <paramref name="eventKey"/>.</summary>
     Task<IReadOnlySet<string>> GetRecipientsWithEventKeyAsync(string eventKey, IReadOnlyCollection<string> recipientUserIds, CancellationToken cancellationToken);
 

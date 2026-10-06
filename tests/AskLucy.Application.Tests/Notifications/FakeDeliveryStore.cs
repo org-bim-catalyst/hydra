@@ -140,6 +140,9 @@ internal sealed class FakeDeliveryStore(FakeTimeProvider time) : INotificationRe
 
     public void Add(Notification notification) => Notifications.Add(notification);
 
+    public Task<IReadOnlyList<Notification>> GetByDeliveryIdsAsync(IReadOnlyCollection<Guid> deliveryIds, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<Notification?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Notifications.SingleOrDefault(n => n.Id == id));
 

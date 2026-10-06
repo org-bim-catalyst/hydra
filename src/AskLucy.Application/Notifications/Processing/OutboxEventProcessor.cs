@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Application.Notifications.Admin;
 using AskLucy.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 
@@ -21,11 +22,15 @@ public sealed class OutboxEventProcessor(
     NotificationCreatedPusher pusher,
     INotificationMetrics metrics,
     INotificationAuditWriter audit,
+    ISystemAnnouncementRepository announcements,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     ILogger<OutboxEventProcessor> logger)
 {
     private static readonly JsonSerializerOptions VariablesJson = new(JsonSerializerDefaults.Web);
+
+    /// <summary>How many recipients one fan-out pass handles before it commits and comes back for the next (research R22).</summary>
+    public const int FanOutBatchSize = 500;
 
     /// <summary>
     /// Processes the event if <paramref name="workerId"/> still holds its lease. Throws on any
@@ -60,7 +65,8 @@ public sealed class OutboxEventProcessor(
             NotificationRecipient.AddressLookup l => await ForAddressLookupAsync(definition, outboxEvent, variables, l.EmailAddress, cancellationToken),
             NotificationRecipient.SupportMailbox => await ForSupportMailboxAsync(definition, outboxEvent, variables, cancellationToken),
 
-            // Audience arrives with announcements (US6).
+            NotificationRecipient.Audience a => await ForAudienceAsync(definition, outboxEvent, variables, a, cancellationToken),
+
             _ => throw new NotSupportedException($"The {recipient.GetType().Name} recipient isn't dispatched yet."),
         };
 
@@ -81,7 +87,20 @@ public sealed class OutboxEventProcessor(
             }
         }
 
-        outboxEvent.Complete(result.Outcome, Now());
+        if (result.NextFanOutCursor is { } cursor)
+        {
+            // More of the audience remains: commit this batch with the cursor, so a crash resumes here (R22).
+            outboxEvent.AdvanceFanOut(cursor, Now());
+        }
+        else
+        {
+            if (result.FanOutFinished)
+            {
+                await RecordFanOutTotalAsync(outboxEvent, result.Created.Count, cancellationToken);
+            }
+
+            outboxEvent.Complete(result.Outcome, Now());
+        }
 
         // A concurrent event with the same key can win the unique index between the de-duplication
         // read and this save. Everything tracked was discarded; throwing releases the event, and the
@@ -191,6 +210,44 @@ public sealed class OutboxEventProcessor(
         return await ForUsersAsync(definition, outboxEvent, variables, [account.UserId], routable, cancellationToken);
     }
 
+    /// <summary>
+    /// One batch of an announcement's audience: the next <see cref="FanOutBatchSize"/> active users after the event's cursor,
+    /// handled like any list of users. The batch is committed with the advanced cursor, and preferences are read per batch.
+    /// </summary>
+    private async Task<DispatchResult> ForAudienceAsync(
+        NotificationTypeDefinition definition,
+        NotificationOutboxEvent outboxEvent,
+        IReadOnlyDictionary<string, string?> variables,
+        NotificationRecipient.Audience audience,
+        CancellationToken cancellationToken)
+    {
+        var roleIds = audience.AllActiveUsers ? null : audience.RoleIds;
+        var userIds = await directory.GetActiveUserIdsAfterAsync(roleIds, outboxEvent.FanOutCursor, FanOutBatchSize, cancellationToken);
+
+        var batch = userIds.Count == 0
+            ? new DispatchResult([], OutboxEventOutcome.NoRecipient)
+            : await ForUsersAsync(definition, outboxEvent, variables, userIds, address: null, cancellationToken);
+
+        // A full batch may not be the last one; a short one is.
+        var more = userIds.Count == FanOutBatchSize;
+        var outcome = batch.Created.Count > 0 || outboxEvent.FanOutCursor is not null ? OutboxEventOutcome.Materialized : batch.Outcome;
+        return batch with { Outcome = outcome, NextFanOutCursor = more ? userIds[^1] : null, FanOutFinished = !more };
+    }
+
+    /// <summary>The announcement's recipient count: everyone it has notified, this last batch included (it isn't saved yet).</summary>
+    private async Task RecordFanOutTotalAsync(NotificationOutboxEvent outboxEvent, int lastBatchCreated, CancellationToken cancellationToken)
+    {
+        if (outboxEvent is not { RelatedItemType: AnnouncementKeys.RelatedItemType, RelatedItemId: { } id } || !Guid.TryParse(id, out var announcementId))
+        {
+            return;
+        }
+
+        if (await announcements.GetByIdAsync(announcementId, cancellationToken) is { } announcement)
+        {
+            announcement.RecordFanOutCompleted(await announcements.CountNotificationsAsync(announcementId, cancellationToken) + lastBatchCreated);
+        }
+    }
+
     private async Task<DispatchResult> ForSupportMailboxAsync(
         NotificationTypeDefinition definition,
         NotificationOutboxEvent outboxEvent,
@@ -227,5 +284,9 @@ public sealed class OutboxEventProcessor(
 
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
 
-    private sealed record DispatchResult(IReadOnlyList<Notification> Created, OutboxEventOutcome Outcome);
+    private sealed record DispatchResult(
+        IReadOnlyList<Notification> Created,
+        OutboxEventOutcome Outcome,
+        string? NextFanOutCursor = null,
+        bool FanOutFinished = false);
 }

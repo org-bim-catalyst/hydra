@@ -14,6 +14,15 @@ public sealed class NotificationRepository(AskLucyDbContext dbContext) : INotifi
             .Include(n => n.Deliveries)
             .SingleOrDefaultAsync(n => n.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<Notification>> GetByDeliveryIdsAsync(IReadOnlyCollection<Guid> deliveryIds, CancellationToken cancellationToken) =>
+        deliveryIds.Count == 0
+            ? []
+            : await dbContext.Notifications
+                .IgnoreQueryFilters()
+                .Include(n => n.Deliveries)
+                .Where(n => n.Deliveries.Any(d => deliveryIds.Contains(d.Id)))
+                .ToListAsync(cancellationToken);
+
     // The de-duplication reads ignore the soft-delete filter: a notification its owner deleted still
     // counts, so replaying the event never brings it back (FR-008, FR-016a).
     public async Task<IReadOnlySet<string>> GetRecipientsWithEventKeyAsync(

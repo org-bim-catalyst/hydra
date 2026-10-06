@@ -843,52 +843,61 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 6
 
-- [ ] T151 [P] [US6] `AdminNotificationsEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/AdminNotificationsEndpointsTests.cs`:
+- [X] T151 [P] [US6] `AdminNotificationsEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/AdminNotificationsEndpointsTests.cs`:
   - the permission matrix: none gives 403 everywhere, V gives 200 on the GETs and 403 on the actions, M gives 200 everywhere;
   - no response contains mail credentials, the support address, tokens, account email bodies or an unmasked address;
   - `…Viewed` is audited at most once per admin per resource per hour (written by `AdminViewAuditBehavior`, T230, never by the query handlers).
-- [ ] T152 [P] [US6] `RetryDeliveryHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/RetryDeliveryHandlerTests.cs`:
+- [X] T152 [P] [US6] `RetryDeliveryHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/RetryDeliveryHandlerTests.cs`:
   - 409 with each `reason` (`NotificationDeleted`, `NotificationExpired`, `RecipientDeleted`, `NotFailed`);
   - a successful retry resets to `Pending` and is audited as `DeliveryRetried`;
   - bulk retry by ids (1–200) or by filter (at most 1,000) reports `requested`, `retried` and `skipped`, and is audited once.
-- [ ] T153 [P] [US6] `NotificationStatisticsQueryTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationStatisticsQueryTests.cs`: the counts, success rate, average and p95 latency, backlog, hourly or daily buckets, and a maximum range of 90 days.
-- [ ] T154 [P] [US6] `SystemAnnouncementTests` in `tests/AskLucy.Application.Tests/Notifications/SystemAnnouncementTests.cs`:
+- [X] T153 [P] [US6] `NotificationStatisticsQueryTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationStatisticsQueryTests.cs`: the counts, success rate, average and p95 latency, backlog, hourly or daily buckets, and a maximum range of 90 days.
+- [X] T154 [P] [US6] `SystemAnnouncementTests` in `tests/AskLucy.Application.Tests/Notifications/SystemAnnouncementTests.cs`:
   - validation (title and message lengths, roles required for `Roles`, `endsAtUtc` in the future, no HTML or URLs);
   - fan-out in batches of 500 that resumes from `FanOutCursor` after a crash;
   - email only when `IsCritical`, with `ExpiresAtUtc = EndsAtUtc`;
   - audited as `AnnouncementPublished`.
-- [ ] T155 [P] [US6] `NotificationRetentionTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationRetentionTests.cs`: each retention class is deleted after its window in batches, and audit rows are never deleted.
-- [ ] T156 [P] [US6] `NotificationHealthCheckTests` in `tests/AskLucy.Web.Tests/HealthChecks/NotificationHealthCheckTests.cs`:
+- [X] T155 [P] [US6] `NotificationRetentionTests` in `tests/AskLucy.Persistence.Tests/Notifications/NotificationRetentionTests.cs`: each retention class is deleted after its window in batches, and audit rows are never deleted.
+- [X] T156 [P] [US6] `NotificationHealthCheckTests` in `tests/AskLucy.Web.Tests/HealthChecks/NotificationHealthCheckTests.cs`:
   - a heartbeat older than 30 s is Unhealthy;
   - a backlog over 5 min is Degraded and over 30 min is Unhealthy;
   - an SMTP probe failure is only ever Degraded, and is cached for 5 min.
-- [ ] T157 [P] [US6] Frontend tests, with a `.test.tsx` and an `.a11y.test.tsx` each, for `AdminNotificationsDashboardPage`, `AdminNotificationDeliveriesPage` and `AdminAnnouncementsPage` in `ClientApp/src/features/admin/pages/`:
+- [X] T157 [P] [US6] Frontend tests, with a `.test.tsx` and an `.a11y.test.tsx` each, for `AdminNotificationsDashboardPage`, `AdminNotificationDeliveriesPage` and `AdminAnnouncementsPage` in `ClientApp/src/features/admin/pages/`:
   - View-only hides the retry and publish controls;
   - a failed retry shows a toast;
   - the publish dialog validates with Zod.
 
 ### Implementation for User Story 6
 
-- [ ] T158 [P] [US6] Add the queries `GetNotificationStatistics` and `GetNotificationChannels` in `src/AskLucy.Application/Notifications/Queries/`. Statistics come from DB aggregates. Channel health reads the cached health-check results through a new `INotificationChannelHealthReader` abstraction. Both implement `IAuditedAdminView` (T230).
-- [ ] T159 [P] [US6] Add the queries `GetNotificationDeliveries` (cursor, filters, masked recipient, `retryable`/`notRetryableReason`) and `GetNotificationDelivery` in `src/AskLucy.Application/Notifications/Queries/`. Omit the body for the Security and Account categories. Both implement `IAuditedAdminView` (T230).
-- [ ] T160 [P] [US6] Add the commands `RetryNotificationDelivery` and `BulkRetryNotificationDeliveries` in `src/AskLucy.Application/Notifications/Commands/`, with their validators and audit writes.
-- [ ] T161 [P] [US6] Add the query `GetNotificationAudit` (keyset, filters) in `src/AskLucy.Application/Notifications/Queries/GetNotificationAudit/`. It implements `IAuditedAdminView` (T230).
-- [ ] T162 [US6] Add the command `PublishSystemAnnouncement` (with its validator) and the query `GetSystemAnnouncements` in `src/AskLucy.Application/Notifications/`. The command creates a `SystemAnnouncement` and publishes `system.announcement.published` with an `Audience` recipient.
-- [ ] T163 [US6] Extend `OutboxDispatchService` to resolve `Audience` recipients: batches of 500 active users ordered by id, with `FanOutCursor` persisted after each batch and preferences loaded per batch.
-- [ ] T164 [US6] Add `AdminNotificationsController.cs` (statistics, channels, deliveries, retry, bulk retry, audit) and `AdminAnnouncementsController.cs` in `src/AskLucy.Web/Controllers/v1/`. Use `[RequirePermission]` with V or M as the contract specifies, and the `admin-endpoints` rate policy.
-- [ ] T165 [US6] Implement `RetentionService` in `src/AskLucy.Application/Notifications/Processing/RetentionService.cs` and `NotificationRetentionJob` in `src/AskLucy.Infrastructure/Notifications/Jobs/NotificationRetentionJob.cs`:
+- [X] T158 [P] [US6] Add the queries `GetNotificationStatistics` and `GetNotificationChannels` in `src/AskLucy.Application/Notifications/Queries/`. Statistics come from DB aggregates. Channel health reads the cached health-check results through a new `INotificationChannelHealthReader` abstraction. Both implement `IAuditedAdminView` (T230).
+- [X] T159 [P] [US6] Add the queries `GetNotificationDeliveries` (cursor, filters, masked recipient, `retryable`/`notRetryableReason`) and `GetNotificationDelivery` in `src/AskLucy.Application/Notifications/Queries/`. Omit the body for the Security and Account categories. Both implement `IAuditedAdminView` (T230).
+- [X] T160 [P] [US6] Add the commands `RetryNotificationDelivery` and `BulkRetryNotificationDeliveries` in `src/AskLucy.Application/Notifications/Commands/`, with their validators and audit writes.
+- [X] T161 [P] [US6] Add the query `GetNotificationAudit` (keyset, filters) in `src/AskLucy.Application/Notifications/Queries/GetNotificationAudit/`. It implements `IAuditedAdminView` (T230).
+- [X] T162 [US6] Add the command `PublishSystemAnnouncement` (with its validator) and the query `GetSystemAnnouncements` in `src/AskLucy.Application/Notifications/`. The command creates a `SystemAnnouncement` and publishes `system.announcement.published` with an `Audience` recipient.
+- [X] T163 [US6] Extend `OutboxDispatchService` to resolve `Audience` recipients: batches of 500 active users ordered by id, with `FanOutCursor` persisted after each batch and preferences loaded per batch.
+- [X] T164 [US6] Add `AdminNotificationsController.cs` (statistics, channels, deliveries, retry, bulk retry, audit) and `AdminAnnouncementsController.cs` in `src/AskLucy.Web/Controllers/v1/`. Use `[RequirePermission]` with V or M as the contract specifies, and the `admin-endpoints` rate policy.
+- [X] T165 [US6] Implement `RetentionService` in `src/AskLucy.Application/Notifications/Processing/RetentionService.cs` and `NotificationRetentionJob` in `src/AskLucy.Infrastructure/Notifications/Jobs/NotificationRetentionJob.cs`:
   - batched `ExecuteDeleteAsync` through a repository method;
   - registered as a daily `RecurringJob` in `Program.cs`.
-- [ ] T166 [US6] Add the health checks `NotificationDispatcherHealthCheck`, `NotificationDeliveryWorkerHealthCheck`, `NotificationBacklogHealthCheck` and `NotificationSmtpHealthCheck` in `src/AskLucy.Infrastructure/Notifications/HealthChecks/`. Register them in `AddHealthChecks()` in `Program.cs` (~L619) with the readiness tag.
-- [ ] T167 [P] [US6] Add the admin API client and hooks in `ClientApp/src/features/admin/api/adminNotificationsApi.ts` and `ClientApp/src/features/admin/hooks/useAdminNotifications.ts`, with MSW handlers.
-- [ ] T168 [US6] Add the admin navigation:
+- [X] T166 [US6] Add the health checks `NotificationDispatcherHealthCheck`, `NotificationDeliveryWorkerHealthCheck`, `NotificationBacklogHealthCheck` and `NotificationSmtpHealthCheck` in `src/AskLucy.Infrastructure/Notifications/HealthChecks/`. Register them in `AddHealthChecks()` in `Program.cs` (~L619) with the readiness tag.
+- [X] T167 [P] [US6] Add the admin API client and hooks in `ClientApp/src/features/admin/api/adminNotificationsApi.ts` and `ClientApp/src/features/admin/hooks/useAdminNotifications.ts`, with MSW handlers.
+- [X] T168 [US6] Add the admin navigation:
   - add `admin.notifications.view` and `.manage` to `ClientApp/src/features/admin/adminPermissions.ts`;
   - add a Notifications group to `ClientApp/src/features/admin/adminNav.tsx` (Dashboard, Deliveries, Announcements, with Templates and Localization added later);
   - add lazy, permission-guarded routes to `ClientApp/src/routes/router.tsx` under `/admin/notifications/*`, using `AdminRoute`.
-- [ ] T169 [P] [US6] Add `ClientApp/src/features/admin/pages/AdminNotificationsDashboardPage.tsx`. It has statistic cards, channel health chips, and a created/sent/failed series chart following the d3 patterns in `features/admin/charts/`.
-- [ ] T170 [P] [US6] Add `ClientApp/src/features/admin/pages/AdminNotificationDeliveriesPage.tsx`, with filters, a cursor table, a detail drawer, and single and bulk retry that are hidden without manage permission.
-- [ ] T171 [P] [US6] Add `ClientApp/src/features/admin/pages/AdminAnnouncementsPage.tsx`. It lists announcements and has a publish dialog (RHF + Zod) that shows the estimated recipients and email minutes, with a critical confirmation step.
-- [ ] T172 [US6] Run the full backend and frontend suites, then quickstart S6 and S8.
+- [X] T169 [P] [US6] Add `ClientApp/src/features/admin/pages/AdminNotificationsDashboardPage.tsx`. It has statistic cards, channel health chips, and a created/sent/failed series chart following the d3 patterns in `features/admin/charts/`.
+- [X] T170 [P] [US6] Add `ClientApp/src/features/admin/pages/AdminNotificationDeliveriesPage.tsx`, with filters, a cursor table, a detail drawer, and single and bulk retry that are hidden without manage permission.
+- [X] T171 [P] [US6] Add `ClientApp/src/features/admin/pages/AdminAnnouncementsPage.tsx`. It lists announcements and has a publish dialog (RHF + Zod) that shows the estimated recipients and email minutes, with a critical confirmation step.
+- [X] T172 [US6] Run the full backend and frontend suites, then quickstart S6 and S8.
+
+**Phase 10 implementation notes** (deviations from the task text):
+- T166: the four health checks live in `src/AskLucy.Web/HealthChecks/` (not Infrastructure), because Infrastructure has no ASP.NET Core reference. The `ISmtpProbe` / `MailKitSmtpProbe` seam stays in `src/AskLucy.Infrastructure/Notifications/HealthChecks/`. The dispatcher and delivery-worker checks share one `NotificationWorkerHealthCheck` class.
+- T168: the nav entries are flat (Notifications, Deliveries, Announcements); Templates and Localization are added in Phase 11-13. `adminPermissions.ts` needed no change.
+- T171: RHF + Zod use a small local `forms/zodResolver.ts` (the repo has no `@hookform/resolvers`). The publish dialog shows the recipient and email estimates in the success result after publishing, not before. The role picker reads `/admin/roles`, which can 403 for admins who are not built-in; the picker then shows an inline error.
+- T162/T163: the announcement notification type declares two extra variables, `endsAtUtc` and `isCritical`. The email channel is used only when `isCritical` is true; the in-app notification and email expire at `endsAtUtc`.
+- T160: a bulk retry by filter that matches more than 1,000 deliveries returns 400 and retries nothing.
+- T165: in-app deliveries are removed together with their notification; a notification that still has an active delivery is skipped. Audit rows are never deleted. The job `notification-retention` runs daily at 03:00.
+- T172: quickstart S6 and S8 need a browser and a mail server, so they were not run here; every automated suite was.
 
 **Checkpoint**: Admin operations work on their own.
 

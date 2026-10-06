@@ -25,4 +25,14 @@ public interface INotificationRecipientDirectory
     /// able to tell the two apart from the outside (FR-009e).
     /// </summary>
     Task<NotificationRecipientInfo?> FindByEmailAsync(string email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Up to <paramref name="take"/> active accounts in id order, starting after <paramref name="afterUserId"/> (null: from the start),
+    /// limited to accounts holding any of <paramref name="roleIds"/> when given. The id order is what lets a fan-out resume from a cursor.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetActiveUserIdsAfterAsync(
+        IReadOnlyCollection<string>? roleIds, string? afterUserId, int take, CancellationToken cancellationToken);
+
+    /// <summary>How many active accounts an audience reaches (<paramref name="roleIds"/> null: everyone), optionally only those with a verified address.</summary>
+    Task<int> CountActiveAsync(IReadOnlyCollection<string>? roleIds, bool verifiedEmailOnly, CancellationToken cancellationToken);
 }

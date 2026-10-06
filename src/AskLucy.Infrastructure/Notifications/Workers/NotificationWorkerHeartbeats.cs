@@ -4,8 +4,11 @@ namespace AskLucy.Infrastructure.Notifications.Workers;
 /// When each notification worker last completed a loop iteration (FR-057). A singleton the workers
 /// write and the <c>notifications-*</c> health checks read, so neither depends on the other.
 /// </summary>
-public sealed class NotificationWorkerHeartbeats
+public sealed class NotificationWorkerHeartbeats(TimeProvider? timeProvider = null)
 {
+    /// <summary>When this process created the heartbeat store: the grace point for a worker that hasn't had a first pass yet.</summary>
+    public DateTimeOffset StartedAt { get; } = (timeProvider ?? TimeProvider.System).GetUtcNow();
+
     private long _dispatcherTicks;
     private long _deliveryWorkerTicks;
 

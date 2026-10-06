@@ -30,4 +30,7 @@ public interface INotificationOutboxStore
     /// statuses honest. Returns how many were reset.
     /// </summary>
     Task<int> SweepExpiredLeasesAsync(DateTime now, CancellationToken cancellationToken);
+
+    /// <summary>How many events are waiting to be dispatched, and since when the oldest has been due (FR-057 backlog check).</summary>
+    Task<DeliveryBacklog> GetDueBacklogAsync(DateTime now, CancellationToken cancellationToken);
 }

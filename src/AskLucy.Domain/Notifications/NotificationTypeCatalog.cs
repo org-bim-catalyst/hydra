@@ -101,6 +101,12 @@ public static class NotificationTypeCatalog
                     Var("announcementMessage", string.Empty),
                     Var("announcementKind", "Announcement"),
                     Var("endsAt", string.Empty),
+
+                    // The end time as ISO 8601: the hub reads it to expire the notification and its email, and never shows it.
+                    Var("endsAtUtc", string.Empty),
+
+                    // "true" for a critical announcement: only then does it go out by email (FR-004a). The hub reads it; it is never shown.
+                    Var("isCritical", "false"),
                 ],
                 RouteTemplate = NotificationDetailRoute,
                 EmailOnlyWhenCritical = true,
