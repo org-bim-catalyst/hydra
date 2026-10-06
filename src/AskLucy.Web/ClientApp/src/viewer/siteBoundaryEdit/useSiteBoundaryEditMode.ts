@@ -18,7 +18,7 @@ import { createGooglePixelProjector } from './googlePixelProjector'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
 import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
 import { arcThroughPoint, circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
-import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
+import { activeCorners, pathCorners, pathCountOf, useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
 
 const store = () => useSiteBoundaryEditStore.getState()
@@ -88,12 +88,15 @@ function followCornerCursor(map: google.maps.Map): () => void {
     if (!session || session.tool !== 'edit') return null
     const origin = projector.origin()
     const at = { x: clientX - origin.left, y: clientY - origin.top }
-    const ring = session.rings[session.activeRing] ?? []
-    const index = ring.findIndex((corner) => {
-      const pixel = projector.toPixel(corner)
-      return pixel !== null && Math.hypot(pixel.x - at.x, pixel.y - at.y) <= CORNER_HOVER_PX
-    })
-    return index < 0 ? null : { selected: session.selectedCorners.includes(index) }
+    // Every path of the ring: its outer edge and each void. Only a corner of the path being edited can be selected.
+    for (let path = 0; path < pathCountOf(session, session.activeRing); path++) {
+      const index = pathCorners(session, session.activeRing, path).findIndex((corner) => {
+        const pixel = projector.toPixel(corner)
+        return pixel !== null && Math.hypot(pixel.x - at.x, pixel.y - at.y) <= CORNER_HOVER_PX
+      })
+      if (index >= 0) return { selected: path === session.activePath && session.selectedCorners.includes(index) }
+    }
+    return null
   }
 
   const onMove = (event: PointerEvent) => {
@@ -414,7 +417,7 @@ export function useSiteBoundaryEditMode() {
           store().refuse('Select a corner first — the new one is added midway to the next.')
           return
         }
-        controllerRef.current?.insertCornerAfter(session.activeRing, session.selectedCorner)
+        controllerRef.current?.insertCornerAfter(session.activeRing, session.selectedCorner, session.activePath)
       },
       nudgeCorner(eastMeters, northMeters) {
         const session = store().session
@@ -427,7 +430,7 @@ export function useSiteBoundaryEditMode() {
           store().refuse('Select a corner first, then move it with the arrow keys.')
           return
         }
-        controllerRef.current?.moveCorners(session.activeRing, corners, eastMeters, northMeters)
+        controllerRef.current?.moveCorners(session.activeRing, corners, eastMeters, northMeters, session.activePath)
       },
       removeVoid(ring, voidIndex) {
         if (!controllerRef.current?.removeVoid(ring, voidIndex)) store().refuse("That void isn't there any more.")
@@ -441,8 +444,8 @@ export function useSiteBoundaryEditMode() {
         }
         const controller = controllerRef.current
         const deleted = session.selectedCorners.length > 1
-          ? controller?.deleteCorners(session.activeRing, session.selectedCorners)
-          : controller?.deleteCorner(session.activeRing, session.selectedCorners[0])
+          ? controller?.deleteCorners(session.activeRing, session.selectedCorners, session.activePath)
+          : controller?.deleteCorner(session.activeRing, session.selectedCorners[0], session.activePath)
         if (deleted) store().selectCorner(null)
       },
       toggleSelectTool() {
@@ -492,12 +495,12 @@ export function useSiteBoundaryEditMode() {
         const controller = controllerRef.current
         if (!session || !controller || !session.arcAnchors) return false
 
-        const result = arcThroughPoint(session.rings[session.activeRing] ?? [], session.arcAnchors[0], session.arcAnchors[1], through)
+        const result = arcThroughPoint(activeCorners(session), session.arcAnchors[0], session.arcAnchors[1], through)
         if ('refusal' in result) {
           store().refuse(result.refusal)
           return false
         }
-        if (!controller.replaceRing(session.activeRing, result.ring)) return false
+        if (!controller.replaceRing(session.activeRing, result.ring, session.activePath)) return false
 
         store().setTool('edit')
         return true
@@ -516,7 +519,7 @@ export function useSiteBoundaryEditMode() {
         const controller = controllerRef.current
         if (!session || !controller) return false
 
-        const ring = session.rings[session.activeRing] ?? []
+        const ring = activeCorners(session)
         const corner = session.selectedCorner
         const result =
           tool === 'circle'
@@ -531,7 +534,7 @@ export function useSiteBoundaryEditMode() {
           store().refuse(result.refusal)
           return false
         }
-        return controller.replaceRing(session.activeRing, result.ring)
+        return controller.replaceRing(session.activeRing, result.ring, session.activePath)
       },
       loadLatest,
     }

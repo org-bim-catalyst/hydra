@@ -80,21 +80,26 @@ class FakeRing implements EditableRing {
   editable: boolean
   removed = false
   selectListeners: (() => void)[] = []
-  menuListeners: ((i: number, x: number, y: number) => void)[] = []
-  clickListeners: ((i: number, additive: boolean) => void)[] = []
-  dragMoveListeners: ((i: number, point: GeoPoint) => void)[] = []
-  pressListeners: ((i: number) => void)[] = []
+  menuListeners: ((i: number, x: number, y: number, path?: number) => void)[] = []
+  clickListeners: ((i: number, additive: boolean, path?: number) => void)[] = []
+  dragMoveListeners: ((i: number, point: GeoPoint, path?: number) => void)[] = []
+  pressListeners: ((i: number, path?: number) => void)[] = []
 
-  onVertexPress = (l: (i: number) => void) => {
+  onVertexPress = (l: (i: number, path?: number) => void) => {
     this.pressListeners.push(l)
     return () => (this.pressListeners = this.pressListeners.filter((x) => x !== l))
   }
 
-  onVertexDragMove = (l: (i: number, point: GeoPoint) => void) => {
+  onVertexDragMove = (l: (i: number, point: GeoPoint, path?: number) => void) => {
     this.dragMoveListeners.push(l)
     return () => (this.dragMoveListeners = this.dragMoveListeners.filter((x) => x !== l))
   }
-  highlights: number[] = []
+  /** The marks on each path of the ring. */
+  highlightsByPath: number[][] = []
+  get highlights() {
+    return this.highlightsByPath[0] ?? []
+  }
+
   path: FakePath
   voidPaths: FakePath[]
 
@@ -113,16 +118,16 @@ class FakeRing implements EditableRing {
     return () => (this.selectListeners = this.selectListeners.filter((x) => x !== l))
   }
 
-  onVertexClick = (l: (i: number, additive: boolean) => void) => {
+  onVertexClick = (l: (i: number, additive: boolean, path?: number) => void) => {
     this.clickListeners.push(l)
     return () => (this.clickListeners = this.clickListeners.filter((x) => x !== l))
   }
 
-  setHighlights = (indices: readonly number[]) => {
-    this.highlights = [...indices]
+  setHighlights = (indices: readonly number[], path = 0) => {
+    this.highlightsByPath[path] = [...indices]
   }
 
-  onVertexMenu = (l: (i: number, x: number, y: number) => void) => {
+  onVertexMenu = (l: (i: number, x: number, y: number, path?: number) => void) => {
     this.menuListeners.push(l)
     return () => (this.menuListeners = this.menuListeners.filter((x) => x !== l))
   }
@@ -833,7 +838,8 @@ describe('a selected group', () => {
 })
 
 describe('voids (specs/081)', () => {
-  const atrium = (): GeoPoint[] => [P(40, 40), P(60, 40), P(60, 60), P(40, 60)]
+  // Wound the opposite way from the square, as the session holds every void.
+  const atrium = (): GeoPoint[] => [P(40, 40), P(40, 60), P(60, 60), P(60, 40)]
 
   it('draws a ring with its voids, and hands the map their paths', () => {
     const { host } = setup([square()], {}, [[atrium()]])
@@ -873,7 +879,7 @@ describe('voids (specs/081)', () => {
   })
 
   it('refuses to move a void into another void', () => {
-    const other = [P(10, 10), P(20, 10), P(20, 20), P(10, 20)]
+    const other = [P(10, 10), P(10, 20), P(20, 20), P(20, 10)]
     const { host } = setup([square()], {}, [[atrium(), other]])
 
     host.rings[0].voidPaths[1].setAt(2, P(45, 45))
@@ -885,7 +891,7 @@ describe('voids (specs/081)', () => {
   it('records an inserted and a deleted void corner', () => {
     const { host } = setup([square()], {}, [[atrium()]])
 
-    host.rings[0].voidPaths[0].insertAt(1, P(50, 38))
+    host.rings[0].voidPaths[0].insertAt(1, P(38, 50))
     expect(session().voids[0][0]).toHaveLength(5)
     expect(session().undo.at(-1)).toMatchObject({ op: 'insert', ring: 0, path: 1, index: 1 })
 
@@ -895,7 +901,7 @@ describe('voids (specs/081)', () => {
   })
 
   it('refuses to delete a void corner below 3, pointing at Remove void', () => {
-    const triangleVoid = [P(40, 40), P(60, 40), P(50, 60)]
+    const triangleVoid = [P(40, 40), P(50, 60), P(60, 40)]
     const { host } = setup([square()], {}, [[triangleVoid]])
 
     host.rings[0].voidPaths[0].removeAt(0)
@@ -962,5 +968,190 @@ describe('voids (specs/081)', () => {
 
     expect(host.rings).toHaveLength(1)
     expect(host.rings[0].voidPaths[0].getAt(2)).toEqual(P(60, 60))
+  })
+})
+
+describe('every feature on a void corner (specs/081)', () => {
+  // Wound the opposite way from the square, as the session holds every void.
+  const atrium = (): GeoPoint[] => [P(40, 40), P(40, 60), P(60, 60), P(60, 40)]
+  const second = (): GeoPoint[] => [P(10, 10), P(10, 20), P(20, 20), P(20, 10)]
+  const clickVoid = (ring: FakeRing, index: number, additive = false, path = 1) => ring.clickListeners.forEach((l) => l(index, additive, path))
+
+  it('a click on a void corner makes that void the one being edited, selects the corner and marks it', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    clickVoid(host.rings[0], 2)
+
+    expect(session().activePath).toBe(1)
+    expect(session().selectedCorners).toEqual([2])
+    expect(host.rings[0].highlightsByPath[1]).toEqual([2])
+    expect(host.rings[0].highlightsByPath[0]).toEqual([])
+  })
+
+  it('a Shift-click adds a second corner of the same void, and marks both', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    clickVoid(host.rings[0], 0)
+    clickVoid(host.rings[0], 2, true)
+
+    expect(session().selectedCorners).toEqual([0, 2])
+    expect(host.rings[0].highlightsByPath[1]).toEqual([0, 2])
+  })
+
+  it('a Shift-click on the outer edge while a void is selected starts a new selection on the outer edge', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+    clickVoid(host.rings[0], 0)
+
+    clickVoid(host.rings[0], 3, true, 0)
+
+    expect(session().activePath).toBe(0)
+    expect(session().selectedCorners).toEqual([3])
+    expect(host.rings[0].highlightsByPath[1]).toEqual([])
+    expect(host.rings[0].highlightsByPath[0]).toEqual([3])
+  })
+
+  it('pressing a void corner outside the selection makes it the selection before any drag', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+    clickVoid(host.rings[0], 0)
+
+    host.rings[0].pressListeners.forEach((l) => l(2, 1))
+
+    expect(session().selectedCorners).toEqual([2])
+    expect(host.rings[0].highlightsByPath[1]).toEqual([2])
+  })
+
+  it('dragging one selected void corner carries the others with it, and the drop is one undo step', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+    clickVoid(host.rings[0], 0)
+    clickVoid(host.rings[0], 1, true)
+    const mvc = host.rings[0].voidPaths[0]
+
+    // Live: the other follows the pointer without being recorded.
+    host.rings[0].dragMoveListeners.forEach((l) => l(0, P(41, 41), 1))
+    expect(mvc.getAt(1).latitude).not.toBe(atrium()[1].latitude)
+    expect(session().undo).toHaveLength(0)
+
+    // Dropped: both moved by the same amount, recorded once.
+    mvc.setAt(0, P(42, 42))
+    expect(session().voids[0][0][0]).toEqual(P(42, 42))
+    expect(session().undo).toHaveLength(1)
+    expect(session().undo[0]).toMatchObject({ op: 'moveMany', ring: 0, path: 1, indices: [0, 1] })
+
+    store().undo()
+    expect(session().voids[0][0]).toEqual(atrium())
+  })
+
+  it('refuses a group drag that would push the void across the outer edge, putting every corner back', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+    clickVoid(host.rings[0], 0)
+    clickVoid(host.rings[0], 1, true)
+
+    host.rings[0].voidPaths[0].setAt(0, P(-30, 40))
+
+    expect(session().voids[0][0]).toEqual(atrium())
+    expect(host.rings[0].voidPaths[0].getAt(1)).toEqual(atrium()[1])
+    expect(session().refusal).not.toBeNull()
+  })
+
+  it('the arrow keys move the selected void corners, and refuse a move across the edge', () => {
+    const { controller } = setup([square()], {}, [[atrium()]])
+
+    expect(controller.moveCorners(0, [0, 1], 5, 0, 1)).toBe(true)
+    expect(session().voids[0][0][0].longitude).toBeGreaterThan(atrium()[0].longitude)
+    expect(session().rings[0]).toEqual(square())
+
+    expect(controller.moveCorners(0, [0, 1], -80, 0, 1)).toBe(false)
+    expect(session().refusal).toMatch(/inside its outline/i)
+  })
+
+  it('Add corner puts a corner midway along the next edge of the void and selects it', () => {
+    const { host, controller } = setup([square()], {}, [[atrium()]])
+
+    expect(controller.insertCornerAfter(0, 0, 1)).toBe(true)
+
+    expect(host.rings[0].voidPaths[0].getLength()).toBe(5)
+    expect(session().voids[0][0]).toHaveLength(5)
+    expect(session().selectedCorner).toBe(1)
+    expect(session().undo.at(-1)).toMatchObject({ op: 'insert', ring: 0, path: 1, index: 1 })
+  })
+
+  it('Delete corner removes one or several void corners, but never below 3', () => {
+    const { host, controller } = setup([square()], {}, [[[P(40, 40), P(40, 60), P(50, 65), P(60, 60), P(60, 40)]]])
+    const before = session().voids[0][0].length
+
+    expect(controller.deleteCorner(0, 0, 1)).toBe(true)
+    expect(host.rings[0].voidPaths[0].getLength()).toBe(before - 1)
+
+    expect(controller.deleteCorners(0, [0, 1], 1)).toBe(false)
+    expect(session().refusal).toMatch(/Remove void/)
+  })
+
+  it('replaces a void by a rounded one in one undo step (round, curve, arc act on the void like the outer edge)', () => {
+    const { host, controller } = setup([square()], {}, [[atrium()]])
+    const rounder = [P(40, 40), P(40, 55), P(50, 60), P(60, 55), P(60, 40)]
+
+    expect(controller.replaceRing(0, rounder, 1)).toBe(true)
+
+    expect(session().voids[0][0]).toEqual(rounder)
+    expect(host.rings[0].voidPaths[0].getLength()).toBe(5)
+    expect(session().undo.at(-1)).toMatchObject({ op: 'replace', ring: 0, path: 1 })
+
+    store().undo()
+    expect(session().voids[0][0]).toEqual(atrium())
+  })
+
+  it('refuses a replacement void that leaves the ring', () => {
+    const { controller } = setup([square()], {}, [[atrium()]])
+
+    expect(controller.replaceRing(0, [P(90, 90), P(90, 140), P(140, 140)], 1)).toBe(false)
+    expect(session().voids[0][0]).toEqual(atrium())
+  })
+
+  it('the menu on a void corner selects it and asks for the void menu; on the outer edge for the corner menu', () => {
+    const onVertexMenu = vi.fn()
+    const onVoidMenu = vi.fn()
+    const { host } = setup([square()], { onVertexMenu, onVoidMenu }, [[atrium(), second()]])
+
+    host.rings[0].menuListeners.forEach((l) => l(2, 410, 220, 2))
+    expect(onVoidMenu).toHaveBeenCalledWith({ ring: 0, voidIndex: 1, clientX: 410, clientY: 220 })
+    expect(session().activePath).toBe(2)
+    expect(session().selectedCorners).toEqual([2])
+
+    host.rings[0].menuListeners.forEach((l) => l(1, 5, 6, 0))
+    expect(onVertexMenu).toHaveBeenCalledWith({ ring: 0, index: 1, clientX: 5, clientY: 6 })
+    expect(session().activePath).toBe(0)
+  })
+
+  it('marks the selected corners of only one path at a time, whichever way the selection moves', () => {
+    const { host } = setup([square()], {}, [[atrium(), second()]])
+
+    clickVoid(host.rings[0], 1, false, 2)
+    expect(host.rings[0].highlightsByPath[2]).toEqual([1])
+
+    store().setActivePath(1)
+    store().selectCorners([0, 3])
+    expect(host.rings[0].highlightsByPath[1]).toEqual([0, 3])
+    expect(host.rings[0].highlightsByPath[2]).toEqual([])
+    expect(host.rings[0].highlightsByPath[0]).toEqual([])
+  })
+
+  it('a click away from the corners ends a selection on a void too', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+    clickVoid(host.rings[0], 2)
+
+    host.rings[0].selectListeners.forEach((l) => l())
+
+    expect(session().selectedCorners).toEqual([])
+    expect(host.rings[0].highlightsByPath[1]).toEqual([])
+  })
+
+  it('removing a void while its corner is selected clears the selection and goes back to the outer edge', () => {
+    const { controller, host } = setup([square()], {}, [[atrium()]])
+    clickVoid(host.rings[0], 2)
+
+    controller.removeVoid(0, 0)
+
+    expect(session().activePath).toBe(0)
+    expect(session().selectedCorners).toEqual([])
   })
 })

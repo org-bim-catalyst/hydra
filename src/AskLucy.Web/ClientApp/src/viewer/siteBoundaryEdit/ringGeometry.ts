@@ -364,3 +364,20 @@ export function validateVoid(outer: readonly GeoPoint[], voids: readonly (readon
 export function netAreaSquareMeters(ring: readonly GeoPoint[], voids: readonly (readonly GeoPoint[])[] = []): number {
   return ringAreaSquareMeters(ring) - voids.reduce((sum, v) => sum + ringAreaSquareMeters(v), 0)
 }
+
+/**
+ * Each ring's voids wound the opposite way round from the ring, which is how Google draws an inner path as a
+ * hole. The session holds them this way from the start, so the map's paths and the session number a void's
+ * corners alike and an edit made on the map lands on the same corner in the session.
+ */
+export function windVoidsAgainst(
+  rings: readonly (readonly GeoPoint[])[],
+  voids: readonly (readonly (readonly GeoPoint[])[])[],
+): GeoPoint[][][] {
+  return rings.map((ring, i) =>
+    (voids[i] ?? []).map((v) => {
+      const open = openRing(v)
+      return isCounterClockwise(open) === isCounterClockwise(openRing(ring)) ? [...open].reverse() : [...open]
+    }),
+  )
+}

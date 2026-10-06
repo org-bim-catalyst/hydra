@@ -113,6 +113,54 @@ describe('SiteBoundaryBoxSelect', () => {
     expect(screen.getByTestId('corner-select-box')).toHaveStyle({ width: '1px', height: '60px' })
   })
 
+  describe('voids (specs/081)', () => {
+    // The projector puts a corner at x = 20 + its east metres, y = 50, so this void's corners sit in a row at y = 50.
+    const RING_WITH_VOID = [P(0, 0), P(100, 0), P(100, 100), P(0, 100)]
+    const VOID = [P(30, 30), P(30, 60), P(60, 60), P(60, 30)]
+
+    function enterWithVoid() {
+      store().enter({ chatId: 'chat-1', siteName: 'Muscat Grand Mall', revision: 'rev-1', rings: [RING_WITH_VOID], voids: [[VOID]], viewState })
+      store().setTool('select')
+    }
+
+    it('a box round void corners selects them and makes that void the one being edited', () => {
+      enterWithVoid()
+      render(<SiteBoundaryBoxSelect projector={projector} />)
+      pinLayer()
+
+      // Corners at x = 50 (east 30) and x = 80 (east 60); a box from 40 to 90 holds the void's, not the outer edge's.
+      drag([40, 20], [90, 80])
+
+      expect(store().session?.activePath).toBe(1)
+      expect(store().session?.selectedCorners.length).toBeGreaterThan(0)
+    })
+
+    it('prefers the path being edited when the box holds its corners', () => {
+      enterWithVoid()
+      render(<SiteBoundaryBoxSelect projector={projector} />)
+      pinLayer()
+
+      // Around the outer edge's corners at east 0 and 100 (x = 20 and 120).
+      drag([10, 20], [130, 80])
+
+      expect(store().session?.activePath).toBe(0)
+      expect(store().session?.selectedCorners.length).toBeGreaterThan(0)
+    })
+
+    it('pressing a void corner while a group is selected leaves the multi-selection for ordinary editing', () => {
+      enterWithVoid()
+      act(() => store().selectCorners([0, 1]))
+      render(<SiteBoundaryBoxSelect projector={projector} />)
+      pinLayer()
+
+      // On the void's corner at x = 50.
+      fireEvent.pointerDown(layer(), { clientX: 50, clientY: 50, button: 0, pointerId: 1 })
+
+      expect(store().session?.tool).toBe('edit')
+      expect(store().session?.selectedCorners).toEqual([])
+    })
+  })
+
   it('stays in the Select tool after a box, for another one', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)

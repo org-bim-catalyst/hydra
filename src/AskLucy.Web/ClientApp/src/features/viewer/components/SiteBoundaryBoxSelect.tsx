@@ -5,7 +5,12 @@ import { cornersInBox } from '../../../viewer/siteBoundaryEdit/ringShapes'
 import { toLocalMeters } from '../../../viewer/siteBoundaryEdit/ringGeometry'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import type { PixelProjector } from '../../../viewer/siteBoundaryEdit/googlePixelProjector'
-import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import {
+  activeCorners,
+  pathCorners,
+  pathCountOf,
+  useSiteBoundaryEditStore,
+} from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { usePixelProjector } from '../../../viewer/siteBoundaryEdit/usePixelProjector'
 import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 
@@ -58,13 +63,18 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     const origin = use.origin()
     const at = { x: event.clientX - origin.left, y: event.clientY - origin.top }
     const point = use.toLatLng(at)
-    const ring = session.rings[session.activeRing] ?? []
-    const near = (i: number) => {
-      const pixel = ring[i] ? use.toPixel(ring[i]) : null
+    const nearCorner = (corner: GeoPoint | undefined) => {
+      const pixel = corner ? use.toPixel(corner) : null
       return pixel !== null && Math.hypot(pixel.x - at.x, pixel.y - at.y) <= GRAB_RADIUS_PX
     }
-    const onSelected = session.selectedCorners.some(near)
-    const onCorner = onSelected || ring.some((_, i) => near(i))
+    const selecting = activeCorners(session)
+    const onSelected = session.selectedCorners.some((i) => nearCorner(selecting[i]))
+    // A corner of any path of the ring - its outer edge or one of its voids - is one to edit, not to box round.
+    const onCorner =
+      onSelected ||
+      Array.from({ length: pathCountOf(session, session.activeRing) }).some((_, path) =>
+        pathCorners(session, session.activeRing, path).some(nearCorner),
+      )
     return point ? { point, onSelected, onCorner } : null
   }
 
@@ -144,14 +154,23 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     const mapOrigin = use.origin()
     const layer = event.currentTarget.getBoundingClientRect()
     const offset = { x: layer.left - mapOrigin.left, y: layer.top - mapOrigin.top }
-    const inside = cornersInBox(
-      session.rings[session.activeRing] ?? [],
-      (point) => {
-        const pixel = use.toPixel(point)
-        return pixel && { x: pixel.x - offset.x, y: pixel.y - offset.y }
-      },
-      box,
-    )
+    const toLayer = (point: GeoPoint) => {
+      const pixel = use.toPixel(point)
+      return pixel && { x: pixel.x - offset.x, y: pixel.y - offset.y }
+    }
+    // The path being edited first; when the box holds none of its corners, the first path of the ring that
+    // does (a box round an atrium picks the atrium's corners, whichever path was active).
+    const paths = pathCountOf(session, session.activeRing)
+    const order = [session.activePath, ...Array.from({ length: paths }, (_, p) => p).filter((p) => p !== session.activePath)]
+    let boxedPath = session.activePath
+    let inside: number[] = []
+    for (const path of order) {
+      inside = cornersInBox(pathCorners(session, session.activeRing, path), toLayer, box)
+      if (inside.length > 0) {
+        boxedPath = path
+        break
+      }
+    }
 
     if (inside.length === 0) {
       store.refuse('No corners inside that box. Drag a box around the corners you want.')
@@ -159,7 +178,10 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
       return
     }
 
-    store.selectCorners(event.shiftKey ? [...session.selectedCorners, ...inside] : inside)
+    // Shift adds to the selection, but only on the path it is on: corners of two paths are never selected together.
+    const extend = event.shiftKey && boxedPath === session.activePath
+    if (boxedPath !== session.activePath) store.setActivePath(boxedPath)
+    store.selectCorners(extend ? [...session.selectedCorners, ...inside] : inside)
   }
 
   // Wheel events would otherwise stop here, so zooming is forwarded to the map by hand.

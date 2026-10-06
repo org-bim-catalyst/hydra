@@ -20,8 +20,8 @@ const press = (key: string, init: Partial<KeyboardEventInit> = {}) => fireEvent.
 let runtime: { nudgeCorner: ReturnType<typeof vi.fn>; addCorner: ReturnType<typeof vi.fn>; deleteCorner: ReturnType<typeof vi.fn>; undo: ReturnType<typeof vi.fn>; redo: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> }
 let unregister: () => void
 
-function enter(rings: GeoPoint[][] = [SQUARE]) {
-  store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings, viewState })
+function enter(rings: GeoPoint[][] = [SQUARE], voids: GeoPoint[][][] = []) {
+  store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings, voids, viewState })
   render(<SiteBoundaryCornerNavigator />)
 }
 
@@ -205,6 +205,69 @@ describe('SiteBoundaryCornerNavigator', () => {
 
     expect(store().session?.selectedCorner).toBe(1)
     button.remove()
+  })
+
+  describe('voids (specs/081)', () => {
+    // Inside the square, wound against it.
+    const ATRIUM = [P(23.5864, 58.3924), P(23.5864, 58.3926), P(23.5866, 58.3926), P(23.5866, 58.3924)]
+    const COURT = [P(23.58625, 58.39225), P(23.58625, 58.39235), P(23.58635, 58.39235), P(23.58635, 58.39225)]
+    const shiftBracket = (code: 'BracketLeft' | 'BracketRight') =>
+      fireEvent.keyDown(region(), { key: code === 'BracketRight' ? '}' : '{', code, shiftKey: true })
+
+    it('Shift+] and Shift+[ move between the outer edge and each void, wrapping round', () => {
+      enter([SQUARE], [[ATRIUM, COURT]])
+      expect(store().session?.activePath).toBe(0)
+
+      shiftBracket('BracketRight')
+      expect(store().session?.activePath).toBe(1)
+      shiftBracket('BracketRight')
+      expect(store().session?.activePath).toBe(2)
+      shiftBracket('BracketRight')
+      expect(store().session?.activePath).toBe(0)
+      shiftBracket('BracketLeft')
+      expect(store().session?.activePath).toBe(2)
+    })
+
+    it('says there is no void to switch to on a ring without one', () => {
+      enter()
+      shiftBracket('BracketRight')
+      expect(store().session?.activePath).toBe(0)
+      expect(store().session?.refusal).toMatch(/no voids/i)
+    })
+
+    it('Tab walks the corners of the void being edited, not the outer edge', () => {
+      enter([SQUARE], [[ATRIUM]])
+      act(() => store().setActivePath(1))
+      act(() => store().selectCorner(1))
+
+      press('Tab', {})
+      expect(store().session?.selectedCorner).toBe(2)
+      press('Tab', { shiftKey: true })
+      expect(store().session?.selectedCorner).toBe(1)
+      expect(store().session?.activePath).toBe(1)
+    })
+
+    it('the arrow keys, Insert and Delete act on the void corner that is selected', () => {
+      enter([SQUARE], [[ATRIUM]])
+      act(() => store().setActivePath(1))
+      act(() => store().selectCorner(1))
+
+      press('ArrowRight')
+      press('Insert')
+      press('Delete')
+
+      expect(runtime.nudgeCorner).toHaveBeenCalledWith(0.5, 0)
+      expect(runtime.addCorner).toHaveBeenCalledTimes(1)
+      expect(runtime.deleteCorner).toHaveBeenCalledTimes(1)
+    })
+
+    it('announces which void a corner is in', () => {
+      enter([SQUARE], [[ATRIUM, COURT]])
+      act(() => store().setActivePath(2))
+      act(() => store().selectCorner(1))
+
+      expect(screen.getByRole('status')).toHaveTextContent(/Corner 2 of 4, ring 1 of 1, void 2 of 2/)
+    })
   })
 
   it('[ with a single ring says there is no other ring', () => {

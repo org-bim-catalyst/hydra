@@ -2,7 +2,7 @@ import { ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material'
 import { RiDeleteBinLine, RiDonutChartLine } from '@remixicon/react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useCornerMenuStore } from '../../../viewer/siteBoundaryEdit/cornerMenuStore'
-import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { activeCorners, useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 
 const MIN_CORNERS = 3
 
@@ -16,7 +16,7 @@ export function SiteBoundaryCornerMenu() {
   const close = useCornerMenuStore((s) => s.close)
   const cornerCount = useSiteBoundaryEditStore((s) => {
     const session = s.session
-    return session ? (session.rings[session.activeRing]?.length ?? 0) : 0
+    return session ? activeCorners(session).length : 0
   })
   const tooFew = cornerCount <= MIN_CORNERS
 
@@ -51,7 +51,9 @@ export function SiteBoundaryCornerMenu() {
         <ListItemIcon>
           <RiDeleteBinLine size={18} />
         </ListItemIcon>
-        <ListItemText secondary={tooFew ? 'An outline needs at least 3 corners' : undefined}>Delete corner</ListItemText>
+        <ListItemText secondary={tooFew ? (voidTarget ? 'A void needs at least 3 corners' : 'An outline needs at least 3 corners') : undefined}>
+          Delete corner
+        </ListItemText>
       </MenuItem>
     </Menu>
   )

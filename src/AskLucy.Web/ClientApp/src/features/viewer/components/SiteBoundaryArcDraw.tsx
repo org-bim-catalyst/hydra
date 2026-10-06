@@ -3,7 +3,7 @@ import { useState, type PointerEvent } from 'react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import type { PixelProjector } from '../../../viewer/siteBoundaryEdit/googlePixelProjector'
 import { arcThroughPoint } from '../../../viewer/siteBoundaryEdit/ringShapes'
-import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { activeCorners, useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { usePixelProjector } from '../../../viewer/siteBoundaryEdit/usePixelProjector'
 
 interface Props {
@@ -55,7 +55,7 @@ export function SiteBoundaryArcDraw({ projector: injected }: Props) {
       return
     }
 
-    const result = arcThroughPoint(session.rings[session.activeRing] ?? [], anchors[0], anchors[1], hit.through)
+    const result = arcThroughPoint(activeCorners(session), anchors[0], anchors[1], hit.through)
     if ('refusal' in result) {
       setPreview({ points: null, note: result.refusal })
       return

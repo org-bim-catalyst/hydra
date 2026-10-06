@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import type { CameraViewMode } from '../api/commands'
-import { netAreaSquareMeters, openRing } from './ringGeometry'
+import { netAreaSquareMeters, openRing, windVoidsAgainst } from './ringGeometry'
 
 /**
  * specs/079 data-model.md "siteBoundaryEditStore": one outline-edit session. Module-level, so the
@@ -33,7 +33,7 @@ export type RingChange =
   /** specs/081: a whole void taken away (Remove void); undo puts it back at `voidIndex`. */
   | { op: 'removeVoid'; ring: number; voidIndex: number; before: GeoPoint[] }
   /** The whole ring swapped for another: deleting several corners at once, rounding a corner, curving an edge, a circle. One undo step. */
-  | { op: 'replace'; ring: number; before: GeoPoint[]; after: GeoPoint[] }
+  | { op: 'replace'; ring: number; path?: number; before: GeoPoint[]; after: GeoPoint[] }
   /** Every ring swapped at once, possibly a different number of them: a circle added as a ring of its own, rings merged, a ring split by a cut. */
   | { op: 'replaceAll'; before: GeoPoint[][]; after: GeoPoint[][]; beforeVoids: GeoPoint[][][]; afterVoids: GeoPoint[][][] }
 
@@ -71,6 +71,11 @@ export interface SiteBoundaryEditSession {
   undo: RingChange[]
   redo: RingChange[]
   activeRing: number
+  /**
+   * specs/081: which path of the active ring the selection and the corner actions are on: 0 is the ring's
+   * outer edge, `k` is its void `k - 1`. Always 0 after the ring changes.
+   */
+  activePath: number
   /** The most recently selected corner: what Add corner, curve and round act on. */
   selectedCorner: number | null
   /** Every selected corner of the active ring (a box select picks several); `selectedCorner` is always one of them. */
@@ -138,6 +143,10 @@ interface Actions {
   undo(): RingChange | null
   redo(): RingChange | null
   setActiveRing(ring: number): void
+  /** specs/081: makes this path of the active ring the one being edited (0 is the outer edge); clears the selection. */
+  setActivePath(path: number): void
+  /** specs/081: makes this ring and path the one being edited, as clicking a corner of a void does; clears the selection. */
+  activate(ring: number, path: number): void
   selectCorner(index: number | null): void
   /** Replaces the selection with these corners of the active ring. */
   selectCorners(indices: readonly number[]): void
@@ -196,7 +205,9 @@ function applyChange(geometry: Geometry, change: RingChange, forward: boolean): 
   }
 
   if (change.op === 'replace') {
-    rings[change.ring] = copyPoints(forward ? change.after : change.before)
+    const corners = copyPoints(forward ? change.after : change.before)
+    if (!change.path) rings[change.ring] = corners
+    else voids[change.ring][change.path - 1] = corners
     return { rings, voids }
   }
 
@@ -259,7 +270,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
 
     enter({ chatId, siteName, revision, rings, voids, viewState }) {
       const start = cloneRings(rings)
-      const startVoids = cloneVoids(voids, start.length)
+      const startVoids = windVoidsAgainst(start, cloneVoids(voids, start.length))
       set({
         session: {
           chatId,
@@ -272,6 +283,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           undo: [],
           redo: [],
           activeRing: 0,
+          activePath: 0,
           selectedCorner: null,
           selectedCorners: [],
           tool: 'edit',
@@ -309,9 +321,11 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
         // and after every ring was swapped the ring being edited may not exist any more.
         const selection =
           change.op === 'replaceAll'
-            ? { selectedCorner: null, selectedCorners: [], activeRing: 0 }
-            : change.op === 'replace' || change.op === 'removeVoid'
-              ? { selectedCorner: null, selectedCorners: [] }
+            ? { selectedCorner: null, selectedCorners: [], activeRing: 0, activePath: 0 }
+            : change.op === 'removeVoid'
+              ? { selectedCorner: null, selectedCorners: [], activePath: 0 }
+              : change.op === 'replace'
+                ? { selectedCorner: null, selectedCorners: [] }
               : {}
         return { rings, voids, undo, redo: [], approxAreaSquareMeters: totalArea(rings, voids), refusal: null, ...selection }
       })
@@ -340,8 +354,9 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           redo: [...session.redo, change],
           approxAreaSquareMeters: totalArea(rings, voids),
           refusal: null,
-          ...(change.op === 'replace' || change.op === 'removeVoid' ? { selectedCorner: null, selectedCorners: [] } : {}),
-          ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0 } : {}),
+          ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
+          ...(change.op === 'removeVoid' ? { selectedCorner: null, selectedCorners: [], activePath: 0 } : {}),
+          ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0, activePath: 0 } : {}),
         },
       })
       return change
@@ -361,15 +376,28 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           redo: session.redo.slice(0, -1),
           approxAreaSquareMeters: totalArea(rings, voids),
           refusal: null,
-          ...(change.op === 'replace' || change.op === 'removeVoid' ? { selectedCorner: null, selectedCorners: [] } : {}),
-          ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0 } : {}),
+          ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
+          ...(change.op === 'removeVoid' ? { selectedCorner: null, selectedCorners: [], activePath: 0 } : {}),
+          ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0, activePath: 0 } : {}),
         },
       })
       return change
     },
 
     setActiveRing(ring) {
-      update((s) => (ring >= 0 && ring < s.rings.length ? { activeRing: ring, selectedCorner: null, selectedCorners: [] } : {}))
+      update((s) => (ring >= 0 && ring < s.rings.length ? { activeRing: ring, activePath: 0, selectedCorner: null, selectedCorners: [] } : {}))
+    },
+
+    setActivePath(path) {
+      update((s) => (path >= 0 && path <= (s.voids[s.activeRing]?.length ?? 0) ? { activePath: path, selectedCorner: null, selectedCorners: [] } : {}))
+    },
+
+    activate(ring, path) {
+      update((s) =>
+        ring >= 0 && ring < s.rings.length && path >= 0 && path <= (s.voids[ring]?.length ?? 0)
+          ? { activeRing: ring, activePath: path, selectedCorner: null, selectedCorners: [] }
+          : {},
+      )
     },
 
     selectCorner(index) {
@@ -426,9 +454,10 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     rebase(revision, rings, voids) {
       update(() => {
         const start = cloneRings(rings)
-        const startVoids = cloneVoids(voids, start.length)
+        const startVoids = windVoidsAgainst(start, cloneVoids(voids, start.length))
         return {
           baseRevision: revision,
+          activePath: 0,
           startRings: start,
           rings: cloneRings(start),
           startVoids,
@@ -451,3 +480,17 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     },
   }
 })
+
+/** specs/081: the corners of one path of a ring: 0 is its outer edge, `k` its void `k - 1`. */
+export const pathCorners = (
+  session: Pick<SiteBoundaryEditSession, 'rings' | 'voids'>,
+  ring: number,
+  path: number,
+): GeoPoint[] => (path === 0 ? (session.rings[ring] ?? []) : (session.voids[ring]?.[path - 1] ?? []))
+
+/** The corners the selection and the corner actions are on: the active path of the active ring. */
+export const activeCorners = (session: Pick<SiteBoundaryEditSession, 'rings' | 'voids' | 'activeRing' | 'activePath'>): GeoPoint[] =>
+  pathCorners(session, session.activeRing, session.activePath)
+
+/** How many paths a ring has: its outer edge and each of its voids. */
+export const pathCountOf = (session: Pick<SiteBoundaryEditSession, 'voids'>, ring: number): number => 1 + (session.voids[ring]?.length ?? 0)

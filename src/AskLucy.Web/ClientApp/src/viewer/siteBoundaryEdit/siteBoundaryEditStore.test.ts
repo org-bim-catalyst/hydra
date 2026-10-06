@@ -292,8 +292,17 @@ describe('siteBoundaryEditStore', () => {
   })
 
   describe('voids (specs/081)', () => {
-    const atrium = (): GeoPoint[] => [P(40, 40), P(60, 40), P(60, 60), P(40, 60)]
-    const second = (): GeoPoint[] => [P(10, 10), P(20, 10), P(20, 20), P(10, 20)]
+    // Wound the opposite way from the square, as the session holds every void.
+    const atrium = (): GeoPoint[] => [P(40, 40), P(40, 60), P(60, 60), P(60, 40)]
+    const second = (): GeoPoint[] => [P(10, 10), P(10, 20), P(20, 20), P(20, 10)]
+
+    it('winds every void against its ring, so the map and the session number its corners alike', () => {
+      const sameWayAsTheSquare = [P(40, 40), P(60, 40), P(60, 60), P(40, 60)]
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[sameWayAsTheSquare]], viewState })
+
+      expect(session().voids[0][0]).toEqual([...sameWayAsTheSquare].reverse())
+      expect(session().startVoids).toEqual(session().voids)
+    })
 
     it('starts with the voids of each ring, and no voids as a ring with none', () => {
       store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square(), [P(300, 0), P(320, 0), P(320, 20)]], voids: [[atrium()]], viewState })
@@ -372,6 +381,42 @@ describe('siteBoundaryEditStore', () => {
       store().undo()
       expect(session().voids[0]).toEqual([atrium(), second()])
       expect(session().approxAreaSquareMeters).toBeCloseTo(10_000 - 500, -1)
+    })
+
+    it('moves the selection between a ring and its voids, which clears it', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium(), second()]], viewState })
+      expect(session().activePath).toBe(0)
+
+      store().selectCorners([0, 1])
+      store().setActivePath(2)
+      expect(session().activePath).toBe(2)
+      expect(session().selectedCorners).toEqual([])
+
+      store().activate(0, 1)
+      expect(session().activePath).toBe(1)
+    })
+
+    it('ignores a path the ring does not have, and resets to the outer edge when the ring changes', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square(), [P(300, 0), P(320, 0), P(320, 20)]], voids: [[atrium()]], viewState })
+
+      store().setActivePath(5)
+      expect(session().activePath).toBe(0)
+
+      store().setActivePath(1)
+      store().setActiveRing(1)
+      expect(session().activePath).toBe(0)
+    })
+
+    it('replaces a void whole by path, and undoes it', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium()]], viewState })
+      const rounder = [P(40, 40), P(40, 55), P(50, 60), P(60, 55), P(60, 40)]
+
+      store().applyChange({ op: 'replace', ring: 0, path: 1, before: atrium(), after: rounder })
+      expect(session().voids[0][0]).toEqual(rounder)
+      expect(session().rings[0]).toEqual(square())
+
+      store().undo()
+      expect(session().voids[0][0]).toEqual(atrium())
     })
 
     it('rebases onto freshly loaded voids', () => {

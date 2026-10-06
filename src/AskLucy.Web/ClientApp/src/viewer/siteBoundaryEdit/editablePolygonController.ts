@@ -1,11 +1,15 @@
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
-import { fromLocalMeters, openRing, validateChange, validateRing, validateVoid, type Refusal } from './ringGeometry'
+import { fromLocalMeters, openRing, validateChange, validateRing, validateVoid, windVoidsAgainst, type Refusal } from './ringGeometry'
 import { useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 
 /**
  * specs/079 research D1: one native, editable polygon per ring. The map draws the handles and does
  * the dragging; this only listens to what the ring's path reports (a corner moved, inserted,
  * removed), checks the change, and either records it or puts it back and says why.
+ *
+ * specs/081: a ring's voids are further paths of the same polygon. A path is numbered 0 for the ring's
+ * outer edge and `k` for its void `k - 1`; every corner of every path is selected, clicked, dragged,
+ * moved, added and deleted the same way, and a void is checked against its ring as well as on its own.
  *
  * All Google Maps access sits behind {@link EditablePolygonHost}, so the rules below are tested
  * against a fake and the real adapter stays thin.
@@ -24,32 +28,30 @@ export interface EditablePath {
   onRemoveAt(listener: (index: number, removed: GeoPoint) => void): () => void
 }
 
+/**
+ * Every corner callback below says which path of the ring it is on as its last argument: 0 (or absent) for the
+ * outer edge, `k` for void `k - 1`.
+ */
 export interface EditableRing {
   path: EditablePath
-  /**
-   * specs/081: the ring's voids, in order, as the map holds them (inner paths of the same polygon). Corner
-   * clicks, presses, drags and menus on a void are not reported through the callbacks below (they are for the
-   * outer edge); a void's corners are edited through these paths.
-   */
+  /** specs/081: the ring's voids, in order, as the map holds them (the polygon's inner paths). */
   voidPaths?: EditablePath[]
   setEditable(editable: boolean): void
   /** The ring became the one being edited (the user clicked it). */
   onSelect(listener: () => void): () => void
   /** A plain click or tap on a corner handle (not a drag). `additive` is true with Shift or Ctrl/Cmd held. */
-  onVertexClick(listener: (vertexIndex: number, additive: boolean) => void): () => void
-  /** Marks these corners as selected (an empty list clears the marks). */
-  setHighlights(indices: readonly number[]): void
+  onVertexClick(listener: (vertexIndex: number, additive: boolean, path?: number) => void): () => void
+  /** Marks these corners of one path as selected, and no others in the ring (an empty list clears every mark). */
+  setHighlights(indices: readonly number[], path?: number): void
   /** A corner handle was pressed (the start of a click or a drag). */
-  onVertexPress?(listener: (vertexIndex: number) => void): () => void
+  onVertexPress?(listener: (vertexIndex: number, path?: number) => void): () => void
   /**
    * While a corner handle is being dragged, where it is now. Google reports a vertex move only when it is
    * dropped, so without this nothing else (the selection's rings, the rest of a selected group) could follow.
    */
-  onVertexDragMove?(listener: (vertexIndex: number, point: GeoPoint) => void): () => void
+  onVertexDragMove?(listener: (vertexIndex: number, point: GeoPoint, path?: number) => void): () => void
   /** Right-click or long-press on a corner. `clientX`/`clientY` place a menu. */
-  onVertexMenu(listener: (vertexIndex: number, clientX: number, clientY: number) => void): () => void
-  /** specs/081: right-click or long-press on a corner of one of the ring's voids. */
-  onVoidMenu?(listener: (voidIndex: number, clientX: number, clientY: number) => void): () => void
+  onVertexMenu(listener: (vertexIndex: number, clientX: number, clientY: number, path?: number) => void): () => void
   remove(): void
 }
 
@@ -84,10 +86,10 @@ export interface EditablePolygonController {
    */
   setRings(rings: readonly (readonly GeoPoint[])[], activeRing: number, voids?: readonly (readonly (readonly GeoPoint[])[])[]): void
   setActiveRing(activeRing: number): void
-  /** Adds a corner midway between corner `index` and the next one, and selects it. Returns false when refused. */
-  insertCornerAfter(ring: number, index: number): boolean
-  /** Swaps a ring's corners for these ones after checking the result is a valid outline, as one undo step. Returns false when refused. */
-  replaceRing(ring: number, corners: readonly GeoPoint[]): boolean
+  /** Adds a corner midway between corner `index` and the next one, and selects it. Returns false when refused. `path` is 0 for the outer edge. */
+  insertCornerAfter(ring: number, index: number, path?: number): boolean
+  /** Swaps a path's corners for these ones after checking the result is valid, as one undo step. Returns false when refused. */
+  replaceRing(ring: number, corners: readonly GeoPoint[], path?: number): boolean
   /**
    * Swaps every ring for these, which may be a different number of them, after checking each is a valid
    * outline, as one undo step. The map is redrawn from them. Returns false when refused.
@@ -96,13 +98,13 @@ export interface EditablePolygonController {
   /** Fills a void back in (Remove void), as one undo step. Returns false when there is no such void. */
   removeVoid(ring: number, voidIndex: number): boolean
   /** Moves a corner by this many metres east and north (the arrow keys), after checking the result. Returns false when refused. */
-  moveCorner(ring: number, index: number, eastMeters: number, northMeters: number): boolean
+  moveCorner(ring: number, index: number, eastMeters: number, northMeters: number, path?: number): boolean
   /** Moves several corners together by this many metres, as one undo step. Returns false when refused. */
-  moveCorners(ring: number, indices: readonly number[], eastMeters: number, northMeters: number): boolean
-  /** Deletes several corners at once, as one undo step. Refused if fewer than 3 would remain or the outline would cross itself. */
-  deleteCorners(ring: number, indices: readonly number[]): boolean
+  moveCorners(ring: number, indices: readonly number[], eastMeters: number, northMeters: number, path?: number): boolean
+  /** Deletes several corners at once, as one undo step. Refused if fewer than 3 would remain or the shape would cross itself. */
+  deleteCorners(ring: number, indices: readonly number[], path?: number): boolean
   /** Deletes a corner after checking it (the menu, the Delete key). Returns false when refused. */
-  deleteCorner(ring: number, index: number): boolean
+  deleteCorner(ring: number, index: number, path?: number): boolean
   unmount(): void
 }
 
@@ -115,6 +117,9 @@ export interface ControllerOptions {
 }
 
 const same = (a: GeoPoint, b: GeoPoint) => a.latitude === b.latitude && a.longitude === b.longitude
+
+const MIN_OUTLINE_CORNERS = { message: 'An outline needs at least 3 corners.' }
+const MIN_VOID_CORNERS = { message: 'A void needs at least 3 corners. Use Remove void to fill it in.' }
 
 function pathToRing(path: EditablePath): GeoPoint[] {
   const corners: GeoPoint[] = []
@@ -155,6 +160,28 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     store().refuse(message)
   }
 
+  // ---- a ring's paths: 0 is the outer edge, k is void k - 1 ----
+
+  const cornersOf = (entry: Mounted, path: number): GeoPoint[] | undefined => (path === 0 ? entry.known : entry.voidKnown[path - 1])
+
+  const setCornersOf = (entry: Mounted, path: number, corners: GeoPoint[]) => {
+    if (path === 0) entry.known = corners
+    else entry.voidKnown[path - 1] = corners
+  }
+
+  const pathOf = (entry: Mounted, path: number): EditablePath | undefined => (path === 0 ? entry.ring.path : entry.ring.voidPaths?.[path - 1])
+
+  const pathCount = (entry: Mounted) => 1 + entry.voidKnown.length
+
+  /** The op fields naming the path: nothing for the outer edge, so those changes read as they always did. */
+  const onPath = (path: number) => (path === 0 ? {} : { path })
+
+  /** The path of the ring the selection is on, when it is this ring. */
+  const selectionPath = (ringIndex: number) => {
+    const session = store().session
+    return session && session.activeRing === ringIndex ? (session.activePath ?? 0) : -1
+  }
+
   /** specs/081: after the outer edge changes, every void must still lie inside it. */
   function voidsRefusal(outer: readonly GeoPoint[], entry: Mounted): Refusal | null {
     for (let k = 0; k < entry.voidKnown.length; k++) {
@@ -164,145 +191,109 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     return null
   }
 
-  /** specs/081: a void's corners are moved, added and deleted through Google's handles like the outer edge's. */
-  function listenVoid(ringIndex: number, voidIndex: number, entry: Mounted, path: EditablePath) {
-    const known = () => entry.voidKnown[voidIndex]
-    const voidsWith = (candidate: GeoPoint[]) => entry.voidKnown.map((v, k) => (k === voidIndex ? candidate : v))
+  /**
+   * Whether `candidate` is acceptable as path `path` of the ring: valid in itself (the whole ring when `index` is
+   * undefined, otherwise just around the corner that changed), and consistent with the rest of the ring - the
+   * voids still inside the outer edge, or the void still inside the outer edge and clear of the other voids.
+   */
+  function refusalFor(entry: Mounted, path: number, candidate: GeoPoint[], index?: number): Refusal | null {
+    const own = index === undefined ? validateRing(candidate) : validateChange(candidate, index)
+    if (own) return own
+    if (path === 0) return voidsRefusal(candidate, entry)
+    const voids = entry.voidKnown.map((v, k) => (k === path - 1 ? candidate : v))
+    return validateVoid(entry.known, voids, path - 1)
+  }
+
+  const tooFewMessage = (path: number) => (path === 0 ? MIN_OUTLINE_CORNERS : MIN_VOID_CORNERS)
+
+  /** Google reports a path's own edits; each is checked, then recorded or put back with a reason. */
+  function listenPath(ringIndex: number, path: number, entry: Mounted) {
+    const mvc = pathOf(entry, path)
+    if (!mvc) return
 
     entry.unsubscribe.push(
-      path.onSetAt((index) => {
+      mvc.onSetAt((index) => {
         if (writing) return
-        const before = known()[index]
-        const after = path.getAt(index)
+        const known = cornersOf(entry, path)!
+        const before = known[index]
+        const after = mvc.getAt(index)
         if (!before || same(before, after)) return
         lastDragAt = Date.now()
 
-        const candidate = pathToRing(path)
-        const refusal = validateChange(candidate, index) ?? validateVoid(entry.known, voidsWith(candidate), voidIndex)
+        // One of several selected corners was dragged: the others go the same way, as one change.
+        const group = selectionPath(ringIndex) === path ? store().session!.selectedCorners : []
+        if (group.length > 1 && group.includes(index)) {
+          const dLat = after.latitude - before.latitude
+          const dLng = after.longitude - before.longitude
+          const indices = group.filter((i) => i < known.length)
+          const moved = indices.map((i) =>
+            i === index ? after : { latitude: known[i].latitude + dLat, longitude: known[i].longitude + dLng },
+          )
+          const candidate = [...known]
+          indices.forEach((i, k) => (candidate[i] = moved[k]))
+
+          const refusal = refusalFor(entry, path, candidate)
+          if (refusal) {
+            withWriting(() => indices.forEach((i) => mvc.setAt(i, known[i])))
+            refuse(refusal.message)
+            return
+          }
+
+          const previous = indices.map((i) => known[i])
+          withWriting(() => indices.forEach((i, k) => i !== index && mvc.setAt(i, moved[k])))
+          setCornersOf(entry, path, candidate)
+          store().applyChange({ op: 'moveMany', ring: ringIndex, ...onPath(path), indices, before: previous, after: moved })
+          return
+        }
+
+        const refusal = refusalFor(entry, path, pathToRing(mvc), index)
         if (refusal) {
-          withWriting(() => path.setAt(index, before))
+          withWriting(() => mvc.setAt(index, before))
           refuse(refusal.message)
           return
         }
 
-        known()[index] = after
-        store().applyChange({ op: 'move', ring: ringIndex, path: voidIndex + 1, index, before, after })
+        known[index] = after
+        store().applyChange({ op: 'move', ring: ringIndex, ...onPath(path), index, before, after })
       }),
 
-      path.onInsertAt((index) => {
+      mvc.onInsertAt((index) => {
         if (writing) return
-        const after = path.getAt(index)
-        const candidate = pathToRing(path)
-        const refusal = validateChange(candidate, index) ?? validateVoid(entry.known, voidsWith(candidate), voidIndex)
+        const after = mvc.getAt(index)
+        const refusal = refusalFor(entry, path, pathToRing(mvc), index)
         if (refusal) {
-          withWriting(() => path.removeAt(index))
+          withWriting(() => mvc.removeAt(index))
           refuse(refusal.message)
           return
         }
 
-        known().splice(index, 0, after)
-        store().applyChange({ op: 'insert', ring: ringIndex, path: voidIndex + 1, index, after })
+        cornersOf(entry, path)!.splice(index, 0, after)
+        store().applyChange({ op: 'insert', ring: ringIndex, ...onPath(path), index, after })
       }),
 
-      path.onRemoveAt((index, removed) => {
+      mvc.onRemoveAt((index, removed) => {
         if (writing) return
-        const remaining = pathToRing(path)
+        const remaining = pathToRing(mvc)
+        // A deletion is checked at the corner before the removed one, where the new edge starts.
         const refusal = remaining.length < 3
-          ? { message: 'A void needs at least 3 corners. Use Remove void to fill it in.' }
-          : (validateChange(remaining, Math.max(0, index - 1)) ?? validateVoid(entry.known, voidsWith(remaining), voidIndex))
+          ? tooFewMessage(path)
+          : refusalFor(entry, path, remaining, Math.max(0, index - 1))
         if (refusal) {
-          withWriting(() => path.insertAt(index, removed))
+          withWriting(() => mvc.insertAt(index, removed))
           refuse(refusal.message)
           return
         }
 
-        known().splice(index, 1)
-        store().applyChange({ op: 'delete', ring: ringIndex, path: voidIndex + 1, index, before: removed })
+        cornersOf(entry, path)!.splice(index, 1)
+        store().applyChange({ op: 'delete', ring: ringIndex, ...onPath(path), index, before: removed })
       }),
     )
   }
 
   function listen(ringIndex: number, entry: Mounted) {
-    const { path } = entry.ring
-    entry.ring.voidPaths?.forEach((voidPath, voidIndex) => listenVoid(ringIndex, voidIndex, entry, voidPath))
+    for (let path = 0; path < pathCount(entry); path++) listenPath(ringIndex, path, entry)
 
     entry.unsubscribe.push(
-      path.onSetAt((index) => {
-        if (writing) return
-        const before = entry.known[index]
-        const after = path.getAt(index)
-        if (!before || same(before, after)) return
-        lastDragAt = Date.now()
-
-        // One of several selected corners was dragged: the others go the same way, as one change.
-        const session = store().session
-        const group = session && session.activeRing === ringIndex ? session.selectedCorners : []
-        if (group.length > 1 && group.includes(index)) {
-          const dLat = after.latitude - before.latitude
-          const dLng = after.longitude - before.longitude
-          const indices = group.filter((i) => i < entry.known.length)
-          const moved = indices.map((i) =>
-            i === index ? after : { latitude: entry.known[i].latitude + dLat, longitude: entry.known[i].longitude + dLng },
-          )
-          const candidate = [...entry.known]
-          indices.forEach((i, k) => (candidate[i] = moved[k]))
-
-          const refusal = validateRing(candidate) ?? voidsRefusal(candidate, entry)
-          if (refusal) {
-            withWriting(() => indices.forEach((i) => path.setAt(i, entry.known[i])))
-            refuse(refusal.message)
-            return
-          }
-
-          const previous = indices.map((i) => entry.known[i])
-          withWriting(() => indices.forEach((i, k) => i !== index && path.setAt(i, moved[k])))
-          entry.known = candidate
-          store().applyChange({ op: 'moveMany', ring: ringIndex, indices, before: previous, after: moved })
-          return
-        }
-
-        const refusal = validateChange(pathToRing(path), index) ?? voidsRefusal(pathToRing(path), entry)
-        if (refusal) {
-          withWriting(() => path.setAt(index, before))
-          refuse(refusal.message)
-          return
-        }
-
-        entry.known[index] = after
-        store().applyChange({ op: 'move', ring: ringIndex, index, before, after })
-      }),
-
-      path.onInsertAt((index) => {
-        if (writing) return
-        const after = path.getAt(index)
-        const refusal = validateChange(pathToRing(path), index) ?? voidsRefusal(pathToRing(path), entry)
-        if (refusal) {
-          withWriting(() => path.removeAt(index))
-          refuse(refusal.message)
-          return
-        }
-
-        entry.known.splice(index, 0, after)
-        store().applyChange({ op: 'insert', ring: ringIndex, index, after })
-      }),
-
-      path.onRemoveAt((index, removed) => {
-        if (writing) return
-        const remaining = pathToRing(path)
-        // A deletion is checked at the corner before the removed one, where the new edge starts.
-        const refusal = remaining.length < 3
-          ? { message: 'An outline needs at least 3 corners.' }
-          : (validateChange(remaining, Math.max(0, index - 1)) ?? voidsRefusal(remaining, entry))
-        if (refusal) {
-          withWriting(() => path.insertAt(index, removed))
-          refuse(refusal.message)
-          return
-        }
-
-        entry.known.splice(index, 1)
-        store().applyChange({ op: 'delete', ring: ringIndex, index, before: removed })
-      }),
-
       // A click on the ring away from its corners makes it the one being edited, and ends a selection.
       entry.ring.onSelect(() => {
         if (justDragged()) return
@@ -310,11 +301,11 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         else store().selectCorner(null)
       }),
 
-      entry.ring.onVertexClick((index, additive) => {
+      entry.ring.onVertexClick((index, additive, path = 0) => {
         if (justDragged()) return
-        const changedRing = store().session?.activeRing !== ringIndex
-        if (changedRing) store().setActiveRing(ringIndex)
-        if (additive && !changedRing) store().toggleCorner(index)
+        const moved = selectionPath(ringIndex) !== path
+        if (moved) store().activate(ringIndex, path)
+        if (additive && !moved) store().toggleCorner(index)
         // A click on any corner while several are selected ends that selection; dragging one keeps it.
         else if ((store().session?.selectedCorners.length ?? 0) > 1) store().selectCorner(null)
         else store().selectCorner(index)
@@ -325,10 +316,10 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       // dragged as a group; the click that follows, if it was not a drag, ends it.
       ...(entry.ring.onVertexPress
         ? [
-            entry.ring.onVertexPress((index) => {
+            entry.ring.onVertexPress((index, path = 0) => {
               const session = store().session
               if (!session) return
-              if (session.activeRing !== ringIndex) store().setActiveRing(ringIndex)
+              if (selectionPath(ringIndex) !== path) store().activate(ringIndex, path)
               else if (!session.selectedCorners.includes(index)) store().selectCorner(index)
             }),
           ]
@@ -339,35 +330,29 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       // positions before the drag.
       ...(entry.ring.onVertexDragMove
         ? [
-            entry.ring.onVertexDragMove((index, point) => {
-              const session = store().session
-              const group = session && session.activeRing === ringIndex ? session.selectedCorners : []
-              const origin = entry.known[index]
-              if (group.length < 2 || !group.includes(index) || !origin) return
+            entry.ring.onVertexDragMove((index, point, path = 0) => {
+              const group = selectionPath(ringIndex) === path ? store().session!.selectedCorners : []
+              const known = cornersOf(entry, path)
+              const mvc = pathOf(entry, path)
+              const origin = known?.[index]
+              if (!known || !mvc || group.length < 2 || !group.includes(index) || !origin) return
               const dLat = point.latitude - origin.latitude
               const dLng = point.longitude - origin.longitude
               withWriting(() =>
                 group
-                  .filter((i) => i !== index && i < entry.known.length)
-                  .forEach((i) =>
-                    path.setAt(i, { latitude: entry.known[i].latitude + dLat, longitude: entry.known[i].longitude + dLng }),
-                  ),
+                  .filter((i) => i !== index && i < known.length)
+                  .forEach((i) => mvc.setAt(i, { latitude: known[i].latitude + dLat, longitude: known[i].longitude + dLng })),
               )
             }),
           ]
         : []),
 
-      ...(entry.ring.onVoidMenu
-        ? [
-            entry.ring.onVoidMenu((voidIndex, clientX, clientY) => {
-              options.onVoidMenu?.({ ring: ringIndex, voidIndex, clientX, clientY })
-            }),
-          ]
-        : []),
-
-      entry.ring.onVertexMenu((index, clientX, clientY) => {
+      entry.ring.onVertexMenu((index, clientX, clientY, path = 0) => {
+        // The corner under the pointer becomes the selection, on whichever path it is.
+        if (selectionPath(ringIndex) !== path) store().activate(ringIndex, path)
         store().selectCorner(index)
-        options.onVertexMenu?.({ ring: ringIndex, index, clientX, clientY })
+        if (path === 0) options.onVertexMenu?.({ ring: ringIndex, index, clientX, clientY })
+        else options.onVoidMenu?.({ ring: ringIndex, voidIndex: path - 1, clientX, clientY })
       }),
     )
   }
@@ -400,7 +385,8 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     unsubscribeStore = useSiteBoundaryEditStore.subscribe((state, previous) => {
       if (
         state.session?.selectedCorners.join(',') !== previous.session?.selectedCorners.join(',') ||
-        state.session?.activeRing !== previous.session?.activeRing
+        state.session?.activeRing !== previous.session?.activeRing ||
+        state.session?.activePath !== previous.session?.activePath
       ) {
         syncHighlight()
       }
@@ -408,26 +394,30 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
     syncHighlight()
   }
 
-  /** Shows the store's selected corners on the active ring only; every other ring shows none. */
+  /** Shows the store's selected corners on the active path of the active ring only; every other path shows none. */
   function syncHighlight() {
-    const session = store().session
     mounted.forEach((entry, ringIndex) => {
-      const selected = session && session.activeRing === ringIndex ? session.selectedCorners : []
-      entry.ring.setHighlights(selected.filter((i) => i < entry.known.length))
+      const active = selectionPath(ringIndex)
+      const selected = active >= 0 ? store().session!.selectedCorners : []
+      for (let path = 0; path < pathCount(entry); path++) {
+        const known = cornersOf(entry, path)!
+        entry.ring.setHighlights(path === active ? selected.filter((i) => i < known.length) : [], path)
+      }
     })
   }
 
-  /** Rewrites a ring's path in place to `corners`, without reporting it as a user edit. */
-  function writePath(entry: Mounted, corners: readonly GeoPoint[]) {
+  /** Rewrites a path in place to `corners`, without reporting it as a user edit. */
+  function writePath(entry: Mounted, path: number, corners: readonly GeoPoint[]) {
+    const mvc = pathOf(entry, path)
+    if (!mvc) return
     withWriting(() => {
-      const { path } = entry.ring
-      while (path.getLength() > corners.length) path.removeAt(path.getLength() - 1)
+      while (mvc.getLength() > corners.length) mvc.removeAt(mvc.getLength() - 1)
       corners.forEach((corner, i) => {
-        if (i < path.getLength()) path.setAt(i, corner)
-        else path.insertAt(i, corner)
+        if (i < mvc.getLength()) mvc.setAt(i, corner)
+        else mvc.insertAt(i, corner)
       })
     })
-    entry.known = [...corners]
+    setCornersOf(entry, path, [...corners])
   }
 
   function clear() {
@@ -454,25 +444,9 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
         rings.length === mounted.length &&
         mounted.every((entry, i) => entry.voidKnown.length === (nextVoids[i]?.length ?? 0))
       if (sameShape) {
-        const rewrite = (path: EditablePath, corners: readonly GeoPoint[]) => {
-          while (path.getLength() > corners.length) path.removeAt(path.getLength() - 1)
-          corners.forEach((corner, i) => {
-            if (i < path.getLength()) path.setAt(i, corner)
-            else path.insertAt(i, corner)
-          })
-        }
-        withWriting(() => {
-          rings.forEach((corners, ringIndex) => {
-            const open = openRing(corners)
-            rewrite(mounted[ringIndex].ring.path, open)
-            mounted[ringIndex].known = [...open]
-            ;(nextVoids[ringIndex] ?? []).forEach((v, k) => {
-              const openVoid = openRing(v)
-              const voidPath = mounted[ringIndex].ring.voidPaths?.[k]
-              if (voidPath) rewrite(voidPath, openVoid)
-              mounted[ringIndex].voidKnown[k] = [...openVoid]
-            })
-          })
+        rings.forEach((corners, ringIndex) => {
+          writePath(mounted[ringIndex], 0, openRing(corners))
+          ;(nextVoids[ringIndex] ?? []).forEach((v, k) => writePath(mounted[ringIndex], k + 1, openRing(v)))
         })
         this.setActiveRing(activeRing)
         return
@@ -487,86 +461,93 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       syncHighlight()
     },
 
-    moveCorners(ringIndex, indices, eastMeters, northMeters) {
+    moveCorners(ringIndex, indices, eastMeters, northMeters, path = 0) {
       const entry = mounted[ringIndex]
-      const valid = [...new Set(indices)].filter((i) => i >= 0 && i < (entry?.known.length ?? 0))
-      if (!entry || valid.length === 0) return false
-      if (valid.length === 1) return this.moveCorner(ringIndex, valid[0], eastMeters, northMeters)
+      const known = entry && cornersOf(entry, path)
+      const mvc = entry && pathOf(entry, path)
+      const valid = [...new Set(indices)].filter((i) => i >= 0 && i < (known?.length ?? 0))
+      if (!entry || !known || !mvc || valid.length === 0) return false
+      if (valid.length === 1) return this.moveCorner(ringIndex, valid[0], eastMeters, northMeters, path)
 
-      const moved = valid.map((i) => fromLocalMeters([{ x: eastMeters, y: northMeters }], entry.known[i])[0])
-      const candidate = [...entry.known]
+      const moved = valid.map((i) => fromLocalMeters([{ x: eastMeters, y: northMeters }], known[i])[0])
+      const candidate = [...known]
       valid.forEach((i, k) => (candidate[i] = moved[k]))
-      const refusal = validateRing(candidate) ?? voidsRefusal(candidate, entry)
+      const refusal = refusalFor(entry, path, candidate)
       if (refusal) {
         refuse(refusal.message)
         return false
       }
 
-      const previous = valid.map((i) => entry.known[i])
-      withWriting(() => valid.forEach((i, k) => entry.ring.path.setAt(i, moved[k])))
-      entry.known = candidate
-      store().applyChange({ op: 'moveMany', ring: ringIndex, indices: valid, before: previous, after: moved })
+      const previous = valid.map((i) => known[i])
+      withWriting(() => valid.forEach((i, k) => mvc.setAt(i, moved[k])))
+      setCornersOf(entry, path, candidate)
+      store().applyChange({ op: 'moveMany', ring: ringIndex, ...onPath(path), indices: valid, before: previous, after: moved })
       return true
     },
 
-    moveCorner(ringIndex, index, eastMeters, northMeters) {
+    moveCorner(ringIndex, index, eastMeters, northMeters, path = 0) {
       const entry = mounted[ringIndex]
-      if (!entry || index < 0 || index >= entry.known.length) return false
+      const known = entry && cornersOf(entry, path)
+      const mvc = entry && pathOf(entry, path)
+      if (!entry || !known || !mvc || index < 0 || index >= known.length) return false
 
-      const before = entry.known[index]
+      const before = known[index]
       const [after] = fromLocalMeters([{ x: eastMeters, y: northMeters }], before)
-      const candidate = [...entry.known]
+      const candidate = [...known]
       candidate[index] = after
 
-      const refusal = validateChange(candidate, index) ?? voidsRefusal(candidate, entry)
+      const refusal = refusalFor(entry, path, candidate, index)
       if (refusal) {
         refuse(refusal.message)
         return false
       }
 
-      withWriting(() => entry.ring.path.setAt(index, after))
-      entry.known[index] = after
-      store().applyChange({ op: 'move', ring: ringIndex, index, before, after })
+      withWriting(() => mvc.setAt(index, after))
+      known[index] = after
+      store().applyChange({ op: 'move', ring: ringIndex, ...onPath(path), index, before, after })
       return true
     },
 
-    insertCornerAfter(ringIndex, index) {
+    insertCornerAfter(ringIndex, index, path = 0) {
       const entry = mounted[ringIndex]
-      if (!entry || index < 0 || index >= entry.known.length) return false
+      const known = entry && cornersOf(entry, path)
+      const mvc = entry && pathOf(entry, path)
+      if (!entry || !known || !mvc || index < 0 || index >= known.length) return false
 
-      const from = entry.known[index]
-      const to = entry.known[(index + 1) % entry.known.length]
+      const from = known[index]
+      const to = known[(index + 1) % known.length]
       const midpoint = { latitude: (from.latitude + to.latitude) / 2, longitude: (from.longitude + to.longitude) / 2 }
-      const candidate = [...entry.known]
+      const candidate = [...known]
       candidate.splice(index + 1, 0, midpoint)
 
-      const refusal = validateChange(candidate, index + 1) ?? voidsRefusal(candidate, entry)
+      const refusal = refusalFor(entry, path, candidate, index + 1)
       if (refusal) {
         refuse(refusal.message)
         return false
       }
 
-      withWriting(() => entry.ring.path.insertAt(index + 1, midpoint))
-      entry.known.splice(index + 1, 0, midpoint)
-      store().applyChange({ op: 'insert', ring: ringIndex, index: index + 1, after: midpoint })
+      withWriting(() => mvc.insertAt(index + 1, midpoint))
+      known.splice(index + 1, 0, midpoint)
+      store().applyChange({ op: 'insert', ring: ringIndex, ...onPath(path), index: index + 1, after: midpoint })
       store().selectCorner(index + 1)
       return true
     },
 
-    replaceRing(ringIndex, corners) {
+    replaceRing(ringIndex, corners, path = 0) {
       const entry = mounted[ringIndex]
-      if (!entry) return false
+      const known = entry && cornersOf(entry, path)
+      if (!entry || !known) return false
 
       const next = openRing(corners)
-      const refusal = next.length < 3 ? { message: 'An outline needs at least 3 corners.' } : (validateRing(next) ?? voidsRefusal(next, entry))
+      const refusal = next.length < 3 ? tooFewMessage(path) : refusalFor(entry, path, next)
       if (refusal) {
         refuse(refusal.message)
         return false
       }
 
-      const before = [...entry.known]
-      writePath(entry, next)
-      store().applyChange({ op: 'replace', ring: ringIndex, before, after: next })
+      const before = [...known]
+      writePath(entry, path, next)
+      store().applyChange({ op: 'replace', ring: ringIndex, ...onPath(path), before, after: next })
       return true
     },
 
@@ -574,9 +555,9 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       if (rings.length === 0) return false
 
       const next = rings.map((ring) => openRing(ring))
-      const nextVoids = next.map((_, i) => (voids?.[i] ?? []).map((v) => openRing(v)))
+      const nextVoids = windVoidsAgainst(next, voids ?? [])
       for (let i = 0; i < next.length; i++) {
-        const refusal = next[i].length < 3 ? { message: 'An outline needs at least 3 corners.' } : validateRing(next[i])
+        const refusal = next[i].length < 3 ? MIN_OUTLINE_CORNERS : validateRing(next[i])
         if (refusal) {
           refuse(rings.length > 1 ? `Ring ${i + 1}: ${refusal.message}` : refusal.message)
           return false
@@ -611,34 +592,35 @@ export function createEditablePolygonController(host: EditablePolygonHost, optio
       return true
     },
 
-    deleteCorners(ringIndex, indices) {
+    deleteCorners(ringIndex, indices, path = 0) {
       const entry = mounted[ringIndex]
-      if (!entry) return false
+      const known = entry && cornersOf(entry, path)
+      if (!entry || !known) return false
 
-      const doomed = new Set(indices.filter((i) => i >= 0 && i < entry.known.length))
+      const doomed = new Set(indices.filter((i) => i >= 0 && i < known.length))
       if (doomed.size === 0) return false
-      if (doomed.size === 1) return this.deleteCorner(ringIndex, [...doomed][0])
+      if (doomed.size === 1) return this.deleteCorner(ringIndex, [...doomed][0], path)
 
-      return this.replaceRing(ringIndex, entry.known.filter((_, i) => !doomed.has(i)))
+      return this.replaceRing(ringIndex, known.filter((_, i) => !doomed.has(i)), path)
     },
 
-    deleteCorner(ringIndex, index) {
+    deleteCorner(ringIndex, index, path = 0) {
       const entry = mounted[ringIndex]
-      if (!entry || index < 0 || index >= entry.known.length) return false
+      const known = entry && cornersOf(entry, path)
+      const mvc = entry && pathOf(entry, path)
+      if (!entry || !known || !mvc || index < 0 || index >= known.length) return false
 
-      const remaining = entry.known.filter((_, i) => i !== index)
-      const refusal = remaining.length < 3
-        ? { message: 'An outline needs at least 3 corners.' }
-        : (validateRing(remaining) ?? voidsRefusal(remaining, entry))
+      const remaining = known.filter((_, i) => i !== index)
+      const refusal = remaining.length < 3 ? tooFewMessage(path) : refusalFor(entry, path, remaining)
       if (refusal) {
         refuse(refusal.message)
         return false
       }
 
-      const removed = entry.known[index]
-      withWriting(() => entry.ring.path.removeAt(index))
-      entry.known.splice(index, 1)
-      store().applyChange({ op: 'delete', ring: ringIndex, index, before: removed })
+      const removed = known[index]
+      withWriting(() => mvc.removeAt(index))
+      known.splice(index, 1)
+      store().applyChange({ op: 'delete', ring: ringIndex, ...onPath(path), index, before: removed })
       return true
     },
 

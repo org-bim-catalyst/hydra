@@ -177,7 +177,7 @@
 
 **Independent test**: quickstart scenarios 5 and 6.
 
-- [ ] T033 [P] [US3] Tests:
+- [X] T033 [P] [US3] Tests:
   - `editablePolygonController.test.ts`: void corner move, insert and delete; refusals for crossing the edge, touching another void, self-crossing, and fewer than 3 corners; an outer-edge move that would cut through a void is refused; undo and redo of void edits.
   - `siteBoundaryEditStore.test.ts`: path-addressed changes; `removeVoid` and its undo.
   - `SiteBoundaryCornerNavigator.test.tsx`: Shift+[ and Shift+] cycle the outer edge and the voids, with the "void k of n" announcement.
@@ -189,7 +189,7 @@
   - `insertCornerAfter`, `moveCorner(s)` and `deleteCorner(s)` take a path. A click on a void corner sets `activePath`.
 
   Files: `googleEditablePolygonHost.ts`, `editablePolygonController.ts`. Depends on T020, T034.
-- [ ] T036 [US3] Paths everywhere a corner is addressed:
+- [X] T036 [US3] Paths everywhere a corner is addressed:
   - `C/features/viewer/components/SiteBoundaryCornerNavigator.tsx`: Shift+[ and Shift+] switch paths; Tab walks the active path; the arrow keys nudge.
   - `SiteBoundaryCornerMenu.tsx`: Remove void.
   - `SiteBoundaryBoxSelect.tsx`: corners of the active path only.

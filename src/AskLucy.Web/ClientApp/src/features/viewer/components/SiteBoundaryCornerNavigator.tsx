@@ -1,7 +1,17 @@
 import { Box } from '@mui/material'
 import { useEffect } from 'react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
-import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import {
+  activeCorners,
+  pathCountOf,
+  useSiteBoundaryEditStore,
+  type SiteBoundaryEditSession,
+} from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+
+/** Where the selection is, for the screen reader: the ring and, inside it, the outer edge or which void. */
+const where = (session: SiteBoundaryEditSession) =>
+  `ring ${session.activeRing + 1} of ${session.rings.length}` +
+  (session.activePath > 0 ? `, void ${session.activePath} of ${pathCountOf(session, session.activeRing) - 1}` : '')
 
 /** An arrow key moves the selected corner this far; with Shift, the larger step. */
 const STEP_METERS = 0.5
@@ -20,6 +30,8 @@ const visuallyHidden = {
 /** What the handler needs of a keyboard event, so React's and the window's both fit. */
 interface KeyLike {
   key: string
+  /** The physical key, which stays "BracketLeft" under Shift (where `key` becomes "{"). Absent from a synthetic event. */
+  code?: string
   shiftKey: boolean
   ctrlKey: boolean
   metaKey: boolean
@@ -57,7 +69,7 @@ function handleKey(event: KeyLike, wrap = false) {
   if (key === 'Tab') {
     const live = store().session
     const current = live?.selectedCorner ?? null
-    const liveRing = live?.rings[live.activeRing] ?? []
+    const liveRing = live ? activeCorners(live) : []
     const next = event.shiftKey ? (current ?? liveRing.length) - 1 : (current ?? -1) + 1
     if (liveRing.length === 0) return
     // In the region, past either end the focus simply leaves it. From the map there is no region to
@@ -77,6 +89,19 @@ function handleKey(event: KeyLike, wrap = false) {
   if (nudges[key]) {
     event.preventDefault()
     siteBoundaryEditActions.nudgeCorner(...nudges[key])
+    return
+  }
+
+  // specs/081: Shift+[ and Shift+] move between the outer edge and the voids of the ring being edited.
+  if (event.shiftKey && (event.code === 'BracketLeft' || event.code === 'BracketRight' || key === '{' || key === '}')) {
+    event.preventDefault()
+    const paths = pathCountOf(session, session.activeRing)
+    if (paths < 2) {
+      store().refuse('This ring has no voids, so there is nothing else to switch to.')
+      return
+    }
+    const forward = event.code === 'BracketRight' || key === '}'
+    store().setActivePath((session.activePath + (forward ? 1 : paths - 1)) % paths)
     return
   }
 
@@ -163,15 +188,15 @@ export function SiteBoundaryCornerNavigator() {
 
   if (!session) return null
 
-  const ring = session.rings[session.activeRing] ?? []
+  const ring = activeCorners(session)
   const selected = session.selectedCorner
   const store = () => useSiteBoundaryEditStore.getState()
 
   const announcement =
     selected !== null && ring[selected]
-      ? `Corner ${selected + 1} of ${ring.length}, ring ${session.activeRing + 1} of ${session.rings.length}, ` +
+      ? `Corner ${selected + 1} of ${ring.length}, ${where(session)}, ` +
         `${ring[selected].latitude.toFixed(5)} north, ${ring[selected].longitude.toFixed(5)} east`
-      : `Outline editor, ring ${session.activeRing + 1} of ${session.rings.length}, ${ring.length} corners. Press Tab to select a corner.`
+      : `Outline editor, ${where(session)}, ${ring.length} corners. Press Tab to select a corner.`
 
   return (
     <Box
