@@ -35,4 +35,20 @@ public sealed class NotificationPreferenceRepository(AskLucyDbContext dbContext)
                 g => (IReadOnlyList<PreferenceOverride>)[.. g.Select(r => new PreferenceOverride(r.Category, r.Channel, r.IsEnabled))],
                 StringComparer.Ordinal);
     }
+
+    public async Task<IReadOnlyList<NotificationPreference>> GetTrackedAsync(string userId, CancellationToken cancellationToken) =>
+        await dbContext.NotificationPreferences.Where(p => p.UserId == userId).ToListAsync(cancellationToken);
+
+    public void Add(NotificationPreference preference) => dbContext.NotificationPreferences.Add(preference);
+
+    public async Task DeleteAsync(
+        string userId, IReadOnlyCollection<(NotificationCategory Category, NotificationChannel Channel)> pairs, CancellationToken cancellationToken)
+    {
+        foreach (var (category, channel) in pairs)
+        {
+            await dbContext.NotificationPreferences
+                .Where(p => p.UserId == userId && p.Category == category && p.Channel == channel)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+    }
 }

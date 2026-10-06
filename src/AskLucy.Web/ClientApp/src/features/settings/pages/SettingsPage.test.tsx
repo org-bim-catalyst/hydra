@@ -96,6 +96,14 @@ describe('SettingsPage ?tab= deep link (specs/067-notifications-communication-hu
     expect(screen.getByRole('tab', { name: 'Security' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('opens the Notifications tab from ?tab=notifications, appended after the existing tabs', async () => {
+    renderSettingsAtPath('/settings?tab=notifications')
+    await screen.findByRole('heading', { name: 'Account settings' })
+
+    expect(screen.getByRole('tab', { name: 'Notifications' })).toHaveAttribute('aria-selected', 'true')
+    expect(SETTINGS_TAB_INDEX.Notifications).toBeGreaterThan(SETTINGS_TAB_INDEX.Profile)
+  })
+
   it('shows an inline message for an unknown tab name, without crashing', async () => {
     renderSettingsAtPath('/settings?tab=not-a-real-tab')
     await screen.findByRole('heading', { name: 'Account settings' })

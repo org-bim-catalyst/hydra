@@ -10,3 +10,13 @@ public sealed record MarkAllNotificationsReadRequest(NotificationCategory? Categ
 
 /// <summary>contracts/notifications-api.md `POST /notifications/actions/mark-all-read`.</summary>
 public sealed record MarkAllNotificationsReadResponse(int Updated);
+
+/// <summary>contracts/notifications-api.md `PUT /users/me/notification-preferences`.</summary>
+public sealed record UpdateNotificationPreferencesRequest(IReadOnlyList<NotificationPreferenceChangeRequest>? Changes);
+
+/// <param name="Frequency">Optional; only <c>Immediate</c> is accepted.</param>
+public sealed record NotificationPreferenceChangeRequest(
+    NotificationCategory Category,
+    NotificationChannel Channel,
+    bool Enabled,
+    DeliveryFrequency? Frequency = null);
