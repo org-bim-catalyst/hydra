@@ -361,7 +361,7 @@ public sealed class WorkflowExecutionOrchestrator(
 
                 if (executionNodeForThisIteration is null)
                 {
-                    var gate = await EvaluateApprovalGateAsync(execution, current, resolvedValues, cancellationToken);
+                    var gate = await EvaluateApprovalGateAsync(execution, workflowName, current, resolvedValues, cancellationToken);
                     if (gate.Paused)
                     {
                         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -559,7 +559,7 @@ public sealed class WorkflowExecutionOrchestrator(
     /// Never called for a node already resumed from a prior pause (its decision is already known).
     /// </summary>
     private async Task<ApprovalGateOutcome> EvaluateApprovalGateAsync(
-        WorkflowExecution execution, WorkflowNode node, Dictionary<string, WorkflowExpressionValue> resolvedValues, CancellationToken cancellationToken)
+        WorkflowExecution execution, string workflowName, WorkflowNode node, Dictionary<string, WorkflowExpressionValue> resolvedValues, CancellationToken cancellationToken)
     {
         var isHumanApprovalNode = node.NodeType == WorkflowNodeType.HumanApproval;
         var underlyingToolName = TryResolveUnderlyingToolName(node);
@@ -595,6 +595,23 @@ public sealed class WorkflowExecutionOrchestrator(
         {
             executionNode.WaitForApproval();
             var approval = execution.RequestApproval(executionNode.Id, intendedAction, parametersJson, node.TimeoutSeconds);
+
+            // US5: only the approver (the run's owner) is told. Staged with the save inside RecordAndNotifyAsync, so the
+            // approval and its notification commit together; the event key is per approval, so a repeated request collapses.
+            // This gate runs on the main path only: a Parallel branch never reaches it.
+            notificationPublisher.Publish(new NotificationRequest(
+                NotificationTypeKeys.WorkflowApprovalRequested,
+                new NotificationRecipient.User(execution.RunByUserId),
+                new Dictionary<string, string?>
+                {
+                    ["workflowName"] = workflowName,
+                    ["nodeName"] = node.NodeKey,
+                    ["intendedAction"] = intendedAction,
+                    ["approvalId"] = approval.Id.ToString(),
+                },
+                new RelatedItem("WorkflowExecution", execution.Id.ToString(), execution.WorkflowId.ToString()),
+                EventKey: $"workflow-approval:{approval.Id}:requested"));
+
             await RecordAndNotifyAsync(
                 execution, WorkflowExecutionEventType.ApprovalRequested, node.Id, "WaitingForApproval", null,
                 () => notifier.NotifyApprovalRequestedAsync(execution.RunByUserId, execution.Id, node.Id, approval.Id, intendedAction, DateTime.UtcNow, cancellationToken),

@@ -742,7 +742,7 @@ These apply to every task below, and each one assumes them:
   - Mark them `[Obsolete("Removed in the release after 067; forwards to the notification hub.")]`.
   - Note: `PasswordResetIssuanceJob` is at `src/AskLucy.Application/Authentication/PasswordReset/` (the task path was approximate). DI registrations are wrapped in `#pragma warning disable CS0618`.
 - [X] T134 [US9] Slice 2 gate: run the full backend and frontend suites, then quickstart S3 (the email half) and S5 against the local SMTP catcher.
-  - Backend: Domain 714 pass; Application 2492 pass; Infrastructure 868 run, 4 fail (full-text-search tests that need an FTS-enabled SQL Server; also fail on a clean HEAD, environmental); Persistence 111 run, 5 fail (same FTS cause; the local fixture needed an FTS-less patch, reverted); Web 843 pass, 0 fail, 1 gated skip. Delivery fault injection (1000 events) passes.
+  - Backend: Domain 714 pass; Application 2492 pass; Infrastructure 868 run, 4 fail (`TesseractOcrEngineTests` needs the Tesseract binary, and three `McpEndpointValidatorTests` IPv6 cases need IPv6; they fail the same way on a clean HEAD, environmental); Persistence 111 run, 5 fail (same FTS cause; the local fixture needed an FTS-less patch, reverted); Web 843 pass, 0 fail, 1 gated skip. Delivery fault injection (1000 events) passes.
   - Frontend: `tsc -b` and `eslint` clean; `vitest` 2445 pass.
   - Quickstart S3 (email half) and S5 run manually against the real app with a loopback SMTP catcher: pass. S1, S2, S4 and S6-S10 not run (no browser session in this environment).
   - Production config: the real `appsettings.Production.json` is gitignored and not in this checkout, so the `Notifications:Email:*` keys (`MaxPerMinute` 60, `ReservedPerMinuteForMandatory` 20, `SendTimeoutSeconds` 60) were added to `appsettings.Production.json.example`. They must be added by hand to the deployed file; confirm `MaxPerMinute` against the SMTP host plan.
@@ -785,7 +785,7 @@ These apply to every task below, and each one assumes them:
 - [X] T141 [US4] Add `NotificationPreferencesTab.tsx` in `ClientApp/src/features/settings/components/`. It shows a table of categories by channel with switches, locks the mandatory pairs with a tooltip, and shows the frequency as "Immediate" only. Register it as a new **appended** tab index in `ClientApp/src/features/settings/settingsTabs.ts` (never renumber the existing tabs), and add it to `SettingsPage.tsx` and the `?tab=notifications` deep link.
   - Note: the new tab is index 10 (Notifications), appended; ?tab=notifications opens it. A channel a category does not use shows an em dash with a screen-reader sentence. Switches are disabled while a save is in flight.
 - [X] T142 [US4] Run the full backend and frontend suites.
-  - Result: Domain 723, Application 2537 and Web 856 (1 gated skip) pass. Infrastructure 887 pass, 4 fail: the same full-text-search tests as the Slice 2 gate (environmental). Persistence was not run (this change adds no migration and no query the Persistence tests cover; they need a full-text-search SQL Server). Frontend: tsc and eslint clean, vitest 2492 pass.
+  - Result: Domain 723, Application 2537 and Web 856 (1 gated skip) pass. Infrastructure 887 pass, 4 fail: the same Tesseract and IPv6 tests as the Slice 2 gate (environmental). Persistence was not run (this change adds no migration and no query the Persistence tests cover; they need a full-text-search SQL Server). Frontend: tsc and eslint clean, vitest 2492 pass.
 
 **Checkpoint**: The preferences affect routing. Slice 3 also needs US5.
 
@@ -799,26 +799,33 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 5
 
-- [ ] T143 [P] [US5] `ApprovalNotificationTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/ApprovalNotificationTests.cs`:
+- [X] T143 [P] [US5] `ApprovalNotificationTests` in `tests/AskLucy.Application.Tests/Notifications/Emitters/ApprovalNotificationTests.cs`:
   - `RequestApproval` in both orchestrators publishes once to the execution owner, with `EventKey` `{agent|workflow}-approval:{approvalId}:requested`, the route with `?approval={approvalId}`, and the variables `intendedAction` and `nodeName`;
   - a repeated `RequestApproval` for the same approval doesn't duplicate.
-- [ ] T144 [P] [US5] `ApprovalNotificationAccessTests` in `tests/AskLucy.Web.Tests/Notifications/ApprovalNotificationAccessTests.cs`:
+  - Note: also covers the case where an administrator policy auto-approves the call: nobody is notified, because no person has to decide. The route test checks the template carries `?approval={approvalId}`.
+- [X] T144 [P] [US5] `ApprovalNotificationAccessTests` in `tests/AskLucy.Web.Tests/Notifications/ApprovalNotificationAccessTests.cs`:
   - signed-out access is 401;
   - another user gets 404 on the notification and on the execution or approval endpoints;
   - an approver whose rights were revoked gets 403 or 404 from the approval endpoint;
   - audit rows `ApprovalNotificationCreated`, `ApprovalNotificationDelivered` and `ApprovalNotificationRead` exist with the correlation id.
-- [ ] T145 [P] [US5] Frontend page tests for `?approval=` deep links. The agent and workflow execution pages open their `ApprovalDialog` for a pending approval, and show "already decided" for a decided one (`features/agents/components/ApprovalDialog.tsx`, `features/workflows/components/ApprovalDialog.tsx`).
+  - Deviation: the task's "approver whose rights were revoked" has no separate case. Approving is owner-only (the execution owner is the approver), so a former approver is simply another user and gets the same 404. Runs against the real DB with real seeded agent and workflow executions; the created, delivered and read audit rows are produced by the host's own dispatcher, delivery worker and the mark-read endpoint.
+- [X] T145 [P] [US5] Frontend page tests for `?approval=` deep links. The agent and workflow execution pages open their `ApprovalDialog` for a pending approval, and show "already decided" for a decided one (`features/agents/components/ApprovalDialog.tsx`, `features/workflows/components/ApprovalDialog.tsx`).
+  - Note: tests are per page (`AgentExecutionPage.approvalLink.test.tsx`, `WorkflowExecutionPage.approvalLink.test.tsx`). They also cover a link naming one of several pending approvals, and no parameter at all.
 
 ### Implementation for User Story 5
 
-- [ ] T146 [US5] Publish `agent.approval.requested` in `AgentExecutionOrchestrator.RequestApproval` (~L311) in `src/AskLucy.Application/Agents/Runtime/AgentExecutionOrchestrator.cs`, before the save that persists the approval.
-- [ ] T147 [US5] Publish `workflow.approval.requested` in `WorkflowExecutionOrchestrator.RequestApproval` (~L539/547) in `src/AskLucy.Application/Workflows/Runtime/WorkflowExecutionOrchestrator.cs`, before the save. Keep it out of Parallel-branch scopes.
-- [ ] T148 [US5] Add approval auditing through `INotificationAuditWriter`, for types ending in `.approval.requested` only:
+- [X] T146 [US5] Publish `agent.approval.requested` in `AgentExecutionOrchestrator.RequestApproval` (~L311) in `src/AskLucy.Application/Agents/Runtime/AgentExecutionOrchestrator.cs`, before the save that persists the approval.
+  - Note: published only when no administrator policy matches (a person has to decide). Variables `agentName`, `intendedAction` and `approvalId`; the related item is the execution, with the agent id as parent.
+- [X] T147 [US5] Publish `workflow.approval.requested` in `WorkflowExecutionOrchestrator.RequestApproval` (~L539/547) in `src/AskLucy.Application/Workflows/Runtime/WorkflowExecutionOrchestrator.cs`, before the save. Keep it out of Parallel-branch scopes.
+  - Note: `EvaluateApprovalGateAsync` gained a `workflowName` parameter. The gate is only reached from the main loop, never from a Parallel branch. `nodeName` is the node key.
+- [X] T148 [US5] Add approval auditing through `INotificationAuditWriter`, for types ending in `.approval.requested` only:
   - `OutboxDispatchService` writes created;
   - `DeliveryProcessingService` writes delivered, on email `Sent`;
   - `MarkNotificationRead` writes read.
-- [ ] T149 [P] [US5] Support `?approval={approvalId}` on the agent execution page (route `/agents/:agentId/executions/:executionId`) and the workflow execution page (route `/workflows/:workflowId/executions/:executionId`): open the existing `ApprovalDialog` for that approval, and show an inline message when it is decided or not found.
-- [ ] T150 [US5] Slice 3 gate: run the full backend and frontend suites, then quickstart S3 (the preferences half) and S4.
+  - Deviation: `INotificationAuditWriter.Write` gained an optional `correlationId`, so the rows written by the background dispatcher and delivery worker carry the notification's own correlation id rather than an ambient one. Created is written in `OutboxEventProcessor` (the task named `OutboxDispatchService`, which only schedules it), delivered in `DeliveryProcessor` when the email is handed over, read in `MarkNotificationReadCommandHandler` on the first read only. "Mark all as read" is a set-based update and writes no per-notification read row. Beyond the task: the route needs the approval id, which isn't part of the related item, so `{approvalId}` is a new route token filled from the event's variables (`INotificationLinkBuilder` gained an optional `variables` argument), and both approval types declare an `approvalId` variable. `data-model.md` is updated.
+- [X] T149 [P] [US5] Support `?approval={approvalId}` on the agent execution page (route `/agents/:agentId/executions/:executionId`) and the workflow execution page (route `/workflows/:workflowId/executions/:executionId`): open the existing `ApprovalDialog` for that approval, and show an inline message when it is decided or not found.
+  - Note: shared pieces are `resolveApprovalLink` and `ApprovalLinkNotice` in `features/notifications`. A decided or unknown approval shows an inline message; once the user decides in the dialog, the parameter is removed from the URL. The agent execution page had no approval dialog before (it was read-only history); it now opens one for a pending approval named by the link.
+- [X] T150 [US5] Slice 3 gate: run the full backend and frontend suites, then quickstart S3 (the preferences half) and S4.
 
 **Checkpoint**: Slice 3 (US4 + US5) is deployable.
 

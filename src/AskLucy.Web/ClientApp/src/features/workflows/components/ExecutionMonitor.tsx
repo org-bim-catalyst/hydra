@@ -1,6 +1,8 @@
 import { Alert, Box, Button, Chip, CircularProgress, List, ListItem, ListItemText, Stack, Typography } from '@mui/material'
 import { useMemo } from 'react'
 import type { WorkflowExecutionNode, WorkflowExecutionNodeStatus } from '../api/workflowExecutionsApi'
+import { ApprovalLinkNotice } from '../../notifications/components/ApprovalLinkNotice'
+import { resolveApprovalLink } from '../../notifications/utils/approvalLink'
 import { ApprovalDialog } from './ApprovalDialog'
 import {
   useCancelWorkflowExecution,
@@ -14,6 +16,9 @@ import { useWorkflowVersions } from '../hooks/useWorkflowVersions'
 interface ExecutionMonitorProps {
   executionId: string
   workflowId: string
+  /** From an approval notification's `?approval=` deep link: opens that approval, or says why it can't be. */
+  approvalId?: string | null
+  onApprovalLinkHandled?: () => void
 }
 
 const TERMINAL_STATUSES = new Set(['Completed', 'Failed', 'Cancelled', 'TimedOut'])
@@ -36,7 +41,7 @@ const NODE_STATUS_COLOR: Record<WorkflowExecutionNodeStatus, 'default' | 'info' 
  * reconciliation fallback if a live push is missed (constitution §2.VIII: `isLive: false` is
  * rendered as a visible "reconnecting" indicator, never a silent degradation).
  */
-export function ExecutionMonitor({ executionId, workflowId }: ExecutionMonitorProps) {
+export function ExecutionMonitor({ executionId, workflowId, approvalId = null, onApprovalLinkHandled }: ExecutionMonitorProps) {
   const { data: execution, isLoading, error } = useWorkflowExecution(executionId)
   const { isLive } = useWorkflowExecutionHub(executionId)
   const { data: versions } = useWorkflowVersions(workflowId)
@@ -58,10 +63,14 @@ export function ExecutionMonitor({ executionId, workflowId }: ExecutionMonitorPr
   }
 
   const isRunning = !TERMINAL_STATUSES.has(execution.status)
-  const pendingApproval = execution.status === 'WaitingForApproval' ? execution.approvals.find((a) => a.decision === 'Pending') : undefined
+  const approvalLink = resolveApprovalLink(execution.approvals, approvalId, (a) => a.decision === 'Pending')
+  const firstPending = execution.status === 'WaitingForApproval' ? execution.approvals.find((a) => a.decision === 'Pending') : undefined
+  // The approval the link names wins over any other pending one.
+  const pendingApproval = execution.status === 'WaitingForApproval' && approvalLink?.outcome === 'pending' ? approvalLink.approval : firstPending
 
   return (
     <Box>
+      {approvalLink && <ApprovalLinkNotice outcome={approvalLink.outcome} />}
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
         <Chip
           label={execution.status}
@@ -125,7 +134,7 @@ export function ExecutionMonitor({ executionId, workflowId }: ExecutionMonitorPr
         </List>
       )}
 
-      {pendingApproval && <ApprovalDialog executionId={execution.id} approval={pendingApproval} />}
+      {pendingApproval && <ApprovalDialog executionId={execution.id} approval={pendingApproval} onClosed={onApprovalLinkHandled} />}
     </Box>
   )
 }

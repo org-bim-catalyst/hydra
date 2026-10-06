@@ -13,6 +13,8 @@ public sealed partial class NotificationTypeCatalogTests
     [
         "/agents/{parentId}/executions/{id}",
         "/workflows/{parentId}/executions/{id}",
+        "/agents/{parentId}/executions/{id}?approval={approvalId}",
+        "/workflows/{parentId}/executions/{id}?approval={approvalId}",
         "/documents?documentId={id}",
         "/documents",
         "/knowledge-bases/{id}",

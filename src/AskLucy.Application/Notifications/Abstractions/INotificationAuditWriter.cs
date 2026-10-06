@@ -10,10 +10,15 @@ public interface INotificationAuditWriter
     /// <param name="targetId">The id of the thing acted on.</param>
     /// <param name="outcome">Whether the action succeeded.</param>
     /// <param name="details">Serialized to JSON; must carry no secrets or message bodies.</param>
+    /// <param name="correlationId">
+    /// The correlation id of the event the row is about, for work done in a background worker with no request of its own.
+    /// Omitted: the ambient request or job correlation id.
+    /// </param>
     void Write(
         NotificationAuditAction action,
         string targetType,
         string targetId,
         NotificationAuditOutcome outcome,
-        object? details = null);
+        object? details = null,
+        string? correlationId = null);
 }

@@ -51,7 +51,7 @@ public sealed class NotificationMaterializer(
         // Pre-generated so a route can point at the notification itself (announcements).
         var notificationId = Guid.CreateVersion7();
         var relatedItem = RelatedItemOf(outboxEvent);
-        var route = links.BuildRelative(definition, relatedItem, notificationId);
+        var route = links.BuildRelative(definition, relatedItem, notificationId, variables);
 
         var decisions = NotificationRouter.Route(
             definition,

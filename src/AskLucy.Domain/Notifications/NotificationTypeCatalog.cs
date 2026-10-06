@@ -12,6 +12,10 @@ public static class NotificationTypeCatalog
 {
     private const string AgentExecutionRoute = "/agents/{parentId}/executions/{id}";
     private const string WorkflowExecutionRoute = "/workflows/{parentId}/executions/{id}";
+
+    // An approval request opens the execution page on that approval's dialog (specs/067 US5).
+    private const string AgentApprovalRoute = AgentExecutionRoute + "?approval={approvalId}";
+    private const string WorkflowApprovalRoute = WorkflowExecutionRoute + "?approval={approvalId}";
     private const string DocumentRoute = "/documents?documentId={id}";
     private const string KnowledgeBaseRoute = "/knowledge-bases/{id}";
     private const string MemoryRoute = "/memory?memoryId={id}";
@@ -32,14 +36,14 @@ public static class NotificationTypeCatalog
             Optional(AgentExecutionStarted, NotificationCategory.Agent, NotificationPriority.Low, ChannelDefault.Off, AgentExecutionRoute, Var("agentName", "your agent")),
             Optional(AgentExecutionCompleted, NotificationCategory.Agent, NotificationPriority.Normal, ChannelDefault.Off, AgentExecutionRoute, Var("agentName", "your agent"), Var("duration", "a moment")),
             Optional(AgentExecutionFailed, NotificationCategory.Agent, NotificationPriority.High, ChannelDefault.On, AgentExecutionRoute, Var("agentName", "your agent"), Var("failureSummary", "an unexpected error")),
-            Optional(AgentApprovalRequested, NotificationCategory.Agent, NotificationPriority.High, ChannelDefault.On, AgentExecutionRoute, Var("agentName", "your agent"), Var("intendedAction", "an action")) with { IsApproval = true },
+            Optional(AgentApprovalRequested, NotificationCategory.Agent, NotificationPriority.High, ChannelDefault.On, AgentApprovalRoute, Var("agentName", "your agent"), Var("intendedAction", "an action"), Var("approvalId", string.Empty)) with { IsApproval = true },
 
             // Workflows
             Optional(WorkflowExecutionStarted, NotificationCategory.Workflow, NotificationPriority.Low, ChannelDefault.Off, WorkflowExecutionRoute, Var("workflowName", "your workflow")),
             Optional(WorkflowExecutionCompleted, NotificationCategory.Workflow, NotificationPriority.Normal, ChannelDefault.Off, WorkflowExecutionRoute, Var("workflowName", "your workflow"), Var("duration", "a moment")),
             Optional(WorkflowExecutionFailed, NotificationCategory.Workflow, NotificationPriority.High, ChannelDefault.On, WorkflowExecutionRoute, Var("workflowName", "your workflow"), Var("failureSummary", "an unexpected error")),
             Optional(WorkflowExecutionPaused, NotificationCategory.Workflow, NotificationPriority.Normal, ChannelDefault.Off, WorkflowExecutionRoute, Var("workflowName", "your workflow")),
-            Optional(WorkflowApprovalRequested, NotificationCategory.Workflow, NotificationPriority.High, ChannelDefault.On, WorkflowExecutionRoute, Var("workflowName", "your workflow"), Var("nodeName", "a step"), Var("intendedAction", "an action")) with { IsApproval = true },
+            Optional(WorkflowApprovalRequested, NotificationCategory.Workflow, NotificationPriority.High, ChannelDefault.On, WorkflowApprovalRoute, Var("workflowName", "your workflow"), Var("nodeName", "a step"), Var("intendedAction", "an action"), Var("approvalId", string.Empty)) with { IsApproval = true },
 
             // Documents
             Optional(DocumentUploadCompleted, NotificationCategory.Document, NotificationPriority.Normal, ChannelDefault.Off, DocumentRoute, Var("documentName", "your document")),

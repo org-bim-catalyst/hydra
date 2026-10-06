@@ -34,6 +34,7 @@ public sealed class DeliveryProcessingServiceTests : IDisposable
     private readonly IAccountLinkIssuer _linkIssuer = Substitute.For<IAccountLinkIssuer>();
     private readonly ISupportMailboxResolver _supportMailbox = Substitute.For<ISupportMailboxResolver>();
     private readonly INotificationMetrics _metrics = Substitute.For<INotificationMetrics>();
+    private readonly INotificationAuditWriter _audit = Substitute.For<INotificationAuditWriter>();
     private readonly IOperationalFailureRecorder _failureRecorder = Substitute.For<IOperationalFailureRecorder>();
     private readonly FakeLogger<DeliveryProcessor> _processorLogger = new();
     private readonly FakeLogger<DeliveryProcessingService> _serviceLogger = new();
@@ -44,7 +45,7 @@ public sealed class DeliveryProcessingServiceTests : IDisposable
         _store = new FakeDeliveryStore(_time);
         _accounts[UserId] = new NotificationRecipientInfo(UserId, "Layla", "layla@example.com", EmailConfirmed: true, IsActive: true);
         _languages.ResolveAsync(Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns("en");
-        _links.BuildAbsolute(Arg.Any<NotificationTypeDefinition>(), Arg.Any<RelatedItem?>(), Arg.Any<Guid>())
+        _links.BuildAbsolute(Arg.Any<NotificationTypeDefinition>(), Arg.Any<RelatedItem?>(), Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<string, string?>?>())
             .Returns("https://app.example.test/workflows/w1/executions/e1");
         _supportMailbox.GetAddress().Returns("support@example.test");
 
@@ -70,6 +71,7 @@ public sealed class DeliveryProcessingServiceTests : IDisposable
             .AddSingleton(_supportMailbox)
             .AddSingleton<INotificationChannelSender>(_sender)
             .AddSingleton(_metrics)
+            .AddSingleton(_audit)
             .AddSingleton(_failureRecorder)
             .AddSingleton<ILogger<DeliveryProcessor>>(_processorLogger)
             .AddSingleton<ILogger<DeliveryProcessingService>>(_serviceLogger)
@@ -122,6 +124,41 @@ public sealed class DeliveryProcessingServiceTests : IDisposable
         Service.ProcessBatchAsync(WorkerId, cancellationToken);
 
     // ---- the happy path ----
+
+    [Fact]
+    public async Task Sent_ApprovalRequestEmail_WritesOneDeliveredAuditRow_WithTheNotificationsCorrelationId()
+    {
+        var notification = Enqueue(type: NotificationTypeKeys.WorkflowApprovalRequested);
+        _sender.Script(ChannelSendResult.Sent("SMTP accepted", Guid.CreateVersion7(), "en"));
+
+        await RunBatchAsync();
+
+        _audit.Received(1).Write(
+            NotificationAuditAction.ApprovalNotificationDelivered, "Notification", notification.Id.ToString(),
+            NotificationAuditOutcome.Succeeded, Arg.Any<object?>(), "corr-1");
+    }
+
+    [Fact]
+    public async Task Sent_OrdinaryEmail_WritesNoApprovalAuditRow()
+    {
+        Enqueue();
+        _sender.Script(ChannelSendResult.Sent("SMTP accepted", Guid.CreateVersion7(), "en"));
+
+        await RunBatchAsync();
+
+        _audit.DidNotReceiveWithAnyArgs().Write(default, default!, default!, default, default, default);
+    }
+
+    [Fact]
+    public async Task Failed_ApprovalRequestEmail_WritesNoDeliveredAuditRow()
+    {
+        Enqueue(type: NotificationTypeKeys.WorkflowApprovalRequested);
+        _sender.Script(ChannelSendResult.Permanent(DeliveryFailureKind.Permanent, "The mail server permanently rejected the message (550).", "SMTP 550 5.1.1"));
+
+        await RunBatchAsync();
+
+        _audit.DidNotReceiveWithAnyArgs().Write(default, default!, default!, default, default, default);
+    }
 
     [Fact]
     public async Task Pending_DeliveryIsClaimedSentAndRecorded_WithTheTemplateVersionAndLanguageThatWereRendered()
@@ -499,7 +536,7 @@ public sealed class DeliveryProcessingServiceTests : IDisposable
         var stored = string.Join('|', delivery.ProviderResponse, delivery.FailureReason, delivery.RecipientAddress, delivery.CorrelationId);
         stored.Should().NotContain("S3CRET-TOKEN");
         _processorLogger.Collector.GetSnapshot().Select(r => r.Message).Should().NotContain(m => m.Contains("S3CRET-TOKEN"));
-        _links.DidNotReceive().BuildAbsolute(Arg.Any<NotificationTypeDefinition>(), Arg.Any<RelatedItem?>(), Arg.Any<Guid>());
+        _links.DidNotReceive().BuildAbsolute(Arg.Any<NotificationTypeDefinition>(), Arg.Any<RelatedItem?>(), Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<string, string?>?>());
     }
 
     [Fact]

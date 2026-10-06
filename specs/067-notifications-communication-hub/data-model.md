@@ -298,12 +298,12 @@ The definitions below are code-owned in `NotificationTypeCatalog`. Routes were r
 | `agent.execution.started` | Agent | Low | on | off | `agentName` | `/agents/{parentId}/executions/{id}` |
 | `agent.execution.completed` | Agent | Normal | on | off | `agentName`, `duration` | same |
 | `agent.execution.failed` | Agent | High | on | on | `agentName`, `failureSummary` | same |
-| `agent.approval.requested` | Agent | High | on | on | `agentName`, `intendedAction` | same (the execution page shows the pending approval) |
+| `agent.approval.requested` | Agent | High | on | on | `agentName`, `intendedAction`, `approvalId` | `/agents/{parentId}/executions/{id}?approval={approvalId}` (the execution page opens that approval) |
 | `workflow.execution.started` | Workflow | Low | on | off | `workflowName` | `/workflows/{parentId}/executions/{id}` |
 | `workflow.execution.completed` | Workflow | Normal | on | off | `workflowName`, `duration` | same |
 | `workflow.execution.failed` | Workflow | High | on | on | `workflowName`, `failureSummary` | same |
 | `workflow.execution.paused` | Workflow | Normal | on | off | `workflowName` | same |
-| `workflow.approval.requested` | Workflow | High | on | on | `workflowName`, `nodeName`, `intendedAction` | same (the execution page shows the pending approval) |
+| `workflow.approval.requested` | Workflow | High | on | on | `workflowName`, `nodeName`, `intendedAction`, `approvalId` | `/workflows/{parentId}/executions/{id}?approval={approvalId}` (the execution page opens that approval) |
 | `document.upload.completed` | Document | Normal | on | off | `documentName` | `/documents?documentId={id}` |
 | `document.processing.completed` | Document | Normal | on | off | `documentName` | same |
 | `document.processing.failed` | Document | High | on | on | `documentName`, `failureSummary` | same |

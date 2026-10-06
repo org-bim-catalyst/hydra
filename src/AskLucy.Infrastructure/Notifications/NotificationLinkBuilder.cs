@@ -18,7 +18,8 @@ public sealed partial class NotificationLinkBuilder(IOptions<AppOptions> appOpti
     [GeneratedRegex(@"\{(?<token>[a-zA-Z]+)\}", RegexOptions.CultureInvariant)]
     private static partial Regex TokenRegex();
 
-    public string? BuildRelative(NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId)
+    public string? BuildRelative(
+        NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId, IReadOnlyDictionary<string, string?>? variables = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (definition.RouteTemplate is not { } template)
@@ -35,6 +36,7 @@ public sealed partial class NotificationLinkBuilder(IOptions<AppOptions> appOpti
                 "id" => relatedItem?.Id,
                 "parentId" => relatedItem?.ParentId,
                 "notificationId" => notificationId.ToString(),
+                "approvalId" => variables is not null && variables.TryGetValue("approvalId", out var approvalId) ? approvalId : null,
                 _ => throw new InvalidOperationException($"Route template '{template}' of '{definition.Key}' uses unknown token '{{{token}}}'."),
             };
 
@@ -62,9 +64,10 @@ public sealed partial class NotificationLinkBuilder(IOptions<AppOptions> appOpti
         return route;
     }
 
-    public string? BuildAbsolute(NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId)
+    public string? BuildAbsolute(
+        NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId, IReadOnlyDictionary<string, string?>? variables = null)
     {
-        var route = BuildRelative(definition, relatedItem, notificationId);
+        var route = BuildRelative(definition, relatedItem, notificationId, variables);
         if (route is null || !IsAppRelative(route))
         {
             return route;
