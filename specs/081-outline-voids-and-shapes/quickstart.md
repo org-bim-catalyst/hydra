@@ -26,3 +26,6 @@
 | 10 | Reset | The voids are gone along with the hand edits |
 | 11 | A site saved before this feature | Opens and saves unchanged (SC-006) |
 | 12 | Keyboard: the shape dialog with Rectangle 20 × 10 m, Cut; then the polygon tool with Space, arrows and Enter | Both work without a mouse (SC-005) |
+| 13 | Edit ribbon: open the Circle group and choose Cut circle; then choose Corners, then Delete corner | The Circle button shows Cut circle and is highlighted, then loses its highlight but keeps the icon; 11 buttons in all (US6, SC-008) |
+| 14 | Reopen the editor | Each group shows the tool last chosen from it |
+| 15 | Keyboard on a group button: Down arrow, arrows, Enter, Escape | The menu opens, choosing works, and focus returns to the button |

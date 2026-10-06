@@ -8,7 +8,7 @@
 
 Spec 079 refuses any cut that would leave a hole. This feature lets each part of a hand-corrected outline carry **voids** (atriums, courtyards), and adds **rectangle, square and free-polygon** drawing tools next to the circle, each able to Add or Cut.
 
-Voids are stored as a list per part, alongside the existing outer edges. Nothing that already reads outer edges changes, and outlines saved before this feature need no rewrite. On the map, each part stays one native Google polygon, with its voids as inner paths, which Google draws as holes and lets the user edit. The server's geometry (NetTopologySuite) keeps the holes it currently refuses or drops, the area subtracts them, and building membership is unaffected. Shapes other than the circle are built on the client as polygons and sent to the existing combine endpoint, which now accepts a polygon as well as a circle.
+Voids are stored as a list per part, alongside the existing outer edges. Nothing that already reads outer edges changes, and outlines saved before this feature need no rewrite. On the map, each part stays one native Google polygon, with its voids as inner paths, which Google draws as holes and lets the user edit. The server's geometry (NetTopologySuite) keeps the holes it currently refuses or drops, the area subtracts them, and building membership is unaffected. The edit ribbon's tools are grouped Photoshop-style behind one button per group, each with a vertical sub-menu (User Story 6, research D11). Shapes other than the circle are built on the client as polygons and sent to the existing combine endpoint, which now accepts a polygon as well as a circle.
 
 ## Technical Context
 
@@ -83,7 +83,8 @@ src/AskLucy.Web/ClientApp/src/
 ├── viewer/siteBoundaryEdit/{siteBoundaryEditStore,ringGeometry,ringShapes,editablePolygonController,googleEditablePolygonHost,useSiteBoundaryEditMode,siteBoundaryEditActions}.ts
 ├── viewer/layers/gis/{GoogleMapsGisLayer,SiteBoundaryRenderer}.ts
 ├── features/viewer/components/{SiteBoundaryShapeDraw (was CircleDraw),SiteBoundaryPolygonDraw (new),SiteBoundaryShapeDialog,SiteBoundaryCornerNavigator,SiteBoundaryCornerMenu,SiteBoundaryBoxSelect,SiteBoundaryOverlay,SiteBoundaryEditHost}.tsx
-└── features/chat/{OutlineActionGroup.tsx,outlineToolIcons.tsx}
+├── features/chat/{OutlineActionGroup.tsx,outlineToolIcons.tsx,outlineToolGroupStore.ts (new: last tool per group)}
+└── components/workspace-shell/ExpandableActionGroup.tsx   # + group actions with a vertical sub-menu (research D11)
 ```
 
 **Structure Decision**: The existing layout. No new projects or folders: every change extends the spec 079 and 077 code where it already lives.

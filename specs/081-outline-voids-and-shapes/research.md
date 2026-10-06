@@ -71,6 +71,27 @@
 - **Decision**: `SiteBoundaryPayload` writes `voids`, `voidCount` and `voidAreaSquareMeters`. `ActiveSiteNote` adds "with N void(s), X m² excluded" when there are voids, and `edit_site_boundary` returns `voidCount`. The area figure is already the correction's stored area everywhere, so it automatically excludes voids.
 - **Rationale**: FR-012 and SC-007, with no new capability.
 
+## D11 - Grouped ribbon (Photoshop-style tool groups)
+
+- **Decision**: Extend the shared `ExpandableActionGroup` (components/workspace-shell) with an optional group
+  action: `{ id, label, tools, activeToolId, highlighted, onChooseTool }`.
+  - It renders as the ribbon's usual 40 px round button showing the current tool's icon, with a small corner
+    triangle.
+  - The sub-menu is an MUI `Popper` anchored below the button (it flips upwards when there is no room),
+    holding a vertical `MenuList` of icon-and-label rows. It uses `role="menu"`, and the button carries
+    `aria-haspopup` and `aria-expanded`.
+  - The click rule follows Photoshop: a click activates the shown tool; a click while that tool is active,
+    press-and-hold (400 ms), right-click, or the corner triangle opens the menu.
+  - Each group's last-chosen tool is kept in `localStorage`, keyed by ribbon and group id, by a small store in
+    the outline feature, not by the generic component.
+  - Whether a group is highlighted comes from the caller (the group holding the active edit tool), so the
+    component holds no state about which tool is in use.
+- **Rationale**: One reusable pattern for every ribbon (FR-027). Keeping state out of the shell component keeps
+  it generic and testable. Photoshop's model is familiar to the users, who are BIM and design professionals.
+- **Alternatives**:
+  - A click that always opens the menu. Rejected: it costs an extra click on the commonest repeat action.
+  - A separate secondary toolbar per group. Rejected: it takes the space this change exists to save.
+
 ## D10 - Keyboard and touch for shapes
 
 - **Decision**:

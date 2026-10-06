@@ -24,6 +24,11 @@ Vocabulary used below:
 - Q: Does a void only reduce the area, or must analyses also treat it as outside the site? → A: **It only reduces the area.** Voids are kept so they can be presented for accurate analysis later. Building membership is unchanged: a building belongs to the site when its outline is drawn within the same group of outlines (spec 077).
 - Q: Should a cut that splits a part into disconnected pieces be refused? → A: **No.** The pieces become separate parts, switched between with [ and ], as today.
 - Q: Which drawing shapes? → A: **Rectangle, square and free polygon**, alongside the existing circle.
+- (Added before implementation) The user asked for the edit ribbon's tools to be **grouped Photoshop-style**: tools
+  with similar functions share one ribbon button, whose vertical sub-menu opens from the ribbon. Choosing a
+  tool there makes that button show the chosen tool's icon, and the button stays highlighted while the tool is
+  in use. Examples given: add circle, cut circle and "convert ring to circle" in one group; add corner and
+  delete corner in another (User Story 6).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -116,6 +121,55 @@ When the user asks Lucy about the site after saving, Lucy's answers use the corr
 
 ---
 
+### User Story 6 - Grouped tools in the edit ribbon (Priority: P2)
+
+The edit ribbon has grown to more than fifteen buttons, and this feature adds eight more. Tools with similar
+functions are grouped, as in Photoshop's tool bar: one ribbon button stands for a group and shows the tool
+last chosen from it, with a small corner mark saying more tools are inside. Opening the group shows its tools
+in a vertical sub-menu that comes out of the ribbon. Choosing one activates it, and the group button takes that
+tool's icon and stays highlighted while it is in use.
+
+**Why this priority**: Without it the new tools still work, but the ribbon becomes too long to scan and no
+longer fits on smaller screens.
+
+**Independent Test**: Open the Circle group, choose Cut circle, and check that the group button now shows the
+Cut circle icon, is highlighted, and that a drag on the map cuts a circle. Then choose Corners → Delete corner
+and check that the Circle button is no longer highlighted but still shows Cut circle.
+
+**Acceptance Scenarios**:
+
+1. **Given** the edit ribbon, **When** it is shown, **Then** it holds these groups, in this order, followed by
+   the single buttons:
+   - **Edit**: Edit corners, Select corners.
+   - **Corners**: Add corner, Delete corner, Round corner, Remove void.
+   - **Curves**: Curve edge, Draw arc.
+   - **Circle**: Add circle, Cut circle, Make part a circle.
+   - **Rectangle**: Add rectangle, Cut rectangle, Add square, Cut square.
+   - **Polygon**: Add polygon, Cut polygon.
+   - Single buttons: Undo, Redo, Cancel, Reset, Done.
+2. **Given** a group button, **When** the user clicks it while its shown tool is not in use, **Then** that tool
+   is activated straight away, with no menu.
+3. **Given** a group button, **When** the user clicks it while its tool is already in use, presses and holds
+   it, right-clicks it, or clicks its corner mark, **Then** the group's vertical sub-menu opens from the
+   ribbon, listing each tool with its icon and name.
+4. **Given** the sub-menu is open, **When** the user chooses a tool, **Then** the menu closes, the tool is
+   activated, the group button shows that tool's icon and is highlighted, and every other group's highlight
+   goes off.
+5. **Given** a one-off action in a group (Make part a circle, Round corner, Remove void, Delete corner),
+   **When** it is chosen, **Then** it runs (or opens its dialog), and the group button shows it so it can be
+   repeated with one click.
+6. **Given** a tool that can't be used right now (for example Remove void with no void selected), **When** the
+   sub-menu is open, **Then** it is shown disabled, with the reason, as disabled buttons are today.
+7. **Given** the user reopens the editor later, **When** the ribbon appears, **Then** each group shows the tool
+   last chosen from it.
+8. **Given** the keyboard, **When** focus is on a group button, **Then** Enter or Space activates its shown
+   tool, Down arrow opens the sub-menu, the arrow keys move within it, Enter chooses, and Escape closes it and
+   returns focus to the group button.
+9. **Given** a small screen, **When** a sub-menu opens, **Then** it stays fully on screen, opening upwards if
+   there is no room below.
+
+---
+
 ### Edge Cases
 
 - **A cut that covers a whole void and more**: the void merges into the cut. If the result still lies fully inside the part, it is one larger void; if it reaches the edge, it is a bite.
@@ -163,6 +217,23 @@ When the user asks Lucy about the site after saving, Lucy's answers use the corr
 - **FR-020**: Every shape MUST be possible without a mouse. Rectangle and square MUST accept typed sizes. The free polygon MUST accept corners placed by tapping, or from the keyboard.
 - **FR-021**: The tools MUST explain what they do while active, as the existing tools' hint lines do.
 
+**Grouped ribbon**
+
+- **FR-022**: The edit ribbon MUST group related tools behind one button per group (the groups in User Story 6),
+  each showing the tool last chosen from it and a corner mark indicating it holds more tools.
+- **FR-023**: A group's tools MUST open in a vertical sub-menu emerging from the ribbon at that button. It
+  opens by clicking the button while its tool is active, by press-and-hold, by right-click, or by its corner
+  mark.
+- **FR-024**: Choosing a tool from a sub-menu MUST activate it, set the group button's icon to that tool, and
+  keep the button highlighted while the tool is in use. Only the group holding the active tool is highlighted.
+- **FR-025**: Each group's last-chosen tool MUST be remembered for the user on that browser, across editor
+  sessions.
+- **FR-026**: Groups and sub-menus MUST be fully usable by keyboard (Enter/Space, Down arrow to open, arrow
+  keys, Escape) and by touch (press-and-hold), MUST name every tool for assistive technology, and MUST show
+  disabled tools with their reason.
+- **FR-027**: The grouping MUST be a reusable part of the workspace ribbon, not specific to the outline editor,
+  so other ribbons (Layers, Analysis) can group their buttons the same way later.
+
 ### Key Entities
 
 - **Outline correction** (from spec 079): the user's hand-corrected outline for a site. Each part now holds its outer edge and zero or more voids, and the stored area excludes the voids.
@@ -181,6 +252,8 @@ When the user asks Lucy about the site after saving, Lucy's answers use the corr
 - **SC-005**: Every new shape can be drawn, applied and undone with the mouse, and with the keyboard or touch alone.
 - **SC-006**: 100% of outlines saved before this feature open and save unchanged.
 - **SC-007**: Lucy's reported site area matches the editor's area, with voids excluded, every time.
+- **SC-008**: The edit ribbon shows 11 buttons (6 groups plus 5 single actions) instead of 23, and any tool is
+  reachable in at most two clicks.
 
 ## Assumptions
 
