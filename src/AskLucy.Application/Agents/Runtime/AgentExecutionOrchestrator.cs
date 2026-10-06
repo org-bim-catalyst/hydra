@@ -334,6 +334,21 @@ public sealed class AgentExecutionOrchestrator(
 
                             if (matchedPolicy is null)
                             {
+                                // US5: only the approver (the run's owner) is told, and only when a person has to decide.
+                                // Staged with the save below, so the approval and its notification commit together; the
+                                // event key is per approval, so a repeated request for it collapses.
+                                notificationPublisher.Publish(new NotificationRequest(
+                                    NotificationTypeKeys.AgentApprovalRequested,
+                                    new NotificationRecipient.User(execution.RunByUserId),
+                                    new Dictionary<string, string?>
+                                    {
+                                        ["agentName"] = agentName,
+                                        ["intendedAction"] = approval.IntendedActionDescription,
+                                        ["approvalId"] = approval.Id.ToString(),
+                                    },
+                                    new RelatedItem("AgentExecution", execution.Id.ToString(), execution.AgentId.ToString()),
+                                    EventKey: $"agent-approval:{approval.Id}:requested"));
+
                                 step.WaitForApproval();
                                 await unitOfWork.SaveChangesAsync(cancellationToken);
                                 await RecordAndNotifyAsync(

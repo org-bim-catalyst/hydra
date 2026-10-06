@@ -33,6 +33,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
     private readonly FakeRealtime _realtime;
     private readonly INotificationAccessCheck _documentAccess = Substitute.For<INotificationAccessCheck>();
     private readonly IOperationalFailureRecorder _failureRecorder = Substitute.For<IOperationalFailureRecorder>();
+    private readonly INotificationAuditWriter _audit = Substitute.For<INotificationAuditWriter>();
     private readonly FakeLogger<OutboxDispatchService> _dispatchLogger = new();
     private readonly FakeLogger<OutboxEventProcessor> _processorLogger = new();
     private readonly FakeLogger<NotificationMaterializer> _materializerLogger = new();
@@ -52,7 +53,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         var languages = Substitute.For<IEffectiveLanguageResolver>();
         languages.ResolveAsync(Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns("en");
         var links = Substitute.For<INotificationLinkBuilder>();
-        links.BuildRelative(Arg.Any<NotificationTypeDefinition>(), Arg.Any<RelatedItem?>(), Arg.Any<Guid>()).Returns("/documents?documentId=doc-1");
+        links.BuildRelative(Arg.Any<NotificationTypeDefinition>(), Arg.Any<RelatedItem?>(), Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<string, string?>?>()).Returns("/documents?documentId=doc-1");
         var preferences = Substitute.For<INotificationPreferenceRepository>();
         preferences.GetOverridesForUsersAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, IReadOnlyList<PreferenceOverride>>());
@@ -74,6 +75,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
             .AddSingleton(links)
             .AddSingleton<INotificationRealtimePublisher>(_realtime)
             .AddSingleton(_failureRecorder)
+            .AddSingleton(_audit)
             .AddSingleton(Substitute.For<INotificationMetrics>())
             .AddSingleton<ILogger<OutboxDispatchService>>(_dispatchLogger)
             .AddSingleton<ILogger<OutboxEventProcessor>>(_processorLogger)
@@ -131,6 +133,29 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         notification.SourceEventId.Should().Be(ev);
         notification.Deliveries.Should().ContainSingle(d => d.Channel == NotificationChannel.InApp && d.Status == DeliveryStatus.Delivered);
         notification.Deliveries.Should().ContainSingle(d => d.Channel == NotificationChannel.Email && d.Status == DeliveryStatus.Pending);
+    }
+
+    [Fact]
+    public async Task Event_ForAnApprovalRequest_WritesOneCreatedAuditRow_WithTheEventsCorrelationId()
+    {
+        Enqueue(type: NotificationTypeKeys.WorkflowApprovalRequested);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        var notification = _db.Committed.Should().ContainSingle().Subject;
+        _audit.Received(1).Write(
+            NotificationAuditAction.ApprovalNotificationCreated, "Notification", notification.Id.ToString(),
+            NotificationAuditOutcome.Succeeded, Arg.Any<object?>(), "corr-1");
+    }
+
+    [Fact]
+    public async Task Event_ForAnOrdinaryNotification_WritesNoApprovalAuditRow()
+    {
+        Enqueue();
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        _audit.DidNotReceiveWithAnyArgs().Write(default, default!, default!, default, default, default);
     }
 
     [Fact]

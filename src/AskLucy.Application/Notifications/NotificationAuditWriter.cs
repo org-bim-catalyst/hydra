@@ -19,7 +19,8 @@ public sealed class NotificationAuditWriter(
         string targetType,
         string targetId,
         NotificationAuditOutcome outcome,
-        object? details = null)
+        object? details = null,
+        string? correlationId = null)
     {
         var entry = NotificationAuditLog.Record(
             action,
@@ -29,7 +30,7 @@ public sealed class NotificationAuditWriter(
             outcome,
             timeProvider.GetUtcNow().UtcDateTime,
             details is null ? null : JsonSerializer.Serialize(details, DetailsJson),
-            correlation.Current);
+            correlationId ?? correlation.Current);
 
         auditLogs.Add(entry);
     }

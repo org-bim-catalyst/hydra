@@ -1,7 +1,10 @@
 import { Alert, Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
+import { ApprovalLinkNotice } from '../../notifications/components/ApprovalLinkNotice'
+import { resolveApprovalLink } from '../../notifications/utils/approvalLink'
+import { ApprovalDialog } from '../components/ApprovalDialog'
 import { ExecutionTimeline } from '../components/ExecutionTimeline'
 import * as agentExecutionsApi from '../api/agentExecutionsApi'
 import { useAgentExecution } from '../hooks/useAgentExecution'
@@ -15,6 +18,8 @@ import { useAgentExecution } from '../hooks/useAgentExecution'
  */
 export function AgentExecutionPage() {
   const { executionId } = useParams<{ agentId: string; executionId: string }>()
+  // specs/067 US5 — an approval notification links here with ?approval={id}.
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: execution, isLoading, error } = useAgentExecution(executionId ?? null)
   const { data: toolCalls } = useQuery({
     queryKey: ['agent-executions', executionId, 'tool-calls'],
@@ -43,11 +48,25 @@ export function AgentExecutionPage() {
     )
   }
 
+  const approvalLink = resolveApprovalLink(execution.approvals, searchParams.get('approval'), (a) => a.decision === 'Pending')
+  const clearApprovalLink = () =>
+    setSearchParams(
+      (params) => {
+        params.delete('approval')
+        return params
+      },
+      { replace: true },
+    )
+
   const citations = execution.finalOutputJson ? (JSON.parse(execution.finalOutputJson).citations ?? []) : []
 
   return (
     <AppShell title="Execution history" subtitle={execution.objective}>
       <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto' }}>
+        {approvalLink && <ApprovalLinkNotice outcome={approvalLink.outcome} />}
+        {approvalLink?.outcome === 'pending' && approvalLink.approval && (
+          <ApprovalDialog executionId={execution.id} approval={approvalLink.approval} onClosed={clearApprovalLink} />
+        )}
         <Paper sx={{ p: 3 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
             <Chip label={execution.status} color={execution.status === 'Completed' ? 'success' : execution.status === 'Failed' ? 'error' : 'default'} size="small" />

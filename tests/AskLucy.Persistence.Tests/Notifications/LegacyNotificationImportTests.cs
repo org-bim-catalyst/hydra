@@ -136,10 +136,10 @@ public sealed class LegacyNotificationImportTests(PersistenceTestFixture fixture
     /// <summary>Deterministic stand-in for the real, Infrastructure-only <see cref="INotificationLinkBuilder"/>.</summary>
     private sealed class FakeLinkBuilder : INotificationLinkBuilder
     {
-        public string? BuildRelative(NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId) =>
+        public string? BuildRelative(NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId, IReadOnlyDictionary<string, string?>? variables = null) =>
             definition.RouteTemplate?.Replace("{id}", relatedItem?.Id, StringComparison.Ordinal);
 
-        public string? BuildAbsolute(NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId) =>
+        public string? BuildAbsolute(NotificationTypeDefinition definition, RelatedItem? relatedItem, Guid notificationId, IReadOnlyDictionary<string, string?>? variables = null) =>
             BuildRelative(definition, relatedItem, notificationId);
     }
 }

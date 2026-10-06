@@ -44,6 +44,7 @@ public sealed class DeliveryProcessor(
     IEnumerable<INotificationChannelSender> senders,
     INotificationMetrics metrics,
     IOperationalFailureRecorder failureRecorder,
+    INotificationAuditWriter audit,
     IUnitOfWork unitOfWork,
     IOptions<NotificationsOptions> options,
     TimeProvider timeProvider,
@@ -232,6 +233,20 @@ public sealed class DeliveryProcessor(
                 }
 
                 metrics.DeliverySent(delivery.Channel, now - delivery.CreatedAtUtc);
+
+                // FR-054: an approval request's email being handed to the provider is part of its audit trail. It is
+                // saved with the delivery's own result below, so the two can't disagree.
+                if (definition.IsApproval && delivery.Channel == NotificationChannel.Email)
+                {
+                    audit.Write(
+                        NotificationAuditAction.ApprovalNotificationDelivered,
+                        nameof(Notification),
+                        notification.Id.ToString(),
+                        NotificationAuditOutcome.Succeeded,
+                        new { type = definition.Key, channel = delivery.Channel.ToString() },
+                        notification.CorrelationId);
+                }
+
                 break;
 
             case ChannelSendOutcome.Deferred:
@@ -403,7 +418,7 @@ public sealed class DeliveryProcessor(
         var relatedItem = notification is { RelatedItemType: { } type, RelatedItemId: { } id }
             ? new RelatedItem(type, id, outboxEvent?.RelatedItemParentId)
             : null;
-        return links.BuildAbsolute(definition, relatedItem, notification.Id);
+        return links.BuildAbsolute(definition, relatedItem, notification.Id, DeclaredVariablesOf(outboxEvent));
     }
 
     private static Dictionary<string, string?> DeclaredVariablesOf(NotificationOutboxEvent? outboxEvent) =>

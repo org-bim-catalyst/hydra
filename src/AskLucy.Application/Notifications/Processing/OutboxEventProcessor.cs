@@ -20,6 +20,7 @@ public sealed class OutboxEventProcessor(
     NotificationMaterializer materializer,
     NotificationCreatedPusher pusher,
     INotificationMetrics metrics,
+    INotificationAuditWriter audit,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     ILogger<OutboxEventProcessor> logger)
@@ -66,6 +67,18 @@ public sealed class OutboxEventProcessor(
         foreach (var notification in result.Created)
         {
             notifications.Add(notification);
+
+            // FR-054: who was told about an approval request, and when. Saved with the notification itself.
+            if (definition.IsApproval)
+            {
+                audit.Write(
+                    NotificationAuditAction.ApprovalNotificationCreated,
+                    nameof(Notification),
+                    notification.Id.ToString(),
+                    NotificationAuditOutcome.Succeeded,
+                    new { type = definition.Key, recipientUserId = notification.RecipientUserId },
+                    notification.CorrelationId);
+            }
         }
 
         outboxEvent.Complete(result.Outcome, Now());

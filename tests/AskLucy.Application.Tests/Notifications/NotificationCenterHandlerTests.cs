@@ -23,6 +23,7 @@ public sealed class NotificationCenterHandlerTests
 
     private readonly INotificationRepository _repository = Substitute.For<INotificationRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly INotificationAuditWriter _audit = Substitute.For<INotificationAuditWriter>();
     private readonly INotificationRealtimePublisher _realtime = Substitute.For<INotificationRealtimePublisher>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
     private readonly FakeTimeProvider _timeProvider = new(Now);
@@ -51,7 +52,7 @@ public sealed class NotificationCenterHandlerTests
         _repository.GetByIdAsync(notification.Id, Arg.Any<CancellationToken>()).Returns(notification);
         _repository.CountUnreadAsync(UserId, Arg.Any<CancellationToken>()).Returns(4);
         var handler = new MarkNotificationReadCommandHandler(
-            _repository, _unitOfWork, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
+            _repository, _unitOfWork, _audit, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
 
         await handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
 
@@ -61,13 +62,46 @@ public sealed class NotificationCenterHandlerTests
     }
 
     [Fact]
+    public async Task MarkRead_OnAnUnreadApprovalRequest_WritesOneReadAuditRow_WithTheNotificationsCorrelationId()
+    {
+        var notification = Notification.Create(
+            UserId, NotificationTypeCatalog.Get(NotificationTypeKeys.WorkflowApprovalRequested), NotificationPriority.High,
+            "Approval needed", "Message", "en", "corr-approval", Now.UtcDateTime, showInCenter: true);
+        notification.AddDelivery(NotificationDelivery.CreateDelivered(
+            NotificationChannel.InApp, NotificationPriority.High, "en", null, "corr-approval", Now.UtcDateTime));
+        _repository.GetByIdAsync(notification.Id, Arg.Any<CancellationToken>()).Returns(notification);
+        var handler = new MarkNotificationReadCommandHandler(
+            _repository, _unitOfWork, _audit, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
+
+        await handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
+        await handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
+
+        _audit.Received(1).Write(
+            NotificationAuditAction.ApprovalNotificationRead, "Notification", notification.Id.ToString(),
+            NotificationAuditOutcome.Succeeded, Arg.Any<object?>(), "corr-approval");
+    }
+
+    [Fact]
+    public async Task MarkRead_OnAnOrdinaryNotification_WritesNoAuditRow()
+    {
+        var notification = UnreadNotification();
+        _repository.GetByIdAsync(notification.Id, Arg.Any<CancellationToken>()).Returns(notification);
+        var handler = new MarkNotificationReadCommandHandler(
+            _repository, _unitOfWork, _audit, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
+
+        await handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
+
+        _audit.DidNotReceiveWithAnyArgs().Write(default, default!, default!, default, default, default);
+    }
+
+    [Fact]
     public async Task MarkRead_CalledTwice_IsIdempotent_AndOnlyPushesOnce()
     {
         var notification = UnreadNotification();
         _repository.GetByIdAsync(notification.Id, Arg.Any<CancellationToken>()).Returns(notification);
         _repository.CountUnreadAsync(UserId, Arg.Any<CancellationToken>()).Returns(4);
         var handler = new MarkNotificationReadCommandHandler(
-            _repository, _unitOfWork, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
+            _repository, _unitOfWork, _audit, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
 
         await handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
         await handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
@@ -86,7 +120,7 @@ public sealed class NotificationCenterHandlerTests
         _realtime.NotificationUpdatedAsync(UserId, notification.Id, NotificationChange.Read, 4, Arg.Any<CancellationToken>())
             .Returns<Task>(_ => throw new InvalidOperationException("hub unreachable"));
         var handler = new MarkNotificationReadCommandHandler(
-            _repository, _unitOfWork, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
+            _repository, _unitOfWork, _audit, _realtime, _currentUser, _timeProvider, NullLogger<MarkNotificationReadCommandHandler>.Instance);
 
         var act = () => handler.Handle(new MarkNotificationReadCommand(notification.Id), TestContext.Current.CancellationToken);
 

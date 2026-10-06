@@ -95,4 +95,40 @@ public sealed class NotificationLinkBuilderTests
 
         route.Should().Be($"/knowledge-bases/{knowledgeBaseId}");
     }
+
+    /// <summary>specs/067 US5 — an approval request opens its own approval dialog, so the route carries the approval id.</summary>
+    [Fact]
+    public void BuildRelative_ShouldFillTheApprovalIdToken_FromTheEventsVariables_UrlEncoded()
+    {
+        var approval = NotificationTypeCatalog.Get(NotificationTypeKeys.WorkflowApprovalRequested);
+        var sut = CreateSut();
+        var variables = new Dictionary<string, string?> { ["approvalId"] = "a b" };
+
+        var route = sut.BuildRelative(approval, new RelatedItem("WorkflowExecution", "exec-1", "wf-1"), Guid.NewGuid(), variables);
+
+        route.Should().Be("/workflows/wf-1/executions/exec-1?approval=a%20b");
+    }
+
+    [Fact]
+    public void BuildAbsolute_ShouldCarryTheApprovalIdIntoTheEmailLink()
+    {
+        var approval = NotificationTypeCatalog.Get(NotificationTypeKeys.AgentApprovalRequested);
+        var sut = CreateSut();
+        var variables = new Dictionary<string, string?> { ["approvalId"] = "appr-1" };
+
+        var url = sut.BuildAbsolute(approval, new RelatedItem("AgentExecution", "exec-1", "agent-1"), Guid.NewGuid(), variables);
+
+        url.Should().Be("https://tests.asklucy.io/agents/agent-1/executions/exec-1?approval=appr-1");
+    }
+
+    [Fact]
+    public void BuildRelative_ShouldReturnNull_WhenAnApprovalRouteHasNoApprovalId()
+    {
+        var approval = NotificationTypeCatalog.Get(NotificationTypeKeys.WorkflowApprovalRequested);
+        var sut = CreateSut();
+
+        var route = sut.BuildRelative(approval, new RelatedItem("WorkflowExecution", "exec-1", "wf-1"), Guid.NewGuid());
+
+        route.Should().BeNull("the notification is still shown, just without a link that would open nothing");
+    }
 }
