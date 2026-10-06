@@ -129,14 +129,14 @@
 ### Tests for US2
 
 - [X] T023 [P] [US2] `CombineSiteBoundaryShapeCommandTests.cs`: a `shape` polygon combines; exactly one of circle or shape is required (400 for neither and for both); a shape with fewer than 3 or more than 2,000 corners, or one that crosses itself, is refused.
-- [ ] T024 [P] [US2] Client `C/features/viewer/components/SiteBoundaryShapeDraw.test.tsx` (moved from `SiteBoundaryCircleDraw.test.tsx` and extended):
+- [X] T024 [P] [US2] Client `C/features/viewer/components/SiteBoundaryShapeDraw.test.tsx` (moved from `SiteBoundaryCircleDraw.test.tsx` and extended):
   - circle behaviour unchanged;
   - rectangle preview corners follow the drag;
   - the square keeps equal sides;
   - previews use px or SVG coordinates, never bare fractions;
   - a drag that is too small is treated as a click;
   - apply sends the polygon.
-- [ ] T025 [P] [US2] Client `C/features/viewer/components/SiteBoundaryPolygonDraw.test.tsx`:
+- [X] T025 [P] [US2] Client `C/features/viewer/components/SiteBoundaryPolygonDraw.test.tsx`:
   - clicks add corners;
   - a double-click, a click on the first corner within 10 px, and Enter each finish;
   - Backspace removes the last corner;
@@ -147,15 +147,15 @@
 ### Implementation for US2
 
 - [X] T026 [US2] Server: `CombineSiteBoundaryShapeRequest` and the command gain an optional `Shape` (`IReadOnlyList<GeoPoint>`). The validator requires exactly one of (`Centre` and `RadiusMeters`) or `Shape`. The handler uses `Shape` as the combine shape after `Validate`. Update the OpenAPI expectations in `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs` if needed. Depends on T016.
-- [ ] T027 [US2] Store and actions:
+- [X] T027 [US2] Store and actions:
   - In `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts`, replace the `circle` tool and `circleOperation` with the `shape` tool plus `shapeKind: 'circle' | 'rectangle' | 'square'` and `shapeOperation: 'add' | 'cut'`.
   - Add a `polygon` tool with `polygonOperation` and `polygonCorners`.
   - `beginCircle` becomes `beginShape(kind, op)`; add `beginPolygon(op)`.
   - In `C/viewer/siteBoundaryEdit/siteBoundaryEditActions.ts`, replace `startCircle`/`applyCircle` with `startShape(kind, op)` and `applyShapePolygon(points)` (the circle still sends centre and radius).
   - Update every caller and its tests.
-- [ ] T028 [US2] `C/viewer/siteBoundaryEdit/ringShapes.ts`: add `rectangleRing(a, b)` (north-south and east-west sides) and `squareRing(a, b)` (the larger side, growing towards the drag), with tests in `ringShapes.test.ts`.
-- [ ] T029 [US2] Rename `C/features/viewer/components/SiteBoundaryCircleDraw.tsx` to `SiteBoundaryShapeDraw.tsx` and generalise it by `shapeKind`. The preview is an SVG polygon of `circleRing`, `rectangleRing` or `squareRing` projected through `toPixel`. The hint line reads "W × H m - release to add it / cut it out", or "Radius N m" for the circle. Applying runs `applyShapePolygon` (rectangle and square) or `applyCircle`. Mount it in `SiteBoundaryEditHost.tsx`. Depends on T027, T028.
-- [ ] T030 [US2] New `C/features/viewer/components/SiteBoundaryPolygonDraw.tsx`:
+- [X] T028 [US2] `C/viewer/siteBoundaryEdit/ringShapes.ts`: add `rectangleRing(a, b)` (north-south and east-west sides) and `squareRing(a, b)` (the larger side, growing towards the drag), with tests in `ringShapes.test.ts`.
+- [X] T029 [US2] Rename `C/features/viewer/components/SiteBoundaryCircleDraw.tsx` to `SiteBoundaryShapeDraw.tsx` and generalise it by `shapeKind`. The preview is an SVG polygon of `circleRing`, `rectangleRing` or `squareRing` projected through `toPixel`. The hint line reads "W × H m - release to add it / cut it out", or "Radius N m" for the circle. Applying runs `applyShapePolygon` (rectangle and square) or `applyCircle`. Mount it in `SiteBoundaryEditHost.tsx`. Depends on T027, T028.
+- [X] T030 [US2] New `C/features/viewer/components/SiteBoundaryPolygonDraw.tsx`:
   - follow the layer pattern of `SiteBoundaryBoxSelect.tsx` (zIndex 4, `userSelect: 'none'`, `onMouseDown` preventDefault, wheel zoom forwarded);
   - placed corners plus a rubber-band edge to the pointer, as an SVG polyline;
   - finishes as described in T025; `validateRing` runs before sending, and a refusal goes through `store.refuse`;
@@ -164,8 +164,8 @@
   - add a hint line, and mount it in `SiteBoundaryEditHost.tsx`.
 
   Depends on T027.
-- [ ] T031 [US2] `C/features/viewer/components/SiteBoundaryShapeDialog.tsx`: add Rectangle (width and height in metres) and Square (side), placed at `ringCentre` of the active part, with an Add or Cut choice. Make part a circle stays. Tests go in `SiteBoundaryShapeDialog.test.tsx`. Depends on T026, T027.
-- [ ] T032 [US2] Icons in `C/features/chat/outlineToolIcons.tsx`, in the existing 24×24, stroke-2, round-cap style: Add rectangle, Cut rectangle, Add square, Cut square, Add polygon, Cut polygon, Remove void, and an Edit-group icon if needed. Add temporary flat entries in `C/features/chat/OutlineActionGroup.tsx` so the tools are reachable before US6 groups them.
+- [X] T031 [US2] `C/features/viewer/components/SiteBoundaryShapeDialog.tsx`: add Rectangle (width and height in metres) and Square (side), placed at `ringCentre` of the active part, with an Add or Cut choice. Make part a circle stays. Tests go in `SiteBoundaryShapeDialog.test.tsx`. Depends on T026, T027.
+- [X] T032 [US2] Icons in `C/features/chat/outlineToolIcons.tsx`, in the existing 24×24, stroke-2, round-cap style: Add rectangle, Cut rectangle, Add square, Cut square, Add polygon, Cut polygon, Remove void, and an Edit-group icon if needed. Add temporary flat entries in `C/features/chat/OutlineActionGroup.tsx` so the tools are reachable before US6 groups them.
 
 **Checkpoint**: all four shapes add and cut with the mouse and the keyboard; each is one undo step.
 

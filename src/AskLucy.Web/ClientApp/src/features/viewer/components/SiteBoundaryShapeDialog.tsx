@@ -1,8 +1,25 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
+  Stack,
+  TextField,
+} from '@mui/material'
 import { useState, type FormEvent } from 'react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { equivalentRadius } from '../../../viewer/siteBoundaryEdit/ringShapes'
-import { useSiteBoundaryEditStore, type ShapeTool } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+import { useSiteBoundaryEditStore, type CircleOperation, type ShapeTool } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
+
+/** The tools that ask for one number and act on the ring being edited; a rectangle or square asks for its sides and an operation. */
+type NumberTool = Exclude<ShapeTool, 'rectangle' | 'square'>
 
 interface Copy {
   title: string
@@ -10,7 +27,7 @@ interface Copy {
   help: string
 }
 
-const COPY: Record<ShapeTool, Copy> = {
+const COPY: Record<NumberTool, Copy> = {
   round: {
     title: 'Round this corner',
     label: 'Radius (metres)',
@@ -29,7 +46,7 @@ const COPY: Record<ShapeTool, Copy> = {
 }
 
 /** The starting value: a modest, visible change for a corner or an edge, and the same-area circle for a ring. */
-const DEFAULT_VALUE: Record<Exclude<ShapeTool, 'circle'>, number> = { round: 10, curve: 5 }
+const DEFAULT_VALUE: Record<Exclude<NumberTool, 'circle'>, number> = { round: 10, curve: 5 }
 
 /**
  * specs/079: asks for the one number a shape tool needs, then applies it. The dialog stays open with
@@ -41,10 +58,96 @@ export function SiteBoundaryShapeDialog() {
   if (!tool) return null
 
   // Keyed by the tool, so each opening starts from that tool's own starting value.
+  if (tool === 'rectangle' || tool === 'square') return <TypedShapeForm key={tool} kind={tool} />
   return <ShapeForm key={tool} tool={tool} />
 }
 
-function ShapeForm({ tool }: { tool: ShapeTool }) {
+/**
+ * specs/081 (FR-020): a rectangle or square of typed size, for the keyboard and touch, which have no drag.
+ * It is placed on the centre of the ring being edited, then added to the outline or cut out of it.
+ */
+function TypedShapeForm({ kind }: { kind: 'rectangle' | 'square' }) {
+  const setShapeDialog = useSiteBoundaryEditStore((s) => s.setShapeDialog)
+  const refusal = useSiteBoundaryEditStore((s) => s.session?.refusal ?? null)
+  const [width, setWidth] = useState('20')
+  const [height, setHeight] = useState('10')
+  const [operation, setOperation] = useState<CircleOperation>('cut')
+  const [busy, setBusy] = useState(false)
+
+  const positive = (text: string) => text.trim() !== '' && Number.isFinite(Number(text)) && Number(text) >= 1
+  const valid = positive(width) && (kind === 'square' || positive(height))
+
+  const apply = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!valid || busy) return
+    setBusy(true)
+    try {
+      if (await siteBoundaryEditActions.applyTypedShape(kind, operation, Number(width), Number(height))) setShapeDialog(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const title = kind === 'square' ? 'Add or cut a square' : 'Add or cut a rectangle'
+  return (
+    <Dialog open onClose={() => setShapeDialog(null)} aria-labelledby="shape-dialog-title" maxWidth="xs" fullWidth>
+      <form onSubmit={(event) => void apply(event)}>
+        <DialogTitle id="shape-dialog-title">{title}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            It is placed on the centre of the ring you are editing, with its sides running east-west and north-south. Drag its corners afterwards to
+            move it.
+          </DialogContentText>
+          <FormControl sx={{ mb: 2 }}>
+            <FormLabel id="shape-operation-label">What to do with it</FormLabel>
+            <RadioGroup row aria-labelledby="shape-operation-label" value={operation} onChange={(event) => setOperation(event.target.value as CircleOperation)}>
+              <FormControlLabel value="cut" control={<Radio />} label="Cut it out" />
+              <FormControlLabel value="add" control={<Radio />} label="Add it" />
+            </RadioGroup>
+          </FormControl>
+          <Stack direction="row" spacing={2}>
+            <TextField
+              autoFocus
+              fullWidth
+              type="number"
+              label={kind === 'square' ? 'Side (metres)' : 'Width, east-west (metres)'}
+              value={width}
+              onChange={(event) => setWidth(event.target.value)}
+              error={width.trim() !== '' && !positive(width)}
+              helperText={width.trim() !== '' && !positive(width) ? 'At least 1 m.' : ' '}
+              slotProps={{ htmlInput: { step: 'any', inputMode: 'decimal' } }}
+            />
+            {kind === 'rectangle' && (
+              <TextField
+                fullWidth
+                type="number"
+                label="Height, north-south (metres)"
+                value={height}
+                onChange={(event) => setHeight(event.target.value)}
+                error={height.trim() !== '' && !positive(height)}
+                helperText={height.trim() !== '' && !positive(height) ? 'At least 1 m.' : ' '}
+                slotProps={{ htmlInput: { step: 'any', inputMode: 'decimal' } }}
+              />
+            )}
+          </Stack>
+          {refusal && (
+            <DialogContentText role="alert" color="error" sx={{ mt: 1 }}>
+              {refusal}
+            </DialogContentText>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShapeDialog(null)}>Cancel</Button>
+          <Button type="submit" variant="contained" disabled={!valid || busy}>
+            Apply
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  )
+}
+
+function ShapeForm({ tool }: { tool: NumberTool }) {
   const setShapeDialog = useSiteBoundaryEditStore((s) => s.setShapeDialog)
   const refusal = useSiteBoundaryEditStore((s) => s.session?.refusal ?? null)
   // Read once, when the dialog opens: the area moves as the user edits, but the number they typed must not.

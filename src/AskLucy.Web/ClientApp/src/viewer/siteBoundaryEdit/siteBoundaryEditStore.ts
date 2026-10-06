@@ -38,13 +38,16 @@ export type RingChange =
   | { op: 'replaceAll'; before: GeoPoint[][]; after: GeoPoint[][]; beforeVoids: GeoPoint[][][]; afterVoids: GeoPoint[][][] }
 
 /** The shape tools that ask for a number (a radius, a bulge) before they act. */
-export type ShapeTool = 'round' | 'curve' | 'circle'
+export type ShapeTool = 'round' | 'curve' | 'circle' | 'rectangle' | 'square'
+
+/** specs/081: the shapes drawn by dragging on the map, to add to the outline or cut out of it. */
+export type ShapeKind = 'circle' | 'rectangle' | 'square'
 
 /**
  * What the map does with the pointer: `edit` moves and adds corners (Google's own handles); `select`
  * draws a box that picks corners; `arc` waits for a third point to be dropped and draws an arc through it.
  */
-export type EditTool = 'edit' | 'select' | 'arc' | 'circle'
+export type EditTool = 'edit' | 'select' | 'arc' | 'circle' | 'polygon'
 
 /** What a circle drawn on the map does to the outline. */
 export type CircleOperation = 'add' | 'cut'
@@ -83,8 +86,14 @@ export interface SiteBoundaryEditSession {
   tool: EditTool
   /** The two corners (of the active ring) the arc being drawn joins; set while `tool` is `arc`. */
   arcAnchors: [number, number] | null
-  /** Whether the circle being drawn is added to the outline or cut out of it; set while `tool` is `circle`. */
+  /**
+   * Whether the shape being drawn is added to the outline or cut out of it; set while `tool` is `circle`. That
+   * tool draws the shape `shapeKind` names - a circle, a rectangle or a square - by dragging (specs/081).
+   */
   circleOperation: CircleOperation | null
+  shapeKind: ShapeKind
+  /** specs/081: whether the free polygon being drawn is added or cut; set while `tool` is `polygon`. */
+  polygonOperation: CircleOperation | null
   viewState: ViewState
   approxAreaSquareMeters: number
   status: EditStatus
@@ -155,8 +164,10 @@ interface Actions {
   setTool(tool: EditTool): void
   /** Starts drawing an arc between two corners: switches to the arc tool and remembers which corners. */
   beginArc(anchors: [number, number]): void
-  /** Starts drawing a circle that will be added to, or cut out of, the outline. */
-  beginCircle(operation: CircleOperation): void
+  /** Starts drawing a circle (or, with `kind`, a rectangle or square) that will be added to, or cut out of, the outline. */
+  beginCircle(operation: CircleOperation, kind?: ShapeKind): void
+  /** specs/081: starts drawing a free polygon, corner by corner, to add to the outline or cut out of it. */
+  beginPolygon(operation: CircleOperation): void
   /** Cancel and forced exit both end the session; the caller restores the view state it gets from `session`. */
   end(): void
   beginSave(): void
@@ -289,6 +300,8 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           tool: 'edit',
           arcAnchors: null,
           circleOperation: null,
+          shapeKind: 'circle',
+          polygonOperation: null,
           viewState,
           approxAreaSquareMeters: totalArea(start, startVoids),
           status: { kind: 'editing' },
@@ -419,15 +432,19 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     },
 
     beginArc(anchors) {
-      update(() => ({ tool: 'arc', arcAnchors: anchors, circleOperation: null }))
+      update(() => ({ tool: 'arc', arcAnchors: anchors, circleOperation: null, polygonOperation: null }))
     },
 
-    beginCircle(operation) {
-      update(() => ({ tool: 'circle', circleOperation: operation, arcAnchors: null }))
+    beginCircle(operation, kind = 'circle') {
+      update(() => ({ tool: 'circle', circleOperation: operation, shapeKind: kind, polygonOperation: null, arcAnchors: null }))
+    },
+
+    beginPolygon(operation) {
+      update(() => ({ tool: 'polygon', polygonOperation: operation, circleOperation: null, arcAnchors: null }))
     },
 
     setTool(tool) {
-      update(() => ({ tool, arcAnchors: null, circleOperation: null }))
+      update(() => ({ tool, arcAnchors: null, circleOperation: null, polygonOperation: null }))
     },
 
     end() {

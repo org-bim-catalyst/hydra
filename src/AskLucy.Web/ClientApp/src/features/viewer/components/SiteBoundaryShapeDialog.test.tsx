@@ -21,11 +21,13 @@ const enter = () =>
   store().enter({ chatId: 'chat-1', siteName: 'Muscat Grand Mall', revision: 'rev-1', rings: [[P(0, 0), P(200, 0), P(200, 100), P(0, 100)]], viewState })
 
 let applyShape: ReturnType<typeof vi.fn>
+let applyTypedShape: ReturnType<typeof vi.fn>
 let unregister: () => void
 
 beforeEach(() => {
   applyShape = vi.fn().mockReturnValue(true)
-  unregister = registerSiteBoundaryEditRuntime({ applyShape } as unknown as SiteBoundaryEditRuntime)
+  applyTypedShape = vi.fn().mockResolvedValue(true)
+  unregister = registerSiteBoundaryEditRuntime({ applyShape, applyTypedShape } as unknown as SiteBoundaryEditRuntime)
 })
 
 afterEach(() => {
@@ -156,5 +158,48 @@ describe('SiteBoundaryShapeDialog', () => {
 
     expect(store().shapeDialog).toBe('round')
     expect(store().notice).toContain("isn't ready")
+  })
+
+  it('asks a rectangle for its width and height and applies it as a cut by default', async () => {
+    const user = userEvent.setup()
+    enter()
+    act(() => store().setShapeDialog('rectangle'))
+    render(<SiteBoundaryShapeDialog />)
+
+    expect(screen.getByText('Add or cut a rectangle')).toBeInTheDocument()
+    await user.clear(screen.getByLabelText(/Width/))
+    await user.type(screen.getByLabelText(/Width/), '30')
+    await user.clear(screen.getByLabelText(/Height/))
+    await user.type(screen.getByLabelText(/Height/), '12')
+    await user.click(screen.getByText('Apply'))
+
+    expect(applyTypedShape).toHaveBeenCalledWith('rectangle', 'cut', 30, 12)
+    expect(store().shapeDialog).toBeNull()
+  })
+
+  it('asks a square for one side only, and can add it instead of cutting', async () => {
+    const user = userEvent.setup()
+    enter()
+    act(() => store().setShapeDialog('square'))
+    render(<SiteBoundaryShapeDialog />)
+
+    expect(screen.queryByLabelText(/Height/)).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Add it'))
+    await user.click(screen.getByText('Apply'))
+
+    expect(applyTypedShape).toHaveBeenCalledWith('square', 'add', 20, 10)
+  })
+
+  it('does not apply a rectangle side under a metre', async () => {
+    const user = userEvent.setup()
+    enter()
+    act(() => store().setShapeDialog('rectangle'))
+    render(<SiteBoundaryShapeDialog />)
+
+    await user.clear(screen.getByLabelText(/Width/))
+    await user.type(screen.getByLabelText(/Width/), '0.5')
+
+    expect(screen.getByText('Apply').closest('button')).toBeDisabled()
+    expect(applyTypedShape).not.toHaveBeenCalled()
   })
 })

@@ -252,3 +252,57 @@ export function cornersInBox(
   })
   return inside
 }
+
+/** A side shorter than this is not a rectangle: it is a click that moved a little. */
+export const MIN_SHAPE_SIDE_METERS = 1
+
+/**
+ * specs/081: the corners of a rectangle with `a` and `b` as opposite corners, its sides running east-west and
+ * north-south (the editor works on a flat, north-up map, so that is how it looks on the screen). Counter-clockwise.
+ */
+export function rectangleRing(a: GeoPoint, b: GeoPoint): ShapeResult {
+  const [, far] = toLocalMeters([a, b], a)
+  if (Math.abs(far.x) < MIN_SHAPE_SIDE_METERS || Math.abs(far.y) < MIN_SHAPE_SIDE_METERS) {
+    return { refusal: 'Drag further to set both sides of the rectangle.' }
+  }
+
+  const corners = [
+    { x: 0, y: 0 },
+    { x: far.x, y: 0 },
+    { x: far.x, y: far.y },
+    { x: 0, y: far.y },
+  ]
+  const ring = fromLocalMeters(corners, a)
+  return { ring: isCounterClockwise(ring) ? ring : ring.reverse() }
+}
+
+/**
+ * specs/081: a square from `anchor` towards `towards`: the side is the longer of the two distances, and the
+ * square grows into the quadrant the pointer is in.
+ */
+export function squareRing(anchor: GeoPoint, towards: GeoPoint): ShapeResult {
+  const [, far] = toLocalMeters([anchor, towards], anchor)
+  const side = Math.max(Math.abs(far.x), Math.abs(far.y))
+  if (side < MIN_SHAPE_SIDE_METERS) return { refusal: 'Drag further to set the size of the square.' }
+
+  return rectangleRing(anchor, fromLocalMeters([{ x: Math.sign(far.x || 1) * side, y: Math.sign(far.y || 1) * side }], anchor)[0])
+}
+
+/** A rectangle of the given width (east-west) and height (north-south) in metres, centred on `centre`. */
+export function rectangleAround(centre: GeoPoint, widthMeters: number, heightMeters: number): ShapeResult {
+  if (!(widthMeters >= MIN_SHAPE_SIDE_METERS) || !(heightMeters >= MIN_SHAPE_SIDE_METERS)) {
+    return { refusal: `Each side needs to be at least ${MIN_SHAPE_SIDE_METERS} m.` }
+  }
+
+  const half = { x: widthMeters / 2, y: heightMeters / 2 }
+  const ring = fromLocalMeters(
+    [
+      { x: -half.x, y: -half.y },
+      { x: half.x, y: -half.y },
+      { x: half.x, y: half.y },
+      { x: -half.x, y: half.y },
+    ],
+    centre,
+  )
+  return { ring }
+}

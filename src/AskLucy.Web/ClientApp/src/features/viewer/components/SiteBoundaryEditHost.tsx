@@ -3,7 +3,8 @@ import { useSiteBoundaryEditMode } from '../../../viewer/siteBoundaryEdit/useSit
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { SiteBoundaryArcDraw } from './SiteBoundaryArcDraw'
 import { SiteBoundaryBoxSelect } from './SiteBoundaryBoxSelect'
-import { SiteBoundaryCircleDraw } from './SiteBoundaryCircleDraw'
+import { SiteBoundaryPolygonDraw } from './SiteBoundaryPolygonDraw'
+import { SiteBoundaryShapeDraw } from './SiteBoundaryShapeDraw'
 import { SiteBoundaryCornerNavigator } from './SiteBoundaryCornerNavigator'
 import { SiteBoundaryCornerMenu } from './SiteBoundaryCornerMenu'
 import { SiteBoundaryEditToolbar } from './SiteBoundaryEditToolbar'
@@ -25,7 +26,8 @@ export function SiteBoundaryEditHost() {
     <>
       <SiteBoundaryBoxSelect />
       <SiteBoundaryArcDraw />
-      <SiteBoundaryCircleDraw />
+      <SiteBoundaryShapeDraw />
+      <SiteBoundaryPolygonDraw />
       <SiteBoundaryEditToolbar />
       <SiteBoundaryShapeDialog />
       <SiteBoundaryResetDialog />

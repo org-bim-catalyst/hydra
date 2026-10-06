@@ -1,5 +1,5 @@
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
-import { useSiteBoundaryEditStore, type CircleOperation, type ShapeTool } from './siteBoundaryEditStore'
+import { useSiteBoundaryEditStore, type CircleOperation, type ShapeKind, type ShapeTool } from './siteBoundaryEditStore'
 
 /**
  * specs/079: what the outline menu, the toolbar and the keyboard can ask edit mode to do. The
@@ -29,6 +29,14 @@ export interface SiteBoundaryEditRuntime {
   startArc(): void
   /** Starts drawing a circle on the map that will be added to the outline, or cut out of it. */
   startCircle(operation: CircleOperation): void
+  /** specs/081: as {@link startCircle}, for a rectangle or a square (or the circle), by dragging. */
+  startShape(kind: ShapeKind, operation: CircleOperation): void
+  /** specs/081: starts drawing a free polygon, corner by corner. */
+  startPolygon(operation: CircleOperation): void
+  /** specs/081: adds (or cuts) the polygon the user drew, with the operation the tool was started with. True on success; false with the reason shown. */
+  applyShapePolygon(points: readonly GeoPoint[]): Promise<boolean>
+  /** specs/081: adds or cuts a rectangle or square of typed size, centred on the ring being edited. True on success; false with the reason shown. */
+  applyTypedShape(kind: 'rectangle' | 'square', operation: CircleOperation, widthMeters: number, heightMeters: number): Promise<boolean>
   /** Adds (or cuts) the circle the user drew. Resolves true on success; false with the reason shown. */
   applyCircle(centre: GeoPoint, radiusMeters: number): Promise<boolean>
   /** Draws the arc through the dropped point. True on success; false with the reason shown. */
@@ -78,6 +86,11 @@ export const siteBoundaryEditActions = {
   toggleSelectTool: () => call('toggleSelectTool'),
   openShapeDialog: (tool: ShapeTool) => call('openShapeDialog', tool),
   startCircle: (operation: CircleOperation) => call('startCircle', operation),
+  startShape: (kind: ShapeKind, operation: CircleOperation) => call('startShape', kind, operation),
+  startPolygon: (operation: CircleOperation) => call('startPolygon', operation),
+  applyShapePolygon: (points: readonly GeoPoint[]) => call('applyShapePolygon', points) ?? Promise.resolve(false),
+  applyTypedShape: (kind: 'rectangle' | 'square', operation: CircleOperation, widthMeters: number, heightMeters: number) =>
+    call('applyTypedShape', kind, operation, widthMeters, heightMeters) ?? Promise.resolve(false),
   applyCircle: (centre: GeoPoint, radiusMeters: number) => call('applyCircle', centre, radiusMeters) ?? Promise.resolve(false),
   startArc: () => call('startArc'),
   applyArc: (through: GeoPoint) => call('applyArc', through) ?? false,

@@ -95,3 +95,63 @@ export function CurveEdgeIcon({ size = 24 }: IconProps) {
     </svg>
   )
 }
+
+/** A rectangle with a plus: "add a rectangle". */
+export function AddRectangleShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <rect x="3" y="7" width="18" height="11" rx="1" fill="currentColor" fillOpacity="0.25" />
+      <path d="M12 9.5v6M9 12.5h6" />
+    </svg>
+  )
+}
+
+/** A dashed rectangle with a minus: "cut a rectangle out". */
+export function CutRectangleShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <rect x="3" y="7" width="18" height="11" rx="1" strokeDasharray="3 3" />
+      <path d="M9 12.5h6" />
+    </svg>
+  )
+}
+
+/** A square with a plus: "add a square". */
+export function AddSquareShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <rect x="4" y="4" width="16" height="16" rx="1" fill="currentColor" fillOpacity="0.25" />
+      <path d="M12 8.5v7M8.5 12h7" />
+    </svg>
+  )
+}
+
+/** A dashed square with a minus: "cut a square out". */
+export function CutSquareShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <rect x="4" y="4" width="16" height="16" rx="1" strokeDasharray="3 3" />
+      <path d="M8.5 12h7" />
+    </svg>
+  )
+}
+
+/** A free polygon with a plus: "add a polygon". */
+export function AddPolygonShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <path d="M4 18 L7 6 L15 4 L21 12 L14 20 Z" fill="currentColor" fillOpacity="0.25" />
+      <path d="M12 9.5v6M9 12.5h6" />
+    </svg>
+  )
+}
+
+/** A dashed free polygon with a minus: "cut a polygon out". */
+export function CutPolygonShapeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...common} width={size} height={size}>
+      <path d="M4 18 L7 6 L15 4 L21 12 L14 20 Z" strokeDasharray="3 3" />
+      <path d="M9 12.5h6" />
+    </svg>
+  )
+}

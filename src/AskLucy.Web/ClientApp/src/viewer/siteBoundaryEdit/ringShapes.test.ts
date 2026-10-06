@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import { ringAreaSquareMeters, toLocalMeters, validateRing } from './ringGeometry'
-import { arcThroughPoint, circleRing, cornersInBox, curveEdge, equivalentRadius, ringCentre, roundCorner } from './ringShapes'
+import {
+  arcThroughPoint,
+  circleRing,
+  cornersInBox,
+  curveEdge,
+  equivalentRadius,
+  rectangleAround,
+  rectangleRing,
+  ringCentre,
+  roundCorner,
+  squareRing,
+} from './ringShapes'
+import { isCounterClockwise } from './ringGeometry'
 
 const LAT = 23.59
 const LON = 58.4
@@ -303,5 +315,60 @@ describe('arcThroughPoint (draw an arc by dropping a third point)', () => {
 
     expect(validateRing(ring)).toBeNull()
     expect(ringAreaSquareMeters(ring)).toBeGreaterThan(ringAreaSquareMeters(square()))
+  })
+})
+
+describe('rectangles and squares (specs/081)', () => {
+  it('a rectangle between two opposite corners has sides east-west and north-south', () => {
+    const ring = ringOf(rectangleRing(P(0, 0), P(60, 40)))
+
+    expect(ring).toHaveLength(4)
+    expect(ringAreaSquareMeters(ring)).toBeCloseTo(2_400, -1)
+    const metres = toLocalMeters(ring, ring[0])
+    expect(metres.every((m) => Math.abs(m.x) < 0.1 || Math.abs(m.x - 60) < 0.1)).toBe(true)
+    expect(metres.every((m) => Math.abs(m.y) < 0.1 || Math.abs(m.y - 40) < 0.1)).toBe(true)
+  })
+
+  it('is counter-clockwise whichever way it is dragged', () => {
+    for (const to of [P(60, 40), P(-60, 40), P(60, -40), P(-60, -40)]) {
+      const ring = ringOf(rectangleRing(P(0, 0), to))
+      expect(isCounterClockwise(ring)).toBe(true)
+      expect(ringAreaSquareMeters(ring)).toBeCloseTo(2_400, -1)
+    }
+  })
+
+  it('refuses a rectangle with a side under a metre', () => {
+    expect(rectangleRing(P(0, 0), P(60, 0.2))).toHaveProperty('refusal')
+    expect(rectangleRing(P(0, 0), P(0.2, 60))).toHaveProperty('refusal')
+    expect(rectangleRing(P(0, 0), P(0, 0))).toHaveProperty('refusal')
+  })
+
+  it('a square takes the longer distance as its side and grows into the quadrant of the pointer', () => {
+    const ring = ringOf(squareRing(P(0, 0), P(30, -50)))
+
+    expect(ringAreaSquareMeters(ring)).toBeCloseTo(2_500, -1)
+    const metres = toLocalMeters(ring, P(0, 0))
+    expect(Math.max(...metres.map((m) => m.x))).toBeCloseTo(50, 0)
+    expect(Math.min(...metres.map((m) => m.y))).toBeCloseTo(-50, 0)
+    expect(Math.min(...metres.map((m) => m.x))).toBeCloseTo(0, 0)
+  })
+
+  it('refuses a square that is only a click', () => {
+    expect(squareRing(P(0, 0), P(0.3, 0.2))).toHaveProperty('refusal')
+  })
+
+  it('a rectangle of typed width and height is centred where asked', () => {
+    const ring = ringOf(rectangleAround(P(100, 100), 20, 10))
+
+    expect(ringAreaSquareMeters(ring)).toBeCloseTo(200, 0)
+    expect(isCounterClockwise(ring)).toBe(true)
+    const centre = ringCentre(ring)
+    expect(centre.latitude).toBeCloseTo(P(100, 100).latitude, 6)
+    expect(centre.longitude).toBeCloseTo(P(100, 100).longitude, 6)
+  })
+
+  it('refuses typed sizes under a metre or not numbers', () => {
+    expect(rectangleAround(P(0, 0), 0.5, 10)).toHaveProperty('refusal')
+    expect(rectangleAround(P(0, 0), 10, Number.NaN)).toHaveProperty('refusal')
   })
 })

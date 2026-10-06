@@ -17,7 +17,7 @@ import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { createGooglePixelProjector } from './googlePixelProjector'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
 import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
-import { arcThroughPoint, circleRing, curveEdge, ringCentre, roundCorner } from './ringShapes'
+import { arcThroughPoint, circleRing, curveEdge, rectangleAround, ringCentre, roundCorner } from './ringShapes'
 import { activeCorners, pathCorners, pathCountOf, useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
 
@@ -400,6 +400,40 @@ export function useSiteBoundaryEditMode() {
       if (session) controllerRef.current?.setRings(session.rings, session.activeRing, session.voids)
     }
 
+    /**
+     * Adds a shape to the outline, or cuts it out, on the server (which also makes a void of a cut wholly
+     * inside, and keeps the ring count and the voids right), then shows the result as one undo step.
+     */
+    const combineShape = async (
+      shape: { centre: GeoPoint; radiusMeters: number } | { shape: GeoPoint[] },
+      operation: 'add' | 'cut',
+      failure: string,
+    ): Promise<boolean> => {
+      const session = store().session
+      const controller = controllerRef.current
+      if (!session || !controller) return false
+
+      try {
+        const result = await combineSiteBoundaryShape(session.chatId, {
+          rings: session.rings.map((ring) => openRing(ring)),
+          voids: openVoids(session.voids),
+          operation: operation === 'add' ? 'Add' : 'Cut',
+          ...shape,
+        })
+
+        // The session may have ended (or moved to another site) while the server was working.
+        if (store().session?.chatId !== session.chatId) return false
+        if (!controller.replaceAllRings(result.rings, result.voids ?? [])) return false
+
+        store().setTool('edit')
+        return true
+      } catch (error) {
+        // A refusal the user can act on (nothing left, nothing changed, a shape that crosses itself) arrives as the server's own message.
+        store().refuse(messageOf(error, failure))
+        return false
+      }
+    }
+
     const runtime: SiteBoundaryEditRuntime = {
       start,
       done,
@@ -455,31 +489,32 @@ export function useSiteBoundaryEditMode() {
       startCircle(operation) {
         if (store().session) store().beginCircle(operation)
       },
+      startShape(kind, operation) {
+        if (store().session) store().beginCircle(operation, kind)
+      },
+      startPolygon(operation) {
+        if (store().session) store().beginPolygon(operation)
+      },
       async applyCircle(centre, radiusMeters) {
+        const operation = store().session?.circleOperation
+        return operation ? combineShape({ centre, radiusMeters }, operation, 'The circle could not be applied.') : false
+      },
+      async applyShapePolygon(points) {
         const session = store().session
-        const controller = controllerRef.current
-        if (!session || !controller || !session.circleOperation) return false
+        const operation = session?.tool === 'polygon' ? session.polygonOperation : session?.circleOperation
+        return operation ? combineShape({ shape: openRing(points) }, operation, 'The shape could not be applied.') : false
+      },
+      async applyTypedShape(kind, operation, widthMeters, heightMeters) {
+        const session = store().session
+        if (!session) return false
 
-        try {
-          const result = await combineSiteBoundaryShape(session.chatId, {
-            rings: session.rings.map((ring) => openRing(ring)),
-            voids: openVoids(session.voids),
-            operation: session.circleOperation === 'add' ? 'Add' : 'Cut',
-            centre,
-            radiusMeters,
-          })
-
-          // The session may have ended (or moved to another site) while the server was working.
-          if (store().session?.chatId !== session.chatId) return false
-          if (!controller.replaceAllRings(result.rings, result.voids ?? [])) return false
-
-          store().setTool('edit')
-          return true
-        } catch (error) {
-          // A refusal the user can act on (a hole, nothing left) arrives as the server's own message.
-          store().refuse(messageOf(error, 'The circle could not be applied.'))
+        const centre = ringCentre(activeCorners(session))
+        const result = rectangleAround(centre, widthMeters, kind === 'square' ? widthMeters : heightMeters)
+        if ('refusal' in result) {
+          store().refuse(result.refusal)
           return false
         }
+        return combineShape({ shape: result.ring }, operation, 'The shape could not be applied.')
       },
       startArc() {
         const session = store().session
@@ -508,7 +543,7 @@ export function useSiteBoundaryEditMode() {
       openShapeDialog(tool) {
         const session = store().session
         if (!session) return
-        if (tool !== 'circle' && session.selectedCorner === null) {
+        if (tool !== 'circle' && tool !== 'rectangle' && tool !== 'square' && session.selectedCorner === null) {
           store().refuse(tool === 'round' ? 'Select the corner to round first.' : 'Select the corner at the start of the edge to curve first.')
           return
         }

@@ -15,7 +15,7 @@ import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
 import { useOutlineResetStore } from '../../viewer/siteBoundaryEdit/outlineResetStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
-import { AddCircleShapeIcon, AddCornerIcon, DeleteCornerIcon, RingToCircleIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
+import { AddCircleShapeIcon, AddPolygonShapeIcon, AddRectangleShapeIcon, AddSquareShapeIcon, CutPolygonShapeIcon, CutRectangleShapeIcon, CutSquareShapeIcon, AddCornerIcon, DeleteCornerIcon, RingToCircleIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
 
 /**
  * specs/079-site-boundary-manual-editing: the outline editor's actions in one place. Each button is
@@ -99,7 +99,7 @@ export function OutlineActionGroup() {
       label: 'Add circle',
       icon: <AddCircleShapeIcon size={20} />,
       onSelect: () => siteBoundaryEditActions.startCircle('add'),
-      highlighted: session?.tool === 'circle' && session.circleOperation === 'add',
+      highlighted: session?.tool === 'circle' && session.shapeKind === 'circle' && session.circleOperation === 'add',
       disabled: !editing || saving,
       disabledReason: notEditing,
     },
@@ -108,7 +108,61 @@ export function OutlineActionGroup() {
       label: 'Cut circle',
       icon: <CutCircleShapeIcon size={20} />,
       onSelect: () => siteBoundaryEditActions.startCircle('cut'),
-      highlighted: session?.tool === 'circle' && session.circleOperation === 'cut',
+      highlighted: session?.tool === 'circle' && session.shapeKind === 'circle' && session.circleOperation === 'cut',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'add-rectangle',
+      label: 'Add rectangle',
+      icon: <AddRectangleShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startShape('rectangle', 'add'),
+      highlighted: session?.tool === 'circle' && session.shapeKind === 'rectangle' && session.circleOperation === 'add',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'cut-rectangle',
+      label: 'Cut rectangle',
+      icon: <CutRectangleShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startShape('rectangle', 'cut'),
+      highlighted: session?.tool === 'circle' && session.shapeKind === 'rectangle' && session.circleOperation === 'cut',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'add-square',
+      label: 'Add square',
+      icon: <AddSquareShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startShape('square', 'add'),
+      highlighted: session?.tool === 'circle' && session.shapeKind === 'square' && session.circleOperation === 'add',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'cut-square',
+      label: 'Cut square',
+      icon: <CutSquareShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startShape('square', 'cut'),
+      highlighted: session?.tool === 'circle' && session.shapeKind === 'square' && session.circleOperation === 'cut',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'add-polygon',
+      label: 'Add polygon',
+      icon: <AddPolygonShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startPolygon('add'),
+      highlighted: session?.tool === 'polygon' && session.polygonOperation === 'add',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'cut-polygon',
+      label: 'Cut polygon',
+      icon: <CutPolygonShapeIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.startPolygon('cut'),
+      highlighted: session?.tool === 'polygon' && session.polygonOperation === 'cut',
       disabled: !editing || saving,
       disabledReason: notEditing,
     },
