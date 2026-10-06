@@ -25,7 +25,13 @@ public sealed class SiteBoundaryCorrection : BaseEntity
     /// <summary>The first ring is the one holding the site; the rest are separate building rings.</summary>
     public IReadOnlyList<IReadOnlyList<GeoPoint>> EditedRings { get; private set; } = [];
 
-    /// <summary>Union area of <see cref="EditedRings"/>, overlap counted once; computed by the server.</summary>
+    /// <summary>
+    /// specs/081 — the voids (atriums, courtyards) inside each ring: <c>EditedVoids[i]</c> holds ring <c>i</c>'s.
+    /// Empty, or shorter than <see cref="EditedRings"/>, where a ring has none. Closed like the rings.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> EditedVoids { get; private set; } = [];
+
+    /// <summary>Union area of <see cref="EditedRings"/> minus <see cref="EditedVoids"/>, overlap counted once; computed by the server.</summary>
     public double AreaSquareMeters { get; private set; }
 
     public FoundSiteBoundarySnapshot FoundSnapshot { get; private set; } = null!;
@@ -44,7 +50,8 @@ public sealed class SiteBoundaryCorrection : BaseEntity
     public static SiteBoundaryCorrection Create(
         string userId, string siteName, double foundCentroidLatitude, double foundCentroidLongitude,
         FoundSiteBoundarySnapshot foundSnapshot, IReadOnlyList<IReadOnlyList<GeoPoint>> editedRings,
-        double areaSquareMeters, IReadOnlyList<SiteBoundaryMember> members, string actor)
+        double areaSquareMeters, IReadOnlyList<SiteBoundaryMember> members, string actor,
+        IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>? editedVoids = null)
     {
         if (string.IsNullOrWhiteSpace(userId))
         {
@@ -57,7 +64,8 @@ public sealed class SiteBoundaryCorrection : BaseEntity
         }
 
         ArgumentNullException.ThrowIfNull(foundSnapshot);
-        EnsureShape(editedRings, areaSquareMeters);
+        editedVoids ??= [];
+        EnsureShape(editedRings, editedVoids, areaSquareMeters);
 
         return new SiteBoundaryCorrection
         {
@@ -69,6 +77,7 @@ public sealed class SiteBoundaryCorrection : BaseEntity
             FoundCentroidLongitude = foundCentroidLongitude,
             FoundSnapshot = foundSnapshot,
             EditedRings = editedRings,
+            EditedVoids = editedVoids,
             AreaSquareMeters = areaSquareMeters,
             Members = members,
             Revision = Guid.NewGuid(),
@@ -77,10 +86,14 @@ public sealed class SiteBoundaryCorrection : BaseEntity
         };
     }
 
-    public void ReplaceRings(IReadOnlyList<IReadOnlyList<GeoPoint>> editedRings, double areaSquareMeters, string actor)
+    public void ReplaceRings(
+        IReadOnlyList<IReadOnlyList<GeoPoint>> editedRings, double areaSquareMeters, string actor,
+        IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>? editedVoids = null)
     {
-        EnsureShape(editedRings, areaSquareMeters);
+        editedVoids ??= [];
+        EnsureShape(editedRings, editedVoids, areaSquareMeters);
         EditedRings = editedRings;
+        EditedVoids = editedVoids;
         AreaSquareMeters = areaSquareMeters;
         Touch(actor);
     }
@@ -92,11 +105,14 @@ public sealed class SiteBoundaryCorrection : BaseEntity
     /// </summary>
     public void ApplyMembership(
         IReadOnlyList<IReadOnlyList<GeoPoint>> editedRings, double areaSquareMeters,
-        IReadOnlyList<SiteBoundaryMember> members, FoundSiteBoundarySnapshot foundSnapshot, string actor)
+        IReadOnlyList<SiteBoundaryMember> members, FoundSiteBoundarySnapshot foundSnapshot, string actor,
+        IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>? editedVoids = null)
     {
-        EnsureShape(editedRings, areaSquareMeters);
+        editedVoids ??= [];
+        EnsureShape(editedRings, editedVoids, areaSquareMeters);
         ArgumentNullException.ThrowIfNull(foundSnapshot);
         EditedRings = editedRings;
+        EditedVoids = editedVoids;
         AreaSquareMeters = areaSquareMeters;
         Members = members;
         FoundSnapshot = foundSnapshot;
@@ -151,7 +167,9 @@ public sealed class SiteBoundaryCorrection : BaseEntity
         ModifiedBy = actor;
     }
 
-    private static void EnsureShape(IReadOnlyList<IReadOnlyList<GeoPoint>> rings, double areaSquareMeters)
+    private static void EnsureShape(
+        IReadOnlyList<IReadOnlyList<GeoPoint>> rings, IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> voids,
+        double areaSquareMeters)
     {
         if (rings is null || rings.Count == 0)
         {
@@ -161,6 +179,16 @@ public sealed class SiteBoundaryCorrection : BaseEntity
         if (rings.Any(ring => ring is null || ring.Count < 3))
         {
             throw new DomainRuleViolationException("Every ring of a site correction needs at least 3 corners.");
+        }
+
+        if (voids.Count > rings.Count)
+        {
+            throw new DomainRuleViolationException("A site correction cannot have voids for more rings than it has.");
+        }
+
+        if (voids.Any(ringVoids => ringVoids is null || ringVoids.Any(v => v is null || v.Count < 3)))
+        {
+            throw new DomainRuleViolationException("Every void of a site correction needs at least 3 corners.");
         }
 
         if (!(areaSquareMeters > 0))

@@ -100,6 +100,8 @@ export interface ChatActiveBoundary {
   polygon: { latitude: number; longitude: number }[]
   /** specs/077 — absent from a chat saved before separate rings existed. */
   additionalPolygons?: { latitude: number; longitude: number }[][]
+  /** specs/081 — each ring's voids by ring index (0 is `polygon`); absent from a server that predates voids. */
+  voids?: { latitude: number; longitude: number }[][][]
   areaSquareMeters: number
   confidence: number
   confidenceLevel: 'low' | 'medium' | 'high'
@@ -116,6 +118,8 @@ export interface SaveSiteBoundaryEditRequest {
   expectedRevision: string
   /** Open rings: the first corner is not repeated at the end. */
   rings: { latitude: number; longitude: number }[][]
+  /** specs/081 — each ring's voids by ring index, open. Omitted or empty for none. */
+  voids?: { latitude: number; longitude: number }[][][]
 }
 
 export interface SaveSiteBoundaryEditResponse {

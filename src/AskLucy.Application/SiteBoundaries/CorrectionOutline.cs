@@ -21,6 +21,7 @@ public static class CorrectionOutline
         {
             CorePolygon = correction.FoundSnapshot.CorePolygon,
             AdditionalPolygons = [.. correction.EditedRings.Skip(1)],
+            Voids = correction.EditedVoids,
             Members = correction.Members,
             CorrectionId = correction.Id,
         };

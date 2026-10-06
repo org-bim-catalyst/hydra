@@ -50,6 +50,7 @@ export function useRestoreChatSite(chatDetail: ChatDetail | undefined) {
         centroid: boundary.centroid,
         polygon: boundary.polygon,
         additionalPolygons: boundary.additionalPolygons ?? [],
+        voids: boundary.voids ?? [],
         areaSquareMeters: boundary.areaSquareMeters,
         confidence: boundary.confidence,
         confidenceLevel: boundary.confidenceLevel,

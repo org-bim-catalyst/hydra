@@ -41,6 +41,56 @@ public sealed class SiteBoundaryCorrectionTests
         act.Should().Throw<DomainRuleViolationException>();
     }
 
+    private static readonly IReadOnlyList<GeoPoint> Void =
+    [
+        new(25.1558, 55.2216), new(25.1558, 55.2218), new(25.1556, 55.2218),
+    ];
+
+    [Fact]
+    public void Create_ShouldKeepTheVoidsOfEachRing()
+    {
+        var correction = SiteBoundaryCorrection.Create(
+            "user-1", "Site", 0, 0, Snapshot, [Ring], 14_000, [], "a", editedVoids: [[Void]]);
+
+        correction.EditedVoids.Should().HaveCount(1);
+        correction.EditedVoids[0].Should().ContainSingle().Which.Should().Equal(Void);
+    }
+
+    [Fact]
+    public void Create_WithoutVoids_ShouldHaveNone()
+    {
+        NewCorrection().EditedVoids.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Create_ShouldRejectVoidsForMoreRingsThanItHas()
+    {
+        var act = () => SiteBoundaryCorrection.Create(
+            "user-1", "Site", 0, 0, Snapshot, [Ring], 1, [], "a", editedVoids: [[Void], [Void]]);
+        act.Should().Throw<DomainRuleViolationException>();
+    }
+
+    [Fact]
+    public void Create_ShouldRejectAVoidWithFewerThanThreeCorners()
+    {
+        IReadOnlyList<GeoPoint> twoCorners = [new(1, 1), new(2, 2)];
+        var act = () => SiteBoundaryCorrection.Create(
+            "user-1", "Site", 0, 0, Snapshot, [Ring], 1, [], "a", editedVoids: [[twoCorners]]);
+        act.Should().Throw<DomainRuleViolationException>();
+    }
+
+    [Fact]
+    public void ReplaceRings_ShouldReplaceTheVoidsToo_AndDropThemWhenNoneAreGiven()
+    {
+        var correction = NewCorrection();
+
+        correction.ReplaceRings([Ring], 13_000, "a", [[Void]]);
+        correction.EditedVoids[0].Should().ContainSingle();
+
+        correction.ReplaceRings([Ring], 14_000, "a");
+        correction.EditedVoids.Should().BeEmpty();
+    }
+
     [Fact]
     public void Create_ShouldRejectNoRings()
     {

@@ -42,6 +42,17 @@ public sealed class SiteBoundaryCorrectionConfiguration : IEntityTypeConfigurati
                 json => JsonSerializer.Deserialize<IReadOnlyList<IReadOnlyList<GeoPoint>>>(json, JsonOptions) ?? new List<IReadOnlyList<GeoPoint>>())
             .Metadata.SetValueComparer(JsonValueComparer<IReadOnlyList<IReadOnlyList<GeoPoint>>>());
 
+        // specs/081 — each ring's voids. Defaults to "[]" so rows saved before voids existed read as having none.
+        builder.Property(c => c.EditedVoids)
+            .HasColumnName("EditedVoidsJson")
+            .IsRequired()
+            .HasDefaultValueSql("N'[]'")
+            .HasConversion(
+                voids => JsonSerializer.Serialize(voids, JsonOptions),
+                json => JsonSerializer.Deserialize<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(json, JsonOptions)
+                    ?? new List<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Metadata.SetValueComparer(JsonValueComparer<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>());
+
         builder.Property(c => c.FoundSnapshot)
             .HasColumnName("FoundSnapshotJson")
             .IsRequired()

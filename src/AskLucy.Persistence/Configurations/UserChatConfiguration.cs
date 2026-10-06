@@ -123,6 +123,10 @@ public sealed class UserChatConfiguration : IEntityTypeConfiguration<UserChat>
                 .HasDatabaseName("IX_UserChats_ActiveBoundaryCorrectionId")
                 .HasFilter("[ActiveBoundaryCorrectionId] IS NOT NULL");
 
+            // specs/081 — voids only ever come from the user's correction (WithCorrection), never from the
+            // outline as found, which is all a chat stores.
+            owned.Ignore(a => a.Voids);
+
             owned.Property(a => a.Polygon)
                 .HasColumnName("ActiveBoundaryPolygonJson")
                 .HasConversion(

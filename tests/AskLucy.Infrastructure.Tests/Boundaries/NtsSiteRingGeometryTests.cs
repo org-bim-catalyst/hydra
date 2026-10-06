@@ -67,6 +67,74 @@ public sealed class NtsSiteRingGeometryTests
     public void Validate_ShouldRejectFewerThanThreeCorners() =>
         _geometry.Validate([Point(0, 0), Point(10, 10)]).Should().Be(RingValidationResult.Degenerate);
 
+    // ---- specs/081: voids ----
+
+    [Fact]
+    public void UnionArea_WithVoids_SubtractsThem()
+    {
+        IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> voids = [[Rectangle(40, 40, 20, 10)]];
+
+        _geometry.UnionArea([Rectangle(0, 0, 100, 100)], voids).Should().BeApproximately(10_000 - 200, 1);
+    }
+
+    [Fact]
+    public void UnionArea_WithoutVoids_IsUnchanged() =>
+        _geometry.UnionArea([Rectangle(0, 0, 100, 100)], []).Should().BeApproximately(10_000, 1);
+
+    [Fact]
+    public void ValidateVoids_AcceptsAVoidWellInsideItsRing_AndTwoSeparateVoids()
+    {
+        var outer = Rectangle(0, 0, 100, 100);
+
+        _geometry.ValidateVoids(outer, [Rectangle(10, 10, 20, 20)]).Result.Should().Be(RingValidationResult.Ok);
+        _geometry.ValidateVoids(outer, [Rectangle(10, 10, 20, 20), Rectangle(60, 60, 20, 20)]).Result.Should().Be(RingValidationResult.Ok);
+        _geometry.ValidateVoids(outer, []).Result.Should().Be(RingValidationResult.Ok);
+    }
+
+    [Fact]
+    public void ValidateVoids_RefusesAVoidThatCrossesTheOuterEdge()
+    {
+        var verdict = _geometry.ValidateVoids(Rectangle(0, 0, 100, 100), [Rectangle(10, 10, 20, 20), Rectangle(90, 40, 30, 20)]);
+
+        verdict.Result.Should().Be(RingValidationResult.VoidOutsidePart);
+        verdict.VoidIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public void ValidateVoids_RefusesAVoidTouchingTheOuterEdge()
+    {
+        var verdict = _geometry.ValidateVoids(Rectangle(0, 0, 100, 100), [Rectangle(0, 40, 20, 20)]);
+
+        verdict.Result.Should().Be(RingValidationResult.VoidOutsidePart);
+    }
+
+    [Fact]
+    public void ValidateVoids_RefusesAVoidOutsideTheRingEntirely()
+    {
+        _geometry.ValidateVoids(Rectangle(0, 0, 100, 100), [Rectangle(200, 200, 10, 10)]).Result
+            .Should().Be(RingValidationResult.VoidOutsidePart);
+    }
+
+    [Fact]
+    public void ValidateVoids_RefusesTwoVoidsThatTouchOrOverlap()
+    {
+        var verdict = _geometry.ValidateVoids(Rectangle(0, 0, 100, 100), [Rectangle(10, 10, 20, 20), Rectangle(25, 15, 20, 20)]);
+
+        verdict.Result.Should().Be(RingValidationResult.VoidsTouch);
+        verdict.VoidIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public void ValidateVoids_RefusesAVoidThatIsNotAValidRing()
+    {
+        IReadOnlyList<GeoPoint> bowTie = [Point(10, 10), Point(30, 30), Point(30, 10), Point(10, 30)];
+
+        var verdict = _geometry.ValidateVoids(Rectangle(0, 0, 100, 100), [bowTie]);
+
+        verdict.Result.Should().Be(RingValidationResult.SelfCrossing);
+        verdict.VoidIndex.Should().Be(0);
+    }
+
     [Fact]
     public void UnionArea_ShouldCountOverlapOnce()
     {

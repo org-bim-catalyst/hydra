@@ -29,6 +29,13 @@ public sealed record ActiveSiteBoundary(
     /// <summary>specs/077 — outlines of included members that stand apart from <see cref="Polygon"/>, e.g. a tower across the street.</summary>
     public IReadOnlyList<IReadOnlyList<GeoPoint>> AdditionalPolygons { get; init; } = [];
 
+    /// <summary>
+    /// specs/081 — the voids (atriums, courtyards) inside each ring, by ring index: <c>Voids[0]</c> are
+    /// <see cref="Polygon"/>'s, <c>Voids[i]</c> are <c>AdditionalPolygons[i - 1]</c>'s. Empty when there are none,
+    /// which is always so for an outline as found.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> Voids { get; init; } = [];
+
     /// <summary>specs/077 — buildings carrying the site's name, and whether the user included each.</summary>
     public IReadOnlyList<SiteBoundaryMember> Members { get; init; } = [];
 
@@ -61,6 +68,7 @@ public sealed record ActiveSiteBoundary(
             Source = SiteBoundarySource.UserCorrected,
             SourceDetail = "Hand-edited by the user",
             AdditionalPolygons = correction.EditedRings.Skip(1).ToList(),
+            Voids = correction.EditedVoids,
             Members = correction.Members,
             Revision = correction.Revision,
             CorrectionId = correction.Id,

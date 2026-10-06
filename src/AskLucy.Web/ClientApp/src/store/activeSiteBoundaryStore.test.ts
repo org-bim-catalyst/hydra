@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { siteRingsOf, useActiveSiteBoundaryStore } from './activeSiteBoundaryStore'
+import { siteRingsOf, siteVoidsOf, useActiveSiteBoundaryStore } from './activeSiteBoundaryStore'
 
 const sampleBoundary = {
   siteName: 'Al Safa Park 2',
@@ -28,6 +28,31 @@ describe('activeSiteBoundaryStore', () => {
     expect(s.polygon).toBeNull()
     expect(s.confidenceLevel).toBeNull()
     expect(s.alternativeCandidateNames).toEqual([])
+  })
+
+  describe('specs/081 voids', () => {
+    const atrium = [
+      { latitude: 25.1558, longitude: 55.2214 },
+      { latitude: 25.1558, longitude: 55.2216 },
+      { latitude: 25.1556, longitude: 55.2216 },
+    ]
+
+    it('has no voids unless the boundary carries some', () => {
+      useActiveSiteBoundaryStore.getState().setBoundary(sampleBoundary)
+      expect(siteVoidsOf(useActiveSiteBoundaryStore.getState())).toEqual([])
+    })
+
+    it('keeps each ring voids by ring index', () => {
+      useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, voids: [[atrium]] })
+      expect(siteVoidsOf(useActiveSiteBoundaryStore.getState())).toEqual([[atrium]])
+    })
+
+    it('never lets a previous site voids stay behind', () => {
+      const store = useActiveSiteBoundaryStore.getState()
+      store.setBoundary({ ...sampleBoundary, voids: [[atrium]] })
+      store.setBoundary(sampleBoundary)
+      expect(useActiveSiteBoundaryStore.getState().voids).toEqual([])
+    })
   })
 
   describe('specs/079 revision and hand-edit flag', () => {

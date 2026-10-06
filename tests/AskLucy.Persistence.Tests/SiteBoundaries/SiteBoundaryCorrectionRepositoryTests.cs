@@ -66,6 +66,37 @@ public sealed class SiteBoundaryCorrectionRepositoryTests(PersistenceTestFixture
     }
 
     [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
+    public async Task Correction_ShouldRoundTripItsVoids_AndReadAsHavingNoneWhenItHasNone()
+    {
+        var userId = $"owner-{Guid.NewGuid():N}";
+        IReadOnlyList<GeoPoint> voidRing = [new(25.15575, 55.2216), new(25.15575, 55.2217), new(25.15565, 55.2217)];
+        var withVoids = NewCorrection(userId);
+        withVoids.ReplaceRings([MainRing, SecondRing], 14_000, userId, [[voidRing]]);
+        var withoutVoids = NewCorrection(userId, "Another Site");
+
+        await using (var dbContext = fixture.CreateDbContext())
+        {
+            dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(userId));
+            var repository = new SiteBoundaryCorrectionRepository(dbContext);
+            repository.Add(withVoids);
+            repository.Add(withoutVoids);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using (var dbContext = fixture.CreateDbContext())
+        {
+            var repository = new SiteBoundaryCorrectionRepository(dbContext);
+            var reloaded = await repository.GetByIdAsync(withVoids.Id, userId, TestContext.Current.CancellationToken);
+            var reloadedPlain = await repository.GetByIdAsync(withoutVoids.Id, userId, TestContext.Current.CancellationToken);
+
+            reloaded!.EditedVoids.Should().HaveCount(1);
+            reloaded.EditedVoids[0].Should().ContainSingle();
+            reloaded.EditedVoids[0][0].Should().BeEquivalentTo(voidRing, o => o.Using<double>(c => c.Subject.Should().BeApproximately(c.Expectation, 1e-9)).WhenTypeIs<double>());
+            reloadedPlain!.EditedVoids.Should().BeEmpty();
+        }
+    }
+
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task Reads_ShouldBeScopedToTheOwningUser()
     {
         var owner = $"owner-{Guid.NewGuid():N}";

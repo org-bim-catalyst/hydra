@@ -89,7 +89,19 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
     public CombineResult Combine(
         IReadOnlyList<IReadOnlyList<GeoPoint>> rings, IReadOnlyList<GeoPoint> shape, CombineOperation operation)
     {
+        // The overload for callers that cannot carry voids: a result with a void is refused, as before specs/081.
+        var result = Combine(rings, [], shape, operation);
+        return result.Failure == CombineFailure.None && result.Voids.Any(ringVoids => ringVoids.Count > 0)
+            ? new CombineResult(CombineFailure.HoleNotSupported, [])
+            : result;
+    }
+
+    public CombineResult Combine(
+        IReadOnlyList<IReadOnlyList<GeoPoint>> rings, IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> voids,
+        IReadOnlyList<GeoPoint> shape, CombineOperation operation)
+    {
         ArgumentNullException.ThrowIfNull(rings);
+        ArgumentNullException.ThrowIfNull(voids);
         ArgumentNullException.ThrowIfNull(shape);
         if (rings.Count == 0)
         {
@@ -97,8 +109,15 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
         }
 
         var reference = rings[0][0];
-        var current = UnaryUnionOp.Union(rings.Select(r => ToPolygon(r, reference)).Cast<Geometry>().ToList());
+        var current = UnionOf(rings, voids, reference);
         var shapePolygon = ToPolygon(shape, reference);
+
+        // Ground that is already outside the site (an existing void) cannot be cut again.
+        if (operation == CombineOperation.Cut && IsInsideAVoid(current, shapePolygon))
+        {
+            return new CombineResult(CombineFailure.NothingChanged, []);
+        }
+
         var combined = operation == CombineOperation.Add ? current.Union(shapePolygon) : current.Difference(shapePolygon);
 
         // Slivers left over by a cut are not outlines; anything under a square metre is dropped.
@@ -108,11 +127,6 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
             return new CombineResult(CombineFailure.NothingLeft, []);
         }
 
-        if (polygons.Any(p => p.NumInteriorRings > 0))
-        {
-            return new CombineResult(CombineFailure.HoleNotSupported, []);
-        }
-
         // The ring holding the original first ring stays first; the rest follow, largest first.
         var anchor = ToPolygon(rings[0], reference).InteriorPoint;
         var ordered = polygons
@@ -120,24 +134,97 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
             .ThenByDescending(p => p.Area)
             .ToList();
 
-        IReadOnlyList<IReadOnlyList<GeoPoint>> result =
-        [
-            .. ordered.Select(p => (IReadOnlyList<GeoPoint>)fromShell(p, reference)),
-        ];
-        return new CombineResult(CombineFailure.None, result);
-
-        static List<GeoPoint> fromShell(Polygon polygon, GeoPoint reference)
+        var shells = ordered.Select(p => FromPolygon(p, reference)).ToList();
+        return new CombineResult(CombineFailure.None, [.. shells.Select(s => s.Outer)])
         {
-            // The shell repeats its first coordinate at the end; rings here are open. Local metres back to degrees.
-            var metersPerDegreeLongitude = MetersPerDegreeLatitude * Math.Cos(reference.Latitude * Math.PI / 180);
-            var coordinates = polygon.ExteriorRing.Coordinates;
-            return
-            [
-                .. coordinates.Take(coordinates.Length - 1).Select(c => new GeoPoint(
-                    reference.Latitude + (c.Y / MetersPerDegreeLatitude),
-                    reference.Longitude + (c.X / metersPerDegreeLongitude))),
-            ];
+            Voids = [.. shells.Select(s => s.Voids)],
+        };
+    }
+
+    private static (IReadOnlyList<GeoPoint> Outer, IReadOnlyList<IReadOnlyList<GeoPoint>> Voids) FromPolygon(
+        Polygon polygon, GeoPoint reference)
+    {
+        // Every ring repeats its first coordinate at the end; rings here are open. Local metres back to degrees.
+        var outer = ToGeoPoints(polygon.ExteriorRing.Coordinates, reference);
+        var holes = new List<(double Area, IReadOnlyList<GeoPoint> Ring)>();
+        for (var i = 0; i < polygon.NumInteriorRings; i++)
+        {
+            var hole = polygon.GetInteriorRingN(i);
+            var area = Factory.CreatePolygon(Factory.CreateLinearRing(hole.Coordinates)).Area;
+
+            // A void under a square metre is no more an outline than a sliver is.
+            if (area >= MinimumAreaSquareMeters)
+            {
+                holes.Add((area, ToGeoPoints(hole.Coordinates, reference)));
+            }
         }
+
+        return (outer, [.. holes.OrderByDescending(h => h.Area).Select(h => h.Ring)]);
+    }
+
+    private static List<GeoPoint> ToGeoPoints(Coordinate[] coordinates, GeoPoint reference)
+    {
+        var metersPerDegreeLongitude = MetersPerDegreeLatitude * Math.Cos(reference.Latitude * Math.PI / 180);
+        return
+        [
+            .. coordinates.Take(coordinates.Length - 1).Select(c => new GeoPoint(
+                reference.Latitude + (c.Y / MetersPerDegreeLatitude),
+                reference.Longitude + (c.X / metersPerDegreeLongitude))),
+        ];
+    }
+
+    private static bool IsInsideAVoid(Geometry current, Polygon shape) =>
+        Polygons(current).Any(polygon => Enumerable.Range(0, polygon.NumInteriorRings)
+            .Any(i => Factory.CreatePolygon(Factory.CreateLinearRing(polygon.GetInteriorRingN(i).Coordinates)).Contains(shape)));
+
+    /// <summary>The ground the rings cover, each ring without its voids, merged where they overlap.</summary>
+    private static Geometry UnionOf(
+        IReadOnlyList<IReadOnlyList<GeoPoint>> rings, IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> voids, GeoPoint reference) =>
+        UnaryUnionOp.Union(rings
+            .Select((ring, i) => (Geometry)ToPolygon(ring, i < voids.Count ? voids[i] : [], reference))
+            .ToList());
+
+    public double UnionArea(
+        IReadOnlyList<IReadOnlyList<GeoPoint>> rings, IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> voids)
+    {
+        ArgumentNullException.ThrowIfNull(rings);
+        ArgumentNullException.ThrowIfNull(voids);
+        return rings.Count == 0 ? 0 : UnionOf(rings, voids, rings[0][0]).Area;
+    }
+
+    public VoidValidation ValidateVoids(IReadOnlyList<GeoPoint> outer, IReadOnlyList<IReadOnlyList<GeoPoint>> voids)
+    {
+        ArgumentNullException.ThrowIfNull(outer);
+        ArgumentNullException.ThrowIfNull(voids);
+
+        var reference = outer[0];
+        var outerPolygon = ToPolygon(outer, reference);
+        var accepted = new List<Polygon>();
+        for (var k = 0; k < voids.Count; k++)
+        {
+            var own = Validate(voids[k]);
+            if (own != RingValidationResult.Ok)
+            {
+                return new VoidValidation(own, k);
+            }
+
+            var voidPolygon = ToPolygon(voids[k], reference);
+
+            // Strictly inside: a void that touches the edge is a bite, not a void.
+            if (!outerPolygon.Contains(voidPolygon) || voidPolygon.Intersects(outerPolygon.ExteriorRing))
+            {
+                return new VoidValidation(RingValidationResult.VoidOutsidePart, k);
+            }
+
+            if (accepted.Any(other => other.Intersects(voidPolygon)))
+            {
+                return new VoidValidation(RingValidationResult.VoidsTouch, k);
+            }
+
+            accepted.Add(voidPolygon);
+        }
+
+        return new VoidValidation(RingValidationResult.Ok, -1);
     }
 
     private static IEnumerable<Polygon> Polygons(Geometry geometry) => geometry switch
@@ -207,10 +294,17 @@ public sealed class NtsSiteRingGeometry : ISiteRingGeometry
     private static IReadOnlyList<GeoPoint> WithoutClosingCorner(IReadOnlyList<GeoPoint> ring) =>
         ring.Count > 1 && ring[0] == ring[^1] ? ring.Take(ring.Count - 1).ToList() : ring;
 
-    private static Polygon ToPolygon(IReadOnlyList<GeoPoint> ring, GeoPoint reference)
+    private static Polygon ToPolygon(IReadOnlyList<GeoPoint> ring, GeoPoint reference) =>
+        ToPolygon(ring, [], reference);
+
+    private static Polygon ToPolygon(
+        IReadOnlyList<GeoPoint> ring, IReadOnlyList<IReadOnlyList<GeoPoint>> voids, GeoPoint reference)
     {
         var local = WithoutClosingCorner(ring).Select(c => GeometryMath.ToLocalMeters(c, reference)).ToList();
-        return Factory.CreatePolygon(ToLinearRing(local));
+        var holes = voids
+            .Select(v => ToLinearRing(WithoutClosingCorner(v).Select(c => GeometryMath.ToLocalMeters(c, reference)).ToList()))
+            .ToArray();
+        return Factory.CreatePolygon(ToLinearRing(local), holes);
     }
 
     private static LinearRing ToLinearRing(IReadOnlyList<(double X, double Y)> local)

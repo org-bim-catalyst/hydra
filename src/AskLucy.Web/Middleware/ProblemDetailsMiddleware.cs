@@ -181,6 +181,11 @@ public sealed class ProblemDetailsMiddleware(
         {
             problemDetails.Extensions["ringIndex"] = geometryRejected.RingIndex;
             problemDetails.Extensions["reason"] = geometryRejected.Reason;
+            if (geometryRejected.VoidIndex is { } voidIndex)
+            {
+                // specs/081: which void of that ring.
+                problemDetails.Extensions["voidIndex"] = voidIndex;
+            }
         }
 
         // spec.md FR-016/SC-009 (specs/022-workflow-orchestration-engine): every validation

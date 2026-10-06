@@ -17,7 +17,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Re-read the spec 079 code paths this feature extends, so later tasks keep their behaviour: `src/AskLucy.Infrastructure/Boundaries/NtsSiteRingGeometry.cs` (`Combine`, `fromShell`, `LargestShell`, `UnionArea`), `src/AskLucy.Application/SiteBoundaries/HandEditedMembershipComposer.cs`, `C/viewer/siteBoundaryEdit/editablePolygonController.ts` and `C/viewer/siteBoundaryEdit/googleEditablePolygonHost.ts`. Note in `specs/081-outline-voids-and-shapes/research.md` (under D2 and D4) anything that contradicts the plan. If nothing does, record that.
+- [X] T001 Re-read the spec 079 code paths this feature extends, so later tasks keep their behaviour: `src/AskLucy.Infrastructure/Boundaries/NtsSiteRingGeometry.cs` (`Combine`, `fromShell`, `LargestShell`, `UnionArea`), `src/AskLucy.Application/SiteBoundaries/HandEditedMembershipComposer.cs`, `C/viewer/siteBoundaryEdit/editablePolygonController.ts` and `C/viewer/siteBoundaryEdit/googleEditablePolygonHost.ts`. Note in `specs/081-outline-voids-and-shapes/research.md` (under D2 and D4) anything that contradicts the plan. If nothing does, record that.
 
 ---
 
@@ -27,22 +27,22 @@
 
 ### Domain and persistence
 
-- [ ] T002 [P] Add `EditedVoids` (`IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>`, default empty) to `src/AskLucy.Domain/SiteBoundaries/SiteBoundaryCorrection.cs`. Thread a `voids` parameter through `Create`, `ReplaceRings` and `ApplyMembership`; the parameter defaults to empty so existing callers compile. Extend `EnsureShape`: there are no more void lists than rings, and every void has at least 3 corners. Add the reasons `voidOutsidePart`, `voidsTouch`, `nothingChanged` and `tooManyVoids`, and an optional `VoidIndex`, to `src/AskLucy.Domain/SiteBoundaries/SiteBoundaryGeometryRejectedException.cs`.
-- [ ] T003 [P] Domain tests in `tests/AskLucy.Domain.Tests/SiteBoundaries/SiteBoundaryCorrectionTests.cs`: voids are stored on create and replace; more void lists than rings is rejected; a void with fewer than 3 corners is rejected; a correction without voids behaves as before.
-- [ ] T004 Add `Voids` (one list per ring index) to `src/AskLucy.Domain/Chats/ActiveSiteBoundary.cs`, filled by `WithCorrection`; a found outline always has empty voids. Do the same in `src/AskLucy.Application/SiteBoundaries/CorrectionOutline.cs` (`ToConfirmed`) and on `ConfirmedSiteBoundaryData` (`src/AskLucy.Application/Ai/Commands/SendChatMessage/ChatStreamChunk.cs`). Depends on T002.
-- [ ] T005 Map `EditedVoids` to a new column, `EditedVoidsJson` (`nvarchar(max)`, not null, default `'[]'`), in `src/AskLucy.Persistence/Configurations/SiteBoundaryCorrectionConfiguration.cs`, with the same JSON converter and comparer as `EditedRingsJson`. Generate the migration `AddSiteBoundaryVoids` with `dotnet tool run dotnet-ef migrations add AddSiteBoundaryVoids --project src/AskLucy.Persistence --startup-project src/AskLucy.Web`. Strip any BOM; `System` usings go first. Depends on T002.
-- [ ] T006 [P] Persistence test in `tests/AskLucy.Persistence.Tests/SiteBoundaries/SiteBoundaryCorrectionRepositoryTests.cs`: voids survive a save and reload; a row written without the column value reads as having no voids. Depends on T005.
-- [ ] T007 Apply the migration by hand to the test2 database. Set `ConnectionStrings__DefaultConnection` from `ConnectionStrings:PersistenceTests` in `src/AskLucy.Web/appsettings.Development.json`, then run `dotnet tool run dotnet-ef database update`. Confirm with `migrations list` that it is no longer pending. Do not touch the shared test database. Depends on T005.
+- [X] T002 [P] Add `EditedVoids` (`IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>`, default empty) to `src/AskLucy.Domain/SiteBoundaries/SiteBoundaryCorrection.cs`. Thread a `voids` parameter through `Create`, `ReplaceRings` and `ApplyMembership`; the parameter defaults to empty so existing callers compile. Extend `EnsureShape`: there are no more void lists than rings, and every void has at least 3 corners. Add the reasons `voidOutsidePart`, `voidsTouch`, `nothingChanged` and `tooManyVoids`, and an optional `VoidIndex`, to `src/AskLucy.Domain/SiteBoundaries/SiteBoundaryGeometryRejectedException.cs`.
+- [X] T003 [P] Domain tests in `tests/AskLucy.Domain.Tests/SiteBoundaries/SiteBoundaryCorrectionTests.cs`: voids are stored on create and replace; more void lists than rings is rejected; a void with fewer than 3 corners is rejected; a correction without voids behaves as before.
+- [X] T004 Add `Voids` (one list per ring index) to `src/AskLucy.Domain/Chats/ActiveSiteBoundary.cs`, filled by `WithCorrection`; a found outline always has empty voids. Do the same in `src/AskLucy.Application/SiteBoundaries/CorrectionOutline.cs` (`ToConfirmed`) and on `ConfirmedSiteBoundaryData` (`src/AskLucy.Application/Ai/Commands/SendChatMessage/ChatStreamChunk.cs`). Depends on T002.
+- [X] T005 Map `EditedVoids` to a new column, `EditedVoidsJson` (`nvarchar(max)`, not null, default `'[]'`), in `src/AskLucy.Persistence/Configurations/SiteBoundaryCorrectionConfiguration.cs`, with the same JSON converter and comparer as `EditedRingsJson`. Generate the migration `AddSiteBoundaryVoids` with `dotnet tool run dotnet-ef migrations add AddSiteBoundaryVoids --project src/AskLucy.Persistence --startup-project src/AskLucy.Web`. Strip any BOM; `System` usings go first. Depends on T002.
+- [X] T006 [P] Persistence test in `tests/AskLucy.Persistence.Tests/SiteBoundaries/SiteBoundaryCorrectionRepositoryTests.cs`: voids survive a save and reload; a row written without the column value reads as having no voids. Depends on T005.
+- [X] T007 Apply the migration by hand to the test2 database. Set `ConnectionStrings__DefaultConnection` from `ConnectionStrings:PersistenceTests` in `src/AskLucy.Web/appsettings.Development.json`, then run `dotnet tool run dotnet-ef database update`. Confirm with `migrations list` that it is no longer pending. Do not touch the shared test database. Depends on T005.
 
 ### Geometry port
 
-- [ ] T008 Extend `src/AskLucy.Application/SiteBoundaries/ISiteRingGeometry.cs`:
+- [X] T008 Extend `src/AskLucy.Application/SiteBoundaries/ISiteRingGeometry.cs`:
   - `UnionArea(rings, voids)`, keeping a no-voids overload;
   - `Combine(rings, voids, shape, op)`, whose `CombineResult` gains `Voids`;
   - `CombineFailure.NothingChanged`;
   - `RingValidationResult.VoidOutsidePart` and `VoidsTouch`;
   - `ValidateVoids(outer, voids)`, returning the first problem and its void index.
-- [ ] T009 Infrastructure tests first, in `tests/AskLucy.Infrastructure.Tests/Boundaries/NtsSiteRingGeometryCombineTests.cs`:
+- [X] T009 Infrastructure tests first, in `tests/AskLucy.Infrastructure.Tests/Boundaries/NtsSiteRingGeometryCombineTests.cs`:
   - replace `Cutting_ACircleWhollyInside_IsRefused_BecauseItWouldLeaveAHole` with "makes a void";
   - a cut across an existing void opens it into a bite;
   - an Add over a void fills it (wholly and partly);
@@ -54,7 +54,7 @@
   - voids under 1 m² are dropped.
 
   In `NtsSiteRingGeometryTests.cs`: `UnionArea` subtracts voids, and `ValidateVoids` covers each reason (crossing the edge, touching the edge, two voids touching, a self-crossing void).
-- [ ] T010 Implement T008 in `src/AskLucy.Infrastructure/Boundaries/NtsSiteRingGeometry.cs`:
+- [X] T010 Implement T008 in `src/AskLucy.Infrastructure/Boundaries/NtsSiteRingGeometry.cs`:
   - `ToPolygon(ring, voids, reference)` builds interior rings;
   - `fromShell` becomes `fromPolygon`, returning the outer edge and its holes;
   - remove the `HoleNotSupported` branch from `Combine`;
@@ -65,8 +65,8 @@
 
 ### Wire format
 
-- [ ] T011 Add `Voids` to `ChatActiveBoundaryDto` (`src/AskLucy.Application/Chats/Queries/GetChatById/ChatDetailDto.cs`, filled from `ActiveSiteBoundary.Voids`). Add `voids` to the `__SITE_BOUNDARY__` event in `src/AskLucy.Web/Controllers/v1/AiController.cs` (`WriteConfirmedBoundaryEventAsync`). Add `voidIndex` to the 422 body in `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`. Depends on T004.
-- [ ] T012 [P] Client model: add `voids?: GeoPoint[][][]` to `ChatActiveBoundary` in `C/features/chat/api/chatsApi.ts` and to the siteBoundary event in `C/features/chat/api/aiApi.ts`. Add `voids` (default `[]`) and `siteVoidsOf(state)` to `C/store/activeSiteBoundaryStore.ts`. Pass voids through `useChatStream.ts`, `useRestoreChatSite.ts` and `applyBoundaryToViewer` (`C/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts`). Test in `C/store/activeSiteBoundaryStore.test.ts`.
+- [X] T011 Add `Voids` to `ChatActiveBoundaryDto` (`src/AskLucy.Application/Chats/Queries/GetChatById/ChatDetailDto.cs`, filled from `ActiveSiteBoundary.Voids`). Add `voids` to the `__SITE_BOUNDARY__` event in `src/AskLucy.Web/Controllers/v1/AiController.cs` (`WriteConfirmedBoundaryEventAsync`). Add `voidIndex` to the 422 body in `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`. Depends on T004.
+- [X] T012 [P] Client model: add `voids?: GeoPoint[][][]` to `ChatActiveBoundary` in `C/features/chat/api/chatsApi.ts` and to the siteBoundary event in `C/features/chat/api/aiApi.ts`. Add `voids` (default `[]`) and `siteVoidsOf(state)` to `C/store/activeSiteBoundaryStore.ts`. Pass voids through `useChatStream.ts`, `useRestoreChatSite.ts` and `applyBoundaryToViewer` (`C/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts`). Test in `C/store/activeSiteBoundaryStore.test.ts`.
 
 **Checkpoint**: everything builds; all existing tests pass; voids round-trip through storage and the API but nothing draws them yet.
 

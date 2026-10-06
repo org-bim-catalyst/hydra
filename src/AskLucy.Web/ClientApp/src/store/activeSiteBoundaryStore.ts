@@ -24,6 +24,11 @@ interface ActiveSiteBoundaryState {
    * same development across a street, or a station. Empty for a site that is one outline.
    */
   additionalPolygons: GeoPoint[][]
+  /**
+   * specs/081 — each ring's voids (atriums, courtyards) by ring index, 0 being `polygon`. Open rings.
+   * Empty for an outline without any.
+   */
+  voids: GeoPoint[][][]
   areaSquareMeters: number | null
   confidence: number | null
   confidenceLevel: SiteBoundaryConfidenceLevel | null
@@ -43,8 +48,9 @@ interface ActiveSiteBoundaryState {
 interface ActiveSiteBoundaryActions {
   /** Replaces the active boundary wholesale — never a partial merge (a new site fully supersedes the previous one). */
   setBoundary(
-    boundary: Omit<ActiveSiteBoundaryState, 'additionalPolygons' | 'chatId' | 'revision' | 'isHandEdited'> & {
+    boundary: Omit<ActiveSiteBoundaryState, 'additionalPolygons' | 'voids' | 'chatId' | 'revision' | 'isHandEdited'> & {
       additionalPolygons?: GeoPoint[][]
+      voids?: GeoPoint[][][]
       chatId?: string | null
       revision?: string | null
       isHandEdited?: boolean
@@ -68,6 +74,7 @@ const emptyState: ActiveSiteBoundaryState = {
   centroid: null,
   polygon: null,
   additionalPolygons: [],
+  voids: [],
   areaSquareMeters: null,
   confidence: null,
   confidenceLevel: null,
@@ -82,6 +89,9 @@ const emptyState: ActiveSiteBoundaryState = {
 export const siteRingsOf = (state: Pick<ActiveSiteBoundaryState, 'polygon' | 'additionalPolygons'>): GeoPoint[][] =>
   state.polygon ? [state.polygon, ...state.additionalPolygons] : []
 
+/** Each ring's voids, by the same ring index as {@link siteRingsOf}. */
+export const siteVoidsOf = (state: Pick<ActiveSiteBoundaryState, 'voids'>): GeoPoint[][][] => state.voids
+
 export const useActiveSiteBoundaryStore = create<ActiveSiteBoundaryState & ActiveSiteBoundaryActions>()((set, get) => ({
   ...emptyState,
 
@@ -90,6 +100,7 @@ export const useActiveSiteBoundaryStore = create<ActiveSiteBoundaryState & Activ
     set({
       ...boundary,
       additionalPolygons: boundary.additionalPolygons ?? [],
+      voids: boundary.voids ?? [],
       chatId: boundary.chatId ?? null,
       revision: boundary.revision ?? null,
       isHandEdited: boundary.isHandEdited ?? false,

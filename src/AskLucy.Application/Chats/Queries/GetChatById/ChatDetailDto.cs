@@ -68,6 +68,9 @@ public sealed record ChatActiveBoundaryDto(
     /// <summary>specs/077 — outlines of included buildings standing apart from <see cref="Polygon"/>.</summary>
     public IReadOnlyList<IReadOnlyList<ChatGeoPointDto>> AdditionalPolygons { get; init; } = [];
 
+    /// <summary>specs/081 — each ring's voids by ring index (0 is <see cref="Polygon"/>); empty when there are none.</summary>
+    public IReadOnlyList<IReadOnlyList<IReadOnlyList<ChatGeoPointDto>>> Voids { get; init; } = [];
+
     /// <summary>specs/079 — the token a client sends back as <c>expectedRevision</c> when saving an edit.</summary>
     public string Revision { get; init; } = string.Empty;
 
@@ -85,6 +88,8 @@ public sealed record ChatActiveBoundaryDto(
         boundary.SourceDetail)
     {
         AdditionalPolygons = [.. boundary.AdditionalPolygons.Select(r => (IReadOnlyList<ChatGeoPointDto>)[.. r.Select(p => new ChatGeoPointDto(p.Latitude, p.Longitude))])],
+        Voids = [.. boundary.Voids.Select(ringVoids => (IReadOnlyList<IReadOnlyList<ChatGeoPointDto>>)[
+            .. ringVoids.Select(v => (IReadOnlyList<ChatGeoPointDto>)[.. v.Select(p => new ChatGeoPointDto(p.Latitude, p.Longitude))])])],
         Revision = boundary.Revision.ToString(),
         IsHandEdited = boundary.IsHandEdited,
     };
