@@ -1,0 +1,12 @@
+{
+  "name": "Workflow run completed",
+  "subject": "{{ workflowName }} finished",
+  "preheader": "{{ workflowName }} finished.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your workflow finished",
+  "bodyParagraphs": [
+    "{{ workflowName }} finished in {{ duration }}."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Workflow updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

@@ -1,14 +1,20 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Common;
+using AskLucy.Domain.Notifications;
 using MediatR;
 using Microsoft.Extensions.Logging;
+// MediatR has its own INotificationPublisher; the hub's is the one meant here.
+using INotificationPublisher = AskLucy.Application.Notifications.Abstractions.INotificationPublisher;
 
 namespace AskLucy.Application.Users.Commands.AdminSendPasswordReset;
 
 public sealed class AdminSendPasswordResetCommandHandler(
     IIdentityService identityService,
     ICurrentUserAccessor currentUser,
-    IPasswordResetIssuanceJob issuanceJob,
+    INotificationPublisher publisher,
+    IUnitOfWork unitOfWork,
     ILogger<AdminSendPasswordResetCommandHandler> logger) : IRequestHandler<AdminSendPasswordResetCommand>
 {
     public async Task Handle(AdminSendPasswordResetCommand request, CancellationToken cancellationToken)
@@ -33,9 +39,13 @@ public sealed class AdminSendPasswordResetCommandHandler(
             throw new DomainRuleViolationException("This account is locked; unlock it before sending a password reset link.");
         }
 
-        // Reuses the same eligibility/throttle/token-issuance logic as the self-service
-        // "forgot password" flow (research.md Topic 3 equivalent) — no duplicate token plumbing.
-        await issuanceJob.IssueAsync(eligibility.Email, requestedFromIp: null, cancellationToken);
+        // The same hub path as the self-service "forgot password" flow: the link is minted, throttled and
+        // checked for eligibility when the email is sent, so there is no duplicate token plumbing here.
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.AccountPasswordResetRequested,
+            new NotificationRecipient.User(request.UserId),
+            new Dictionary<string, string?>()));
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         AdminActionLog.AdminUserActionPerformed(logger, "SendPasswordReset", actorUserId, request.UserId, "Password reset link sent");
     }

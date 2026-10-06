@@ -1,74 +1,53 @@
+#pragma warning disable CS0618 // The shim under test is obsolete by design: it exists for one release.
+
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Options;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using AskLucy.Infrastructure.Email;
-using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.Email;
 
-/// <summary>specs/061-branded-email-templates T009.</summary>
+/// <summary>
+/// specs/067 US9-B (T133), replacing specs/061-branded-email-templates T009: <see cref="AccountEmailJob"/> is a
+/// one-release forwarding shim. Hangfire jobs enqueued before the deploy still run with their old
+/// signature, and now hand the request to the hub instead of building and sending the email.
+/// </summary>
 public sealed class AccountEmailJobTests
 {
-    private readonly IEmailTemplateRenderer _templateRenderer = Substitute.For<IEmailTemplateRenderer>();
-    private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
-    private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
-    private readonly AccountEmailJob _job;
+    private readonly INotificationPublisher _publisher = Substitute.For<INotificationPublisher>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
-    public AccountEmailJobTests()
+    [Fact]
+    public async Task ResendConfirmationAsync_ShouldPublishAConfirmationRequestForTheAddress_AndCommitIt()
     {
-        _templateRenderer.Render(Arg.Any<AccountEmailContent>()).Returns(("<html-body>", "text-body"));
-        var appOptions = Options.Create(new AppOptions { FrontendBaseUrl = "https://tests.asklucy.io" });
-        var smtpOptions = Options.Create(new SmtpOptions());
-        _job = new AccountEmailJob(
-            _templateRenderer, _emailSender, _identityService, appOptions, smtpOptions, NullLogger<AccountEmailJob>.Instance);
+        var job = new AccountEmailJob(_publisher, _unitOfWork);
+
+        await job.ResendConfirmationAsync("user@example.com", CancellationToken.None);
+
+        Received.InOrder(() =>
+        {
+            _publisher.Publish(Arg.Is<NotificationRequest>(r => r != null &&
+                r.Type == NotificationTypeKeys.AccountEmailConfirmationRequested
+                && r.Recipient == new NotificationRecipient.AddressLookup("user@example.com")));
+            _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]
-    public async Task ResendConfirmationAsync_ShouldRenderAndSend_WithAConfirmationLinkContainingTheToken()
+    public async Task SendAccountSupportRequestAsync_ShouldPublishToTheSupportMailbox_WithTheSenderAndTheirMessage()
     {
-        _identityService.FindIdByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns("user-1");
-        _identityService.GetPasswordResetEligibilityAsync("user-1", Arg.Any<CancellationToken>())
-            .Returns(new PasswordResetEligibility("user@example.com", EmailConfirmed: false, IsLockedOut: false, HasPassword: true));
-        _identityService.GenerateEmailConfirmationTokenAsync("user-1", Arg.Any<CancellationToken>()).Returns("fresh-token");
+        var job = new AccountEmailJob(_publisher, _unitOfWork);
 
-        AccountEmailContent? capturedContent = null;
-        _templateRenderer.When(x => x.Render(Arg.Any<AccountEmailContent>()))
-            .Do(call => capturedContent = call.Arg<AccountEmailContent>());
+        await job.SendAccountSupportRequestAsync("locked@example.com", "Please unlock my account.", "203.0.113.5", CancellationToken.None);
 
-        await _job.ResendConfirmationAsync("user@example.com", TestContext.Current.CancellationToken);
-
-        capturedContent.Should().NotBeNull();
-        capturedContent!.PrimaryAction.Should().NotBeNull();
-        capturedContent.PrimaryAction!.Url.Should().Contain("fresh-token");
-        capturedContent.PrimaryAction!.Url.Should().Contain("user-1");
-        await _emailSender.Received(1).SendAsync(
-            "user@example.com", Arg.Any<string>(), "<html-body>", "text-body", Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task ResendConfirmationAsync_ShouldSendNothing_WhenNoAccountExistsForTheAddress()
-    {
-        _identityService.FindIdByEmailAsync("missing@example.com", Arg.Any<CancellationToken>()).Returns((string?)null);
-
-        await _job.ResendConfirmationAsync("missing@example.com", TestContext.Current.CancellationToken);
-
-        _templateRenderer.DidNotReceiveWithAnyArgs().Render(default!);
-        await _emailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default!, TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
-    public async Task ResendConfirmationAsync_ShouldSendNothing_WhenTheAccountIsAlreadyConfirmed()
-    {
-        _identityService.FindIdByEmailAsync("confirmed@example.com", Arg.Any<CancellationToken>()).Returns("user-2");
-        _identityService.GetPasswordResetEligibilityAsync("user-2", Arg.Any<CancellationToken>())
-            .Returns(new PasswordResetEligibility("confirmed@example.com", EmailConfirmed: true, IsLockedOut: false, HasPassword: true));
-
-        await _job.ResendConfirmationAsync("confirmed@example.com", TestContext.Current.CancellationToken);
-
-        _templateRenderer.DidNotReceiveWithAnyArgs().Render(default!);
-        await _emailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default!, TestContext.Current.CancellationToken);
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
+            r.Type == NotificationTypeKeys.AccountSupportRequestSubmitted
+            && r.Recipient is NotificationRecipient.SupportMailbox
+            && r.Variables["requesterEmail"] == "locked@example.com"
+            && r.Variables["messageBody"] == "Please unlock my account."));
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

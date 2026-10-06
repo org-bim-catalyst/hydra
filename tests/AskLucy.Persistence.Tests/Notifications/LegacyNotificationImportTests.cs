@@ -127,6 +127,10 @@ public sealed class LegacyNotificationImportTests(PersistenceTestFixture fixture
         public Task<RenderedInApp> RenderInAppAsync(
             NotificationTypeDefinition definition, string language, IReadOnlyDictionary<string, string?> variables, CancellationToken cancellationToken) =>
             Task.FromResult(new RenderedInApp($"{definition.Key} title", "unused", null, Guid.NewGuid(), language));
+
+        public Task<RenderedEmail> RenderEmailAsync(
+            NotificationTypeDefinition definition, string language, IReadOnlyDictionary<string, string?> variables, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     /// <summary>Deterministic stand-in for the real, Infrastructure-only <see cref="INotificationLinkBuilder"/>.</summary>

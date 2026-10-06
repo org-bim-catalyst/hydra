@@ -3,7 +3,10 @@ namespace AskLucy.Application.Abstractions;
 /// <summary>Renders the shared branded shell around an <see cref="AccountEmailContent"/>.</summary>
 public interface IEmailTemplateRenderer
 {
-    (string HtmlBody, string TextBody) Render(AccountEmailContent content);
+    /// <param name="content">The email's variable content.</param>
+    /// <param name="language">Goes on the root element's <c>lang</c> (specs/067 FR-049); the default keeps existing output unchanged.</param>
+    /// <param name="direction"><c>ltr</c> or <c>rtl</c>, for the root element's <c>dir</c>.</param>
+    (string HtmlBody, string TextBody) Render(AccountEmailContent content, string language = "en", string direction = "ltr");
 }
 
 /// <summary>

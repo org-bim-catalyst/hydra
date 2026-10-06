@@ -96,7 +96,7 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         NotificationRecipient? recipient = null,
         string type = NotificationTypeKeys.DocumentProcessingFailed,
         string? eventKey = EventKey,
-        string relatedItemType = "document")
+        string? relatedItemType = "document")
     {
         var ev = NotificationOutboxEvent.Create(
             type,
@@ -367,6 +367,99 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         notification.Deliveries.Should().ContainSingle(d => d.Channel == NotificationChannel.Email && d.RecipientKind == RecipientKind.SupportMailbox);
     }
 
+    // ---- address lookup (specs/067 US9-B, FR-009e): password reset and confirmation resend ----
+
+    private static string Sha256Hex(string value) =>
+        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value)));
+
+    [Fact]
+    public async Task AddressLookup_ForAConfirmationResend_GoesToTheAccountsOwnAddress_EvenThoughItIsUnconfirmed()
+    {
+        _directory.Accounts[UserId] = _directory.Accounts[UserId] with { EmailConfirmed = false };
+        var ev = Enqueue(new NotificationRecipient.AddressLookup("  Layla@Example.com "), NotificationTypeKeys.AccountEmailConfirmationRequested, eventKey: null, relatedItemType: null);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        Row(ev).Outcome.Should().Be(OutboxEventOutcome.Materialized);
+        var notification = _db.Committed.Should().ContainSingle().Subject;
+        notification.RecipientUserId.Should().Be(UserId);
+        notification.ShowInCenter.Should().BeFalse("account emails never appear in the notification center (FR-009c)");
+        var email = notification.Deliveries.Should().ContainSingle().Subject;
+        email.Channel.Should().Be(NotificationChannel.Email);
+        email.Status.Should().Be(DeliveryStatus.Pending);
+        email.RecipientKind.Should().Be(RecipientKind.Address, "the address being confirmed is routable although it is unverified");
+        email.RecipientAddress.Should().Be("layla@example.com");
+    }
+
+    [Fact]
+    public async Task AddressLookup_ForAPasswordReset_GoesToTheUsersVerifiedAddress_WithoutStoringIt()
+    {
+        var ev = Enqueue(new NotificationRecipient.AddressLookup("layla@example.com"), NotificationTypeKeys.AccountPasswordResetRequested, eventKey: null, relatedItemType: null);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        Row(ev).Outcome.Should().Be(OutboxEventOutcome.Materialized);
+        var email = _db.Committed.Should().ContainSingle().Subject.Deliveries.Should().ContainSingle().Subject;
+        email.Status.Should().Be(DeliveryStatus.Pending);
+        email.RecipientKind.Should().Be(RecipientKind.User);
+        email.RecipientAddress.Should().BeNull();
+        email.ExpiresAtUtc.Should().Be(_time.GetUtcNow().UtcDateTime.AddMinutes(60), "a reset request stays sendable for its 60 minutes");
+    }
+
+    [Fact]
+    public async Task AddressLookup_ForAPasswordResetOfAnUnconfirmedAccount_SkipsTheEmail()
+    {
+        _directory.Accounts[UserId] = _directory.Accounts[UserId] with { EmailConfirmed = false };
+        Enqueue(new NotificationRecipient.AddressLookup("layla@example.com"), NotificationTypeKeys.AccountPasswordResetRequested, eventKey: null, relatedItemType: null);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        _db.Committed.Single().Deliveries.Should().ContainSingle(d => d.Status == DeliveryStatus.Skipped && d.SkipReason == DeliverySkipReason.NoVerifiedAddress);
+    }
+
+    [Theory]
+    [InlineData("nobody@example.invalid")]
+    [InlineData("  NoBody@Example.INVALID ")]
+    public async Task AddressLookup_ForAnUnknownAddress_CompletesAsNoRecipient_AndLogsOnlyAHashOfIt(string address)
+    {
+        var ev = Enqueue(new NotificationRecipient.AddressLookup(address), NotificationTypeKeys.AccountPasswordResetRequested, eventKey: null, relatedItemType: null);
+
+        var claimed = await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        claimed.Should().Be(1);
+        Row(ev).Status.Should().Be(OutboxEventStatus.Completed);
+        Row(ev).Outcome.Should().Be(OutboxEventOutcome.NoRecipient);
+        _db.Committed.Should().BeEmpty("an unknown address creates no notification and no delivery");
+
+        var logged = string.Join('\n', _processorLogger.Collector.GetSnapshot().Select(r => r.Message));
+        logged.Should().Contain(Sha256Hex("nobody@example.invalid"));
+        logged.Should().NotContainEquivalentOf("nobody").And.NotContainEquivalentOf("example.invalid");
+    }
+
+    [Fact]
+    public async Task AddressLookup_ForADeletedAccount_IsNoRecipient_LikeAnUnknownAddress()
+    {
+        _directory.Accounts[UserId] = _directory.Accounts[UserId] with { IsActive = false };
+        var ev = Enqueue(new NotificationRecipient.AddressLookup("layla@example.com"), NotificationTypeKeys.AccountPasswordResetRequested, eventKey: null, relatedItemType: null);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        Row(ev).Outcome.Should().Be(OutboxEventOutcome.NoRecipient);
+        _db.Committed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AddressLookup_KnownAndUnknownAddresses_BothCompleteTheSameWay_SoNothingTimingOrStatusDiffers()
+    {
+        var known = Enqueue(new NotificationRecipient.AddressLookup("layla@example.com"), NotificationTypeKeys.AccountPasswordResetRequested, eventKey: null, relatedItemType: null);
+        var unknown = Enqueue(new NotificationRecipient.AddressLookup("nobody@example.invalid"), NotificationTypeKeys.AccountPasswordResetRequested, eventKey: null, relatedItemType: null);
+
+        await Dispatcher.DispatchBatchAsync(WorkerId, CancellationToken.None);
+
+        Row(known).Status.Should().Be(Row(unknown).Status).And.Be(OutboxEventStatus.Completed);
+        Row(known).Attempts.Should().Be(Row(unknown).Attempts);
+    }
+
     [Fact]
     public async Task EventLeasedToAnotherWorker_IsLeftAlone()
     {
@@ -444,6 +537,25 @@ public sealed class OutboxDispatchServiceTests : IDisposable
         }
 
         public Task<int> ReleaseClaimsAsync(string workerId, CancellationToken cancellationToken) => Task.FromResult(0);
+
+        public Task<NotificationOutboxEvent?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+            Task.FromResult(db.OutboxRows.SingleOrDefault(e => e.Id == id));
+
+        public Task<int> SweepExpiredLeasesAsync(DateTime now, CancellationToken cancellationToken) => Task.FromResult(0);
+
+        // The delivery queue belongs to DeliveryProcessingServiceTests; the dispatcher never touches it.
+        public Task<IReadOnlyList<Guid>> ClaimDueDeliveriesAsync(
+            string workerId, IReadOnlyCollection<NotificationChannel> channels, DateTime leaseExpiresAtUtc, int batchSize, DateTime now, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Notification?> GetClaimedDeliveryAsync(Guid deliveryId, string workerId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<int> ReleaseClaimsAsync(string workerId, IReadOnlyCollection<Guid> deliveryIds, DateTime now, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<DeliveryBacklog> GetDueBacklogAsync(DateTime now, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public void Add(Notification notification) => _added.Add(notification);
 
@@ -552,6 +664,9 @@ public sealed class OutboxDispatchServiceTests : IDisposable
     {
         public Dictionary<string, NotificationRecipientInfo> Accounts { get; } = [];
 
+        public Task<NotificationRecipientInfo?> FindByEmailAsync(string email, CancellationToken cancellationToken) =>
+            Task.FromResult(Accounts.Values.FirstOrDefault(a => string.Equals(a.Email, email.Trim(), StringComparison.OrdinalIgnoreCase)));
+
         public Task<IReadOnlyDictionary<string, NotificationRecipientInfo>> GetAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<string, NotificationRecipientInfo>>(
                 Accounts.Where(a => userIds.Contains(a.Key)).ToDictionary(a => a.Key, a => a.Value));
@@ -577,6 +692,10 @@ public sealed class OutboxDispatchServiceTests : IDisposable
 
             return Task.FromResult(new RenderedInApp($"{variables["documentName"]} failed", "Processing failed.", "Open document", Guid.CreateVersion7(), language));
         }
+
+        public Task<RenderedEmail> RenderEmailAsync(
+            NotificationTypeDefinition definition, string language, IReadOnlyDictionary<string, string?> variables, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The dispatcher renders in-app only; email renders at send time.");
     }
 
     private sealed record Push(string UserId, NotificationListItemDto Item, int UnreadCount, bool WasCommitted);

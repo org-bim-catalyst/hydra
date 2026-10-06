@@ -140,7 +140,10 @@ public static class DependencyInjection
 
         // Password reset issuance runs on a worker so the request path costs the same for every
         // address (specs/058-password-recovery, FR-003).
+        // specs/067 US9-B: a one-release forwarding shim, kept so jobs enqueued before the deploy still run.
+#pragma warning disable CS0618
         services.AddScoped<IPasswordResetIssuanceJob, PasswordResetIssuanceJob>();
+#pragma warning restore CS0618
         services.AddScoped<IMemoryExportGenerationJob, MemoryExportGenerationJob>();
 
         // Custom model deployment (specs/072). The job runs on a Hangfire worker, never the request
@@ -415,6 +418,12 @@ public static class DependencyInjection
         services.AddScoped<NotificationCreatedPusher>();
         services.AddScoped<OutboxEventProcessor>();
         services.AddSingleton<OutboxDispatchService>();
+
+        // US3: the delivery relay mirrors the outbox relay. The batch service is a singleton that
+        // opens a scope per delivery; the processor and everything it touches are scoped to that one.
+        services.AddScoped<DeliveryProcessor>();
+        services.AddSingleton<DeliveryProcessingService>();
+        services.AddSingleton<LeaseSweepService>();
 
         // T091 — one INotificationAccessCheck per related-item type module currently emits
         // (research R24); registered as IEnumerable<INotificationAccessCheck> and resolved by

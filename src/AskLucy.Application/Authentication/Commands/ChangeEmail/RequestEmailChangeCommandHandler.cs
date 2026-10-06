@@ -1,37 +1,35 @@
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Options;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using MediatR;
-using Microsoft.Extensions.Options;
+// MediatR has its own INotificationPublisher; the hub's is the one meant here.
+using INotificationPublisher = AskLucy.Application.Notifications.Abstractions.INotificationPublisher;
 
 namespace AskLucy.Application.Authentication.Commands.ChangeEmail;
 
-/// <summary>Mirrors RegisterCommandHandler's inline-rendered confirmation email pattern.</summary>
+/// <summary>
+/// Asks the notification hub to send the change-email confirmation to the new, unverified address
+/// (specs/067 US9-B). The link, with its token, is minted when the email is sent. The template gets the
+/// address masked, never in full.
+/// </summary>
 public sealed class RequestEmailChangeCommandHandler(
-    IIdentityService identityService,
-    IEmailTemplateRenderer templateRenderer,
-    IEmailSender emailSender,
-    IOptions<AppOptions> appOptions) : IRequestHandler<RequestEmailChangeCommand>
+    INotificationPublisher publisher,
+    IUnitOfWork unitOfWork) : IRequestHandler<RequestEmailChangeCommand>
 {
     public async Task Handle(RequestEmailChangeCommand request, CancellationToken cancellationToken)
     {
-        var token = await identityService.GenerateChangeEmailTokenAsync(request.UserId, request.NewEmail, cancellationToken);
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.AccountEmailChangeRequested,
+            new NotificationRecipient.AddressForUser(request.UserId, request.NewEmail),
+            new Dictionary<string, string?> { ["newEmailMasked"] = MaskAddress(request.NewEmail) }));
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
 
-        var confirmationLink =
-            $"{appOptions.Value.FrontendBaseUrl}/confirm-email-change" +
-            $"?userId={Uri.EscapeDataString(request.UserId)}" +
-            $"&newEmail={Uri.EscapeDataString(request.NewEmail)}" +
-            $"&token={Uri.EscapeDataString(token)}";
-
-        const string subject = "Confirm your new Ask Lucy email";
-        var content = new AccountEmailContent(
-            Subject: subject,
-            PreheaderText: "Confirm this address to finish changing your Ask Lucy account email.",
-            Heading: "Confirm your new email address",
-            BodyParagraphs: ["You requested to change your Ask Lucy account email to this address."],
-            SafetyNote: "If you didn't request this, you can safely ignore this message.",
-            PrimaryAction: new EmailAction("Confirm email change", confirmationLink));
-
-        var (htmlBody, textBody) = templateRenderer.Render(content);
-        await emailSender.SendAsync(request.NewEmail, subject, htmlBody, textBody, cancellationToken);
+    /// <summary>The first letter of the local part and the whole domain: enough to recognise, not enough to harvest.</summary>
+    internal static string MaskAddress(string address)
+    {
+        var at = address.IndexOf('@', StringComparison.Ordinal);
+        return at <= 0 ? "your new address" : $"{address[0]}***{address[at..]}";
     }
 }

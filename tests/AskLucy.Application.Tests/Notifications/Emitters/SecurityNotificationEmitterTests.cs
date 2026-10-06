@@ -21,7 +21,7 @@ public sealed class SecurityNotificationEmitterTests
 
         await sut.Handle(new EnableTwoFactorCommand("user-1"), TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.SecurityTwoFactorEnabled &&
             ((NotificationRecipient.User)r.Recipient).UserId == "user-1" &&
             r.EventKey!.StartsWith("security:user-1:two-factor-enabled:")));
@@ -35,7 +35,7 @@ public sealed class SecurityNotificationEmitterTests
 
         await sut.Handle(new DisableTwoFactorCommand("user-2"), TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.SecurityTwoFactorDisabled &&
             ((NotificationRecipient.User)r.Recipient).UserId == "user-2" &&
             r.EventKey!.StartsWith("security:user-2:two-factor-disabled:")));
@@ -50,7 +50,7 @@ public sealed class SecurityNotificationEmitterTests
 
         await sut.Handle(new GenerateRecoveryCodesCommand("user-3"), TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.SecurityRecoveryCodesRegenerated &&
             ((NotificationRecipient.User)r.Recipient).UserId == "user-3" &&
             r.EventKey!.StartsWith("security:user-3:recovery-codes-regenerated:")));

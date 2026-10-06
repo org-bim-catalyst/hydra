@@ -1,0 +1,12 @@
+{
+  "name": "Document processing failed",
+  "subject": "{{ documentName }} couldn't be processed",
+  "preheader": "{{ documentName }} failed to process.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your document couldn't be processed",
+  "bodyParagraphs": [
+    "{{ documentName }} failed to process: {{ failureSummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}

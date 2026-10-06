@@ -56,9 +56,10 @@ public sealed class OutboxEventProcessor(
             NotificationRecipient.User u => await ForUsersAsync(definition, outboxEvent, variables, [u.UserId], address: null, cancellationToken),
             NotificationRecipient.Users u => await ForUsersAsync(definition, outboxEvent, variables, [.. u.UserIds.Distinct(StringComparer.Ordinal)], address: null, cancellationToken),
             NotificationRecipient.AddressForUser a => await ForUsersAsync(definition, outboxEvent, variables, [a.UserId], a.EmailAddress, cancellationToken),
+            NotificationRecipient.AddressLookup l => await ForAddressLookupAsync(definition, outboxEvent, variables, l.EmailAddress, cancellationToken),
             NotificationRecipient.SupportMailbox => await ForSupportMailboxAsync(definition, outboxEvent, variables, cancellationToken),
 
-            // AddressLookup arrives with password reset (US9) and Audience with announcements (US6).
+            // Audience arrives with announcements (US6).
             _ => throw new NotSupportedException($"The {recipient.GetType().Name} recipient isn't dispatched yet."),
         };
 
@@ -147,6 +148,34 @@ public sealed class OutboxEventProcessor(
             : duplicates > 0 ? OutboxEventOutcome.Duplicate
             : OutboxEventOutcome.NoRecipient;
         return new DispatchResult(created, outcome);
+    }
+
+    /// <summary>
+    /// A request made by address alone (password reset, confirmation resend), resolved here rather than on the
+    /// request thread so the request costs the same whether or not the address has an account (FR-009e). An
+    /// address with no active account ends as <see cref="OutboxEventOutcome.NoRecipient"/>: nothing is created,
+    /// and the log carries only a hash of the address.
+    /// </summary>
+    private async Task<DispatchResult> ForAddressLookupAsync(
+        NotificationTypeDefinition definition,
+        NotificationOutboxEvent outboxEvent,
+        IReadOnlyDictionary<string, string?> variables,
+        string emailAddress,
+        CancellationToken cancellationToken)
+    {
+        var account = await directory.FindByEmailAsync(emailAddress, cancellationToken);
+        if (account is not { IsActive: true })
+        {
+            var addressHash = NotificationAddressHash.Of(emailAddress);
+            NotificationDispatchLog.AddressNotFound(logger, definition.Key, outboxEvent.EventKey, outboxEvent.CorrelationId, addressHash);
+            return new DispatchResult([], OutboxEventOutcome.NoRecipient);
+        }
+
+        // A confirmation goes to the address being confirmed, which is unverified by definition, so it is
+        // routed as an explicit address (FR-009c). A reset goes to the account's verified address, and is
+        // skipped if there isn't one (an unconfirmed account can't recover by email: it would bypass verification).
+        var routable = definition.SensitiveLinkKind == SensitiveLinkKind.EmailConfirmation ? account.Email : null;
+        return await ForUsersAsync(definition, outboxEvent, variables, [account.UserId], routable, cancellationToken);
     }
 
     private async Task<DispatchResult> ForSupportMailboxAsync(

@@ -70,7 +70,7 @@ public sealed class ProcessingNotifierTests
             "user-3", DocumentNotificationEventType.ProcessingCompleted, documentId, "dedupe-1",
             documentName: "Report.pdf", cancellationToken: TestContext.Current.CancellationToken);
 
-        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             ((NotificationRecipient.User)r!.Recipient).UserId == "user-3" &&
             r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
             r.EventKey == $"document:{documentId}:{DocumentNotificationEventType.ProcessingCompleted}:dedupe-1"));
@@ -84,7 +84,7 @@ public sealed class ProcessingNotifierTests
 
         await sut.NotifyOcrCompletedAsync("user-4", documentId, "Report.pdf", "dedupe-2", TestContext.Current.CancellationToken);
 
-        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             ((NotificationRecipient.User)r!.Recipient).UserId == "user-4" &&
             r.RelatedItem == new RelatedItem("Document", documentId.ToString()) &&
             r.EventKey == $"document:{documentId}:ocr-completed:dedupe-2"));
@@ -101,9 +101,9 @@ public sealed class ProcessingNotifierTests
             documentName: "Report.pdf", failureSummary: "The scan was unreadable.",
             cancellationToken: TestContext.Current.CancellationToken);
 
-        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.DocumentOcrFailed && r.Variables["failureSummary"] == "The scan was unreadable."));
-        _publisher.DidNotReceive().Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.DocumentProcessingFailed));
+        _publisher.DidNotReceive().Publish(Arg.Is<NotificationRequest>(r => r != null && r!.Type == NotificationTypeKeys.DocumentProcessingFailed));
     }
 
     [Fact]
@@ -117,6 +117,6 @@ public sealed class ProcessingNotifierTests
             documentName: "Report.pdf", failureSummary: "The parser crashed.",
             cancellationToken: TestContext.Current.CancellationToken);
 
-        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.DocumentProcessingFailed));
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null && r!.Type == NotificationTypeKeys.DocumentProcessingFailed));
     }
 }

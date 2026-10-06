@@ -1,57 +1,66 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Authentication;
 using AskLucy.Application.Authentication.Commands.Register;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
-using AppOptions = AskLucy.Application.Options.AppOptions;
 
 namespace AskLucy.Application.Tests.Authentication;
 
+/// <summary>
+/// specs/067 US9-B (T125): registration asks the hub for the confirmation email instead of building and
+/// sending it. The link, with its token, is minted when the email is sent, so nothing about it is in the
+/// request, the outbox or this handler.
+/// </summary>
 public sealed class RegisterCommandHandlerTests
 {
     private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
-    private readonly IEmailTemplateRenderer _templateRenderer = Substitute.For<IEmailTemplateRenderer>();
-    private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly INotificationPublisher _publisher = Substitute.For<INotificationPublisher>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly RegisterCommandHandler _handler;
 
     public RegisterCommandHandlerTests()
     {
-        var appOptions = Microsoft.Extensions.Options.Options.Create(new AppOptions { FrontendBaseUrl = "https://tests.asklucy.io" });
-        _templateRenderer.Render(Arg.Any<AccountEmailContent>()).Returns(("<html-body>", "text-body"));
-        _handler = new RegisterCommandHandler(_identityService, _templateRenderer, _emailSender, appOptions);
+        _handler = new RegisterCommandHandler(_identityService, _publisher, _unitOfWork);
     }
 
     [Fact]
-    public async Task Handle_ShouldSendConfirmationEmail_WhenRegistrationSucceeds()
+    public async Task Handle_ShouldPublishTheConfirmationEmail_ToTheNewAddress_AndCommitIt()
     {
         _identityService.RegisterAsync("user@example.com", "Password1!", "Ada", "Lovelace", Arg.Any<CancellationToken>())
             .Returns(new IdentityOperationResult(IdentityResultStatus.Success, "user-1"));
-        _identityService.GenerateEmailConfirmationTokenAsync("user-1", Arg.Any<CancellationToken>())
-            .Returns("confirmation-token");
-
-        AccountEmailContent? capturedContent = null;
-        _templateRenderer.When(x => x.Render(Arg.Any<AccountEmailContent>()))
-            .Do(call => capturedContent = call.Arg<AccountEmailContent>());
 
         var result = await _handler.Handle(
             new RegisterCommand("user@example.com", "Password1!", "Ada", "Lovelace"), CancellationToken.None);
 
         result.Outcome.Should().Be(AuthOutcome.Success);
-        capturedContent.Should().NotBeNull();
-        capturedContent!.PrimaryAction.Should().NotBeNull();
-        capturedContent.PrimaryAction!.Url.Should().Contain("confirmation-token");
-        capturedContent.PrimaryAction!.Url.Should().Contain("user-1");
-        await _emailSender.Received(1).SendAsync(
-            "user@example.com",
-            Arg.Any<string>(),
-            "<html-body>",
-            "text-body",
-            Arg.Any<CancellationToken>());
+        result.UserId.Should().Be("user-1");
+        Received.InOrder(() =>
+        {
+            _publisher.Publish(Arg.Is<NotificationRequest>(r => r != null &&
+                r.Type == NotificationTypeKeys.AccountEmailConfirmationRequested
+                && r.Recipient == new NotificationRecipient.AddressForUser("user-1", "user@example.com")
+                && r.Variables.Count == 0));
+            _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]
-    public async Task Handle_ShouldReturnFailed_AndNeverEmail_WhenIdentityCreationFails()
+    public async Task Handle_ShouldNotAskForAConfirmationToken_BecauseTheLinkIsMintedWhenTheEmailIsSent()
+    {
+        _identityService.RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(new IdentityOperationResult(IdentityResultStatus.Success, "user-1"));
+
+        await _handler.Handle(new RegisterCommand("user@example.com", "Password1!", null, null), CancellationToken.None);
+
+        await _identityService.DidNotReceiveWithAnyArgs().GenerateEmailConfirmationTokenAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnFailed_AndPublishNothing_WhenIdentityCreationFails()
     {
         _identityService.RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new IdentityOperationResult(IdentityResultStatus.Failed, Errors: ["Email already taken"]));
@@ -61,6 +70,7 @@ public sealed class RegisterCommandHandlerTests
 
         result.Outcome.Should().Be(AuthOutcome.Failed);
         result.Errors.Should().Contain("Email already taken");
-        await _emailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default!, TestContext.Current.CancellationToken);
+        _publisher.DidNotReceive().Publish(Arg.Any<NotificationRequest>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

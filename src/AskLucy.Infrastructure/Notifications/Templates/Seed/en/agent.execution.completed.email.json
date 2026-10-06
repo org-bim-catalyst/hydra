@@ -1,0 +1,12 @@
+{
+  "name": "Agent run completed",
+  "subject": "{{ agentName }} finished",
+  "preheader": "{{ agentName }} finished.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your agent run finished",
+  "bodyParagraphs": [
+    "{{ agentName }} finished in {{ duration }}."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Agent updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

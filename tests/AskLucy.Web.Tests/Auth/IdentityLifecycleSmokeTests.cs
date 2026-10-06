@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -11,7 +10,6 @@ using AskLucy.Application.Users;
 using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
 using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -21,31 +19,13 @@ using Xunit;
 
 namespace AskLucy.Web.Tests.Auth;
 
-/// <summary>Captures outgoing mail so a test can follow the confirmation link registration sends.</summary>
-public sealed class CapturingEmailWebApplicationFactory : CustomWebApplicationFactory
-{
-    public ConcurrentQueue<(string To, string TextBody)> SentEmails { get; } = new();
-
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        base.ConfigureWebHost(builder);
-
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<IEmailSender>();
-            services.AddSingleton<IEmailSender>(new CapturingEmailSender(SentEmails));
-        });
-    }
-
-    private sealed class CapturingEmailSender(ConcurrentQueue<(string To, string TextBody)> sent) : IEmailSender
-    {
-        public Task SendAsync(string toEmail, string subject, string htmlBody, string textBody, CancellationToken cancellationToken = default)
-        {
-            sent.Enqueue((toEmail, textBody));
-            return Task.CompletedTask;
-        }
-    }
-}
+/// <summary>
+/// Lets a test follow the confirmation link registration sends. Every host in the test process sends through the
+/// one shared fake SMTP server (<see cref="Notifications.ScriptableEmailSender"/>): each host runs a notification
+/// delivery worker against the one shared database, so any host may be the one that sends a given email, and a
+/// per-host capture would miss it.
+/// </summary>
+public sealed class CapturingEmailWebApplicationFactory : CustomWebApplicationFactory;
 
 /// <summary>
 /// specs/074 — guards the RepairIdentityClaimsTables migration end to end: the Identity tables it
@@ -62,6 +42,26 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
 
     private readonly string _email = $"smoke-{Guid.NewGuid():N}@tests.asklucy.io";
     private readonly string _superUserId = $"smoke-super-{Guid.NewGuid():N}";
+
+    /// <summary>
+    /// Since specs/067 US9-B the confirmation email goes through the notification hub, so it is handed to the mail
+    /// sender by a background worker moments after the request returns rather than before it.
+    /// </summary>
+    private static async Task<string> WaitForEmailToAsync(string address, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (Notifications.ScriptableEmailSender.Shared.AcceptedMessages.FirstOrDefault(m => m.To == address) is { TextBody: { } body })
+            {
+                return body;
+            }
+
+            await Task.Delay(100, ct);
+        }
+
+        throw new TimeoutException($"No email reached {address} within a minute.");
+    }
 
     [Fact]
     public async Task Register_SignIn_Roles_Permissions_Claims_AndDelete_AllWorkOnTheRepairedSchema()
@@ -88,7 +88,7 @@ public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplica
                 early.StatusCode.Should().Be(HttpStatusCode.Forbidden, "an unconfirmed email cannot sign in");
             }
 
-            var link = ConfirmationLink().Match(factory.SentEmails.Single(m => m.To == _email).TextBody);
+            var link = ConfirmationLink().Match(await WaitForEmailToAsync(_email, ct));
             link.Success.Should().BeTrue("registration emails a confirmation link");
             userId = Uri.UnescapeDataString(link.Groups["userId"].Value);
 

@@ -1,0 +1,12 @@
+{
+  "name": "Document version created",
+  "subject": "A new version of {{ documentName }} was saved",
+  "preheader": "A new version was saved.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "A new version was saved",
+  "bodyParagraphs": [
+    "{{ documentName }} has a new version: {{ versionNumber }}."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}

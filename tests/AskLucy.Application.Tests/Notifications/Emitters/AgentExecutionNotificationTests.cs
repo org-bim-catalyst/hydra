@@ -96,12 +96,12 @@ public sealed class AgentExecutionNotificationTests
 
         await CreateOrchestrator().RunAsync(execution.Id, TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.AgentExecutionStarted &&
             ((NotificationRecipient.User)r.Recipient).UserId == OwnerId &&
             r.RelatedItem == new RelatedItem("AgentExecution", execution.Id.ToString(), agent.Id.ToString()) &&
             r.EventKey == $"agent-execution:{execution.Id}:started"));
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.AgentExecutionCompleted &&
             r.EventKey == $"agent-execution:{execution.Id}:completed"));
     }
@@ -118,7 +118,7 @@ public sealed class AgentExecutionNotificationTests
 
         await CreateOrchestrator().RunAsync(execution.Id, TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.AgentExecutionFailed &&
             ((NotificationRecipient.User)r.Recipient).UserId == OwnerId &&
             r.RelatedItem == new RelatedItem("AgentExecution", execution.Id.ToString(), agent.Id.ToString()) &&

@@ -15,6 +15,7 @@ using AskLucy.Infrastructure.Email;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Notifications;
+using AskLucy.Infrastructure.Notifications.Jobs;
 using AskLucy.Infrastructure.Notifications.Workers;
 using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
@@ -235,6 +236,9 @@ builder.Services.AddHostedService<PermissionCatalogReconciler>();
 
 // specs/067: drains the notification outbox (research R4).
 builder.Services.AddHostedService<NotificationOutboxDispatcher>();
+
+// specs/067 US3: sends the queued email deliveries (research R4, R5).
+builder.Services.AddHostedService<NotificationDeliveryWorker>();
 
 // --- Session revocation enforced on the access token, not just the refresh cookie ---
 // Same shape as the role-claims gap directly above, and for the same reason: a JWT keeps working
@@ -799,6 +803,12 @@ RegisterRecurringJob(() => RecurringJob.AddOrUpdate<MemoryCleanupJob>(
 // retention. Retention housekeeping, not security: the tokens are already inert. Idempotent.
 RegisterRecurringJob(() => RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob>(
     "password-reset-token-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily));
+
+// specs/067 US3 (research R5) — every minute, a delivery still "Sending" past its lease is failed as
+// AmbiguousOutcome (never resent automatically), and an outbox event stuck "Processing" returns to
+// pending. Idempotent — safe to call on every startup.
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<NotificationLeaseSweepJob>(
+    "notification-lease-sweep", job => job.RunAsync(CancellationToken.None), Cron.Minutely));
 
 // spec 021-mcp-integration User Story 6 (research.md Decision 10) — a 5-minute cadence matching
 // McpRuntimeOptions.HealthCheckIntervalMinutes's own default; each run only actually

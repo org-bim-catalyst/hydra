@@ -73,6 +73,18 @@ public sealed class NotificationOutboxStore(AskLucyDbContext dbContext, TimeProv
                 .SetProperty(e => e.NextAttemptAtUtc, now), cancellationToken);
     }
 
+    public Task<NotificationOutboxEvent?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        dbContext.NotificationOutboxEvents.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+    public Task<int> SweepExpiredLeasesAsync(DateTime now, CancellationToken cancellationToken) =>
+        dbContext.NotificationOutboxEvents
+            .Where(e => e.Status == OutboxEventStatus.Processing && e.LeaseExpiresAtUtc <= now)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.Status, OutboxEventStatus.Pending)
+                .SetProperty(e => e.LeaseOwner, (string?)null)
+                .SetProperty(e => e.LeaseExpiresAtUtc, (DateTime?)null)
+                .SetProperty(e => e.NextAttemptAtUtc, now), cancellationToken);
+
     private static IQueryable<NotificationOutboxEvent> Claimable(IQueryable<NotificationOutboxEvent> source, DateTime now) =>
         source.Where(e =>
             (e.Status == OutboxEventStatus.Pending && e.NextAttemptAtUtc <= now)

@@ -19,7 +19,7 @@ public sealed class InAppTemplateRenderTests
     private readonly INotificationTemplateRepository _templates = Substitute.For<INotificationTemplateRepository>();
 
     private LogicFreeTemplateRenderer CreateSut(FakeLogger<LogicFreeTemplateRenderer>? logger = null) =>
-        new(_templates, logger ?? new FakeLogger<LogicFreeTemplateRenderer>());
+        new(_templates, Substitute.For<AskLucy.Application.Abstractions.IEmailTemplateRenderer>(), logger ?? new FakeLogger<LogicFreeTemplateRenderer>());
 
     private static NotificationTemplateVersion PublishedVersion(NotificationTemplateContent content, NotificationChannel channel = NotificationChannel.InApp)
     {

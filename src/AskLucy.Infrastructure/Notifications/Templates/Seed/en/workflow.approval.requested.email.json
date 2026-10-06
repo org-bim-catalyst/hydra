@@ -1,0 +1,13 @@
+{
+  "name": "Workflow approval requested",
+  "subject": "{{ workflowName }} needs your approval",
+  "preheader": "{{ workflowName }} is waiting for your approval.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your approval is needed",
+  "bodyParagraphs": [
+    "{{ workflowName }} is waiting for your approval at {{ nodeName }}: {{ intendedAction }}",
+    "Open the app to review the request. Approving or rejecting is only possible there, after you sign in."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Workflow updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Review request"
+}

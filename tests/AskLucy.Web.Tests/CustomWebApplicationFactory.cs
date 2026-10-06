@@ -1,6 +1,10 @@
+using AskLucy.Application.Abstractions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AskLucy.Web.Tests;
 
@@ -41,7 +45,28 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 // The content root is src/AskLucy.Web, the same as a local dev server's; without
                 // this the startup sweep (specs/072) would delete that server's in-flight folders.
                 ["CustomModels:TempDirectory"] = Path.Combine(Path.GetTempPath(), "asklucy-web-tests", "custom-models"),
+
+                // specs/067: every host runs a notification delivery worker against the one shared database,
+                // so any host may send a delivery a test queued. Retries are due at once, and the send limiter
+                // is out of the way, so a scripted outage doesn't leave a delivery waiting minutes.
+                ["Notifications:Retry:DelaysMinutes:0"] = "0",
+                ["Notifications:Retry:CriticalDelaysSeconds:0"] = "0",
+                ["Notifications:Email:MaxPerMinute"] = "1000000",
+
+                // Every host's log lines are kept in CapturedLogSink for tests that assert what was never logged.
+                ["Serilog:Using:0"] = "AskLucy.Web.Tests",
+                ["Serilog:WriteTo:0:Name"] = "CapturedLogs",
             });
+        });
+
+        // Every host sends through the one process-wide fake SMTP server (see ScriptableEmailSender), never
+        // the real SMTP sender against test-smtp.invalid. Registered with ConfigureTestServices, which runs
+        // after the app's own registrations (a plain ConfigureServices runs before them, and the app's would
+        // win). A derived factory that captures mail replaces it the same way, after this.
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(Notifications.ScriptableEmailSender.Shared);
         });
     }
 }

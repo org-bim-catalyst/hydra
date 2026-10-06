@@ -1,0 +1,12 @@
+{
+  "name": "Document uploaded",
+  "subject": "{{ documentName }} was uploaded",
+  "preheader": "{{ documentName }} was uploaded.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your document was uploaded",
+  "bodyParagraphs": [
+    "{{ documentName }} was uploaded."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}

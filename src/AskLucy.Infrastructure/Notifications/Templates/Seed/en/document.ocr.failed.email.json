@@ -1,0 +1,12 @@
+{
+  "name": "Document text recognition failed",
+  "subject": "Text recognition failed for {{ documentName }}",
+  "preheader": "Text recognition failed.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Text recognition failed",
+  "bodyParagraphs": [
+    "Text recognition failed for {{ documentName }}: {{ failureSummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}

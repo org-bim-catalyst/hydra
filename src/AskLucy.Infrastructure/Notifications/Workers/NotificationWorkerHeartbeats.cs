@@ -7,11 +7,17 @@ namespace AskLucy.Infrastructure.Notifications.Workers;
 public sealed class NotificationWorkerHeartbeats
 {
     private long _dispatcherTicks;
+    private long _deliveryWorkerTicks;
 
     /// <summary>Null until the dispatcher's first iteration.</summary>
     public DateTimeOffset? Dispatcher => Read(ref _dispatcherTicks);
 
+    /// <summary>Null until the delivery worker's first iteration.</summary>
+    public DateTimeOffset? DeliveryWorker => Read(ref _deliveryWorkerTicks);
+
     public void RecordDispatcher(DateTimeOffset at) => Interlocked.Exchange(ref _dispatcherTicks, at.UtcTicks);
+
+    public void RecordDeliveryWorker(DateTimeOffset at) => Interlocked.Exchange(ref _deliveryWorkerTicks, at.UtcTicks);
 
     private static DateTimeOffset? Read(ref long ticks)
     {

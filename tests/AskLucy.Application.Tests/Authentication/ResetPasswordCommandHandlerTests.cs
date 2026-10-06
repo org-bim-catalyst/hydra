@@ -1,10 +1,10 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Authentication.Commands.ResetPassword;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Authentication;
+using AskLucy.Domain.Notifications;
 using FluentAssertions;
-using Hangfire;
-using Hangfire.Common;
-using Hangfire.States;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
@@ -29,7 +29,7 @@ public sealed class ResetPasswordCommandHandlerTests
     private readonly IRefreshTokenRepository _refreshTokens = Substitute.For<IRefreshTokenRepository>();
     private readonly IIdentityService _identityService = Substitute.For<IIdentityService>();
     private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
-    private readonly IBackgroundJobClient _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
+    private readonly INotificationPublisher _publisher = Substitute.For<INotificationPublisher>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ISessionRevocationCache _sessionRevocationCache = Substitute.For<ISessionRevocationCache>();
     private readonly ResetPasswordCommandHandler _handler;
@@ -46,7 +46,7 @@ public sealed class ResetPasswordCommandHandlerTests
             .Returns(new IdentityOperationResult(IdentityResultStatus.Success));
 
         _handler = new ResetPasswordCommandHandler(
-            _tokens, _refreshTokens, _identityService, _tokenService, _sessionRevocationCache, _backgroundJobClient, _unitOfWork,
+            _tokens, _refreshTokens, _identityService, _tokenService, _sessionRevocationCache, _publisher, _unitOfWork,
             NullLogger<ResetPasswordCommandHandler>.Instance);
     }
 
@@ -63,7 +63,7 @@ public sealed class ResetPasswordCommandHandlerTests
     {
         _identityService.DidNotReceive().ResetPasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-        _backgroundJobClient.DidNotReceive().Create(Arg.Any<Job>(), Arg.Any<IState>());
+        _publisher.DidNotReceive().Publish(Arg.Any<NotificationRequest>());
     }
 
     [Fact]
@@ -109,15 +109,22 @@ public sealed class ResetPasswordCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldEnqueueTheNotificationEmail()
+    public async Task Handle_ShouldPublishThePasswordChangedNotification_ToTheAccount_InTheSameUnitOfWorkAsItsOwnSave()
     {
         GivenStoredToken(PendingToken());
 
         await Handle();
 
-        _backgroundJobClient.Received(1).Create(
-            Arg.Is<Job>(j => j != null && j.Method.Name == nameof(IPasswordEmailJob.SendPasswordChangedNoticeAsync)),
-            Arg.Any<IState>());
+        // specs/067 US9-B: published before the handler's own save, so the event commits with the change it reports.
+        Received.InOrder(() =>
+        {
+            _publisher.Publish(Arg.Is<NotificationRequest>(r => r != null &&
+                r.Type == NotificationTypeKeys.SecurityPasswordChanged
+                && r.Recipient == new NotificationRecipient.User(UserId)
+                && r.Variables["changedAt"]!.EndsWith(" UTC", StringComparison.Ordinal)));
+            _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
+        });
+        _publisher.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(INotificationPublisher.Publish)).Should().Be(1);
     }
 
     [Fact]
@@ -193,7 +200,7 @@ public sealed class ResetPasswordCommandHandlerTests
         result.Outcome.Should().Be(PasswordResetOutcome.PasswordPolicyViolation);
         result.Errors.Should().HaveCount(2);
         token.ConsumedAtUtc.Should().BeNull();
-        _backgroundJobClient.DidNotReceive().Create(Arg.Any<Job>(), Arg.Any<IState>());
+        _publisher.DidNotReceive().Publish(Arg.Any<NotificationRequest>());
     }
 
     [Fact]

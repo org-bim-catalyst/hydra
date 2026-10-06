@@ -1,0 +1,12 @@
+{
+  "name": "Agent run failed",
+  "subject": "{{ agentName }} failed",
+  "preheader": "{{ agentName }} couldn't finish.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your agent run failed",
+  "bodyParagraphs": [
+    "{{ agentName }} couldn't finish: {{ failureSummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Agent updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

@@ -1,108 +1,44 @@
-using System.Net;
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Options;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using Hangfire;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace AskLucy.Infrastructure.Email;
 
 /// <summary>
-/// Sends the two emails a signed-out visitor can trigger from the sign-in page. Bodies are built
-/// in-memory per send, following <see cref="PasswordEmailJob"/>.
+/// A one-release forwarding shim (specs/067 US9-B, T133). The two emails a signed-out visitor can trigger from
+/// the sign-in page used to be built and sent here from a Hangfire worker. The hub now does both. This class
+/// stays only so a job enqueued with the old signature before the deploy still runs: each method hands the
+/// equivalent request to the hub and saves.
 /// </summary>
+[Obsolete("Removed in the release after 067; forwards to the notification hub.")]
 [AutomaticRetry(Attempts = 3)]
-public sealed partial class AccountEmailJob(
-    IEmailTemplateRenderer templateRenderer,
-    IEmailSender emailSender,
-    IIdentityService identityService,
-    IOptions<AppOptions> appOptions,
-    IOptions<SmtpOptions> smtpOptions,
-    ILogger<AccountEmailJob> logger) : IAccountEmailJob
+public sealed class AccountEmailJob(
+    INotificationPublisher publisher,
+    IUnitOfWork unitOfWork) : IAccountEmailJob
 {
     public async Task ResendConfirmationAsync(string email, CancellationToken cancellationToken = default)
     {
-        var userId = await identityService.FindIdByEmailAsync(email, cancellationToken);
-        if (userId is null)
-        {
-            // Not an error: the endpoint answers 202 for every address precisely so that an
-            // address without an account is indistinguishable from one with. Logged at
-            // Information so the absence of a delivery is still explainable from the log.
-            LogResendSkipped(logger, "no account for the address");
-            return;
-        }
-
-        var eligibility = await identityService.GetPasswordResetEligibilityAsync(userId, cancellationToken);
-        if (eligibility is null || eligibility.EmailConfirmed)
-        {
-            LogResendSkipped(logger, "account already confirmed or no longer exists");
-            return;
-        }
-
-        var token = await identityService.GenerateEmailConfirmationTokenAsync(userId, cancellationToken);
-        var confirmationLink =
-            $"{appOptions.Value.FrontendBaseUrl}/confirm-email?userId={Uri.EscapeDataString(userId)}&token={Uri.EscapeDataString(token)}";
-
-        const string subject = "Confirm your Ask Lucy account";
-        var content = new AccountEmailContent(
-            Subject: subject,
-            PreheaderText: "Here is a fresh link to confirm your Ask Lucy account.",
-            Heading: "Confirm your account",
-            BodyParagraphs:
-            [
-                $"Hi {WebUtility.HtmlEncode(email)},",
-                "Here is a fresh link to confirm your Ask Lucy account."
-            ],
-            SafetyNote: "If you did not ask for this, you can ignore this email.",
-            PrimaryAction: new EmailAction("Confirm my email", confirmationLink));
-
-        var (htmlBody, textBody) = templateRenderer.Render(content);
-        await emailSender.SendAsync(email, subject, htmlBody, textBody, cancellationToken);
-
-        LogConfirmationResent(logger, userId);
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.AccountEmailConfirmationRequested,
+            new NotificationRecipient.AddressLookup(email.Trim()),
+            new Dictionary<string, string?>()));
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     public async Task SendAccountSupportRequestAsync(
         string fromEmail, string message, string? requestedFromIp, CancellationToken cancellationToken = default)
     {
-        var supportMailbox = smtpOptions.Value.FromSupport;
-
-        // The sender's address goes in the body rather than the envelope: relaying an arbitrary
-        // anonymous address as the From would fail SPF/DMARC at the receiving end and make the
-        // endpoint usable for spoofing.
-        var body =
-            $"""
-             <p>A signed-out user asked for help getting back into their account.</p>
-             <p><strong>Account:</strong> {WebUtility.HtmlEncode(fromEmail)}<br />
-             <strong>Received:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC<br />
-             <strong>Origin IP:</strong> {WebUtility.HtmlEncode(requestedFromIp ?? "unknown")}</p>
-             <p><strong>Message:</strong></p>
-             <blockquote>{WebUtility.HtmlEncode(message).ReplaceLineEndings("<br />")}</blockquote>
-             """;
-
-        // Internal staff-facing relay — out of scope for the branded template (spec.md
-        // Assumptions); a plain-text mirror of the same fields is sufficient here.
-        var textBody =
-            $"""
-             A signed-out user asked for help getting back into their account.
-             Account: {fromEmail}
-             Received: {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC
-             Origin IP: {requestedFromIp ?? "unknown"}
-             Message:
-             {message}
-             """;
-
-        await emailSender.SendAsync(supportMailbox, "Account access request", body, textBody, cancellationToken);
-
-        LogSupportRequestSent(logger);
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.AccountSupportRequestSubmitted,
+            new NotificationRecipient.SupportMailbox(),
+            new Dictionary<string, string?>
+            {
+                ["requesterEmail"] = fromEmail,
+                ["requestKind"] = "access",
+                ["messageBody"] = message,
+            }));
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
-
-    [LoggerMessage(EventId = 5831, Level = LogLevel.Information, Message = "Account confirmation link re-sent. UserId={UserId}")]
-    private static partial void LogConfirmationResent(ILogger logger, string userId);
-
-    [LoggerMessage(EventId = 5832, Level = LogLevel.Information, Message = "Confirmation resend produced no email: {Reason}")]
-    private static partial void LogResendSkipped(ILogger logger, string reason);
-
-    [LoggerMessage(EventId = 5833, Level = LogLevel.Information, Message = "Account support request relayed to the support mailbox.")]
-    private static partial void LogSupportRequestSent(ILogger logger);
 }

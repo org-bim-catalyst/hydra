@@ -1,0 +1,11 @@
+{
+  "name": "Confirm your new email",
+  "subject": "Confirm your new Ask Lucy email",
+  "preheader": "Confirm this address to finish changing your Ask Lucy account email.",
+  "heading": "Confirm your new email address",
+  "bodyParagraphs": [
+    "You requested to change your Ask Lucy account email to this address."
+  ],
+  "safetyNote": "If you didn't request this, you can safely ignore this message.",
+  "actionLabel": "Confirm email change"
+}

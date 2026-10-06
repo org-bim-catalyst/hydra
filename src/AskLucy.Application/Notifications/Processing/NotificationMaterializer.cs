@@ -1,4 +1,3 @@
-using System.Globalization;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Notifications;
@@ -70,7 +69,7 @@ public sealed class NotificationMaterializer(
             try
             {
                 rendered = await renderer.RenderInAppAsync(
-                    definition, language, WithStandardVariables(variables, target, route, outboxEvent), cancellationToken);
+                    definition, language, NotificationStandardVariables.Build(variables, target.DisplayName, route, outboxEvent.OccurredAtUtc), cancellationToken);
             }
             catch (NotificationRenderException ex)
             {
@@ -177,21 +176,4 @@ public sealed class NotificationMaterializer(
         outboxEvent is { RelatedItemType: { } type, RelatedItemId: { } id }
             ? new RelatedItem(type, id, outboxEvent.RelatedItemParentId)
             : null;
-
-    /// <summary>The emitter's variables plus the standard ones the hub fills (data-model.md "Standard variables").</summary>
-    private static Dictionary<string, string?> WithStandardVariables(
-        IReadOnlyDictionary<string, string?> variables,
-        MaterializationTarget target,
-        string? route,
-        NotificationOutboxEvent outboxEvent)
-    {
-        var all = new Dictionary<string, string?>(variables, StringComparer.Ordinal)
-        {
-            ["recipientDisplayName"] = target.DisplayName,
-            ["appName"] = null,
-            ["actionUrl"] = route,
-            ["occurredAt"] = outboxEvent.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture),
-        };
-        return all;
-    }
 }

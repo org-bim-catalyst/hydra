@@ -148,4 +148,161 @@ public sealed class NotificationRepository(AskLucyDbContext dbContext) : INotifi
             .IgnoreQueryFilters()
             .Where(n => n.RecipientUserId == userId)
             .ExecuteDeleteAsync(cancellationToken);
+
+    // --- delivery queue (specs/067 research R4, R5) ---
+    // NotificationDelivery has no DbSet (constitution §5), so the queue is reached through Set<>.
+
+    private DbSet<NotificationDelivery> Deliveries() => dbContext.Set<NotificationDelivery>();
+
+    private static readonly NotificationPriority[] PriorityHighToLow =
+        [NotificationPriority.Critical, NotificationPriority.High, NotificationPriority.Normal, NotificationPriority.Low];
+
+    // Priority is stored as a string, so its alphabetical order is meaningless; the queue is read one
+    // priority at a time instead, highest first, each ordered by due time. A password reset (Critical) is
+    // therefore never behind a backlog of announcements (SC-014), however deep that backlog is.
+    public async Task<IReadOnlyList<Guid>> ClaimDueDeliveriesAsync(
+        string workerId,
+        IReadOnlyCollection<NotificationChannel> channels,
+        DateTime leaseExpiresAtUtc,
+        int batchSize,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
+        var channelList = channels.ToList();
+        var claimed = new List<Guid>();
+        if (channelList.Count == 0 || batchSize < 1)
+        {
+            return claimed;
+        }
+
+        foreach (var priority in PriorityHighToLow)
+        {
+            var remaining = batchSize - claimed.Count;
+            if (remaining <= 0)
+            {
+                break;
+            }
+
+            var candidates = await Due(Deliveries().AsNoTracking(), channelList, now)
+                .Where(d => d.Priority == priority)
+                .OrderBy(d => d.NextAttemptAtUtc)
+                .Select(d => d.Id)
+                .Take(remaining)
+                .ToListAsync(cancellationToken);
+
+            foreach (var id in candidates)
+            {
+                // Re-checks the due predicate, so a row another worker took since the read is left alone.
+                var affected = await Due(Deliveries().Where(d => d.Id == id), channelList, now)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(d => d.Status, DeliveryStatus.Sending)
+                        .SetProperty(d => d.AttemptCount, d => d.AttemptCount + 1)
+                        .SetProperty(d => d.LastAttemptAtUtc, now)
+                        .SetProperty(d => d.LeaseOwner, workerId)
+                        .SetProperty(d => d.LeaseExpiresAtUtc, leaseExpiresAtUtc), cancellationToken);
+
+                if (affected == 1)
+                {
+                    claimed.Add(id);
+                }
+            }
+        }
+
+        return claimed;
+    }
+
+    public Task<Notification?> GetClaimedDeliveryAsync(Guid deliveryId, string workerId, CancellationToken cancellationToken) =>
+        dbContext.Notifications
+            .IgnoreQueryFilters()
+            .Include(n => n.Deliveries)
+            .Where(n => n.Deliveries.Any(d =>
+                d.Id == deliveryId && d.Status == DeliveryStatus.Sending && d.LeaseOwner == workerId))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<int> ReleaseClaimsAsync(string workerId, IReadOnlyCollection<Guid> deliveryIds, DateTime now, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
+        if (deliveryIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var ids = deliveryIds.ToList();
+
+        // Not a failed attempt, so the attempt the claim counted is returned. A delivery that had already
+        // failed once goes back to retrying, and a first attempt back to pending.
+        var affected = await Deliveries()
+            .Where(d => ids.Contains(d.Id) && d.Status == DeliveryStatus.Sending && d.LeaseOwner == workerId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.Status, d => d.AttemptCount > 1 ? DeliveryStatus.Retrying : DeliveryStatus.Pending)
+                .SetProperty(d => d.AttemptCount, d => d.AttemptCount > 0 ? d.AttemptCount - 1 : 0)
+                .SetProperty(d => d.NextAttemptAtUtc, now)
+                .SetProperty(d => d.LeaseOwner, (string?)null)
+                .SetProperty(d => d.LeaseExpiresAtUtc, (DateTime?)null), cancellationToken);
+
+        await RefreshQueuedStatusAsync(ids, cancellationToken);
+        return affected;
+    }
+
+    public async Task<int> SweepExpiredLeasesAsync(DateTime now, CancellationToken cancellationToken)
+    {
+        var expired = Deliveries().Where(d => d.Status == DeliveryStatus.Sending && d.LeaseExpiresAtUtc <= now);
+        var notificationIds = await expired.Select(d => d.NotificationId).Distinct().ToListAsync(cancellationToken);
+        if (notificationIds.Count == 0)
+        {
+            return 0;
+        }
+
+        // A send that crashed mid-flight may or may not have reached the recipient, so it is recorded as
+        // ambiguous and left for an administrator: resending it automatically could duplicate it (R5).
+        var swept = await expired.ExecuteUpdateAsync(s => s
+            .SetProperty(d => d.Status, DeliveryStatus.Failed)
+            .SetProperty(d => d.FailureKind, DeliveryFailureKind.AmbiguousOutcome)
+            .SetProperty(d => d.FailureReason, "The worker stopped while sending, so it is unknown whether the message was delivered.")
+            .SetProperty(d => d.NextAttemptAtUtc, (DateTime?)null)
+            .SetProperty(d => d.LeaseOwner, (string?)null)
+            .SetProperty(d => d.LeaseExpiresAtUtc, (DateTime?)null), cancellationToken);
+
+        // Only a notification that had nothing delivered, sent or still waiting becomes Failed; one the
+        // user already has in the center stays Delivered (Notification.RecomputeStatus precedence). A claim
+        // doesn't touch the parent, so the notification still reads Queued, not Processing.
+        await dbContext.Notifications
+            .IgnoreQueryFilters()
+            .Where(n => notificationIds.Contains(n.Id)
+                && (n.Status == NotificationStatus.Processing || n.Status == NotificationStatus.Queued)
+                && !n.Deliveries.Any(d => d.Status == DeliveryStatus.Sending
+                    || d.Status == DeliveryStatus.Pending
+                    || d.Status == DeliveryStatus.Retrying
+                    || d.Status == DeliveryStatus.Sent
+                    || d.Status == DeliveryStatus.Delivered))
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.Status, NotificationStatus.Failed), cancellationToken);
+
+        return swept;
+    }
+
+    public async Task<DeliveryBacklog> GetDueBacklogAsync(DateTime now, CancellationToken cancellationToken)
+    {
+        var due = Deliveries().AsNoTracking()
+            .Where(d => (d.Status == DeliveryStatus.Pending || d.Status == DeliveryStatus.Retrying) && d.NextAttemptAtUtc <= now);
+
+        var count = await due.CountAsync(cancellationToken);
+        var oldest = count == 0 ? null : await due.MinAsync(d => d.NextAttemptAtUtc, cancellationToken);
+        return new DeliveryBacklog(count, oldest);
+    }
+
+    private static IQueryable<NotificationDelivery> Due(IQueryable<NotificationDelivery> source, List<NotificationChannel> channels, DateTime now) =>
+        source.Where(d => (d.Status == DeliveryStatus.Pending || d.Status == DeliveryStatus.Retrying)
+            && d.NextAttemptAtUtc <= now
+            && channels.Contains(d.Channel));
+
+    /// <summary>A released delivery is waiting again, so its notification reads Queued rather than Processing.</summary>
+    private Task<int> RefreshQueuedStatusAsync(List<Guid> deliveryIds, CancellationToken cancellationToken) =>
+        dbContext.Notifications
+            .IgnoreQueryFilters()
+            .Where(n => n.Status == NotificationStatus.Processing
+                && n.Deliveries.Any(d => deliveryIds.Contains(d.Id))
+                && !n.Deliveries.Any(d => d.Status == DeliveryStatus.Sending)
+                && n.Deliveries.Any(d => d.Status == DeliveryStatus.Pending || d.Status == DeliveryStatus.Retrying))
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.Status, NotificationStatus.Queued), cancellationToken);
 }

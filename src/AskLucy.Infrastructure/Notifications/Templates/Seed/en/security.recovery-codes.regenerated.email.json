@@ -1,0 +1,12 @@
+{
+  "name": "Recovery codes regenerated",
+  "subject": "Your recovery codes were regenerated",
+  "preheader": "Your recovery codes were regenerated.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your recovery codes were regenerated",
+  "bodyParagraphs": [
+    "New two-factor recovery codes were generated for your Ask Lucy account on {{ changedAt }}. Your old codes no longer work."
+  ],
+  "safetyNote": "You can't turn security emails off. If this wasn't you, secure your account now.",
+  "actionLabel": "Review security"
+}

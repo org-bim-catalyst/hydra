@@ -1,0 +1,12 @@
+{
+  "name": "Storage limit reached",
+  "subject": "You've reached your storage limit",
+  "preheader": "You've reached your storage limit.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your storage is full",
+  "bodyParagraphs": [
+    "You're using {{ usedStorage }} of your {{ storageLimit }} storage. New uploads will be refused until you free some space."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Manage documents"
+}

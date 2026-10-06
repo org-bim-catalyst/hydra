@@ -1,0 +1,13 @@
+{
+  "name": "Agent approval requested",
+  "subject": "{{ agentName }} needs your approval",
+  "preheader": "{{ agentName }} is waiting for your approval.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your approval is needed",
+  "bodyParagraphs": [
+    "{{ agentName }} is waiting for your approval before it continues: {{ intendedAction }}",
+    "Open the app to review the request. Approving or rejecting is only possible there, after you sign in."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Agent updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Review request"
+}

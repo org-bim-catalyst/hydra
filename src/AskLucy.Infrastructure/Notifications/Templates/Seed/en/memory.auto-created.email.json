@@ -1,0 +1,12 @@
+{
+  "name": "Memory created",
+  "subject": "A new memory was saved",
+  "preheader": "A new memory was saved.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "A new memory was saved",
+  "bodyParagraphs": [
+    "Ask Lucy saved a new memory: {{ memorySummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Memory updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Review memory"
+}

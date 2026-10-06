@@ -1,0 +1,12 @@
+{
+  "name": "Knowledge base indexing failed",
+  "subject": "{{ knowledgeBaseName }} couldn't be indexed",
+  "preheader": "{{ knowledgeBaseName }} failed to index.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your knowledge base couldn't be indexed",
+  "bodyParagraphs": [
+    "{{ knowledgeBaseName }} failed to index: {{ failureSummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Knowledge base updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open knowledge base"
+}

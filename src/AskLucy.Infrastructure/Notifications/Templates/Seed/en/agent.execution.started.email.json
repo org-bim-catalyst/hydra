@@ -1,0 +1,12 @@
+{
+  "name": "Agent run started",
+  "subject": "{{ agentName }} started",
+  "preheader": "{{ agentName }} started running.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your agent run started",
+  "bodyParagraphs": [
+    "{{ agentName }} started running."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Agent updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

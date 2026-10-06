@@ -208,6 +208,20 @@ public sealed class NotificationDelivery : BaseEntity
         ClearLease();
     }
 
+    /// <summary>
+    /// The channel had no capacity (its send limiter was empty), so nothing was sent and nothing failed:
+    /// the claim goes back to the queue for <paramref name="nextAttemptAtUtc"/> and the attempt the claim
+    /// counted is returned.
+    /// </summary>
+    public void Defer(DateTime nextAttemptAtUtc, DateTime now)
+    {
+        RequireStatus(nameof(Defer), DeliveryStatus.Sending);
+        AttemptCount = Math.Max(0, AttemptCount - 1);
+        Status = AttemptCount > 0 ? DeliveryStatus.Retrying : DeliveryStatus.Pending;
+        NextAttemptAtUtc = nextAttemptAtUtc < now ? now : nextAttemptAtUtc;
+        ClearLease();
+    }
+
     public void Skip(DeliverySkipReason reason)
     {
         RequireStatus(nameof(Skip), DeliveryStatus.Pending);
@@ -266,10 +280,14 @@ public sealed class NotificationDelivery : BaseEntity
         ClearLease();
     }
 
-    /// <summary>The recipient was deleted or deactivated before sending.</summary>
+    /// <summary>
+    /// The recipient was deleted or deactivated before sending. Also valid for a claimed delivery
+    /// (<see cref="DeliveryStatus.Sending"/>): the worker re-validates the recipient after the claim and
+    /// before any send, so a cancel there still means nothing was sent.
+    /// </summary>
     public void Cancel(string safeReason)
     {
-        RequireStatus(nameof(Cancel), DeliveryStatus.Pending, DeliveryStatus.Retrying);
+        RequireStatus(nameof(Cancel), DeliveryStatus.Pending, DeliveryStatus.Retrying, DeliveryStatus.Sending);
         Status = DeliveryStatus.Cancelled;
         FailureKind = DeliveryFailureKind.RecipientUnavailable;
         FailureReason = Truncate(safeReason, FailureReasonMaxLength);
@@ -277,10 +295,13 @@ public sealed class NotificationDelivery : BaseEntity
         ClearLease();
     }
 
-    /// <summary>The request validity (R10) or the announcement end (R22) passed before a send.</summary>
+    /// <summary>
+    /// The request validity (R10) or the announcement end (R22) passed before a send. Also valid for a
+    /// claimed delivery, for the same reason as <see cref="Cancel"/>.
+    /// </summary>
     public void Expire()
     {
-        RequireStatus(nameof(Expire), DeliveryStatus.Pending, DeliveryStatus.Retrying);
+        RequireStatus(nameof(Expire), DeliveryStatus.Pending, DeliveryStatus.Retrying, DeliveryStatus.Sending);
         Status = DeliveryStatus.Expired;
         FailureKind = DeliveryFailureKind.RequestExpired;
         NextAttemptAtUtc = null;

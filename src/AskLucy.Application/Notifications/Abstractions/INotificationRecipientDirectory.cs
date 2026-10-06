@@ -18,4 +18,11 @@ public interface INotificationRecipientDirectory
     /// <summary>Every listed user that exists; unknown ids are omitted.</summary>
     Task<IReadOnlyDictionary<string, NotificationRecipientInfo>> GetAsync(
         IReadOnlyCollection<string> userIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The account whose address is <paramref name="email"/> (compared the way sign-in does), or null when none
+    /// has it. A deleted account is returned inactive, so the caller treats it as "no recipient" without being
+    /// able to tell the two apart from the outside (FR-009e).
+    /// </summary>
+    Task<NotificationRecipientInfo?> FindByEmailAsync(string email, CancellationToken cancellationToken);
 }

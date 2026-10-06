@@ -1,0 +1,12 @@
+{
+  "name": "Document text recognition completed",
+  "subject": "Text recognition finished for {{ documentName }}",
+  "preheader": "Text recognition finished.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Text recognition finished",
+  "bodyParagraphs": [
+    "Text recognition finished for {{ documentName }}."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}
