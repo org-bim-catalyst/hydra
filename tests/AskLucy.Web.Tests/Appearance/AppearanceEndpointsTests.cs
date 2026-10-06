@@ -26,7 +26,7 @@ public sealed class AppearanceEndpointsTests : IClassFixture<AppearanceApiFactor
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
     }
 
-    private HttpRequestMessage Request(HttpMethod method, string? token, object? body = null)
+    private static HttpRequestMessage Request(HttpMethod method, string? token, object? body = null)
     {
         var request = new HttpRequestMessage(method, Url);
         if (token is not null)
@@ -119,7 +119,7 @@ public sealed class AppearanceEndpointsTests : IClassFixture<AppearanceApiFactor
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         _factory.Settings.Received(1).Add(Arg.Is<PresenceSphereSettings>(s =>
-            s.DotSizeMultiplier == 0.8m && s.CardFillPercent == 70 && s.ZoomEnabled && s.ModifiedBy == "manager-1"));
+            s!.DotSizeMultiplier == 0.8m && s.CardFillPercent == 70 && s.ZoomEnabled && s.ModifiedBy == "manager-1"));
         var dto = await response.Content.ReadFromJsonAsync<PresenceSphereSettingsDto>(TestContext.Current.CancellationToken);
         dto!.IsDefault.Should().BeFalse();
         dto.CardFillPercent.Should().Be(70);

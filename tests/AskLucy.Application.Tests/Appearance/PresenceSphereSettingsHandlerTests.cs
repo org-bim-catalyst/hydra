@@ -77,7 +77,7 @@ public sealed class PresenceSphereSettingsHandlerTests
 
         var dto = await UpdateHandler().Handle(new UpdatePresenceSphereSettingsCommand(0.8m, 70, true), CancellationToken.None);
 
-        _settings.Received(1).Add(Arg.Is<PresenceSphereSettings>(s => s.DotSizeMultiplier == 0.8m && s.CreatedBy == "admin-1"));
+        _settings.Received(1).Add(Arg.Is<PresenceSphereSettings>(s => s!.DotSizeMultiplier == 0.8m && s.CreatedBy == "admin-1"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         dto.IsDefault.Should().BeFalse();
         dto.CardFillPercent.Should().Be(70);

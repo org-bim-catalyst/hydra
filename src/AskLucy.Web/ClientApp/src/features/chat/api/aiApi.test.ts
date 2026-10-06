@@ -231,7 +231,7 @@ describe('streamChat', () => {
 
     expect(events).toHaveLength(2)
     // A payload from before specs/077 carries no separate buildings, and reads as having none.
-    expect(events[1]).toEqual({ type: 'siteBoundary', ...boundaryPayload, additionalPolygons: [] })
+    expect(events[1]).toEqual({ type: 'siteBoundary', ...boundaryPayload, additionalPolygons: [], voids: [] })
   })
 
   // specs/052-solar-analysis research D3: __SOLAR_ANALYSIS__ trailing SSE event
